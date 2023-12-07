@@ -1,8 +1,11 @@
 {% spaceless %}
 
 {% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
 {% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
 {% set NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::NO_HEADER') %}
+{% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
 
 {% set can_edit_parent_record = false %}
 {% if datatype_permissions[ parent_datarecord.dataType.id ] is defined
@@ -34,8 +37,10 @@
 {% endif %}
 
 {# The TABBED_HEADER and DROPDOWN_HEADER display_types have already been handled in Default::fieldarea_header.html.twig #}
-{% if is_top_level == 0 and (display_type == ACCORDION_HEADER or display_type == LIST_HEADER or display_type == NO_HEADER) %}
-<h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+{% if is_top_level == 0 and not (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
+<h3 class="{% if display_type == LIST_HEADER or display_type == TABLE_CONTENT %}ODRListHeader {% endif %}ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top"
+    role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+
     <span class="ui-icon ui-icon-triangle-1-s"></span>
 
     {% if datarecord_is_fake %}
@@ -45,17 +50,24 @@
     ></i>
     {% endif %}
 
+    <a class="ODRRecordName">
     {% if datarecord.nameField_value != datarecord.id %}
-    <a>{{ datarecord.nameField_value }}</a>
+        {{ datarecord.nameField_value }}
     {% else %}
-    <a>{{ datatype.dataTypeMeta.shortName }}</a>
+        {{ datatype.dataTypeMeta.shortName }}
     {% endif %}
+    </a>
 
     {# Default::fieldarea_header.html.twig will have created the add buttons when there are no records of this datatype #}
     {# As such, only need to create the add buttons here when there's at least one record and the datatype is allowed to have more than one record #}
     {% if display_type == ACCORDION_HEADER and is_first_record and multiple_allowed == 1 %}
     {# Don't need to check context here...when called by FakeEdit, this should never get executed #}
     <span class="DataRecordTools">
+        <i
+            class="fa fa-info-circle Info ODRAncestorBlurb"
+            rel="{% if is_link == 0 %}child{% else %}link{% endif %}"
+        ></i>
+
         {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
         <i
             class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"
@@ -76,6 +88,12 @@
     {% if not datarecord_is_fake %}
     <span class="DatatypeTools">
         <span rel="{{ datatype.id }}">
+        {% if multiple_allowed == 0 %}
+            <i
+                class="fa fa-info-circle Info ODRAncestorBlurb"
+                rel="{% if is_link == 0 %}child{% else %}link{% endif %}"
+            ></i>
+        {% endif %}
 
         {% if is_top_level == 0 %}
             {% set class_str = "tooltip fa fa-globe" %}

@@ -19,6 +19,7 @@
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
                     {% include 'ODRAdminBundle:CSVExport:csvexport_datafield.html.twig' with {
+                        'site_baseurl': site_baseurl,
                         'theme_datafield': theme_datafield,
                         'datafield': datafield,
                     } %}
@@ -42,6 +43,7 @@
                     {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'theme_array': child_theme,
+                        'site_baseurl': site_baseurl,
 
                         'target_datatype_id': child_datatype_id,
                         'target_theme_id': child_theme_id,

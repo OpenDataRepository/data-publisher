@@ -37,6 +37,11 @@ class ThemeDataField
     private $hidden;
 
     /**
+     * @var bool
+     */
+    private $hideHeader;
+
+    /**
      * @var string
      */
     private $cssWidthMed;
@@ -142,6 +147,30 @@ class ThemeDataField
     public function getHidden()
     {
         return $this->hidden;
+    }
+
+    /**
+     * Set hideHeader.
+     *
+     * @param bool $hideHeader
+     *
+     * @return ThemeDataField
+     */
+    public function setHideHeader($hideHeader)
+    {
+        $this->hideHeader = $hideHeader;
+
+        return $this;
+    }
+
+    /**
+     * Get hideHeader.
+     *
+     * @return bool
+     */
+    public function getHideHeader()
+    {
+        return $this->hideHeader;
     }
 
     /**

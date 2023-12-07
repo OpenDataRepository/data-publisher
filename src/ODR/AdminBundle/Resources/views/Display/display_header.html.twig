@@ -9,15 +9,15 @@
 {% endif %}
 </div>
 
-<div class="pure-u-1 clearfix">
+<div class="pure-u-1 clearfix" id="ODRSearchButtons">
 
     <div class="pure-u-1 pure-u-md-1-2">
     {% if can_edit_datarecord %}
-        <button id="ODREditRecord" type="button" class="pure-button pure-button-primary">Edit DataRecord</button>
+        <button id="ODREditRecord" type="button" class="pure-button pure-button-primary">Edit</button>
     {% endif %}
 
     {% if can_add_datarecord and datatype.isMasterType == 0 %}
-        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">Add New Record</button>
+        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">New</button>
     {% endif %}
 
         <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary">Download Files...</button>

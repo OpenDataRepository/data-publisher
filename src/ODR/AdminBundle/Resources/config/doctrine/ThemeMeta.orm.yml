@@ -25,10 +25,12 @@ ODR\AdminBundle\Entity\ThemeMeta:
             nullable: true
             column: template_description
 
-        isDefault:
-            type: boolean
+        defaultFor:
+            type: integer
+            unsigned: false
             nullable: false
-            column: is_default
+            default: 0
+            column: default_for
 
         displayOrder:
             type: integer
@@ -48,6 +50,11 @@ ODR\AdminBundle\Entity\ThemeMeta:
             column: source_sync_version
 
         isTableTheme:
+            type: boolean
+            nullable: false
+            default: false
+
+        displaysAllResults:
             type: boolean
             nullable: false
             default: false

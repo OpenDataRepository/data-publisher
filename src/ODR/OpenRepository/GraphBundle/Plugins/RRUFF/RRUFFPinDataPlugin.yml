@@ -1,12 +1,13 @@
 odr_plugins.rruff.pin_data:
     name: RRUFF Pin Data Plugin
     category: RRUFF
-    datatype: true
-    render: true
+    plugin_type: datatype
+    render: odr_plugins.rruff.pin_data
     version: 1.0.0
     override_fields: true
     override_field_reload: false
     override_child: false
+    override_table_fields: false
     description: This plugin converts the orientation data from RRUFF into a more readable format.
     registered_events:
     required_fields:

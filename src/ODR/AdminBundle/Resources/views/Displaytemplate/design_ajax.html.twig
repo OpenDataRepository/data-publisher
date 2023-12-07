@@ -52,6 +52,20 @@
         <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
     </div>
 
+    <div id="ThemeDesignWrapperMessage">
+        <div class="ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <h3 class="ODRHeader">Larger Browser Recommended</h3>
+                    <div class="ODRBodyContent">
+                        <p>To successfully use the design interface, a browser with a
+                            width of at least 1500 pixels is recommended.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="ThemeDesignWrapper">
         <div id="ThemeLeftColumn" class="ODRContentWrapper">
             <div class="ODRThemeElement">
@@ -177,6 +191,9 @@
     <div id="special_datafield_selection_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:special_datafield_selection_dialog.html.twig' %}
     </div>
+    <div id="stored_search_keys_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:stored_search_keys_dialog.html.twig' %}
+    </div>
 
 {#  TODO - get this working again...
     <div id="deleted_fields_dialog_wrapper">
@@ -202,7 +219,9 @@
     {% endfor %}
 
     $(function() {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // Remove the sidebar.  Slows down design page
+        $("#odr_content").children("#ODRSearchSidebar").remove();
 
         initPage();
 
@@ -842,8 +861,8 @@
 
                 // ----------------------------------------
                 // Add Field is only available when the user is an admin of the selected datatype,
-                //  and when the ThemeElement doesn't already have a child/linked datatype in it
-                if ( is_datatype_admin && !props.has_childtype && props.child_is_link === 0 ) {
+                //  and when the ThemeElement is either empty or only has datafields in it
+                if ( is_datatype_admin && !props.has_render_plugin_instance && !props.has_childtype && props.child_is_link === 0 ) {
                     tools.add_df.removeClass('faded');
                     tools.add_df.find('i').addClass('ODRActiveIcon');
                     tools.add_df.find('.link-text').html('Add Field');
@@ -856,8 +875,8 @@
 
                 // ----------------------------------------
                 // Add child dataset is only available when the user is an admin of the selected
-                //  datatype, and when the TheemElement is completely empty
-                if ( is_datatype_admin && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
+                //  datatype, and when the ThemeElement is empty
+                if ( is_datatype_admin && !props.has_render_plugin_instance && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
                     tools.add_cdt.removeClass('faded');
                     tools.add_cdt.find('i').addClass('ODRActiveIcon');
                     tools.add_cdt.find('.link-text').html('Add a Child Field Set');
@@ -897,7 +916,7 @@
                 }
 
                 if ( is_datatype_admin ) {
-                    if ( props.child_is_link ) {
+                    if ( props.has_childtype && props.child_is_link ) {
                         // User clicked on a theme_element that has a linked dataset/template
                         tools.link_dt.removeClass('faded');
                         tools.link_dt.find('i').addClass('ODRActiveIcon');
@@ -907,7 +926,7 @@
                             linkDatatype(theme_element_id);
                         });
                     }
-                    else if ( !props.has_childtype && !props.has_datafields ) {
+                    else if ( !props.has_render_plugin_instance && !props.has_childtype && !props.has_datafields ) {
                         // User clicked on an empty theme_element
                         tools.link_dt.removeClass('faded');
                         tools.link_dt.find('i').addClass('ODRActiveIcon');
@@ -921,8 +940,9 @@
 
                 // ----------------------------------------
                 // Any non linked datatype can link from a template, although the option is only
-                //  available when the user is an admin of the selected datatype
-                if ( is_datatype_admin && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
+                //  available when the user is an admin of the selected datatype and the themeElement
+                //  is empty
+                if ( is_datatype_admin && !props.has_render_plugin_instance && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
                     tools.link_ft.removeClass('faded');
                     tools.link_ft.find('i').addClass('ODRActiveIcon');
                     tools.link_ft.find('.link-text').html('Add from Template');
@@ -937,16 +957,18 @@
                 }
 
                 // ----------------------------------------
-                // ThemeElements don't have Render Plugins
+                // ThemeElements don't have Render Plugins...though Datatype render plugins can
+                //  specify they want themeElements to work with
 
                 // ----------------------------------------
                 // ThemeElements don't have public status
 
                 // ----------------------------------------
-                // Delete ThemeElement/Group Box is always available...the user has admin permissions
-                //  to the local dataype, and is only modifying a copy of the master theme for a
+                // Delete ThemeElement/Group Box is only available when the themeElement is empty
+                // Permissions aren't a factor here, because the user always has permissions to delete
+                //  from the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
-                if ( !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
+                if ( !props.has_render_plugin_instance && !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
                     tools.del_dt.removeClass('faded');
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.find('.link-text').html('Delete Group Box');
@@ -1831,8 +1853,7 @@
         });
 
         // Don't want to be able to highlight everything...
-        $("#content").find(".ODRInnerBox").disableSelection();
-
+        $("#odr_content").find(".ODRInnerBox").disableSelection();
 
         // Need InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
         //  setup for introJS is run...
@@ -2122,6 +2143,7 @@
 
         // Attach event handlers to most of the rest of the input elements
         tdf_odpf.find("select").each(function() {
+            // console.log('Setting up datafield.');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2140,6 +2162,7 @@
         });
 
         tdf_odpf.find("textarea").each(function() {
+            // console.log('Setting up datafield. 2');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2167,6 +2190,7 @@
             });
         });
         tdf_odpf.find("input").each(function() {
+            // console.log('Setting up datafield. 3');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2207,6 +2231,7 @@
 
         // Override the handler for the fieldtype selector
         tdf_odpf.find("#DatafieldsForm_field_type").each(function() {
+            // console.log('Setting up datafield. 4');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id =  datafield_id_data[1];
@@ -2583,7 +2608,7 @@
             i++;
         });
 
-        // console.log('SaveDatafieldOrder(), datafield_id: ' + datafield_id + ' source theme_element: ' + source_theme_element_id + ' dest theme_element: ' + dest_theme_element_id);
+        // console.log('SaveDatafieldOrder(), datafield_id: ' + datafield_id + ' source theme_element: ' + source_theme_element_id + ' dest theme_element: ' + dest_theme_element_id);  return;
 
         // Get the id numbers of the passed-in theme elements
         var theme_element = source_theme_element_id.split(/_/);

@@ -25,9 +25,9 @@ class ThemePreferences
     private $id;
 
     /**
-     * @var boolean
+     * @var int
      */
-    private $isDefault;
+    private $defaultFor;
 
     /**
      * @var \DateTime
@@ -71,27 +71,27 @@ class ThemePreferences
     }
 
     /**
-     * Set isDefault
+     * Set defaultFor.
      *
-     * @param boolean $isDefault
+     * @param int $defaultFor
      *
      * @return ThemePreferences
      */
-    public function setIsDefault($isDefault)
+    public function setDefaultFor($defaultFor)
     {
-        $this->isDefault = $isDefault;
+        $this->defaultFor = $defaultFor;
 
         return $this;
     }
 
     /**
-     * Get isDefault
+     * Get defaultFor.
      *
-     * @return boolean
+     * @return int
      */
-    public function getIsDefault()
+    public function getDefaultFor()
     {
-        return $this->isDefault;
+        return $this->defaultFor;
     }
 
     /**

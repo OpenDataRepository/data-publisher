@@ -17,6 +17,10 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileChecksum;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageChecksum;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -26,25 +30,29 @@ use Doctrine\ORM\EntityManager;
 use dterranova\Bundle\CryptoBundle\Crypto\CryptoAdapter;
 use JMS\SecurityExtraBundle\Security\Util\SecureRandom;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
 class CryptoService
 {
 
     /**
-     * @var CacheService
+     * @var EntityManager
      */
-    private $cache_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $dri_service;
+    private $em;
 
     /**
      * @var LockService
      */
     private $lock_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var SecureRandom
@@ -67,11 +75,6 @@ class CryptoService
     private $odr_web_dir;
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
      * @var Logger
      */
     private $logger;
@@ -80,35 +83,32 @@ class CryptoService
     /**
      * CryptoService constructor
      *
-     * @param CacheService $cache_service
-     * @param DatarecordInfoService $datarecord_info_service
+     * @param EntityManager $entity_manager
      * @param LockService $lock_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param SecureRandom $generator
      * @param CryptoAdapter $crypto_adapter
      * @param string $crypto_dir
      * @param string $odr_web_dir
-     * @param EntityManager $entity_manager
      * @param Logger $logger
      */
     public function __construct(
-        CacheService $cache_service,
-        DatarecordInfoService $datarecord_info_service,
+        EntityManager $entity_manager,
         LockService $lock_service,
+        EventDispatcherInterface $event_dispatcher,
         SecureRandom $generator,
         CryptoAdapter $crypto_adapter,
         string $crypto_dir,
         string $odr_web_dir,
-        EntityManager $entity_manager,
         Logger $logger
     ) {
-        $this->cache_service = $cache_service;
-        $this->dri_service = $datarecord_info_service;
+        $this->em = $entity_manager;
         $this->lock_service = $lock_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->generator = $generator;
         $this->crypto_adapter = $crypto_adapter;
         $this->crypto_dir = realpath($crypto_dir);
         $this->odr_web_dir = realpath($odr_web_dir);
-        $this->em = $entity_manager;
         $this->logger = $logger;
     }
 
@@ -349,6 +349,9 @@ class CryptoService
     /**
      * Wrapper function to set up the encryption of a specific File.
      *
+     * IMPORTANT: Unlike images, this function marks the datarecord as updated...this typically gets
+     * called at the end of a beanstalk job, so the caller can't really fire off the event itself.
+     *
      * @param int $file_id The id of the ODR File entity that will store info about this file
      * @param string $current_filepath The path to the un-encrypted file on the server
      */
@@ -392,8 +395,43 @@ class CryptoService
 
         // Update the cached version of the datarecord so whichever controller is handling the
         //  "are you done encrypting yet?" javascript requests can return the correct HTML
+        // TODO - ...I'm pretty sure this javascript request no longer exists?  regardless, datarecord should be updated here
         $datarecord = $file->getDataRecord();
-        $this->dri_service->updateDatarecordCacheEntry($datarecord, $file->getCreatedBy());
+        $datafield = $file->getDataField();
+        $user = $file->getCreatedBy();
+
+        try {
+            $event = new FilePostEncryptEvent($file, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
 
         // If the file is supposed to be public...
         if ( $file->isPublic() ) {
@@ -406,7 +444,13 @@ class CryptoService
     /**
      * Wrapper function to set up the encryption of a specific Image.
      *
-     * @param int $image_id  The id of the ODR Image entity that will store info about this image
+     * IMPORTANT: unlike files, this function does not mark the datarecord as updated when done.
+     * If this function fired off a DatarecordModified event, then there would always be at least
+     * two of those events fired...one for the "original" image, and another for the "thumbnail".
+     * More than one event is undesirable, so whatever calls this function needs to fire off the
+     * event instead.
+     *
+     * @param int $image_id The id of the ODR Image entity that will store info about this image
      * @param string $current_filepath The path to the un-encrypted image on the server
      */
     public function encryptImage($image_id, $current_filepath)
@@ -446,11 +490,6 @@ class CryptoService
         // ----------------------------------------
         // Encrypt the image
         self::encryptworker($image, $absolute_filepath);
-
-        // Update the cached version of the datarecord so whichever controller is handling the
-        //  "are you done encrypting yet?" javascript requests can return the correct HTML
-        $datarecord = $image->getDataRecord();
-        $this->dri_service->updateDatarecordCacheEntry($datarecord, $image->getCreatedBy());
 
         // If image is supposed to be public...
         if ( $image->isPublic() ) {

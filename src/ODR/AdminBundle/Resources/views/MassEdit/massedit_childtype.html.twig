@@ -13,7 +13,7 @@
     {% if is_top_level == 0 %}
 
         {# current datatype is a child datatype #}
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <h3 class="11 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
             {% if can_change_public_status %}
@@ -37,13 +37,15 @@
                 'datafield_permissions': datafield_permissions,
 
                 'is_top_level': is_top_level,
+
+                'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
     {% else %}
 
         {# current datatype is top-level #}
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <h3 class="22 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
             {% if can_change_public_status %}
@@ -67,6 +69,8 @@
                 'datafield_permissions': datafield_permissions,
 
                 'is_top_level': is_top_level,
+
+                'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
 

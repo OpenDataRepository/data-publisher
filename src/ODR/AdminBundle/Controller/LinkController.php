@@ -24,6 +24,11 @@ use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeLinkStatusChangedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -32,8 +37,6 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
-use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
@@ -42,12 +45,11 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Templating\EngineInterface;
 
 
@@ -298,6 +300,8 @@ class LinkController extends ODRCustomController
             if ( $theme_element->getThemeDataFields()->count() > 0 )
                 throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a non-empty ThemeElement');
             if ( $theme_element->getThemeDataType()->count() > 0 )
+                throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a non-empty ThemeElement');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
                 throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a non-empty ThemeElement');
 
             // Not allowed to link to self
@@ -767,10 +771,13 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $ec_service */
@@ -779,12 +786,10 @@ class LinkController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var CloneThemeService $clone_theme_service */
             $clone_theme_service = $this->container->get('odr.clone_theme_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -803,15 +808,21 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('Local Datatype');
 
 
-            $remote_datatype = null;
+            /** @var DataType|null $new_remote_datatype */
+            $new_remote_datatype = null;
             if ($remote_datatype_id !== '')
-                $remote_datatype = $repo_datatype->find($remote_datatype_id);   // Looking to create a link
-            else
-                $remote_datatype = $repo_datatype->find($previous_remote_datatype_id);   // Looking to remove a link
-            /** @var DataType $remote_datatype */
+                $new_remote_datatype = $repo_datatype->find($remote_datatype_id);   // Looking to create a link
 
-            if ($remote_datatype == null)
-                throw new ODRNotFoundException('Remote Datatype');
+            /** @var DataType|null $previous_remote_datatype */
+            $previous_remote_datatype = null;
+            if ( $previous_remote_datatype_id !== '' )
+                $previous_remote_datatype = $repo_datatype->find($previous_remote_datatype_id);    // Looking to remove a link
+
+            // Perform various checks to ensure that this link request is valid
+            if ($local_datatype_id == $remote_datatype_id)
+                throw new ODRBadRequestException("A Datatype can't be linked to itself");
+            if ($remote_datatype_id == $previous_remote_datatype_id)
+                throw new ODRBadRequestException("Already linked to this Datatype");
 
 
             // --------------------
@@ -823,8 +834,10 @@ class LinkController extends ODRCustomController
             if (!$pm_service->isDatatypeAdmin($user, $local_datatype))
                 throw new ODRForbiddenException();
 
-            // Prevent user from linking to a datatype they don't have permissions to view
-            if (!$pm_service->canViewDatatype($user, $remote_datatype))
+            // Prevent user from linking/unlinking a datatype they don't have permissions to view
+            if ( !is_null($new_remote_datatype) && !$pm_service->canViewDatatype($user, $new_remote_datatype) )
+                throw new ODRForbiddenException();
+            if ( !is_null($previous_remote_datatype) && !$pm_service->canViewDatatype($user, $previous_remote_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -837,10 +850,24 @@ class LinkController extends ODRCustomController
             // Ensure there are no datafields in this theme_element before attempting to link to a remote datatype
             if ( $theme_element->getThemeDataFields()->count() > 0 )
                 throw new ODRBadRequestException('Unable to link a remote Datatype into a ThemeElement that already has Datafields');
+            // Ensure the themeElement isn't being used by a RenderPlugin
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to link a remote Datatype into a ThemeElement that is being used by a RenderPlugin');
+
             // Can't throw an error if there's a ThemeDatatype entry, since this function could be
             //  getting called to remove an existing link to a remote datatype
 
 
+            // TODO - get the feeling like there should be more restrictions on what metadata datatypes can link to...
+            if ( !is_null($new_remote_datatype) ) {
+                if ( !is_null($new_remote_datatype->getMetadataFor()) )
+                    throw new ODRBadRequestException("Not allowed to link to a metadata datatype");
+                if ( !is_null($new_remote_datatype->getMetadataDatatype()) && $new_remote_datatype->getMetadataDatatype()->getId() === $local_datatype->getId() )
+                    throw new ODRBadRequestException("A metadata datatype can't link to the datatype it describes");
+            }
+
+
+            // ----------------------------------------
             // Going to need these...
             $parent_theme = $theme->getParentTheme();
 
@@ -861,19 +888,6 @@ class LinkController extends ODRCustomController
             // Get the most recent version of the datatree array
             $current_datatree_array = $dti_service->getDatatreeArray();
 
-            // Perform various checks to ensure that this link request is valid
-            if ($local_datatype_id == $remote_datatype_id)
-                throw new ODRBadRequestException("A Datatype can't be linked to itself");
-            if ($remote_datatype_id == $previous_remote_datatype_id)
-                throw new ODRBadRequestException("Already linked to this Datatype");
-
-            // TODO - get the feeling like there should be more restrictions on what metadata datatypes can link to...
-            if ( !is_null($remote_datatype->getMetadataFor()) )
-                throw new ODRBadRequestException("Not allowed to link to a metadata datatype");
-            if ( !is_null($remote_datatype->getMetadataDatatype()) && $remote_datatype->getMetadataDatatype()->getId() === $local_datatype->getId() )
-                throw new ODRBadRequestException("A metadata datatype can't link to the datatype it describes");
-
-
             if (isset($current_datatree_array['descendant_of'][$remote_datatype_id])
                 && $current_datatree_array['descendant_of'][$remote_datatype_id] !== ''
             ) {
@@ -890,9 +904,9 @@ class LinkController extends ODRCustomController
                 throw new ODRBadRequestException("Unable to link to the same Datatype multiple times");
             }
 
-
-            if ($remote_datatype_id !== '') {
-                // If a link currently exists, remove it from the array for purposes of finding any recursion
+            // If a link currently exists...
+            if ( !is_null($new_remote_datatype) ) {
+                // ...remove it from the array for purposes of finding any recursion
                 if ($previous_remote_datatype_id !== '') {
                     $key = array_search(
                         $local_datatype_id,
@@ -912,7 +926,7 @@ class LinkController extends ODRCustomController
 
             // If a previous remote dataype is specified, then the link between the local datatype
             //  and the previous remote datatype needs to be removed...
-            if ($previous_remote_datatype_id !== '') {
+            if ( !is_null($previous_remote_datatype) ) {
                 // Going to mass-delete a pile of stuff...wrap it in a transaction, since DQL doesn't
                 //  allow multi-table updates
                 $conn = $em->getConnection();
@@ -926,9 +940,9 @@ class LinkController extends ODRCustomController
                 $datarecords_to_update = self::deleteDatatreeEntries($em, $user, $local_datatype_id, $previous_remote_datatype_id);
 
                 // Mark all Datarecords that used to link to the remote datatype as updated
-                self::updateDatarecordEntries($em, $user, $datarecords_to_update);
+                self::updateDatarecordEntries($em, $user, $datarecords_to_update, $previous_remote_datatype);
 
-                // Determine whether the local datatype's sortfield belongs a remote datatype...
+                // Determine whether one of the local datatype's sortfields belongs a remote datatype...
                 $query = $em->createQuery(
                    'SELECT dtsf.id
                     FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
@@ -978,34 +992,25 @@ class LinkController extends ODRCustomController
                 // Only flush if needed, and only after the previous transaction is committed
                 if ($needs_flush)
                     $em->flush();
-
-
-                // ----------------------------------------
-                // Mark the ancestor datatype as has having been updated
-                $dbi_service->updateDatatypeCacheEntry($local_datatype, $user);
-                // Mark the ancestor datatype's theme as having been updated
-                $theme_service->updateThemeCacheEntry($theme, $user);
-                // Also delete the list of top-level themes, just incase...
-                $cache_service->delete('top_level_themes');
             }
 
 
             // ----------------------------------------
             // If a new remote datatype was specified...
             $using_linked_type = 0;
-            if ($remote_datatype_id !== '') {
+            if ( !is_null($new_remote_datatype) ) {
                 // ...then create a link between the two datatypes
                 $using_linked_type = 1;
 
                 $is_link = true;
                 $multiple_allowed = true;
-                $ec_service->createDatatree($user, $local_datatype, $remote_datatype, $is_link, $multiple_allowed);
+                $ec_service->createDatatree($user, $local_datatype, $new_remote_datatype, $is_link, $multiple_allowed);
 
                 // Locate the master theme for the remote datatype
-                $source_theme = $theme_service->getDatatypeMasterTheme($remote_datatype->getId());
+                $source_theme = $theme_info_service->getDatatypeMasterTheme($new_remote_datatype->getId());
 
                 // Create a copy of that theme in this theme element
-                $clone_theme_service->cloneIntoThemeElement($user, $theme_element, $source_theme, $remote_datatype, 'master');
+                $clone_theme_service->cloneIntoThemeElement($user, $theme_element, $source_theme, $new_remote_datatype, 'master');
 
                 // If this linking is happening in a linked datatype...
                 // i.e. where A links to B...while user is on master layout page for A, they want to
@@ -1016,11 +1021,11 @@ class LinkController extends ODRCustomController
                     //  required theme data so the master layout page for B displays properly...
 
                     // Need to locate the master theme for "B"...
-                    $linked_parent_theme = $theme_service->getDatatypeMasterTheme($local_datatype->getId());
+                    $linked_parent_theme = $theme_info_service->getDatatypeMasterTheme($local_datatype->getId());
                     // ...so a new ThemeElement can be created in it...
                     $linked_theme_element = $ec_service->createThemeElement($user, $linked_parent_theme);
                     // ...so another copy of the remote datatype's theme into that new ThemeElement
-                    $clone_theme_service->cloneIntoThemeElement($user, $linked_theme_element, $source_theme, $remote_datatype, 'master');
+                    $clone_theme_service->cloneIntoThemeElement($user, $linked_theme_element, $source_theme, $new_remote_datatype, 'master');
                 }
 
                 // Ensure that the "master_revision" property gets updated if required
@@ -1033,29 +1038,47 @@ class LinkController extends ODRCustomController
                     'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
                 );
                 $emm_service->updateThemeMeta($user, $theme, $properties);    // flush here
+            }
 
 
-                // ----------------------------------------
-                // Mark the ancestor datatype has having been updated
-                $dbi_service->updateDatatypeCacheEntry($local_datatype, $user);
-                // Mark the the ancestor datatype's master theme as updated
-                $theme_service->updateThemeCacheEntry($theme, $user);
+            // ----------------------------------------
+            // If a link got removed or added, the datatype needs to be marked as updated
+            if ( !is_null($previous_remote_datatype) || !is_null($new_remote_datatype) ) {
+                // ...but the cached datarecord entries only need to be deleted if a link was removed
+                $clear_datarecord_caches = false;
+                if ( !is_null($previous_remote_datatype) )
+                    $clear_datarecord_caches = true;
+
+                try {
+                    $event = new DatatypeModifiedEvent($local_datatype, $user, $clear_datarecord_caches);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+
+                try {
+                    $event = new DatatypeLinkStatusChangedEvent($local_datatype->getGrandparent(), $new_remote_datatype, $previous_remote_datatype, $user);
+                    $dispatcher->dispatch(DatatypeLinkStatusChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+
+                // Mark the ancestor datatype's theme as having been updated
+                $theme_info_service->updateThemeCacheEntry($theme, $user);
                 // Also delete the list of top-level themes, just incase...
                 $cache_service->delete('top_level_themes');
             }
 
 
-            // Since a link between datatypes got created/deleted, delete the cached datatree array
-            $cache_service->delete('cached_datatree_array');
-
-            // Regardless of whether something got linked or unlinked, the cache entry
-            //  'associated_datatypes_for_<dt_id>' only relies on the local datatype...
-            $dbi_service->deleteCachedDatatypeLinkData( array($local_datatype->getGrandparent()->getId()) );
-            // ...and the cache entry 'cached_search_dt_<dt_id>_linked_dr_parents' only depends
-            //  on the remote datatype
-            $search_cache_service->onLinkStatusChange($remote_datatype);
-
-
+            // ----------------------------------------
             if ($remote_datatype_id === '')
                 $remote_datatype_id = $previous_remote_datatype_id;
 
@@ -1478,10 +1501,15 @@ class LinkController extends ODRCustomController
      * @param \Doctrine\ORM\EntityManager $em
      * @param ODRUser $user
      * @param int[] $datarecord_ids
+     * @param DataType $previous_remote_datatype
      */
-    private function updateDatarecordEntries($em, $user, $datarecord_ids)
+    private function updateDatarecordEntries($em, $user, $datarecord_ids, $previous_remote_datatype)
     {
-        // Mark all datarecords that linked to a datarecord in the remote datatype as updated
+        // Do NOT want to fire off DatarecordModified events here...it would likely require a lot
+        //  of hydration
+
+        // ...since DatarecordModified events aren't being used, that means all relevant datarecords
+        //  can be marked as updated with a single DQL statement
         $query = $em->createQuery(
            'UPDATE ODRAdminBundle:DataRecord AS dr
             SET dr.updated = :now, dr.updatedBy = :user_id
@@ -1495,18 +1523,31 @@ class LinkController extends ODRCustomController
         );
         $query->execute();
 
+        // Clearing the datarecord cache entries is handled by the DatatypeModified event that gets
+        //  fired later on
+
         // Locate and clear all cache entries claiming that a datarecord links to something
         //  in $datarecord_ids
-        /** @var DatarecordInfoService $dri_service */
-        $dri_service = $this->container->get('odr.datarecord_info_service');
-        $dri_service->deleteCachedDatarecordLinkData($datarecord_ids);
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+            $event = new DatarecordLinkStatusChangedEvent($datarecord_ids, $previous_remote_datatype, $user);
+            $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 
 
     /**
      * Builds and returns a list of available 'descendant' datarecords to link to from this
-     * 'ancestor' datarecord.  If such a link exists, GetDisplayData() will render a read-only
-     * version of the 'remote' datarecord in a ThemeElement of the 'local' datarecord.
+     * 'ancestor' datarecord.
      *
      * @param integer $ancestor_datatype_id   The DataType that is being linked from
      * @param integer $descendant_datatype_id The DataType that is being linked to
@@ -1536,8 +1577,8 @@ class LinkController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TableThemeHelperService $tth_service */
             $tth_service = $this->container->get('odr.table_theme_helper_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var EngineInterface $templating */
@@ -1631,8 +1672,7 @@ class LinkController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to link to Remote Datatype');
 
             // Since the above statement didn't throw an exception, the one below shouldn't either...
-            $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
-            // $theme_id may be for a "master" theme instead of a "search_results" or "table" theme
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $remote_datatype->getId(), 'search_results');    // TODO - do I actually want a separate page type for linking purposes?
 
             // Create a base search key for the remote datatype, so the search sidebar can be used
             $remote_datatype_search_key = $search_key_service->encodeSearchKey(
@@ -1856,16 +1896,17 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataRecord $local_datarecord */
@@ -1958,7 +1999,6 @@ class LinkController extends ODRCustomController
 
 
             // Ensure these actions are undertaken on the correct entity
-            $linked_datatree = null;
             $local_datarecord_is_ancestor = true;
             if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
                 $local_datarecord_is_ancestor = false;
@@ -2019,7 +2059,8 @@ class LinkController extends ODRCustomController
                         if ($local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $descendant_datatype->getId()) {
                             // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match descendant datatype\n";
                             continue;
-                        } else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+                        }
+                        else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
                             // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match ancestor datatype\n";
                             continue;
                         }
@@ -2046,9 +2087,8 @@ class LinkController extends ODRCustomController
             // Keep track of whether any change was made
             $change_made = false;
 
-            // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
-            //  potentially multiple datarecords...
-            $records_to_check = array();
+            // Likely going to need to clear cache entries for multiple records
+            $records_needing_events = array();
 
             if ($remove_records_not_in_post) {
                 foreach ($linked_datatree as $ldt) {
@@ -2070,10 +2110,9 @@ class LinkController extends ODRCustomController
                     if ( !isset($datarecords[$remote_datarecord->getId()]) ) {
                         // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
-                        // Mark the ancestor datarecord as updated
-                        $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
                         // Setup for figuring out which cache entries need deleted
-                        $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
+                        $gp_dr = $ldt->getAncestor()->getGrandparent();
+                        $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
 
                         // Delete the linked_datatree entry
                         $ldt->setDeletedBy($user);
@@ -2082,6 +2121,9 @@ class LinkController extends ODRCustomController
 
                         // The local record is no longer linked to this remote record
                         $change_made = true;
+
+                        // NOTE: don't want to fire off an event right this moment...there could be
+                        //  multiple records to be unlinked, and even more records to link to
                     }
                     else {
                         // Otherwise, a datarecord was linked and still is linked...
@@ -2142,10 +2184,9 @@ class LinkController extends ODRCustomController
                 // Ensure there is a link between the two datarecords
                 $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
 
-                // Force a rebuild of the cached entry for the ancestor datarecord
-                $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
                 // Setup for figuring out which cache entries need deleted
-                $records_to_check[ $ancestor_datarecord->getGrandparent()->getId() ] = 1;
+                $gp_dr = $ancestor_datarecord->getGrandparent();
+                $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
 
                 // The local record is now linked to this remote record
                 $change_made = true;
@@ -2156,13 +2197,35 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
-            //  entry removed so the view/edit pages show the correct linked records
-            $records_to_check = array_flip($records_to_check);
-            $dri_service->deleteCachedDatarecordLinkData($records_to_check);
-            // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
-            //  searching isn't using old cache entries
-            $search_cache_service->onLinkStatusChange($descendant_datatype);
+            // Each of the records in $records_needing_events needs to be marked as updated and have
+            //  their primary cache entries cleared
+            try {
+                foreach ($records_needing_events as $dr_id => $dr) {
+                    $event = new DatarecordModifiedEvent($dr, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Each of these records also needs to have their "associated_datarecords_for_<dr_id>"
+            //  cache entry deleted so the view/edit pages can show the correct linked records
+            $records_to_clear = array_keys($records_needing_events);
+
+            try {
+                $event = new DatarecordLinkStatusChangedEvent($records_to_clear, $descendant_datatype, $user);
+                $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------
@@ -2234,14 +2297,15 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataRecord $local_datarecord */
@@ -2355,7 +2419,7 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
             //  potentially multiple datarecords...
-            $records_to_check = array();
+            $records_needing_events = array();
 
             foreach ($linked_datatree as $ldt) {
                 $remote_datarecord = null;
@@ -2376,15 +2440,17 @@ class LinkController extends ODRCustomController
                 if ( isset($datarecords[$remote_datarecord->getId()]) ) {
                     // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
-                    // Mark the ancestor datarecord as updated
-                    $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
                     // Setup for figuring out which cache entries need deleted
-                    $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
+                    $gp_dr = $ldt->getAncestor()->getGrandparent();
+                    $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
 
                     // Delete the linked_datatree entry
                     $ldt->setDeletedBy($user);
                     $ldt->setDeletedAt(new \DateTime());
                     $em->persist($ldt);
+
+                    // NOTE: don't want to fire off an event right this moment, as it could cause
+                    //  multiple updates for the same record
                 }
             }
 
@@ -2416,13 +2482,35 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
-            //  entry removed so the view/edit pages show the correct linked records
-            $records_to_check = array_flip($records_to_check);
-            $dri_service->deleteCachedDatarecordLinkData($records_to_check);
-            // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
-            //  searching isn't using old cache entries
-            $search_cache_service->onLinkStatusChange($descendant_datatype);
+            // Each of the records in $records_needing_events needs to be marked as updated and have
+            //  their primary cache entries cleared
+            try {
+                foreach ($records_needing_events as $dr_id => $dr) {
+                    $event = new DatarecordModifiedEvent($dr, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Each of these records also needs to have their "associated_datarecords_for_<dr_id>"
+            //  cache entry deleted so the view/edit pages can show the correct linked records
+            $records_to_clear = array_keys($records_needing_events);
+
+            try {
+                $event = new DatarecordLinkStatusChangedEvent($records_to_clear, $descendant_datatype, $user);
+                $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------

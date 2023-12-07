@@ -18,25 +18,35 @@
 }) }}
 
     <fieldset>
-        {% if typename != "Markdown" %}
+    {% if typename != "Markdown" %}
         <div class="">
             <label for="{{ datafield_form.field_name.vars.id }}">
                 {{ datafield_form.field_name.vars.label }}
             </label>
             {{ form_errors(datafield_form.field_name) }}
-            {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName pure-u-1', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datafield_form.field_name, {
+                'attr': {
+                    'class': 'required ODRDatafieldName pure-u-1',
+                    'data-error-type': 'inline'
+                }
+            }) }}
         </div>
-        {% endif %}
+    {% endif %}
 
         <div class="">
             <label for="{{ datafield_form.description.vars.id }}">
                 {{ datafield_form.description.vars.label }}
             </label>
             {{ form_errors(datafield_form.description) }}
-            {{ form_widget(datafield_form.description, { 'attr': {'class': 'required pure-u-1', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datafield_form.description, {
+                'attr': {
+                    'class': 'required pure-u-1',
+                    'data-error-type': 'inline'
+                }
+            }) }}
         </div>
 
-{#
+{# NOTE - these properties are not used anywhere
         <div class="">
             <label for="{{ datafield_form.regex_validator.vars.id }}">
                 {{ datafield_form.regex_validator.vars.label }}
@@ -54,61 +64,50 @@
 #}
 
         <div class="">
+            <input type="hidden" id="previous_fieldtype" {#name="DataFieldsForm[previous_field_type]"#} value="{{ datafield.getfieldtype.id }}" disabled="disabled" />
+
             <label for="{{ datafield_form.field_type.vars.id }}">
                 {{ datafield_form.field_type.vars.label }}
             </label>
-            <input type="hidden" id="previous_fieldtype" {#name="DataFieldsForm[previous_field_type]"#} value="{{ datafield.getfieldtype.id }}" disabled="disabled" />
+
             {{ form_errors(datafield_form.field_type) }}
-            <span class="ODRSelectWrap">
-                {% if prevent_fieldtype_change == true %}
-                    {{ form_widget(datafield_form.field_type,
-                        {
-                            'attr': {
-                                'class': 'required ODRDatafieldType ODRSelect',
-                                'data-error-type': 'inline',
-                                'disabled': 'disabled',
-                                'title': prevent_fieldtype_change_message
-                            }
-                        })
-                    }}
-                {% else %}
-                    {{ form_widget(datafield_form.field_type,
-                        {
-                            'attr': {
-                                'class': 'required ODRDatafieldType ODRSelect',
-                                'data-error-type': 'inline'
-                            }
-                        })
-                    }}
+            <span class="ODRSelectWrap" {% if prevent_fieldtype_change %}title="{{ prevent_fieldtype_change_message }}"{% endif %}>
+                {{ form_widget(datafield_form.field_type, {
+                    'attr': {
+                        'class': 'required ODRDatafieldType ODRSelect',
+                        'data-error-type': 'inline'
+                    }
+                }) }}
+            </span>
+
+            <span class="ODRThemeDesignTool">
+                {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' %}
+                <span id="field_type_meta" class="Cursor ODRDataInspector" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% else %}No{% endif %} Character Limit">
+                    &nbsp;<i class="fa fa-question-circle fa-lg"></i>
+                </span>
+                {% endif %}
+
+                {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' or typeclass == 'IntegerValue' or typeclass == 'DecimalValue' %}
+                <span>
+                    <a target="_blank"
+                       class="ODRDataInspector"
+                       href="#{{ path( 'odr_design_analyze_datafield_content', {'datafield_id': datafield.id }) }}"
+                       title="Show all values stored in this Datafield..."
+                    ><i class="fa fa-list fa-lg"></i></a>
+                </span>
+                {% elseif typeclass == 'Radio' %}
+                <span>
+                    <a target="_blank"
+                       class="ODRDataInspector"
+                       href="#{{ path( 'odr_design_analyze_radio_selections', {'datafield_id': datafield.id }) }}"
+                       title="Show all Datarecords with multiple selected RadioOptions for this Datafield..."
+                    ><i class="fa fa-list fa-lg"></i></a>
+                </span>
                 {% endif %}
             </span>
-
-            {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' %}
-            <span id="field_type_meta" class="Cursor ODRDataInspector" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% else %}No{% endif %} Character Limit">
-                &nbsp;<i class="fa fa-question-circle fa-lg"></i>
-            </span>
-            {% endif %}
-
-            {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' or typeclass == 'IntegerValue' or typeclass == 'DecimalValue' %}
-            <span>
-                <a target="_blank"
-                   class="ODRDataInspector"
-                   href="#{{ path( 'odr_design_analyze_datafield_content', {'datafield_id': datafield.id }) }}"
-                   title="Show all values stored in this Datafield..."
-                ><i class="fa fa-list fa-lg"></i></a>
-            </span>
-            {% elseif typeclass == 'Radio' %}
-            <span>
-                <a target="_blank"
-                   class="ODRDataInspector"
-                   href="#{{ path( 'odr_design_analyze_radio_selections', {'datafield_id': datafield.id }) }}"
-                   title="Show all Datarecords with multiple selected RadioOptions for this Datafield..."
-                ><i class="fa fa-list fa-lg"></i></a>
-            </span>
-            {% endif %}
         </div>
 
-        {% if typename == "Markdown" %}
+    {% if typename == "Markdown" %}
         <div class="">
             <label for="{{ datafield_form.markdown_text.vars.id }}">
                 {{ datafield_form.markdown_text.vars.label }}
@@ -117,67 +116,74 @@
                 </span>
             </label>
             {{ form_errors(datafield_form.markdown_text) }}
-            {{ form_widget(datafield_form.markdown_text, { 'attr': {'class': 'ODRDatafieldMarkdown pure-u-23-24', 'style': 'min-height:300px;'} }) }}
+            {{ form_widget(datafield_form.markdown_text, {
+                'attr': {
+                    'class': 'ODRDatafieldMarkdown pure-u-23-24',
+                    'style': 'min-height:300px;'
+                }
+            }) }}
         </div>
-        {% endif %}
+    {% endif %}
 
-        {% if fieldtype.getcanbeunique == 1 %}
+    {% if fieldtype.getcanbeunique == 1 %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.is_unique) }}
-            {% if must_be_unique %}
-                {% if is_external_id_field %}
-                    {{ form_widget(datafield_form.is_unique, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'title': 'This datafield is currently being used as the Datatype\'s External ID field, and must remain unique.'} }) }}
-                {% else %}
-                    {{ form_widget(datafield_form.is_unique, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'title': 'This datafield is currently required to be unique due to a Render Plugin.'} }) }}
-                {% endif %}
+
+            <span
+            {% if must_be_unique and is_external_id_field %}
+                title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."
+            {% elseif must_be_unique %}
+                title="This datafield is currently required to be unique due to a Render Plugin."
+            {% elseif is_derived_field %}
+                title="This option can't be changed because it must remain synchronized with its master datafield."
             {% else %}
-                {{ form_widget(datafield_form.is_unique,
-                    {
+                title="If checked, then this field is not allowed to have duplicate values."
+            {% endif %}
+            >
+                <label for="{{ datafield_form.is_unique.vars.id }}">
+                    {{ form_widget(datafield_form.is_unique, {
                         'attr': {
-                            'style': 'width:auto',
                             'class': 'ODRFloatingCheckbox'
                         }
-                    })
-                }}
-            {% endif %}
-            <label for="{{ datafield_form.is_unique.vars.id }}"
-                   {% if must_be_unique and is_external_id_field%}
-                       title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."
-                   {% elseif must_be_unique %}
-                       title="This datafield is currently required to be unique due to a Render Plugin."
-                   {% endif %}
-            >
-                {{ datafield_form.is_unique.vars.label }}
-                <span>
-                    <a target="_blank"
-                       class="ODRDataInspector"
-                       href="#{{ path( 'odr_design_analyze_datafield_unique', {'datafield_id': datafield.id }) }}"
-                       title="Show Datarecords with duplicate values for this Datafield..."
-                    ><i class="fa fa-list fa-lg"></i></a>
-                </span>
-            </label>
-        </div>
-        {% endif %}
+                    }) }}
 
-        {% if typeclass == 'Boolean' or typeclass == 'DatetimeValue'
-            or typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar'
-            or typeclass == 'LongVarchar' or typeclass == 'LongText'
-            or typeclass == 'IntegerValue' or typeclass == 'DecimalValue'
-        %}
+                    {{ datafield_form.is_unique.vars.label }}
+
+                    <span class="ODRThemeDesignTool">
+                        <a target="_blank"
+                           class="ODRDataInspector"
+                           href="#{{ path( 'odr_design_analyze_datafield_unique', {'datafield_id': datafield.id }) }}"
+                           title="Show Datarecords with duplicate values for this Datafield..."
+                        ><i class="fa fa-list fa-lg"></i></a>
+                    </span>
+                </label>
+            </span>
+        </div>
+    {% endif %}
+
+    {% if typeclass == 'Boolean' or typeclass == 'DatetimeValue'
+        or typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar'
+        or typeclass == 'LongVarchar' or typeclass == 'LongText'
+        or typeclass == 'IntegerValue' or typeclass == 'DecimalValue'
+    %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.prevent_user_edits) }}
-            {% if no_user_edits %}
-                {{ form_widget(datafield_form.prevent_user_edits, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox', 'disabled': 'disabled'} }) }}
-            {% else %}
-                {{ form_widget(datafield_form.prevent_user_edits, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox'} }) }}
-            {% endif %}
-            <label for="{{ datafield_form.prevent_user_edits.vars.id }}" title="If checked, nobody is allowed to directly change values in this field.  Only useful when paired with specific render plugins.">
-                {{ datafield_form.prevent_user_edits.vars.label }}
-            </label>
-        </div>
-        {% endif %}
 
-        {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
+            <span title="If checked, nobody is allowed to directly change values in this field.  Only useful when paired with specific render plugins.">
+                <label for="{{ datafield_form.prevent_user_edits.vars.id }}">
+                    {{ form_widget(datafield_form.prevent_user_edits, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox'
+                        }
+                    }) }}
+
+                    {{ datafield_form.prevent_user_edits.vars.label }}
+                </label>
+            </span>
+        </div>
+    {% endif %}
+
+    {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
         <div class="">
             <label for="{{ datafield_form.children_per_row.vars.id }}">
             {% if typename == 'Image' %}
@@ -186,64 +192,112 @@
                 Options per row:&nbsp;
             {% endif %}
             </label>
-            {{ form_errors(datafield_form.children_per_row) }}
-            {{ form_widget(datafield_form.children_per_row, { 'attr': {'class': 'ODRDatafieldChildren', 'style': 'width:auto'} }) }}
-        </div>
-        {% endif %}
 
-        {% if typename == 'Single Radio' or typename == 'Multiple Radio' or typename == 'Single Select' or typename == 'Multiple Select' or typename == 'Tags' %}
+            {{ form_errors(datafield_form.children_per_row) }}
+            {{ form_widget(datafield_form.children_per_row, {
+                'attr': {
+                    'class': 'ODRDatafieldChildren'
+                }
+            }) }}
+        </div>
+    {% endif %}
+
+    {% if typeclass == 'Radio' or typeclass == 'Tag' %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.radio_option_name_sort) }}
-            {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
-            <label for="{{ datafield_form.radio_option_name_sort.vars.id }}">
-                {{ datafield_form.radio_option_name_sort.vars.label }}
-            </label>
+
+            <span
+            {% if is_derived_field %}
+                title="This option can't be changed because it must remain synchronized with its master datafield"
+            {% else %}
+                title="If checked, the {% if typeclass == 'Radio' %}Radio Options{% else %}Tags{% endif %} in this field will be sorted alphabetically."
+            {% endif %}
+            >
+                <label for="{{ datafield_form.radio_option_name_sort.vars.id }}">
+                    {{ form_widget(datafield_form.radio_option_name_sort, {
+                        'attr': {
+                            'class': 'ODRDatafieldNameSort ODRFloatingCheckbox',
+                        }
+                    }) }}
+
+                    {{ datafield_form.radio_option_name_sort.vars.label }}
+                </label>
+            </span>
         </div>
+
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.radio_option_display_unselected) }}
-            {{ form_widget(datafield_form.radio_option_display_unselected, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
-            <label for="{{ datafield_form.radio_option_display_unselected.vars.id }}">
-                {{ datafield_form.radio_option_display_unselected.vars.label }}
-            </label>
+
+            <span title="If checked, then all {% if typeclass == 'Radio' %}Radio Options{% else %}Tags{% endif %} in this field will always be visible.  Otherwise, most situations will hide the unselected ones.">
+                <label for="{{ datafield_form.radio_option_display_unselected.vars.id }}">
+                    {{ form_widget(datafield_form.radio_option_display_unselected, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
+
+                    {{ datafield_form.radio_option_display_unselected.vars.label }}
+                </label>
+            </span>
         </div>
-            {% if typename != 'Tags' %}
-            <div class="ODRCheckboxProperty ODRRadioOptions" rel="{{ datafield.id }}">
-                <i id="Field_{{ datafield.id }}_radio_options" class="Pointer fa fa-lg fa-cog" title="Edit Options"></i>
-                Edit Available Options
-            </div>
+    {% endif %}
+
+    {% if typeclass == 'Tag' %}
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.tags_allow_multiple_levels) }}
+
+            <span
+            {% if has_tag_hierarchy %}
+                title="This option can't be changed because the tag structure already has multiple levels."
+            {% elseif is_derived_field %}
+                title="This option can't be changed because it must remain synchronized with its master datafield."
             {% else %}
-            <div class="ODRCheckboxProperty">
-                {{ form_errors(datafield_form.tags_allow_multiple_levels) }}
+                title="If checked, then Tags are allowed to have child/parent tags."
+            {% endif %}
+            >
+                <label for="{{ datafield_form.tags_allow_multiple_levels.vars.id }}">
+                    {{ form_widget(datafield_form.tags_allow_multiple_levels, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
 
-                <span{% if has_tag_hierarchy %} title="This option can't be changed because the tag structure already has multiple levels"{% endif %}>
+                    {{ datafield_form.tags_allow_multiple_levels.vars.label }}
+                </label>
+            </span>
+        </div>
 
-                {% if has_tag_hierarchy %}
-                    {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'style': 'width:auto'} }) }}
-                {% else %}
-                    {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
-                {% endif %}
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.tags_allow_non_admin_edit) }}
 
-                    <label for="{{ datafield_form.tags_allow_multiple_levels.vars.id }}">
-                        {{ datafield_form.tags_allow_multiple_levels.vars.label }}
-                    </label>
-
-                </span>
-            </div>
-            <div class="ODRCheckboxProperty">
-                {{ form_errors(datafield_form.tags_allow_non_admin_edit) }}
-                {{ form_widget(datafield_form.tags_allow_non_admin_edit, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
+            <span title="If checked, then users with Edit permissions or above can create/modify/delete Tags in this field.  Otherwise, only users with Admin permissions to this dataype can change this field's contents.">
                 <label for="{{ datafield_form.tags_allow_non_admin_edit.vars.id }}">
+                    {{ form_widget(datafield_form.tags_allow_non_admin_edit, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
+
                     {{ datafield_form.tags_allow_non_admin_edit.vars.label }}
                 </label>
-            </div>
-            <div class="ODRCheckboxProperty ODRTagsEdit" rel="{{ datafield.id }}">
-                <i id="Field_{{ datafield.id }}_tags" class="Pointer fa fa-lg fa-cog" title="Edit Tags"></i>
-                Edit Available Tags
-            </div>
-            {% endif %}
-        {% endif %}
+            </span>
+        </div>
+    {% endif %}
 
-        {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}
+    {% if typeclass == 'Radio' %}
+        <div class="ODRCheckboxProperty ODRRadioOptions" rel="{{ datafield.id }}">
+            <i id="Field_{{ datafield.id }}_radio_options" class="Pointer fa fa-lg fa-cog" title="Edit Options"></i>
+            &nbsp;Edit Available Options
+        </div>
+    {% elseif typeclass == 'Tag' %}
+        <div class="ODRCheckboxProperty ODRTagsEdit" rel="{{ datafield.id }}">
+            <i id="Field_{{ datafield.id }}_tags" class="Pointer fa fa-lg fa-cog" title="Edit Tags"></i>
+            &nbsp;Edit Available Tags
+        </div>
+    {% endif %}
+
+
+    {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}
         <div class="">
             <label for="{{ datafield_form.searchable.vars.id }}">
                 {{ datafield_form.searchable.vars.label }}
@@ -253,63 +307,83 @@
             {{ form_widget(datafield_form.searchable, { 'attr': {'class': 'ODRSelect'} }) }}
             </span>
         </div>
-        {% endif %}
+    {% endif %}
 
-        {% if typename == 'File' or typename == 'Image' %}
-        <div class="">
-            <label for="{{ datafield_form.allow_multiple_uploads.vars.id }}">
-                {{ datafield_form.allow_multiple_uploads.vars.label }}
-            </label>
-
-            <span {% if has_multiple_uploads %}
-                title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
-                  {% elseif single_uploads_only %}
-                title="This option can't be changed because a Render Plugin requires at most a single {{ typename }} uploaded to this Datafield"
-                  {% endif %}
-            >
-
+    {% if typename == 'File' or typename == 'Image' %}
+        <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.allow_multiple_uploads) }}
+
+            <span
             {% if has_multiple_uploads %}
-                <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
-                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
+                title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
             {% elseif single_uploads_only %}
-                <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="0" />
-                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
-            {# TODO - warn when changing this would end up changing table layouts?
-            {% elseif used_by_table_theme == true %}
-                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
-            #}
+                title="This option can't be changed because a Render Plugin requires at most a single {{ typename }} uploaded to this Datafield"
+            {% elseif is_derived_field %}
+                title="This option can't be changed because it must remain synchronized with its master datafield."
             {% else %}
-                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
+                title="If checked, then multiple {{ typename }}s can be uploaded to this field."
             {% endif %}
-            </span>
+            >
+                <label for="{{ datafield_form.allow_multiple_uploads.vars.id }}">
+                {% if has_multiple_uploads %}
+                    <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
+                {% elseif single_uploads_only %}
+                    <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="0" />
+                {% endif %}
 
-            <span>
-                <a target="_blank"
-                   class="ODRDataInspector"
-                   href="#{{ path( 'odr_design_analyze_file_uploads', {'datafield_id': datafield.id }) }}"
-                   title="Show Datarecords with multiple uploaded {{ typename }}s in this Datafield..."
-                ><i class="fa fa-list fa-lg"></i></a>
-            </span>
+                    {{ form_widget(datafield_form.allow_multiple_uploads, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
 
+                    {{ datafield_form.allow_multiple_uploads.vars.label }}
+
+                    <span class="ODRThemeDesignTool">
+                        <a target="_blank"
+                           class="ODRDataInspector"
+                           href="#{{ path( 'odr_design_analyze_file_uploads', {'datafield_id': datafield.id }) }}"
+                           title="Show Datarecords with multiple uploaded {{ typename }}s in this Datafield..."
+                        ><i class="fa fa-list fa-lg"></i></a>
+                    </span>
+                </label>
+            </span>
         </div>
 
-        <div class="">
-            <label for="{{ datafield_form.shorten_filename.vars.id }}">
-                {{ datafield_form.shorten_filename.vars.label }}
-            </label>
-            {{ form_errors(datafield_form.shorten_filename) }}
-            {{ form_widget(datafield_form.shorten_filename, { 'attr': {'style': 'width:auto'} }) }}
-        </div>
-
-        <div class="">
-            <label for="{{ datafield_form.newFilesArePublic.vars.id }}">
-                {{ datafield_form.newFilesArePublic.vars.label }}
-            </label>
+        <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.newFilesArePublic) }}
-            {{ form_widget(datafield_form.newFilesArePublic, { 'attr': {'style': 'width:auto'} }) }}
+
+            <span title="If checked, then all {{ typename }}s uploaded to this field are immediately set to public.  Otherwise, they are set to non-public.">
+                <label for="{{ datafield_form.newFilesArePublic.vars.id }}">
+                    {{ form_widget(datafield_form.newFilesArePublic, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
+
+                    {{ datafield_form.newFilesArePublic.vars.label }}
+                </label>
+            </span>
         </div>
-        {% endif %}
+
+{# NOTE - this propery is not used anywhere
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.shorten_filename) }}
+
+            <span title="If checked, then the displayed filename is shortened considerably.">
+                <label for="{{ datafield_form.shorten_filename.vars.id }}">
+                    {{ form_widget(datafield_form.shorten_filename, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
+
+                    {{ datafield_form.shorten_filename.vars.label }}
+                </label>
+            </span>
+        </div>
+#}
+    {% endif %}
 
         <div class="">
             <label for="{{ datafield_form.internal_reference_name.vars.id }}">

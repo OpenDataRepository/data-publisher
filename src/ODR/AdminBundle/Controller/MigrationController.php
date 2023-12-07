@@ -30,8 +30,11 @@ use FOS\UserBundle\Doctrine\UserManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+
+
 class MigrationController extends ODRCustomController
 {
+
 
     /**
      * Performs the following migration actions to update the backend database from ODR v1.0 to v1.1

@@ -21,33 +21,44 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+// Services
+use ODR\AdminBundle\Component\Utility\UserUtility;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-// Utility
-use ODR\AdminBundle\Component\Utility\UserUtility;
 use Symfony\Component\HttpFoundation\Session\Session;
 
 
 class ThemeInfoService
 {
 
-    // To make understanding this stuff somewhat easier...
-    const VALID_THEMETYPES = array(
+    /**
+     * Earlier versions of ODR used a combination of theme_type and context to control when and where
+     * themes could be used...in late 2023 this was changed so that any theme could be used anywhere,
+     * and as a result theme_type only because useful to indicate a datatype's "master" theme.
+     *
+     * NOTE: due to this change, the database could have 'master', 'custom', 'custom_view', 'table',
+     * or 'search_results' for this value...as such, it's only safe to compare with/against the
+     * string 'master'.
+     *
+     * @var string[]
+     */
+    const THEME_TYPES = array(
         'master',
-        'custom_view',
-        'search_results',
-        'table'
+        'custom',
     );
-    // These theme_types should only be used for displaying which datarecords matched a search
-    const SHORT_FORM_THEMETYPES = array(
-        'search_results',
-        'table'
-    );
-    // These theme_types should be used for everything else...Design/Display/Edit/etc
-    const LONG_FORM_THEMETYPES = array(
-        'master',
-        'custom_view'
+
+    /**
+     * This value is stored as a bitfield in the database, because the user could potentially want
+     * a theme to be the "default" for multiple contexts.
+     *
+     * @var string[]
+     */
+    const PAGE_TYPES = array(
+        1 => 'search_results',
+        2 => 'display',
+        4 => 'edit',
+//        8 => 'linking',    // TODO - do I actually want a separate page type for linking purposes?
     );
 
 
@@ -64,7 +75,12 @@ class ThemeInfoService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
+
+    /**
+     * @var PermissionsManagementService
+     */
+    private $permissions_service;
 
     /**
      * @var Session
@@ -83,6 +99,7 @@ class ThemeInfoService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
+     * @param PermissionsManagementService $permissions_service
      * @param Session $session
      * @param Logger $logger
      */
@@ -90,12 +107,14 @@ class ThemeInfoService
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
+        PermissionsManagementService $permissions_service,
         Session $session,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatree_info_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->permissions_service = $permissions_service;
         $this->session = $session;
         $this->logger = $logger;
     }
@@ -106,62 +125,100 @@ class ThemeInfoService
      *
      * @param ODRUser $user
      * @param Datatype $datatype
-     * @param string $theme_type
-     *
-     * @throws ODRBadRequestException
      *
      * @return array
      */
-    public function getAvailableThemes($user, $datatype, $theme_type = "master")
+    public function getAvailableThemes($user, $datatype)
     {
-        // Determine which "class" of themes the user wants to see
-        $theme_types = array();
-        if ($theme_type == 'master' || $theme_type == 'custom_view') {
-            // User wants themes that work on Display/Edit pages
-            $theme_types = self::LONG_FORM_THEMETYPES;
-        }
-        else if ($theme_type == 'search_results' || $theme_type == 'table') {
-            // User wants themes that work on Search Result pages
-            $theme_types = self::SHORT_FORM_THEMETYPES;
-        }
-        else {
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x722ce43e);
-        }
+        // Not guaranteed to have a logged-in user...
+        $user_id = 0;
+        if ($user !== 'anon.')
+            $user_id = $user->getId();
 
-        // ----------------------------------------
-        // Get all themes for this datatype that fulfill the previous criteria
+        // Get all themes for this datatype
         $query = $this->em->createQuery(
-           'SELECT t
+           'SELECT t, tm, tp,
+                partial t_cb.{id, username, email, firstName, lastName}
             FROM ODRAdminBundle:Theme AS t
-            JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
-            WHERE t.dataType = :datatype_id AND t.themeType IN (:theme_types)
-            AND t = t.parentTheme AND t.deletedAt IS NULL
+            JOIN t.createdBy AS t_cb
+            JOIN t.themeMeta AS tm
+            LEFT JOIN t.themePreferences AS tp WITH (tp.createdBy = :user_id)
+            WHERE t.dataType = :datatype_id
+            AND t = t.parentTheme AND t.deletedAt IS NULL AND tp.deletedAt IS NULL
             ORDER BY tm.displayOrder, tm.templateName'
-        )->setParameters( array('datatype_id' => $datatype->getId(), 'theme_types' => $theme_types));
-        $results = $query->getResult();
+        )->setParameters(
+            array(
+                'datatype_id' => $datatype->getId(),
+                'user_id' => $user_id,    // Only get theme preference entries belonging to the user calling the function
+            )
+        );
+        $results = $query->getArrayResult();
 
         // Filter the list of themes based on what the user is allowed to see
+        $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $datatype);
         $filtered_themes = array();
         foreach ($results as $theme) {
-            /** @var Theme $theme */
+            // Easier to extract some of these properties from the array...
+            $theme_meta = $theme['themeMeta'][0];
+            $theme_preferences = null;
+            if ( isset($theme['themePreferences'][0]) )
+                $theme_preferences = $theme['themePreferences'][0];
 
-            // Only allow user to view if the theme is shared, or they created it
-            if ( $theme->isShared()
-                || $user !== 'anon.' && $user->getId() == $theme->getCreatedBy()->getId()
+            $created_by = $theme['createdBy'];
+            $user_string = $created_by['email'];
+            if ( isset($created_by['firstName']) && isset($created_by['lastName']) && $created_by['firstName'] !== '' )
+                $user_string = $created_by['firstName'].' '.$created_by['lastName'];
+
+
+            // Only allow user to view if the theme is shared, or they created it, or they're an
+            //  admin of this datatype
+            if ( $theme_meta['shared']
+                || $user_id == $created_by['id']
+                || $is_datatype_admin
             ) {
+                // Themes can be defaults for multiple page_types...
+                $default_for_labels = array();
+                $default_for = $theme_meta['defaultFor'];
+                foreach (self::PAGE_TYPES as $bit => $label) {
+                    if ( $default_for & $bit )
+                        $default_for_labels[] = ucfirst( str_replace('_', ' ', $label) );
+                }
+
+                // Users' preferred themes are independent of whether the theme is default for a
+                //  given page_type...
+                $user_preference_labels = array();
+                if ( !is_null($theme_preferences) ) {
+                    $user_default_for = $theme_preferences['defaultFor'];
+                    foreach (self::PAGE_TYPES as $bit => $label) {
+                        if ( $user_default_for & $bit )
+                            $user_preference_labels[] = ucfirst( str_replace('_', ' ', $label) );
+                    }
+                }
+
+                // Earlier versions of ODR used a combination of theme_type and page_type to control
+                //  when and where they were used...in late 2023 this was changed so that any theme
+                //  could be used anywhere, and as a result theme_type only because useful to indicate
+                //  a datatype's "master" theme
+                $theme_type = 'custom';
+                if ($theme['themeType'] === 'master')
+                    $theme_type = 'master';
+
                 $theme_record = array(
-                    'id' => $theme->getId(),
-                    'name' => $theme->getTemplateName(),
-                    'description' => $theme->getTemplateDescription(),
-                    'public' => $theme->isShared(),     // TODO - change to shared
-                    'is_default' => $theme->isDefault(),
-                    'display_order' => $theme->getDisplayOrder(),
-                    'theme_type' => $theme->getThemeType(),
-                    'created_by' => $theme->getCreatedBy()->getId(),
-                    'created_by_name' => $theme->getCreatedBy()->getUserString(),
+                    'id' => $theme['id'],
+                    'name' => $theme_meta['templateName'],
+                    'description' => $theme_meta['templateDescription'],
+                    'is_shared' => $theme_meta['shared'],
+                    'display_order' => $theme_meta['displayOrder'],
+                    'theme_type' => $theme_type,
+                    'is_table_theme' => $theme_meta['isTableTheme'],
+                    'created_by' => $created_by['id'],
+                    'created_by_name' => $user_string,
+
+                    'default_for' => $default_for_labels,
+                    'user_preference_for' => $user_preference_labels,
                 );
 
-                array_push($filtered_themes, $theme_record);
+                $filtered_themes[] = $theme_record;
             }
         }
 
@@ -170,68 +227,65 @@ class ThemeInfoService
 
 
     /**
-     * Attempts to return the id of the user's preferred theme for the given datatype/theme_type.
+     * Attempts to return the id of the user's preferred theme for the given datatype/page_type.
      *
      * @param string|ODRUser $user  Either 'anon.' or an ODRUser object
      * @param integer $datatype_id
-     * @param string $theme_type
-     * @param array $top_level_themes should only be used by ThemeService
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      *
      * @return int
      */
-    public function getPreferredTheme($user, $datatype_id, $theme_type, $top_level_themes = null)
+    public function getPreferredThemeId($user, $datatype_id, $page_type)
     {
-        // Ensure the provided theme type is valid
-        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x66034d60);
+        // Ensure the provided page_type is valid
+        if ( !in_array($page_type, self::PAGE_TYPES) )
+            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x66034d60);
 
         // Look in the user's session first...
-        $theme_id = self::getSessionTheme($datatype_id, $theme_type);
-        if ($theme_id != null) {
-
-            if ($top_level_themes == null)
-                $top_level_themes = self::getTopLevelThemes();
-
+        $theme_id = self::getSessionThemeId($datatype_id, $page_type);
+        if ( !is_null($theme_id) ) {
+            // Going to need a list of top-level themes...
+            $top_level_themes = self::getTopLevelThemes();
             if ( in_array($theme_id, $top_level_themes) ) {
                 // If the theme isn't deleted, return its id
                 return $theme_id;
             }
             else {
                 // Otherwise, user shouldn't be using it as their session theme
-                self::resetSessionTheme($datatype_id, $theme_type);
+                self::resetSessionThemeId($datatype_id, $page_type);
 
                 // Continue looking for the next-best theme to use
             }
         }
 
-
-        // If nothing in the user's session, then check the database for their default preferences...
+        // If nothing was found in the user's session, then see if the user has a preference already
+        //  stored in the database for this page_type...
         if ($user !== 'anon.') {
-            $theme_preference = self::getUserDefaultTheme($user, $datatype_id, $theme_type);
-            if ($theme_preference != null) {
+            $theme_preference = self::getUserThemePreference($user, $datatype_id, $page_type);
+            if ( !is_null($theme_preference) ) {
                 // ...set it as their current session theme to avoid database lookups
                 $theme = $theme_preference->getTheme();
-                self::setSessionTheme($datatype_id, $theme);
+                self::setSessionThemeId($datatype_id, $page_type, $theme->getId());
 
                 // ...return the id of the theme
                 return $theme->getId();
             }
         }
 
-
-        // Otherwise, default to the datatype's default theme
-        $theme = self::getDatatypeDefaultTheme($datatype_id, $theme_type);
-        if ($theme != null) {
+        // If the user doesn't have a preference in the database, then see if the datatype has a
+        //  default theme for this page_type...
+        $theme = self::getDatatypeDefaultTheme($datatype_id, $page_type);
+        if ( !is_null($theme) ) {
             // ...set it as their current session theme to avoid database lookups
-            self::setSessionTheme($datatype_id, $theme);
+            self::setSessionThemeId($datatype_id, $page_type, $theme->getId());
 
             // ...return the id of the theme
             return $theme->getId();
         }
 
-        // ...If for some reason there's no default theme for this theme_type, return the datatype's master theme
-        $theme = self::getDatatypeDefaultTheme($datatype_id, 'master');
-        if ($theme != null)
+        // If there's no default theme for this page_type, then return the datatype's master theme
+        $theme = self::getDatatypeMasterTheme($datatype_id);
+        if ( !is_null($theme) )
             return $theme->getId();
 
         // ...if there's not even a master theme for this datatype, something is horribly wrong
@@ -240,59 +294,48 @@ class ThemeInfoService
 
 
     /**
-     * Returns the user's preferred theme for this datatype for their current session.
+     * Returns the id of the user's preferred theme for this current datatype/page_type combo for
+     * their current session.
      *
      * @param integer $datatype_id
-     * @param string $theme_type
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      *
      * @return int|null
      */
-    public function getSessionTheme($datatype_id, $theme_type)
+    public function getSessionThemeId($datatype_id, $page_type)
     {
-        // Ensure the provided theme type is valid
-        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xd3fe0f6d);
-
-        // Themes are stored in the session by which "class" they belong to
-        $theme_class = 'long_form';
-        if ( in_array($theme_type, self::SHORT_FORM_THEMETYPES) )
-            $theme_class = 'short_form';
+        // Ensure the provided page_type is valid
+        if ( !in_array($page_type, self::PAGE_TYPES) )
+            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0xd3fe0f6d);
 
 
-        // If the user has specified a theme for their current session...
+        // If the user has changed any theme for their current session...
         if ( $this->session->has('session_themes') ) {
-            // ...see if a theme is stored for this session for this datatype
             $session_themes = $this->session->get('session_themes');
 
-            if (isset($session_themes[$datatype_id])
-                && isset($session_themes[$datatype_id][$theme_class])
-            ) {
-                return $session_themes[$datatype_id][$theme_class];
-            }
+            // ...see if they have a theme for this datatype/page_type combo
+            if ( isset($session_themes[$datatype_id][$page_type]) )
+                return $session_themes[$datatype_id][$page_type];
         }
 
-        // Otherwise, no session theme, return null
+        // Otherwise, no session theme...return null
         return null;
     }
 
 
     /**
-     * Stores a specific theme id as the user's preferred theme for this datatype for this session.
+     * Stores a specific theme id as the user's preferred theme for this datatype/page_type combo
+     * for this session.
      *
      * @param integer $datatype_id
-     * @param Theme $theme
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
+     * @param integer $theme_id
      */
-    public function setSessionTheme($datatype_id, $theme)
+    public function setSessionThemeId($datatype_id, $page_type, $theme_id)
     {
-        // Ensure the provided theme type is valid
-        $theme_type = $theme->getThemeType();
-        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xf07deceb);
-
-        // Themes are stored in the session by which "class" they belong to
-        $theme_class = 'long_form';
-        if ( in_array($theme_type, self::SHORT_FORM_THEMETYPES) )
-            $theme_class = 'short_form';
+        // Ensure the provided page_type is valid
+        if ( !in_array($page_type, self::PAGE_TYPES) )
+            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0xf07deceb);
 
 
         // Load any existing session themes
@@ -304,30 +347,24 @@ class ThemeInfoService
             $session_themes[$datatype_id] = array();
 
         // Save the theme choice in the session
-        $session_themes[$datatype_id][$theme_class] = $theme->getId();
+        $session_themes[$datatype_id][$page_type] = $theme_id;
         $this->session->set('session_themes', $session_themes);
     }
 
 
     /**
-     * Clears the user's preferred theme for this datatype for this session.  If a theme_type is
-     * specified, then only that theme_type for the datatype is cleared.
+     * Clears the user's preferred themes for this datatype for this session.  If a page_type is
+     * specified, then only the theme for that page_type is cleared.
      *
      * @param integer $datatype_id
-     * @param string $theme_type
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      */
-    public function resetSessionTheme($datatype_id, $theme_type = '')
+    public function resetSessionThemeId($datatype_id, $page_type = '')
     {
-        $theme_class = '';
-        if ($theme_type !== '') {
-            // Ensure the provided theme type is valid
-            if (!in_array($theme_type, self::VALID_THEMETYPES))
-                throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x68a0df80);
-
-            // Themes are stored in the session by which "class" they belong to
-            $theme_class = 'long_form';
-            if (in_array($theme_type, self::SHORT_FORM_THEMETYPES))
-                $theme_class = 'short_form';
+        if ( $page_type !== '' ) {
+            // Ensure the provided page_type is valid
+            if ( !in_array($page_type, self::PAGE_TYPES) )
+                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x68a0df80);
         }
 
         // Load any existing session themes
@@ -335,13 +372,11 @@ class ThemeInfoService
         if ( $this->session->has('session_themes') )
             $session_themes = $this->session->get('session_themes');
 
-        // Unset the theme for this session if it exists
-        if (isset($session_themes[$datatype_id]) ) {
-            if ($theme_class === '')
-                unset( $session_themes[$datatype_id] );
-            else if ( isset($session_themes[$datatype_id][$theme_class]) )
-                unset( $session_themes[$datatype_id][$theme_class] );
-        }
+        // If the page type was not set, then just unset anything stored for this datatype
+        if ( $page_type === '' )
+            unset( $session_themes[$datatype_id] );
+        else
+            unset( $session_themes[$datatype_id][$page_type] );
 
         // Save back to session
         $this->session->set("session_themes", $session_themes);
@@ -354,56 +389,52 @@ class ThemeInfoService
      *
      * @param ODRUser $user
      * @param integer $datatype_id
-     * @param string $theme_type
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      *
      * @return ThemePreferences|null
      */
-    public function getUserDefaultTheme($user, $datatype_id, $theme_type)
+    public function getUserThemePreference($user, $datatype_id, $page_type)
     {
-        // If no user, then no user theme by extension
+        // Anonymous users don't have theme preferences
         if ($user === 'anon.')
             return null;
 
-
-        // Determine which "class" of themes the user wants to see
-        $theme_types = array();
-        if ($theme_type == 'master' || $theme_type == 'custom_view') {
-            // User wants themes that work on Display/Edit pages
-            $theme_types = self::LONG_FORM_THEMETYPES;
-        }
-        else if ($theme_type == 'search_results' || $theme_type == 'table') {
-            // User wants themes that work on Search Result pages
-            $theme_types = self::SHORT_FORM_THEMETYPES;
-        }
-        else {
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xfaedeca2);
-        }
+        // Ensure the provided page_type is valid
+        $page_type_id = array_search($page_type, self::PAGE_TYPES);
+        if ( $page_type_id === false )
+            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0xfaedeca2);
 
 
         // ----------------------------------------
-        // Determine whether the user already has a preferred Theme for this "category"
-        $query = $this->em->createQuery(
-           'SELECT tp
-            FROM ODRAdminBundle:ThemePreferences AS tp
-            JOIN ODRAdminBundle:Theme AS t WITH tp.theme = t
-            JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-            WHERE t.dataType = :datatype_id AND tp.createdBy = :user_id AND tp.isDefault = 1
-            AND t.themeType IN (:theme_types)
-            AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'datatype_id' => $datatype_id,
-                'user_id' => $user->getId(),
-                'theme_types' => $theme_types
-            )
+        // Determine whether the user already has a preferred Theme for this page_type
+        // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
+        $query =
+           'SELECT tp.id
+            FROM odr_theme_preferences AS tp
+            JOIN odr_theme AS t ON tp.theme_id = t.id
+            JOIN odr_data_type AS dt ON t.data_type_id = dt.id
+            WHERE dt.id = :datatype_id
+            AND tp.createdBy = :user_id AND (tp.default_for & :page_type_id)
+            AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL';
+        $params = array(
+            'datatype_id' => $datatype_id,
+            'user_id' => $user->getId(),
+            'page_type_id' => $page_type_id,
         );
-        $result = $query->getResult();
-
-        if ( count($result) == 0 )
-            return null;
+        $conn = $this->em->getConnection();
+        $results = $conn->executeQuery($query, $params);
 
         // Should only be one...
-        return $result[0];
+        foreach ($results as $result) {
+            $tp_id = $result['id'];
+
+            /** @var ThemePreferences $tp */
+            $tp = $this->em->getRepository('ODRAdminBundle:ThemePreferences')->find($tp_id);
+            return $tp;
+        }
+
+        // If the query returned nothing, then return null instead
+        return null;
     }
 
 
@@ -413,50 +444,53 @@ class ThemeInfoService
      *
      * @param ODRUser $user
      * @param Theme $theme
-     *
-     * @throws ODRBadRequestException
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      *
      * @return ThemePreferences
      */
-    public function setUserDefaultTheme($user, $theme)
+    public function setUserThemePreference($user, $theme, $page_type)
     {
         // Complain if this isn't a top-level theme
-        if ($theme->getId() !== $theme->getParentTheme()->getId())
+        if ( $theme->getId() !== $theme->getParentTheme()->getId() )
             throw new ODRBadRequestException('This should only be called on Themes of top-level Datatypes', 0x4f2519d6);
 
 
         // ----------------------------------------
-        // Get which theme_types define a "category" of themes
-        $theme_type = $theme->getThemeType();
+        // Ensure the provided page_type is valid
+        $page_type_id = array_search($page_type, self::PAGE_TYPES);
+        if ( $page_type_id === false )
+            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x4f2519d6);
 
-        $theme_types = self::LONG_FORM_THEMETYPES;
-        if ($theme_type == 'search_results' || $theme_type == 'table') {
-            // User wants themes that work on Search Result pages
-            $theme_types = self::SHORT_FORM_THEMETYPES;
-        }
-
-        // Determine whether the user already has a preferred Theme for this "category"
-        $query = $this->em->createQuery(
-           'SELECT tp
-            FROM ODRAdminBundle:ThemePreferences AS tp
-            JOIN ODRAdminBundle:Theme AS t WITH tp.theme = t
-            JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-            WHERE t.dataType = :datatype_id AND tp.createdBy = :user_id AND tp.isDefault = 1
-            AND t.themeType IN (:theme_types)
-            AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'datatype_id' => $theme->getDataType()->getId(),
-                'user_id' => $user->getId(),
-                'theme_types' => $theme_types
-            )
+        // Determine whether the user already has a preferred Theme for this page_type
+        // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
+        $query =
+           'SELECT tp.id
+            FROM odr_theme_preferences AS tp
+            JOIN odr_theme AS t ON tp.theme_id = t.id
+            JOIN odr_data_type AS dt ON t.data_type_id = dt.id
+            WHERE dt.id = :datatype_id
+            AND tp.createdBy = :user_id AND (tp.default_for & :page_type_id)
+            AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL';
+        $params = array(
+            'datatype_id' => $theme->getDataType()->getId(),
+            'user_id' => $user->getId(),
+            'page_type_id' => $page_type_id,
         );
-        $results = $query->getResult();
+        $conn = $this->em->getConnection();
+        $results = $conn->executeQuery($query, $params);
 
-        // If they do, then mark it as "not default", since there's going to be a new default...
-        /** @var ThemePreferences $tp */
-        foreach ($results as $tp) {
-            $tp->setIsDefault(false);
+        foreach ($results as $result) {
+            // If they do, then mark it as "not default", since there's going to be a new default...
+            $tp_id = $result['id'];
+
+            /** @var ThemePreferences $tp */
+            $tp = $this->em->getRepository('ODRAdminBundle:ThemePreferences')->find($tp_id);
+
+            // Unset the bit for this page_type and save it back into the field
+            $bitfield_value = $tp->getDefaultFor();
+            $bitfield_value -= $page_type_id;
+            $tp->setDefaultFor($bitfield_value);
+
             $this->em->persist($tp);
         }
 
@@ -475,10 +509,13 @@ class ThemeInfoService
             $tp = new ThemePreferences();
             $tp->setCreatedBy($user);
             $tp->setTheme($theme);
+            $tp->setDefaultFor(0);
         }
 
         // Mark this ThemePreference entry as the one the user wants to use
-        $tp->setIsDefault(true);
+        $bitfield_value = $tp->getDefaultFor();
+        $bitfield_value += $page_type_id;
+        $tp->setDefaultFor($bitfield_value);
         $tp->setUpdatedBy($user);
 
         // Done with the modifications
@@ -491,55 +528,50 @@ class ThemeInfoService
 
 
     /**
-     * Return a datatype's default Theme for this theme_type, as set by a datatype admin.  If the
+     * Return a datatype's default Theme for this page_type, as set by a datatype admin.  If the
      * datatype's "master" theme is desired, self::getDatatypeMasterTheme() should be used instead.
      *
      * @param integer $datatype_id
-     * @param string $theme_type
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      *
      * @return Theme
      */
-    public function getDatatypeDefaultTheme($datatype_id, $theme_type = 'master')
+    public function getDatatypeDefaultTheme($datatype_id, $page_type)
     {
-        // Ensure the provided theme_type is valid
-        $theme_types = array();
-        if ($theme_type == 'master' || $theme_type == 'custom_view') {
-            // User wants themes that work on Display/Edit pages
-            $theme_types = self::LONG_FORM_THEMETYPES;
-        }
-        else if ($theme_type == 'search_results' || $theme_type == 'table') {
-            // User wants themes that work on Search Result pages
-            $theme_types = self::SHORT_FORM_THEMETYPES;
-        }
-        else {
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xb940fc66);
-        }
+        // Ensure the provided page_type is valid
+        $page_type_id = array_search($page_type, self::PAGE_TYPES);
+        if ( $page_type_id === false )
+            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0xb940fc66);
 
 
+        // ----------------------------------------
         // Query the database for the default top-level theme for this datatype
-        $query = $this->em->createQuery(
-           'SELECT t
-            FROM ODRAdminBundle:Theme AS t
-            JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
-            WHERE t.dataType = :datatype_id AND tm.isDefault = :is_default
-            AND t = t.parentTheme AND t.themeType IN (:theme_types)
-            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'datatype_id' => $datatype_id,
-                'is_default' => true,
-                'theme_types' => $theme_types,
-            )
+        // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
+        $query =
+           'SELECT t.id
+            FROM odr_theme AS t
+            JOIN odr_theme_meta AS tm ON tm.theme_id = t.id
+            WHERE t.data_type_id = :datatype_id AND (tm.default_for & :page_type_id)
+            AND t.id = t.parent_theme_id
+            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
+        $params = array(
+            'datatype_id' => $datatype_id,
+            'page_type_id' => $page_type_id,
         );
-        $result = $query->getResult();
+        $conn = $this->em->getConnection();
+        $results = $conn->executeQuery($query, $params);
 
-        //
-        if ( !isset($result[0]) )
-            // If no default theme for this theme_type exists, just return null
-            return null;
-        else
-            // Otherwise, return the default theme
-            return $result[0];
+        // Should only be one...
+        foreach ($results as $result) {
+            $t_id = $result['id'];
+
+            /** @var Theme $t */
+            $t = $this->em->getRepository('ODRAdminBundle:Theme')->find($t_id);
+            return $t;
+        }
+
+        // If the query returned nothing, then return null instead
+        return null;
     }
 
 
@@ -547,7 +579,6 @@ class ThemeInfoService
      * Returns the given datatype's "master" theme.
      *
      * @param integer $datatype_id
-     * @param integer $theme_element_id
      *
      * @return Theme
      */
@@ -569,15 +600,12 @@ class ThemeInfoService
         );
         $result = $query->getResult();
 
-
-        // Sanity check...
-        if ( count($result) !== 1 ) {
+        // There should only be one master theme for a datatype...
+        if ( count($result) !== 1 )
             throw new ODRException('This datatype does not have a "master" theme', 500, 0x2e0a8d28);
-        }
-        else {
-            // Return this datatype's master theme
-            return $result[0];
-        }
+
+        // Return this datatype's master theme
+        return $result[0];
     }
 
 
@@ -619,7 +647,7 @@ class ThemeInfoService
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this cache entry
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
         // Get all the data for the requested theme
         $query = $this->em->createQuery(
@@ -631,7 +659,8 @@ class ThemeInfoService
 
                 te, tem,
                 tdf, partial df.{id},
-                tdt, partial c_dt.{id}, partial c_t.{id}
+                tdt, partial c_dt.{id}, partial c_t.{id},
+                trpi, partial rpi.{id}
 
             FROM ODRAdminBundle:Theme AS t
             LEFT JOIN t.themeMeta AS tm
@@ -652,6 +681,9 @@ class ThemeInfoService
             LEFT JOIN te.themeDataType AS tdt
             LEFT JOIN tdt.dataType AS c_dt
             LEFT JOIN tdt.childTheme AS c_t
+
+            LEFT JOIN te.themeRenderPluginInstance AS trpi
+            LEFT JOIN trpi.renderPluginInstance AS rpi
 
             WHERE t.parentTheme = :parent_theme_id
             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
@@ -719,7 +751,7 @@ class ThemeInfoService
                 }
 
                 // Currently only one themeDatatype is allowed per themeElement, but preserve
-                //  $tdt_num anyways incase this changes in the future...
+                //  $tdt_num regardless incase this changes in the future...
                 foreach ($te['themeDataType'] as $tdt_num => $tdt) {
                     // Don't preserve entries for deleted datatypes
                     if ( is_null($tdt['dataType']) ) {
@@ -752,11 +784,21 @@ class ThemeInfoService
                     }
                 }
 
+                // Currently only one themeRenderPluginInstance is allowed per themeElement, but
+                //  preserve $trpi_num regardless incase this changes in the future...
+                foreach ($te['themeRenderPluginInstance'] as $trpi_num => $trpi) {
+                    // Don't preserve entries for deleted renderPluginInstances
+                    if ( is_null($trpi['renderPluginInstance']) )
+                        unset( $te['themeDataType'][$trpi_num] );
+                }
+
                 // Easier on twig for these arrays to simply not exist, if nothing is in them...
-                if ( count($te['themeDataFields']) == 0 )
+                if ( empty($te['themeDataFields']) )
                     unset( $te['themeDataFields'] );
-                if ( count($te['themeDataType']) == 0 )
+                if ( empty($te['themeDataType']) )
                     unset( $te['themeDataType'] );
+                if ( empty($te['themeRenderPluginInstance']) )
+                    unset( $te['themeRenderPluginInstance'] );
 
                 $new_te_array[$te_num] = $te;
             }
@@ -839,7 +881,6 @@ class ThemeInfoService
      */
     public function getTopLevelThemes()
     {
-        // ----------------------------------------
         // If list of top level themes exists in cache, return that
         $top_level_themes = $this->cache_service->get('top_level_themes');
         if ( $top_level_themes !== false && count($top_level_themes) > 0 )
@@ -848,7 +889,7 @@ class ThemeInfoService
 
         // ----------------------------------------
         // Otherwise, rebuild the list of top-level themes
-        $top_level_datatypes = $this->dti_service->getTopLevelDatatypes();
+        $top_level_datatypes = $this->datatree_info_service->getTopLevelDatatypes();
 
         $query = $this->em->createQuery(
            'SELECT t.id AS theme_id

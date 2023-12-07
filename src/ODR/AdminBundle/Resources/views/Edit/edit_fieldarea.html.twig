@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set THEME_ELEMENT_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::THEME_ELEMENT_PLUGIN') %}
+
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -26,8 +28,46 @@
 } %}
 
 {% for theme_element in theme.themeElements %}
+
+    {% if theme_element.themeRenderPluginInstance is defined and theme_element.themeElementMeta.hidden == 0 %}
+        {# NOTE - themeRenderPluginInstance stuff is out here instead of with the themeDatafield/themeDatatype stuff, because this position doesn't force twig to always display the themeElement #}
+
+        {# theoretically should only be a single themeRenderPluginInstance, but be safe... #}
+        {% set trpi = theme_element.themeRenderPluginInstance %}
+        {% set current_rpi_target = trpi[0].renderPluginInstance.id %}
+
+        {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'edit', 'is_datatype_admin': is_datatype_admin} %}
+
+        {% set can_execute_plugin = false %}
+        {% set render_plugin_instance = null %}
+        {% if datatype['renderPluginInstances'][current_rpi_target] is defined %}
+            {% set rpi = datatype['renderPluginInstances'][current_rpi_target] %}
+            {% if rpi.renderPlugin.plugin_type == THEME_ELEMENT_PLUGIN and rpi.renderPlugin.active %}
+                {% set can_execute_plugin = rpi|can_execute_theme_element_plugin(datatype, rendering_options) %}
+
+                {% if can_execute_plugin %}
+                    {# Only want to save the render_plugin_instance if it's render-able #}
+                    {% set render_plugin_instance = rpi %}
+                {% endif %}
+            {% endif %}
+        {% endif %}
+
+        {% if can_execute_plugin %}
+            {% set content = datarecord|theme_element_plugin(datatype, render_plugin_instance, theme_array, rendering_options) %}
+            {% if content|length > 0 %}
+            <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+            <div class="ODRInnerBox">
+                <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override theme_element html -->
+                {{ content|raw }}
+                <!-- End {{ render_plugin_instance.renderPlugin.pluginName }} override theme_element html -->
+            </div><!-- End of .ODRInnerBox -->
+            </div><!-- End of .ThemeElement -->
+            {% endif %}
+        {% endif %}
+
+    {% elseif not theme_element|is_empty(datarecord, datatype, 'edit') %}
     <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
-        <div class="ODRInnerBox">
+    <div class="ODRInnerBox{% if theme_element.themeElementMeta.hideBorder %} ODRInnerBox_HideBorder{% endif %}">
 
         {% if theme_element.themeDataFields is defined %}
             {% for theme_datafield in theme_element.themeDataFields %}
@@ -43,6 +83,7 @@
                         {% set can_edit_datafield = true %}
                     {% endif %}
 
+                    {% if theme_datafield.hidden == 0 %}
                     <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
                          id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}"
                     {% if datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
@@ -60,6 +101,7 @@
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
+                                'themeDatafield': theme_datafield,
                             } %}
                         {% else %}
                             {# user is allowed to edit datafield #}
@@ -73,6 +115,7 @@
                             } %}
                         {% endif %}
                     </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+                    {% endif %}
                 {% endif %}
             {% endfor %}
 
@@ -116,8 +159,10 @@
             {% endfor %}
         {% endif %}
 
-        </div><!-- End of .ODRInnerBox -->
+    </div><!-- End of .ODRInnerBox -->
     </div><!-- End of .ThemeElement -->
+    {% endif %}
+
 {% endfor %}
 
 {% endspaceless %}

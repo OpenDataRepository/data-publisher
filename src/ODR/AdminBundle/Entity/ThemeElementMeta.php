@@ -38,6 +38,11 @@ class ThemeElementMeta
     private $hidden;
 
     /**
+     * @var bool
+     */
+    private $hideBorder;
+
+    /**
      * @var string
      */
     private $cssWidthMed;
@@ -133,6 +138,30 @@ class ThemeElementMeta
     public function getHidden()
     {
         return $this->hidden;
+    }
+
+    /**
+     * Set hideBorder.
+     *
+     * @param bool $hideBorder
+     *
+     * @return ThemeElementMeta
+     */
+    public function setHideBorder($hideBorder)
+    {
+        $this->hideBorder = $hideBorder;
+
+        return $this;
+    }
+
+    /**
+     * Get hideBorder.
+     *
+     * @return bool
+     */
+    public function getHideBorder()
+    {
+        return $this->hideBorder;
     }
 
     /**

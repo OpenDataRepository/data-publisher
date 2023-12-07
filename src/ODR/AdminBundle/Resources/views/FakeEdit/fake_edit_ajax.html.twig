@@ -51,6 +51,7 @@ $(function() {
     {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
         'datatype_id': datatype.id,
         'theme_id': theme.id,
+        'page_type': 'edit',
         'search_key': search_key,
     }%}
     {% endif %}
@@ -59,10 +60,10 @@ $(function() {
 var SaveTimeout = 1000;
 function initPage() {
     // Shouldn't be needed, but shouldn't hurt
-    hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
+    hideSearchOverlay();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
     // Attach click handlers to tags
-    setupTagTree();
+    setupTagTree( $(".ODRRecord"), 3);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
     $(".ODRFileDownloadProgress").hide();
 
@@ -88,7 +89,66 @@ function initPage() {
         event.preventDefault();
 
         SaveAsNew();
-    })
+    });
+
+    $(".ODRTagEdit").unbind('click').click(function() {
+        // Not going to actually save anything here, but the tag collapsing works better if classes
+        //  get updated when the user clicks stuff
+        var tag_input = $(this);
+
+        if ( $(tag_input).is(':checked') ) {
+            // If this tag is now selected, then the tag showing/hiding needs to be aware of it
+            $(tag_input).parents('.ODRTagItem').addClass('ODRTagSelected');
+            // console.log('adding .ODRTagSelected');
+        }
+        else {
+            // Tags without children should always lose the "ODRTagSelected" class...
+            var tag = $(tag_input).parent().parent();
+            if ( $(tag).children('.ODRTagGroup').length === 0 ) {
+                $(tag).removeClass('ODRTagSelected');
+                // console.log('tag has no children, removing .ODRTagSelected from', tag);
+            }
+            else {
+                // Tags with children need to check whether any of them are selected...
+                var child_is_selected = false;
+                $(tag).children('.ODRTagGroup').children('.ODRTagItem').each(function(index,elem) {
+                    if ( $(elem).hasClass('ODRTagSelected') ) {
+                        child_is_selected = true;
+                        return false;
+                    }
+                });
+
+                // ...if not, then this tag can lose the class
+                if ( !child_is_selected ) {
+                    $(tag).removeClass('ODRTagSelected');
+                    // console.log('tag has no selected children, removing .ODRTagSelected from', tag);
+                }
+                // else {
+                //     console.log('tag has selected children, not removing .ODRTagSelected from', tag);
+                // }
+            }
+
+            // Since this tag is now unselected, need to recursively check whether every
+            //  ancestor of this tag still needs the "ODRTagSelected" class
+            UpdateParentTagClass( $(tag) );
+        }
+    });
+
+    var context = $(".ODRRecord");
+    var tag_filter_interval = [];
+    $(context).find(".ODRSearchDatafieldFilter").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+        var df = $(this).parents('.ODRDataField');
+        var id_data = $(df).attr('id').split(/_/);
+        var dr_id = id_data[1];
+        var df_id = id_data[2];
+
+        if ( tag_filter_interval[df_id] !== undefined )
+            clearTimeout( tag_filter_interval[df_id] );
+
+        tag_filter_interval[df_id] = setTimeout(function() {
+            filterFakeEditTagField(context, dr_id, df_id);
+        }, 750);
+    });
 
     $('#ODRHelpButton').unbind('click').click(function() {
         ODRFakeEdit_startIntroJS();
@@ -117,6 +177,120 @@ function DeleteLinkedRecord(datarecord_id) {
 }
 function CheckRecordData(form_id, interval) {
     alert('Changes do not automatically save');
+}
+
+/**
+ * Filters the displayed options/tags for a field in FakeEdit mode.
+ *
+ * @param {HTMLElement} context
+ * @param {number} dr_id
+ * @param {number} df_id
+ */
+function filterFakeEditTagField(context, dr_id, df_id) {
+    var filter_element = $(context).find("#edit_df_" + df_id + "_filter").first();
+    // var fieldtype = $(filter_element).attr('rel');
+    var filter_text = $(filter_element).val().trim().toLowerCase();
+
+    // Tag fields could have a hierarchy...
+    var tags = $(context).find("#Field_" + dr_id + '_' + df_id).find(".ODRTagItem");
+
+    if ( filter_text == '' ) {
+        // If no text in the filter, revert back to "partially collapsed" status
+        $(tags).each(function(index,elem) {
+            // Tags with this class, or top-level tags, should be the only ones visible after the
+            //  filter gets cleared
+            if ( $(elem).hasClass('ODRTagSelected') || !$(elem).parent().parent().hasClass('ODRTagItem') ) {
+                $(elem).show();
+                $(elem).children('ul.ODRTagGroup').show();
+            }
+            else {
+                $(elem).hide();
+                $(elem).children('ul.ODRTagGroup').hide();
+            }
+
+            // The indicator icon should also be reset
+            $(elem).children('.ODRTagParent').each(function(index,span) {
+                $(span).removeClass('ODRTagCollapsed').addClass('ODRTagPartialCollapsed');
+                $(span).children('i').removeClass('fa-caret-down fa-caret-right').addClass('fa-ellipsis-h');
+            });
+        });
+    }
+    else {
+        $(tags).each(function(index,elem) {
+            // If this tag has children, then the indicator icon should be forced into "fully visible" status
+            $(elem).children('.ODRTagParent').each(function(index,span) {
+                $(span).removeClass('ODRTagPartialCollapsed ODRTagCollapsed');
+                $(span).children('i').removeClass('fa-ellipsis-h fa-caret-right').addClass('fa-caret-down');
+                $(span).next().next().show();
+            });
+
+            // The tag's name needs to be converted to lower case...
+            var tag_name = $(elem).children('label').text().toLowerCase();
+
+            // ...so it can get compared against the provided filter text
+            if ( tag_name.indexOf(filter_text) === -1 ) {
+                $(elem).hide();
+            }
+            else {
+                // Display the tag even if it was initially hidden
+                $(elem).removeAttr('style');
+
+                // Also need to ensure that all parents of this tag are visible
+                $(elem).parents('.ODRTagItem').removeAttr('style');
+            }
+        });
+    }
+}
+
+/**
+ * Recursively checks whether every ancestor of the given tag still need the "ODRTagSelected" class.
+ *
+ * @param {HTMLElement} tag
+ */
+function UpdateParentTagClass(tag)
+{
+    // console.log('UpdateParentTagClass() called with', tag);
+    // If this is a top-level tag, do nothing
+    if ( !$(tag).parent().parent().hasClass('ODRTagItem') ) {
+        // console.log('tag is top-level, exiting recursion');
+        return;
+    }
+
+    // If this tag is already selected, do nothing
+    if ( $(tag).children('.ODRTagLabel').children('input').is(':checked') ) {
+        // console.log('tag is selected, exiting recursion');
+        return;
+    }
+
+    // Need to determine whether any of the given tag's siblings are still selected
+    var sibling_tags = $(tag).parent().children('li.ODRTagItem');
+    // console.log('sibling tags: ', sibling_tags);
+
+    var is_selected = false;
+    $.each(sibling_tags, function(index,elem) {
+        if ( $(elem).hasClass('ODRTagSelected') ) {
+            is_selected = true;
+            return false;
+        }
+    });
+    // console.log('is_selected', is_selected);
+
+    // If none of this tag's siblings are selected...
+    if ( !is_selected ) {
+        // ...then the parent tag should only have the "ODRTagSelected" class if it's actually selected
+        var parent_tag = $(tag).parent().parent();
+        if ( $(parent_tag).children('.ODRTagLabel').children('input').is(':checked') ) {
+            // console.log('parent_tag is selected, exiting recursion');
+            return;
+        }
+        else {
+            $(tag).parent().parent().removeClass('ODRTagSelected');
+            // console.log('removing ODRTagSelected class from', $(tag).parent().parent());
+
+            // Check whether the parent tag needs to update its parent too
+            UpdateParentTagClass( $(tag).parent().parent() );
+        }
+    }
 }
 
 /**
@@ -195,9 +369,9 @@ function SaveAsNew() {
                     }
                 });
             }
-            else if ( $(fieldset).find("select").length > 0 ) {
+            else if ( $(fieldset).children("select").length > 0 ) {
                 // Single Select
-                var selected = $(fieldset).find("select").children("option:selected");
+                var selected = $(fieldset).children("select").children("option:selected");
                 if ( $(selected).length > 0 ) {
                     var ro_id_data = $(selected).attr('id').split(/_/);
                     var ro_id = ro_id_data[1];
@@ -209,7 +383,7 @@ function SaveAsNew() {
                     }
                 }
             }
-            else if ( $(fieldset).find("textarea").length > 0 ) {
+            else if ( $(fieldset).children(".ODRFieldWrapper").children("textarea").length > 0 ) {
                 // Paragraph text
                 var textarea = $(fieldset).find("textarea");
                 // console.log( $(textarea).attr('id') );
@@ -220,7 +394,7 @@ function SaveAsNew() {
                     form_data.tokens[df_id] = token;
                 }
             }
-            else if ( $(fieldset).find("input").length > 0 ) {
+            else if ( $(fieldset).children(".ODRFieldWrapper").children("input").length > 0 ) {
                 var input = $(fieldset).find("input");
                 // console.log( $(input).attr('id') );
 
@@ -308,7 +482,7 @@ function ODRFakeEdit_setupIntroJS() {
 
     $('#ODRFakeEdit_save').parent()
         .attr('data-step', '2')
-        .attr('data-intro', 'The main purpose of the "Add New Record" page is to prevent users from accidentally creating blank records.<br><br>It might look similar to a regular "Edit" page, but there are several important differences.');
+        .attr('data-intro', 'The main purpose of the "New Record" page is to prevent users from accidentally creating blank records.<br><br>It might look similar to a regular "Edit" page, but there are several important differences.');
 
     // Want to find sevarl types of fields to attach steps to
     var regular_field = null;

@@ -6,12 +6,17 @@
     <div class="ODRDatarecordListHeader">No Datarecords with multiple selections found</div>
 {% else %}
 
-{% for dr_id,dr_name in datarecords %}
+    {% for dr_id,dr_name in datarecords %}
     <div class="pure-u-1-5">
         <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_name }}</a>
     </div>
-{% endfor %}
-
+    {% endfor %}
 {% endif %}
+
+<script>
+    $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    });
+</script>
 
 {% endspaceless %}

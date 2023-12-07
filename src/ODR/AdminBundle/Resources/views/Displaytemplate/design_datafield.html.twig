@@ -4,6 +4,7 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set typeclass = datafield_meta.fieldType.typeClass %}
 
+
 <script>
     if (datafield_properties === undefined)
         var datafield_properties = [];
@@ -83,7 +84,7 @@
             </h3>
         </span>
         <div class="pure-u-1">
-            <img class="pure-img" src="/img/blank.jpg" />
+            <img class="pure-img" src="{{ site_baseurl }}/img/blank.jpg" />
         </div>
     </fieldset>
 

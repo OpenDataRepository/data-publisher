@@ -361,7 +361,7 @@ Forms Core
     padding: 0.4em 0.2em 0.4em 0.4em;
     display: inline-block;
     border: 1px solid #e6e6e6;
-    font-size: 0.8em;
+    font-size: 0.96em;
     box-shadow: inset 0 1px 3px #e6e6e6;
     border-radius: 2px;
     -webkit-transition: 0.3s linear border;
@@ -411,7 +411,7 @@ Forms Core
     padding: 0 0.2em 0.2em 0.2em;
     display: inline-block;
     border: none;
-    font-size: 0.8em;
+    font-size: 0.96em;
     box-shadow: none;
     border-radius: 2px;
     -webkit-transition: 0.3s linear border;
@@ -475,7 +475,7 @@ Forms Core
     cursor: not-allowed;
     box-shadow: inset 0 1px 10px #ededed;
     background-color: #ededed;
-    color: #c7c7c7;
+    color: #878787;
     border-color: #e6e6e6;
 }
 .pure-skin-odr .pure-form input[readonly],
@@ -515,7 +515,7 @@ Forms Core
 .pure-skin-odr .pure-form label {
     margin: 0.3em 0 0.1em;
     /* color: #878787; */
-    font-size: 80%;
+    /* font-size: 80%; /* MOD 20231030 */
 }
 .pure-skin-odr .pure-form fieldset {
     margin: 0;
@@ -1263,7 +1263,7 @@ a.pure-button-primary {
     cursor: pointer;
     top: -0.813em;
     position: relative;
-    font-size: 0.8em;
+    font-size: 0.96em;
 }
 
 .grid-output-tabs .grid-tab-link,
@@ -1512,7 +1512,7 @@ pre .support.value  {
         margin: 0.5em 0;
     }
     .ODRTagSearchDiv {
-        max-height: 200px;
+        max-height: 400px;
         overflow-y: auto;
         overflow-x: hidden;
     }
@@ -1561,16 +1561,16 @@ pre .support.value  {
 
 
 /* END Search Template Customizations */
-footer {
+.odr-footer {
     height: 48px;
 }
 
-footer .ODRLogoImage {
+.odr-footer .ODRLogoImage {
     height: 48px;
     background: white;
 }
 
-footer .ODRLogoImage img {
+.odr-footer .ODRLogoImage img {
     height: 48px;
 }
 
@@ -1758,7 +1758,7 @@ body {
     margin: 0 0 38px;
 }
 
-footer {
+.odr-footer {
     position: absolute;
     left: 0;
     bottom: 0;
@@ -2248,6 +2248,19 @@ h3 .DatatypeTools,
     border-radius: 6px;
 }
 
+.ODRListHeader {
+    height: 44px;
+}
+.ODRListHeader .ODRRecordName {
+    position: relative;
+    top: 11px;
+}
+.ODRListHeader .DatatypeTools {
+    position: relative;
+    top: 6px !important;
+    margin-right: 8px;
+}
+
 .ODRTabAccordion .DataTypeTools {
     float: right;
     top: -96px;
@@ -2284,7 +2297,8 @@ h3 .DatatypeTools,
 
 .ODRResults .AccordionSelect {
     float: right;
-    margin-right: 38px !important;
+    margin-top: -4px;
+    margin-right: 4px !important;
     max-width: 350px;
     padding: 4px 4px 2px 4px !important;
     height: 32px !important;
@@ -2685,7 +2699,7 @@ form .row {
     box-shadow: none;
     box-sizing: border-box;
     display: inline-block;
-    font-size: 0.8em;
+    font-size: 0.96em;
     padding: 0.2em;
     transition: border 0.3s linear 0s;
     cursor: default;
@@ -2838,7 +2852,7 @@ form .row {
 
 
 .ODRResults label {
-    font-size: 0.8em;
+    font-size: 0.96em;
     font-weight: bold;
     padding-left: 0.5em;
 }
@@ -2971,7 +2985,7 @@ form .row {
 }
 
 .ODRReference {
-    font-size: 0.8em;
+    font-size: 0.96em;
     padding-left: 0.8em;
     padding-top: 0.3em;
     padding-bottom: 0.6em;
@@ -3228,18 +3242,19 @@ form .row {
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
-    background: #7fb9d8 none repeat scroll 0 0;
-    color: white;
+    background: none; /* #7fb9d8 none repeat scroll 0 0; */
+    color: RGBA(77, 136, 220, 1.00);
     padding: 4px 0 4px 8px;
-    font-size: 0.8em;
+    font-size: 0.96em;
     border-radius: 5px 5px 0px 0px;
 }
+
 .ODRFileDatafield_file, .ODRFileDatafield_empty {
-    font-size: 0.8em;
+    font-size: 0.96em;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
-    background: #b8e8fa none repeat scroll 0 0;
+    background: none;
     padding-right: 8px;
     position: relative;
 
@@ -3247,6 +3262,20 @@ form .row {
     display: -moz-flex;
     display: -ms-flexbox;
     display: flex;
+}
+
+.ODRFileImageHeader {
+    color: white !important;
+    font-weight: bold;
+    background: #6FA5C7 none repeat scroll 0 0 !important;
+}
+.ODRFileImageHeader_hidden {
+    display: none;
+}
+.ODRFileImageHeader_hidden_design {
+    /* don't actually want to hide the header in the design page... */
+    opacity: 40%;
+    box-shadow: 0 0 4px 4px rgba(255,0,0,0.7);
 }
 
 .ODRDownloadAllFiles {
@@ -3265,7 +3294,8 @@ form .row {
     flex: 0 0 auto;
 
     width: 4px;
-    display: inline-block;
+    /* display: inline-block; */
+    display: none;
     cursor: default;
 }
 .ODRFileSpacer_public {
@@ -3302,6 +3332,9 @@ form .row {
 }
 .ODRFileInfoDiv:hover .ODRFileInfo {
     visibility: visible;
+}
+.ODRFileInfo > p {
+    margin: 5px 0px 0px;
 }
 
 .ODRTruncateFilename {
@@ -3520,7 +3553,7 @@ form .row {
 #ODRFileDownloadFormWrapper, #ODRMassDownloadFormWrapper {
     display: none;
     text-align: left;
-    font-size: 0.8em;
+    font-size: 0.96em;
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
@@ -3749,9 +3782,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: relative;
 }
 .ODRDefaultPersonal,
+.ODRUnsetDefaultPersonal,
 .ODRDefaultDatabase,
+.ODRUnsetDefaultDatabase,
 .ODRMakeCurrentView,
-.ODRMakeViewPublic,
+.ODRMakeViewShared,
 .ODREditThemeName,
 .ODRModifyTheme,
 .ODRCopyModifyTheme,
@@ -3760,9 +3795,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRDefaultPersonal:hover,
+.ODRUnsetDefaultPersonal:hover,
 .ODRDefaultDatabase:hover,
+.ODRUnsetDefaultDatabase:hover,
 .ODRMakeCurrentView:hover,
-.ODRMakeViewPublic:hover,
+.ODRMakeViewShared:hover,
 .ODREditThemeName:hover,
 .ODRModifyTheme:hover,
 .ODRCopyModifyTheme:hover,
@@ -3849,13 +3886,14 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRTagWrapper .ODRTagLabel {
     cursor: default;
+    display: inline !important;
 }
 .ODRTagWrapper .ODRTagLabel p {
     display: inline;
 }
 .ODRTagGroup {
     position: relative;
-    padding-left: 15px;
+    padding-left: 6px;
     margin-top: 5px;
 }
 .ODRTagGroup:before {
@@ -3875,7 +3913,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRTagSpacer {
     display: inline-block;
-    padding-left: 9px;
+    width: 15px;
 }
 
 
@@ -4325,6 +4363,9 @@ i {
 .bold {
     font-weight: bold;
 }
+.overbar {
+    text-decoration: overline;
+}
 
 #ODRTrackingDatafieldList {
     text-align: left;
@@ -4361,7 +4402,7 @@ i {
 .ODRRemoteSearch_dialog {
     /*display: none;*/
     text-align: left;
-    /*font-size: 0.8em;*/
+    /*font-size: 0.96em;*/
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
@@ -4407,6 +4448,54 @@ i {
 }
 .ODRChemistryPlugin_SaveIndicator {
     top: 8px !important;
+}
+
+
+.ODRCellparamPlugin_button {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRCellparamPlugin_popup {
+    position: absolute;
+    z-index: 100;
+    background: white;
+    border: 2px solid black;
+    border-radius: 4px;
+    display: none;
+    font-weight: 400;
+    padding: 5px;
+}
+.ODRCellparamPlugin_popup > .ODRPseudoField {
+    margin-top: 5px;
+}
+.ODRCellparamPlugin_input {
+    /*margin: 5px !important;*/
+    font-size: 100% !important;
+}
+.ODRCellparamPlugin_textarea {
+    margin: 5px 0 0 0 !important;
+    font-size: 100% !important;
+}
+.ODRCellparamPlugin_SaveIndicator {
+    top: 8px !important;
+}
+
+
+.ODRIMAPlugin_StatusNotesTools {
+    margin: 0px 5px 5px;
+}
+.ODRIMAPlugin_StatusNotesButton {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRIMAPlugin_StatusNotesSelect {
+    width: 80%;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 
@@ -4490,4 +4579,77 @@ i {
 }
 .DynamicGraphSettingsDiv_close {
     text-align: right;
+}
+
+.ODRSearchDatafieldFilter {
+    display: inline;
+    float: right;
+
+    font-size: 14px;
+    color: black;
+}
+.ODRDatePickerSearch_clear {
+    display: inline;
+    float: right;
+
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 14px;
+}
+
+.ODRStoredSearchKeySelection_header {
+    text-align: left;
+    text-indent: 15px;
+    font-size: 16px;
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 15px;
+    width: 90%;
+}
+.ODRStoredSearchKeySelection_header > p {
+    margin: 5px;
+}
+.ODRStoredSearchKeySelection_sidebar {
+    overflow-y: scroll;
+    max-height: 700px;
+}
+.ODRStoredSearchKeySelection_controls {
+    padding-top: 10px;
+    padding-left: 10px;
+}
+.ODRStoredSearchKeySelection_list {
+
+}
+.ODRStoredSearchKeySelection_list > p {
+    font-weight: bold;
+}
+
+#ODRStoredSearchKey_empty {
+    padding-left: 20px;
+}
+#ODRStoredSearchKeys_form {
+    display: none;
+}
+
+.ODRFileRenameInput {
+    margin-right: 2px;
+}
+.ODRFileRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
+}
+.ODRImageRenameInput {
+    margin-right: 2px;
+}
+.ODRImageRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
 }

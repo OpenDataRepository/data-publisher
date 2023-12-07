@@ -5,57 +5,20 @@
 
 {% for theme_element in theme.themeElements %}
 
-    {% set has_datafields = false %}
-    {% set has_childtype = false %}
-    {% set child_is_link = false %}
-
-    {% if theme_element.themeDataFields is defined %}
-        {% set has_datafields = true %}
-    {% elseif theme_element.themeDataType is defined %}
-        {% set has_childtype = true %}
-
-        {% if theme_element.themeDataType[0].is_link == 1 %}
-            {% set child_is_link = true %}
-        {% endif %}
-    {% endif %}
-
+    {% set theme_element_meta = theme_element.themeElementMeta %}
     {% set theme_element_hidden = false %}
-    {% if theme_element.themeElementMeta.hidden == 1 %}
+    {% if theme_element_meta.hidden == 1 %}
         {% set theme_element_hidden = true %}
     {% endif %}
 
 
     {% if not theme_element|is_filtered(datatype) %}
 
-    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}{% if theme_element_hidden %} ODRThemeHiddenElement{% endif %}">
-    <div class="ODRInnerBox">
-        {# Convert to JS Data for New interface #}
-        <script>
-            if (theme_element_properties === undefined)
-                var theme_element_properties = [];
-
-            theme_element_properties[{{ theme_element.id }}] = {};
-
-            {% if has_childtype %}
-            theme_element_properties[{{ theme_element.id }}].has_childtype = 1;
-            {% else %}
-            theme_element_properties[{{ theme_element.id }}].has_childtype = 0;
-            {% endif %}
-
-            {% if has_datafields %}
-            theme_element_properties[{{ theme_element.id }}].has_datafields = 1;
-            {% else %}
-            theme_element_properties[{{ theme_element.id }}].has_datafields = 0;
-            {% endif %}
-
-            {% if child_is_link %}
-            theme_element_properties[{{ theme_element.id }}].child_is_link = 1;
-            {% else %}
-            theme_element_properties[{{ theme_element.id }}].child_is_link = 0;
-            {% endif %}
-
-            {#console.log('theme_element {{ theme_element.id }}', theme_element_properties[{{ theme_element.id }}]);#}
-        </script>
+    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element_meta.cssWidthMed }} pure-u-xl-{{ theme_element_meta.cssWidthXL }}{% if theme_element_hidden %} ODRThemeHiddenElement{% endif %}">
+    <div class="ODRInnerBox{% if theme_element_meta.hideBorder %} ODRInnerBox_HideBorder{% endif %}">
+        {% include 'ODRAdminBundle:Displaytemplate:theme_element_properties.html.twig' with {
+            'theme_element': theme_element,
+        } %}
 
         {% if theme_element.themeDataFields is defined %}
             {# render all datafields in this theme element #}
@@ -70,11 +33,41 @@
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
                     {% include 'ODRAdminBundle:Theme:theme_datafield.html.twig' with {
+                        'site_baseurl': site_baseurl,
                         'theme_datafield': theme_datafield,
                         'datafield': datafield,
                     } %}
                 {% endif %}
             {% endfor %}
+
+        {% elseif theme_element.themeRenderPluginInstance is defined %}
+            {# theoretically should only be a single themeRenderPluginInstance, but be safe... #}
+            {% set trpi = theme_element.themeRenderPluginInstance %}
+            {% set current_rpi_target = trpi[0].renderPluginInstance.id %}
+
+            {% if datatype['renderPluginInstances'][current_rpi_target] is defined %}
+                {% set rpi = datatype['renderPluginInstances'][current_rpi_target] %}
+                {% if rpi.renderPlugin.active %}
+                    {% set render_plugin_instance = rpi %}
+                {% endif %}
+            {% endif %}
+
+            {% if render_plugin_instance == null %}
+                <div class="ODRInputError ODRPluginErrorDiv">Unable to locate RenderPluginInstance that should be in ThemeElement {{ theme_element.id }} for one of the RenderPlugins attached to Datatype {{ datatype.id }}</div>
+            {% else %}
+                {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'design', 'is_datatype_admin': is_datatype_admin} %}
+
+                {# All ThemeElement plugins need to display something when in design mode... #}
+                {% set content = datatype|theme_element_plugin_placeholder(render_plugin_instance, theme_array, rendering_options) %}
+                {% if content|length > 0 %}
+                    <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override theme_element html -->
+                    {{ content|raw }}
+                    <!-- End {{ render_plugin_instance.renderPlugin.pluginName }} override theme_element html -->
+                {% else %}
+                    {# ...but if they don't, then a fallback is still provided #}
+                    <div class="ODRPluginErrorDiv">This Group Box is reserved for use by the "{{ render_plugin_instance.renderPlugin.pluginName }}" attached to the "{{ datatype.dataTypeMeta.shortName }}" Datatype.</div>
+                {% endif %}
+            {% endif %}
 
         {% elseif theme_element.themeDataType is defined %}
             {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
@@ -98,6 +91,7 @@
                     {% include 'ODRAdminBundle:Theme:theme_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'theme_array': child_theme,
+                        'site_baseurl': site_baseurl,
 
                         'target_datatype_id': child_datatype_id,
                         'target_theme_id': child_theme_id,

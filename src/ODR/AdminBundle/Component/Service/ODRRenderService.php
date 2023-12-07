@@ -38,6 +38,11 @@ class ODRRenderService
 {
 
     /**
+     * @var string
+     */
+    private $site_baseurl;
+
+    /**
      * @var EntityManager
      */
     private $em;
@@ -70,7 +75,7 @@ class ODRRenderService
     /**
      * @var ThemeInfoService
      */
-    private $theme_service;
+    private $theme_info_service;
 
     /**
      * @var CloneThemeService
@@ -104,8 +109,9 @@ class ODRRenderService
 
 
     /**
-     * ODRRenderService constructor.
+     * ODRRender Service
      *
+     * @param string $site_baseurl
      * @param EntityManager $entity_manager
      * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
@@ -121,6 +127,7 @@ class ODRRenderService
      * @param Logger $logger
      */
     public function __construct(
+        string $site_baseurl,
         EntityManager $entity_manager,
         DatabaseInfoService $database_info_service,
         DatafieldInfoService $datafield_info_service,
@@ -135,13 +142,14 @@ class ODRRenderService
         EngineInterface $templating,
         Logger $logger
     ) {
+        $this->site_baseurl = $site_baseurl;
         $this->em = $entity_manager;
         $this->dbi_service = $database_info_service;
         $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatree_info_service;
         $this->pm_service = $permissions_service;
-        $this->theme_service = $theme_info_service;
+        $this->theme_info_service = $theme_info_service;
         $this->clone_theme_service = $clone_theme_service;
         $this->clone_template_service = $clone_template_service;
         $this->emm_service = $entity_meta_modify_service;
@@ -187,6 +195,7 @@ class ODRRenderService
         $extra_parameters = array(
             'fieldtype_array' => $fieldtype_array,
             'has_datarecords' => $has_datarecords,
+            'site_baseurl' => $this->site_baseurl,
 
             'sync_with_template' => false,
             'sync_metadata_with_template' => false,
@@ -197,7 +206,7 @@ class ODRRenderService
         $datarecord = null;
 
         // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
-        $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+        $theme = $this->theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
         // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
@@ -236,30 +245,23 @@ class ODRRenderService
         $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
 
         // ----------------------------------------
-        // Store whether this is a "short" form or not...
-        // TODO - wasn't this distinction supposed to be removed in the near future?
-        $is_short_form = in_array($theme->getThemeType(), ($this->theme_service)::SHORT_FORM_THEMETYPES);
-
         // Build the Form to save changes to the Theme's name/description
         $theme_meta = $theme->getThemeMeta();
         $theme_form = $this->form_factory->create(
             UpdateThemeForm::class,
             $theme_meta,
-            array(
-                'is_short_form' => $is_short_form,
-            )
         );
 
         // ----------------------------------------
         $template_name = 'ODRAdminBundle:Theme:theme_ajax.html.twig';
         $extra_parameters = array(
+            'site_baseurl' => $this->site_baseurl,
 //            'display_mode' => "wizard",
             'display_mode' => 'edit',
             'search_key' => $search_key,
 
             'is_datatype_admin' => $is_datatype_admin,
 
-            'is_short_form' => $is_short_form,
             'theme_form' => $theme_form->createView(),
             'theme' => $theme,    // Needed for ODRAdminBundle:Theme:theme_properties_form.html.twig
         );
@@ -300,12 +302,16 @@ class ODRRenderService
                 throw new ODRBadRequestException();
         }
         else {
-            $theme_id = $this->theme_service->getPreferredTheme($user, $datatype->getId(), 'master');
+            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
             $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
         }
 
         // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
+
+        // Need to provide this bit of info so render plugins can decide whether to simply not
+        //  execute, or throw errors instead
+        $extra_parameters['is_datatype_admin'] = $this->pm_service->isDatatypeAdmin($user, $datarecord->getDataType());
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
@@ -322,7 +328,7 @@ class ODRRenderService
      *
      * @return string
      */
-    public function getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme = null)
+    public function getEditHTML($user, $datarecord, $search_key = '', $search_theme_id = 0, $theme = null)
     {
         $template_name = 'ODRAdminBundle:Edit:edit_ajax.html.twig';
         $extra_parameters = array(
@@ -362,8 +368,8 @@ class ODRRenderService
                 throw new ODRBadRequestException();
         }
         else {
-            // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
-            $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');
+            $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
         }
 
         // Ensure all relevant themes are in sync before rendering the end result
@@ -399,7 +405,7 @@ class ODRRenderService
 
 
         // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
-        $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+        $theme = $this->theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, null, $theme);
     }
@@ -412,16 +418,19 @@ class ODRRenderService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param string $odr_tab_id
+     * @param array $mass_edit_trigger_datafields
      * @param Theme|null $theme
      *
      * @return string
      */
-    public function getMassEditHTML($user, $datatype, $odr_tab_id, $theme = null)
+    public function getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields, $theme = null)
     {
         $template_name = 'ODRAdminBundle:MassEdit:massedit_ajax.html.twig';
         $extra_parameters = array(
             'odr_tab_id' => $odr_tab_id,
             'include_links' => false,
+
+            'mass_edit_trigger_datafields' => $mass_edit_trigger_datafields,
         );
 
         $datarecord = null;
@@ -432,7 +441,7 @@ class ODRRenderService
         }
         else {
             // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
-            $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+            $theme = $this->theme_info_service->getDatatypeMasterTheme($datatype->getId());
         }
 
         // Not allowed to mass edit linked datarecords, so it doesn't make sense to ensure they're
@@ -458,6 +467,7 @@ class ODRRenderService
         $template_name = 'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig';
         $extra_parameters = array(
             'odr_tab_id' => $odr_tab_id,
+            'site_baseurl' => $this->site_baseurl,
 //            'include_links' => false,
         );
 
@@ -469,7 +479,7 @@ class ODRRenderService
         }
         else {
             // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
-            $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+            $theme = $this->theme_info_service->getDatatypeMasterTheme($datatype->getId());
         }
 
         // Ensure all relevant themes are in sync before rendering the end result
@@ -505,7 +515,7 @@ class ODRRenderService
         $datatype = $group->getDataType();
         $datarecord = null;
 
-        $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+        $theme = $this->theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
         // Modification of group permissions doesn't need linked themes to be updated
 
@@ -534,6 +544,7 @@ class ODRRenderService
 
         // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
+        $extra_parameters['site_baseurl'] = $this->site_baseurl;
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
@@ -567,7 +578,7 @@ class ODRRenderService
         $initial_datatype_id = $datatype->getId();
         $initial_theme_id = $theme->getId();
         $datatype_array = $this->dbi_service->getDatatypeArray($initial_datatype_id, $include_links);
-        $theme_array = $this->theme_service->getThemeArray($initial_theme_id);
+        $theme_array = $this->theme_info_service->getThemeArray($initial_theme_id);
 
         // ...only get the datarecord arrays if a datarecord was specified
         $initial_datarecord_id = null;
@@ -627,7 +638,7 @@ class ODRRenderService
         $stacked_datatype_array[ $initial_datatype_id ] =
             $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
         $stacked_theme_array[ $initial_theme_id ] =
-            $this->theme_service->stackThemeArray($theme_array, $initial_theme_id);
+            $this->theme_info_service->stackThemeArray($theme_array, $initial_theme_id);
 
         $stacked_datarecord_array = array();
         if ( !is_null($datarecord) || $is_fake_datarecord ) {
@@ -944,7 +955,7 @@ class ODRRenderService
         // Load cached arrays of all the top-level entities
         $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype->getId());    // do want links
         $datarecord_array = $this->dri_service->getDatarecordArray($top_level_datarecord->getId());    // do want links
-        $theme_array = $this->theme_service->getThemeArray($top_level_theme->getId());
+        $theme_array = $this->theme_info_service->getThemeArray($top_level_theme->getId());
 
 
         // ----------------------------------------
@@ -993,7 +1004,7 @@ class ODRRenderService
         $stacked_datarecord_array[ $parent_datarecord->getId() ] =
             $this->dri_service->stackDatarecordArray($datarecord_array, $parent_datarecord->getId());
         $stacked_theme_array[ $child_theme->getId() ] =
-            $this->theme_service->stackThemeArray($theme_array, $child_theme->getId());
+            $this->theme_info_service->stackThemeArray($theme_array, $child_theme->getId());
 
 
         // Find the ThemeDatatype entry that contains the child/linked datatype getting reloaded
@@ -1063,7 +1074,7 @@ class ODRRenderService
         $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = array(
             'is_datatype_admin' => $is_datatype_admin,
-
+            'site_baseurl' => $this->site_baseurl,
             'datafield_properties' => array(),
         );
 
@@ -1131,7 +1142,7 @@ class ODRRenderService
         $top_level_datatype = $parent_theme->getDataType();
 
         $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype->getId(), $include_links);
-        $theme_array = $this->theme_service->getThemeArray($parent_theme->getId());
+        $theme_array = $this->theme_info_service->getThemeArray($parent_theme->getId());
 
         // ...only get the datarecord arrays if a datarecord was specified
 //        $initial_datarecord_id = null;
@@ -1172,7 +1183,7 @@ class ODRRenderService
         $stacked_datatype_array[ $initial_datatype->getId() ] =
             $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype->getId());
         $stacked_theme_array[ $initial_theme->getId() ] =
-            $this->theme_service->stackThemeArray($theme_array, $initial_theme->getId());
+            $this->theme_info_service->stackThemeArray($theme_array, $initial_theme->getId());
 
 //        $stacked_datarecord_array = array();
 //        if ( !is_null($datarecord) ) {
@@ -1341,8 +1352,8 @@ class ODRRenderService
         $initial_theme_id = $theme_element->getTheme()->getId();
 
         $datatype_array = $this->dbi_service->getDatatypeArray($source_datatype->getId(), $include_links);
-        $master_theme = $this->theme_service->getDatatypeMasterTheme($source_datatype->getId());
-        $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
+        $master_theme = $this->theme_info_service->getDatatypeMasterTheme($source_datatype->getId());
+        $theme_array = $this->theme_info_service->getThemeArray($master_theme->getId());
 
         // ...only get the datarecord arrays if a datarecord was specified
         $initial_datarecord_id = null;
@@ -1378,7 +1389,7 @@ class ODRRenderService
             // This is a datafield reload for the edit page...need to ensure the arrays are stacked...
             $datatype_array = $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
             $datarecord_array = $this->dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
-            $theme_array = $this->theme_service->stackThemeArray($theme_array, $initial_theme_id);
+            $theme_array = $this->theme_info_service->stackThemeArray($theme_array, $initial_theme_id);
 
             // Then pull specific entities out of these arrays...
             $target_datatype = $datatype_array;
@@ -1401,6 +1412,7 @@ class ODRRenderService
                 'datatype' => $target_datatype,
                 'datarecord' => $target_datarecord,
                 'datafield' => $target_datafield,
+                'site_baseurl' => $this->site_baseurl,
 
                 'is_link' => $is_link,
                 'is_datatype_admin' => $is_datatype_admin,

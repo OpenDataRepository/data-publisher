@@ -46,6 +46,8 @@
 
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,
+
+        'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
     } %}
 
 </div>
@@ -76,7 +78,7 @@ $(function() {
     window.scrollTo(0,0);
 
     // Attach click handlers to tags
-    setupTagTree();
+    setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
     // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
     // The overlay divs need this transition to finish before they can get the correct width
@@ -264,6 +266,59 @@ function initPage() {
             $(input_div).val(1);
         }
     });
+
+    var context = $(".ODRMassEdit");
+    var tag_filter_interval = [];
+    $(context).find(".ODRSearchDatafieldFilter").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+        var df = $(this).parents('.ODRDataField');
+        var id_data = $(df).attr('id').split(/_/);
+        var df_id = id_data[1];
+
+        if ( tag_filter_interval[df_id] !== undefined )
+            clearTimeout( tag_filter_interval[df_id] );
+
+        tag_filter_interval[df_id] = setTimeout(function() {
+            filterMassEditTagField(context, df_id);
+        }, 750);
+    });
+}
+
+/**
+ * Filters the displayed options/tags for a field in MassEdit mode.
+ *
+ * @param {HTMLElement} context
+ * @param {number} df_id
+ */
+function filterMassEditTagField(context, df_id) {
+    var filter_element = $(context).find("#massedit_df_" + df_id + "_filter").first();
+    // var fieldtype = $(filter_element).attr('rel');
+    var filter_text = $(filter_element).val().trim().toLowerCase();
+
+    // Tag fields could have a hierarchy...
+    var tags = $(context).find("#Field_" + df_id).find(".ODRTagItem");
+
+    if ( filter_text == '' ) {
+        // If no text in the filter, ensure all tags are visible
+        $(tags).each(function(index,elem) {
+            $(elem).removeAttr('style');
+        });
+    }
+    else {
+        $(tags).each(function(index,elem) {
+            // Otherwise, need to convert each tag to lower case...
+            var tag_name = $(elem).children('label').text().toLowerCase();
+
+            // ...so it can get compared against the provided filter text
+            if ( tag_name.indexOf(filter_text) === -1 )
+                $(elem).hide();
+            else {
+                $(elem).removeAttr('style');
+
+                // Also need to ensure that all parents of this tag are visible
+                $(elem).parents('.ODRTagItem').removeAttr('style');
+            }
+        });
+    }
 }
 
 /**
@@ -469,8 +524,9 @@ function doMassUpdate() {
     // ...and add selected triggers back in
     $("#MassEditForm .ODRMassEdit_EventTrigger").each(function() {
         var datafield_id = $(this).attr('rel');
-        if ( $(this).find('input').is(':checked') ) {
-            var element = $("<input>", {"id": "EventTrigger_" + datafield_id, "class": "massedit_form_event_trigger", "type": "hidden", "value": 1, "name": "event_triggers[" + datafield_id + "]"});
+        var checkbox = $(this).find('input');
+        if ( $(checkbox).is(':checked') ) {
+            var element = $("<input>", {"id": "EventTrigger_" + datafield_id, "class": "massedit_form_event_trigger", "type": "hidden", "value": 1, "name": "event_triggers[" + datafield_id + "][" + $(checkbox).val() + "]"});
             $("#massedit_form").append(element);
         }
     });

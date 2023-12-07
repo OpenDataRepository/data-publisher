@@ -1,0 +1,96 @@
+ODR\AdminBundle\Entity\StoredSearchKey:
+    type: entity
+    table: odr_stored_search_keys
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        storageLabel:
+            type: string
+            length: 128
+            fixed: false
+            nullable: true
+            column: storage_label
+
+        searchKey:
+            type: text
+            nullable: true
+            column: search_key
+
+        isDefault:
+            type: boolean
+            nullable: false
+            column: is_default
+            default: false
+        isPublic:
+            type: boolean
+            nullable: false
+            column: is_public
+            default: false
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    oneToMany:
+
+    manyToOne:
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: storedSearchKeys
+            fetch: LAZY
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

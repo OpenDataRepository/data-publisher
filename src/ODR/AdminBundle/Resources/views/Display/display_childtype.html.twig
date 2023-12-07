@@ -1,16 +1,40 @@
 {% spaceless %}
 
+{% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
+{% set ARRAY_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::ARRAY_PLUGIN') %}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'display'} %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'display', 'is_datatype_admin': is_datatype_admin} %}
 
-{# Determine whether a render plugin needs to be run #}
+{# Determine whether any array render plugins need to be run #}
+{% for rpi_num,rpi in datatype.renderPluginInstances %}
+    {% set array_plugin_return = null %}
+    {% set can_execute_plugin = false %}
+    {% if rpi.renderPlugin.plugin_type == ARRAY_PLUGIN and rpi.renderPlugin.active %}
+        {% set can_execute_plugin = rpi|can_execute_array_plugin(datatype, rendering_options) %}
+
+        {% if can_execute_plugin %}
+            {# If the plugin can execute, do so #}
+            {% set array_plugin_return = datarecord_array|array_plugin(datatype, rpi, theme_array, rendering_options, parent_datarecord) %}
+
+            {# If the plugin returned anything, then update the stacked arrays with the changes #}
+            {% if array_plugin_return is not null %}
+                {% set datatype = array_plugin_return.getdatatypearray %}
+                {% set datarecord_array = array_plugin_return.getdatarecordarray %}
+                {% set theme_array = array_plugin_return.getthemearray %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+{# Determine whether a datatype render plugin needs to be run #}
 {% set render_plugin_instance = null %}
 {% set can_execute_plugin = false %}
 {% for rpi_num,rpi in datatype.renderPluginInstances %}
-{#    {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}#}    {# NOTE Plugins/Base/LinkedMerger needs to be executed, but doesn't have "render" set to true because it's technically just shifting records around #}
-    {% if rpi.renderPlugin.active and render_plugin_instance == null %}
+    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
         {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
         {% if can_execute_plugin %}
@@ -49,50 +73,70 @@
             'multiple_allowed': multiple_allowed,
         } %}
 
-        {% for dr_id, datarecord in datarecord_array %}
+        {% if display_type != TABLE_CONTENT %}
+            {% for dr_id, datarecord in datarecord_array %}
 
-            {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {
-                'datarecord': datarecord,
-                'datatype': datatype,
+                {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {
+                    'datarecord': datarecord,
+                    'datatype': datatype,
+
+                    'is_top_level': is_top_level,
+                    'display_type': display_type
+                } %}
+
+                <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+
+                    {% set content = '' %}
+                    {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
+                        {# [datarecord] converts datarecord into a single-element array #}
+                        {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord) %}
+                        {% if content|length > 0 %}
+                            <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
+                            {{ content|raw }}
+                        {% endif %}
+                    {% endif %}
+
+                    {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
+                        {# If using render plugin and it overrides datafield display, do nothing here #}
+                    {% else %}
+                        {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
+                            'datatype_array': datatype_array,
+                            'datarecord': datarecord,
+                            'theme_array': theme_array,
+
+                            'parent_datarecord': parent_datarecord,
+                            'target_datatype_id': target_datatype_id,
+                            'target_datarecord_id': datarecord.id,
+                            'target_theme_id': target_theme_id,
+
+                            'is_datatype_admin': is_datatype_admin,
+
+                            'is_top_level': is_top_level,
+                            'is_link': is_link,
+                            'display_type': display_type,
+                            'multiple_allowed': multiple_allowed,
+                        } %}
+                    {% endif %}
+
+                </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+            {% endfor %}
+
+        {% else %}
+            {% include 'ODRAdminBundle:Display:display_setup_table_layout.html.twig' with {
+                'datatype_array': datatype_array,
+                'datarecord_array': datarecord_array,
+                'theme_array': theme_array,
+
+                'parent_datarecord': parent_datarecord,
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
 
                 'is_top_level': is_top_level,
-                'display_type': display_type
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
             } %}
-
-            <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
-
-                {% set content = '' %}
-                {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
-                    {# [datarecord] converts datarecord into a single-element array #}
-                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord) %}
-                    {% if content|length > 0 %}
-                        <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
-                        {{ content|raw }}
-                    {% endif %}
-                {% endif %}
-
-                {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
-                    {# If using render plugin and it overrides datafield display, do nothing here #}
-                {% else %}
-                    {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
-                        'datatype_array': datatype_array,
-                        'datarecord': datarecord,
-                        'theme_array': theme_array,
-
-                        'parent_datarecord': parent_datarecord,
-                        'target_datatype_id': target_datatype_id,
-                        'target_datarecord_id': datarecord.id,
-                        'target_theme_id': target_theme_id,
-
-                        'is_top_level': is_top_level,
-                        'is_link': is_link,
-                        'display_type': display_type,
-                        'multiple_allowed': multiple_allowed,
-                    } %}
-                {% endif %}
-
-            </div><!-- End of #FieldArea_{{ datarecord.id }} -->
-        {% endfor %}
+        {% endif %}
 
         {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}
 

@@ -22,6 +22,11 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
             type: integer
             nullable: false
             default: 0
+        hideBorder:
+            type: boolean
+            nullable: false
+            column: hide_border
+            default: false
 
         cssWidthMed:
             type: string

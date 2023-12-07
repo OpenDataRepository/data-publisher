@@ -1,0 +1,38 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+{# Need to get the sortvalue in the table... #}
+<td>
+    {{ datarecord.sortField_value }}
+</td>
+
+{# ...then the values... #}
+{% for theme_element in theme.themeElements %}
+    {% if theme_element.themeDataFields is defined and theme_element.themeElementMeta.hidden == 0 %}
+        {% for theme_datafield in theme_element.themeDataFields %}
+            {% set datafield_id = theme_datafield.dataField.id %}
+
+            {% if datatype['dataFields'][datafield_id] is not defined %}
+                {# user doesn't have permissions to see this datafield #}
+            {% else %}
+                {% set datafield = datatype['dataFields'][datafield_id] %}
+
+                {% if theme_datafield.hidden == 0 %}
+                <td>
+                    {% include 'ODRAdminBundle:Display:display_datafield_table.html.twig' with {
+                        'datarecord': datarecord,
+                        'datafield': datafield,
+                    } %}
+                </td>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {# Table layouts don't have anywhere to display child/linked descendants of their own... #}
+
+{% endfor %}
+
+{% endspaceless %}

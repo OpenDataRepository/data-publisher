@@ -114,7 +114,8 @@
                 checkCloneLinkJobInterval(data.d);
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

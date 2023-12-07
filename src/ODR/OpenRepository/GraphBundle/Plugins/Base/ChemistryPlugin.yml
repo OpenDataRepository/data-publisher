@@ -1,13 +1,14 @@
 odr_plugins.base.chemistry:
     name: Chemistry Field
     category: Base
-    datatype: false
-    render: true
-    version: 1.2.0
+    plugin_type: datafield
+    render: odr_plugins.base.chemistry
+    version: 1.3.0
     override_fields: false
     override_field_reload: false
     override_child: false
-    description: A datafield containing a chemical formula.
+    override_table_fields: true
+    description: Renders a datafield containing a chemical formula.
     registered_events:
         PluginAttachEvent: onPluginAttach
         PluginOptionsChangedEvent: onPluginOptionsChanged

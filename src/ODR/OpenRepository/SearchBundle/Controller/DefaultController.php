@@ -24,6 +24,7 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -51,16 +52,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 class DefaultController extends Controller
 {
 
-    /**
-     * Renders the base page for searching purposes
-     *
-     * @param String $search_slug   Which datatype to load a search page for.
-     * @param String $search_string An optional string to immediately enter into the general search field and search with.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function searchpageAction($search_slug, $search_string, Request $request)
+    public function homeAction($search_slug, $search_string, Request $request)
     {
         $html = '';
 
@@ -77,7 +69,6 @@ class DefaultController extends Controller
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
-
             $cookies = $request->cookies;
 
 
@@ -85,6 +76,17 @@ class DefaultController extends Controller
             // Grab user and their permissions if possible
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            // If using Wordpress - check for Wordpress User and Log them in.
+            if($this->container->getParameter('odr_wordpress_integrated')) {
+                $odr_wordpress_user = getenv("WORDPRESS_USER");
+                if($odr_wordpress_user) {
+                    // print $odr_wordpress_user . ' ';
+                    $user_manager = $this->container->get('fos_user.user_manager');
+                    /** @var ODRUser $admin_user */
+                    $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
+                }
+            }
+
             $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -94,7 +96,6 @@ class DefaultController extends Controller
             if ($admin_user === 'anon.')
                 $logged_in = false;
             // ------------------------------
-
 
             // Locate the datatype referenced by the search slug, if possible...
             if ($search_slug == '') {
@@ -212,7 +213,301 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
             $background_image_id = null;
-/* TODO - current search page doesn't have a good place to put a background image...
+            /* TODO - current search page doesn't have a good place to put a background image...
+
+                        if ( !is_null($target_datatype) && !is_null($target_datatype->getBackgroundImageField()) ) {
+
+                            // Determine whether the user is allowed to view the background image datafield
+                            $df = $target_datatype->getBackgroundImageField();
+                            if ( $pm_service->canViewDatafield($admin_user, $df) ) {
+                                $query = null;
+                                if ( $pm_service->canViewNonPublicDatarecords($admin_user, $target_datatype) ) {
+                                    // Users with the $can_view_datarecord permission can view all images in all datarecords of this datatype
+                                    $query = $em->createQuery(
+                                       'SELECT i.id AS image_id
+                                        FROM ODRAdminBundle:Image as i
+                                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
+                                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                                        WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
+                                        AND i.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                                    )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '') );
+                                }
+                                else {
+                                    // Users without the $can_view_datarecord permission can only view public images in public datarecords of this datatype
+                                    $query = $em->createQuery(
+                                       'SELECT i.id AS image_id
+                                        FROM ODRAdminBundle:Image as i
+                                        JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
+                                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
+                                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                                        JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                                        WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
+                                        AND im.publicDate NOT LIKE :public_date AND drm.publicDate NOT LIKE :public_date
+                                        AND i.deletedAt IS NULL AND im.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
+                                    )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '', 'public_date' => '2200-01-01 00:00:00') );
+                                }
+                                $results = $query->getArrayResult();
+
+                                // Pick a random image from the list of available images
+                                if (count($results) > 0) {
+                                    $index = rand(0, count($results) - 1);
+                                    $background_image_id = $results[$index]['image_id'];
+                                }
+                            }
+                        }
+            */
+
+
+            // ----------------------------------------
+            // Generate a random key to identify this tab
+            $odr_tab_id = $odr_tab_service->createTabId();
+
+            // TODO - modify search page to allow users to select from available themes
+//            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
+            $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
+
+            // ----------------------------------------
+            // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
+            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $html = $this->renderView(
+                'ODROpenRepositorySearchBundle:Default:index.html.twig',
+                array(
+                    // required twig/javascript parameters
+                    'user' => $admin_user,
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
+                    'user_list' => $user_list,
+                    'logged_in' => $logged_in,
+                    'window_title' => $target_datatype->getShortName(),
+                    'intent' => 'searching',
+                    'sidebar_reload' => false,
+                    'search_slug' => $search_slug,
+                    'site_baseurl' => $site_baseurl,
+                    'search_string' => $search_string,
+                    'odr_tab_id' => $odr_tab_id,
+                    'odr_wordpress_integrated' => $is_wordpress_integrated,
+
+                    // required for background image
+                    'background_image_id' => $background_image_id,
+
+                    // datatype/datafields to search
+                    'search_params' => array(),
+                    'target_datatype' => $target_datatype,
+                    'datatype_array' => $datatype_array,
+                    'datatype_relations' => $datatype_relations,
+
+                    // theme selection
+//                    'available_themes' => $available_themes,
+                    'preferred_theme_id' => $preferred_theme_id,
+                )
+            );
+
+            // print "WP Header: " . $request->wordpress_header; exit();
+            $html = $request->wordpress_header . $html . $request->wordpress_footer;
+            // $html = $request->wordpress_header . "<div style='min-height: 500px'></div>" . $request->wordpress_footer;
+
+            // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
+            $session = $request->getSession();
+            $session->set('scroll_target', '');
+        }
+        catch (\Exception $e) {
+            print $e; exit();
+            $source = 0xd75fa46d;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response($html);
+        $response->headers->set('Content-Type', 'text/html');
+        $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
+        return $response;
+    }
+    /**
+     * Renders the base page for searching purposes
+     *
+     * @param String $search_slug   Which datatype to load a search page for.
+     * @param String $search_string An optional string to immediately enter into the general search field and search with.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function searchpageAction($search_slug, $search_string, Request $request)
+    {
+        $html = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchSidebarService $ssb_service */
+            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+            $cookies = $request->cookies;
+
+
+            // ------------------------------
+            // Grab user and their permissions if possible
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            // Store if logged in or not
+            $logged_in = true;
+            if ($admin_user === 'anon.')
+                $logged_in = false;
+            // ------------------------------
+
+            // Locate the datatype referenced by the search slug, if possible...
+            if ($search_slug == '') {
+                if ( $cookies->has('prev_searched_datatype') ) {
+                    $search_slug = $cookies->get('prev_searched_datatype');
+                    return $this->redirectToRoute(
+                        'odr_search',
+                        array(
+                            'search_slug' => $search_slug
+                        )
+                    );
+                }
+                else {
+                    if ($logged_in) {
+                        // Instead of displaying a "page not found", redirect to the datarecord list
+                        $baseurl = $this->generateUrl('odr_admin_homepage');
+                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'databases') );
+
+                        return $this->redirect( $baseurl.'#'.$hash );
+                    }
+                    else {
+                        return $this->redirectToRoute('odr_admin_homepage');
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Now that a search slug is guaranteed to exist, locate the desired datatype
+
+            /** @var DataType $target_datatype */
+            $target_datatype = null;
+
+            /** @var DataTypeMeta $meta_entry */
+            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+                array(
+                    'searchSlug' => $search_slug
+                )
+            );
+            if ( is_null($meta_entry) ) {
+                // Couldn't find a datatypeMeta entry with that search slug, so check whether the
+                //  search slug is actually a database uuid instead
+                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array(
+                        'unique_id' => $search_slug
+                    )
+                );
+
+                if ( is_null($target_datatype) ) {
+                    // $search_slug is neither a search slug nor a database uuid...give up
+                    throw new ODRNotFoundException('Datatype');
+                }
+                else {
+                    // Redirect so the page uses the search slug instead of the uuid
+                    return $this->redirectToRoute(
+                        'odr_search',
+                        array(
+                            'search_slug' => $target_datatype->getSearchSlug()
+                        )
+                    );
+                }
+            }
+            else {
+                // Found a matching datatypeMeta entry
+                $target_datatype = $meta_entry->getDataType();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
+            }
+
+            // If this is a metadata datatype...
+            if ( !is_null($target_datatype->getMetadataFor()) ) {
+                // ...only want to run searches on "real" datatypes
+                $target_datatype = $target_datatype->getMetadataFor();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
+
+                // ...pretty sure redirecting to the "real" datatype is undesirable here
+            }
+
+
+            // ----------------------------------------
+            // Check if user has permission to view datatype
+            $target_datatype_id = $target_datatype->getId();
+            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
+                if (!$logged_in) {
+                    // Can't just throw a 401 error here...Symfony would redirect the user to the
+                    //  list of datatypes, instead of back to this search page.
+
+                    // So, need to clear existing session redirect paths...
+                    /** @var TrackedPathService $tracked_path_service */
+                    $tracked_path_service = $this->container->get('odr.tracked_path_service');
+                    $tracked_path_service->clearTargetPaths();
+
+                    // ...then need to save the user's current URL into their session
+                    $url = $request->getRequestUri();
+                    $session = $request->getSession();
+                    $session->set('_security.main.target_path', $url);
+
+                    // ...so they can get redirected to the login page
+                    return $this->redirectToRoute('fos_user_security_login');
+                }
+                else {
+                    throw new ODRForbiddenException();
+                }
+            }
+
+
+            // ----------------------------------------
+            // Need to build everything used by the sidebar...
+            $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
+            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
+            $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
+
+            // If this datatype has a default search key...
+            $search_key = '';
+            $search_params = array();
+            if ($target_datatype->getStoredSearchKeys() && $target_datatype->getStoredSearchKeys()->count() > 0) {
+                // ...then extract it so the sidebar can load with said search key
+                /** @var StoredSearchKey $ssk */
+                $ssk = $target_datatype->getStoredSearchKeys()->first();
+                $search_key = $ssk->getSearchKey();
+
+                // Convert the search key into a parameter list so that the sidebar can start out
+                //  with the right stuff
+                $search_params = $search_key_service->decodeSearchKey($search_key);
+                $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
+
+                // Don't need to worry if the search key refers to an invalid/deleted datafield
+                //  ...the user will end up being redirected to the "empty" search key for the datatype
+
+                // The same thing will happen when it refers to a datafield the user can't view
+            }
+
+            // ----------------------------------------
+            // Grab a random background image if one exists and the user is allowed to see it
+            $background_image_id = null;
+            /* TODO - current search page doesn't have a good place to put a background image...
 
             if ( !is_null($target_datatype) && !is_null($target_datatype->getBackgroundImageField()) ) {
 
@@ -263,50 +558,105 @@ class DefaultController extends Controller
 
             // TODO - modify search page to allow users to select from available themes
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
-            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
-
+            $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
+            // Wordpress Integrated - use full & body
             $site_baseurl = $this->container->getParameter('site_baseurl');
-            $html = $this->renderView(
-                'ODROpenRepositorySearchBundle:Default:index.html.twig',
-                array(
-                    // required twig/javascript parameters
-                    'user' => $admin_user,
-                    'datatype_permissions' => $datatype_permissions,
-                    'datafield_permissions' => $datafield_permissions,
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            // print "WP Header: " . $request->wordpress_header; exit();
+            if ( $is_wordpress_integrated ) {
 
-                    'user_list' => $user_list,
-                    'logged_in' => $logged_in,
-                    'window_title' => $target_datatype->getShortName(),
-                    'intent' => 'searching',
-                    'sidebar_reload' => false,
-                    'search_slug' => $search_slug,
-                    'site_baseurl' => $site_baseurl,
-                    'search_string' => $search_string,
-                    'odr_tab_id' => $odr_tab_id,
+                // WPNonce Should exist
+                $logout_url = wp_logout_url();
 
-                    // required for background image
-                    'background_image_id' => $background_image_id,
+                $html = $this->renderView(
+                    'ODROpenRepositorySearchBundle:Default:home.html.twig',
+                    array(
+                        // required twig/javascript parameters
+                        'user' => $admin_user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+                        'odr_wordpress_integrated' => $is_wordpress_integrated,
+                        'logout_url' => $logout_url,
 
-                    // datatype/datafields to search
-                    'search_params' => array(),
-                    'target_datatype' => $target_datatype,
-                    'datatype_array' => $datatype_array,
-                    'datatype_relations' => $datatype_relations,
+                        'user_list' => $user_list,
+                        'logged_in' => $logged_in,
+                        'window_title' => $target_datatype->getShortName(),
+                        'intent' => 'searching',
+                        'sidebar_reload' => false,
+                        'search_slug' => $search_slug,
+                        'site_baseurl' => $site_baseurl,
+                        'search_string' => $search_string,
+                        'odr_tab_id' => $odr_tab_id,
 
-                    // theme selection
+                        // required for background image
+                        'background_image_id' => $background_image_id,
+
+                        // datatype/datafields to search
+                        'target_datatype' => $target_datatype,
+                        'datatype_array' => $datatype_array,
+                        'datatype_relations' => $datatype_relations,
+
+                        // defaults if needed
+                        'search_key' => $search_key,
+                        'search_params' => $search_params,
+
+                        // theme selection
+//                        'available_themes' => $available_themes,
+                        'preferred_theme_id' => $preferred_theme_id,
+                    )
+                );
+                // Prepend/append the wordpress header and footer
+                $html = $request->wordpress_header . $html . $request->wordpress_footer;
+            }
+            else {
+                $html = $this->renderView(
+                    'ODROpenRepositorySearchBundle:Default:index.html.twig',
+                    array(
+                        // required twig/javascript parameters
+                        'user' => $admin_user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
+                        'user_list' => $user_list,
+                        'logged_in' => $logged_in,
+                        'window_title' => $target_datatype->getShortName(),
+                        'intent' => 'searching',
+                        'sidebar_reload' => false,
+                        'search_slug' => $search_slug,
+                        'site_baseurl' => $site_baseurl,
+                        'search_string' => $search_string,
+                        'odr_tab_id' => $odr_tab_id,
+                        'odr_wordpress_integrated' => $is_wordpress_integrated,
+
+                        // required for background image
+                        'background_image_id' => $background_image_id,
+
+                        // datatype/datafields to search
+                        'target_datatype' => $target_datatype,
+                        'datatype_array' => $datatype_array,
+                        'datatype_relations' => $datatype_relations,
+
+                        // defaults if needed
+                        'search_key' => $search_key,
+                        'search_params' => $search_params,
+
+                        // theme selection
 //                    'available_themes' => $available_themes,
-                    'preferred_theme_id' => $preferred_theme_id,
-                )
-            );
+                        'preferred_theme_id' => $preferred_theme_id,
+                    )
+                );
+            }
+
 
             // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
             $session = $request->getSession();
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
+            print $e; exit();
             $source = 0xd75fa46d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
@@ -390,6 +740,8 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Going to use the data in the POST request to build a new search key
             $search_params = $request->request->all();
+            if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -513,6 +865,7 @@ class DefaultController extends Controller
      */
     public function renderAction($search_theme_id, $search_key, $offset, $intent, Request $request)
     {
+        $start = microtime(true);
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -533,8 +886,8 @@ class DefaultController extends Controller
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ODRCustomController $odrcc */
@@ -605,7 +958,7 @@ class DefaultController extends Controller
             $search_theme_id = intval($search_theme_id);
             if ($search_theme_id == 0) {
                 // ...attempt to get the user's preferred theme for this datatype
-                $search_theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $search_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
 
                 if ($intent === 'searching') {
                     // ...before redirecting them to the search results URL with their preferred theme
@@ -627,7 +980,7 @@ class DefaultController extends Controller
 //                throw new ODRForbiddenException('Theme is non-public');
 
             // Set the currently selected theme as the user's preferred theme for this session
-//            $theme_service->setSessionTheme($datatype->getId(), $theme);
+//            $theme_info_service->setSessionTheme($datatype->getId(), $theme);
 
 
             // ----------------------------------------
@@ -639,6 +992,10 @@ class DefaultController extends Controller
             else
                 $odr_tab_id = $odr_tab_service->createTabId();
 
+            // Ensure the tab refers to the given search key
+            $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
+            if ( $expected_search_key !== $search_key )
+                $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
 
             // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
             //  will display stuff in a different order
@@ -646,16 +1003,25 @@ class DefaultController extends Controller
             $sort_directions = array();
 
             $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
-            if ( $theme->getThemeType() === 'table' && !is_null($sort_criteria) ) {
-                // This is a table layout and it already has sort criteria
-
-                // Load the criteria from the user's session
+            if ( !is_null($sort_criteria) ) {
+                // Prefer the criteria from the user's session whenever possible
                 $sort_datafields = $sort_criteria['datafield_ids'];
                 $sort_directions = $sort_criteria['sort_directions'];
             }
+            else if ( isset($search_params['sort_by']) ) {
+                // If the user's session doesn't have anything but the search key does, then
+                //  use that
+                foreach ($search_params['sort_by'] as $display_order => $data) {
+                    $sort_datafields[$display_order] = intval($data['sort_df_id']);
+                    $sort_directions[$display_order] = $data['sort_dir'];
+                }
+
+                // Store this in the user's session
+                $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
+            }
             else {
-                // Otherwise, this is not a table layout, or no sort criteria is defined...in either
-                //  case, force the default sort order
+                // No criteria set...get this datatype's current list of sort fields, and convert
+                //  into a list of datafield ids for storing this tab's criteria
                 foreach ($datatype->getSortFields() as $display_order => $df) {
                     $sort_datafields[$display_order] = $df->getId();
                     $sort_directions[$display_order] = 'asc';
@@ -666,14 +1032,20 @@ class DefaultController extends Controller
             }
 
             // Run the search specified by the search key
-            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
-            $datarecords = $search_results['grandparent_datarecord_list'];
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions,
+                false,  // only want the grandparent datarecord ids that match the search
+                $sort_datafields,
+                $sort_directions
+            );
             // Want to store this so it isn't being re-run constantly...    // TODO - should this work exactly the same way as the Display/Edit controllers?
-            $odr_tab_service->setSearchResults($odr_tab_id, $search_results);
+            $odr_tab_service->setSearchResults($odr_tab_id, $grandparent_datarecord_list);
 
             // Bypass search results list entirely if only one datarecord...
-            if ( count($datarecords) == 1 && $intent === 'searching') {
-                $datarecord_id = $datarecords[0];
+            if ( count($grandparent_datarecord_list) == 1 && $intent === 'searching') {
+                $datarecord_id = $grandparent_datarecord_list[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
                 //  doesn't disappear on users
                 return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $filtered_search_key);
@@ -690,8 +1062,11 @@ class DefaultController extends Controller
                 )
             );
 
+            // print  count($datarecords) . " -- ";
+            // print microtime(true) - $start; exit();
+
             $html = $odrcc->renderList(
-                $datarecords,
+                $grandparent_datarecord_list,
                 $datatype,
                 $theme,
                 $user,
@@ -701,7 +1076,6 @@ class DefaultController extends Controller
                 $offset,
                 $request
             );
-
             $return['d'] = array(
                 'html' => $html,
                 'search_key' => $filtered_search_key,
@@ -860,13 +1234,17 @@ class DefaultController extends Controller
             // Ensure the user isn't trying to search on something they can't access...
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
             // Run a search on the given parameters
-            $result = $search_api_service->performSearch($datatype, $filtered_search_key, $user_permissions);
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $filtered_search_key,
+                $user_permissions
+            );    // this only returns grandparent datarecord ids
 
 
             // Load the cached versions of the first couple datarecords matching the search
             $dr_array = array();
             $output = array();
-            foreach ($result['grandparent_datarecord_list'] as $num => $dr_id) {
+            foreach ($grandparent_datarecord_list as $num => $dr_id) {
                 $dr = $dri_service->getDatarecordArray($dr_id, false);
 
                 // Only store the cached datarecord if the user can view it
@@ -1090,8 +1468,8 @@ class DefaultController extends Controller
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchSidebarService $ssb_service */
             $ssb_service = $this->container->get('odr.search_sidebar_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             // Ensure it's a valid search key first...
@@ -1122,9 +1500,6 @@ class DefaultController extends Controller
                 $logged_in = false;
             // --------------------
 
-            if ( $intent !== 'searching' && $intent !== 'linking' )
-                throw new ODRBadRequestException();
-
             // Default to not making any changes
             $return['d'] = array('html' => '');
 
@@ -1135,37 +1510,12 @@ class DefaultController extends Controller
                 $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
                 $user_list = $ssb_service->getSidebarUserList($user, $datatype_array);
 
-                $preferred_theme_id = $ti_service->getPreferredTheme($user, $target_datatype->getId(), 'search_results');
+                $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
 
-                // Twig can figure out which radio options/tags are selected or unselected, but it's
-                //  difficult to actually set them inside the template file...easier to use php
-                //  to tweak the search params array here
-                foreach ($datatype_array as $dt_id => $dt) {
-                    foreach ($dt['dataFields'] as $df_id => $df) {
-                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                        if ( $typeclass == 'Radio' || $typeclass == 'Tag' ) {
-                            if ( isset($search_params[$df_id]) ) {
-                                // This search has criteria for a radio/tag datafield
-                                $ids = explode(',', $search_params[$df_id]);
-
-                                $selected_ids = array();
-                                $unselected_ids = array();
-                                foreach ($ids as $id) {
-                                    if ( strpos($id, '-') !== false )
-                                        $unselected_ids[] = substr($id, 1);
-                                    else
-                                        $selected_ids[] = $id;
-                                }
-
-                                // Save everything and continue
-                                $search_params[$df_id] = array(
-                                    'selected' => $selected_ids,
-                                    'unselected' => $unselected_ids
-                                );
-                            }
-                        }
-                    }
-                }
+                // Twig can technically figure out which radio options/tags are selected or
+                //  unselected from the search key, but it's irritating to do so...it's easier to
+                //  use php instead.
+                $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
 
                 $templating = $this->get('templating');
                 $return['d'] = array(

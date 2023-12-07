@@ -1,26 +1,44 @@
 {% spaceless %}
 
+{% set disable_controls = false %}
+{% if out_of_sync or (is_derived_field and not can_modify_template) %}
+    {% set disable_controls = true %}
+{% endif %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set sort_by_name = datafield_meta.radio_option_name_sort %}
 
 <div id="odr_radio_option_design_modal">
     <div class="ODRThemeElement">
-        <button class="ODRAddRadioOption pure-button pure-button-primary">Create single radio option</button>
-        <button class="ODRRadioOptionCreationMode pure-button">Import radio options</button>
+        <button class="ODRAddRadioOption pure-button pure-button-primary{% if disable_controls %} pure-button-disabled{% endif %}">Create single radio option</button>
+        <button class="ODRRadioOptionCreationMode pure-button{% if disable_controls %} pure-button-disabled{% endif %}">Import radio options</button>
     </div>
 
     <div id="odr_radio_option_design" class="ODRRadioOptionWrapper_design pure-form">
         <div class="ODRThemeElement">
+        {% if disable_controls and not can_modify_template %}
+            <div class="ODRTagMoveHelpDiv">
+                This modal is in read-only mode because you do not have permissions to modify the template field.
+            </div>
+        {% elseif disable_controls and out_of_sync %}
+            <div class="ODRTagMoveHelpDiv">
+                This modal is in read-only mode because this field and the template field are out of sync.
+            </div>
+        {% else %}
             <div class="ODRTagMoveHelpDiv">
                 Saving will happen automatically as changes are made.  Press the escape key to close without saving.
             </div>
-        {% if sort_by_name %}
+        {% endif %}
+
+        {% if disable_controls %}
+            {# do nothing #}
+        {% elseif sort_by_name %}
             <div class="ODRTagMoveHelpDiv">
                 After saving, the system will automatically update the radio options to be in alphabetical order.
             </div>
         {% else %}
             <div class="ODRTagMoveHelpDiv">
-                To move a radio option, click and drag using the <i class="fa fa-arrows Cursor"></i> icon.
+                To move a Radio Option, click and drag on the <i class="fa fa-arrows-v Cursor"></i> icon next to that Radio Option.
             </div>
         {% endif %}
         </div>
@@ -29,7 +47,9 @@
             {# this form is for renaming radio options #}
             <form id="ODRRadioOptionForm" rel="{{ datafield.id }}">
                 {% include 'ODRAdminBundle:Displaytemplate:radio_option_rows.html.twig' with {
-                    'datafield' : datafield
+                    'datafield' : datafield,
+
+                    'disable_controls': disable_controls,
                 } %}
             </form>
         </div>
@@ -68,8 +88,9 @@
         $("#odr_radio_option_import").hide();
         $(".ODRInputError").not(".ODRAlwaysShow").hide();
 
-{% if sort_by_name == false %}
-        // Destroy existing sortables
+{% if not disable_controls and not sort_by_name %}
+        // If user can make change and the radio options aren't being sorted by name, then destroy
+        //  existing sortable instances before recreating them
         if ($("#ODRRadioOptionForm").sortable('instance') !== undefined)
             $("#ODRRadioOptionForm").sortable('destroy');
 
@@ -89,6 +110,7 @@
         });
 {% endif %}
 
+{% if not disable_controls %}
         $(".ODRRadioOptionCreationMode").unbind('click').click(function(event) {
             if ( $(this).hasClass('pure-button-disabled') )
                 return;
@@ -125,11 +147,47 @@
             $(".ODRRadioOptionWrapper_import").html('');
         });
 
-        FindDuplicateRadioOptionNames();
-
+        // Only want to run this if the user can actually make changes
         initRadioOptions();
+        {% endif %}
+
+        // Probably should locate/warn about duplicate radio options regardless
+        FindDuplicateRadioOptionNames();
     });
 
+    /**
+     * Finds and highlights radio options that have duplicate names.
+     */
+    function FindDuplicateRadioOptionNames() {
+        $(".ODRInputError").not(".ODRAlwaysShow").hide();
+        var has_duplicates = false;
+
+        var radio_option_names = {};
+        $("#odr_radio_option_design_modal").find(".ODRRadioOptionName").each(function() {
+            var name = $(this).val();
+            if ( radio_option_names[name] === undefined ) {
+                // Haven't seen this radio option name before
+                radio_option_names[name] = $(this);
+            }
+            else {
+                // Duplicate radio option name, show warnings for both of them
+                has_duplicates = true;
+
+                var prev_elem = radio_option_names[name];
+                $(this).parent().children('.ODRInputError').show();
+                $(prev_elem).parent().children('.ODRInputError').show();
+            }
+        });
+
+        {% if not disable_controls %}
+        if (has_duplicates)
+            $(".ODRRadioOptionCreationMode").addClass('pure-button-disabled');
+        else
+            $(".ODRRadioOptionCreationMode").removeClass('pure-button-disabled');
+        {% endif %}
+    }
+
+{% if not disable_controls %}
     /**
      * Attaches event handlers to several of the elements on the page
      */
@@ -195,36 +253,6 @@
         });
     }
 
-    /**
-     * Finds and highlights radio options that have duplicate names.
-     */
-    function FindDuplicateRadioOptionNames() {
-        $(".ODRInputError").not(".ODRAlwaysShow").hide();
-        var has_duplicates = false;
-
-        var radio_option_names = {};
-        $("#odr_radio_option_design_modal").find(".ODRRadioOptionName").each(function() {
-            var name = $(this).val();
-            if ( radio_option_names[name] === undefined ) {
-                // Haven't seen this radio option name before
-                radio_option_names[name] = $(this);
-            }
-            else {
-                // Duplicate radio option name, show warnings for both of them
-                has_duplicates = true;
-
-                var prev_elem = radio_option_names[name];
-                $(this).parent().children('.ODRInputError').show();
-                $(prev_elem).parent().children('.ODRInputError').show();
-            }
-        });
-
-        if (has_duplicates)
-            $(".ODRRadioOptionCreationMode").addClass('pure-button-disabled');
-        else
-            $(".ODRRadioOptionCreationMode").removeClass('pure-button-disabled');
-    }
-
     var save_radio_option_xhr = null;
     var SaveRadioOptionNameInterval = [];
 
@@ -249,6 +277,7 @@
                 // Reload parts of the page so that the new radio option shows up
                 ReloadDatafield(data.d.datafield_id);
                 loadRadioOptionEditDialog(data.d.datafield_id, data.d.radio_option_id);
+                FindDuplicateRadioOptionNames();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -294,6 +323,7 @@
                 // Remove the option from this modal
                 $("#radio_option_" + radio_option_id).remove();
                 initRadioOptions();
+                FindDuplicateRadioOptionNames();
 
                 // Also reload the datafield on the page so it no longer displays the deleted option
                 ReloadDatafield(data.d.datafield_id);
@@ -534,6 +564,7 @@
             }
         });
     }
+{% endif %}    {# END if not disable_controls #}
 </script>
 
 {% endspaceless %}

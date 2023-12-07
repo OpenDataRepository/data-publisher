@@ -38,9 +38,9 @@ class ThemeMeta
     private $templateDescription;
 
     /**
-     * @var boolean
+     * @var int
      */
-    private $isDefault;
+    private $defaultFor;
 
     /**
      * @var integer
@@ -61,6 +61,11 @@ class ThemeMeta
      * @var boolean
      */
     private $isTableTheme;
+
+    /**
+     * @var bool
+     */
+    private $displaysAllResults;
 
     /**
      * @var \DateTime
@@ -150,26 +155,27 @@ class ThemeMeta
     }
 
     /**
-     * Set isDefault
+     * Set defaultFor.
      *
-     * @param boolean $isDefault
+     * @param int $defaultFor
+     *
      * @return ThemeMeta
      */
-    public function setIsDefault($isDefault)
+    public function setDefaultFor($defaultFor = null)
     {
-        $this->isDefault = $isDefault;
+        $this->defaultFor = $defaultFor;
 
         return $this;
     }
 
     /**
-     * Get isDefault
+     * Get defaultFor.
      *
-     * @return boolean 
+     * @return int
      */
-    public function getIsDefault()
+    public function getDefaultFor()
     {
-        return $this->isDefault;
+        return $this->defaultFor;
     }
 
     /**
@@ -266,6 +272,30 @@ class ThemeMeta
     public function getIsTableTheme()
     {
         return $this->isTableTheme;
+    }
+
+    /**
+     * Set displaysAllResults.
+     *
+     * @param bool $displaysAllResults
+     *
+     * @return ThemeMeta
+     */
+    public function setDisplaysAllResults($displaysAllResults)
+    {
+        $this->displaysAllResults = $displaysAllResults;
+
+        return $this;
+    }
+
+    /**
+     * Get displaysAllResults.
+     *
+     * @return bool
+     */
+    public function getDisplaysAllResults()
+    {
+        return $this->displaysAllResults;
     }
 
     /**

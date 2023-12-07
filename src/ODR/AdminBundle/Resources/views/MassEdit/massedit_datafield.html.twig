@@ -24,8 +24,14 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-            {% if override_mass_edit_field %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+                {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                    <label class="Pointer">
+                        <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                    </label>
+                </span>
+                {% endfor %}
             {% endif %}
         </span>
         <select id="SelectGroup_{{ datafield.id }}" class="ODRBoolean" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
@@ -38,9 +44,16 @@
     {% elseif field_typename == "File" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" class="ODRFieldLabel {#pure-u-1#}" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-        {% if override_mass_edit_field %}
-        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+            {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <label class="Pointer">
+                    <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                </label>
+            </span>
+            {% endfor %}
         {% endif %}
+
         <div class="pure-u-1">
             <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Files non-public</option>
@@ -54,9 +67,16 @@
     {% elseif field_typename == "Image" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" class="ODRFieldLabel {#pure-u-1#}" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-        {% if override_mass_edit_field %}
-        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+            {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <label class="Pointer">
+                    <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                </label>
+            </span>
+            {% endfor %}
         {% endif %}
+
         <div class="pure-u-1">
             <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Images non-public</option>
@@ -70,9 +90,16 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
-        {% if override_mass_edit_field %}
-        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+            {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <label class="Pointer">
+                    <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                </label>
+            </span>
+            {% endfor %}
         {% endif %}
+
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <textarea class="ODRParagraphField pure-u-1" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}></textarea>
         </div>
@@ -82,9 +109,16 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
-        {% if override_mass_edit_field %}
-        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+            {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <label class="Pointer">
+                    <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                </label>
+            </span>
+            {% endfor %}
         {% endif %}
+
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <input id="Form_{{ datafield.id }}" type="text" class="ODRField pure-u-1" name="{{ input_name }}" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
@@ -94,10 +128,17 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-            {% if override_mass_edit_field %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+                {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                    <label class="Pointer">
+                        <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                    </label>
+                </span>
+                {% endfor %}
             {% endif %}
         </span>
+
         <div class="ODRSingleRadio pure-u-1" rel="{{ datafield.id }}">
             <div style="margin-left: 10px;">
             <label id="Label_0" for="Option_{{ datafield.id }}_0" class="pure-u-1">
@@ -129,8 +170,14 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-            {% if override_mass_edit_field %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+                {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                    <label class="Pointer">
+                        <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                    </label>
+                </span>
+                {% endfor %}
             {% endif %}
         </span>
 
@@ -153,8 +200,14 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-            {% if override_mass_edit_field %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+                {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                    <label class="Pointer">
+                        <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                    </label>
+                </span>
+                {% endfor %}
             {% endif %}
 
             {% if datafield.radioOptions is defined %}
@@ -175,7 +228,16 @@
 
     {% elseif field_typename == "Tags" %}
     <fieldset>
-        <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <label class="ODRFieldLabel pure-u-23-24" title="{{ datafield_meta.description }}">
+            {{ datafield_meta.fieldName }}
+
+            <input id="massedit_df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
+                   title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
+                   placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
+                   size="15" maxlength="15"
+            />
+        </label>
+
         {% if datafield.tags is defined %}
             {% include 'ODRAdminBundle:MassEdit:tag_wrapper.html.twig' with {
                 'stacked_tags': datafield.tags,
@@ -187,9 +249,16 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>
-        {% if override_mass_edit_field %}
-        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+            {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <label class="Pointer">
+                    <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                </label>
+            </span>
+            {% endfor %}
         {% endif %}
+
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>

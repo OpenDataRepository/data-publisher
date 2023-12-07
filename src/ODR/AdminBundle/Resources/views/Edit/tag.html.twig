@@ -10,20 +10,42 @@
     {% set is_selected = tag_selections[ tag.id ].selected %}
 {% endif %}
 
-<li class="ODRTagItem">
+{% set child_is_selected = false %}
+{% set grandchild_is_selected = false %}
 {% if has_children %}
-    {#<span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>#}
+    {% for child_tag_id, child_tag in tag.children %}
+        {# Store whether this child tag is selected #}
+        {% if tag_selections[ child_tag.id ] is defined and tag_selections[ child_tag.id ].selected == 1 %}
+            {% set child_is_selected = true %}
+        {% endif %}
 
-    {# Have the tag tree start out collapsed #}
-    <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
+        {# Store whether this child tag has children which are selected #}
+        {% if child_tag_selections[ child_tag.id ] is defined %}
+            {% set grandchild_is_selected = true %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+{# Tags should show under ODRTagPartialCollapsed when they're selected, or have descendants which are selected #}
+{% set show_under_partial_select = false %}
+{% if is_selected == 1 or child_is_selected or grandchild_is_selected %}
+    {% set show_under_partial_select = true %}
+{% endif %}
+
+{# Tags should only be hidden by default when they're not top-level, and when they have no selected descendants #}
+<li class="ODRTagItem{% if show_under_partial_select %} ODRTagSelected{% endif %}" {% if is_top_level != 1 and not show_under_partial_select %}style="display: none;"{% endif %}>
+{% if has_children %}
+    {% if child_is_selected or grandchild_is_selected %}
+        {# At least one of this tag's children/grandchild are selected...so at least one of its children will be displayed #}
+        <span class="ODRTagSpacer ODRTagParent ODRTagPartialCollapsed"><i class="fa fa-ellipsis-h Pointer"></i></span>
+    {% else %}
+        {# This tag's children/grandchild aren't selected...so don't initially display its children #}
+        <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
+    {% endif %}
 {% else %}
     <span class="ODRTagSpacer"></span>
 {% endif %}
-{#
-{% if has_children %}
-    <label class="ODRTagLabel">{{ tag.tagMeta.tagName|markdown }}</label>
-{% else %}
-#}
+
     <label for="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagLabel">
         <input
             id="TagForm_{{ unique_id }}_{{ tag.id }}"
@@ -34,18 +56,18 @@
         />&nbsp;
         {{ tag.tagMeta.tagName|markdown }}
     </label>
-{#
-{% endif %}
-#}
 
 {% if has_children %}
-    <ul class="ODRTagGroup" style="display: none;">    {# Have the tag tree start out collapsed #}
+    <ul class="ODRTagGroup" {% if not (child_is_selected or grandchild_is_selected) %}style="display: none;"{% endif %}>
+        {# Hide tags when they don't have selected descendants...but all tags need to be rendered in Edit mode #}
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:Edit:tag.html.twig' with {
                 'unique_id': unique_id,
 
                 'tag_selections': tag_selections,
+                'child_tag_selections': child_tag_selections,
                 'tag': child_tag,
+                'is_top_level': 0,
 
                 'inline_search_link': inline_search_link
             } %}

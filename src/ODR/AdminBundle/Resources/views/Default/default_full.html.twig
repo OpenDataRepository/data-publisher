@@ -1,0 +1,42 @@
+{% extends '::full.html.twig' %}
+
+{# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
+{% set site_baseurl = site_baseurl %}
+{% set header_right_title = 'Logout' %}
+{% set header_right_path = path('odr_logout') %}
+{% set header_right_js = '' %}
+
+{% set logged_in = false %}
+{% set current_user = '' %}
+{% if user != "anon." %}
+    {% set logged_in = true %}
+    {% set current_user = user.getuserstring %}
+{% endif %}
+{#
+{% set header_left_title = 'Dashboard' %}
+{% set header_left_path = path('odr_admin_homepage') %}
+#}
+{% set header_middle_title = 'Search' %}
+{% set header_middle_path = path('odr_search') %}
+
+
+{% block title %}ODR Admin{% endblock %}
+
+{% set use_navigation_block = false %}
+{% if user != "anon." %}
+    {% set use_navigation_block = true %}
+{% endif %}
+
+{% block navigation_top %}
+    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
+{% endblock %}
+
+{# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in ODROpenRepositorySearchBundle:Default:index.html.twig #}
+{# This "backend page" starts out with the sidebar hidden and the content taking up the entire page #}
+{% block body %}
+    <div id="ODRSearchSidebar" class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-3 pure-u-xl-1-4 ODRContentWrapper ODRSearchVisible ODRHidden"></div>
+    <div id="ODRSearchContent" class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4 ODRSearchResultsWide"></div>
+
+    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
+    {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated) }}
+{% endblock %}

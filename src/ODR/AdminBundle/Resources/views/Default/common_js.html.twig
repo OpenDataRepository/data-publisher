@@ -1,4 +1,4 @@
-{% macro write(logged_in) %}
+{% macro write(logged_in, site_baseurl, odr_wordpress_integrated) %}
 <script>
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
@@ -120,6 +120,9 @@
             searchToggle();
         });
 
+        // Start with Search Hidden...
+        searchToggle();
+
         {% if logged_in == true %}
         updateDashboardLink();
         {% endif %}
@@ -210,6 +213,12 @@
     /**
      * Redirects an anonymous user to ODR's login page.
      */
+    {% if odr_wordpress_integrated %}
+    function ODRLogin() {
+        let current_page = window.location.href
+        window.location.href = '/wp-login.php?redirect_to=' + current_page;
+    }
+    {% else %}
     function ODRLogin() {
         // Extract the current base url
         var baseurl = window.location.href;
@@ -227,6 +236,9 @@
         else
             redirect_url += '/login';
 
+        redirect_url = '{{ site_baseurl }}{{ path('fos_user_security_login') }}';
+        // alert(redirect_url);
+
         // Append the fragment if it exists
         if (fragment !== '')
             redirect_url += '#' + fragment;
@@ -243,6 +255,7 @@
             }
         });
     }
+    {% endif %}
 
     /**
      * Forces a complete AJAX reload of the current page.
@@ -549,9 +562,8 @@
     }
 
     function setupAccordionHighlights() {
-         $("#content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
+         $("#odr_content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
             .alternateNestedBgColor(".ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3", ['ODRAccordionPrimary', 'ODRAccordionSecondary']);
-
         // console.log('accordion highlight')
     }
 
@@ -559,9 +571,10 @@
      * Attaches click handlers to the accordion, tabbed, and dropdown header display_types.
      */
     function setupAccordions() {
-        // Setup Accordions
+        // Setup click handlers for Accordions
         $(".ODRFormAccordion").children("h3").each(function() {
             $(this).unbind('click').click(function() {
+                // When a header is clicked, hide each of the content divs
                 $(this).parent().children(".accordion-content").each(function() {
                     if ( !$(this).is(":hidden") ) {
                         $(this).hide();
@@ -569,8 +582,10 @@
                     }
                     $(this).prev().removeClass('ODRAccordionSelected');
                 });
+
+                // After that, show the selected content div
                 $(this).next().fadeIn();
-                {#ODR_scrollIntoView( $(this).next() );#}
+                {# ODR_scrollIntoView( $(this).next() ); #}
                 $(this).addClass('ODRAccordionSelected');
 
                 setupAccordionHighlights();
@@ -579,12 +594,12 @@
             });
         });
 
-        // For each child/linked datatype on the page...
+        // Setup Accordion
         $(".ODRChildDatatype").each(function() {
             var prev_selection = false;
             // console.log( 'child_datatype_id ' + $(this).attr('id') );
 
-            // ...if it's using an accordion display type...
+            // ...hide all but the first accordion entries
             $(this).children().children(".ODRFormAccordion").children("h3").each(function() {
                 if ( !$(this).hasClass("ODRAccordionSelected") ) {
                     // Ensure that all child/linked records are hidden, unless user has already
@@ -600,9 +615,17 @@
 
             // If the user hadn't selected a child/linked record for this child/linked datatype...
             if ( !prev_selection ) {
-                // ...then show the first child/linked record by default
-                $(this).children().children(".ODRFormAccordion").children("h3:first").next().show();
-                // console.log( '.ODRChildDatatype: showing prev_selection ', $(this).children().children(".ODRFormAccordion").children("h3:first").next() );
+                // ...then hide all the child/linked records except the first
+                $(this).children().children(".ODRFormAccordion").children("h3").each(function(index,elem) {
+                    if ( index === 0 ) {
+                        // console.log('showing: ', $(elem).next());
+                        $(elem).next().show();
+                    }
+                    else {
+                        // console.log('hiding: ', $(elem).next());
+                        $(elem).next().hide();
+                    }
+                });
             }
         });
 
@@ -793,21 +816,75 @@
 
     /**
      * Initializes the click handlers used for ODR's tag datafields.
+     * @param {HTMLElement} context
+     * @param {number} states
      */
-    function setupTagTree() {
-        $(".ODRTagParent").unbind('click').click(function(event) {
+    function setupTagTree(context = null, states = 2) {
+        if ( context === null )
+            context = $("#odr_content");
+
+        {# TODO - modify so this uses event bubbling instead? #}
+        $(context).find(".ODRTagParent").unbind('click').click(function(event) {
             event.stopImmediatePropagation();
 
-            if ( $(this).hasClass('ODRTagCollapsed') ) {
-                $(this).next().next().show();
-                $(this).children(".fa").first().removeClass("fa-caret-right").addClass("fa-caret-down");
-            }
-            else {
-                $(this).next().next().hide();
-                $(this).children(".fa").first().removeClass("fa-caret-down").addClass("fa-caret-right");
-            }
+            // The Tag Design modal needs to be able to prevent collapsing/expanding
+            var tag_item = $(this).parents(".ODRTagItem").first();
+            if ( $(tag_item).find(".ODRTagHighlight").length > 0 )
+                return false;
 
-            $(this).toggleClass('ODRTagCollapsed');
+            // This div is guaranteed to be a sibling of the div that holds child tags, but there's
+            //  an uknown number of other HTML elements "in the way"...
+            var tag_children_div = $(tag_item).children('.ODRTagGroup').first();
+            var icon_div = $(this).children(".fa").first();
+
+            if ( states === 2 ) {
+                if ( $(this).hasClass('ODRTagCollapsed') ) {
+                    $(tag_children_div).show();
+                    $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
+                }
+                else {
+                    $(tag_children_div).hide();
+                    $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
+                }
+
+                $(this).toggleClass('ODRTagCollapsed');
+            }
+            else if ( states === 3 ) {
+                if ( $(this).hasClass('ODRTagCollapsed') && $(this).parent().hasClass('ODRTagSelected') ) {
+                    // This tag is currently collapsed, and has selected children...go from collapsed
+                    //  to only partially collapsed
+                    $(tag_children_div).show();
+                    $(tag_children_div).children('li.ODRTagItem').not('.ODRTagSelected').hide();
+
+                    $(icon_div).removeClass("fa-caret-right").addClass("fa-ellipsis-h");
+
+                    $(this).removeClass('ODRTagCollapsed').addClass('ODRTagPartialCollapsed');
+                }
+                else if ( $(this).hasClass('ODRTagCollapsed') && !$(this).parent().hasClass('ODRTagSelected') ) {
+                    // This tag is currently collapsed, but has no selected children...there's no
+                    //  point going to partially collapsed, since nothing will change, so instead
+                    //  show everything
+                    $(tag_children_div).show();
+                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
+
+                    $(this).removeClass('ODRTagCollapsed');
+                }
+                else if ( $(this).hasClass('ODRTagPartialCollapsed') ) {
+                    // This tag is partially collapsed...go to showing everything
+                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(icon_div).removeClass("fa-ellipsis-h").addClass("fa-caret-down");
+
+                    $(this).removeClass('ODRTagPartialCollapsed');
+                }
+                else {
+                    // This tag is showing everything...go back to completely collapsed
+                    $(tag_children_div).hide();
+                    $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
+
+                    $(this).addClass('ODRTagCollapsed');
+                }
+            }
         });
     }
 

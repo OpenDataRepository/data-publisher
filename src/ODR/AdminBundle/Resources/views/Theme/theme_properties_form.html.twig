@@ -34,7 +34,6 @@
             </div>
         </div>
 
-        {% if is_short_form %}
         <div class="ODRDataField pure-u-1">
             <label class="ODRFieldLabel" for="{{ theme_form.isTableTheme.vars.id }}">
                 <strong>{{ theme_form.isTableTheme.vars.label }}&nbsp;&nbsp;</strong>
@@ -44,12 +43,20 @@
                 {{ form_widget(theme_form.isTableTheme, { 'attr': {'class': 'pure-u-1-3', 'style': 'width:auto'} }) }}
             {#</div>#}
         </div>
-        {% endif %}
 
-        <div>
-        {{ form_rest(theme_form) }}
+        <div class="ODRDataField pure-u-1">
+            <label class="ODRFieldLabel" for="{{ theme_form.displaysAllResults.vars.id }}">
+                <strong>{{ theme_form.displaysAllResults.vars.label }}&nbsp;&nbsp;</strong>
+            </label>
+            {#<div class="ODRFieldWrapper">#}
+                {{ form_errors(theme_form.displaysAllResults) }}
+                {{ form_widget(theme_form.displaysAllResults, { 'attr': {'class': 'pure-u-1-3', 'style': 'width:auto'} }) }}
+            {#</div>#}
         </div>
+
+        {{ form_rest(theme_form) }}
     </fieldset>
 
 {{ form_end(theme_form) }}
+
 {% endspaceless %}

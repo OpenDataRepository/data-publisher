@@ -67,7 +67,7 @@ class ODRCustomController extends Controller
     {
         // -----------------------------------
         // Grab necessary objects
-        $session = $this->get('session');
+        $session = $this->get('session');    // NOTE: has to be $this->get(), not $request->get()
 
         $use_jupyterhub = false;
         $jupyterhub_config = $this->getParameter('jupyterhub_config');
@@ -84,12 +84,19 @@ class ODRCustomController extends Controller
         $dbi_service = $this->container->get('odr.database_info_service');
         /** @var DatarecordInfoService $dri_service */
         $dri_service = $this->container->get('odr.datarecord_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
+        /** @var DatatreeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatree_info_service');
         /** @var ODRTabHelperService $odr_tab_service */
         $odr_tab_service = $this->container->get('odr.tab_helper_service');
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_info_service */
+        $theme_info_service = $this->container->get('odr.theme_info_service');
+        /** @var SearchService $search_service */
+        $search_service = $this->container->get('odr.search_service');
+        /** @var TableThemeHelperService $tth_service */
+        $tth_service = $this->container->get('odr.table_theme_helper_service');
+
         /** @var EngineInterface $templating */
         $templating = $this->get('templating');
 
@@ -121,7 +128,7 @@ class ODRCustomController extends Controller
                 // ...then this user can't use this theme
 
                 // Find a theme they can use
-                $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
                 $display_theme_warning = true;
@@ -129,7 +136,10 @@ class ODRCustomController extends Controller
         }
 
         // Might as well set the session default theme here
-        $theme_service->setSessionTheme($datatype->getId(), $theme);
+        $page_type = 'search_results';
+//        if ( $intent === 'linking' )
+//            $page_type = 'linking';    // TODO - do I actually want a separate page type for linking purposes?
+        $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
 
         // Determine whether the currently preferred theme needs to be synchronized with its source
         //  and the user notified of it
@@ -151,6 +161,23 @@ class ODRCustomController extends Controller
 
         // Grab the page length for this tab from the session, if possible
         $page_length = $odr_tab_service->getPageLength($odr_tab_id);
+
+        // Due to the existence of table themes that display all records, the page_length variable
+        //  in the user's session needs to be verified that it makes sense for the currently
+        //  selected theme
+        if ( $intent !== 'linking' && $theme->getIsTableTheme() && $theme->getDisplaysAllResults() ) {
+            // ...despite being named "display all records", there's actually a limit of 10k per page
+            $page_length = 10000;
+            $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+        }
+        else {
+            // ...but if the user is not viewing all records, then ensure the page length is not
+            //  effectively infinite
+            if ( $page_length > 100 ) {
+                $page_length = $odr_tab_service->getDefaultPageLength();
+                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+            }
+        }
 
 
         // -----------------------------------
@@ -224,9 +251,24 @@ class ODRCustomController extends Controller
         if ( (($offset-1) * $page_length) > count($original_datarecord_list) )
             $offset = 1;
 
+        $records_total = count($original_datarecord_list);
+
         // Reduce datarecord_list to just the list that will get rendered
-        $start = ($offset-1) * $page_length;
-        $datarecord_list = array_slice($original_datarecord_list, $start, $page_length);
+        $datarecord_list = array();
+        if ( $intent !== 'linking' && $theme->getIsTableTheme() && $theme->getDisplaysAllResults() ) {
+            // Only respect "display all results" if this is a non-linking table theme...
+            $page_length = 10000;
+
+            // ...and since "display all results" is actually "display up to 10,000", the list
+            //  still needs to be sliced in case there's a stupidly large database
+            $start = ($offset-1) * $page_length;
+            $datarecord_list = array_slice($original_datarecord_list, $start, $page_length);
+        }
+        else {
+            // Every other combination respects $page_length
+            $start = ($offset-1) * $page_length;
+            $datarecord_list = array_slice($original_datarecord_list, $start, $page_length);
+        }
 
         //
         $has_datarecords = true;
@@ -237,22 +279,17 @@ class ODRCustomController extends Controller
         // -----------------------------------
         $final_html = '';
         // All theme types other than table
-        if ( $theme->getThemeType() != 'table' ) {
-            // -----------------------------------
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
-
+        if ( !$theme->getIsTableTheme() ) {
             // -----------------------------------
             // Load and stack the cached theme data...this can happen now since it's not filtered
-            $theme_array = $theme_service->getThemeArray($theme->getId());
+            $theme_array = $theme_info_service->getThemeArray($theme->getId());
             $stacked_theme_array[ $theme->getId() ] =
-                $theme_service->stackThemeArray($theme_array, $theme->getId());
+                $theme_info_service->stackThemeArray($theme_array, $theme->getId());
 
             // Determine which datatypes are going to actually be visible to the user
-            $rendered_dt_ids = array( $datatype->getId() => '' );
-            self::getRenderedDatatypes($stacked_theme_array, $rendered_dt_ids);
+            $rendered_dt_ids = self::getRenderedDatatypes($stacked_theme_array);
+            // Ensure the current datatype id is going to be displayed
+            $rendered_dt_ids[ $datatype->getId() ] = '';
 
             // Locate all datarecords that could potentially be visible on a search results page
             //  as a result of using this specific theme
@@ -301,7 +338,7 @@ class ODRCustomController extends Controller
             // -----------------------------------
             // Determine where on the page to scroll to if possible
             $scroll_target = '';
-            if ($session->has('scroll_target')) {
+            if ( !is_null($session) && $session->has('scroll_target') ) {
                 $scroll_target = $session->get('scroll_target');
                 if ($scroll_target !== '') {
                     // Don't scroll to someplace on the page if the datarecord isn't displayed
@@ -344,6 +381,7 @@ class ODRCustomController extends Controller
                     )
                 );
             }
+            // var_dump($stacked_datatype_array); exit();
 
             // -----------------------------------
             // Finally, render the list
@@ -387,15 +425,44 @@ class ODRCustomController extends Controller
                 )
             );
         }
-        else if ( $theme->getThemeType() == 'table' ) {
+        else {
             // -----------------------------------
-            $theme_array = $theme_service->getThemeArray($theme->getId());
+            // This is a theme that the user wants to render as a table
+            $theme_array = $theme_info_service->getThemeArray($theme->getId());
 
-            // Determine the columns to use for the table
-            /** @var TableThemeHelperService $tth_service */
-            $tth_service = $this->container->get('odr.table_theme_helper_service');
-            $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
-//exit( '<pre>'.print_r($column_data, true).'</pre>' );
+            $column_data = array();
+            $row_data = array();
+            $scroll_target = '';
+            if ( $intent !== 'linking' && $theme->getDisplaysAllResults() ) {
+                // Determine the columns to use for the table
+                $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId(), 'array');
+
+                // NOTE: it seems that $datarecord_list doesn't have to be sorted prior to calling
+                //  getRowData()...datatables.js will re-sort the rows on the page to match the
+                //  saved state
+
+                // When displaying all results it's better for the rows to be built here so twig
+                //  can print them, bypassing TextResultsController::datatablesrowrequestAction()
+                //  completely
+                $row_data = $tth_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
+
+                // ...due to this bypass, the scroll target needs to be set here if it exists
+                if ( !is_null($session) && $session->has('scroll_target') ) {
+                    $scroll_target = $session->get('scroll_target');
+                    if ($scroll_target !== '') {
+                        // Don't scroll to someplace on the page if the datarecord isn't displayed
+                        if ( !in_array($scroll_target, $datarecords) )
+                            $scroll_target = '';
+
+                        // Null out the scroll target in the session so it only works once
+                        $session->set('scroll_target', '');
+                    }
+                }
+            }
+            else {
+                // Get the columns to use for the table in json format
+                $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
+            }
 
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
@@ -404,10 +471,12 @@ class ODRCustomController extends Controller
             // TODO - this doubles the initial workload for a table page...is there a way to get the table plugin to not run the first load via ajax?
 
             // -----------------------------------
-            //
+            // Select the correct template for rendering
             $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
             if ($intent == 'linking')
                 $template = 'ODRAdminBundle:Link:link_datarecord_form_search.html.twig';
+            else if ( $theme->getDisplaysAllResults() )
+                $template = 'ODRAdminBundle:TextResults:textresultslist_full.html.twig';
 
             $final_html = $templating->render(
                 $template,
@@ -416,9 +485,14 @@ class ODRCustomController extends Controller
                     'has_datarecords' => $has_datarecords,
                     'column_names' => $column_names,
                     'num_columns' => $num_columns,
+
+                    'row_data' => $row_data,
+                    'records_total' => $records_total,
+                    'path_str' => $path_str,
+
                     'odr_tab_id' => $odr_tab_id,
                     'page_length' => $page_length,
-//                    'scroll_target' => $scroll_target,
+                    'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
                     'theme_array' => $theme_array,
@@ -451,43 +525,66 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Recursively crawls through a stacked theme array to determine which datatypes are getting
-     * displayed to the user.
+     * Recursively crawls through a stacked theme array to determine which datatypes the user could
+     * see on a SearchResults page.  This intentionally doesn't care about permissions.
      *
      * @param array $stacked_theme_array
-     * @param array &$rendered_dt_ids
+     * @return array
      */
-    private function getRenderedDatatypes($stacked_theme_array, &$rendered_dt_ids)
+    private function getRenderedDatatypes($stacked_theme_array)
     {
+        $rendered_dt_ids = array();
+
         foreach ($stacked_theme_array as $t_id => $t) {
             // For each datatype in this theme that has layout data...
             $dt_id = $t['dataType']['id'];
 
-            // ...if this theme has theme_elements...
+            // ...if this datatype has at least one themeElement...
             if ( isset($t['themeElements']) ) {
                 foreach ($t['themeElements'] as $te_num => $te) {
-                    // ...and the theme_element isn't hidden...
+                    // ...and the themeElement isn't hidden...
                     if ( $te['themeElementMeta']['hidden'] === 0 ) {
                         if ( isset($te['themeDataFields']) ) {
-                            // ...and the theme_element contains at least one datafield...
+                            // ...and the themeElement contains at least one datafield...
                             foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                                // ...then this datatype is rendered only if at least one datafield
-                                //  is not hidden
-                                if ( $tdf['hidden'] === 0 )
+                                // ...then the user will be able to see the datatype when at least
+                                //  one of its datafields is not hidden
+                                if ( $tdf['hidden'] === 0 ) {
                                     $rendered_dt_ids[$dt_id] = '';
+
+                                    // No point checking the other datafields in this themeElement
+                                    break;
+
+                                    // ...don't want to do a  break 2;  however, because the datatype
+                                    //  could have child/linked descendants that need to be checked
+                                }
                             }
                         }
                         else if ( isset($te['themeDataType']) ) {
-                            // ...and the theme_element contains a child/linked datatype...
+                            // ...and the theme_element contains a child/linked descendant...
                             $tdt = $te['themeDataType'][0];
 
-                            // ...then check whether the child/linked datatype should be rendered
-                            self::getRenderedDatatypes($tdt['childTheme']['theme'], $rendered_dt_ids);
+                            // ...then check whether the child/linked descendant should be rendered
+                            $tmp = self::getRenderedDatatypes($tdt['childTheme']['theme']);
+
+                            // If the recursion returned something...
+                            if ( !empty($tmp) ) {
+                                // ...then the user needs to be able to see this datatype
+                                $rendered_dt_ids[$dt_id] = '';
+
+                                // Need to save each of the child/linked descendants that the user
+                                //  can view
+                                foreach ($tmp as $descendant_dt_id => $val)
+                                    $rendered_dt_ids[$descendant_dt_id] = '';
+                            }
                         }
                     }
                 }
             }
         }
+
+        // Done checking this theme
+        return $rendered_dt_ids;
     }
 
 
@@ -507,8 +604,16 @@ class ODRCustomController extends Controller
      *
      * @return TrackedJob
      */
-    protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing = false)
-    {
+    protected function ODR_getTrackedJob(
+        $em,
+        $user,
+        $job_type,
+        $target_entity,
+        $additional_data,
+        $restrictions,
+        $total,
+        $reuse_existing = false
+    ) {
         // TODO - this way this is called technically allows one user to overwrite another job
         // TODO - ...at least, if the job is stalled for some reason
 

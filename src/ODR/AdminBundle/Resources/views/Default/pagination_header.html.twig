@@ -96,9 +96,11 @@
 
     {# Page/View Options #}
     {% set page_type = 'search_results' %}
+    {# TODO - do I actually want a separate page type for linking purposes?
     {% if intent == 'linking' %}
         {% set page_type = 'linking' %}
     {% endif %}
+    #}
 
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,

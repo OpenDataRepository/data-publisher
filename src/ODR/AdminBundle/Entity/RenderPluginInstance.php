@@ -60,6 +60,11 @@ class RenderPluginInstance
     private $renderPluginOptionsMap;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themeRenderPluginInstance;
+
+    /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
      */
     private $renderPlugin;
@@ -92,6 +97,7 @@ class RenderPluginInstance
         $this->renderPluginOptions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginMap = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginOptionsMap = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themeRenderPluginInstance = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -299,6 +305,42 @@ class RenderPluginInstance
     public function getRenderPluginOptionsMap()
     {
         return $this->renderPluginOptionsMap;
+    }
+
+    /**
+     * Add themeRenderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance
+     *
+     * @return RenderPluginInstance
+     */
+    public function addThemeRenderPluginInstance(\ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance)
+    {
+        $this->themeRenderPluginInstance[] = $themeRenderPluginInstance;
+
+        return $this;
+    }
+
+    /**
+     * Remove themeRenderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeThemeRenderPluginInstance(\ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance)
+    {
+        return $this->themeRenderPluginInstance->removeElement($themeRenderPluginInstance);
+    }
+
+    /**
+     * Get themeRenderPluginInstance.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getThemeRenderPluginInstance()
+    {
+        return $this->themeRenderPluginInstance;
     }
 
     /**

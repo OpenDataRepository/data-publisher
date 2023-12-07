@@ -1,83 +1,112 @@
 {% spaceless %}
 
-<li data-theme-id="{{ theme.id }}">
+<li data-theme-id="{{ theme_data.id }}">
     <div class="pure-u-1 pure-u-md-6-24">
         <h4>
-        {% if theme.name != "" %}
-            {{ theme.name }}
-        {% elseif theme.name == "" and theme.theme_type == "master" %}
-            Master View/Theme
-        {% elseif theme.name == "" and theme.is_default == 1 %}
-            Default View
+        {% if theme_data.name != "" %}
+            {{ theme_data.name }}
         {% else %}
             Unnamed View.
         {% endif %}
         </h4>
-        <div>Created By: {{ theme.created_by_name }}</div>
-        {#<div>theme id: {{ theme.id }}&nbsp;&nbsp;theme type: {{ theme.theme_type }}</div>#}
+        <div>Created By: {{ theme_data.created_by_name }}</div>
+{#        <div>theme id: {{ theme_data.id }}&nbsp;&nbsp;theme type: {{ theme_data.theme_type }}&nbsp;&nbsp;page type: {{ formatted_page_type }}</div>#}
     </div>
 
-    <div class="pure-u-1 pure-u-md-12-24 ODRChooseViewDescription">
-    {% if theme.description != "" %}
-        {{ theme.description }}
-    {% elseif theme.name == "" and theme.is_default == 1 %}
-        Default view for selected database.
+    <div class="pure-u-1 pure-u-md-11-24 ODRChooseViewDescription">
+    {% if theme_data.description != "" %}
+        {{ theme_data.description }}
     {% else %}
         No description.
     {% endif %}
 
-    {% if theme.id == selected_theme_id %}
+    {% set need_spacer = false %}
+
+    {% if theme_data.theme_type == "master" %}
+        <div class="ODRViewNote">[ Master theme/view for database. ]</div>
+        {% set need_spacer = true %}
+    {% endif %}
+
+    {% if theme_data.is_table_theme %}
+        <div class="ODRViewNote">[ Table view. ]</div>
+        {% set need_spacer = true %}
+    {% endif %}
+
+    {% for num,label in theme_data.default_for %}
+        <div class="ODRViewNote">
+            [ Database default for {{ label }} mode. ]
+        {% if is_datatype_admin %}
+            <i class="ODRUnsetDefaultDatabase fa fa-trash" title="Make this view no longer database default for {{ label }} mode." rel="{{ label }}"></i>
+        {% endif %}
+        </div>
+        {% set need_spacer = true %}
+    {% endfor %}
+
+    {% if need_spacer %}
+        <div class="ODRViewNote">&nbsp;</div>
+    {% endif %}
+
+    {% if not theme_data.is_shared %}
+        <div class="ODRViewNote">[ Private view. ]</div>
+    {% endif %}
+
+    {% if theme_data.id == selected_theme_id %}
         <div class="ODRViewNote">[ Currently selected view. ]</div>
     {% endif %}
 
-    {% if user != "anon." and theme.id == user_preferred_theme_id %}
-        <div class="ODRViewNote">[ Personal default view. ]</div>
-    {% endif %}
-
-    {% if theme.is_default == 1 %}
-        <div class="ODRViewNote">[ Database default view. ]</div>
-    {% endif %}
-
-    {% if theme.theme_type == "master" %}
-        <div class="ODRViewNote">[ Master theme/view for database. ]</div>
-    {% endif %}
-
-    {% if theme.theme_type == "table" %}
-        <div class="ODRViewNote">[ Table view. ]</div>
+    {% if user != "anon." %}
+        {% for num,label in theme_data.user_preference_for %}
+        <div class="ODRViewNote">
+            [ Personal default for {{ label }} mode. ]
+            <i class="ODRUnsetDefaultPersonal fa fa-trash" title="Make this view no longer personal default for {{ label }} mode." rel="{{ label }}"></i>
+        </div>
+        {% endfor %}
     {% endif %}
     </div>
 
-    <div class="pure-u-1 pure-u-md-5-24">
+    <div class="pure-u-1 pure-u-md-6-24">
         <ul class="ODRViewOptions">
-        {% if user != "anon." and (user_preferred_theme_id is null or theme.id != user_preferred_theme_id) %}
+        {% set need_spacer = false %}
+
+        {% if theme_data.id != selected_theme_id %}
+            {# all users and visitors can select a shared theme #}
+            <li class="ODRMakeCurrentView">apply view (current session)</li>
+            {% set need_spacer = true %}
+        {% endif %}
+
+        {% if user != "anon." and formatted_page_type not in theme_data.user_preference_for %}
             {# users can select any theme they can view to be their personal default #}
             <li class="ODRDefaultPersonal">make personal default</li>
+            {% set need_spacer = true %}
         {% endif %}
 
-        {% if theme.id != selected_theme_id %}
-            {# all users and visitors can select a public theme #}
-            <li class="ODRMakeCurrentView">apply view (current session)</li>
+        {% if user != "anon." and theme_data.created_by == user.id and not theme_data.is_shared %}
+            {# users can always share one of their own themes #}
+            <li class="ODRMakeViewShared">make view usable by others</li>
+            {# datatype admins are not allowed to share other users' themes #}
+            {% set need_spacer = true %}
+
+        {% elseif user != "anon." and theme_data.created_by == user.id and theme_data.is_shared and theme_data.default_for|length == 0 and theme_data.theme_type != "master" %}
+            {# users can only unshare one of their own themes if it's not a default or master theme #}
+            <li class="ODRMakeViewShared">make view private</li>
+            {% set need_spacer = true %}
         {% endif %}
 
-        {% if user != "anon." and theme.created_by == user.id and not theme.public %}
-            {# users can always make one of their own themes public #}
-            <li class="ODRMakeViewPublic">make view public (usable by others)</li>
-        {%  elseif user != "anon." and theme.created_by == user.id and theme.public and theme.is_default != 1 and theme.theme_type != "master" %}
-            {# users can only make one of their own themes private if it's not a default or master theme #}
-            <li class="ODRMakeViewPublic">make view private</li>
+        {% if need_spacer %}
+            <li>&nbsp;</li>
         {% endif %}
 
-        {% if is_datatype_admin and theme.public and theme.is_default != 1 %}
-            {# datatype admins can set a public theme as the default for a database #}
-            <li class="ODRDefaultDatabase">make default for database</li>
+        {% if is_datatype_admin and theme_data.is_shared and formatted_page_type not in theme_data.default_for %}
+            {# datatype admins can set any shared theme as the default for a database #}
+            <li class="ODRDefaultDatabase">make database default</li>
         {% endif %}
 
             <li>
-            {% if user != "anon." and theme.created_by == user.id and theme.theme_type != "master" %}
+            {% if user != "anon." and theme_data.created_by == user.id and theme_data.theme_type != "master" %}
                 {# users can edit non-master themes they created #}
                 <span class="ODRModifyTheme">edit view</span> |
-            {% elseif is_datatype_admin and (theme.theme_type == "master" or theme.is_default == 1) %}
-                {# datatype admins are also allowed to edit both default and master themes whether they created them or not #}
+            {% elseif is_datatype_admin %}
+                {# datatype admins are also allowed to edit any theme for this datatype #}
                 <span class="ODRModifyTheme">edit view</span> |
             {% endif %}
 
@@ -86,9 +115,10 @@
                 <span class="ODRCopyModifyTheme">copy view</span>
             {% endif %}
 
-            {% if user != "anon." and theme.created_by == user.id and theme.is_default != 1 and theme.theme_type != "master" %}
+            {% if user != "anon." and theme.created_by == user.id and theme_data.default_for|length == 0 and theme_data.theme_type != "master" %}
                 {# users can delete themes, but only if they created it, and it's not a default theme, and it's not a master theme #}
                 | <span class="ODRDeleteTheme">delete view</span>
+                {# datatype admins are not allowed to delete other users' themes #}
             {% endif %}
             </li>
         </ul>

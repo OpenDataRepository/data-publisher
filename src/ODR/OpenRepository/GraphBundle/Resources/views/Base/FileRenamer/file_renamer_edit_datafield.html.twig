@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set datarecord_is_fake = false %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
@@ -28,15 +30,33 @@
     {% endif %}
 
     <div class="ODRFileDatafield">
-        {# Don't want to execute anything special after a file gets deleted #}
-        {#{% set file_delete_callback = 'function() {}' %}#}
-        {% include "ODROpenRepositoryGraphBundle:Base:FileRenamer/file_renamer_edit_file_datafield.html.twig" with {
-            'datafield': datafield,
-            'datarecord': datarecord,
-            'files': valuefield,
+        <div class="ODRFileDatafield_header pure-u-1">
+        {% if not datarecord_is_fake %}
+            <i class="Pointer fa fa-edit fa-lg ODRFileRenamer_rebuild" title="Rebuild the filenames in this Datafield"></i>&nbsp;
+            {% if uses_file_header_inserter_plugin %}
+                <i class="Pointer fa fa-indent fa-lg ODRFileHeaderInserter_rebuild" title="Rebuild the headers of all Files in this Datafield"></i>&nbsp;
+            {% endif %}
+            <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+            <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+        {% else %}
+            <i class="fa fa-refresh fa-lg ODRFileRenamer_rebuild"></i>&nbsp;
+            <i class="fa fa-download fa-lg ODRDownloadAllFiles"></i>&nbsp;
+            <span>{{ datafield.dataFieldMeta.fieldName }}</span>
+        {% endif %}
+        </div>
 
-            'datarecord_is_fake': false,
-        } %}
+        <div class="ODRFileDatafield_content pure-u-1">
+            {# Don't want to execute anything special after a file gets deleted #}
+            {#{% set file_delete_callback = 'function() {}' %}#}
+            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
+                'datafield': datafield,
+                'datarecord': datarecord,
+                'files': valuefield,
+
+                'datarecord_is_fake': datarecord_is_fake,
+                'uses_file_renamer_plugin': true,
+            } %}
+        </div>
     </div>
 
     <div class="pure-u-1" {% if datafield_meta.allow_multiple_uploads == 0 and has_file == true %}style="display: none;"{% endif %}>

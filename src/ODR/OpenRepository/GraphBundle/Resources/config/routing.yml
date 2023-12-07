@@ -1,14 +1,26 @@
 # TODO - move these into other files?
-odr_plugin_graph_static:
+odr_plugin_graph_render:
     path:  /graph/static/{datatype_id}/{datarecord_id}.{_format}
-    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:static, _format: 'svg' }
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:render, _format: 'svg' }
     requirements:
         datatype_id: \d+
         datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it
 
 odr_plugin_file_renamer_rebuild:
-    path:  /plugins/file_renamer/rebuild/{dr_id}/{df_id}
+    path:  /edit/plugins/file_renamer/rebuild/{dr_id}/{df_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:FileRenamer:rebuild }
     requirements:
         dr_id: \d+
         df_id: \d+
+
+odr_plugin_file_header_inserter_rebuild:
+    path:  /edit/plugins/file_header_inserter/rebuild/{dr_id}/{df_id}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:FileHeaderInserter:rebuild }
+    requirements:
+        dr_id: \d+
+        df_id: \d+
+
+odr_plugin_cellparam_save:
+    path:  /edit/plugins/cellparams/save
+    defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFCellparams:save }
+    methods: [POST]

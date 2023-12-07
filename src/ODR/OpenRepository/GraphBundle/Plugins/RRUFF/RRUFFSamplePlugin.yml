@@ -1,24 +1,28 @@
 odr_plugins.rruff.rruff_sample:
     name: RRUFF Sample Plugin
     category: RRUFF
-    datatype: true
-    render: true
+    plugin_type: datatype
+    render: odr_plugins.rruff.rruff_sample
     version: 1.0.0
     override_fields: true
     override_field_reload: false
     override_child: false
-    description: TODO
+    override_table_fields: false
+    description: This plugin attempts to automatically increment the Sample ID field for the RRUFF Sample database.
     registered_events:
+        DatarecordCreatedEvent: onDatarecordCreate
+
     required_fields:
+        sample_id:
+            name: Sample ID
+            description:
+            type: IntegerValue
+            properties:
+                - autogenerate_values
+                - must_be_unique
 
         # ----------------------------------------
         # These fields are temporary...they only exist to make it easier to import
-#        sample_id:
-#            name: Sample ID
-#            description:
-#            type: ShortVarchar
-#            properties:
-#                - must_be_unique
         rruff_id:
             name: RRUFF ID
             description:
@@ -64,25 +68,4 @@ odr_plugins.rruff.rruff_sample:
             description:
             type: File
 
-
     config_options:
-        # NOTE - instead of "correctly" implementing methods for a render plugin to identify a
-        #  datatype like it can a datafield (via the "required_fields") key...it's faster to use
-        #  render plugin options to specify strings to identify relevant datatypes.  This hack
-        #  fits right in with how the rest of the plugin operates.
-
-        ima_datatype:
-            name: IMA Datatype Identifier
-            type: string
-            default: IMA
-            description: TODO
-        reference_datatype:
-            name: Reference Datatype Identifier
-            type: string
-            default: Reference
-            description: TODO
-        comment_datatypes:
-            name: Comment Datatype Identifier
-            type: string
-            default: Comment
-            description: TODO

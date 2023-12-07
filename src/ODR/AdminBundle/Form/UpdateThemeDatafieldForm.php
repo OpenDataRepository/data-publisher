@@ -45,17 +45,22 @@ class UpdateThemeDatafieldForm extends AbstractType
         );
 
         $builder->add(
-            'hidden',
-            HiddenType::class
-        );
-
-        $builder->add(
             'cssWidthMed',
             HiddenType::class
         );
 
         $builder->add(
             'cssWidthXL',
+            HiddenType::class
+        );
+
+        $builder->add(
+            'hidden',
+            HiddenType::class
+        );
+
+        $builder->add(
+            'hideHeader',
             HiddenType::class
         );
     }

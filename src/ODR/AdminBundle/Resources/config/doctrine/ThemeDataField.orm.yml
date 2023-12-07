@@ -22,6 +22,11 @@ ODR\AdminBundle\Entity\ThemeDataField:
             type: integer
             nullable: false
             default: 0
+        hideHeader:
+            type: boolean
+            nullable: false
+            column: hide_header
+            default: false
 
         cssWidthMed:
             type: string

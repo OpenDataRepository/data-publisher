@@ -14,10 +14,8 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -53,11 +51,6 @@ class DatabaseInfoService
     private $th_service;
 
     /**
-     * @var string
-     */
-    private $odr_web_dir;
-
-    /**
      * @var Logger
      */
     private $logger;
@@ -70,7 +63,6 @@ class DatabaseInfoService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
-     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
@@ -78,14 +70,12 @@ class DatabaseInfoService
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
-        string $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
-        $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
 
@@ -194,6 +184,10 @@ class DatabaseInfoService
         //  more than one of either, and both of them have their own displayOrder
         $special_fields = self::getSpecialFields($grandparent_datatype_id);
 
+        // The doctrine hydrator apparently sometimes has issues loading renderPluginEvents, so the
+        //  renderPlugin data has to be loaded in its own function too...
+        $render_plugin_data = self::getRenderPluginData($grandparent_datatype_id);
+
         // Get all the rest of the non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
@@ -204,20 +198,12 @@ class DatabaseInfoService
                 partial dt_cb.{id, username, email, firstName, lastName},
                 partial dt_ub.{id, username, email, firstName, lastName},
 
-                partial dt_rpi.{id}, dt_rpi_rp,
-                partial dt_rpom.{id, value}, partial dt_rpo.{id, name},
-                partial dt_rpm.{id},
-                partial dt_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
-                dt_rpm_df,
+                partial dt_rpi.{id},
 
                 df, dfm, partial ft.{id, typeClass, typeName},
                 partial df_cb.{id, username, email, firstName, lastName},
 
-                partial df_rpi.{id}, df_rpi_rp,
-                partial df_rpom.{id, value}, partial df_rpo.{id, name},
-                partial df_rpm.{id},
-                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
-                df_rpm_df
+                partial df_rpi.{id}
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
@@ -230,12 +216,6 @@ class DatabaseInfoService
             LEFT JOIN dtm.backgroundImageField AS dt_bif
 
             LEFT JOIN dt.renderPluginInstances AS dt_rpi
-            LEFT JOIN dt_rpi.renderPlugin AS dt_rpi_rp
-            LEFT JOIN dt_rpi.renderPluginOptionsMap AS dt_rpom
-            LEFT JOIN dt_rpom.renderPluginOptionsDef AS dt_rpo
-            LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
-            LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
-            LEFT JOIN dt_rpm.dataField AS dt_rpm_df
 
             LEFT JOIN dt.dataFields AS df
             LEFT JOIN df.dataFieldMeta AS dfm
@@ -243,12 +223,6 @@ class DatabaseInfoService
             LEFT JOIN dfm.fieldType AS ft
 
             LEFT JOIN df.renderPluginInstances AS df_rpi
-            LEFT JOIN df_rpi.renderPlugin AS df_rpi_rp
-            LEFT JOIN df_rpi.renderPluginOptionsMap AS df_rpom
-            LEFT JOIN df_rpom.renderPluginOptionsDef AS df_rpo
-            LEFT JOIN df_rpi.renderPluginMap AS df_rpm
-            LEFT JOIN df_rpm.renderPluginFields AS df_rpf
-            LEFT JOIN df_rpm.dataField AS df_rpm_df
 
             WHERE
                 dt.grandparent = :grandparent_datatype_id
@@ -288,10 +262,23 @@ class DatabaseInfoService
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
             $datatype_data[$dt_num]['updatedBy'] = UserUtility::cleanUserData( $dt['updatedBy'] );
 
-            // Flatten the renderPluginFields and renderPluginOptions sections of the render plugin
-            //  data, if it exists
-            if ( !empty($datatype_data[$dt_num]['renderPluginInstances']) )
-                $datatype_data[$dt_num]['renderPluginInstances'] = self::flattenRenderPlugin($datatype_data[$dt_num]['renderPluginInstances']);
+            // Attach the renderPlugin data for this datatype, if the datatype is using any
+            if ( !empty($datatype_data[$dt_num]['renderPluginInstances']) ) {
+                // Going to completely replace the array entry here
+                $tmp_rpi = array();
+
+                foreach ($datatype_data[$dt_num]['renderPluginInstances'] as $rpi_num => $rpi) {
+                    // The render plugin data has already been loaded and cleaned up...
+                    $rpi_id = $rpi['id'];
+                    if ( !isset($render_plugin_data[$rpi_id]) )
+                        throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because the data for renderPluginInstance '.$rpi_id.' is missing');
+
+                    // ...just need to locate it by the id of the renderPluginInstance
+                    $tmp_rpi[$rpi_id] = $render_plugin_data[$rpi_id];
+                }
+
+                $datatype_data[$dt_num]['renderPluginInstances'] = $tmp_rpi;
+            }
 
             // Attach any name/sort fields for this datatype
             $datatype_data[$dt_num]['nameFields'] = array();
@@ -324,10 +311,23 @@ class DatabaseInfoService
                 // Scrub irrelevant data from the datafield's createdBy property
                 $df['createdBy'] = UserUtility::cleanUserData( $df['createdBy'] );
 
-                // Flatten the renderPluginFields and renderPluginOptions sections of the render
-                //  plugin data, if it exists
-                if ( !empty($df['renderPluginInstances']) )
-                    $df['renderPluginInstances'] = self::flattenRenderPlugin($df['renderPluginInstances']);
+                // Attach the renderPlugin data for this datafield, if the datafield is using any
+                if ( !empty($df['renderPluginInstances']) ) {
+                    // Going to completely replace the array entry here
+                    $tmp_rpi = array();
+
+                    foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                        // The render plugin data has already been loaded and cleaned up...
+                        $rpi_id = $rpi['id'];
+                        if ( !isset($render_plugin_data[$rpi_id]) )
+                            throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because the data for renderPluginInstance '.$rpi_id.' is missing');
+
+                        // ...just need to locate it by the id of the renderPluginInstance
+                        $tmp_rpi[$rpi_id] = $render_plugin_data[$rpi_id];
+                    }
+
+                    $df['renderPluginInstances'] = $tmp_rpi;
+                }
 
                 // Attach the id of this datafield's masterDatafield if it exists
                 $df['masterDataField'] = $derived_df_data[$df_id];
@@ -623,27 +623,120 @@ class DatabaseInfoService
 
 
     /**
-     * The renderPluginFields and renderPluginOptions sections of the datatype array have their
-     * labels at a deeper level of the array because they're loaded via the renderPluginInstance...
-     * this is kind of "backwards", and these sections of the array are easier to understand and
-     * use after some modifications.
+     * Doctrine apparently has random issues hydrating renderPluginEvent entries when called from
+     * the query in self::buildDatatypeData()...so it the stuff specific to renderPlugins has to be
+     * split into its own function.
      *
-     * @param array $data
+     * Additionally, this function also reorganizes the data from the database so it's more readily
+     * useful to other parts of ODR.
+     *
+     * @param int $grandparent_datatype_id
      *
      * @return array
      */
-    private function flattenRenderPlugin($data)
+    private function getRenderPluginData($grandparent_datatype_id)
     {
-        // Easier to modify a copy of the original array
-        $render_plugin_instances = $data;
+        $render_plugin_instances = array();
 
-        // The default render plugin won't have an instance
-        foreach ($render_plugin_instances as $rpi_num => $rpi) {
-            // Don't need to do anything with the render plugin entry
+        // Locate each render plugin attached to each datatype descended from the grandparent...
+        $query = $this->em->createQuery(
+           'SELECT partial dt.{id},
+                partial rpi.{id}, rp, partial rpe.{id, eventName},
+                partial rpom.{id, value}, partial rpo.{id, name},
+                partial rpm.{id},
+                partial rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
+                rpm_df
+
+            FROM ODRAdminBundle:DataType AS dt
+
+            LEFT JOIN dt.renderPluginInstances AS rpi
+            LEFT JOIN rpi.renderPlugin AS rp
+            LEFT JOIN rp.renderPluginEvents AS rpe
+            LEFT JOIN rpi.renderPluginOptionsMap AS rpom
+            LEFT JOIN rpom.renderPluginOptionsDef AS rpo
+            LEFT JOIN rpi.renderPluginMap AS rpm
+            LEFT JOIN rpm.renderPluginFields AS rpf
+            LEFT JOIN rpm.dataField AS rpm_df
+
+            WHERE dt.grandparent = :grandparent_datatype_id
+            AND dt.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'grandparent_datatype_id' => $grandparent_datatype_id
+            )
+        );
+        $results = $query->getArrayResult();
+
+        // Only interested in datatypes with attached renderPlugins
+        foreach ($results as $result) {
+            if ( !empty($result['renderPluginInstances']) ) {
+                foreach ($result['renderPluginInstances'] as $rpi_num => $rpi) {
+                    $rpi_id = $rpi['id'];
+                    $render_plugin_instances[$rpi_id] = $rpi;
+                }
+            }
+        }
+
+        // Locate each render plugin attached to each datafield in a datatype that's descended from
+        //  the grandparent...
+        $query = $this->em->createQuery(
+            'SELECT partial df.{id},
+                partial rpi.{id}, rp, partial rpe.{id, eventName},
+                partial rpom.{id, value}, partial rpo.{id, name},
+                partial rpm.{id},
+                partial rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
+                rpm_df
+
+            FROM ODRAdminBundle:DataFields AS df
+            LEFT JOIN df.dataType AS dt
+
+            LEFT JOIN df.renderPluginInstances AS rpi
+            LEFT JOIN rpi.renderPlugin AS rp
+            LEFT JOIN rp.renderPluginEvents AS rpe
+            LEFT JOIN rpi.renderPluginOptionsMap AS rpom
+            LEFT JOIN rpom.renderPluginOptionsDef AS rpo
+            LEFT JOIN rpi.renderPluginMap AS rpm
+            LEFT JOIN rpm.renderPluginFields AS rpf
+            LEFT JOIN rpm.dataField AS rpm_df
+
+            WHERE dt.grandparent = :grandparent_datatype_id
+            AND dt.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'grandparent_datatype_id' => $grandparent_datatype_id
+            )
+        );
+        $results = $query->getArrayResult();
+
+        // Only interested in datafields with attached renderPlugins
+        foreach ($results as $result) {
+            if ( !empty($result['renderPluginInstances']) ) {
+                foreach ($result['renderPluginInstances'] as $rpi_num => $rpi) {
+                    $rpi_id = $rpi['id'];
+                    $render_plugin_instances[$rpi_id] = $rpi;
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        // Need to modify the resulting array somewhat to make it easier for other parts of ODR
+        //  to use
+        foreach ($render_plugin_instances as $rpi_id => $rpi) {
             // All plugins will have an entry for required fields, although it might be empty
 
+            // For renderPluginEvents, only care about the event name
+            $tmp_rpe = array();
+            $rp = $rpi['renderPlugin'];
+            foreach ($rp['renderPluginEvents'] as $rpe_num => $rpe)
+                $tmp_rpe[ $rpe['eventName'] ] = 1;
+
+            if ( !empty($tmp_rpe) )
+                $render_plugin_instances[$rpi_id]['renderPlugin']['renderPluginEvents'] = $tmp_rpe;
+
+            // All plugins will have an entry for mapped fields, although it might be empty
             foreach ($rpi['renderPluginMap'] as $rpm_num => $rpm) {
-                // ...then each renderPluginMap will have a single renderPluginField entry...
+                // ...each renderPluginMap will have a single renderPluginField entry...
                 $rpf = $rpm['renderPluginFields'];
                 $rpf_fieldName = $rpf['fieldName'];
                 $rpf_allowedFieldtypes = $rpf['allowedFieldtypes'];
@@ -684,28 +777,26 @@ class DatabaseInfoService
 
                 // ...so the label of the renderPluginField can just point to the datafield that's
                 //  fulfilling the role defined by the rendrPluginField
-                $render_plugin_instances[$rpi_num]['renderPluginMap'][$rpf_fieldName] = $rpf_df;
+                $render_plugin_instances[$rpi_id]['renderPluginMap'][$rpf_fieldName] = $rpf_df;
 
                 // Don't want the old array structure
-                unset( $render_plugin_instances[$rpi_num]['renderPluginMap'][$rpm_num] );
+                unset( $render_plugin_instances[$rpi_id]['renderPluginMap'][$rpm_num] );
             }
 
             // All plugins will have an entry for required options, although it might be empty
-            $tmp_rpo = array();
+            $tmp_rpom = array();
             foreach ($rpi['renderPluginOptionsMap'] as $rpom_num => $rpom) {
                 // ...then each RenderPluginOptionsMap will have a single renderPluginOptionsDef entry
                 $rpom_value = $rpom['value'];
                 $rpo_name = $rpom['renderPluginOptionsDef']['name'];
 
                 // ...so the renderPluginOption name can just point to the renderPluginOption value
-                $render_plugin_instances[$rpi_num]['renderPluginOptionsMap'][$rpo_name] = $rpom_value;
-
-                // Don't want the old array structure
-                unset( $render_plugin_instances[$rpi_num]['renderPluginOptionsMap'][$rpom_num] );
+                $tmp_rpom[$rpo_name] = $rpom_value;
             }
+            // Replace the previous array with the new structure
+            $render_plugin_instances[$rpi_id]['renderPluginOptionsMap'] = $tmp_rpom;
         }
 
-        // Done cleaning the render plugin data
         return $render_plugin_instances;
     }
 
@@ -741,112 +832,6 @@ class DatabaseInfoService
         }
 
         return $current_datatype;
-    }
-
-
-    /**
-     * Marks the specified datatype (and all its parents) as updated by the given user.
-     *
-     * @param DataType $datatype
-     * @param ODRUser $user
-     */
-    public function updateDatatypeCacheEntry($datatype, $user)
-    {
-        // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
-        //  to be marked as updated
-        while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
-            // Mark this (non-top-level) datatype as updated by this user
-            $datatype->setUpdatedBy($user);
-            $datatype->setUpdated(new \DateTime());
-            $this->em->persist($datatype);
-
-            // Continue locating parent datatypes...
-            $datatype = $datatype->getParent();
-        }
-
-        // $datatype is now guaranteed to be top-level
-        $datatype->setUpdatedBy($user);
-        $datatype->setUpdated(new \DateTime());
-        $this->em->persist($datatype);
-
-        // Save all changes made
-        $this->em->flush();
-
-
-        // Child datatypes don't have their own cached entries, it's all contained within the
-        //  cache entry for their top-level datatype
-        $this->cache_service->delete('cached_datatype_'.$datatype->getId());
-
-        // Need to clear cached records related to this type for the API...
-        $records = $this->em->getRepository('ODRAdminBundle:DataRecord')->findBy(array('dataType' => $datatype->getId()));
-        /** @var DataRecord $record */
-        foreach($records as $record) {
-            $this->cache_service->delete('json_record_'.$record->getUniqueId());
-        }
-    }
-
-
-    /**
-     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datatypes...
-     * e.g.  A links to B links to C links to D links to...etc
-     * ...the cache entry 'associated_datatypes_for_<A>' will then mention (B, C, D, etc.), because
-     *  they all need to be loaded via getDatatypeData() in order to properly render A.
-     *
-     * However, this means that linking/unlinking of datatypes between B/C, C/D, D/etc also affects
-     * which datatypes A needs to load...so any linking/unlinking needs to be propagated upwards...
-     *
-     * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
-     * TODO - ...or should this be off in the DatatreeInfoService?
-     *
-     * @param array $datatype_ids dt_ids are values in the array, NOT keys
-     */
-    public function deleteCachedDatatypeLinkData($datatype_ids)
-    {
-        // Locate all datatypes that end up needing to load cache entries for the datatypes in
-        //  $datatype_ids...
-        $datatree_array = $this->dti_service->getDatatreeArray();
-        $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
-
-        // Ensure the datatype that were originally passed in get the cache entry cleared
-        foreach ($datatype_ids as $num => $dt_id)
-            $all_linked_ancestors[] = $dt_id;
-
-        // Clearing this cache entry for each of the ancestor datatypes found ensures that the
-        //  newly linked/unlinked datarecords show up (or not) when they should
-        foreach ($all_linked_ancestors as $num => $dt_id)
-            $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
-    }
-
-
-    /**
-     * TODO - shouldn't this technically be in SortService?
-     * Should be called whenever the default sort order of datarecords within a datatype changes.
-     *
-     * @param int $datatype_id
-     */
-    public function resetDatatypeSortOrder($datatype_id)
-    {
-        // Delete the cached default ordering of records in this datatype
-        $this->cache_service->delete('datatype_'.$datatype_id.'_record_order');
-
-        // DisplaytemplateController::datatypepropertiesAction() currently handles deleting of cached
-        //  datarecord entries when the sort datafield is changed...
-
-
-        // TODO - this doesn't feel like it belongs here...but putting it in the GraphPluginInterface also doesn't quite make sense...
-        // Also, delete any pre-rendered graph images for this datatype so they'll be rebuilt with
-        //  the legend order matching the new datarecord order
-        $graph_filepath = $this->odr_web_dir.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
-        if ( file_exists($graph_filepath) ) {
-            $files = scandir($graph_filepath);
-            foreach ($files as $filename) {
-                // TODO - assumes linux?
-                if ($filename === '.' || $filename === '..')
-                    continue;
-
-                unlink($graph_filepath.'/'.$filename);
-            }
-        }
     }
 
 

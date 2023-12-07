@@ -16,18 +16,22 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\RenderPlugin;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
 class SearchAPIService
@@ -64,6 +68,11 @@ class SearchAPIService
     // There are also situations where a datarecord needs to be set to not match a search
     const DISABLE_MATCHES_MASK = 0b1100;
 
+
+    /**
+     * @var ContainerInterface
+     */
+    private $container;
 
     /**
      * @var EntityManager
@@ -104,6 +113,7 @@ class SearchAPIService
     /**
      * SearchAPIService constructor.
      *
+     * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
@@ -113,6 +123,7 @@ class SearchAPIService
      * @param Logger $logger
      */
     public function __construct(
+        ContainerInterface $container,
         EntityManager $entity_manager,
         DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
@@ -121,6 +132,7 @@ class SearchAPIService
         CacheService $cache_service,
         Logger $logger
     ) {
+        $this->container = $container;
         $this->em = $entity_manager;
         $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
@@ -323,22 +335,48 @@ class SearchAPIService
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
         $filtered_search_params = array();
 
-        // Get all the datatypes/datafields the user is allowed to search on...
+        // Get all the datatypes/datafields the user can view...
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
+
+        // Prior to inline searching, $searchable_datafields only had datafields that the user could
+        //  view and weren't marked as DataFields::NOT_SEARCHED...but because of inline search's
+        //  requirements, it now contains every single datafield related to this datatype that the
+        //  user is allowed to view
 
         foreach ($search_params as $key => $value) {
             if ($key === 'dt_id' || $key === 'gen') {
                 // Don't need to do anything special with these keys
                 $filtered_search_params[$key] = $value;
             }
+            else if ($key === 'sort_by') {
+                // TODO - eventually need sort by created/modified date
+
+                // The values for the "sort_by" key are allowed to either be an object...
+                // e.g. {"dt_id":"3","sort_by":{"sort_df_id":"18","sort_dir":"asc"}}
+                // ...or it's allowed to be an array of objects...
+                // e.g. {"dt_id":"3","sort_by":[{"sort_df_id":"18","sort_dir":"asc"}]}
+
+                // Since we want multi-datafield sorting to be a thing, convert the first form into
+                //  the second form if needed
+                if ( count($value) === 2 && isset($value['sort_df_id']) && isset($value['sort_dir']) ) {
+                    $tmp = $value;
+                    $value = array($tmp);
+                }
+
+                // Sorting happens regardless of whether the user can see the relevant datafield...
+                //  so don't need to look anything up in $searchable_datafields
+                $filtered_search_params['sort_by'] = $value;
+            }
             else if ( is_numeric($key) ) {
                 // This is a datafield entry...
                 $df_id = intval($key);
 
+                // Determine if the user can view the datafield...
                 foreach ($searchable_datafields as $dt_id => $datafields) {
-                    if ( isset($datafields[$df_id]) ) {
-                        // User can search on this datafield
+                    if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] > DataFields::NOT_SEARCHED ) {
+                        // User can both view and search this datafield
                         $filtered_search_params[$key] = $value;
+                        break;
                     }
                 }
             }
@@ -350,9 +388,10 @@ class SearchAPIService
                     $df_id = intval($pieces[0]);
 
                     foreach ($searchable_datafields as $dt_id => $datafields) {
-                        if ( isset($datafields[$df_id]) ) {
-                            // User can search on this datafield
+                        if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] > DataFields::NOT_SEARCHED ) {
+                            // User can both view and search this datafield
                             $filtered_search_params[$key] = $value;
+                            break;
                         }
                     }
                 }
@@ -388,20 +427,35 @@ class SearchAPIService
      * Runs a search specified by the given $search_key.  The contents of the search key are
      * silently tweaked based on the user's permissions.
      *
-     * @param DataType $datatype
+     * @param DataType|null $datatype     Preferably not null, but can parse $search_key if so
      * @param string $search_key
      * @param array $user_permissions     The permissions of the user doing the search, or an empty
      *                                    array when not logged in
+     * @param bool $return_complete_list  If false, then returns a sorted list of grandparent
+     *                                    datarecord ids...if true, then returns an unsorted list of
+     *                                    the grandparent datarecords and all their descendents that
+     *                                    match the search
      * @param int[] $sort_datafields      An ordered list of the datafields to sort by, or an empty
      *                                    array to sort by whatever is default for the datatype
      * @param string[] $sort_directions   An ordered list of which direction to sort each datafield
      *                                    by
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
+     * @param bool $return_as_list        Returns a list of records with internal id and unique id
+     *                                    but without the actual data.
+     *
      * @return array
      */
-    public function performSearch($datatype, $search_key, $user_permissions, $sort_datafields = array(), $sort_directions = array(), $search_as_super_admin = false)
-    {
+    public function performSearch(
+        $datatype,
+        $search_key,
+        $user_permissions,
+        $return_complete_list = false,
+        $sort_datafields = array(),
+        $sort_directions = array(),
+        $search_as_super_admin = false,
+        $return_as_list = false
+    ) {
         // ----------------------------------------
         // This really shouldn't be null, but just in case...
         if ( is_null($datatype) ) {
@@ -482,6 +536,17 @@ class SearchAPIService
                         $dr_list = $this->search_service->searchModifiedBy($entity, $search_term['user']);
                     else if ($key === 'publicStatus')
                         $dr_list = $this->search_service->searchPublicStatus($entity, $search_term['value']);
+                    else if ( isset($hydrated_entities['renderPlugin'][$entity_id]) ) {
+                        // The render plugin is already loaded, stored by the id of the datafield
+                        //  that is using it
+                        $tmp = $hydrated_entities['renderPlugin'][$entity_id];
+                        /** @var SearchPluginInterface $rp */
+                        $rp = $tmp['renderPlugin'];
+                        $rpo = $tmp['renderPluginOptions'];
+
+                        // The plugin will return the same format that the regular searches do
+                        $dr_list = $rp->searchPluginField($entity, $search_term, $rpo);
+                    }
                     else {
                         // Datafield search depends on the typeclass of the field
                         $typeclass = $entity->getFieldType()->getTypeClass();
@@ -579,18 +644,24 @@ class SearchAPIService
             // ...if both types of searches were executed, then the merging algorithm needs to
             //  separately track which type of search each record matched (they could match both too)
             $differentiate_search_types = $was_general_seach && $was_advanced_search;
-            self::mergeSearchResults(true, $datatype->getId(), $search_datatree[$datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
+            self::mergeSearchResults($criteria, true, $datatype->getId(), $search_datatree[$datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
         }
 
 
-        // Traverse $inflated_list to get the final set of datarecords that match the search
-        // TODO - only run this when starting a MassEdit/CSVExport job?
-        $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
-        $datarecord_ids = array_keys($datarecord_ids);
+        // ----------------------------------------
+        // If the user needs a list of datarecords that includes child/linked descendants...
+        if ( $return_complete_list ) {
+            // ...then traverse $inflated_list to get the final set of datarecords that match the search
+            $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
+            $datarecord_ids = array_keys($datarecord_ids);
+
+            // There's no correct method to sort this list, so might as well return immediately
+            return $datarecord_ids;
+        }
 
 
-        // Traverse the top-level of $inflated_list to get the grandparent datarecords that matched
-        //  the search
+        // Otherwise, the user only wanted a list of the grandparent datarecords that matched the
+        //  search...can traverse the top-level of $inflated list for that
         $grandparent_ids = array();
         if ( isset($inflated_list[$datatype->getId()]) ) {
             foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
@@ -608,18 +679,22 @@ class SearchAPIService
 
             // Want to use SortService::getSortedDatarecordList() unless the provided sort datafields
             //  or directions are different from the datatype's default sort order
+            $has_sortfields = false;
             $is_default_sort_order = true;
             foreach ($sort_directions as $num => $dir) {
                 if ( $dir !== 'asc' )
                     $is_default_sort_order = false;
             }
             foreach ($datatype->getSortFields() as $display_order => $df) {
+                $has_sortfields = true;
                 if ( !isset($sort_datafields[$display_order]) || $df->getId() !== $sort_datafields[$display_order] )
                     $is_default_sort_order = false;
             }
+            if ( $has_sortfields && $is_default_sort_order )
+                $sort_datafields = $sort_directions = array();
 
             // ----------------------------------------
-            if ( empty($sort_datafields) || $is_default_sort_order ) {
+            if ( empty($sort_datafields) ) {
                 // No sort datafields defined for this request, use the datatype's default ordering
                 $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($source_dt_id, $grandparent_ids_for_sorting);
             }
@@ -670,20 +745,44 @@ class SearchAPIService
                 $sorted_datarecord_list = $this->sort_service->multisortDatarecordList($source_dt_id, $sort_datafields, $sort_directions, $linked_datafields, $numeric_datafields, $grandparent_ids_for_sorting);
             }
 
+            // Query to get
             // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
             $sorted_datarecord_list = array_keys($sorted_datarecord_list);
         }
 
+        $dr_list = array();
+        if($return_as_list) {
+            $str =
+                'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE dr.id IN (:datatype_ids)
+                AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
+
+            $params = array('datatype_ids' => $sorted_datarecord_list);
+
+            $query = $this->em->createQuery($str)->setParameters($params);
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $dr_uuid = $result['dr_uuid'];
+
+                $dr_list[$dr_id] = array(
+                    'internal_id' => $dr_id,
+                    'unique_id' => $dr_uuid,
+                    'external_id' => '',
+                    'record_name' => '',
+                );
+            }
+        }
+        else {
+            $dr_list = $sorted_datarecord_list;
+        }
 
         // ----------------------------------------
-        // Save/return the end result
-        $search_result = array(
-            'complete_datarecord_list' => $datarecord_ids,
-            'grandparent_datarecord_list' => $sorted_datarecord_list,
-        );
-
         // There's no point to caching the end result...it depends heavily on the user's permissions
-        return $search_result;
+        return $dr_list;
     }
 
 
@@ -729,8 +828,11 @@ class SearchAPIService
         // ----------------------------------------
         // Need to hydrate all of the datafields/datatypes so the search functions work
         $datafields = array();
-        if ( !empty($datafield_ids) )
+        $render_plugins = array();
+        if ( !empty($datafield_ids) ) {
             $datafields = self::hydrateDatafields($search_type, $datafield_ids);
+            $render_plugins = self::hydrateRenderPlugins($search_type, $datafield_ids);
+        }
 
 
         // Because of permissions, need to hydrate all datatypes...
@@ -745,7 +847,8 @@ class SearchAPIService
         // Return the hydrated arrays
         return array(
             'datafield' => $datafields,
-            'datatype' => $datatypes
+            'renderPlugin' => $render_plugins,
+            'datatype' => $datatypes,
         );
     }
 
@@ -809,6 +912,92 @@ class SearchAPIService
         }
 
         return $datafields;
+    }
+
+
+    /**
+     * Loads render plugins that affect search results prior to use.
+     *
+     * @param string $search_type
+     * @param array $datafield_ids
+     *
+     * @return array
+     */
+    private function hydrateRenderPlugins($search_type, $datafield_ids)
+    {
+        $render_plugins = array();
+
+        if ( $search_type === 'datatype' ) {
+            // For a regular search, need to hydrate all datafields being searched on
+            $params = array(
+                'datafield_ids' => $datafield_ids,
+                'plugin_type' => RenderPlugin::SEARCH_PLUGIN,
+            );
+
+            // Due to search plugins only being allowed on datafields, the query below does not
+            //  have to use the renderPluginMap table
+            $query = $this->em->createQuery(
+               'SELECT df.id AS df_id, rp.pluginClassName AS plugin_classname,
+                    rpom.value AS rpom_value, rpod.name AS rpod_name
+                FROM ODRAdminBundle:RenderPlugin AS rp
+                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
+                JOIN ODRAdminBundle:DataFields AS df WITH rpi.dataField = df
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                WHERE rp.plugin_type = :plugin_type AND rp.active = 1 AND df.id IN (:datafield_ids)
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
+                AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
+                AND df.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getArrayResult();
+
+            // Only want to load each render plugin once...
+            $render_plugins_cache = array();
+            $render_plugin_options = array();
+            foreach ($results as $result) {
+                $plugin_classname = $result['plugin_classname'];
+
+                if ( !isset($render_plugins_cache[$plugin_classname]) ) {
+                    /** @var SearchPluginInterface $plugin */
+                    $plugin = $this->container->get($plugin_classname);
+                    $render_plugins_cache[$plugin_classname] = $plugin;
+                }
+
+                $option_name = $result['rpod_name'];
+                $option_value = $result['rpom_value'];
+
+                if ( !is_null($option_name) ) {
+                    if ( !isset($render_plugin_options[$plugin_classname]) )
+                        $render_plugin_options[$plugin_classname] = array();
+                    $render_plugin_options[$plugin_classname][$option_name] = $option_value;
+                }
+            }
+
+            // Need to arrange the plugins by the id of the datafield that is using them, though
+            foreach ($results as $result) {
+                $df_id = $result['df_id'];
+                $plugin_classname = $result['plugin_classname'];
+
+                $render_plugins[$df_id] = array(
+                    'renderPlugin' => $render_plugins_cache[$plugin_classname],
+                );
+
+                // The render plugin may not have had any options...
+                if ( isset($render_plugin_options[$plugin_classname]) ) {
+                    // ...but if it does, then save them to return
+                    $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$plugin_classname];
+                }
+                else {
+                    // If it didn't have any options, then just provide an empty array
+                    $render_plugins[$df_id]['renderPluginOptions'] = array();
+                }
+            }
+        }
+        else {
+            throw new ODRNotImplementedException('unable to run search plugins across templates...');
+        }
+
+        return $render_plugins;
     }
 
 
@@ -1165,7 +1354,7 @@ class SearchAPIService
             // ...if both types of searches were executed, then the merging algorithm needs to keep
             //  track of which type of search each record matched
             $differentiate_search_types = $was_general_seach && $was_advanced_search;
-            self::mergeSearchResults(true, $template_datatype->getId(), $search_datatree[$template_datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
+            self::mergeSearchResults($criteria, true, $template_datatype->getId(), $search_datatree[$template_datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
         }
 
 
@@ -2011,6 +2200,7 @@ class SearchAPIService
      * childtype don't match"...if you're dying to know how the previous version worked for whatever
      * reason, then you can check out SearchAPIService::mergeSearchArrays() in commit 17df21c.
      *
+     * @param array $criteria
      * @param bool $is_top_level
      * @param int $datatype_id
      * @param array $search_datatree
@@ -2020,7 +2210,7 @@ class SearchAPIService
      *
      * @return array
      */
-    private function mergeSearchResults($is_top_level, $datatype_id, $search_datatree, $facet_dr_list, &$flattened_list, $differentiate_search_types)
+    private function mergeSearchResults($criteria, $is_top_level, $datatype_id, $search_datatree, $facet_dr_list, &$flattened_list, $differentiate_search_types)
     {
         // The advanced and general searches in ODR need to have their results combined separately
         $facets = array('adv' => array(), 'gen' => array());
@@ -2074,7 +2264,7 @@ class SearchAPIService
 
         foreach ($search_datatree['children'] as $child_dt_id => $child_data) {
             // Determine which records from this child datatype end up matching the search
-            $tmp = self::mergeSearchResults(false, $child_dt_id, $child_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
+            $tmp = self::mergeSearchResults($criteria, false, $child_dt_id, $child_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
 
             // Store that this datatype's results depend on all of its descendants through this route
             if ( !isset($descendants[$child_dt_id]) )
@@ -2100,11 +2290,19 @@ class SearchAPIService
                         $facets['gen'][$facet_num][$parent_dr_id] = 1;
                 }
             }
+
+            // If the child datatype was searched on, but had no results...then create an empty array
+            //  in $facets, otherwise the rest of the function will think the descendant wasn't searched on
+            //  i.e. DOESN'T_MATTER
+            if ( empty($tmp['records']['adv']) && !empty($criteria[$child_dt_id]) )
+                $facets['adv'][$child_dt_id] = array();
+            if ( empty($tmp['records']['gen']) && isset($criteria['general']) )
+                $facets['gen'][$child_dt_id] = array();
         }
 
         foreach ($search_datatree['links'] as $linked_dt_id => $link_data) {
             // Determine which records from this linked datatype end up matching the search
-            $tmp = self::mergeSearchResults(false, $linked_dt_id, $link_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
+            $tmp = self::mergeSearchResults($criteria, false, $linked_dt_id, $link_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
 
             // Store that this datatype's results depend on all of its descendants through this route
             if ( !isset($descendants[$linked_dt_id]) )
@@ -2136,6 +2334,14 @@ class SearchAPIService
                     }
                 }
             }
+
+            // If the linked datatype was searched on, but had no results...then create an empty array
+            //  in $facets, otherwise the rest of the function will think the descendant wasn't searched on
+            //  i.e. DOESN'T_MATTER
+            if ( empty($tmp['records']['adv']) && !empty($criteria[$linked_dt_id]) )
+                $facets['adv'][$linked_dt_id] = array();
+            if ( empty($tmp['records']['gen']) && isset($criteria['general']) )
+                $facets['gen'][$linked_dt_id] = array();
         }
 
 

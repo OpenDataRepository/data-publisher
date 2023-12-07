@@ -210,9 +210,21 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
         $(ids[0] + " option:eq(" + default_x_column + ")").prop('selected', true);
         selected_values[0] = default_x_column;
 
-        var default_y_column = Number(chart_obj.y_values_column) - 1;
-        $(ids[1] + " option:eq(" + default_y_column + ")").prop('selected', true);
-        selected_values[1] = default_y_column;
+        if(chart_obj.y_values_column.match(/,/)) {
+            // Multiple y columns
+            var y_columns = chart_obj.y_values_column.split(/,/);
+            for(var i=0; i < y_columns.length; i++) {
+                // Mark the column as selected
+                $(ids[i+1] + " option:eq(" + y_columns[i] +  ")").prop('selected', true);
+                // Add to the render
+                selected_values[i+1] = y_columns[i] - 1;
+            }
+        }
+        else {
+            var default_y_column = Number(chart_obj.y_values_column) - 1;
+            $(ids[1] + " option:eq(" + default_y_column + ")").prop('selected', true);
+            selected_values[1] = default_y_column;
+        }
     }
 
     // Show settings specific to the current graph type
@@ -716,12 +728,15 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
                         var columns = file.columns;
                         var selected_columns = ODRGraph_updateSelectedColumns(chart_obj, "xy", file);
 
+                        /*
+                        // Just skip column id it doesn't exist
                         $.each(selected_columns, function(index, column_id) {
                             if ( column_id === '' || !Number.isInteger( Number(column_id) ) )
                                 error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + column_id + "\"");
                             else if ( columns[column_id] === undefined )
                                 error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (column_id+1));
                         });
+                         */
 
                         if ( selected_columns.length < 2 )
                             error_messages.push("Unable to plot an \"xy\" graph for \"" + file.legend + "\" with only one column selected");

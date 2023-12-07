@@ -50,6 +50,11 @@ class ThemeElement
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
+    private $themeRenderPluginInstance;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
     private $themeElementMeta;
 
     /**
@@ -75,6 +80,7 @@ class ThemeElement
     {
         $this->themeDataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themeRenderPluginInstance = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeElementMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
@@ -219,6 +225,42 @@ class ThemeElement
     }
 
     /**
+     * Add themeRenderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance
+     *
+     * @return ThemeElement
+     */
+    public function addThemeRenderPluginInstance(\ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance)
+    {
+        $this->themeRenderPluginInstance[] = $themeRenderPluginInstance;
+
+        return $this;
+    }
+
+    /**
+     * Remove themeRenderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeThemeRenderPluginInstance(\ODR\AdminBundle\Entity\ThemeRenderPluginInstance $themeRenderPluginInstance)
+    {
+        return $this->themeRenderPluginInstance->removeElement($themeRenderPluginInstance);
+    }
+
+    /**
+     * Get themeRenderPluginInstance.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getThemeRenderPluginInstance()
+    {
+        return $this->themeRenderPluginInstance;
+    }
+
+    /**
      * Add themeElementMeta
      *
      * @param \ODR\AdminBundle\Entity\ThemeElementMeta $themeElementMeta
@@ -339,6 +381,16 @@ class ThemeElement
     public function getHidden()
     {
         return $this->getThemeElementMeta()->getHidden();
+    }
+
+    /**
+     * Get hide border
+     *
+     * @return boolean
+     */
+    public function getHideBorder()
+    {
+        return $this->getThemeElementMeta()->getHideBorder();
     }
 
     /**

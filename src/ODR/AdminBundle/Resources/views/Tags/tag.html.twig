@@ -10,23 +10,38 @@
 {% endif %}
     
 <li class="ODRTagItem" rel="{{ tag.id }}">
-    <div class="ODRTagUnit">
-        <span class="ODRDeleteTag" rel="{{ tag.id }}"><i class="fa fa-trash Pointer"></i></span>
 
-    {% if allow_multiple_levels == false and sort_by_name == true %}
+    <div class="ODRTagUnit">
+    {% if has_children %}
+        {# Have the tag tree start out expanded instead of collapsed #}
+        <span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>
+{#        <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>#}
+    {% else %}
+        <span class="ODRTagSpacer"></span>
+    {% endif %}
+
+    {% if not disable_controls %}
+        <span class="ODRDeleteTag" rel="{{ tag.id }}"><i class="fa fa-trash Pointer"></i></span>
+    {% endif %}
+
+    {% if disable_controls or (not allow_multiple_levels and sort_by_name) %}
         {# Don't allow re-ordering if only a single level of tags is permitted, and they're sorted by name #}
     {% else %}
-        <span class="ODRTagAnchor"><i class="fa fa-arrows Pointer"></i></span>
+        <span class="ODRTagAnchor"><i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Pointer"></i></span>
     {% endif %}
 
         <input id="ODRTag_{{ tag.id }}_name"
-           class="ODRTagLabel"
-           type="text"
-           name="tag_name"
-           value="{{ tag.tagMeta.tagName }}"
-           data-old-value="{{ tag.tagMeta.tagName }}"
-           size="100"
-           maxlength="255"
+            class="ODRTagLabel"
+            type="text"
+            name="tag_name"
+            value="{{ tag.tagMeta.tagName }}"
+            data-old-value="{{ tag.tagMeta.tagName }}"
+            size="100"
+            maxlength="255"
+        {% if disable_controls %}
+            disabled
+            title="Not allowed to modify this tag's name"
+        {% endif %}
         />
 
         <span class="ODRInputError">&nbsp;&nbsp;<i class="fa fa-warning"></i><span>Duplicate Tag name</span></span>
@@ -38,6 +53,8 @@
             {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
                 'datafield': datafield,
                 'tag': child_tag,
+
+                'disable_controls': disable_controls,
             } %}
         {% endfor %}
     </ul>

@@ -1,0 +1,4660 @@
+/**
+ * Open Data Repository Data Publisher
+ * pure_odr_custom.css
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * CSS rules in this file are based off Pure.css
+ * A set of small, responsive CSS modules that you can use in every web project.  http://purecss.io/
+ * https://github.com/yahoo/pure/
+ */
+
+
+body {
+    background-color: #ffffff;
+}
+
+a {
+    cursor: pointer;
+}
+
+#odr-main-content-wrapper {
+    margin-top: 100px;
+}
+
+/* from PURE buttons-core.css */
+.pure-skin-odr .pure-button {
+    /* Structure */
+    display: inline-block;
+    *display: inline; /*IE 6/7*/
+    zoom: 1;
+    line-height: normal;
+    white-space: nowrap;
+    vertical-align: baseline;
+    text-align: center;
+    cursor: pointer;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Firefox: Get rid of the inner focus border */
+.pure-skin-odr .pure-button::-moz-focus-inner{
+    padding: 0;
+    border: 0;
+}
+/* end from PURE buttons-core.css */
+/* from PURE buttons.css */
+/*csslint unqualified-attributes:false*/
+
+.pure-skin-odr .pure-button {
+    font-size: 100%;
+    *font-size: 90%; /*IE 6/7 - To reduce IE's oversized button text*/
+    *overflow: visible; /*IE 6/7 - Because of IE's overly large left/right padding on buttons */
+    padding: 0.78em 1.5em 0.78em;
+    color: #737378; /* rgba not supported (IE 8) */
+    /* color: rgba(0, 0, 0, 0.80); rgba supported */
+    /* *color: #444; IE 6 & 7 */
+    border: 1px solid #d5d5d7; /*IE 6/7/8*/
+    border: none rgba(0, 0, 0, 0); /*IE9 + everything else*/
+    background-color: #e5e5e6;
+    text-decoration: none;
+    border-radius: 1px;
+    -webkit-font-smoothing: antialiased;
+    /* Transitions */
+    -webkit-transition: 0.1s linear -webkit-box-shadow;
+    -moz-transition: 0.1s linear -moz-box-shadow;
+    -ms-transition: 0.1s linear box-shadow;
+    -o-transition: 0.1s linear box-shadow;
+    transition: 0.1s linear box-shadow;
+    margin-top: 4px;
+}
+
+.pure-skin-odr .pure-button-hover,
+.pure-skin-odr .pure-button:hover {
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#00000000', endColorstr='#00000000', GradientType=0);
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(transparent), color-stop(40%, rgba(0,0,0, 0.05)), to(rgba(0,0,0, 0.05)));
+    background-image: -webkit-linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.15));
+    background-image: -moz-linear-gradient(top, rgba(0,0,0, 0.05) 0%, rgba(0,0,0, 0.05));
+    background-image: -ms-linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.15));
+    background-image: -o-linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.05));
+    background-image: linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.05));
+}
+
+.pure-skin-odr .pure-button:focus {
+    outline: 0;
+}
+.pure-skin-odr .pure-button-active,
+.pure-skin-odr .pure-button:active {
+    box-shadow: 0 0 0 1px rgba(0,0,0, 0.15) inset, 0 0 6px rgba(0,0,0, 0.20) inset;
+}
+
+.pure-skin-odr .pure-button[disabled],
+.pure-skin-odr .pure-button-disabled,
+.pure-skin-odr .pure-button-disabled:hover,
+.pure-skin-odr .pure-button-disabled:active {
+    border: 2px solid rgba(0,0,0,0);
+    background-image: none;
+    filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
+    filter: alpha(opacity=40);
+    -khtml-opacity: 0.40;
+    -moz-opacity: 0.40;
+    opacity: 0.40;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.pure-skin-odr .pure-button-hidden {
+    display: none;
+}
+
+/* Firefox: Get rid of the inner focus border */
+.pure-skin-odr .pure-button::-moz-focus-inner{
+    padding: 0;
+    border: 0;
+}
+
+.pure-skin-odr .pure-button-primary,
+.pure-skin-odr .pure-button-selected,
+.pure-skin-odr a.pure-button-primary,
+.pure-skin-odr a.pure-button-selected {
+    background-color: #9AB5EF;
+    color: #0e275d;
+}
+
+/*! Copyright 2013 Yahoo! Inc. http://yuilibrary.com/license/ */
+/* This page lists core form styles adopted from Normalize.css. */
+/*! Copyright (c) Nicolas Gallagher and Jonathan Neal */
+
+/*! normalize.css v1.1.0 | MIT License | git.io/normalize */
+
+/* This page has Normalize.css form-specific style rules applied to a .yui3-form context */
+
+/* ==========
+Forms Core
+=========*/
+
+
+/*
+ * Corrects margin displayed oddly in IE 6/7.
+ */
+
+.pure-skin-odr .pure-form {
+    margin: 0;
+}
+
+/* Define consistent border, margin, and padding.*/
+
+
+.pure-skin-odr .pure-form fieldset {
+    border: 1px solid #c0c0c0;
+    margin: 0 2px;
+    /* padding: 0.35em 0.625em 0.75em; */
+    padding: 0.15em 0.25em 0.25em; /* Mod NAS 20141222 */
+}
+
+/*
+ * 1. Corrects color not being inherited in IE 6/7/8/9.
+ * 2. Corrects text not wrapping in Firefox 3.
+ * 3. Corrects alignment displayed oddly in IE 6/7.
+ */
+
+.pure-skin-odr .pure-form legend {
+    border: 0; /* 1 */
+    padding: 0;
+    white-space: normal; /* 2 */
+    *margin-left: -7px; /* 3 */
+}
+
+/*
+ * 1. Corrects font size not being inherited in all browsers.
+ * 2. Addresses margins set differently in IE 6/7, Firefox 3+, Safari 5,
+ *    and Chrome.
+ * 3. Improves appearance and consistency in all browsers.
+ */
+
+/* .pure-skin-odr .pure-form button, */
+.pure-skin-odr .pure-form input,
+.pure-skin-odr .pure-form select,
+.pure-skin-odr .pure-form textarea {
+    font-size: 100%; /* 1 */
+    margin: 0 0 2px 0; /* 2 */
+    vertical-align: baseline; /* 3 */
+    *vertical-align: middle; /* 3 */
+}
+
+/*
+ * Addresses Firefox 3+ setting `line-height` on `input` using `!important` in
+ * the UA stylesheet.
+ */
+
+.pure-skin-odr .pure-form button,
+.pure-skin-odr .pure-form input {
+    line-height: normal;
+}
+
+/*
+ * 1. Avoid the WebKit bug in Android 4.0.* where (2) destroys native `audio`
+ *    and `video` controls.
+ * 2. Corrects inability to style clickable `input` types in iOS.
+ * 3. Improves usability and consistency of cursor style between image-type
+ *    `input` and others.
+ * 4. Removes inner spacing in IE 7 without affecting normal text inputs.
+ *    Known issue: inner spacing remains in IE 6.
+ */
+
+.pure-skin-odr .pure-form button,
+.pure-skin-odr .pure-form input[type="button"], /* 1 */
+.pure-skin-odr .pure-form input[type="reset"],
+.pure-skin-odr .pure-form input[type="submit"] {
+    -webkit-appearance: button; /* 2 */
+    cursor: pointer; /* 3 */
+    *overflow: visible;  /* 4 */
+}
+
+/*
+ * Re-set default cursor for disabled elements.
+ */
+
+.pure-skin-odr .pure-form button[disabled],
+.pure-skin-odr .pure-form input[disabled] {
+    /*cursor: default;*/
+    cursor: not-allowed;
+}
+
+/*
+ * 1. Addresses box sizing set to content-box in IE 8/9.
+ * 2. Removes excess padding in IE 8/9.
+ * 3. Removes excess padding in IE 7.
+ *    Known issue: excess padding remains in IE 6.
+ */
+
+.pure-skin-odr .pure-form input[type="checkbox"],
+.pure-skin-odr .pure-form input[type="radio"] {
+    box-sizing: border-box; /* 1 */
+    padding: 0; /* 2 */
+    *height: 13px; /* 3 */
+    *width: 13px; /* 3 */
+}
+
+/*
+ * 1. Addresses `appearance` set to `searchfield` in Safari 5 and Chrome.
+ * 2. Addresses `box-sizing` set to `border-box` in Safari 5 and Chrome
+ *    (include `-moz` to future-proof).
+ */
+
+.pure-skin-odr .pure-form input[type="search"] {
+    -webkit-appearance: textfield; /* 1 */
+    -moz-box-sizing: content-box;
+    -webkit-box-sizing: content-box; /* 2 */
+    box-sizing: content-box;
+}
+
+/*
+ * Removes inner padding and search cancel button in Safari 5 and Chrome
+ * on OS X.
+ */
+
+.pure-skin-odr .pure-form input[type="search"]::-webkit-search-cancel-button,
+.pure-skin-odr .pure-form input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+}
+
+/*
+ * Removes inner padding and border in Firefox 3+.
+ */
+
+.pure-skin-odr .pure-form button::-moz-focus-inner,
+.pure-skin-odr .pure-form input::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+}
+
+/*
+ * 1. Removes default vertical scrollbar in IE 6/7/8/9.
+ * 2. Improves readability and alignment in all browsers.
+ */
+
+.pure-skin-odr .pure-form textarea {
+    overflow: auto; /* 1 */
+    vertical-align: top; /* 2 */
+}
+/* ===============  forms-responsive.css =================*/
+@media only screen and (max-width : 480px) {
+    .pure-skin-odr .pure-form button[type="submit"] {
+    margin: 0.7em 0 0;
+    }
+
+    .pure-skin-odr .pure-form input[type="text"],
+    .pure-skin-odr .pure-form input[type="password"],
+    .pure-skin-odr .pure-form input[type="email"],
+    .pure-skin-odr .pure-form input[type="url"],
+    .pure-skin-odr .pure-form input[type="date"],
+    .pure-skin-odr .pure-form input[type="month"],
+    .pure-skin-odr .pure-form input[type="time"],
+    .pure-skin-odr .pure-form input[type="datetime"],
+    .pure-skin-odr .pure-form input[type="datetime-local"],
+    .pure-skin-odr .pure-form input[type="week"],
+    .pure-skin-odr .pure-form input[type="number"],
+    .pure-skin-odr .pure-form input[type="search"],
+    .pure-skin-odr .pure-form input[type="tel"],
+    .pure-skin-odr .pure-form input[type="color"],
+    .pure-skin-odr .pure-form label {
+        margin-bottom: 0.3em;
+        display: block;
+    }
+
+    .pure-skin-odr .pure-group input[type="text"],
+    .pure-skin-odr .pure-group input[type="password"],
+    .pure-skin-odr .pure-group input[type="email"],
+    .pure-skin-odr .pure-group input[type="url"],
+    .pure-skin-odr .pure-group input[type="date"],
+    .pure-skin-odr .pure-group input[type="month"],
+    .pure-skin-odr .pure-group input[type="time"],
+    .pure-skin-odr .pure-group input[type="datetime"],
+    .pure-skin-odr .pure-group input[type="datetime-local"],
+    .pure-skin-odr .pure-group input[type="week"],
+    .pure-skin-odr .pure-group input[type="number"],
+    .pure-skin-odr .pure-group input[type="search"],
+    .pure-skin-odr .pure-group input[type="tel"],
+    .pure-skin-odr .pure-group input[type="color"] {
+        margin-bottom: 0;
+    }
+
+    .pure-skin-odr .pure-form-aligned .pure-control-group label {
+        margin-bottom: 0.3em;
+        text-align: left;
+        display: block;
+        width: 100%;
+    }
+
+    .pure-skin-odr .pure-form-aligned .pure-controls {
+        margin: 1.5em 0 0 0;
+    }
+
+    /* NOTE: pure-help-inline is deprecated. Use .pure-form-message-inline instead. */
+    .pure-skin-odr .pure-form .pure-help-inline,
+    .pure-skin-odr .pure-form-message-inline,
+    .pure-skin-odr .pure-form-message {
+        display: block;
+        font-size: 80%;
+        /* increased bottom padding to make it group with its related input element */
+        padding: 0.2em 0 0.8em;
+    }
+}
+
+/* ===============  forms.css =================================*/
+.pure-skin-odr .pure-form input[type="text"],
+.pure-skin-odr .pure-form input[type="password"],
+.pure-skin-odr .pure-form input[type="email"],
+.pure-skin-odr .pure-form input[type="url"],
+.pure-skin-odr .pure-form input[type="date"],
+.pure-skin-odr .pure-form input[type="month"],
+.pure-skin-odr .pure-form input[type="time"],
+.pure-skin-odr .pure-form input[type="datetime"],
+.pure-skin-odr .pure-form input[type="datetime-local"],
+.pure-skin-odr .pure-form input[type="week"],
+.pure-skin-odr .pure-form input[type="number"],
+.pure-skin-odr .pure-form input[type="search"],
+.pure-skin-odr .pure-form input[type="tel"],
+.pure-skin-odr .pure-form input[type="color"],
+.pure-skin-odr .pure-form textarea {
+    padding: 0.4em 0.2em 0.4em 0.4em;
+    display: inline-block;
+    border: 1px solid #e6e6e6;
+    font-size: 0.96em;
+    box-shadow: inset 0 1px 3px #e6e6e6;
+    border-radius: 2px;
+    -webkit-transition: 0.3s linear border;
+    -moz-transition: 0.3s linear border;
+    -ms-transition: 0.3s linear border;
+    -o-transition: 0.3s linear border;
+    transition: 0.3s linear border;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ===============  forms.css =================================*/
+.pure-skin-odr .pure-form .ODRShortResults input[type="text"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="password"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="email"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="url"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="date"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="month"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="time"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="datetime"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="datetime-local"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="week"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="number"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="search"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="tel"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="color"],
+/* .pure-skin-odr .pure-form .ODRShortResults select, */
+.pure-skin-odr .pure-form .ODRShortResults textarea,
+.pure-skin-odr .pure-form .ODRResults input[type="text"],
+.pure-skin-odr .pure-form .ODRResults input[type="password"],
+.pure-skin-odr .pure-form .ODRResults input[type="email"],
+.pure-skin-odr .pure-form .ODRResults input[type="url"],
+.pure-skin-odr .pure-form .ODRResults input[type="date"],
+.pure-skin-odr .pure-form .ODRResults input[type="month"],
+.pure-skin-odr .pure-form .ODRResults input[type="time"],
+.pure-skin-odr .pure-form .ODRResults input[type="datetime"],
+.pure-skin-odr .pure-form .ODRResults input[type="datetime-local"],
+.pure-skin-odr .pure-form .ODRResults input[type="week"],
+.pure-skin-odr .pure-form .ODRResults input[type="number"],
+.pure-skin-odr .pure-form .ODRResults input[type="search"],
+.pure-skin-odr .pure-form .ODRResults input[type="tel"],
+.pure-skin-odr .pure-form .ODRResults input[type="color"],
+/* .pure-skin-odr .pure-form .ODRResults select, */
+.pure-skin-odr .pure-form .ODRResults textarea {
+    padding: 0 0.2em 0.2em 0.2em;
+    display: inline-block;
+    border: none;
+    font-size: 0.96em;
+    box-shadow: none;
+    border-radius: 2px;
+    -webkit-transition: 0.3s linear border;
+    -moz-transition: 0.3s linear border;
+    -ms-transition: 0.3s linear border;
+    -o-transition: 0.3s linear border;
+    transition: 0.3s linear border;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.pure-skin-odr .pure-form input[type="text"]:focus,
+.pure-skin-odr .pure-form input[type="password"]:focus,
+.pure-skin-odr .pure-form input[type="email"]:focus,
+.pure-skin-odr .pure-form input[type="url"]:focus,
+.pure-skin-odr .pure-form input[type="date"]:focus,
+.pure-skin-odr .pure-form input[type="month"]:focus,
+.pure-skin-odr .pure-form input[type="time"]:focus,
+.pure-skin-odr .pure-form input[type="datetime"]:focus,
+.pure-skin-odr .pure-form input[type="datetime-local"]:focus,
+.pure-skin-odr .pure-form input[type="week"]:focus,
+.pure-skin-odr .pure-form input[type="number"]:focus,
+.pure-skin-odr .pure-form input[type="search"]:focus,
+.pure-skin-odr .pure-form input[type="tel"]:focus,
+.pure-skin-odr .pure-form input[type="color"]:focus,
+.pure-skin-odr .pure-form select:focus,
+.pure-skin-odr .pure-form textarea:focus {
+    outline: 0;
+    outline: thin dotted \9; /* IE6-9 */
+    border-color: #129FEA;
+}
+
+.pure-skin-odr .pure-form input[type="file"]:focus,
+.pure-skin-odr .pure-form input[type="radio"]:focus,
+.pure-skin-odr .pure-form input[type="checkbox"]:focus {
+    outline: thin dotted #333;
+    outline: 1px auto #129FEA;
+}
+.pure-skin-odr .pure-form .pure-checkbox,
+.pure-skin-odr .pure-form .pure-radio {
+    margin: 0.5em 0;
+    display: block;
+}
+.pure-skin-odr .pure-form input[type="text"][disabled],
+.pure-skin-odr .pure-form input[type="password"][disabled],
+.pure-skin-odr .pure-form input[type="email"][disabled],
+.pure-skin-odr .pure-form input[type="url"][disabled],
+.pure-skin-odr .pure-form input[type="date"][disabled],
+.pure-skin-odr .pure-form input[type="month"][disabled],
+.pure-skin-odr .pure-form input[type="time"][disabled],
+.pure-skin-odr .pure-form input[type="datetime"][disabled],
+.pure-skin-odr .pure-form input[type="datetime-local"][disabled],
+.pure-skin-odr .pure-form input[type="week"][disabled],
+.pure-skin-odr .pure-form input[type="number"][disabled],
+.pure-skin-odr .pure-form input[type="search"][disabled],
+.pure-skin-odr .pure-form input[type="tel"][disabled],
+.pure-skin-odr .pure-form input[type="color"][disabled],
+.pure-skin-odr .pure-form select[disabled],
+.pure-skin-odr .pure-form textarea[disabled] {
+    cursor: not-allowed;
+    box-shadow: inset 0 1px 10px #ededed;
+    background-color: #ededed;
+    color: #878787;
+    border-color: #e6e6e6;
+}
+.pure-skin-odr .pure-form input[readonly],
+.pure-skin-odr .pure-form select[readonly],
+.pure-skin-odr .pure-form textarea[readonly],
+.pure-skin-odr .pure-form input[readonly]:focus,
+.pure-skin-odr .pure-form select[readonly]:focus,
+.pure-skin-odr .pure-form textarea[readonly]:focus {
+    background: #fff; /* menu hover bg color */
+    color: #444; /* menu text color */
+    border-color: #ccc;
+}
+.pure-skin-odr .pure-form input:focus:invalid,
+.pure-skin-odr .pure-form textarea:focus:invalid,
+.pure-skin-odr .pure-form select:focus:invalid {
+    color: #b94a48;
+    border: 1px solid #ee5f5b;
+}
+.pure-skin-odr .pure-form input:focus:invalid:focus,
+.pure-skin-odr .pure-form textarea:focus:invalid:focus,
+.pure-skin-odr .pure-form select:focus:invalid:focus {
+    border-color: #e9322d;
+}
+.pure-skin-odr .pure-form input[type="file"]:focus:invalid:focus,
+.pure-skin-odr .pure-form input[type="radio"]:focus:invalid:focus,
+.pure-skin-odr .pure-form input[type="checkbox"]:focus:invalid:focus {
+    outline-color: #e9322d;
+}
+.pure-skin-odr .pure-form select {
+    /* border: 1px solid #e6e6e6;
+    background-color: white;
+    color: #e9322d; */
+}
+.pure-skin-odr .pure-form select[multiple] {
+    height: auto;
+}
+.pure-skin-odr .pure-form label {
+    margin: 0.3em 0 0.1em;
+    /* color: #878787; */
+    /* font-size: 80%;  /* MOD NAS 20231030 */
+}
+.pure-skin-odr .pure-form fieldset {
+    margin: 0;
+    /* padding: 0.35em 0 0.75em; */
+    /* padding: 0.15em 0 0.25em 0; /* Mod NAS 20141222 */
+    padding: 0 0 0 0; /* Mod NAS 20161129 */
+    border: 0;
+}
+.pure-skin-odr .pure-form legend {
+    display: block;
+    width: 100%;
+    padding: 0.3em 0;
+    margin-bottom: 0.3em;
+    font-size: 125%;
+    color: #6e6e6e;
+    border-bottom: 1px solid #ededed;
+}
+
+.pure-skin-odr .pure-form-stacked input[type="text"],
+.pure-skin-odr .pure-form-stacked input[type="password"],
+.pure-skin-odr .pure-form-stacked input[type="email"],
+.pure-skin-odr .pure-form-stacked input[type="url"],
+.pure-skin-odr .pure-form-stacked input[type="date"],
+.pure-skin-odr .pure-form-stacked input[type="month"],
+.pure-skin-odr .pure-form-stacked input[type="time"],
+.pure-skin-odr .pure-form-stacked input[type="datetime"],
+.pure-skin-odr .pure-form-stacked input[type="datetime-local"],
+.pure-skin-odr .pure-form-stacked input[type="week"],
+.pure-skin-odr .pure-form-stacked input[type="number"],
+.pure-skin-odr .pure-form-stacked input[type="search"],
+.pure-skin-odr .pure-form-stacked input[type="tel"],
+.pure-skin-odr .pure-form-stacked input[type="color"],
+.pure-skin-odr .pure-form-stacked select,
+.pure-skin-odr .pure-form-stacked label,
+.pure-skin-odr .pure-form-stacked textarea {
+    display: block;
+    margin: 0.25em 0;
+}
+
+.pure-skin-odr .pure-form-aligned input,
+.pure-skin-odr .pure-form-aligned textarea,
+.pure-skin-odr .pure-form-aligned select,
+/* note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
+.pure-skin-odr .pure-form-aligned .pure-help-inline,
+.pure-skin-odr .pure-form-message-inline {
+    display: inline-block;
+    *display: inline; /* IE7 inline-block hack */
+    *zoom: 1;
+    vertical-align: middle;
+}
+
+/* aligned Forms */
+.pure-skin-odr .pure-form-aligned .pure-control-group {
+    margin-bottom: 0.5em;
+}
+.pure-skin-odr .pure-form-aligned .pure-control-group label {
+    text-align: right;
+    display: inline-block;
+    vertical-align: middle;
+    width: 10em;
+    margin: 0 1em 0 0;
+}
+.pure-skin-odr .pure-form-aligned .pure-controls {
+    margin: 1.5em 0 0 10em;
+}
+
+/* Rounded Inputs */
+.pure-skin-odr .pure-form input.pure-input-rounded,
+.pure-skin-odr .pure-form .pure-input-rounded {
+    border-radius: 18px;
+    padding: 0.5em 1em;
+}
+
+/* Grouped Inputs */
+.pure-skin-odr .pure-form .pure-group fieldset {
+    margin-bottom: 10px;
+}
+.pure-skin-odr .pure-form .pure-group input {
+    display: block;
+    padding: 0.78em 0.6em;
+    margin: 0;
+    border-radius: 0;
+    position: relative;
+    top: -1px;
+}
+.pure-skin-odr .pure-form .pure-group input:focus {
+    z-index: 2;
+}
+.pure-skin-odr .pure-form .pure-group input:first-child {
+    top: 1px;
+    border-radius: 2px 2px 0px 0px;
+}
+.pure-skin-odr .pure-form .pure-group input:last-child {
+    top: -2px;
+    border-radius: 0px 0px 2px 2px;
+}
+.pure-skin-odr .pure-form .pure-group button {
+    margin: 0.35em 0;
+}
+
+.pure-skin-odr .pure-form .pure-input-1 {
+    width: 100%;
+}
+.pure-skin-odr .pure-form .pure-input-2-3 {
+    width: 66%;
+}
+.pure-skin-odr .pure-form .pure-input-1-2 {
+    width: 50%;
+}
+.pure-skin-odr .pure-form .pure-input-1-3 {
+    width: 33%;
+}
+.pure-skin-odr .pure-form .pure-input-1-4 {
+    width: 25%;
+}
+
+/* Inline help for forms */
+/* Note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
+.pure-skin-odr .pure-form .pure-help-inline,
+.pure-skin-odr .pure-form-message-inline {
+    display: inline-block;
+    padding-left: 0.3em;
+    color: #c7c7c7;
+    vertical-align: middle;
+    font-size: 90%;
+}
+
+/* Block help for forms */
+.pure-skin-odr .pure-form-message {
+    display: block;
+    color: #c7c7c7;
+    font-size: 90%;
+}
+/* note no template for forms-r.css. no skinnable properties */
+
+
+
+/* foundational CSS */
+.pure-skin-odr .pure-table {
+    /* Remove spacing between table cells (from Normalize.css) */
+    border-collapse: collapse;
+    border-spacing: 0;
+    empty-cells: show;
+    border: 1px solid #ededed;
+}
+
+.pure-skin-odr .pure-table caption {
+    color: #c7c7c7;
+    font: italic 85%/1 arial, sans-serif;
+    padding: 1em 0;
+    text-align: center;
+}
+
+.pure-skin-odr .pure-table td,
+.pure-skin-odr .pure-table th {
+    border-left: 1px solid #ededed;/* inner column border */
+    border-width: 0 0 0 1px;
+    /* font-size: inherit; -- NAS 20150108 Removed */
+    font-size: 80%;
+    margin: 0;
+    /* overflow: visible; /*to make ths where the title is really long work*/
+    padding: 0.47em 0.6em; /* cell padding */
+}
+
+.pure-skin-odr .pure-table td:first-child,
+.pure-skin-odr .pure-table th:first-child {
+    border-left-width: 0;
+}
+
+.pure-skin-odr .pure-table thead {
+    background-color: #f5f5f5;
+    color: #808080;
+    text-align: left;
+    vertical-align: bottom;
+}
+
+/*
+striping:
+   even - #fff (white)
+   odd  - #f2f2f2 (light gray)
+*/
+.pure-skin-odr .pure-table td {
+    background-color: #fafafa;
+    color: #878787;
+}
+.pure-skin-odr .pure-table-odd td {
+    background-color: #ededed;
+    color: #6e6e6e;
+}
+
+/* nth-child selector for modern browsers */
+.pure-skin-odr .pure-table-striped tr:nth-child(2n-1) td {
+    background-color: #ededed;
+    color: #6e6e6e;
+}
+
+
+/* BORDERED TABLES */
+.pure-skin-odr .pure-table-bordered td {
+    border-bottom: 1px solid #ededed;
+}
+.pure-skin-odr .pure-table-bordered tbody > tr:last-child td,
+.pure-skin-odr .pure-table-horizontal tbody > tr:last-child td {
+    border-bottom-width: 0;
+}
+
+/* HORIZONTAL BORDERED TABLES */
+.pure-skin-odr .pure-table-horizontal td,
+.pure-skin-odr .pure-table-horizontal th {
+    border-width: 0 0 1px 0;
+    border-bottom:1px solid #ededed;
+}
+.pure-skin-odr .pure-table-horizontal tbody > tr:last-child td {
+    border-bottom-width: 0;
+}
+
+
+/* end from yuicss/menu-core.css *******************************************/
+/* from yuicss menu-paginator.css */
+/*csslint box-model:false*/
+/*TODO: Remove this lint rule override after a refactor of this code.*/
+
+.pure-skin-odr .pure-paginator {
+
+    /* `pure-g` Grid styles */
+    letter-spacing: -0.31em; /* Webkit: collapse white-space between units */
+    *letter-spacing: normal; /* reset IE < 8 */
+    *word-spacing: -0.43em; /* IE < 8: collapse white-space between units */
+    text-rendering: optimizespeed; /* Webkit: fixes text-rendering: optimizeLegibility */
+
+    /* `pure-paginator` Specific styles */
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.opera-only :-o-prefocus,
+.pure-skin-odr .pure-paginator {
+    word-spacing: -0.43em;
+}
+
+/* `pure-u` Grid styles */
+.pure-skin-odr .pure-paginator li {
+    display: inline-block;
+    *display: inline; /* IE < 8: fake inline-block */
+    zoom: 1;
+    letter-spacing: normal;
+    word-spacing: normal;
+    vertical-align: top;
+    text-rendering: auto;
+}
+.pure-skin-odr .pure-paginator .pure-button {
+    border-radius: 0;
+    padding: 0.8em 1.4em;
+    vertical-align: top;
+    height: 1.1em;
+}
+.pure-skin-odr .pure-paginator .pure-button:focus,
+.pure-skin-odr .pure-paginator .pure-button:active {
+    outline-style: none;
+}
+.pure-skin-odr .pure-paginator .prev,
+.pure-skin-odr .pure-paginator .next {
+    /*color: #C0C1C3; allow .pure-button to color text*/
+}
+.pure-skin-odr .pure-paginator .prev {
+    border-radius: 2px 0px 0px 2px;
+}
+.pure-skin-odr .pure-paginator .next {
+    border-radius: 0px 2px 2px 0px;
+}
+/* end from PURE menu-paginator.css ******************************/
+/* from PURE menu.css *******************************************/
+
+
+h1 {
+    font-size: 120%;
+    font-weight: bold;
+    margin-bottom: 0.1em;
+    margin-top: 0.1em;
+}
+
+
+/* --------------------------
+ * Element Styles
+ * --------------------------
+*/
+
+body {
+    min-width: 320px;
+    color: #555;
+    line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: bold;
+    color: rgb(75, 75, 75);
+}
+h3 {
+    font-size: 1.25em;
+}
+h4 {
+    font-size: 1.125em;
+}
+
+a {
+    color: rgba(58, 161, 107, 1.00); /* block-background-text-normal */
+    text-decoration: none;
+}
+
+a:visited {
+    color: #265778; /* block-normal-text-normal */
+}
+
+dt {
+    font-weight: bold;
+}
+dd {
+    margin: 0 0 10px 0;
+}
+
+#ODRElementDataSaved {
+    visibility: hidden;
+    position: relative;
+    top: -20px;
+}
+
+/* same color as selected state on site menu */
+/*
+aside {
+    background: #1f8dd6;
+    padding: 0.3em 1em;
+    border-radius: 3px;
+}
+
+aside a, aside a:visited {
+    color: rgb(169, 226, 255);
+}
+ */
+
+
+/* --------------------------
+ * Layout Styles
+ * --------------------------
+*/
+
+/* Navigation Push Styles */
+#layout {
+    position: relative;
+    padding-left: 0;
+}
+    #layout.active {
+        position: relative;
+        left: 160px;
+    }
+        #layout.active #menu {
+            left: 160px;
+            width: 160px;
+        }
+
+/* Apply the .box class on the immediate parent of any grid element (pure-u-*) to apply some padding. */
+.l-box {
+    padding: 1em;
+}
+
+.l-wrap {
+    margin-left: auto;
+    margin-right: auto;
+}
+.content .l-wrap {
+    margin-left: -1em;
+    margin-right: -1em;
+}
+
+
+/* --------------------------
+ * Header Module Styles
+ * --------------------------
+*/
+
+
+
+/*
+.header {
+     font-family: "omnes-pro", sans-serif;
+     max-width: 768px;
+     margin: 0 auto;
+     padding: 1em;
+     text-align: center;
+     background: #fff;
+ }
+    .header h1 {
+        font-size: 300%;
+        font-weight: 100;
+        margin: 0;
+    }
+     .header h2 {
+        font-size: 125%;
+        font-weight: 100;
+        line-height: 1.5;
+        margin: 0;
+        color: #666;
+    }
+
+
+ */
+
+ /* --------------------------
+  * Content Module Styles
+  * --------------------------
+ */
+
+/* 20221126 Error Below This line */
+
+/* The content div is placed as a wrapper around all the docs */
+.content {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1em;
+    padding-right: 1em;
+    /* max-width: 1024px; */
+}
+
+    .content .content-subhead {
+        margin: 2em 0 1em 0;
+        font-weight: 300;
+        color: #888;
+        position: relative;
+    }
+
+    .content .content-spaced {
+        line-height: 1.8;
+    }
+
+    .content .content-quote {
+        font-family: "Georgia", serif;
+        color: #666;
+        font-style: italic;
+        line-height: 1.8;
+        border-left: 5px solid #ddd;
+        padding-left: 1.5em;
+    }
+
+    .content-link {
+        position: absolute;
+        top: 0;
+        right: 0;
+        display: block;
+        height: 100%;
+        width: 20px;
+        /* background: transparent url('/img/link-icon.png') no-repeat center center; */
+        background: transparent;
+        background-size: 20px 20px;
+    }
+
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+        .content-link {
+            /* background-image: url('/img/link-icon@2x.png'); */
+        }
+    }
+
+
+/* --------------------------
+ * Code Styles
+ * --------------------------
+*/
+
+pre,
+code {
+    font-family: Consolas, 'Liberation Mono', Courier, monospace;
+    color: #333;
+    background: rgb(230, 230, 230);
+}
+
+code {
+    padding: 0.2em 0.4em;
+    white-space: pre;
+}
+.content p code {
+    font-size: 90%;
+}
+
+.code {
+    margin-left: -1em;
+    margin-right: -1em;
+    padding: 1em;
+    border: 1px solid #eee;
+    border-left-width: 0;
+    border-right-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.code code {
+    font-size: 95%;
+    white-space: pre;
+    word-wrap: normal;
+    padding: 0;
+    background: none;
+}
+.code-wrap code {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* --------------------------
+ * Footer Module Styles
+ * --------------------------
+*/
+
+.footer {
+    font-size: 87.5%;
+    border-top: 1px solid #eee;
+    margin-top: 3.4286em;
+    padding: 1.1429em;
+    background: rgb(250, 250, 250);
+}
+
+.legal {
+    line-height: 1.6;
+    text-align: center;
+    margin: 0 auto;
+}
+
+    .legal-license {
+        margin-top: 0;
+    }
+    .legal-links {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 0;
+    }
+    .legal-copyright {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+
+/* --------------------------
+ * Main Navigation Bar Styles
+ * --------------------------
+*/
+
+/* 20221126 Error Below This line */
+
+/* Add transition to containers so they can push in and out */
+#layout,
+#menu,
+.odr-menu-link {
+    -webkit-transition: all 0.2s ease-out;
+    -moz-transition: all 0.2s ease-out;
+    -ms-transition: all 0.2s ease-out;
+    -o-transition: all 0.2s ease-out;
+    transition: all 0.2s ease-out;
+}
+
+#layout.active .odr-menu-link {
+    left: 160px;
+}
+
+
+/* ---------------------
+ * Smaller Module Styles
+ * ---------------------
+*/
+
+.pure-img-responsive {
+    max-width: 100%;
+    height: auto;
+}
+
+.pure-paginator .pure-button {
+    -webkit-box-sizing: content-box;
+    -moz-box-sizing: content-box;
+    box-sizing: content-box;
+}
+
+.pure-button {
+    font-family: inherit;
+}
+a.pure-button-primary {
+    color: white;
+}
+
+
+/* green call to action button class */
+.notice {
+    background-color: #61B842;
+    color: white;
+}
+
+.muted {
+    color: #ccc;
+}
+
+
+/* 20221126 Error Below This line */
+
+/* -------------
+ * Table Styles
+ * -------------
+*/
+
+.pure-table th,
+.pure-table td {
+    padding: 0.5em 1em;
+}
+
+.table-responsive {
+    margin-left: -1em;
+    margin-right: -1em;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1em;
+}
+.table-responsive table {
+    width: 100%;
+    min-width: 35.5em;
+    border-left-width: 0;
+    border-right-width: 0;
+}
+
+.table-responsive .mq-table {
+    width: 100%;
+    min-width: 44em;
+}
+.mq-table th.highlight {
+    background-color: rgb(255, 234, 133);
+}
+.mq-table td.highlight {
+    background-color: rgb(255, 250, 229);
+}
+.mq-table th.highlight code,
+.mq-table td.highlight code {
+    background: rgb(255, 255, 243);
+}
+.mq-table-mq code {
+    font-size: 0.875em;
+}
+
+
+
+/* --------------------------
+ * Responsive Styles
+ * --------------------------
+*/
+
+@media screen and (min-width: 35.5em) {
+
+    .legal-license {
+        text-align: left;
+        margin: 0;
+    }
+    .legal-copyright,
+    .legal-links,
+    .legal-links li {
+        text-align: right;
+        margin: 0;
+    }
+
+}
+
+@media screen and (min-width: 48em) {
+
+    .l-wrap,
+    .l-wrap .content {
+        padding-left: 1em;
+        padding-right: 1em;
+    }
+    .content .l-wrap {
+        margin-left: -2em;
+        margin-right: -2em;
+    }
+
+    .header,
+    .content {
+        padding-left: 2em;
+        padding-right: 2em;
+    }
+
+    .header h1 {
+        font-size: 350%;
+    }
+    .header h2 {
+        font-size: 150%;
+    }
+
+    .content p {
+        font-size: 1.125em;
+    }
+
+    .code {
+        margin-left: auto;
+        margin-right: auto;
+        border-left-width: 1px;
+        border-right-width: 1px;
+    }
+
+    .table-responsive {
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .table-responsive table {
+        border-left-width: 1px;
+        border-right-width: 1px;
+    }
+
+}
+
+/* 20221126 Error Below This Line */
+
+@media (min-width: 58em) {
+
+    #layout {
+        padding-left: 160px;
+        left: 0;
+    }
+    #menu {
+        left: 160px;
+    }
+    .odr-menu-link {
+        position: fixed;
+        left: 160px;
+        display: none;
+    }
+    #layout.active .odr-menu-link {
+        left: 160px;
+    }
+
+}
+
+.pure-form label {
+    font-size: 100%;
+}
+
+.grids-example {
+    border-top: 0;
+}
+
+.grid-input,
+.grid-output {
+    margin-bottom: 1em;
+}
+
+.grid-tabs {
+    padding: 3em 0 0;
+    margin: 0;
+}
+
+
+.grid-output-download {
+    font-size: 1.2em;
+}
+
+.grid-tab-link,
+.grid-tab-link:visited {
+    font-weight: bold;
+    padding: 1em 1em;
+    border: 1px solid transparent;
+    border-bottom-color: transparent;
+    color: #666;
+    transition: all 0.1s;
+    cursor: pointer;
+    top: -0.813em;
+    position: relative;
+    font-size: 0.96em;
+}
+
+.grid-output-tabs .grid-tab-link,
+.grid-output-tabs .grid-tab-link:visited,
+.download-link {
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+.grid-tab-link-selected,
+.grid-tab-link-selected:visited {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-bottom-color: transparent;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+.grid-content {
+    padding: 0.5em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    border-top-left-radius: 0;
+    overflow-y: hidden;
+}
+
+.grid-panel {
+    /*
+    By default, we hide these off screen. Not using display:none; to preserve
+    accessibility.
+    */
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+
+}
+.grid-panel-selected {
+    /* when a tab is selected, we remove the position: absolute;*/
+    position: static;
+}
+
+.grid-output .code {
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    margin: 0;
+}
+#css .code,
+#css-old-ie .code {
+    max-height: 35em;
+}
+
+/* 20221126 Error above this line */
+.offset-1-12 {
+    margin-left: 8.33%;
+}
+
+#media-query-table {
+    margin-bottom: 1em;
+    width: 100%;
+}
+
+#media-query-table td {
+    padding: 0.3em;
+}
+
+.media-query-table-example {
+    font-size: 0.875em;
+    font-weight: normal;
+    display: none;
+}
+.media-query-table-example code {
+    background: none;
+    color: inherit;
+    padding: 0;
+}
+
+.mq-key,
+.mq-value {
+    width: 100%;
+}
+
+.controls {
+    text-align: center;
+    margin-top: 1em;
+}
+
+#options .cols-control label,
+#options .prefix-control label {
+    width: 8.75em;
+}
+.cols-control input {
+    text-align: center;
+}
+
+.remove-row {
+    text-align: center;
+}
+
+.remove-mq {
+    background: white;
+    border: 1px solid rgb(229, 53, 53);
+    font-weight: 500;
+    color: rgb(229, 53, 53);
+    margin-top: 0.25em;
+    padding: 0.25em 0.5em;
+    box-shadow: none;
+    -webkit-transition: background 0.1s;
+    -moz-transition: background 0.1s;
+    transition: background 0.1s;
+}
+
+.remove-mq:hover,
+.remove-mq:active {
+    color: white;
+    background: rgb(249, 114, 114);
+    box-shadow: none;
+}
+
+.grids-example [class *= "pure-u"] {
+    font-family: Consolas, 'Liberation Mono', Courier, monospace;
+    text-align: center;
+    padding: 1em 0;
+    border: 1px solid #ddd;
+    border-right: none;
+    border-bottom: none;
+}
+
+.invalid-message {
+    color: #b94a48;
+    font-size: 90%;
+}
+
+.pure-form input[invalid] {
+    border: 1px solid rgb(229, 53, 53);
+}
+
+.download-link {
+    display: block;
+}
+
+@media screen and (min-width: 48em) {
+    .controls {
+        text-align: left;
+    }
+
+    .grid-content {
+        padding: 1em;
+    }
+
+    .grid-tab-link {
+        font-size: 1em;
+    }
+
+    .invalid-message {
+        padding-top: 0.625em;
+    }
+
+    .grid-output-download {
+        font-size: 1.5em;
+    }
+
+    .media-query-table-example {
+        display: block;
+    }
+}
+
+/**
+ * Baby Blue theme for RainbowJS
+ *
+ * @author tilomitra
+ */
+
+pre .comment {
+    color: #999;
+}
+
+pre .tag,
+pre .tag-name,
+pre .support.tag-name {
+    color: rgb(85, 85, 85);
+}
+
+pre .keyword,
+pre .css-property,
+pre .vendor-prefix,
+pre .sass,
+pre .class,
+pre .id,
+pre .css-value,
+pre .entity.function,
+pre .storage.function {
+    font-weight: bold;
+}
+
+pre .css-property,
+pre .css-value,
+pre .vendor-prefix,
+pre .support.namespace {
+    color: #333;
+}
+
+pre .constant.numeric,
+pre .keyword.unit,
+pre .hex-color {
+    font-weight: normal;
+    color: #099;
+}
+
+pre .attribute,
+pre .variable,
+pre .support {
+    color:  #757575; /* skinbuilder block-page-text-normal with #1f8dd6 as primary */
+}
+
+pre .string,
+pre .support.value  {
+    font-weight: normal;
+    color: #3b8bba; /* skinbuilder block-mine-text-low with #1f8dd6 as primary */
+}
+
+
+
+/* Search Template Customizations */
+    .ODRAdvSearch_header {
+        font-weight: bold;
+        background: #e3e3e3 url("../../img/external/jquery-ui/ui-bg_flat_65_e3e3e3_40x100.png") repeat-x scroll 50% 50%;
+        padding: 0.5em;
+        cursor: pointer;
+    }
+    .ODRAdvSearch_caret {
+        margin-top: -0.2em;
+        float: right;
+    }
+    .ODRAdvSearch_content {
+        /*background: #eeeeee;*/
+        display: inline;
+    }
+    .ODRAdvSearch_datafield {
+        margin-bottom: 10px;
+    }
+    .ODRRadioSearchDiv {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .ODRRadioLabel {
+        margin: 0.5em 0;
+    }
+    .ODRTagSearchDiv {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .fa {
+        padding: 0px;
+    }
+    .ODRTristateCheckbox > .fa-ban {
+        margin-top: -1px;
+        margin-left: 1.5px;
+        color: red;
+    }
+    .ODRTristateCheckbox > .fa-check {
+        color: green;
+    }
+    .ODRTristateCheckbox > .partial {
+        color: grey !important;
+    }
+    .ODRTristateCheckbox {
+        cursor: pointer;
+        border: 2px solid #666;
+        border-radius: 5px;
+        height: 1.5em;
+        width: 1.5em;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .ODRTristateCheckbox > .fa {
+        /*line-height: 1.25em;*/
+        /*margin-left: -0.1em;*/
+    }
+    .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
+        background: #9cd4d4;
+    }
+
+    .ODRSelectAll,.ODRDeselectAll,.ODRClearAll {
+        cursor: pointer;
+        /* font-size: 90%; */
+    }
+
+    .ODRSelectAllOption {
+        display: inline;
+        margin-left: 6px;
+    }
+
+
+
+/* END Search Template Customizations */
+.odr-footer {
+    height: 48px;
+}
+
+.odr-footer .ODRLogoImage {
+    height: 48px;
+    background: white;
+}
+
+.odr-footer .ODRLogoImage img {
+    height: 48px;
+}
+
+.ODRFormHeader {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.ODRFormHeader button {
+    padding: 10px;
+    margin: 5px;
+}
+
+/* pure-hidden-xs */
+@media screen and (max-width:567px) {
+    .pure-visible-sm{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-lg{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-xs{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 300px; */
+        min-height: 100px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 300px; */
+        min-height: 100px;
+    }
+}
+/* pure-hidden-sm */
+@media screen and (min-width:568px) and (max-width:767px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-lg{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-sm{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 500px; */
+        min-height: 166px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 500px; */
+        min-height: 166px;
+    }
+}
+/* pure-hidden-md */
+@media screen and (min-width:768px) and (max-width:1023px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-sm{display:none}
+    .pure-visible-lg{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-md{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 740px; */
+        min-height: 246px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 740px; */
+        min-height: 246px;
+    }
+}
+/* pure-hidden-lg */
+@media screen and (min-width:1024px) and (max-width:1439px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-sm{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-lg{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 960px; */
+        min-height: 320px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 960px; */
+        min-height: 320px;
+    }
+}
+/* pure-hidden-xl */
+@media screen and (min-width:1440px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-sm{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-lg{display:none}
+    .pure-hidden-xl{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 1200px; */
+        min-height: 400px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 1200px; */
+        min-height: 400px;
+    }
+}
+
+
+
+
+
+.ODRStaticGraph:hover .ODRChartTrigger {
+    height: 100%;
+    display:block;
+}
+
+.ODRStaticGraph {
+    position: relative;
+    cursor: pointer;
+}
+
+.ODRChartTrigger {
+    color: #888888;
+    position: absolute;
+    z-index: 100;
+    top: 0px;
+    height: 0px;
+    width: 100%;
+    text-align: center;
+    font-size: 24px;
+    display: none;
+    background: rgba(255,255,255,0.7);
+}
+
+.ODRChartTrigger span {
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+
+/* DataTables has Z-index issue that causes
+   it to cover menus.  Removing position:relative;
+   fixes this for some reason. */
+.dataTables_wrapper {
+    position: inherit;
+}
+
+.ODRDatatypeInfoDiv {
+    /* position: relative; removed due to datatables z-index issue */
+    cursor: pointer;
+}
+.ODRDatatypeInfoDiv:hover .ODRDatatypeInfo {
+    visibility: visible;
+    /*top: 20px;*/
+    /*left: 20px;*/
+}
+.ODRDatatypeInfo {
+    visibility: hidden;
+    position: absolute;
+    background-color: lightyellow;
+    padding: 5px;
+    border: 1px dashed gray;
+    z-index: 999;
+    max-width: 500px;
+}
+
+.ODRHidden {
+    display: none;
+}
+
+/**
+* Open Data Repository Data Publisher
+* custom.css
+* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+* Released under the GPLv2
+*
+* Contains most of the custom CSS utilized by the site.
+*
+*/
+
+
+/* ********************************************* */
+/* The loading screen */
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin: 0 0 38px;
+}
+
+.odr-footer {
+    /*
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 38px;
+    background-color: #eee;
+    width: 100%;
+     */
+}
+
+
+#loading {
+    width: 280px;
+    height: 177px;
+
+    background: url('../img/elements/loading/bg.png');
+
+    position: fixed;
+    z-index: 999;
+
+    top: 50%;
+    left: 50%;
+
+    margin-top: -88.5px;
+    margin-left: -140px;
+
+    text-align: center;
+}
+
+#loading:after {
+    display: block;
+
+    height: 32px;
+    width: 32px;
+
+    position: absolute;
+    left: 50%;
+    top: 68px;
+
+    margin-left: -16px;
+    margin-top: -16px;
+
+    background: url('../img/elements/loading/spinner.gif');
+
+    content: ' ';
+}
+
+#loading-overlay {
+    position: fixed;
+
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    background: rgba(0,0,0,0.5);
+    background: -webkit-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: -moz-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: -o-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: -ms-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+
+    z-index: 998;
+}
+
+#loading span {
+    display: inline-block;
+
+    position: relative;
+    top: 123px;
+}
+
+
+#content {
+    border: none;
+}
+
+.box .content {
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* Search Results Table */
+#TextResults {
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+}
+#TextResults th {
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+/*#TextResults_length {*/
+.dataTables_length {
+    padding-top: 10px;
+    padding-left: 10px;
+}
+.dataTables_length > label {
+    font-size: 100% !important;
+}
+#TextResults_filter {
+    padding-left: 10px;
+    padding-bottom: 10px;
+}
+/*#TextResults_info {*/
+.dataTables_info {
+    padding-top: 10px !important;
+    padding-left: 10px;
+}
+#TextResults_paginate {
+    padding-top: 6px;
+    cursor: pointer;
+}
+#TextResults_paginate a:visited,
+#TextResults_paginate a:active,
+#TextResults_paginate a:hover,
+#TextResults_paginate a {
+    padding-right: 8px;
+}
+.dataTable {
+    width: 100%;
+}
+
+.ODRTableRecord {
+    cursor: pointer;
+}
+
+.ODREditLink {
+    text-decoration: underline;
+}
+
+/* END Search Results Table */
+
+#main {
+    min-height: 80%;
+    border: none;
+    box-shadow: none;
+}
+
+.Pointer {
+    cursor: pointer;
+}
+.Cursor {
+    cursor: default;
+}
+.Info {
+    cursor: help;
+}
+
+.DataField {
+    position: absolute;
+    z-index: 20;
+    float: left;
+}
+
+.SpacerRight {
+    margin-right: 10px;
+}
+
+.SpacerLeft {
+    margin-left: 10px;
+}
+
+.SpacerTop {
+    margin-top: 10px;
+}
+
+.SpacerBottom {
+    margin-bottom: 10px;
+}
+
+.DragHandle {
+    font-size: 14px;
+    color: #b9b9b9;
+    float: right;
+    z-index: 4;
+    cursor: move;
+    position: absolute;
+    top: 3px;
+    left: 10px;
+}
+
+.ODRFormWrap {
+    margin-left: 0px;
+    margin-right: 0px;
+    /* background-color: #FAFAFA; */
+    border: 0px solid #B9B9B9;
+    border-radius: 2px;
+    overflow: visible;
+}
+.ODRFormWrap .header {
+    /* margin-left: 14px; */
+    /* margin-bottom: 6px; */
+}
+
+
+.odr-header {
+    min-height: 30px;
+}
+
+.odr-header a {
+    display: none;
+}
+
+#ODRMenuLabel {
+    float: right;
+    padding-left: 6px;
+    padding-bottom: 22px;
+    color: #aaa;
+    font-size: 14px;
+    transform: rotate(90deg);
+    -webkit-transform: rotate(90deg);
+    -moz-transform: rotate(90deg);
+    -o-transform: rotate(90deg);
+    -ms-transform: rotate(90deg);
+}
+
+#ODRNav .top {
+    width: 215px;
+}
+
+/*
+#ODRNavWrapper {
+    position: fixed;
+    width: 230px;
+    top: 140px;
+    left: -230px;
+    z-index: 1000;
+
+    background: none;
+}
+*/
+#ODRNavWrapper {
+    width: 230px;
+    margin-right: 1.3em;
+}
+
+#ODRNav {
+    position: relative;
+    top: 0px;
+    left: 0px;
+    overflow: hidden;
+    width: 245px;
+    background: #eee;
+    border-radius-top-right: 16px;
+    border-radius-bottom-right: 16px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    -webkit-transform: translate(0px, 0px);
+       -moz-transform: translate(0px, 0px);
+        -ms-transform: translate(0px, 0px);
+         -o-transform: translate(0px, 0px);
+            transform: translate(0px, 0px);
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
+}
+
+/*
+#ODRNav:hover {
+    -webkit-transform: translate(200px, 0px);
+       -moz-transform: translate(200px, 0px);
+        -ms-transform: translate(200px, 0px);
+         -o-transform: translate(200px, 0px);
+            transform: translate(200px, 0px);
+}
+
+#ODRNav:hover {
+    opacity: 1;
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+}
+*/
+
+#ODRNavRight .top {
+    margin-left: 25px;
+}
+
+#ODRMenuLabelRight {
+    float: left;
+    color: #aaa;
+    font-size: 14px;
+    margin-top: 40px;
+    margin-left: -20px;
+    transform: rotate(-90deg);
+    -webkit-transform: rotate(-90deg);
+    -moz-transform: rotate(-90deg);
+    -o-transform: rotate(-90deg);
+    -ms-transform: rotate(-90deg);
+
+    /*position: fixed;*/
+}
+
+#ODRNavRightWrapper {
+    display: none;
+    position: fixed;
+    width: 425px;
+    top: 60px;
+    right: -400px;
+    z-index: 1000;
+
+    background: none;
+}
+
+.NavSlideOut {
+    position: relative;
+    overflow: hidden;
+    width: 450px;
+    min-height: 350px;
+    right: 0px;
+    background-color: #6fa5c7;
+    border-radius: 6px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
+}
+
+.tacked {
+    color: #666;
+}
+
+.StickOpen {
+    right: 400px;
+}
+
+.NavSlideOut:hover {
+    -webkit-transform-origin: 100% 50%;
+    -webkit-transform: translate(0px, 0px);
+    -moz-transform-origin: 100% 50%;
+    -moz-transform: translate(0px, 0px);
+    -ms-transform-origin: 100% 50%;
+    -ms-transform: translate(0px, 0px);
+    -o-transform-origin: 100% 50%;
+    -o-transform: translate(0px, 0px);
+    transform-origin: 100% 50%;
+    transform: translate(0px, 0px);
+    position: relative;
+    right: 400px;
+    opacity: 1;
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+}
+
+#ODRNavRight ul {
+    list-style-type: none;
+}
+
+/*
+aside:after {
+    background: none;
+}
+ */
+
+#toolbar {
+    left: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 900;
+
+    background: none;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.52);
+
+    background-image: -webkit-gradient(
+        linear,
+        left bottom,
+        left top,
+        color-stop(0, #EBECF6),
+        color-stop(1, #F2FCFF)
+    );
+    background-image: -o-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: -moz-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: -webkit-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: -ms-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: linear-gradient(to top, #EBECF6 0%, #F2FCFF 100%);
+
+}
+
+
+#toolbar .right li.red > a,
+#toolbar .right li > a,
+ul.breadcrumb {
+    border: 1px solid #dddddd;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+#toolbar .right li.red > a,
+#toolbar .right li > a,
+ul.breadcrumb li a {
+    background: #dedede;
+    color: #888;
+    text-shadow: none;
+}
+
+#toolbar .right li.red > a:hover,
+#toolbar .right li > a:hover,
+ul.breadcrumb li a:hover {
+    background: #eeeeee;
+    color: #888;
+    text-shadow: none;
+}
+
+ul.breadcrumb li a:after,
+ul.breadcrumb li a:hover:active:after,
+ul.breadcrumb li a:hover:after {
+    background: none;
+}
+
+h1:after {
+    display: none;
+}
+
+#ElementDataWrapper {
+    padding-left: 4px;
+    margin: 0px;
+}
+
+.DataType {
+    min-height: 250px;
+}
+
+.ChildDataType {
+
+}
+
+.ResultsDataTypeTools {
+    font-size: 18px;
+    color: #888;
+
+    float: right;
+    position: relative;
+    top: -48px;
+    height: 0px;
+    line-height: 0px;
+
+    margin-top: 8px;
+    margin-right: 8px;
+    padding: 0px 0px 4px 0px;
+    z-index: 500;
+}
+
+.ResultsDataTypeTools span {
+    line-height: 0px;
+    margin-bottom: -1em;
+}
+
+.DataRecordTools {
+    font-size: 18px;
+    color: #888;
+
+    min-width: 40px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+
+    margin-left: 7px;
+    z-index: 500;
+}
+
+/*
+.ODRAccordionSecondary .DataTypeTools {
+    position: relative;
+    top: 6px;
+}
+ */
+
+h3 .DatatypeTools,
+.DataTypeTools {
+    font-size: 18px;
+    color: #888 !important;
+    position: relative;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    z-index: 500;
+}
+
+.ODRRecord .ResultsDataTypeTools span {
+    min-width: 40px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRListHeader {
+    height: 44px;
+}
+.ODRListHeader .ODRRecordName {
+    position: relative;
+    top: 11px;
+}
+.ODRListHeader .DatatypeTools {
+    position: relative;
+    top: 6px !important;
+    margin-right: 8px;
+}
+
+.ODRTabAccordion .DataTypeTools {
+    float: right;
+    top: -96px;
+    height: 0px;
+    margin-right: 8px;
+}
+
+.ODRTabAccordion .DataTypeTools span {
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4) !important;
+    border-radius: 6px;
+}
+
+.ODRFormAccordion .DatatypeTools {
+    float: right;
+    top: -4px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRDropdownAccordion .DataTypeTools {
+    float: right;
+    top: -40px;
+    height: 0px;
+    margin-right: 8px;
+
+}
+.ODRDropdownAccordion .DataTypeTools span {
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRResults .AccordionSelect {
+    float: right;
+    margin-top: -4px;
+    margin-right: 4px !important;
+    max-width: 350px;
+    /* padding: 4px 4px 2px 4px !important; */
+    height: 32px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 4px;
+}
+
+.ODRRecord .AccordionSelect {
+    float: right;
+    margin-right: 78px !important;
+    max-width: 350px;
+    padding: 0 0 0 0 !important;
+    height: 32px !important;
+    /*
+    padding: 4px 4px 2px 4px !important;
+    border-radius: 6px;
+    */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.DataTypeToolsAccordion {
+    float: right;
+    top: -48px;
+    height: 0px;
+    padding-right: 8px;
+}
+
+.ODRThemeElement > .DataTypeTools {
+    margin: 5px 0px;
+}
+
+
+
+#ODRDatatypeDesign .fa {
+    margin-top: 1px;
+}
+#ODRDatatypeDesign .ODRDataField {
+    margin-bottom: 4px;
+}
+
+#ODRDatatypeDesign > .ODRThemeElement > .ThemeElementTools {
+    color: #eeeeee;
+}
+#ODRDatatypeDesign .ODRFieldArea > .ODRThemeElement > .ThemeElementTools {
+    color: black;
+}
+#ODRDatatypeDesign .ThemeElementTools {
+    font-size: 18px;
+    color: #eeeeee;
+    /*float: right;*/
+    position: relative;
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    margin-right: 8px;
+    z-index: 5;
+}
+#ODRDatatypeDesign .ThemeElementTools i {
+    /* margin-top: 3px; */
+}
+
+#ODRDatatypeDesign .DataTypeTools {
+    font-size: 18px;
+    color: #eeeeee;
+    float: none;
+    position: relative;
+    /* margin-top: 6px; */
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    z-index: 500;
+}
+
+#ODRDatatypeDesign .ODRMarkdownContent .ODRPublicStatusIndicator {
+    float: left;
+}
+
+/*
+.tooltip {
+    float: left;
+    margin-top: 4px;
+    margin-right: 4px;
+}
+*/
+.fa-muted {
+    cursor: not-allowed;
+    /*color: #aa0000;*/
+}
+.fa-faded {
+    color: #dddddd;
+}
+
+#dialog_add_datafield .row label {
+    width: 100px;
+}
+
+#dialog_add_datafield .row radio,
+#dialog_add_datafield .row select,
+#dialog_add_datafield .row input {
+}
+
+.DataField .row input:checkbox {
+    padding-top: 8px;
+}
+
+.ui-dialog .actions {
+    bottom: -20px;
+}
+
+.checkbox img {
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.ShortText {
+    max-height: 38px;
+}
+
+.SingleChild {
+    /* border: 1px solid rgba(44,44,44,0.3); */
+    padding: 10px 10px 10px 10px;
+}
+
+#main .shortcuts {
+    display: none;
+}
+
+.ui-resizable-helper { border: 1px dotted #99F; }
+.ui-sortable-placeholder { border: 1px dotted #99f; visibility: visible !important; height: 50px !important; }
+.ui-sortable-placeholder * { visibility: hidden; }
+.ui-state-highlight { height: 1.5em; line-height: 1.2em; }
+
+.accordion-content {
+    /* padding-top: 10px;
+    padding-bottom: 10px; */
+}
+
+.ui-accordion-header {
+    line-height: 24px;
+    font-weight: bold;
+    padding-left: 8px;
+}
+
+.ui-icon {
+    display: inline;
+}
+
+h1 span {
+    background: none;
+}
+
+form.no-box {
+    background: none;
+    border: none;
+}
+
+form .row {
+    border-top-width: 1px;
+}
+
+.ODRGraph {
+    border: 2px solid #eee;
+}
+/*
+.ODRPseudoField {
+    background-color: rgb(232,232,232);
+    border: 1px solid rgb(160,160,160);
+    border-radius: 3px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding: 5px 5px 5px 5px;
+    box-shadow: rgba(0, 0, 0, 0.219608) 0px 1px 1px 0px inset;
+}
+*/
+.gallery {
+    margin-right: 6px;
+}
+
+.ShortResults_offset {
+    background-color: #fff;
+}
+
+.ODRGraph {
+    background-color: white;
+    border: 1px solid #aaa;
+}
+
+#ODRLoginTable {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#ODRLoginTable tr {
+    margin-bottom: 8px;
+}
+
+#ODRLoginTable label {
+    padding-top: 6px;
+}
+
+#pagination_header {
+    position: sticky;
+    position: -webkit-sticky;
+    position: -moz-sticky;
+    position: -ms-sticky;
+    position: -o-sticky;
+    top: 0;
+    z-index: 990;
+    background: white;
+    margin-bottom: 3px;
+    padding-bottom: 8px;
+    text-align: center;
+    -webkit-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+    -moz-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+}
+
+#pagination_header button {
+    min-width: 3em;
+}
+
+#pagination_header input {
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: center;
+    padding: 0.3em;
+}
+.ODRResultsNumRecords {
+    padding-left: 12px;
+}
+
+#ODRPageSelect {
+    border: 1px solid #ccc;
+    padding: 5px 4px 6px 10px;
+}
+#ODRPageSelect i {
+    padding-left: 0px;
+    padding-right: 6px;
+}
+#ODRPagePopup {
+    background: #CCCCCC;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    display: none;
+    padding: 10px 13px;
+    z-index: 10;
+}
+
+.ODRFormHeader {
+    margin: 10px;
+}
+
+.ODRFormHeader button {
+    padding: 10px;
+    margin: 5px;
+}
+
+
+.pure-g > div {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+/* Borders around top-level TEDs/Groups */
+.ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
+.ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement > .ODRInnerBox,  /* not-rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
+    /* background-color: rgba(0,0,0,0.045); */
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+    padding: 0.3em;
+    /* border: 2px solid rgba(185, 186, 246, 0.25);  */
+    border-radius: 4px;
+}
+.ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
+.ODRShortResult > .ODRShortResults > .DataRecordShort,
+.ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
+.ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement,  /* not-rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement {
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+    padding-right: 0.4em;
+    /* border: 1px solid rgba(185, 186, 246, 0.8); */
+}
+
+/*
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-1-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-2-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-1-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-2-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-3-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-1-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-2-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-1-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-2-4 {
+    border: none;
+}
+*/
+
+.ODRFieldArea {
+    /* box-shadow: inset #0303B3 3px 3px 3px 3px; */
+}
+
+.ODRFieldWrapper {
+    line-height: 1.1em;
+    margin-right: 0.25em;
+    margin-left: 0.25em;
+}
+.ODRFieldWrapper input {
+    line-height: 1.4em;
+}
+
+.ODRDesign .ODRPseudoField {
+    /* border: 1px solid #ddd; */
+    padding: 0.48em 0.3em;
+    min-height: 1em;
+    height: 32px !important;
+    line-height: normal;
+    margin-right: 0.4em;
+    margin-left: 0.3em;
+    /*-moz-box-shadow: inset 0 0 1px #aaa;
+    -webkit-box-shadow: inset 0 0 1px #aaa;
+    box-shadow: inset 0 0 1px #aaa; */
+}
+
+.ODRDesign .ODRFieldLabel {
+    font-weight: bold;
+    cursor: default;
+}
+
+.ODRShortResults .ODRFieldLabel {
+    font-weight: bold;
+}
+
+.ODRRecord .ODRFieldLabel {
+    font-weight: bold;
+}
+.ODRRecord label.ODRRadioField {
+    font-size: 100%;
+}
+
+.ODRRadioOptionsEdit {
+    max-height: 400px;
+    overflow-y: scroll;
+    margin-left: 20px;
+}
+
+.ODRPseudoField {
+    border: 1px solid #ddd;
+    padding: 0.48em 0.3em;
+    /* min-height: 18px; */
+    min-height: 1em;
+    line-height: normal;
+    margin-right: 0.4em;
+    margin-left: 0.3em;
+    -moz-box-shadow: inset 0 0 1px #aaa;
+    -webkit-box-shadow: inset 0 0 1px #aaa;
+    box-shadow: inset 0 0 1px #aaa;
+}
+.ODRPseudoField img {
+    width: 96%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable > .ODRFieldArea > .ODRThemeElement > .ODRDataField > form > fieldset > .ODRFieldWrapper,
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable > .ODRFieldArea > .ODRThemeElement > .ODRDataField > form > fieldset > .ODRPseudoField {
+    margin-left: 0em;
+}
+
+/* input {
+    border: none;
+    box-shadow: none;
+} */
+
+.ODRRenderPluginField {
+    border: medium none;
+    border-radius: 2px;
+    box-shadow: none;
+    box-sizing: border-box;
+    display: inline-block;
+    font-size: 0.96em;
+    padding: 0.2em;
+    transition: border 0.3s linear 0s;
+    cursor: default;
+}
+.ODRPad {
+    padding-left: 10px;
+}
+.pure-form label {
+    margin-left: 1em;
+    margin-right: 1em;
+}
+.pure-form input {
+    margin-left: 1em;
+    margin-right: 1em;
+}
+
+.ODRMenuRight > ul {
+    float: right;
+}
+
+.ODRCreatedBy {
+    margin-top: -10px;
+    font-size: 0.7em;
+    text-align: right;
+    min-height: 2em;
+}
+
+#ODRSearchButtons {
+    margin-top: -24px;
+}
+
+.ODRBrowseTitle {
+    padding-right: 4em;
+}
+
+.ODRThemeElement {
+    margin-bottom: 10px;
+    min-height: 50px;
+}
+
+.ODRTable > thead > tr {
+    background: #dddddd;
+}
+.ODRTable > tbody > tr:nth-child(odd) {
+    background: #eeeeee;
+}
+.ODRTable > tbody > tr:nth-child(even) {
+    background: #dddddd;
+}
+.ODRTable td {
+    padding: 0px;
+}
+.ODRTable th {
+    padding: 0px;
+}
+
+.fa {
+    /*padding-right: 5px;*/
+    /*padding-left: 5px;*/
+    padding: 3px;
+}
+
+.ODRAccordionWrapper {
+    /* margin: 5px 5px 20px; */
+}
+.ODRAccordionWrapper > h3 {
+    padding: 12px 8px 12px 16px;
+    cursor: pointer;
+}
+.ODRAccordionWrapper > div {
+    margin-top: 4px;
+}
+
+.ODRDataType {
+    /*margin-top: 30px;*/
+}
+
+
+/* Multi-select Dropdown */
+
+.ODRMultiDropdown dd, .ODRMultiDropdown dt {
+    margin:0px;
+    padding:0px;
+}
+.ODRMultiDropdown ul {
+    margin: -1px 0 0 0;
+}
+.ODRMultiDropdown dd {
+    position:relative;
+    top: -14px;
+}
+.ODRMultiDropdown span {
+    color:#fff;
+    text-decoration:none;
+    outline:none;
+    font-size: 12px;
+}
+.ODRMultiDropdown dt span {
+    background-color:#4F6877;
+    display:block;
+    padding: 8px 20px 5px 10px;
+    min-height: 25px;
+    line-height: 24px;
+    overflow: hidden;
+    border:0;
+    width:272px;
+}
+.ODRMultiDropdown dd ul {
+    background-color: #4F6877;
+    border:0;
+    color:#fff;
+    display:none;
+    left:0px;
+    padding: 2px 15px 2px 5px;
+    position:absolute;
+    top:12px;
+    width:290px;
+    list-style:none;
+    height: 100px;
+    overflow: auto;
+}
+.ODRMultiDropdown span.value {
+    display:none;
+}
+.ODRMultiDropdown dd ul li {
+    padding:5px;
+    display:block;
+}
+.ODRMultiDropdown dd ul li:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.ODRReloadDiv {
+    background-color: #fff;
+    opacity: 0.75;
+    color: #999;
+    font-size: 24px;
+}
+.ODROverlayDiv {
+    position: absolute;
+    text-align: center;
+    vertical-align: middle;
+    z-index: 100;
+}
+
+.fa-globe {
+    /* color: #aaf; */
+    color: red;
+}
+
+.IconRed {
+    color: #f88;
+}
+
+
+.ODRResults label {
+    font-size: 0.96em !important;
+    font-weight: bold;
+    padding-left: 0.5em;
+}
+
+.ODRResultsPseudoField {
+    padding: 0 0.2em 0.2em 0.2em;
+    margin: 0 0 2px 0;
+    min-height: 1em;
+    line-height: normal;
+    font-size: 0.96em;
+}
+
+/*
+.ODRResults input[readonly],
+.ODRResults textarea[readonly] {
+    font-size: 1em;
+    background-color: white;
+    border: none;
+    padding: 6px 4px 4px 4px;
+}
+*/
+
+.ui-state-active,
+.ui-state-default {
+    border: none;
+}
+
+.pure-table,
+.pure-table thead,
+.pure-table tbody,
+.pure-table tr,
+.pure-table td {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.truncate,
+.pure-table td {
+    /* white-space: nowrap; */
+    overflow: hidden;
+    text-overflow: clip;
+}
+
+.FLeft {
+    float: left;
+}
+.FRight {
+    float: right;
+}
+
+.PadRight {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    padding-right: 0.8em;
+}
+
+.PadLeftNormal {
+    margin-left: 1em;
+}
+
+/* ODR Image Gallery */
+.ODRImageGallery {
+    position: relative;
+    padding-top: 10px;
+}
+
+.ODRImageGallery label {
+    position: absolute;
+    top: -4px;
+    left: 0px;
+    z-index: 400;
+    width: 100%;
+    text-align: center;
+    background: rgba(255,255,255, 0.7);
+}
+
+.ODRImageGalleryImage {
+    /* margin-top: 1.6em; */
+    margin-top: 0;
+}
+
+.ODRImageGalleryImage .ODRImage img {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.ODRGalleryLeftArrow,
+.ODRGalleryRightArrow {
+    /*opacity: 0.10;*/
+    opacity: 0.35;
+    /*color: rgba(152, 152, 152, 1);*/
+    color: rgba(125, 125, 125, 1);
+    background: rgba(255, 255, 255, 1);
+    z-index: 100;
+    position: absolute;
+    /*top: 70px;*/
+    top: 50%;
+    margin-top: -20px;
+}
+
+.ODRGalleryLeftArrow {
+    padding: 0.3em 0.3em 0.3em 0;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    left: 0;
+}
+
+.ODRGalleryRightArrow {
+    padding: 0.3em 0 0.3em 0.3em;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+    right: 0;
+}
+.ODRGalleryLeftArrow:hover,
+.ODRGalleryRightArrow:hover {
+    /*opacity: 0.45;*/
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+.ODRBrowseLabels {
+    font-size: 0.6em;
+}
+
+.pure-skin-odr .pure-button {
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+}
+
+.ODRReference {
+    font-size: 0.96em;
+    padding-left: 0.8em;
+    padding-top: 0.3em;
+    padding-bottom: 0.6em;
+}
+
+.ODRReferenceSingle {
+    padding-left: 0.8em;
+    padding-top: 0.6em;
+    padding-bottom: 0.6em;
+}
+
+.ODRListDisplayHeader {
+    padding-left: 2em !important;
+    padding-top: 0.8em !important;
+    padding-bottom: 0.8em !important;
+    margin-bottom: 0.4em !important;
+}
+
+.ODRInputError {
+    color: red;
+}
+
+#ElementData label {
+    color: black;
+}
+
+
+.ui-progressbar {
+    position: relative;
+    min-width: 300px;
+}
+
+.ODRProgressBarLabel {
+    position: absolute;
+    top: 4px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+}
+
+.ODRMenuWrapper {
+    /* margin-bottom: 1em; */
+    -webkit-font-smoothing: antialiased;
+    -webkit-transition: height 0.5s;
+    -moz-transition: height 0.5s;
+    -ms-transition: height 0.5s;
+    transition: height 0.5s;
+    z-index: 10000000;
+}
+
+.ODRMenuWrapper,
+.ODRMenuWrapper ul {
+    background-color: #ffd390;
+}
+
+.ODRMenuWrapper.open {
+    height: auto;
+    overflow-y: visible !important;
+}
+
+.odr-custom-menu-3 {
+    text-align: right;
+}
+
+.odr-custom-toggle {
+    margin-top: 6px;
+    padding-left: 4px;
+    position: relative;
+    cursor: pointer;
+    display: none;
+    vertical-align: middle;
+}
+
+.odr-custom-toggle i {
+    /* padding-right: 4px; */
+}
+
+/* end from menu-responsive.css ******************/
+
+/* ODR Pure Submenu */
+#ODRMainMenu ul {
+    /* position: relative; */
+}
+
+
+#ODRMainMenu ul ul.open {
+    display: block;
+    position: relative;
+}
+
+/* #ODRMainMenu ul ul { */
+.ODR-pure-submenu {
+    /* display: none; */
+    width:225px;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    height: 0;
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    overflow: hidden;
+}
+
+#ODRMainMenu ul li.show {
+    position: relative;
+}
+
+#ODRMainMenu ul li.show > ul.ODR-pure-submenu {
+    /* display:inherit; */
+    display: block;
+    width:225px;
+    opacity: 1;
+    height: auto;
+    transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    overflow: visible;
+}
+
+#ODRMainMenu ul ul li.show > ul.ODR-pure-submenu {
+    /* display:inherit; */
+    display: block;
+    float: left;
+    position: absolute;
+    top: 0px;
+    left: 225px;
+    opacity: 1;
+    height: auto;
+    transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+}
+
+/* Fisrt Tier Dropdown */
+/*
+#ODRMainMenu ul ul li {
+    min-width:170px;
+    float:none;
+    display:list-item;
+    position: relative;
+}
+*/
+
+/* Second, Third and more Tiers	*/
+/*
+#ODRMainMenu ul ul ul li {
+    position: relative;
+}
+*/
+
+/* Change this in order to change the Dropdown symbol */
+/*
+#ODRMainMenu li > span:after { content:  ' +'; }
+#ODRMainMenu li > span:only-child:after { content: ''; }
+*/
+
+#ODRMainMenu .pure-menu-heading {
+    cursor: pointer;
+}
+
+.odr-menu-center {
+    text-align: center;
+}
+
+.ODR-pure-submenu {
+    text-align: left;
+    list-style-type: none;
+}
+
+#ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
+    position: absolute;
+    left: -130px;
+    min-width: 225px;
+}
+
+/* Display Dropdowns on Hover */
+@media (min-width: 48em) {
+}
+
+/* Compress at Pure  < 768px */
+@media (max-width: 47.999em) {
+
+    .odr-custom-toggle {
+        display: block;
+    }
+
+    .ODRMenuWrapper {
+        height: 42px;
+        overflow: hidden;
+    }
+
+    .ODRMenuWrapper li {
+        width: 100%;
+    }
+
+    .ODR-pure-submenu {
+        position: relative;
+        display: block;
+        height: 0px;
+        width: 100%;
+        top: 0px;
+        left: 0px;
+        text-align: left;
+        list-style-type: none;
+    }
+
+    .ODR-pure-submenu .show {
+        display: block;
+        height: auto;
+    }
+
+    #ODRMainMenu ul li.show > ul.ODR-pure-submenu {
+        /* display:inherit; */
+        display: block;
+        opacity: 1;
+        height: auto;
+        transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    }
+
+
+    #ODRMainMenu ul ul li.show > ul.ODR-pure-submenu {
+        /* display:inherit; */
+        display: block;
+        opacity: 1;
+        height: auto;
+        transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    }
+
+    .pure-menu-list {
+        text-align: left;
+    }
+
+    #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
+        position: relative;
+    }
+
+}
+
+.ODRFileUpload {
+    margin-bottom: 4px;
+    margin-left: 4px;
+}
+
+.ODRFileUpload .pure-button {
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box; /* 2 */
+    box-sizing: border-box;
+    white-space: normal;
+    min-width: 0px;
+}
+
+.ODRFileDatafield {
+    margin: 4px;
+}
+
+.ODRFileDatafield_header {
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box; /* 2 */
+    box-sizing: border-box;
+    background: none; /* #7fb9d8 none repeat scroll 0 0; */
+    color: RGBA(77, 136, 220, 1.00);
+    padding: 4px 0 4px 8px;
+    font-size: 0.96em;
+    border-radius: 5px 5px 0px 0px;
+}
+
+.ODRFileDatafield_file, .ODRFileDatafield_empty {
+    font-size: 0.96em;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box; /* 2 */
+    box-sizing: border-box;
+    background: none;
+    padding-right: 8px;
+    position: relative;
+
+    display: -webkit-flex;
+    display: -moz-flex;
+    display: -ms-flexbox;
+    display: flex;
+}
+
+.ODRFileImageHeader {
+    color: white !important;
+    font-weight: bold;
+    background: #5B87E6 none repeat scroll 0 0 !important;
+}
+.ODRFileImageHeader_hidden {
+    display: none;
+}
+.ODRFileImageHeader_hidden_design {
+    /* don't actually want to hide the header in the design page... */
+    opacity: 40%;
+    box-shadow: 0 0 4px 4px rgba(255,0,0,0.7);
+}
+
+.ODRDownloadAllFiles {
+    padding-right: 5px;
+}
+
+#ODRFileDownloadForm ul, #ODRMassDownloadForm ul {
+    list-style: none;
+    padding-left: 6px;
+}
+#ODRFileDownloadForm ul ul, #ODRMassDownloadForm ul ul {
+    padding-left: 26px;
+}
+
+.ODRFileSpacer {
+    flex: 0 0 auto;
+
+    width: 4px;
+    /* display: inline-block; */
+    display: none;
+    cursor: default;
+}
+.ODRFileSpacer_public {
+    background: green none repeat scroll 0 0;
+}
+.ODRFileSpacer_nonpublic {
+    background: red none repeat scroll 0 0;
+}
+.ODRFileSpacer_empty {
+    flex: 0 0 auto;
+
+    width: 8px;
+    display: inline-block;
+    cursor: default;
+}
+
+.ODRFileInfoDiv {
+    line-height: 2.0em;
+    cursor: pointer;
+    padding-left: 5px;
+    padding-right: 5px;
+    display: inline-block;
+}
+.ODRFileInfo {
+    background-color: lightyellow;
+    border: 1px dashed gray;
+    padding: 5px;
+    position: absolute;
+    visibility: hidden;
+    max-width: 500px;
+    z-index: 999;
+    cursor: default;
+    left: 0px;
+}
+.ODRFileInfoDiv:hover .ODRFileInfo {
+    visibility: visible;
+}
+
+.ODRTruncateFilename {
+    display: inline-block;
+    height: 2em;
+
+    flex: 0 1 auto;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.ODRFakeProgressBar_overlay {
+    height: 2em;
+    left: 7px;
+    position: absolute;
+    width: 100%;
+}
+.ODRFakeProgressBar {
+    background: white none repeat scroll 0 0;
+    height: 2em;
+    left: 0;
+    opacity: 0.6;
+    position: absolute;
+}
+
+.ODRUploadDragHighlight {
+    background: green !important;
+}
+.ODRFileUploadProgress {
+    width: 300px;
+}
+
+.cancel-button {
+    background: rgb(202, 60, 60); /* this is a maroon */
+}
+.ODRUploadError {
+    color: #FF0000;
+    size: 0.75em;
+}
+.ODRProgressBar {
+    display: block;
+}
+
+#login_wrapper {
+    text-align:center;
+    margin-top:10px;
+}
+
+.ODROAuthProviderList {
+    text-align: center;
+    padding-bottom: 25px;
+}
+
+.ODRLoginForm .pure-control-group {
+    margin-bottom: 10px;
+}
+
+.ODRActiveIcon {
+    /*border: 1px solid #00FF00;
+    border-radius: 8px; */
+    /* color: darkolivegreen; */
+    color: darkseagreen;
+}
+
+/*
+    ODR Responsive Modal
+    Initial Source/Inspirations
+    https://stanhub.com/multiple-responsive-popup-windows-on-same-page/
+ */
+.odr-popup-trigger { display: block; margin: 0 auto; padding: 20px; max-width: 260px; background: #4EBD79; color: #fff;
+    font-size: 18px; font-weight: 700; text-align: center; text-transform: uppercase; line-height: 24px; cursor: pointer; }
+.odr-popup {display: none; position: absolute; top: 100px; left: 50%; width: 700px; margin-left: -350px; padding: 50px 30px;
+    background: #fff; color: #333; font-size: 19px; line-height: 30px; border: 10px solid #150E2D; z-index: 9999;}
+.odr-popup-mobile {position: relative; top: 0; left: 0; margin: 30px 0 0; width: 100%;}
+.odr-popup-btn-close {position: absolute; top: 8px; right: 14px; color: #4EBD79; font-size: 14px; font-weight: bold; text-transform: uppercase; cursor: pointer;}
+
+
+.ODRDropActive {
+   background: rgba(88, 188, 88, 0.5);
+}
+.ODRDropHover {
+    background: rgba(46, 138, 68, 0.5);
+}
+
+.ODRInnerBox {
+    /*
+        Min height is required so sortable allows dropped objects when the
+        sortable itself has no children (of class ODRDataField)
+     */
+    min-height: 50px;
+}
+.ODRNotificationHeader {
+    font-weight: bold;
+}
+.ODRNotificationText {
+    margin-top: 5px;
+}
+
+.ODRRemodal {
+    max-width: 90%;
+    border: 1px solid #7fb9d8;
+    border-radius: 4px;
+    color: #3b8bba;
+    padding: 0 0 0 0;
+    overflow: hidden;
+}
+.ODRRemodal h3 {
+    font-size: 16px;
+    font-weight: bold;
+    color: #3b8bba;
+    background: #b8e8fa none repeat scroll 0 0;
+    position: absolute;
+    line-height: 35px;
+    top: 0;
+    margin: 0px 0px 0px 0px;
+    overflow: visible;
+    text-align: center;
+    width: 100%;
+}
+.ODRRemodalButtons {
+    /* display: block; */
+    cursor: pointer;
+    position: relative;
+    bottom: 0px;
+    background: white;
+    width: 100%;
+    box-sizing: border-box;
+    border-top: 1px solid #b8e8fa;
+    -webkit-box-shadow: 0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+    -moz-box-shadow:    0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+    box-shadow:         0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+}
+.ODRRemodalTitle {
+    -webkit-box-shadow: 0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    box-shadow:         0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+}
+.ODRRemodalCancel {
+    position: relative;
+    display: inline;
+    margin-top: 10px;
+    padding-top: 10px;
+    vertical-align: middle;
+    top: -5px;
+}
+.ODRRemodalLoading {
+    padding-top: 100px;
+    padding-bottom: 100px;
+    margin-left: -10px;
+}
+.ODRRemodalInner {
+    overflow: scroll;
+    margin-top: 35px;
+    /* margin-left: 10px; */
+    height: 10px;
+    /* -webkit-transition: max-height 2s;
+    -moz-transition: max-height 2s;
+    -ms-transition: max-height 2s;
+    -o-transition: max-height 2s;
+    transition: max-height 2s; */
+}
+.ODRRemodalInnerContent {
+    /* overflow: scroll; */
+    /* max-height: 1px; */
+}
+.remodal-close {
+    z-index: 100;
+}
+.ODRRemodalBody > div {
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+/* Media Queries */
+/* pure-hidden-xs */
+@media screen and (max-width:567px) {
+    .ODRRemodal h3 {
+        margin: 0px 0px 0px 0px;
+        padding: 0;
+        overflow: scroll;
+    }
+    .ODRRemodalButtons {
+        /* display: block; */
+        position: absolute;
+        bottom: 0px;
+    }
+    .ODRRemodal {
+        max-width: 100%;
+        color: green;
+        position:fixed !important;
+        position:absolute;
+        top:0;
+        right:0;
+        bottom:0;
+        left:0;
+        margin: 0;
+        padding: 0;
+        /* background: lightgoldenrodyellow; */
+    }
+}
+/* pure-hidden-sm */
+@media screen and (min-width:568px) and (max-width:767px) {
+}
+/* pure-hidden-md */
+@media screen and (min-width:768px) and (max-width:1023px) {
+}
+/* pure-hidden-lg */
+@media screen and (min-width:1024px) and (max-width:1279px) {
+}
+/* pure-hidden-xl */
+@media screen and (min-width:1280px) {
+}
+
+#ODRFileDownloadFormWrapper, #ODRMassDownloadFormWrapper {
+    display: none;
+    text-align: left;
+    font-size: 0.96em;
+    color: #444;
+    font-family: "Lato-Reg", sans-serif;
+}
+#ODRFileDownloadForm_loading, #ODRMassDownloadForm_loading {
+    padding: 100px 10px 100px 10px;
+    color: #3b8bba;
+}
+#ODRFileDownloadForm_submit, #ODRMassDownloadForm_submit {
+    margin: 10px 10px 10px 10px;
+}
+#ODRFileDownloadForm_progress, #ODRMassDownloadForm_progress {
+    font-size: 20px;
+    padding: 100px 10px 100px 10px;
+}
+#ODRFileDownloadFormWrapper li, #ODRMassDownloadFormWrapper li {
+    white-space: nowrap;
+    list-style-type: none;
+}
+
+
+
+
+/** BEGIN CSS **/
+/* End Loading CSS Widget */
+/*
+
+Dom Sammut 2013
+***************
+Web: www.domsammut.com
+Twitter: www.twitter.com/domsammut
+
+View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-animation
+
+*/
+@keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-moz-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-webkit-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-o-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-moz-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-webkit-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-o-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-moz-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-webkit-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-o-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+.loading-container,
+.loading {
+    height: 120px;
+    position: relative;
+    width: 120px;
+    border-radius: 100%;
+}
+
+
+.loading-container { margin: 40px auto }
+
+.loading {
+    border: 2px solid transparent;
+    border-color: transparent #fff transparent #FFF;
+    -moz-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -moz-transform-origin: 50% 50%;
+    -o-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -o-transform-origin: 50% 50%;
+    -webkit-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -webkit-transform-origin: 50% 50%;
+    animation: rotate-loading 1.5s linear 0s infinite normal;
+    transform-origin: 50% 50%;
+}
+
+.loading-container .loading {
+    border-color: transparent #b8e8fa transparent #b8e8fa;
+}
+.loading-container:hover .loading,
+.loading-container .loading {
+    -webkit-transition: all 0.5s ease-in-out;
+    -moz-transition: all 0.5s ease-in-out;
+    -ms-transition: all 0.5s ease-in-out;
+    -o-transition: all 0.5s ease-in-out;
+    transition: all 0.5s ease-in-out;
+}
+
+.loading-text {
+    -moz-animation: loading-text-opacity 2s linear 0s infinite normal;
+    -o-animation: loading-text-opacity 2s linear 0s infinite normal;
+    -webkit-animation: loading-text-opacity 2s linear 0s infinite normal;
+    animation: loading-text-opacity 2s linear 0s infinite normal;
+    color: #3b8bba;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 52px;
+    opacity: 0;
+    position: absolute;
+    text-align: center;
+    /* text-transform: uppercase; */
+    top: 0;
+    width: 120px;
+}
+/* End Loading CSS Widget */
+
+
+#ODRChooseView {
+    list-style-type: none;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    -webkit-padding-start: 0;
+}
+
+#ODRChooseView > li {
+    background-color: rgba(184, 232, 250, 0.25);
+    border-radius: 8px;
+    padding-bottom: 0.6em;
+    margin-bottom: 0.8em;
+    margin-left: 0.4em;
+    margin-right: 0.4em;
+    border: 1px solid #ddd;
+}
+#ODRChooseView:first-child {
+    padding-bottom: 0.6em;
+    margin-top: 0.6em;
+}
+#ODRChooseView h4 {
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    margin-top: 0.4em;
+}
+
+.ODRViewOptions {
+    list-style-type: none;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    -webkit-padding-start: 0;
+    margin-top: 1.0em;
+}
+
+.ODRChooseViewDescription {
+    box-sizing: border-box; /* 1 */
+    margin-top: 0.4em;
+    padding-left: 0.8em;
+    padding-right: 0.8em;
+    color: #888;
+    font-size: 1.0em;
+    text-align: left;
+}
+
+#ODRRenderPluginSettingsForm fieldset {
+    margin: 5px;
+    font-size: 1.2em;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+}
+.ODRRenderPlugin_option_description {
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0px 5px;
+}
+
+.ODRCopyViewProgress {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 0px;
+    width: auto;
+    position: relative;
+}
+.ODRDefaultPersonal,
+.ODRUnsetDefaultPersonal,
+.ODRDefaultDatabase,
+.ODRUnsetDefaultDatabase,
+.ODRMakeCurrentView,
+.ODRMakeViewShared,
+.ODREditThemeName,
+.ODRModifyTheme,
+.ODRCopyModifyTheme,
+.ODRDeleteTheme {
+    cursor: pointer;
+}
+
+.ODRDefaultPersonal:hover,
+.ODRUnsetDefaultPersonal:hover,
+.ODRDefaultDatabase:hover,
+.ODRUnsetDefaultDatabase:hover,
+.ODRMakeCurrentView:hover,
+.ODRMakeViewShared:hover,
+.ODREditThemeName:hover,
+.ODRModifyTheme:hover,
+.ODRCopyModifyTheme:hover,
+.ODRDeleteTheme:hover {
+    color: #2ca02c;
+}
+
+
+.ODRSearchBoxWrapper {
+    padding-top: 8px !important;
+    padding-bottom: 10px !important;
+}
+
+#ODRReturnToSearchResults {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.ODRJobList_header {
+    margin-top: 15px;
+}
+
+.overhang {
+    position: relative;
+    letter-spacing: normal;
+}
+
+.ODRSearchPageNotes_wrapper {
+    box-sizing: border-box;
+    padding: 4px 4px 4px 8px;
+    margin-top: 10px;
+}
+
+.ODRSearchPageNotes_wrapper p {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 6px;
+    padding-bottom: 4px;
+}
+#odr_bg {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+#search_form {
+    padding-left: 8px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.ODRMarkdown_source {
+    overflow: auto;
+    height: 500px;
+    width: 75%;
+}
+.ODRMarkdown_result {
+    overflow: auto;
+    height: 500px;
+    width: 75%;
+    text-align: left;
+    color: #2b2e38;
+}
+
+
+.ODRPluginErrorDiv {
+    margin: 0.5em;
+}
+
+
+/* Radio Option Modal CSS */
+.ODRRadioOptionWrapper_design {
+    padding-left: 15px;
+    text-align: left;
+    color: #555;
+}
+.ODRDeleteRadioOption, .ODRRadioOptionAnchor, .ODRDefaultRadioOption {
+    min-width: 22px;
+    display: inline-block;
+}
+
+/* Base Tag CSS */
+.ODRTagWrapper li, .ODRTagWrapper_search li {
+    list-style-type: none;
+}
+.ODRTagWrapper .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper .ODRTagLabel p {
+    display: inline;
+}
+.ODRTagGroup {
+    position: relative;
+    padding-left: 15px;
+    margin-top: 5px;
+}
+.ODRTagGroup:before {
+    position: absolute;
+    display: block;
+    width: 3px;
+    height: 100%;
+    content: "";
+    background-color: #808080;
+}
+.ODRTagWrapper > .ODRTagGroup:before {
+    /* no vertical line on left for top-level tags */
+    background-color: inherit;
+}
+.ODRTagItem {
+    margin: 5px;
+}
+.ODRTagSpacer {
+    display: inline-block;
+    padding-left: 9px;
+}
+
+
+/* Specific overrides for tag CSS */
+.ODRTagWrapper_design {
+    text-align: left;
+    color: #555;
+}
+
+
+/* Expand/Collapse All tags */
+.ODRTagGroup_header {
+    /*padding-left: 15px;*/
+    cursor: pointer;
+}
+.ODRTagGroup_headerlabel {
+    cursor: pointer;
+}
+
+/* Tag design modal */
+#ODRTagPositionForm {
+    display: none;
+}
+.ODRTagGroupContainer {
+    padding-left: 0;
+}
+.ODRTagGroupContainer li {
+    list-style-type: none;
+}
+.ODRTopLevelTagGroup:before {
+    /* no vertical line on left for top-level tags */
+    background-color: inherit;
+}
+
+.ODRTagAnchor, .ODRTagDelete {
+    min-width: 22px;
+    display: inline-block;
+}
+.ODRNeighborTag {
+    border: 2px solid #1c81d0 !important;
+    border-radius: 5px;
+}
+.ODRTagHighlight {
+    -webkit-box-shadow: 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: 0 0 0 6px rgba(54, 187, 114, 0.40);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+
+
+#csvexport_form td {
+    padding: 2px 5px;
+}
+.ODRDelimiterField {
+    text-align: center;
+    font-weight: bold;
+}
+.ODRUnselectedDatafield {
+    background-color: #ff0000;
+    opacity: 0.4;
+}
+.ODRSelectedDatafield {
+    background-color: #00ff00;
+    opacity: 0.4;
+}
+
+
+#ODRGroupListHeader {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+.ODRDatatypePermissionIcons {
+    position: relative;
+    top: -5px;
+    float: right;
+}
+.fa-ban {
+    color: #e9322d;
+}
+.fa-stack-1x {
+    color: #000000;
+}
+.ODRBlockedDatafield {
+    background-color: #000000;
+    opacity: 0.3;
+}
+.ODRVisibleDatafield {
+    background-color: #00ffff;
+    opacity: 0.2;
+}
+/* .ODREditableDatafield {} */
+
+#ODRTagForm {
+    /*max-height: 700px;*/
+    overflow-y: scroll;
+}
+.ODRTagImport_wrapper {
+    padding-left: 20px;
+    text-align: left;
+}
+.ODRTagImport_header {
+    padding-top: 50px;
+    text-align: center;
+}
+.ODRTagImport_content {
+    height: 500px;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+
+.ODRTagMoveHelpDiv {
+    margin-left: 25px;
+    /*vertical-align: middle;*/
+    /*padding-top: 10px;*/
+}
+
+.ODRSearchToggle {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    cursor: pointer;
+    color: #999999;
+}
+
+.ODRSearchVisible {
+    max-height: 96vh;
+    overflow: auto;
+    position: sticky;
+    position: -webkit-sticky;
+    position: -moz-sticky;
+    position: -ms-sticky;
+    position: -o-sticky;
+    top: 0;
+}
+.ODRSearchHidden {
+    position: absolute;
+    top: 48px;
+    right: 96vw;
+}
+.ODRSearchHidden > .ODRThemeElement {
+    position: sticky !important;
+    top: 48px;
+}
+.ODRSearchResultsWide {
+    width: 100% !important;
+    -webkit-transition: width 0.25s; /* Safari */
+    transition: width 0.25s;
+}
+@media only screen and (max-width : 740px) {
+    .ODRSearchVisible {
+        position: relative;
+    }
+    .ODRSearchHidden {
+        position: relative !important;
+        right: 0;
+    }
+    .ODRSearchToggle {
+        display: none;
+    }
+}
+
+
+.ODRShortResultsTitle {
+    width: 100% !important;
+    color: #666666 !important;
+}
+.ODRShortResultsHeaderLeft {
+}
+.ODRShortResultsHeaderRight {
+    float: right !important;
+    font-size: 10px;
+    color: #888888;
+    vertical-align: middle;
+}
+.ODRShortResultsHeader_edit {
+    float: right;
+    margin-right: 20px;
+}
+.ODRShortResultsUUID {
+    margin-left: 20px !important;
+    font-size: 10px !important;
+    color: #bbbbbb !important;
+    vertical-align: middle;
+}
+
+.ODRShortResults_empty {
+    text-align: center;
+    padding-top: 50px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.csvimport_header {
+    margin: 10px 10px 10px 0px;
+}
+.csvimport_inline_warning {
+    position: relative;
+    top: -3px;
+}
+
+#csv_import_table {
+    font-size: 1.25em;
+}
+
+#ODRCSVImport_files button.pure-button {
+    margin: 5px;
+}
+
+#ODRFieldHistoryDialogTable {
+    padding-left: 25px;
+    text-align: left;
+    /*overflow: auto;*/
+
+    color: #555;
+    line-height: 1.6;
+}
+
+.ODRLinkHeaderWrapper {
+    margin-top: 25px;
+
+    border: 1px solid #7fb9d8;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    padding-top: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+    border-radius: 4px;
+    background-color: white;
+}
+.ODRLinkHeader_caret {
+    margin-right: 10px;
+    font-size: 1.5em;
+}
+
+#ODRSearchBoxContent {
+    margin-top: 25px;
+}
+
+.SearchResults_link_box {
+    line-height: 1.1em;
+    margin: 0.5em;
+    font-size: 1.2em;
+}
+#TextResults_current_paginate > a {
+    margin: 5px;
+}
+
+#ODRLinkDetails_wrapper {
+    text-align: left;
+    min-height: 250px;
+}
+.ODRLinkDetailsHeader {
+    color: black;
+    text-align: right;
+    width: 10em;
+    margin-right: 1em;
+}
+.ODRLinkDetailsContent {
+    display: inline-block;
+}
+
+
+.ODRManageGroupsHeader {
+    border-bottom: 1px solid #111111;
+    font-weight: bold;
+    padding: 10px 18px;
+    margin-top: 15px;
+}
+.ODRGrayIcon {
+    opacity: 0.4;
+}
+.ODRGroupListCheckbox {
+    left: 35%;
+    position: relative;
+}
+
+.ODRGroupCheckbox {
+    cursor: pointer;
+}
+.ODRGroupName {
+    margin-left: 10px;
+}
+
+#ODRPageSelectSettings {
+    text-align: left;
+}
+
+#ODRPageSelectForm {
+    text-align: left;
+}
+
+#ODRPageSelect_header {
+    margin-top: 15px;
+    text-align: left;
+}
+
+.CSVExportMessage {
+    color: #3b8bba;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 52px;
+    opacity: 1;
+    text-align: center;
+}
+
+.JobDownloadLink {
+    font-size: 14px;
+    text-align: center;
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 16px;
+}
+
+#ImportLoadingBlock .ODRProgressBar,
+#LoadingBlock .ODRProgressBar {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    border: 2px solid #3b8bba;
+}
+
+.JobStatusWrapper {
+    height: 177px;
+}
+
+.JobComplete {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #3b8bba;
+    margin-top: 60px;
+}
+i {
+    position: relative;
+}
+.badge:after{
+    content:"";
+    position: absolute;
+    /* background: #f6ffa8; */
+    background: white;
+    color: #3b8bba;
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+    top: -7px;
+    right: -3px;
+    height:16px;
+    width: 16px;
+    border-radius: 50%;
+    border:1px solid white;
+}
+
+#ODRMessageList {
+    position: fixed;
+    z-index: 1000;
+    top: 40px;
+    right: 10px;
+    width: 400px;
+    height: 400px;
+    overflow-y: scroll;
+    background: white;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid blue;
+    border-radius: 6px;
+    list-style-type: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3b8bba;
+    margin-left: 0;
+}
+
+#ODRMessageList i {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: red;
+}
+
+#ODRMessageList li {
+    position: relative;
+    background: rgba(0,0,255, 0.04);
+    padding: 8px;
+    max-width: 96%;
+    margin-left: 2%;
+    margin-right: 8px;
+    margin-top: 6px;
+    border-radius: 6px;
+}
+
+#ODRMessageList h3 {
+    color: #3b8bba;
+}
+
+#ODRMessageList .viewed,
+#ODRMessageList .viewed h3 {
+    font-weight: normal;
+    color: black;
+}
+
+#ODRMessageList .JobDownloadLink {
+    position: absolute;
+    top: -12px;
+    right: 10px;
+    width: 137px;
+}
+
+#ODRMessages {
+    z-index: 99;
+}
+
+#ODRLoginLink {
+    z-index: 99;
+}
+
+#ODRSearchSidebar {
+    margin-left: -30px;
+}
+
+#ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
+  background-image:
+    linear-gradient(
+      to right,
+      RGBA(90, 154, 190, 0.2),
+      #ffffff 5%,
+      #ffffff
+    );
+    padding-left: 40px;
+    padding-right: 6px;
+}
+
+
+#ODRTrackingForm > fieldset {
+    margin: 10px;
+}
+.ODRTracking_placeholder {
+    color: white;
+    border-radius: 4px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    background: rgb(150, 150, 150);
+    padding: 5px 7px;
+    margin: 5px;
+}
+.ODRTracking_criteria {
+    color: white;
+    border-radius: 4px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    background: rgb(66, 184, 221);
+    padding: 5px 7px;
+    margin: 5px;
+}
+
+.ODRTrackingData_loading {
+    text-align: center;
+    font-size: 1.25em;
+}
+
+#ODRTrackingUserList {
+    color: #555;
+}
+.strikethrough {
+    text-decoration: line-through;
+}
+.underline {
+    text-decoration: underline;
+}
+.bold {
+    font-weight: bold;
+}
+
+#ODRTrackingDatafieldList {
+    text-align: left;
+    color: #555;
+}
+#ODRTrackingDatafieldList ul {
+    list-style: none;
+    padding-left: 25px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+#ODRTrackingDatafieldList li {
+    list-style-type: none;
+    margin: 3px;
+}
+.ODRTrackingDatafieldList_dt_header,
+.ODRTrackingDatafieldList_dt_container {
+    /*padding: 7px;*/
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+}
+.ODRTrackingDatafieldList_dt_header {
+    padding: 7px;
+    cursor: Pointer;
+    background-color: #6fa5c7;
+    color: #ffffff;
+}
+.ODRTrackingDatafieldList_spacer {
+    min-height: 10px;
+}
+
+.ODRRemoteSearch_dialog {
+    /*display: none;*/
+    text-align: left;
+    /*font-size: 0.96em;*/
+    color: #444;
+    font-family: "Lato-Reg", sans-serif;
+}
+.ODRRemoteSearch_pre {
+    margin: 0;
+    padding: 7px;
+}
+.ODRRemoteSearch_extra {
+    margin-left: 15px;
+}
+
+.ODRDatarecordListHeader {
+    border-bottom: 1px solid #111111;
+    font-weight: bold;
+    padding: 10px 18px;
+}
+
+.ODRChemistryPlugin_button {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRChemistryPlugin_popup {
+    position: absolute;
+    z-index: 100;
+    background: white;
+    border: 2px solid black;
+    border-radius: 4px;
+    display: none;
+    font-weight: 400;
+    padding: 5px;
+}
+.ODRChemistryPlugin_popup > .ODRPseudoField {
+    margin-top: 5px;
+}
+.ODRChemistryPlugin_input {
+    /*margin: 5px !important;*/
+    font-size: 100% !important;
+}
+.ODRChemistryPlugin_textarea {
+    margin: 5px 0 0 0 !important;
+    font-size: 100% !important;
+}
+.ODRChemistryPlugin_SaveIndicator {
+    top: 8px !important;
+}
+
+
+.ODRCellparamPlugin_button {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRCellparamPlugin_popup {
+    position: absolute;
+    z-index: 100;
+    background: white;
+    border: 2px solid black;
+    border-radius: 4px;
+    display: none;
+    font-weight: 400;
+    padding: 5px;
+}
+.ODRCellparamPlugin_popup > .ODRPseudoField {
+    margin-top: 5px;
+}
+.ODRCellparamPlugin_input {
+    /*margin: 5px !important;*/
+    font-size: 100% !important;
+}
+.ODRCellparamPlugin_textarea {
+    margin: 5px 0 0 0 !important;
+    font-size: 100% !important;
+}
+.ODRCellparamPlugin_SaveIndicator {
+    top: 8px !important;
+}
+
+
+.ODRIMAPlugin_StatusNotesTools {
+    margin: 0px 5px 5px;
+}
+.ODRIMAPlugin_StatusNotesButton {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRIMAPlugin_StatusNotesSelect {
+    width: 80%;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.ODRMultiDatafield_fieldtype {
+    width: 100%;
+}
+
+.ODRSpecialFieldSelection_header {
+    text-align: left;
+    text-indent: 15px;
+    font-size: 16px;
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 90%;
+}
+.ODRSpecialFieldSelection_datatype {
+    text-align: left;
+    color: black;
+}
+.ODRSpecialFieldSelection_datafields {
+    text-align: left;
+    margin-left: 7px;
+}
+.ODRSpecialFieldSelection_datafield {
+    text-align: left;
+    cursor: default;
+}
+.ODRSpecialFieldSelection_datafield_name {
+    margin-left: 3px;
+}
+
+#ODRSpecialDatafieldSelectionForm > .ODRSpecialFieldSelection_datafield {
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding: 3px;
+
+    width: 50%;
+}
+
+.ODRSpecialFieldSelection_trash,
+.ODRSpecialFieldSelection_up,
+.ODRSpecialFieldSelection_down {
+    cursor: pointer;
+    color: black;
+}
+
+
+.ODRDynamicGraph {
+    position: relative;
+}
+.DynamicGraphSettingsDiv {
+    cursor: pointer;
+    position: absolute;
+    z-index: 999;
+    top: 10px;
+    left: 20px;
+}
+.DynamicGraphSettings {
+    background-color: lightyellow;
+    border: 1px dashed gray;
+    padding: 5px;
+    position: absolute;
+    display: none;
+    min-width: 200px;
+    z-index: 999;
+    cursor: default;
+    /*left: 4px;*/
+    top: -45px;
+}
+.DynamicGraphSettingsDiv_close {
+    text-align: right;
+}
+
+.jGrowl {
+    color: #0e275d !important;
+}
+
+.jGrowl.top-right {
+    right: 0;
+    top: 70px !important;
+}
+
+button.jGrowl-close {
+    padding: none !important;
+}
+
+.jGrowl-notification {
+    background: white !important;
+}
+
+/*
+.ODRRecordName {
+    position: relative;
+    top: 10px;
+}
+ */

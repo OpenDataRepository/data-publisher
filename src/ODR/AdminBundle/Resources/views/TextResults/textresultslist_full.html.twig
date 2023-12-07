@@ -1,0 +1,631 @@
+{% spaceless %}
+
+{# The "intent" variable passed in is always "searching" for this file...
+   ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
+   when intent == 'linking' #}
+
+{% set theme = theme_array[initial_theme_id] %}
+
+{% set is_datatype_admin = false %}
+{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
+<div class="ODRFormWrap">
+    <div class="header">
+        <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+    </div>
+
+    {# Page/View Options - notitle is intentionally undefined #}
+    {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+        'datatype': datatype,
+        'theme': theme,
+        'page_type': 'search_results',
+        'search_key': search_key,
+
+        'has_datarecords': has_datarecords,
+        'has_search_restriction': has_search_restriction,
+        'editable_only': editable_only,
+
+        'display_export_options': true,
+        'intent': 'searching',
+        'user_permissions': user_permissions,
+    } %}
+
+    <div id="TextResults_wrapper" class="ODRTableOuterWrap">
+        <div class="ODRTableWrap">
+            <table id="TextResults" class="display ODRDatatableInstance">
+                <thead>
+                {% for num,col in column_names %}
+                    <th {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ col['title']|raw }}</th>
+                {% endfor %}
+                {% if can_edit_datatype %}
+                    <th></th>
+                {% endif %}
+                </thead>
+                <tbody>
+                {% for row_num,row in row_data %}
+                    <tr class="ODRTableRecord DataRecord_{{ row[0] }}" rel="{{ row[0] }}">
+                    {% for col_num,data in row %}
+                        <td {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ data|raw }}</td>
+                    {% endfor %}
+                    {% if can_edit_datatype %}    {# TODO - datarecord restriction? #}
+                        <td>
+                            <span class="ODREditLink">Edit</span>
+                        </td>
+                    {% endif %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div><!-- end of #TextResults_wrapper -->
+
+    <div id="mass_download_dialog_wrapper">
+        {% include 'ODRAdminBundle:Default:mass_download_dialog.html.twig' %}
+    </div>
+
+</div><!-- End of .ODRFormWrap -->
+
+<style>
+    .dataTables_paginate {
+        padding-top: 10px !important;
+        padding-left: 10px;
+    }
+    .paginate_button {
+        padding: 0em 0.75em !important;
+    }
+</style>
+
+<script>
+    $(function() {
+        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        $(".MenuDesignArea").remove();
+
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
+        var table = $("#TextResults").dataTable({
+        {# "columns": [{{ column_names | raw }} {% if can_edit_datatype %}{"title":"","searchable":false,"orderable":false}{% endif %}], #} {# column_names|raw already has trailing comma #}
+            "columnDefs": [
+                { targets: [0,1], visible: false, searchable: false },
+                {% if can_edit_datatype %}
+                { targets: -1, responsivePriority: 11000, searchable: false, orderable: false}    {# ensure the edit link gets hidden before the rest of the columns #}
+                {% endif %}
+            ],
+
+            "order": [[1, 'asc']],
+            "pageLength": {{ page_length }},
+            "autoWidth": false,
+
+{# https://datatables.net/reference/option/dom
+            "dom" parameter results in:
+            <div class="wrapper">
+                <div class="FLeft">
+                    {information}
+                </div>
+                <div class="FRight">
+                    {filter}
+                </div>
+                {processing}
+                {table}
+                <div class="FLeft">
+                    {information}
+                </div>
+           </div>
+#}
+            "dom": '<"FLeft"i><"FRight"f>rt<"FLeft"i>',
+            {# NOTE: no point having datatable's built-in pagination active...it won't work here since page_length === count(datarecord_list) #}
+            "paging": false,
+
+            "infoCallback": function(settings, start, end, max, total, pre) {
+{#
+                console.log('settings', settings);
+                console.log('start', start);
+                console.log('end', end);
+                console.log('max', max);
+                console.log('total', total);
+                console.log('pre', pre);
+#}
+                var offset = {{ offset }};
+                var page_length = {{ page_length }};
+                var records_total = {{ records_total }};
+
+                var actual_start = ((offset - 1) * page_length) + 1;
+                var actual_length = (offset * page_length);
+                if ( actual_length > records_total )
+                    actual_length = records_total;
+
+                if ( end === max ) {
+                    // No filtering happening
+                    return "Showing " + actual_start.toLocaleString('en-US') + " to " + actual_length.toLocaleString('en-US') + " of " + records_total.toLocaleString('en-US') + " entries";
+                }
+                else {
+                    // Filtering is happening, but it's not working on records off in other pages,
+                    //  if there are any...
+                    return "Showing " + end.toLocaleString('en-US') + " entries (filtered from " + records_total.toLocaleString('en-US') + " total entries)";
+                }
+            },
+
+            "responsive": true,
+            "fixedHeader": {
+               /* headerOffset: 42 */
+            },
+{#
+            // https://datatables.net/manual/server-side
+            "processing": true,   // only displays a little "processing..." blurb
+            "serverSide": true,
+#}
+
+            "stateSave": true,
+            "stateSaveCallback": function(settings, data) {
+                // stateSaveParams apparently doesn't let you insert new data to send to the server...have to do it here
+                data.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
+
+                // Need to fix problems with the 'order' parameter before it gets saved...
+                data.order = datatablesStateSave_cleanOrder(data.order);
+                // Need these in there too
+                data.datatype_id = {{ datatype.id }};
+                data.theme_id = {{ theme.id }};
+                // console.log('state save', data);
+
+                $.ajax({
+                    "url": "{{ path('odr_datatables_state_save') }}",
+                    "data": data,
+                    "dataType": "json",
+                    "type": "POST"
+                });
+            },
+            "stateLoadCallback": function(settings) {
+                var state;
+                var data = {odr_tab_id: window.sessionStorage.getItem('odr_tab_id')};
+
+                $.ajax({
+                    "url": "{{ path('odr_datatables_state_load') }}",
+                    "data": data,
+                    "async": false,
+                    "dataType": "json",
+                    "type": "POST",
+                    "success": function(json) {
+                        // console.log('state load raw', json);
+
+                        // There are two entries in the data received from ODR...
+                        state = json.state;
+                        var sort_criteria = json.sort_criteria;
+
+                        // Symfony properly quotes everything in the JSON return, but DataTables
+                        //  state loading will break if some of the properties are strings...
+                        if ( state.start !== undefined) {
+                            state.start = parseInt(state.start);
+                            state.length = parseInt(state.length);
+
+                            // Don't seem to need to convert the json.time parameter
+                        }
+                        if ( state.columns !== undefined ) {
+                            for (var i = 0; i < state.columns.length; i++) {
+                                if ( state.columns[i].visible === "false" )
+                                    state.columns[i].visible = false;
+                                else if ( state.columns[i].visible === "true" )
+                                    state.columns[i].visible = true;
+                            }
+                        }
+
+                        // Need to also convert any sort_criteria into the correct datatables.js ordering
+                        // console.log( sort_criteria );
+                        if ( sort_criteria !== undefined && sort_criteria.datafield_ids.length > 0 ) {
+                            var table_obj = $("#TextResults").DataTable();
+
+                            var datafield_ids = sort_criteria.datafield_ids;
+                            var sort_directions = sort_criteria.sort_directions;
+
+                            // Need to use a for loop here, because there could be multiple sort_criteria
+                            var new_col_order = [];
+                            for (var i = 0; i < datafield_ids.length; i++) {
+                                var df_id = datafield_ids[i];
+                                var dir = sort_directions[i];
+
+                                // Use the internal name selector provided by datatables.js
+                                // @see TableThemeHelperService::getColumnNames()
+                                var col = table_obj.column( df_id + ':name' ).index();
+                                if ( col !== undefined ) {
+                                    // If the datafield being sorted by is in the table, then instruct
+                                    //  datatables.js to sort on that column
+                                    new_col_order.push([col, dir]);
+                                }
+                                else {
+                                    // If any datafield in the sort_criteria is not in the table,
+                                    //  then default back to the default_sortorder column
+                                    new_col_order = [ [1, "asc"] ];
+                                    break;
+                                }
+                            }
+
+                            // Don't need to draw after setting the order, apparently...most likely
+                            //  because the table doesn't actually exist yet
+                            // console.log( 'new_col_order', new_col_order );
+                            if ( new_col_order.length > 0 )
+                                table_obj.order( new_col_order );
+                        }
+                    }
+                });
+
+                // console.log('state load after', state);
+                return state;
+            },
+
+{#
+            "ajax": {
+                "url": "{{ path('odr_datatables_row_request') }}",
+                "type": "POST",
+                "data": function (d) {
+                    d.datatype_id = {{ datatype.id }};
+                    d.theme_id = {{ theme.id }};
+                    d.search_key = "{{ search_key }}";
+                    d.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
+
+                    // Need to fix problems with the 'order' parameter before it gets saved...
+                    d.order = datatablesAjax_cleanOrder(d.order);
+                    // console.log('row request', d);
+                },
+                "dataSrc": function (json) {
+                    // Apparently need to return this for datatables to work
+                    return json.data;
+                }
+            },
+
+            "createdRow": function( row, data, index ) {
+                $(row).addClass('ODRTableRecord DataRecord_' + data[0]);
+                $(row).attr('rel', data[0]);
+            },
+#}
+            "language": {
+                "emptyTable": {% if logged_in %}"No Datarecords found"{% else %}"No Datarecords found...try logging in"{% endif %}
+            }
+        });
+
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
+
+{% if display_theme_warning %}
+        $("#ODRMainMenu").overhang({
+            type: "warn",
+            message: "The originally requested layout is marked as private.  The database's default layout is being displayed instead.",
+            closeConfirm: true
+        });
+{% endif %}
+
+        {% if notify_of_sync is defined and notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'page_type': 'search_results',
+            'search_key': search_key,
+        }%}
+        {% endif %}
+
+
+        $("#TextResults").on('click', '.ODRTableRecord', function(event) {
+
+{% if can_edit_datatype %}
+            if ( $(event.target).is('span.ODREditLink') ) {
+                // Don't load view mode for Datarecord...
+                event.stopImmediatePropagation();
+
+                // ...load edit mode instead
+                // var offset = $("#TextResults").DataTable().page.info().page + 1;    // Datatables lacks correct page info in this mode
+                loadDataRecord( $(this).attr('rel'), 'edit', {{ offset }}, true );
+                return;
+            }
+{% endif %}
+
+            if ( $(event.target).is('a.ODRDownload') ) {
+                // Don't load view mode when clicking on file download links in the table
+                event.stopImmediatePropagation();
+            }
+            else if ( $(this).parent().parent().hasClass('collapsed')
+                && $(event.target).is(":first-child")
+            ) {
+                // If datatables is hiding columns because there's too many of them, then the first
+                //  visible column in the table is where you click to show the hidden columns
+            }
+            else {
+                // A click anywhere else should load view mode of Datarecord
+                // var offset = $("#TextResults").DataTable().page.info().page + 1;    // Datatables lacks correct page info in this mode
+                loadDataRecord( $(this).attr('rel'), 'view', {{ offset }}, true );
+            }
+        });
+    });
+{#
+    // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
+    $.fn.dataTable.ext.errMode = 'none';
+    $("#TextResults").on('error.dt', function(e, settings, techNote, message) {
+        console.log(message);
+
+        // Also, makes slightly more sense to disable the buttons to "do" stuff with the search results list on error
+        $(".ODRExportButtons").find("button").each(function() {
+            $(this).attr('disabled', 'disabled');
+        });
+    });
+#}
+{#
+    // Datatable's little "processing" blurb isn't sufficient, need to use ODR's search overlay
+    $("#TextResults").on('preXhr.dt', function(e, settings, data) {
+        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig
+    });
+#}
+{#
+    // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...
+    $("#TextResults").on('xhr.dt', function(e, settings, json, xhr) {
+
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig
+
+        if ( xhr.status !== 200 || json === undefined || json === null ) {
+            // Don't need to actually "do" something here...just need to prevent dataTables from continuing to execute
+        }
+        else {
+            if (json.data[0] === undefined)
+                return;
+
+            // check number of columns in json array
+            var reload_page = false;
+            var original_num_columns = {{ num_columns }};
+
+            if ( original_num_columns === 2 ) {
+                // If no columns in the first place, display a warning...without this, the table
+                //  would always set reload_page to true, causing an infinite reload cycle
+                $("#ODRMainMenu").overhang({
+                    type: "warn",
+                    message: "This layout is either empty, or you're unable to view its contents.  You need to switch to a different layout to see any search results.",
+                    closeConfirm: true
+                });
+            }
+            else if ( json.data[0].length !== original_num_columns ) {
+                // If number of columns is different from what's expected, reload the page
+                reload_page = true;
+            }
+{% if can_edit_datatype %}
+            else {
+                for (var i = 0; i < json.data.length; i++) {
+                    // User can edit at least one datarecord for this datatype...ensure user has
+                    //  permission to edit this specific datarecord before tacking on an edit link
+                    var dr_id = parseInt( json.data[i][0] );
+                    if ( json.editable_datarecord_list[dr_id] !== undefined )
+                        json.data[i].push('<span class="ODREditLink">Edit</span>');
+                    else
+                        json.data[i].push('<span></span>');
+                }
+            }
+{% endif %}
+
+            // If the json data has fewer columns than expected, splice in enough columns so
+            //  datatables doesn't throw an alert before reloading the page
+            if ( json.data[0].length < original_num_columns ) {
+                for (var i = 0; i < json.data.length; i++) {
+                    for (var j = json.data[i].length; j < original_num_columns; j++)
+                        json.data[i].push('');
+                }
+            }
+
+            // Reload the page if necessary
+            // TODO - notify user why page reloaded?
+            if (reload_page)
+                window.location.reload();
+        }
+    });
+#}
+
+    var scrolled = false;
+    $("#TextResults").on('draw.dt', function(e, settings) {
+
+        // Enable users to download files straight from the table
+        $(this).find('a').each(function() {
+            $(this).addClass('ODRDownload');
+            $(this).attr('target', '_blank');
+        });
+
+        {% if scroll_target == '' %}
+        var scroll_target = '';
+        {% else %}
+        var scroll_target = '{{ scroll_target }}';
+        {% endif %}
+
+        // Only trigger this scrolling functionality once per page load
+        if ( !scrolled )
+            scrolled = true;
+        else
+            return false;
+
+        if ( scroll_target != '' ) {
+            // Scroll to a specific record in the search results
+            var target = '.DataRecord_' + scroll_target;
+            if ( $(target) !== undefined && $(target).offset() !== undefined ) {
+                setTimeout(function() {
+                    $('html, body').animate({
+                        scrollTop: $(target).offset().top-75
+                    }, 500);
+                }, 250);    // delay doesn't actually matter here
+            }
+            else {
+                // The record isn't displayed on this page, so reset to the top
+                window.scrollTo(0, 0);
+            }
+        }
+        else {
+            // Don't have a specific record to scroll to, so reset to the top of the page
+            window.scrollTo(0, 0);
+        }
+
+{% if page_length < records_total %}
+        // This version of the page displays up to 10k records at once, but the current database
+        //  has more than that...due to not using the "ajax" parameter, and only printing {{ page_length }}
+        //  records to the page in the first place, datatables.js currently thinks there's only 1 page
+        //  of data.
+
+        // This isn't correct, obviously, but since the automatic pagination can't work, it needs
+        //  to be done manually...
+        var offset = {{ offset }};
+        var page_length = {{ page_length }};
+        var records_total = {{ records_total }};
+
+        var last_page = Math.ceil( records_total / page_length );
+        var has_previous = false;
+        if ( offset > 1 )
+            has_previous = true;
+        var has_next = false;
+        if ( offset < last_page )
+            has_next = true;
+
+        // In order to "manually" add pagination, need to build up some HTML for the buttons
+        var paginate_html = '';
+        paginate_html += '<div id="TextResults_paginate" class="dataTables_paginate paging_input">';
+        // if ( on_first_page )
+        //     paginate_html += '<span id="TextResults_first" class="first paginate_button disabled">First</span>';
+        // else
+        //     paginate_html += '<span id="TextResults_first" class="first paginate_button">First</span>';
+        if ( !has_previous )
+            paginate_html += '<span id="TextResults_previous" class="previous paginate_button disabled">Previous</span>';
+        else
+            paginate_html += '<span id="TextResults_previous" class="previous paginate_button">Previous</span>';
+
+        paginate_html += '<span>Page ' + offset + ' of ' + last_page + '</span>';
+
+        if ( !has_next )
+            paginate_html += '<span id="TextResults_next" class="next paginate_button disabled">Next</span>';
+        else
+            paginate_html += '<span id="TextResults_next" class="next paginate_button">Next</span>';
+        // if ( on_last_page )
+        //     paginate_html += '<span id="TextResults_last" class="last paginate_button disabled">Last</span>';
+        // else
+        //     paginate_html += '<span id="TextResults_last" class="last paginate_button">Last</span>';
+        paginate_html += '</div>';
+
+        // This HTML gets appended after the existing info divs...datatables.js won't add otherwise
+        //  empty pagination divs to the page
+        $(".dataTables_info").parent().each(function() {
+            $(this).append(paginate_html);
+        });
+
+        // Also need to attach event handlers to the new buttons
+        $(".paginate_button").on('click', function() {
+            var offset = {{ offset }};
+            var page_length = {{ page_length }};
+            var records_total = {{ records_total }};
+            var last_page = Math.ceil( records_total / page_length );
+
+            if ( $(this).hasClass('previous') && offset > 1 )
+                UpdateURL( '{{ path_str }}' + '/' + (offset-1) );
+            else if ( $(this).hasClass('next') && offset < last_page )
+                UpdateURL( '{{ path_str }}' + '/' + (offset+1) );
+        });
+{% endif %}
+
+        {# NOTE - need to include this here so it executes after the table finishes drawing, instead of after page load #}
+        {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {
+            'page_type': 'text'
+        } %}
+    });
+
+    /**
+     * Seems like datatables.js has an internal bug when using multisort...it goes from
+     * "none" -> "asc" -> "desc" -> "asc" -> "asc" instead of
+     * "none" -> "asc" -> "desc" -> "none" -> "asc"
+     * ...the only way to fix this seems to be to modify the order array to get rid of duplicates.
+     *
+     * @param {array} order
+     * @returns {array}
+     */
+    function datatablesStateSave_cleanOrder(order) {
+        var cleaned_order = [];
+        var redraw_table = false;
+        $.each(order, function(i,elem) {
+            // The "order" parameter is only supposed to have a column_num and a direction, but it
+            //  sometimes has a third value too...
+            if ( elem.length > 2 )
+                elem = elem.slice(0, 2);
+
+            // Determine whether this column was already seen...
+            var col_id = elem[0];
+            if ( parseInt(col_id) > 1 ) {
+                var index = -1;
+                $.each(cleaned_order, function(j,saved_col) {
+                    if ( saved_col[0] == col_id ) {
+                        index = j;
+                        return false;
+                    }
+                });
+
+                if ( index === -1 ) {
+                    // ...if not, then save the result
+                    elem[0] = elem[0].toString();
+                    cleaned_order.push(elem);
+                }
+                else {
+                    if ( cleaned_order[index][1] == elem[1] ) {
+                        // If the direction is the same, then modify what's submitted to mimic "none"
+                        cleaned_order = cleaned_order.slice(0, -1);
+                        redraw_table = true;
+                    }
+                    else {
+                        // Replace the previous entry when the new one has a different direction
+                        cleaned_order[index][1] = elem[1];
+                    }
+                }
+            }
+        });
+
+        if ( redraw_table && cleaned_order.length > 0 ) {
+            // console.log('forcing redraw');
+            $("#TextResults").DataTable().order(cleaned_order).draw();
+        }
+        // console.log('cleaned_order', cleaned_order);
+
+        return cleaned_order;
+    }
+
+    /**
+     * This does the same stuff as datatablesStateSave_cleanOrder() for the same reason, but the
+     * ajax call has a slightly different structure to it...
+     *
+     * @param {array} order
+     * @returns {array}
+     */
+    function datatablesAjax_cleanOrder(order) {
+        var cleaned_order = [];
+        $.each(order, function(i,elem) {
+            // Determine whether this column was already seen...
+            var col_id = elem.column;
+            if ( parseInt(col_id) > 1 ) {
+                var index = -1;
+                $.each(cleaned_order, function(j,saved_col) {
+                    if ( saved_col.column == col_id ) {
+                        index = j;
+                        return false;
+                    }
+                });
+
+                if ( index === -1 ) {
+                    // ...if not, then save the result
+                    cleaned_order.push(elem);
+                }
+                else {
+                    if ( cleaned_order[index].dir == elem.dir ) {
+                        // If the direction is the same, then modify what's submitted to mimic "none"
+                        cleaned_order = cleaned_order.slice(0, -1);
+                    }
+                    else {
+                        // Replace the previous entry when the new one has a different direction
+                        cleaned_order[index].dir = elem.dir;
+                    }
+                }
+            }
+        });
+
+        return cleaned_order;
+    }
+</script>
+
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{{ js.write(search_theme_id, search_key) }}
+
+{% endspaceless %}

@@ -22,6 +22,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
@@ -151,6 +152,8 @@ class BridgeController extends ODRCustomController
     public function jupyterhubexportAction(Request $request)
     {
         try {
+            throw new ODRNotImplementedException();
+
             // ----------------------------------------
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */

@@ -24,12 +24,18 @@
                         '<span class="ODRFakeProgressBar_overlay"><span class="ODRFakeProgressBar"></span></span>' +
                     '</div>';
 
-                var anchor = $("#ODRFileUpload_" + target).parent().prev();
+                var anchor = $("#ODRFileUpload_" + target).parent().prev().children(".ODRFileDatafield_content").first();
                 $(anchor).find(".ODRFileDatafield_empty").remove();
                 $(anchor).append(html);
             }
             else {
-                var html = '<div class="pure-u-1 ODRFileUploadProgressDiv" id="' + id + '"><span class="pure-u-1">' + filename + '</span><span class="pure-u-1 ODRProgressBar" value="0" max="' + filesize + '"></span><span class="ODRFileUploadCancel pure-u-1-4 cancel-button pure-button">Cancel</span><span class="pure-u-3-4 ODRUploadError"></span></div>';
+                var html =
+                    '<div class="pure-u-1 ODRFileUploadProgressDiv" id="' + id + '">' +
+                        '<span class="pure-u-1">' + filename + '</span>' +
+                        '<span class="pure-u-1 ODRProgressBar" value="0" max="' + filesize + '"></span>' +
+                        '<span class="ODRFileUploadCancel pure-u-1-4 cancel-button pure-button">Cancel</span>' +
+                        '<span class="pure-u-3-4 ODRUploadError"></span>' +
+                    '</div>';
                 $("#ODRFileUploadProgress_" + target).append(html);
 
                 // Attach a cancel handler for this file

@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
@@ -62,11 +64,13 @@
     {% set can_execute_plugin = false %}
 
     {% for rpi_num,rpi in datafield.renderPluginInstances %}
-        {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+        {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
             {% set can_execute_plugin = rpi|can_execute_datafield_plugin(datafield, datarecord, rendering_options) %}
 
             {# Only want to save the render_plugin_instance if it's render-able #}
-            {% set render_plugin_instance = rpi %}
+            {% if can_execute_plugin %}
+                {% set render_plugin_instance = rpi %}
+            {% endif %}
         {% endif %}
     {% endfor %}
 
@@ -151,7 +155,7 @@
 
     {% elseif field_typename == "Image" %}
         {#<fieldset>#}
-            <div class="ODRFileDatafield_header pure-u-1">
+            <div class="ODRFileDatafield_header ODRFileImageHeader pure-u-1 {% if themeDatafield.hideHeader %}ODRFileImageHeader_hidden{% endif %}">
                 <span title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
             </div>
             <div id="imagegallery_{{ datafield.id }}_{{ datarecord.id }}" class="ODRImageGallery pure-u-1">
@@ -168,10 +172,20 @@
                     {% set image_ext = oimage.ext %}
                     {% set image_caption = oimage.imageMeta.caption %}
                     {% set image_filename = oimage.imageMeta.originalFileName %}
+                    {% set public_image_filename = 'Image_' ~ image.id ~ '.' ~ oimage.ext %}
 
+                    {#
+                        {% if dom.dueDate|date('U') > '2012-12-31'|date('U') %}
+                        Public images should link directly to file...
+                        Are we even using thumbnails???
+                    #}
                     <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield_meta.children_per_row }}"  rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
                         <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
-                            <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}?{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                            {% if oimage_meta.publicDate|date('U') < 'now'|date('U') %}
+                                <img class="pure-img" src="{{ config_site_baseurl }}/uploads/images/{{ public_image_filename }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                            {% else %}
+                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}?{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                            {% endif %}
                         </a>
                     </div>
             {% endfor %}

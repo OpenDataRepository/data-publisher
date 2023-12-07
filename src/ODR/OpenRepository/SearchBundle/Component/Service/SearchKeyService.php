@@ -25,11 +25,16 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
+use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 
 
 class SearchKeyService
 {
+    /**
+     * @var EntityManager
+     */
+    private $em;
 
     /**
      * @var DatabaseInfoService
@@ -63,6 +68,7 @@ class SearchKeyService
     /**
      * SearchKeyService constructor.
      *
+     * @param EntityManager $entity_manager
      * @param DatabaseInfoService $database_info_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
@@ -70,12 +76,14 @@ class SearchKeyService
      * @param Logger $logger
      */
     public function __construct(
+        EntityManager $entity_manager,
         DatabaseInfoService $database_info_service,
         DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
         UserManager $user_manager,
         Logger $logger
     ) {
+        $this->em = $entity_manager;
         $this->dbi_service = $database_info_service;
         $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
@@ -516,6 +524,7 @@ class SearchKeyService
         $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id, true);
 
         $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id);
+        $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
             if ( $key === 'dt_id' || $key === 'gen' ) {
@@ -523,26 +532,111 @@ class SearchKeyService
                 continue;
             }
             else if ($key === 'sort_by') {
-                if ( !isset($value[0]) )
-                    continue;
-
-                // TODO - eventually need multi-datafield sorting
                 // TODO - eventually need sort by created/modified date
-                if ( count($value) > 1 )
-                    throw new ODRNotImplementedException('Unable to sort by multiple fields at the moment', $exception_code);
 
-                if ( !isset($value[0]['dir']) )
-                    throw new ODRBadRequestException('Invalid search key: "dir" not set in "sort_by" segment', $exception_code);
-                if ( !isset($value[0]['df_id']) )
-                    throw new ODRBadRequestException('Invalid search key: missing "df_id" inside "sort_by"', $exception_code);
+                // The values for the "sort_by" key are allowed to either be an object...
+                // e.g. {"dt_id":"3","sort_by":{"sort_df_id":"18","sort_dir":"asc"}}
+                // ...or it's allowed to be an array of objects...
+                // e.g. {"dt_id":"3","sort_by":[{"sort_df_id":"18","sort_dir":"asc"}]}
 
-                $sort_dir = $value[0]['dir'];
-                $sort_df_id = $value[0]['df_id'];
+                // Since we want multi-datafield sorting to be a thing, convert the first form into
+                //  the second form if needed
+                if ( count($value) === 2 && isset($value['sort_df_id']) && isset($value['sort_dir']) ) {
+                    $tmp = $value;
+                    $value = array($tmp);
+                }
 
-                if ($sort_dir !== 'asc' && $sort_dir !== 'desc')
-                    throw new ODRBadRequestException('Invalid search key: received invalid sort direction "'.$sort_dir.'"', $exception_code);
-                if ( !is_numeric($sort_df_id) )
-                    throw new ODRBadRequestException('Invalid search key: sort field id "'.$sort_df_id.'" is not numeric', $exception_code);
+                // At this point, the value must be an array
+                if ( !isset($value[0]) )
+                    throw new ODRBadRequestException('Invalid search key: "sort_by" segment is not properly formed', $exception_code);
+
+                // Iterate over each of the datafields listed as sort keys
+                foreach ($value as $num => $sort_criteria) {
+                    if ( !(count($sort_criteria) === 2 && isset($sort_criteria['sort_df_id']) && isset($sort_criteria['sort_dir'])) )
+                        throw new ODRBadRequestException('Invalid search key: element '.$num.' in "sort_by" segment is not properly formed', $exception_code);
+
+                    // Ensure both the sort direction and the sort datafield are minimally correct...
+                    $sort_dir = $sort_criteria['sort_dir'];
+                    if ( !($sort_dir === 'asc' || $sort_dir === 'desc') )
+                        throw new ODRBadRequestException('Invalid search key: element '.$num.' in "sort_by" segment has invalid sort direction "'.$sort_dir.'"', $exception_code);
+                    $sort_df_id = $sort_criteria['sort_df_id'];
+                    if ( !is_numeric($sort_df_id) )
+                        throw new ODRBadRequestException('Invalid search key: element '.$num.' in "sort_by" segment has non_numeric sort field "'.$sort_df_id.'"', $exception_code);
+
+                    // ...and also probably should ensure the sort datafield is valid at this point
+                    $sort_df_typename = null;
+
+                    // First part of this is ensuring the given field is related to the datatype
+                    //  being searched...
+                    $dt = $datatype_array[$dt_id];
+                    if ( isset($dt['dataFields'][$sort_df_id]) ) {
+                        // ...it belongs to the top-level datatype, so it's related by default
+                        $df = $dt['dataFields'][$sort_df_id];
+                        $sort_df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                    }
+                    else if ( isset($dt['descendants']) ) {
+                        // ...otherwise, the datafield is only related if it belongs to a child/linked
+                        //  descendant that is only allowed to have a single record
+                        $valid_descendants = array();
+
+                        $datatypes_to_check = $dt['descendants'];
+                        while ( !empty($datatypes_to_check) ) {
+                            $tmp = array();
+                            foreach ($datatypes_to_check as $tmp_dt_id => $tmp_dt_data) {
+                                if ( $tmp_dt_data['multiple_allowed'] === 0 && isset($datatype_array[$tmp_dt_id]) ) {
+                                    // Since this descendant only allows a single record, the top
+                                    //  level datatype is allowed to sort by it
+                                    $valid_descendants[$tmp_dt_id] = $datatype_array[$tmp_dt_id];
+
+                                    // Should check this datatype's descendants too, if any exist
+                                    if ( isset($datatype_array[$tmp_dt_id]['descendants']) ) {
+                                        foreach ($datatype_array[$tmp_dt_id]['descendants'] as $descendant_dt_id => $descendant_dt_data)
+                                            $tmp[$descendant_dt_id] = $descendant_dt_data;
+                                    }
+                                }
+                            }
+
+                            // Reset for the next loop
+                            $datatypes_to_check = $tmp;
+                        }
+
+                        // The datafield is valid for sorting if it belongs to any of the datatypes
+                        //  found in the previous loop
+                        foreach ($valid_descendants as $tmp_dt_id => $tmp_dt) {
+                            if ( isset($tmp_dt['dataFields'][$sort_df_id]) ) {
+                                // ...it belongs to the top-level datatype, so it's related by default
+                                $df = $tmp_dt['dataFields'][$sort_df_id];
+                                $sort_df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                            }
+                        }
+                    }
+
+                    // If not found, then the datafield isn't valid to use as a sort field
+                    if ( is_null($sort_df_typename) )
+                        throw new ODRBadRequestException('Invalid search key: element '.$num.' in "sort_by" segment, sort_df_id "'.$sort_df_id.'" is not an acceptable sortfield', $exception_code);
+
+                    // Second part of this is verifying the datafield has a sortable typename
+                    if ( is_null($sortable_typenames) ) {
+                        $query = $this->em->createQuery(
+                           'SELECT ft.typeName
+                            FROM ODRAdminBundle:FieldType ft
+                            WHERE ft.canBeSortField = 1
+                            AND ft.deletedAt IS NULL'
+                        );
+                        $results = $query->getArrayResult();
+
+                        $sortable_typenames = array();
+                        foreach ($results as $result) {
+                            $typename = $result['typeName'];
+                            $sortable_typenames[$typename] = 1;
+                        }
+                    }
+
+                    // Technically, this can reveal which typeclass a datafield is even if the user
+                    //  isn't allowed to see it, but...that's probably not critical?
+                    if ( !isset($sortable_typenames[$sort_df_typename]) )
+                        throw new ODRBadRequestException('Invalid search key: element '.$num.' in "sort_by" segment, sort_df_id "'.$sort_df_id.'" cannot be sorted', $exception_code);
+                }
             }
             else if ( is_numeric($key) ) {
                 // Ensure the datafield is valid to search on
@@ -784,13 +878,11 @@ class SearchKeyService
                 continue;
             }
             else if ($key === 'sort_by') {
-                $sort_dir = $value[0]['dir'];
-                $sort_df_id = $value[0]['df_id'];
+                // Don't want to do anything with this key either...
+                continue;
 
-                $criteria['sort_by'] = array(
-                    'sort_dir' => $sort_dir,
-                    'sort_df_id' => $sort_df_id
-                );
+                // ...the reason being that if SearchAPIService::performSearch() directly used this
+                //  entry, then any sort_criteria for this tab in the user's session would be ignored
             }
             else if ($key === 'gen') {
                 // Don't do anything if this key is empty
@@ -1691,7 +1783,8 @@ class SearchKeyService
 
 
     /**
-     * Converts a search key into an array that's more human readable.
+     * Converts a search key into an array that's more human readable.  Attempts to compensate for
+     * any errors in the search key.
      *
      * @param string $search_key
      *
@@ -1734,10 +1827,14 @@ class SearchKeyService
                     $df_lookup[$df_id][$key] = array();
                     foreach ($df_data[$key] as $num => $entity) {
                         $id = $entity['id'];
-                        if ( $key === 'radioOptions' )
+                        if ( $key === 'radioOptions' ) {
                             $df_lookup[$df_id][$key][$id] = $entity['optionName'];
-                        else
-                            $df_lookup[$df_id][$key][$id] = $entity['tagName'];
+                        }
+                        else {
+                            $tag_names = self::getTagNames($entity);
+                            foreach ($tag_names as $tag_id => $tag_name)
+                                $df_lookup[$df_id][$key][$tag_id] = $tag_name;
+                        }
                     }
                 }
             }
@@ -1759,6 +1856,13 @@ class SearchKeyService
                 $readable_search_key['General Search'] = $value;
             }
             else if ( is_numeric($key) ) {
+                // If this datafield doesn't exist (most likely due to deletion), then don't fully
+                //  process it
+                if ( !isset($df_lookup[$key]) ) {
+                    $readable_search_key['unrecognized df_id '.$key] = '<ERROR: inaccessible/deleted datafield>';
+                    continue;
+                }
+
                 $df_name = $df_lookup[$key]['fieldName'];
                 $df_typeclass = $df_lookup[$key]['typeClass'];
 
@@ -1794,7 +1898,7 @@ class SearchKeyService
                         }
 
                         $entity_name = $df_lookup[$key][$entity_key][$entity_id];
-                        $readable_search_key[$df_name][$entity_id] = $entity_name.' '.$selected;
+                        $readable_search_key[$df_name][$entity_id] = '"'.$entity_name.'" '.$selected;
                     }
                 }
                 else {
@@ -1819,6 +1923,13 @@ class SearchKeyService
                 $pieces = explode('_', $key);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
+                    // If this datafield doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($df_lookup[ $pieces[0] ]) ) {
+                        $readable_search_key['unrecognized df_id '.$pieces[0]] = '<ERROR: inaccessible/deleted datafield>';
+                        continue;
+                    }
+
                     // This is a DatetimeValue field...locate/deal with both possible pieces at once
                     $df_name = $df_lookup[$pieces[0]]['fieldName'];
 
@@ -1842,6 +1953,13 @@ class SearchKeyService
                         $readable_search_key[$df_name] = 'Before "'.$end.'"';
                 }
                 else if ( count($pieces) === 3 ) {
+                    // If this datatype doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($dt_lookup[ $pieces[1] ]) ) {
+                        $readable_search_key['unrecognized dt_id '.$pieces[1]] = '<ERROR: inaccessible/deleted datatype>';
+                        continue;
+                    }
+
                     $dt_name = $dt_lookup[ $pieces[1] ];
 
                     // $key is the public status entry
@@ -1851,6 +1969,13 @@ class SearchKeyService
                         $readable_search_key[$dt_name]['pub'] = 'Non-public records';
                 }
                 else if ( $pieces[3] === 'by' ) {
+                    // If this datatype doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($dt_lookup[ $pieces[1] ]) ) {
+                        $readable_search_key['unrecognized dt_id '.$pieces[1]] = '<ERROR: inaccessible/deleted datatype>';
+                        continue;
+                    }
+
                     $dt_name = $dt_lookup[ $pieces[1] ];
 
                     // $key is either createdBy or modifiedBy
@@ -1867,6 +1992,13 @@ class SearchKeyService
                     $readable_search_key[$dt_name][$sub_key] = $type.' by '.$user_name;
                 }
                 else {
+                    // If this datatype doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($dt_lookup[ $pieces[1] ]) ) {
+                        $readable_search_key['unrecognized dt_id '.$pieces[1]] = '<ERROR: inaccessible/deleted datatype>';
+                        continue;
+                    }
+
                     $dt_name = $dt_lookup[ $pieces[1] ];
 
                     // $key is either created or modified
@@ -1900,5 +2032,32 @@ class SearchKeyService
         }
 
         return $readable_search_key;
+    }
+
+
+    /**
+     * Converts a tag from the cached datatype array, including all of its children, into a new
+     * array.
+     *
+     * @param array $tag
+     * @return array
+     */
+    private function getTagNames($tag)
+    {
+        // Save the current tag
+        $tmp = array($tag['id'] => $tag['tagName']);
+
+        // If the tag has children...
+        if ( !empty($tag['children']) ) {
+            // ...then get the names of all of the child tags
+            foreach ($tag['children'] as $num => $child_tag) {
+                $child_tags = self::getTagNames($child_tag);
+
+                foreach ($child_tags as $child_tag_id => $child_tag_name)
+                    $tmp[$child_tag_id] = $tag['tagName'].' >> '.$child_tag_name;
+            }
+        }
+
+        return $tmp;
     }
 }

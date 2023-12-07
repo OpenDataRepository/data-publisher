@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # SSL Redirect
+    RewriteCond %{HTTPS} off
+    RewriteRule .* https://%{HTTP_HOST}%{REQUEST_URI} [NE,L,R=301]
+
+    <IfModule mod_vhost_alias.c>
+        RewriteBase /odr_rruff
+    </IfModule>
+    RewriteCond %{HTTP:Authorization} ^(.*)
+    RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(.*)$ app.php [QSA,L]
+</IfModule>
+
+#php_flag xdebug.profiler_enable 0 
+#php_flag apc.stat 0 

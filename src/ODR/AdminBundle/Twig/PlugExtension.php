@@ -13,10 +13,15 @@
 
 namespace ODR\AdminBundle\Twig;
 
+// Entities
 use ODR\AdminBundle\Entity\RenderPlugin;
+// Interfaces
+use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 
 class PlugExtension extends \Twig_Extension
 {
@@ -25,6 +30,11 @@ class PlugExtension extends \Twig_Extension
      * @var \Symfony\Component\DependencyInjection\Container
      */
     private $container;
+
+    /**
+     * @var array
+     */
+    private $plugin_types;
 
 
     /**
@@ -35,8 +45,15 @@ class PlugExtension extends \Twig_Extension
     public function __construct($container)
     {
         $this->container = $container;
-    }
 
+        $this->plugin_types = array(
+            RenderPlugin::DATATYPE_PLUGIN => 'datatype',
+            RenderPlugin::THEME_ELEMENT_PLUGIN => 'themeElement',
+            RenderPlugin::DATAFIELD_PLUGIN => 'datafield',
+            RenderPlugin::ARRAY_PLUGIN => 'array',
+            RenderPlugin::SEARCH_PLUGIN => 'search',
+        );
+    }
 
     /**
      * Returns a list of filters to add to the existing list.
@@ -46,11 +63,18 @@ class PlugExtension extends \Twig_Extension
     public function getFilters()
     {
         return array(
+            new \Twig\TwigFilter('can_execute_array_plugin', array($this, 'canExecuteArrayPluginFilter')),
             new \Twig\TwigFilter('can_execute_datatype_plugin', array($this, 'canExecuteDatatypePluginFilter')),
+            new \Twig\TwigFilter('can_execute_theme_element_plugin', array($this, 'canExecuteThemeElementPluginFilter')),
             new \Twig\TwigFilter('can_execute_datafield_plugin', array($this, 'canExecuteDatafieldPluginFilter')),
-            new \Twig\TwigFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
+            new \Twig\TwigFilter('can_execute_search_plugin', array($this, 'canExecuteSearchPluginFilter')),
+
+            new \Twig\TwigFilter('array_plugin', array($this, 'arrayPluginFilter')),
             new \Twig\TwigFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
-            new \Twig\TwigFilter('get_mass_edit_override_fields', array($this, 'getMassEditOverideFieldsFilter')),
+            new \Twig\TwigFilter('theme_element_plugin_placeholder', array($this, 'themeElementPluginPlaceholderFilter')),
+            new \Twig\TwigFilter('theme_element_plugin', array($this, 'themeElementPluginFilter')),
+            new \Twig\TwigFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
+            new \Twig\TwigFilter('search_plugin', array($this, 'searchPluginFilter')),
 
             new \Twig\TwigFilter('comma', array($this, 'commaFilter')),
             new \Twig\TwigFilter('xml', array($this, 'xmlFilter')),
@@ -59,7 +83,222 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('filesize', array($this, 'filesizeFilter')),
             new \Twig\TwigFilter('is_empty', array($this, 'isEmptyFilter')),
             new \Twig\TwigFilter('is_filtered', array($this, 'isFilteredDivFilter')),
+
+            new \Twig\TwigFilter('get_value', array($this, 'getValueFilter')),
+            new \Twig\TwigFilter('get_field_value', array($this, 'getFieldValueFilter')),
+            new \Twig\TwigFilter('ceil', array($this, 'ceilingFilter')),
+            new \Twig\TwigFilter('floor', array($this, 'floorFilter')),
+            new \Twig\TwigFilter('chemistry', array($this, 'chemistryFilter')),
         );
+    }
+
+    public function ceilingFilter($num) {
+        return ceil($num);
+    }
+
+    public function floorFilter($num) {
+        return floor($num);
+    }
+
+    public function chemistryFilter($str) {
+
+        // Extract subscript/superscript characters from render plugin options
+        $sub = "_";
+        $super = "^";
+        /*
+        if ( isset($options['subscript_delimiter']) && $options['subscript_delimiter'] != '' )
+            $sub = $options['subscript_delimiter'];
+        else
+            $sub = "_";
+        if ( isset($options['superscript_delimiter']) && $options['superscript_delimiter'] != '' )
+            $super = $options['superscript_delimiter'];
+        else
+            $super = "^";
+        */
+
+        // Apply the subscripts...
+        $sub = preg_quote($sub);
+        $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);
+
+        // Apply the superscripts...
+        $super = preg_quote($super);
+        $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', $str);
+
+        // Redo the boxes...
+        // TODO - replace with a css class? or with the '□' character? (0xE2 0x96 0xA1)
+        return preg_replace('/\[box\]/', '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>', $str);
+
+    }
+
+    /**
+     * Takes an array from a Twig Template and returns the desired value.
+     *
+     * @param $record
+     * @param $child_uuid
+     * @param $field_uuid
+     * @return mixed|string
+     */
+    public function getFieldValueFilter($record, $field_uuid)
+    {
+        $field_array = [];
+        if(
+            isset($record['template_uuid'])
+            && strlen($record['template_uuid']) > 0
+            && isset($record['fields_' . $record['template_uuid']])
+        ) {
+            $field_array = $record['fields_' . $record['template_uuid']];
+        }
+        else if(
+            isset($record['database_uuid'])
+            && strlen($record['database_uuid']) > 0
+            && isset($record['fields_' . $record['database_uuid']])
+        ) {
+            $field_array = $record['fields_' . $record['database_uuid']];
+        }
+        if(count($field_array) > 0) {
+            foreach ($field_array as $field_data_obj) {
+                foreach($field_data_obj as $key => $field_data ) {
+                    if ($field_data['template_field_uuid'] == $field_uuid) {
+                        if (isset($field_data['value'])) {
+                            return $field_data['value'];
+                        }
+                        else if(isset($field_data['files'])) {
+                            return  $field_data['files'][0]['href'];
+                        }
+                    }
+                    else if ($field_data['field_uuid'] == $field_uuid) {
+                        if (isset($field_data['value'])) {
+                            return $field_data['value'];
+                        }
+                        else if(isset($field_data['files'])) {
+                            return  $field_data['files'][0]['href'];
+                        }
+                    }
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * 332d054904501b02d23e4414fd7b
+     * Takes an array from a Twig Template and returns the desired value.
+     *
+     * @param $record
+     * @param $child_uuid
+     * @param $field_uuid
+     * @return mixed|string
+     */
+    public function getValueFilter($record, $child_uuid, $field_uuid)
+    {
+        $record_children = [];
+        if(
+            isset($record['template_uuid'])
+            && strlen($record['template_uuid']) > 0
+            && isset($record['records_' . $record['template_uuid']])
+        ) {
+            $record_children = $record['records_' . $record['template_uuid']];
+        }
+        else if(
+            isset($record['database_uuid'])
+            && strlen($record['database_uuid']) > 0
+            && isset($record['records_' . $record['database_uuid']])
+        ) {
+            $record_children = $record['records_' . $record['database_uuid']];
+        }
+        if(count($record_children) > 0) {
+            foreach($record_children as $record_child) {
+               if(
+                   $record_child['database_uuid'] == $child_uuid
+                   || $record_child['template_uuid'] == $child_uuid
+               ) {
+                   // This is our child.  Check for Fields
+                   $field_array = [];
+                   if (
+                       isset($record_child['template_uuid'])
+                       && strlen($record_child['template_uuid']) > 0
+                       && isset($record_child['fields_' . $record_child['template_uuid']])
+                   ) {
+                       // check for fields array based on template_uuid
+                       $field_array = $record_child['fields_' . $record_child['template_uuid']];
+                   }
+                   else if (
+                       isset($record_child['database_uuid'])
+                       && strlen($record_child['database_uuid']) > 0
+                       && isset($record_child['fields_' . $record_child['database_uuid']])
+                   ) {
+                       $field_array = $record_child['fields_' . $record_child['database_uuid']];
+                   }
+                   foreach ($field_array as $field_data_obj) {
+                       foreach($field_data_obj as $key => $field_data ) {
+                           if ($field_data['template_field_uuid'] == $field_uuid) {
+                               if (isset($field_data['value'])) {
+                                   return $field_data['value'];
+                               }
+                               else if (isset($field_data['selected'])) {
+                                   return $field_data['selected'];
+                               }
+                               else if(isset($field_data['files'])) {
+                                   return  $field_data['files'][0]['href'];
+                               }
+                           }
+                           else if ($field_data['field_uuid'] == $field_uuid) {
+                               if (isset($field_data['value'])) {
+                                   return $field_data['value'];
+                               }
+                               else if (isset($field_data['selected'])) {
+                                   return $field_data['selected'];
+                               }
+                               else if(isset($field_data['files'])) {
+                                   return  $field_data['files'][0]['href'];
+                               }
+                           }
+                       }
+                   }
+               }
+            }
+        }
+
+        // Recurse to find correct child
+        foreach($record_children as $child) {
+            $result = self::getValueFilter($child, $child_uuid, $field_uuid);
+            if($result !== null) {
+                return $result;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns whether the Array RenderPlugin should be run in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $rendering_options
+     *
+     * @return bool|string
+     * @throws \Exception
+     */
+    public function canExecuteArrayPluginFilter($render_plugin_instance, $datatype, $rendering_options)
+    {
+        try {
+            // Determine whether the render plugin should be run
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::ARRAY_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as an Array Plugin</div>';
+
+            /** @var ArrayPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->canExecutePlugin($render_plugin_instance, $datatype, $rendering_options);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
+        }
     }
 
 
@@ -70,7 +309,7 @@ class PlugExtension extends \Twig_Extension
      * @param array $datatype
      * @param array $rendering_options
      *
-     * @return bool
+     * @return bool|string
      * @throws \Exception
      */
     public function canExecuteDatatypePluginFilter($render_plugin_instance, $datatype, $rendering_options)
@@ -78,10 +317,41 @@ class PlugExtension extends \Twig_Extension
         try {
             // Determine whether the render plugin should be run
             $render_plugin = $render_plugin_instance['renderPlugin'];
-            if ( $render_plugin['plugin_type'] === RenderPlugin::DATAFIELD_PLUGIN )
-                return '<div class="ODRPluginErrorDiv">RenderPlugin "'.$render_plugin['pluginName'].'" only works on Datafields, but was called on Datatype '.$datatype['id'].'</div>';
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::DATATYPE_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as a Datatype Plugin</div>';
 
             /** @var DatatypePluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->canExecutePlugin($render_plugin_instance, $datatype, $rendering_options);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
+     * Returns whether the ThemeElement RenderPlugin should be run in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $rendering_options
+     *
+     * @return bool|string
+     * @throws \Exception
+     */
+    public function canExecuteThemeElementPluginFilter($render_plugin_instance, $datatype, $rendering_options)
+    {
+        try {
+            // Determine whether the render plugin should be run
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::THEME_ELEMENT_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as a ThemeElement Plugin</div>';
+
+            /** @var ThemeElementPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             return $svc->canExecutePlugin($render_plugin_instance, $datatype, $rendering_options);
         }
@@ -102,7 +372,7 @@ class PlugExtension extends \Twig_Extension
      * @param array $datarecord
      * @param array $rendering_options
      *
-     * @return bool
+     * @return bool|string
      * @throws \Exception
      */
     public function canExecuteDatafieldPluginFilter($render_plugin_instance, $datafield, $datarecord, $rendering_options)
@@ -110,8 +380,8 @@ class PlugExtension extends \Twig_Extension
         try {
             // Determine whether the render plugin should be run
             $render_plugin = $render_plugin_instance['renderPlugin'];
-            if ( $render_plugin['plugin_type'] === RenderPlugin::DATATYPE_PLUGIN )
-                return '<div class="ODRPluginErrorDiv">RenderPlugin "'.$render_plugin['pluginName'].'" only works on Datatypes, but was called on Datafield '.$datafield['id'].'</div>';
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::DATAFIELD_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
 
             /** @var DatafieldPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
@@ -122,6 +392,72 @@ class PlugExtension extends \Twig_Extension
                 throw $e;
             else
                 return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
+     * Returns whether the Search RenderPlugin should be run in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datafield
+     * @param array $rendering_options
+     *
+     * @return bool|string
+     * @throws \Exception
+     */
+    public function canExecuteSearchPluginFilter($render_plugin_instance, $datafield, $rendering_options)
+    {
+        try {
+            // Determine whether the render plugin should be run
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::SEARCH_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Search Plugin</div>';
+
+            /** @var SearchPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->canExecutePlugin($render_plugin_instance, $datafield, $rendering_options);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
+     * Loads and executes a RenderPlugin for a datatype.
+     *
+     * @param array $datarecord_array
+     * @param array $datatype
+     * @param array $render_plugin_instance
+     * @param array $theme_array
+     * @param array $rendering_options
+     * @param array $parent_datarecord
+     *
+     * @return ArrayPluginReturn|string
+     * @throws \Exception
+     */
+    public function arrayPluginFilter($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array())
+    {
+        try {
+            // Ensure this only is run on a render plugin for a datatype
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::ARRAY_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as an Array Plugin</div>';
+
+            // Load and execute the render plugin
+            /** @var ArrayPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -147,13 +483,80 @@ class PlugExtension extends \Twig_Extension
         try {
             // Ensure this only is run on a render plugin for a datatype
             $render_plugin = $render_plugin_instance['renderPlugin'];
-            if ( $render_plugin['plugin_type'] === RenderPlugin::DATAFIELD_PLUGIN )
-                return '<div class="ODRPluginErrorDiv">RenderPlugin "'.$render_plugin['pluginName'].'" only works on Datafields, but was called on Datatype '.$datatype['id'].'</div>';
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::DATATYPE_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as a Datatype Plugin</div>';
 
             // Load and execute the render plugin
             /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             return $svc->execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord, $datatype_permissions, $datafield_permissions, $token_list);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
+     * Loads and executes a RenderPlugin for a themeElement.
+     *
+     * @param array $datarecord
+     * @param array $datatype
+     * @param array $render_plugin_instance
+     * @param array $theme_array
+     * @param array $rendering_options
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function themeElementPluginFilter($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options)
+    {
+        try {
+            // Ensure this only is run on a render plugin for a datatype
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::THEME_ELEMENT_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as a ThemeElement Plugin</div>';
+
+            // Load and execute the render plugin
+            /** @var ThemeElementPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
+     * Retrieves placeholder text for a themeElement RenderPlugin.
+     *
+     * @param array $datatype
+     * @param array $render_plugin_instance
+     * @param array $theme_array
+     * @param array $rendering_options
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function themeElementPluginPlaceholderFilter($datatype, $render_plugin_instance, $theme_array, $rendering_options)
+    {
+        try {
+            // Ensure this only is run on a render plugin for a datatype
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::THEME_ELEMENT_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as a ThemeElement Plugin</div>';
+
+            // Load and execute the render plugin
+            /** @var ThemeElementPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->getPlaceholderHTML($datatype, $render_plugin_instance, $theme_array, $rendering_options);
         }
         catch (\Exception $e) {
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -180,8 +583,8 @@ class PlugExtension extends \Twig_Extension
         try {
             // Ensure this only is run on a render plugin for a datafield
             $render_plugin = $render_plugin_instance['renderPlugin'];
-            if ( $render_plugin['plugin_type'] === RenderPlugin::DATATYPE_PLUGIN )
-                return '<div class="ODRPluginErrorDiv">RenderPlugin "'.$render_plugin['pluginName'].'" only works on Datatypes, but was called on Datafield '.$datafield['id'].'</div>';
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::DATAFIELD_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
 
             // Prune $datarecord so the render plugin service can't get values of other datafields
             foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
@@ -204,29 +607,35 @@ class PlugExtension extends \Twig_Extension
 
 
     /**
-     * Returns an array of the fields that the RenderPlugin would like to to have the option to
-     * trigger the PostMassEditEvent on, even if values in that datafield aren't being changed.
+     * Loads and executes a RenderPlugin for a datafield in the search sidebar.
      *
+     * @param array $datafield
      * @param array $render_plugin_instance
+     * @param int $datatype_id
+     * @param string|array $preset_value
+     * @param array $rendering_options
      *
-     * @return array
+     * @return string
      * @throws \Exception
      */
-    public function getMassEditOverideFieldsFilter($render_plugin_instance)
+    public function searchPluginFilter($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options)
     {
         try {
-            // This particular filter works with both datatype and datafield plugins
+            // Ensure this only is run on a render plugin for a search sidebar datafield
             $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::SEARCH_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
 
             // Load and execute the render plugin
-            /** @var PostMassEditEventInterface $svc */
+            /** @var SearchPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->getMassEditOverrideFields($render_plugin_instance);
+            return $svc->execute($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options);
         }
         catch (\Exception $e) {
-            // Since this is only being called from MassEdit, throwing an error here should be acceptable
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -395,9 +804,8 @@ class PlugExtension extends \Twig_Extension
             if ( $theme_element['themeElementMeta']['hidden'] == 1 )
                 return true;
 
-
-            // If the theme element has datafield entries...
-            if ( isset($theme_element['themeDataFields']) && count($theme_element['themeDataFields']) > 0 ) {
+            // If the theme element has themeDatafield entries...
+            if ( !empty($theme_element['themeDataFields']) ) {
 
                 // ...it is not considered empty if at least one of those datafields has not been filtered out, and is not hidden
                 foreach ($theme_element['themeDataFields'] as $num => $tdf) {
@@ -408,30 +816,29 @@ class PlugExtension extends \Twig_Extension
                 }
             }
 
-            // If the theme element has a child datatype entry...
-            if ( isset($theme_element['themeDataType']) && count($theme_element['themeDataType']) > 0 ) {
-
-                // ...and that entry has not been filtered out and is not hidden...
+            // If the theme element has a themeDatatype entry...
+            if ( !empty($theme_element['themeDataType']) ) {
                 foreach ($theme_element['themeDataType'] as $num => $tdt) {
 
-                    // Note: Display mode won't pass this check if the child datatype doesn't have any child/linked datarecords for this datatype
-                    //  Edit mode will apparently always pass this check
                     if ( isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
-
                         $child_datatype_id = $tdt['dataType']['id'];
 
-                        if ( $tdt['is_link'] == 0 && $mode == 'edit' ) {
-                            // In edit mode, a theme element is only considered "empty" if there's no child datatype entry due to filtering
+                        if ( $mode == 'edit' ) {
+                            // In edit mode...
                             if ( isset($datatype['descendants'][$child_datatype_id]) && count($datatype['descendants'][$child_datatype_id]['datatype']) > 0 )
+                                // ...a theme element is considered "not empty" if the child/linked datatype exists...
                                 return false;
                             else
+                                // ...if the child/linked datatype entry doesn't exist because it was filtered, then the theme element is "empty"
                                 return true;
                         }
                         else {
-                            // In display mode, or when displaying linked datatypes in edit mode, the theme element is only considered empty when there are no child/linked datarecords
-                            if ( isset($datarecord['children']) && isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )
+                            // In display mode...
+                            if ( isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )
+                                // ...a theme element is considered "not empty" if datarecords of this child/linked datatype exist...
                                 return false;
                             else
+                                // ...otherwise, the theme element is "empty"
                                 return true;
                         }
                     }

@@ -1,0 +1,294 @@
+{% spaceless %}
+
+<div id="{{ input_id }}_control" style="float:right">
+    <button id="{{ input_id }}_cellparam_trigger" class="ODRCellparamPlugin_button pure-button" title="Open the Cellparameter Plugin entry tool"><i class="fa fa-object-ungroup"></i></button>
+</div>
+<div id="{{ input_id }}_popup" class="ODRCellparamPlugin_popup">
+    <div class="pure-u-1">
+        &nbsp;&nbsp;&nbsp;&nbsp;Because the Crystal System, Point Group, and Space Group are all related to each other, it's better to modify all three of these fields at once.  No changes are made until you click the save button.
+    </div>
+
+    <div class="pure-u-13-24">
+        <div class="bold pure-u-1">Current values...</div>
+        <div class="pure-u-1">
+            &nbsp;&nbsp;<span class="bold">Crystal System:&nbsp;</span><span id="{{ input_id }}_current_crystal_system"></span>
+
+            <span id="{{ input_id }}_crystal_system_warning" style="display:none;">
+                <i class="fa fa-exclamation-triangle" style="color:red;" title="Unrecognized crystal system.  If you believe this is an error, please contact the ODR team."></i>
+            </span>
+        </div>
+        <div class="pure-u-1">
+            &nbsp;&nbsp;<span class="bold">Point Group:&nbsp;</span><span id="{{ input_id }}_current_point_group"></span>
+
+            <span id="{{ input_id }}_point_group_warning" style="display:none;">
+                <i class="fa fa-exclamation-triangle" style="color:red;" title="Unrecognized point group.  If you believe this is an error, please contact the ODR team."></i>
+            </span>
+        </div>
+        <div class="pure-u-1">
+            &nbsp;&nbsp;<span class="bold">Space Group:&nbsp;</span><span id="{{ input_id }}_current_space_group"></span>
+
+            <span id="{{ input_id }}_space_group_warning" style="display:none;">
+                <i class="fa fa-exclamation-triangle" style="color:red;" title="Unrecognized space group.  If you believe this is an error, please contact the ODR team."></i>
+            </span>
+        </div>
+    </div>
+
+    <div class="pure-u-9-24">
+        <div class="pure-u-1">&nbsp;</div>
+        <div class="pure-u-1">
+            <select id="{{ input_id }}_crystal_system">
+                <option value=""></option>
+            {% for crystal_system in crystal_systems %}
+                <option value="{{ crystal_system }}">{{ crystal_system }}</option>
+            {% endfor %}
+            </select>
+        </div>
+
+        <div class="pure-u-1">
+            <select id="{{ input_id }}_point_group">
+                <option value=""></option>
+            {% for point_group,crystal_system in point_groups %}
+                <option rel="{{ crystal_system }}" value="{{ point_group }}">{{ point_group }}</option>
+            {% endfor %}
+            </select>
+        </div>
+
+        <div class="pure-u-1">
+            <select id="{{ input_id }}_space_group">
+                <option value=""></option>
+            {% for space_group,point_group in space_groups %}
+                <option rel="{{ point_group }}" value="{{ space_group }}">{{ space_group }}</option>
+            {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="pure-u-2-24">
+        <div class="pure-u-1">
+            <button id="{{ input_id }}_manual_save" class="ODRCellparamPlugin_button pure-button" title="Close the dialog and save changes">
+                <i class="fa fa-save"></i>
+            </button>
+        </div>
+        <div class="pure-u-1">
+            <button id="{{ input_id }}_cancel_save" class="ODRCellparamPlugin_button pure-button" title="Close the dialog without saving changes"><i class="fa fa-close" style="color: red;"></i></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        $("#{{ input_id }}_cellparam_trigger").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+
+            if ( $("#{{ input_id }}_popup").is(':visible') ) {
+                // Popup already visible, close it
+                $("#{{ input_id }}_cancel_save").trigger('click');
+            }
+            else {
+                // Popup not visible...close any other open popup first
+                $(".ODRCellparamPlugin_popup").each(function(index, elem) {
+                    if ( $(elem).is(':visible') )
+                        $(elem).find(".fa-close").parent().trigger('click');
+                });
+
+
+                // Set the crystal system, point group, and space group from the underlying data...
+                var crystal_system_input_id = "#{{ field_identifiers['Crystal System'] }}";
+                var current_crystal_system = $(crystal_system_input_id).val();
+                $("#{{ input_id }}_current_crystal_system").text(current_crystal_system);
+                $("#{{ input_id }}_crystal_system").val(current_crystal_system).trigger('change');
+
+                if ( current_crystal_system != '' && $("#{{ input_id }}_crystal_system").val() == null )
+                    $("#{{ input_id }}_crystal_system_warning").show();
+
+                var point_group_input_id = "#{{ field_identifiers['Point Group'] }}";
+                var current_point_group = $(point_group_input_id).val();
+                $("#{{ input_id }}_current_point_group").text(current_point_group);
+                $("#{{ input_id }}_point_group").val(current_point_group).trigger('change');
+
+                if ( current_point_group != '' && $("#{{ input_id }}_point_group").val() == null )
+                    $("#{{ input_id }}_point_group_warning").show();
+
+                var space_group_input_id = "#{{ field_identifiers['Space Group'] }}";
+                var current_space_group = $(space_group_input_id).val();
+                $("#{{ input_id }}_current_space_group").text(current_space_group);
+                $("#{{ input_id }}_space_group").val(current_space_group).trigger('change');
+
+                if ( current_space_group != '' && $("#{{ input_id }}_space_group").val() == null )
+                    $("#{{ input_id }}_space_group_warning").show();
+
+
+                // ...and show the popup
+                $("#{{ input_id }}_popup").show()
+                    .offset( $("#{{ input_id }}").offset() )
+                    .width( $("#{{ input_id }}").width() + 15 );
+            }
+        });
+
+        $("#{{ input_id }}_crystal_system").unbind('change').change(function(event) {
+            var new_crystal_system = $(this).val();
+
+            // The crystal system got set to something, which means any previous values for the
+            //  point/space groups are no longer valid
+            $("#{{ input_id }}_point_group").val('');
+            $("#{{ input_id }}_space_group").val('');
+
+            if ( new_crystal_system == '' ) {
+                // If no crystal system is selected, then all point/space groups should become visible
+                $("#{{ input_id }}_point_group").children().show();
+                $("#{{ input_id }}_space_group").children().show();
+            }
+            else {
+                // Hide all point groups that don't belong to the selected crystal system
+                ODR_updatePointGroups('{{ input_id }}');
+                // Hide all space groups that don't belong to the point groups of the selected
+                //  crystal system
+                ODR_updateSpaceGroups('{{ input_id }}');
+            }
+        });
+
+        $("#{{ input_id }}_point_group").unbind('change').change(function(event) {
+            var new_point_group = $(this).val().replaceAll('/', 's');
+
+            // The point group got set to something...any previous value for the space group
+            //  is now invalid
+            $("#{{ input_id }}_space_group").val('');
+
+            if ( new_point_group == '' ) {
+                // When no point group is selected, which space groups to hide/show depends on
+                //  whether there's a crystal system selected...
+                if ( $("#{{ input_id }}_crystal_system").val() == '' ) {
+                    // ...no crystal system selected means all space groups should be visible
+                    $("#{{ input_id }}_space_group").children().show();
+                }
+                else {
+                    // ...otherwise, only the space groups for the point groups that belong to the
+                    //  selected crystal system should be visible
+                    ODR_updateSpaceGroups('{{ input_id }}');
+                }
+            }
+            else {
+                // Ensure this point group's crystal system is selected
+                var correct_crystal_system = $("#{{ input_id }}_point_group").children(':selected').attr('rel');
+                $("#{{ input_id }}_crystal_system").val(correct_crystal_system);
+
+                // Hide all point groups that don't belong to this crystal system, in case one wasn't
+                //  previously selected
+                ODR_updatePointGroups('{{ input_id }}');
+                // Hide all space groups that don't belong to the visible point groups
+                ODR_updateSpaceGroups('{{ input_id }}');
+            }
+        });
+
+        $("#{{ input_id }}_space_group").unbind('change').change(function(event) {
+            var new_space_group = $(this).val();
+
+            // If the space group got set to something...
+            if ( new_space_group != '' ) {
+                // ...then ensure this space group's point group is selected...
+                var selected_space_group = $("#{{ input_id }}_space_group").children(':selected');
+                // Need to convert the 's' back into a '/' to use jquery val()
+                var correct_point_group = $(selected_space_group).attr('rel').replaceAll('s', '/');
+                $("#{{ input_id }}_point_group").val(correct_point_group);
+
+                // ...do the same for the crystal system
+                var correct_crystal_system = $("#{{ input_id }}_point_group").children(':selected').attr('rel');
+                $("#{{ input_id }}_crystal_system").val(correct_crystal_system);
+
+                // Hide all point groups that don't belong to this crystal system, in case one wasn't
+                //  previously selected
+                ODR_updatePointGroups('{{ input_id }}');
+                // Hide all space groups that don't belong to the visible point groups, in case one
+                //  wasn't previously selected
+                ODR_updateSpaceGroups('{{ input_id }}');
+            }
+        });
+
+        $("#{{ input_id }}_manual_save").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+            $("#{{ input_id }}_popup").hide();
+
+            // Going to copy all three values from the popup into the correct <input> at the same time
+            var crystal_system_val = $("#{{ input_id }}_crystal_system").val();
+            var point_group_val = $("#{{ input_id }}_point_group").val();
+            var space_group_val = $("#{{ input_id }}_space_group").val();
+
+{% if form_token != '' %}
+            // Have to create a form just for this submission, since <form> elements can't be
+            //  nested in browsers
+            var form = $("<form>", {"method": "POST"});
+            var element = null;
+
+            element = $("<input>", {"type": "hidden", "value": "{{ datarecord.id }}", "name": "datarecord_id"});
+            $(form).append(element);
+            element = $("<input>", {"type": "hidden", "value": "{{ form_token }}", "name": "token"});
+            $(form).append(element);
+
+            var crystal_system_df_id = "{{ field_identifiers['Crystal System'] }}".split(/_/)[2];
+            var point_group_df_id = "{{ field_identifiers['Point Group'] }}".split(/_/)[2];
+            var space_group_df_id = "{{ field_identifiers['Space Group'] }}".split(/_/)[2];
+
+            // Copy the symmetry values into the form
+            element = $("<input>", {"type": "hidden", "value": crystal_system_val, "name": "values[" + crystal_system_df_id + "]"});
+            $(form).append(element);
+            element = $("<input>", {"type": "hidden", "value": point_group_val, "name": "values[" + point_group_df_id + "]"});
+            $(form).append(element);
+            element = $("<input>", {"type": "hidden", "value": space_group_val, "name": "values[" + space_group_df_id + "]"});
+            $(form).append(element);
+
+            // console.log( $(form) );
+            $.ajax({
+                type: 'POST',
+                url: '{{ path('odr_plugin_cellparam_save') }}',
+                data: $(form).serialize(),
+                dataType: 'json',
+                success: function(data) {
+                    notifySaved();
+                    $("#{{ input_id }}_popup").hide();
+
+                    // Trigger reloads of all three affected datafields
+                    ReloadEditDatafield({{ datarecord.id }}, crystal_system_df_id);
+                    ReloadEditDatafield({{ datarecord.id }}, point_group_df_id);
+                    ReloadEditDatafield({{ datarecord.id }}, space_group_df_id);
+                    // Also need to reload the lattice field
+                    var lattice_df_id = "{{ field_identifiers['Lattice'] }}".split(/_/)[2];
+                    ReloadEditDatafield({{ datarecord.id }}, lattice_df_id);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                    // alert('Error encountered, no changes made');
+                    $("#{{ input_id }}_popup").hide();
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+{% else %}
+            // Since this is FakeEdit, we don't actually want to submit a form here...instead, just
+            //  copy over the values to the fields on the page
+            $("#{{ field_identifiers['Crystal System'] }}").val(crystal_system_val);
+            $("#{{ field_identifiers['Point Group'] }}").val(point_group_val);
+            $("#{{ field_identifiers['Space Group'] }}").val(space_group_val);
+{% endif %}
+        });
+
+        $("#{{ input_id }}_cancel_save").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+            $("#{{ input_id }}_popup").hide();
+        });
+    });
+</script>
+{% endspaceless %}

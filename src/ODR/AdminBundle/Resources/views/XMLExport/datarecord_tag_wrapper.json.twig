@@ -2,37 +2,40 @@
 {% if drf.tagSelection is defined %}
     {% set tag_selections = drf.tagSelection %}
 {% endif %}
+{#
+{% for tag_id, tag in tag_selections %}
+TAG FOUND: tag_id
+TAGID: {{ tag.id }}
+{{ tag.selected }}
+    {% for key,value in tag %}
+        {{ key }}
+    {% endfor %}
+TAG.TAGID: {{ tag.tag.id }}
+    {% for key,value in tag.tag %}
+        tag.tag: {{ key }}
+    {% endfor %}
+{% endfor %}
+#}
 
 {% set child_tag_selections = [] %}
 {% if drf.child_tagSelections is defined %}
     {% set child_tag_selections = drf.child_tagSelections %}
 {% endif %}
+{#
+{% for tag_id, tag in child_tag_selections %}
+CHILD TAG FOUND: tag_id {{ tag_id }}
+{% endfor %}
+ #}
 
-{# TODO This no longer nests output for tag children need to be version based for nesting #}
-"value": [
-{% if datafield.tags is defined %}
+"tags": [
     {% set field_block %}
-    {% for tag in datafield.tags %}
-        {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
-            'tag_selections': tag_selections,
-            'child_tag_selections': child_tag_selections,
-            'tag': tag,
-        } %}
-    {% endfor %}
+        {% for tag_id, tag in tag_selections %}
+            {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
+                'tag_selections': tag_selections,
+                'child_tag_selections': child_tag_selections,
+                'tag': tag.tag
+            } %}
+        {% endfor %}
     {% endset %}
     {{ field_block|comma|raw }}
-{% elseif datafield.tagSelection is defined %}
-    {# TODO This is probably not used. #}
-    {% for tag in datafield.tagSelection %}
-        {
-            "using_tagSelection": "true",
-            "name": "{{ tag.tag.tagName }}",
-            "id": {{ tag.tag.id }},
-            "selected": "1",
-            "template_tag_uuid": {{ tag.tag.tagUuid|json_encode|raw }},
-            "updated_at": "{{ tag.updated|date('Y-m-d H:i:s') }}",
-            "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}"
-        }{% if not loop.last %},{% endif %}
-    {% endfor %}
-{% endif %}
 ]

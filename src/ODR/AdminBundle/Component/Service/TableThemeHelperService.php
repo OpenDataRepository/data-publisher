@@ -13,13 +13,13 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
-// Other
+// Services
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
+// Symfony
 use Symfony\Bridge\Monolog\Logger;
-// Utility
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Routing\Router;
 
@@ -134,37 +134,81 @@ class TableThemeHelperService
      * @param ODRUser $user
      * @param int $datatype_id
      * @param int $theme_id
+     * @param string $format
      *
      * @return array
      */
-    public function getColumnNames($user, $datatype_id, $theme_id)
+    public function getColumnNames($user, $datatype_id, $theme_id, $format = "json")
     {
-        // First and second columns are always datarecord id and sort value, respectively
-        $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
-        $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
-        $num_columns = 2;
+        if ($format === 'array') {
+            // In this situation, datatables.js won't query the server for a subset of records to
+            //  display...they'll all be dumped onto the page, so they need to be in array format
+            //  so twig doesn't have to parse json
 
-        // Get the array versions of the datafields being viewed by the user
-        $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x4ffd4e67);
-        foreach ($df_array as $num => $df) {
-            // Extract the datafield's name
-            $fieldname = $df['dataFieldMeta']['fieldName'];
+            // First and second columns are always datarecord id and sort value, respectively
+            $column_names = array(0 => array('title' => 'datarecord_id'), 1 => array('title' => 'datarecord_sortvalue') );
+            $num_columns = 2;
 
-            // Escape double-quotes in the datafield's name
-            $fieldname = str_replace('"', "\\\"", $fieldname);
-            $column_names .= '{"title":"'.$fieldname.'",';
+            // NOTE - despite datatables.js not needing the 'datarecord_sortvalue' column when
+            //  displaying all records, it has to be left in...everywhere that attempts to decipher
+            //  sort criteria assumes that column exists
 
-            // If dynamically added, the edit link column will have a priority of 10000
-            //  and therefore won't be hidden if there's too many columns for the screen
-            // @see https://datatables.net/reference/option/columns.responsivePriority#Type
-            $column_names .= '"responsivePriority":11000},';
+            // Get the array versions of the datafields being viewed by the user
+            $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x4ffd4e66);
+            foreach ($df_array as $num => $df) {
+                // Extract the datafield's name and escape any double-quotes it has
+                $fieldname = $df['dataFieldMeta']['fieldName'];
+                $fieldname = str_replace('"', "\\\"", $fieldname);
 
-            $num_columns++;
+                // datatables.js uses the "title" property for the column label, and makes the "name"
+                //  property availble for selecting columns via its own column() selector
+                //  @see https://datatables.net/reference/type/column-selector#{string}:name
+                // Of note is that the "name" property does not show up in the table's HTML
+                $column_names[] = array('name' => $df['id'], 'title' => $fieldname);
+
+                // Can't set the priority for the edit link column here
+
+                $num_columns++;
+            }
+
+            // Return the data back to the user
+            $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
+            return $column_data;
+        }
+        else if ($format === 'json') {
+            // First and second columns are always datarecord id and sort value, respectively
+            $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
+            $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
+            $num_columns = 2;
+
+            // Get the array versions of the datafields being viewed by the user
+            $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x4ffd4e67);
+            foreach ($df_array as $num => $df) {
+                // Extract the datafield's name and escape any double-quotes it has
+                $fieldname = $df['dataFieldMeta']['fieldName'];
+                $fieldname = str_replace('"', "\\\"", $fieldname);
+
+                // datatables.js uses the "title" property for the column label, and makes the "name"
+                //  property availble for selecting columns via its own column() selector
+                //  @see https://datatables.net/reference/type/column-selector#{string}:name
+                // Of note is that the "name" property does not show up in the table's HTML
+                $column_names .= '{"name":"'.$df['id'].'","title":"'.$fieldname.'",';
+
+                // If dynamically added, the edit link column will have a priority of 10000
+                //  and therefore won't be hidden if there's too many columns for the screen
+                // @see https://datatables.net/reference/option/columns.responsivePriority#Type
+                $column_names .= '"responsivePriority":11000},';
+
+                $num_columns++;
+            }
+
+            // Return the data back to the user
+            $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
+            return $column_data;
         }
 
-        // Return the data back to the user
-        $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
-        return $column_data;
+        // If this point is reached, then the $format argument is invalid
+        throw new ODRException('Invalid argument $format passed to TableThemeHelperService::getColumnNames()');
     }
 
 
@@ -213,7 +257,8 @@ class TableThemeHelperService
     {
         // ----------------------------------------
         // Get the array versions of the datafields being viewed by the user
-        $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x7e562032);
+        $table_dt_array = self::getDatatypeArrayForTableTheme($datatype_id);
+        $table_df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x7e562032);
 
         // Going to need to know whether the user has the can_view_datarecord permission for each
         //  datatype that's going to be rendered...
@@ -223,8 +268,10 @@ class TableThemeHelperService
         //  a linked datatype, since that means linked datarecords need to be loaded as well...
         $needs_linked_data = false;
 
-        $associated_datatypes = $this->dti_service->getAssociatedDatatypes($datatype_id);
-        foreach ($df_array as $num => $df) {
+        // Not using  $this->dti_service->getAssociatedDatatypes($datatype_id)  here, since that
+        //  includes datatypes which allow multiple descendant records...
+        $associated_datatypes = array_keys($table_dt_array);
+        foreach ($table_df_array as $num => $df) {
             $dt_id = $df['dataType']['id'];
 
             if ( !isset($can_view_datarecord[$dt_id]) ) {
@@ -251,30 +298,36 @@ class TableThemeHelperService
         // Load the cached version of each of the requested datarecords
         $datarecord_array = array();
         foreach ($datarecord_ids as $num => $search_dr_id) {
-            // Load the datarecord being searched on first
-            $dr_data = $this->cache_service->get('cached_table_data_'.$search_dr_id);
-            if ($dr_data == false)
-                $dr_data = self::buildTableData($search_dr_id);
-            $datarecord_array[$search_dr_id] = $dr_data;
+            $table_dr_array = null;
 
-            // If linked datarecords need to be loaded...
+            // Attempt to load this datarecord's table data from the cache...
+            $table_dr_data = $this->cache_service->get('cached_table_data_'.$search_dr_id);
+            if ($table_dr_data == false) {
+                // ...if it doesn't exist, rebuild it
+                $table_dr_array = $this->dri_service->getDatarecordArray($search_dr_id);    // do want links...not for this one specifically, but for the next
+                $table_dr_data = self::buildTableData($table_dr_array, $search_dr_id);
+            }
+            $datarecord_array[$search_dr_id] = $table_dr_data;
+
+            // If linked datarecords need to be loaded to complete the table data...
             if ( $needs_linked_data ) {
                 // ...then determine which ones to load
-                $associated_datarecords = $this->dti_service->getAssociatedDatarecords($search_dr_id);
+                $associated_datarecords = $this->dti_service->getAssociatedDatarecords($search_dr_id, "table");
+                // This call will only return records from a link which only allows single records,
+                //  due to passing in the value "table"
 
+                // Need to load the table data for each of the records found...
                 foreach ($associated_datarecords as $num => $tmp_dr_id) {
-                    // Don't load $search_dr_id again...
+                    // Ensure the original datarecord isn't loaded again...
                     if ( $tmp_dr_id !== $search_dr_id ) {
-                        // Load the linked datarecord
-                        $dr_data = $this->cache_service->get('cached_table_data_'.$tmp_dr_id);
-                        if ($dr_data == false)
-                            $dr_data = self::buildTableData($tmp_dr_id);
+                        $table_dr_data = $this->cache_service->get('cached_table_data_'.$tmp_dr_id);
+                        if ($table_dr_data == false)
+                            $table_dr_data = self::buildTableData($table_dr_array, $tmp_dr_id);
 
-                        // TODO - ...this doesn't filter out fields/records from linked datatypes that aren't legal for table themes
                         // Don't want to save the sortfield_value of the linked datarecord...
-                        unset( $dr_data['sortField_value'] );
+                        unset( $table_dr_data['sortField_value'] );
                         // ...but save everything else in the datarecord being searched on
-                        foreach ($dr_data as $df_id => $df_data)
+                        foreach ($table_dr_data as $df_id => $df_data)
                             $datarecord_array[$search_dr_id][$df_id] = $df_data;
                     }
                 }
@@ -288,7 +341,7 @@ class TableThemeHelperService
         foreach ($datarecord_array as $dr_id => $dr) {
             $dr_data = array();
 
-            foreach ($df_array as $num => $df) {
+            foreach ($table_df_array as $num => $df) {
                 // Attempt to pull the data from the cached entry...
                 $df_id = $df['id'];
                 $dt_id = $df['dataType']['id'];
@@ -319,7 +372,13 @@ class TableThemeHelperService
                 // Prepend the datarecord's id and sortfield value
                 $row = array();
                 $row[] = strval($dr_id);
-                $row[] = strval($dr['sortField_value']);
+
+                // IMPORTANT: doing it this way only (mostly) worked BEFORE multi-datafield sorting
+//                $row[] = strval($dr['sortField_value']);
+                // The better way of doing it now is to leave a placeholder space here, so that the
+                //  calling function can fill it in later with the sort order determined by the
+                //  search system
+                $row[] = '';
 
                 // Convert all the datafield values into strings, and store them
                 foreach ($dr_data as $tmp)
@@ -339,72 +398,95 @@ class TableThemeHelperService
      * regular cached entry because displaying in table format may require execution of a render
      * plugin.
      *
+     * @param array $dr_data
      * @param int $datarecord_id
      *
      * @throws ODRException
      *
      * @return array
      */
-    private function buildTableData($datarecord_id)
+    private function buildTableData($dr_data, $datarecord_id)
     {
         // Need the cached data for the given datarecord...
-        $include_links = false;
-        $dr_data = $this->dri_service->getDatarecordArray($datarecord_id, $include_links);
         $dr = $dr_data[$datarecord_id];
 
-        // Also need the datatype info in order to determine render plugin for datafields
+        // Also need the datatype info in order to determine whether any render plugins need to run
         $dt_id = $dr_data[$datarecord_id]['dataType']['id'];
-        $dt_data = $this->dbi_service->getDatatypeArray($dt_id, $include_links);
-        $datatype_array = $dt_data[$dt_id];
+        $dt_data = $this->dbi_service->getDatatypeArray($dt_id, false);    // don't want links
+        $dt = $dt_data[$dt_id];
 
 
-        // Only want to save the data for the top-level datarecord
+        // ----------------------------------------
+        // Only want to save values from the top-level datarecord
         $data = array('sortField_value' => $dr['sortField_value']);
-        foreach ($datatype_array['dataFields'] as $df_id => $df) {
+
+        // If the datatype is using a render plugin...
+        $overriden_field_values = array();
+        if ( !empty($dt['renderPluginInstances']) ) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
+                // ...and it wants to override the values displayed in table layouts...
+                $render_plugin = $rpi['renderPlugin'];
+                if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {
+                    // ...then load the render plugin...
+                    $plugin_classname = $render_plugin['pluginClassName'];
+                    /** @var TableResultsOverrideInterface $plugin */
+                    $plugin = $this->container->get($plugin_classname);
+
+                    try {
+                        // ...so it can do whatever it wants to determine the values for the fields
+                        $overriden_field_values = $plugin->getTableResultsOverrideValues($rpi, $dr);
+                    }
+                    catch (\Exception $e) {
+                        throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$dt['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
+                    }
+
+                    // The datatype should only have one render plugin that does this
+                    break;
+                }
+            }
+        }
+
+        // Need to find the values for all relevant fields in this datatype
+        foreach ($dt['dataFields'] as $df_id => $df) {
             // The datarecord might not have an entry for this datafield...
             $df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
             $df_value = '';
             $save_value = true;
 
-            // If the datafield is using a render plugin, and is not a file datafield...
+            // If the datafield is using a render plugin....
             $render_plugin_instance = null;
-            if ( !empty($df['renderPluginInstances']) && $df_typename !== 'File' ) {
-                // ...then check whether the render plugin should be run
-                foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
-                    if ( $rpi['renderPlugin']['active'] && $rpi['renderPlugin']['render'] ) {
-                        // The datafield should only have a single render plugin that actually does
-                        //  something, so don't look further
-                        $render_plugin_instance = $rpi;
+            if ( !empty($df['renderPluginInstances']) ) {
+                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                    // ...and it wants to override the values displayed in table layouts...
+                    $render_plugin = $rpi['renderPlugin'];
+                    if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {
+                        // ...then load the render plugin...
+                        $plugin_classname = $render_plugin['pluginClassName'];
+                        /** @var TableResultsOverrideInterface $plugin */
+                        $plugin = $this->container->get($plugin_classname);
+
+                        try {
+                            // ...so it can do whatever it wants to determine the values for the fields
+                            $tmp = $plugin->getTableResultsOverrideValues($rpi, $dr, $df);
+                            if ( isset($tmp[$df_id]) )
+                                $overriden_field_values[$df_id] = $tmp[$df_id];
+
+                            // If a datatype and a datafield both affect this field, then this means
+                            //  the value the datafield plugin returns will take precedence
+                        }
+                        catch (\Exception $e) {
+                            throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
+                        }
+
+                        // The datatype should only have one render plugin that does this
                         break;
                     }
                 }
             }
 
-            // If the field has a render plugin...
-            $using_render_plugin = false;
-            if ( !is_null($render_plugin_instance) ) {
-                // ...then load the render plugin...
-                $render_plugin = $render_plugin_instance['renderPlugin'];
-                try {
-                    /** @var DatafieldPluginInterface $plugin */
-                    $plugin = $this->container->get($render_plugin['pluginClassName']);
-                    // ...to test whether it should be executed
-                    $rendering_options = array('context' => 'text');
-                    if ( $plugin->canExecutePlugin($render_plugin_instance, $df, $dr, $rendering_options) ) {
-                        // If so, then get the value from the plugin
-                        $df_value = $plugin->execute($df, $dr, $render_plugin_instance, $rendering_options);
-                        $using_render_plugin = true;
-                    }
-                    // If the plugin declines to execute here, then the rest of this function will
-                    //  just use the raw value
-                }
-                catch (\Exception $e) {
-                    throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
-                }
-            }
-
-            if ( $using_render_plugin ) {
-                /* The render plugin has already returned a string to use, do nothing */
+            if ( isset($overriden_field_values[$df_id]) ) {
+                // A render plugin has already returned a string to use
+                $df_value = $overriden_field_values[$df_id];
             }
             else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
                 /* A drf entry hasn't been created for this storage entity...just use the empty string */
@@ -637,8 +719,7 @@ class TableThemeHelperService
     private function getDatatypeArrayForTableTheme($top_level_datatype_id)
     {
         // Might as well load layout data for linked datatypes here
-        $include_links = true;
-        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype_id, $include_links);
+        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype_id);    // do want links here
 
         // The array needs to be filtered to only contain what a table layout can display...
         foreach ($datatype_array as $dt_id => $dt) {

@@ -32,7 +32,7 @@
         {
             "database_uuid": "{{ datarecord.dataType.unique_id }}",
             "internal_id": {{ datarecord.id }},
-            "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+            "record_name": "{{ datarecord.nameField_value }}",   {# lack of surrounding quotation marks necessary #}
             "record_uuid": "{{ datarecord.unique_id }}",
             {% if datarecord.dataType.masterDataType %}
                 "template_uuid": "{{ datarecord.dataType.masterDataType.unique_id }}",
@@ -72,7 +72,18 @@
                 },
             {% endif %}
             {# Fields #}
-            "fields": [
+            {% if
+                version == "v4"
+                and datarecord.dataType.masterDataType
+                and datarecord.dataType.masterDataType.unique_id
+                and datarecord.dataType.masterDataType.unique_id is not empty
+             %}
+                "fields_{{ datarecord.dataType.masterDataType.unique_id }}": [
+            {% elseif version == "v4" %}
+                "fields_{{ datarecord.dataType.unique_id }}": [
+            {% else %}
+                "fields": [
+            {% endif %}
                 {% set field_block %}
                 {% for dt_datafield in datatype_array[datarecord.dataType.id].dataFields %}
                     {% set comma = true %}
@@ -82,7 +93,8 @@
                             {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
                                 {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
                                     'datarecord': datarecord,
-                                    'datafield': datafield.dataField,
+                                    'datafieldOLD': datafield.dataField,
+                                    'datafield': dt_datafield,
                                     'using_metadata': using_metadata,
                                     'baseurl': baseurl,
                                     'version': version,
@@ -113,7 +125,13 @@
                 {% endset %}
                 {{ field_block|comma|raw }}
             ],
-            "records": [
+            {% if version == "v4" and datarecord.dataType.masterDataType %}
+                "records_{{ datarecord.dataType.masterDataType.unique_id }}": [
+            {% elseif version == "v4" %}
+                "records_{{ datarecord.dataType.unique_id }}": [
+            {% else %}
+                "records": [
+            {% endif %}
                 {# Check for Children #}
                 {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
                 {% set show_records = 1 %}

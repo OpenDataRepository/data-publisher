@@ -1,12 +1,13 @@
 odr_plugins.chemin.chemin_analog:
     name: Chemin Analog Plugin
     category: Chemin
-    datatype: true
-    render: true
-    version: 1.1.0
-    override_fields: truea
+    plugin_type: datatype
+    render: odr_plugins.chemin.chemin_analog
+    version: 1.2.0
+    override_fields: true
     override_field_reload: false
     override_child: false
+    override_table_fields: false
     description: This plugin attempts to automatically increment the Database ID field for the Chemin Analog database.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate

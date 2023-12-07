@@ -30,8 +30,10 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
-use ODR\AdminBundle\Component\Event\PostMassEditEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -47,17 +49,23 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, PostMassEditEventInterface
+class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, MassEditTriggerEventInterface
 {
+
+    /**
+     * @var ContainerInterface
+     */
+    private $container;
 
     /**
      * @var EntityManager
@@ -100,14 +108,17 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private $lock_service;
 
     /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
-
-    /**
      * @var SortService
      */
     private $sort_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var CsrfTokenManager
@@ -128,6 +139,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * IMAPlugin constructor.
      *
+     * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
@@ -136,13 +148,14 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_service
      * @param LockService $lock_service
-     * @param SearchCacheService $search_cache_service
      * @param SortService $sort_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
+        ContainerInterface $container,
         EntityManager $entity_manager,
         DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
@@ -151,12 +164,13 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_service,
         LockService $lock_service,
-        SearchCacheService $search_cache_service,
         SortService $sort_service,
+        EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
     ) {
+        $this->container = $container;
         $this->em = $entity_manager;
         $this->dbi_service = $database_info_service;
         $this->dri_service = $datarecord_info_service;
@@ -165,8 +179,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_service;
         $this->lock_service = $lock_service;
-        $this->search_cache_service = $search_cache_service;
         $this->sort_service = $sort_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -229,11 +243,14 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // ----------------------------------------
             // If no rendering context set, then return nothing so ODR's default templating will
             //  do its job
-            if (!isset($rendering_options['context']))
+            if ( !isset($rendering_options['context']) )
                 return '';
 
 
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -249,12 +266,22 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null) {
-                    // The Reference A/B fields are allowed to be non-public...which means they
-                    //  may not be in this array.  The rest of the plugin should still work though
-                    if ( $rpf_name !== 'Reference A' && $rpf_name !== 'Reference B' )
-                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
-                }
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
 
+                    // The IMA Plugin doesn't require the existence of any of its fields to execute
+                    //  properly...Display and Edit modes are merely warning when certain fields are
+                    //  blank when they shouldn't be, and FakeEdit can set Mineral ID regardless.
+
+                    // I can't fathom why you would want to have non-public fields in this datatype...
+                    //  but unlike references or cell parameters, it's not objectively wrong to do so.
+
+                    if ( $is_datatype_admin )
+                        // If a datatype admin is seeing this, then they need to fix something in
+                        //  the plugin's config
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
 
                 // Need to tweak display parameters for several of the fields...
                 $plugin_fields[$rpf_df_id] = $rpf_df;
@@ -276,19 +303,16 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
-            // Also need to provide a special token so the "mineral_id" field won't get ignored
-            //  by FakeEdit because it prevents user edits...
-            $mineralid_field_id = $fields['Mineral ID']['id'];
-            $token_id = 'FakeEdit_'.$datarecord['id'].'_'.$mineralid_field_id.'_autogenerated';
-            $token = $this->token_manager->getToken($token_id)->getValue();
-            $special_tokens[$mineralid_field_id] = $token;
-
-            // Locate the info required to run the RRUFF Reference plugin, if possible
             $theme = $theme_array[$initial_theme_id];
-            $related_reference_info = self::getRelatedReferenceInfo($datatype, $datarecord, $theme);
 
 
             // ----------------------------------------
+            // Going to gather and render RRUFF References, and also likely change the contents
+            //  of the Status Notes field
+            $related_reference_info = array();
+            $status_notes_info = array();
+
+
             // Need to check the derived fields so that any problems with them can get displayed
             //  to the user
             $relevant_fields = self::getRelevantFields($datatype, $datarecord);
@@ -334,12 +358,60 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $problem_fields[$df_id] = $problem;
                 foreach ($uniqueness_problems as $df_id => $problem)
                     $problem_fields[$df_id] = $problem;
+
+
+                // Locate the info required to run the RRUFF Reference plugin, if possible
+                $related_reference_info = self::getRelatedReferenceInfo($datatype, $datarecord, $theme, $relevant_fields, $rendering_options['context']);
+
+                // Now that the reference info has been gathered, it makes more sense to render them
+                //  here instead of having twig do it...there's likely going to be overlap between
+                //  the Reference A/B and the Status Notes fields
+                $reference_rendering_options = array(
+                    'is_top_level' => false,
+                    'is_link' => true,
+                    'is_datatype_admin' => $is_datatype_admin,
+                    'context' => 'text'    // don't want the HTML wrappers around each reference
+                );
+
+                self::prerenderReferences(
+                    $related_reference_info['prerendered_references'],
+                    $related_reference_info,
+                    $datarecord,
+                    $datatype_permissions,
+                    $datafield_permissions,
+                    $token_list,
+                    $reference_rendering_options,
+                );
+
+                // Now that the references have been rendered, substitute them into the Status Notes
+                //  field...or create warnings specific to this field
+                $status_notes_info = self::getStatusNotesInfo($relevant_fields, $related_reference_info);
+
+
+                // Need to determine whether the status notes field uses the chemistry plugin...
+                $status_notes_df_id = $relevant_fields['Status Notes']['id'];
+                $status_notes_df = $datatype['dataFields'][$status_notes_df_id];
+                foreach ($status_notes_df['renderPluginInstances'] as $rpi_id => $rpi) {
+                    $rp_classname = $rpi['renderPlugin']['pluginClassName'];
+                    if ( $rp_classname === 'odr_plugins.base.chemistry' ) {
+                        // Fortunately, the chemistry plugin is primarily javascript, so it can more
+                        //  or less co-exist with a plugin that primarily changes HTML...
+                        $status_notes_info['chemistry_plugin_rpi'] = $rpi;
+                        break;
+                    }
+                }
             }
 
 
             // Otherwise, output depends on which context the plugin is being executed from
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
+                // Because the Status Notes field needs to run plugins of its own, .modify the
+                //  datarecord array so twig thinks the version with the pre-rendered references
+                //  is the original value of this field
+                $status_notes_df_id = $relevant_fields['Status Notes']['id'];
+                $datarecord['dataRecordFields'][$status_notes_df_id]['longText'][0]['value'] = $status_notes_info['value'];
+
                 // TODO - should this also try to take over display mode of Chemistry Plugin?
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_fieldarea.html.twig',
@@ -357,14 +429,21 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
 
+                        'is_datatype_admin' => $is_datatype_admin,
+
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
 
                         'related_reference_info' => $related_reference_info,
+                        'status_notes_info' => $status_notes_info,
                     )
                 );
             }
             else if ( $rendering_options['context'] === 'edit' ) {
+                // TODO - the Status Notes field can run plugins in Display mode because its HTML doesn't need to be modified there...
+                // TODO - ...but Edit mode requires an HTML change, so most datafield plugins wouldn't work
+                // TODO - the Chemistry Plugin is the only one that's allowed to run, and only because it's hardcoded in...
+
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_fieldarea.html.twig',
                     array(
@@ -390,10 +469,18 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         'problem_fields' => $problem_fields,
 
                         'related_reference_info' => $related_reference_info,
+                        'status_notes_info' => $status_notes_info,
                     )
                 );
             }
             else if ( $rendering_options['context'] === 'fake_edit' ) {
+                // Also need to provide a special token so the "mineral_id" field won't get ignored
+                //  by FakeEdit because it prevents user edits...
+                $mineralid_field_id = $fields['Mineral ID']['id'];
+                $token_id = 'FakeEdit_'.$datarecord['id'].'_'.$mineralid_field_id.'_autogenerated';
+                $token = $this->token_manager->getToken($token_id)->getValue();
+                $special_tokens[$mineralid_field_id] = $token;
+
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_fakeedit_fieldarea.html.twig',
                     array(
@@ -453,11 +540,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
             'Reference A' => array(),
             'Reference B' => array(),
+            'Status Notes' => array(),
         );
 
         // Locate the relevant render plugin instance
         $rpm_entries = null;
-        foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 $rpm_entries = $rpi['renderPluginMap'];
                 break;
@@ -486,6 +574,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 unset( $drf['created'] );
                 unset( $drf['file'] );
                 unset( $drf['image'] );
+                unset( $drf['dataField'] );
 
                 // Should only be one entry left at this point
                 foreach ($drf as $typeclass => $data) {
@@ -575,7 +664,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
         // TODO - disabled for import testing, re-enable this later on
-        return;
+//        return;
 
         // Pull some required data from the event
         $user = $event->getUser();
@@ -627,22 +716,24 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Create a new storage entity with the new value
         $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->logger->debug('Setting df '.$datafield->getId().' "Mineral ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
         $lockHandler->release();
 
 
         // ----------------------------------------
-        // Not going to mark the datarecord as updated, but still need to do some other cache
-        //  maintenance because a datafield value got changed...
-
-        // If the datafield that got changed was a datatype's sort datafield, delete its cached datarecord order
-        $sort_datatypes = $datafield->getSortDatatypes();
-        foreach ($sort_datatypes as $num => $dt)
-            $this->dbi_service->resetDatatypeSortOrder($dt->getId());
-
-        // Delete any cached search results involving this datafield
-        $this->search_cache_service->onDatafieldModify($datafield);
+        // Fire off an event notifying that the modification of the datafield is done
+        try {
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 
 
@@ -766,7 +857,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     false,    // no sense trying to delay flush
                     false    // don't fire PostUpdate event...nothing depends on these fields
                 );
-                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$source_value.'"...', array(self::class, 'onPostUpdate()'));
+                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onPostUpdate()'));
 
                 // This only works because the datafields getting updated aren't files/images or
                 //  radio/tag fields
@@ -808,11 +899,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      *  - "IMA Formula" => "Chemical Elements"
      *  - "RRUFF Formula" => "Valence Elements"
      *
-     * @param PostMassEditEvent $event
+     * @param MassEditTriggerEvent $event
      *
      * @throws \Exception
      */
-    public function onPostMassEdit(PostMassEditEvent $event)
+    public function onMassEditTrigger(MassEditTriggerEvent $event)
     {
         // Need these variables defined out here so that the catch block can use them in case
         //  of an error
@@ -857,7 +948,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $source_value = $source_entity->getValue();
                     if ($typeclass === 'DatetimeValue')
                         $source_value = $source_value->format('Y-m-d H:i:s');
-                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onPostMassEdit()'));
+                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onMassEditTrigger()'));
 
                     // Store the renderpluginfield name that will be modified
                     $dest_rpf_name = null;
@@ -894,7 +985,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         false,    // no sense trying to delay flush
                         false    // don't fire PostUpdate event...nothing depends on these fields
                     );
-                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onPostMassEdit()'));
+                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onMassEditTrigger()'));
 
                     // This only works because the datafields getting updated aren't files/images or
                     //  radio/tag fields
@@ -903,7 +994,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onPostMassEdit()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -916,7 +1007,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onPostMassEdit()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', array(self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
             }
         }
@@ -924,8 +1015,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Returns the given datafield's renderpluginfield name if it should respond to the onPostUpdate
-     * or onPostMassEdit events, or null if it shouldn't.
+     * Returns the given datafield's renderpluginfield name if it should respond to the PostUpdate
+     * or MassEditTrigger events, or null if it shouldn't.
      *
      * @param DataFields $datafield
      *
@@ -948,7 +1039,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 //            'End Member Formula' => 'End Member Elements',
         );
 
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                     if ( isset($relevant_datafields[$rpf_name]) && $rpf['id'] === $datafield->getId() ) {
@@ -974,7 +1065,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Returns the storage entity that the onPostUpdate or onPostMassEdit events will write to.
+     * Returns the storage entity that the PostUpdate or MassEditTrigger events will overwrite.
      *
      * @param ODRUser $user
      * @param DataType $datatype
@@ -987,7 +1078,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 $df_id = $rpi['renderPluginMap'][$destination_rpf_name]['id'];
                 break;
@@ -1149,12 +1240,29 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      */
     private function clearCacheEntries($datarecord, $user, $destination_storage_entity)
     {
-        // The datarecord needs to be marked as updated
-        $this->dri_service->updateDatarecordCacheEntry($datarecord, $user);
+        // Fire off an event notifying that the modification of the datafield is done
+        try {
+            $event = new DatafieldModifiedEvent($destination_storage_entity->getDataField(), $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
 
-        // Because other datafields got updated, several more cache entries need to be wiped
-        $this->search_cache_service->onDatafieldModify($destination_storage_entity->getDataField());
-        $this->search_cache_service->onDatarecordModify($datarecord);
+        // The datarecord needs to be marked as updated
+        try {
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 
 
@@ -1247,7 +1355,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             $dr_array = $this->dri_service->stackDatarecordArray($dr_array, $datarecord->getId());
             $theme_array = $this->ti_service->stackThemeArray($theme_array, $theme->getId());
 
-            $related_reference_info = self::getRelatedReferenceInfo($dt_array, $dr_array, $theme_array);
+            $related_reference_info = self::getRelatedReferenceInfo($dt_array, $dr_array, $theme_array, $relevant_fields, $rendering_context);
 
             $template_name = 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_reference_datafield.html.twig';
             if ( $rendering_context === 'display' )
@@ -1321,13 +1429,17 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param array $datatype_array
      * @param array $datarecord_array
      * @param array $theme_array
+     * @param array $relevant_fields
+     * @param string $context
+     *
      * @return array
      */
-    private function getRelatedReferenceInfo($datatype_array, $datarecord_array, $theme_array)
+    private function getRelatedReferenceInfo($datatype_array, $datarecord_array, $theme_array, $relevant_fields, $context)
     {
         // Need to determine whether the database using this IMA plugin links to a database that
         //  uses the RRUFF Reference plugin...
         $rruff_reference_dt = null;
+        $rruff_reference_dt_id = null;
         $rruff_reference_rpi = null;
         $rruff_reference_id_field = null;
         $rruff_reference_theme = null;
@@ -1335,11 +1447,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         if ( isset($datatype_array['descendants']) ) {
             foreach ($datatype_array['descendants'] as $dt_id => $tmp) {
                 $dt = $tmp['datatype'][$dt_id];
-                foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     $rp = $rpi['renderPlugin'];
                     if ( $rp['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
                         // ...it does, so save some useful pieces of data
                         $rruff_reference_dt = $dt;
+                        $rruff_reference_dt_id = $dt['id'];
                         $rruff_reference_rpi = $rpi;
                         $rruff_reference_id_field = $rruff_reference_rpi['renderPluginMap']['Reference ID']['id'];
                     }
@@ -1347,75 +1460,110 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             }
         }
 
-        // Since this database is properly linked to a RRUFF Reference database, hopefully the values
-        //  in the 'Reference A' and 'Reference B' fields of the IMA database point to specific
-        //  records from the RRUFF Reference database...
-        $reference_a_dr = null;
-        $reference_b_dr = null;
-        // Need to also make a note of when the reference exists, but cannot be seen by the user...
-        //  without this information, the plugin will complain that "the reference doesn't exist",
-        //  which isn't accurate
-        $can_view_reference_a = false;
-        $can_view_reference_b = false;
+        // Since this database is properly linked to a RRUFF Reference database, the values in the
+        //  'Reference A', 'Reference B', and 'Status Notes' fields of the IMA database hopefully
+        //  point to specific records from the RRUFF Reference database
+        $reference_mapping = array();
+
+        // However, it's not guaranteed the the references have been linked to...
+        $invalid_references = array();
+        // ...or if they have been linked to, it's not guaranteed the user can see them
+        $can_view_references = array();
+
+        // If the reference exists and can be seen, then this plugin should execute the RRUFF
+        //  References plugin itself, so that twig doesn't have to render the same reference more
+        //  than once
+        $prerendered_references = array();
+
 
         if ( !is_null($rruff_reference_rpi) ) {
-            // Need to locate the renderPluginMapping for the IMA database, in order to find the
-            //  ids for the Reference A/B datafields
-            $rpm = array();
-            foreach ($datatype_array['renderPluginInstances'] as $num => $rpi) {
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' )    // TODO - this doesn't work with the RRUFF Sample plugin, since that one moves references around...
-                    $rpm = $rpi['renderPluginMap'];
-            }
-
-            // It's not guaranteed that either field in the IMA database has a value
-            $reference_a_df_id = $rpm['Reference A']['id'];
-            $reference_a_value = self::findCachedValue($reference_a_df_id, $datarecord_array, 'IntegerValue');
-            $reference_b_df_id = $rpm['Reference B']['id'];
-            $reference_b_value = self::findCachedValue($reference_b_df_id, $datarecord_array, 'IntegerValue');
-
             // In order to allow the plugin to tell users that "you can't see this related reference",
             //  it needs to look for the related reference in an unfiltered version of the datarecord
-            $unfiltered_datarecord_array = $this->dri_service->getDatarecordArray($datarecord_array['id']);    // do want links here
-            $unfiltered_datarecord_array = $this->dri_service->stackDatarecordArray($unfiltered_datarecord_array, $datarecord_array['id']);
+            $ima_dr_id = $datarecord_array['id'];
+            $unfiltered_datarecord_array = $this->dri_service->getDatarecordArray($ima_dr_id);    // do want links here
 
-            // If the 'Reference A' field has a value...
-            if ( !is_null($reference_a_value) ) {
-                // ...then attempt to find the related reference in the unfiltered datarecord array
-                //  first...
-                $reference_a_dr = self::findMatchingReference($reference_a_value, $unfiltered_datarecord_array, $rruff_reference_dt, $rruff_reference_id_field);
-                if ( !is_null($reference_a_dr) ) {
-                    // ...and if the related reference exists in the unfiltered array, then attempt
-                    //  to find the same reference in the filtered array...
-                    $tmp = self::findMatchingReference($reference_a_value, $datarecord_array, $rruff_reference_dt, $rruff_reference_id_field);
-                    if ( !is_null($tmp) ) {
-                        // If the related reference also exists in the filtered array, then the
-                        //  user is able to view it
-                        $can_view_reference_a = true;
+            // If the IMA record links to at least one RRUFF Reference...
+            if ( isset($unfiltered_datarecord_array[$ima_dr_id]['children'][$rruff_reference_dt_id]) ) {
+                // ...then stack the unfiltered datarecord array to make it easier to use
+                $unfiltered_datarecord_array = $this->dri_service->stackDatarecordArray($unfiltered_datarecord_array, $ima_dr_id);
+
+                foreach ($unfiltered_datarecord_array['children'][$rruff_reference_dt_id] as $dr_id => $dr) {
+                    // Each of these RRUFF Reference records should have a Reference ID field...
+                    if ( isset($dr['dataRecordFields'][$rruff_reference_id_field]) ) {
+                        // ...so extract the Reference ID value from the relevant field...
+                        $df_ref_id = $dr['dataRecordFields'][$rruff_reference_id_field];
+                        $ref_id = $df_ref_id['integerValue'][0]['value'];
+
+                        // ...and save it for later processing
+                        $reference_mapping[$ref_id] = $dr_id;
+                        $can_view_references[$ref_id] = false;
                     }
-
-                    // Otherwise, the 'Reference A' field has an acceptable value, it just points to
-                    //  a reference that the user can't see because it's been filtered out of the
-                    //  $datarecord_array...the plugin should avoid claiming the field is invalid
                 }
             }
 
-            // Do the same thing for the 'Reference B' field
-            if ( !is_null($reference_b_value) ) {
-                $reference_b_dr = self::findMatchingReference($reference_b_value, $unfiltered_datarecord_array, $rruff_reference_dt, $rruff_reference_id_field);
-                if ( !is_null($reference_b_dr) ) {
-                    $tmp = self::findMatchingReference($reference_b_value, $datarecord_array, $rruff_reference_dt, $rruff_reference_id_field);
-                    if ( !is_null($tmp) )
-                        $can_view_reference_b = true;
+            // Determine which references the IMA record refers to...the Reference A/B fields are
+            //  supposed to point to references...
+            $reference_a_value = $relevant_fields['Reference A']['value'];
+            $reference_b_value = $relevant_fields['Reference B']['value'];
+
+            if ( !is_null($reference_a_value) && $reference_a_value !== 0 )
+                $prerendered_references[$reference_a_value] = 0;
+            if ( !is_null($reference_b_value) && $reference_b_value !== 0 )
+                $prerendered_references[$reference_b_value] = 0;
+
+            // ...and the Status Notes field is supposed to be able to support them as well
+            $status_notes_value = $relevant_fields['Status Notes']['value'];
+            $status_notes_references = self::parseStatusNotesFieldValue($status_notes_value);
+            foreach ($status_notes_references as $ref_id => $num)
+                $prerendered_references[$ref_id] = 0;
+
+            // Determine whether the desired RRUFF References are in $unfiltered_datarecord_array...
+            foreach ($prerendered_references as $ref_id => $num) {
+                if ( !isset($reference_mapping[$ref_id]) ) {
+                    // ...if not, then the user should be notified of this problem...
+                    $invalid_references[$ref_id] = true;
+                    // ...and the IMA Plugin shouldn't attempt to render it
+                    unset( $prerendered_references[$ref_id] );
                 }
             }
 
+
+            // The RRUFF References are supposed to be in the 'children' section of the IMA record,
+            //  but the Linked Descendent Merger plugin might have "moved" them somewhere else...
+            //  if so, then it will have left a copy behind under 'original_children'
+            $key = 'children';
+            if ( isset($datarecord_array['original_children']) )
+                $key = 'original_children';
+
+            // Determine which RRUFF References the user is allowed to view by cross-referencing
+            //  the unfiltered and filtered datarecord lists...a reference they're not allowed to
+            //  view will be in the unfiltered datarecord list, but not the filtered list
+            if ( isset($datarecord_array[$key][$rruff_reference_dt_id]) ) {
+                foreach ($datarecord_array[$key][$rruff_reference_dt_id] as $dr_id => $dr) {
+                    // Each of these RRUFF Reference records should have a Reference ID field...
+                    if ( isset($dr['dataRecordFields'][$rruff_reference_id_field]) ) {
+                        // ...so extract the Reference ID value from the relevant field
+                        $df_ref_id = $dr['dataRecordFields'][$rruff_reference_id_field];
+                        $ref_id = $df_ref_id['integerValue'][0]['value'];
+
+                        // Since the reference exists in the already-filtered $datarecord_array, the
+                        //  user can see this record
+                        $can_view_references[$ref_id] = true;
+
+                        // If the IMA plugin is being called from the Edit context, then the plugin
+                        //  should also render all the references this IMA record links to
+                        if ( $context === 'edit' )
+                            $prerendered_references[$ref_id] = 0;
+                    }
+                }
+            }
 
             // Also need to extract the theme for the RRUFF Reference datatype so that the render
             //  plugin for that datatype can be executed correctly
             foreach ($theme_array['themeElements'] as $num => $te) {
                 if ( isset($te['themeDataType']) ) {
                     $tdt = $te['themeDataType'][0];
-                    if ( $tdt['dataType']['id'] === $rruff_reference_dt['id'] )
+                    if ( $tdt['dataType']['id'] === $rruff_reference_dt_id )
                         $rruff_reference_theme = $tdt['childTheme']['theme'];
                 }
             }
@@ -1425,79 +1573,158 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             'datatype' => $rruff_reference_dt,
             'id_field' => $rruff_reference_id_field,
             'theme' => $rruff_reference_theme,
-            'datarecord_a' => $reference_a_dr,
-            'datarecord_b' => $reference_b_dr,
-            'can_view_datarecord_a' => $can_view_reference_a,
-            'can_view_datarecord_b' => $can_view_reference_b,
+            'renderPluginInstance' => $rruff_reference_rpi,
+
+            'reference_mapping' => $reference_mapping,
+            'invalid_references' => $invalid_references,
+            'can_view_references' => $can_view_references,
+            'prerendered_references' => $prerendered_references,
         );
     }
 
 
     /**
-     * Attempts to locate the value for the datafield pointed to by $datafield_id in $datarecord.
+     * Extracts reference IDs from the value of the Status Notes field.
      *
-     * @param integer $datafield_id
-     * @param array $datarecord
-     * @param string $typeclass
-     *
-     * @return mixed
+     * @param string $value
+     * @return array reference_ids are keys
      */
-    private function findCachedValue($datafield_id, $datarecord, $typeclass)
+    private function parseStatusNotesFieldValue($value)
     {
-        // Typeclasses inside the cached datarecord array always have a lowercase first letter
-        $typeclass = lcfirst($typeclass);
+        $reference_ids = array();
 
-        $value = null;
-        if ( isset($datarecord['dataRecordFields'][$datafield_id]) ) {
-            $drf = $datarecord['dataRecordFields'][$datafield_id];
-            if ( isset($drf[$typeclass]) && isset($drf[$typeclass][0]) )
-                $value = $drf[$typeclass][0]['value'];
+        // TODO - turn the placeholder '?:' into a renderPluginOption?
+        $pattern = '/\?:([\d]+)/';
+        $matches = array();
+        if ( preg_match_all($pattern, $value, $matches) !== false ) {
+            foreach ($matches[1] as $num => $reference_id)
+                $reference_ids[$reference_id] = 0;
         }
 
-        return $value;
+        return $reference_ids;
     }
 
 
     /**
-     * Looks through $datarecord's children in an attempt to find a specific linked datarecord from
-     * $rruff_reference_dt...if it can find a linked datarecord with a reference id that matches
-     * the value in the $ref_df_id field in $datarecord, then that linked datarecord is returned.
+     * Renders a subset of the RRUFF Reference records that the given IMA datarecord links to, so
+     * that twig doesn't have to potentially render the same reference more than once.
      *
-     * @param integer $reference_id
-     * @param array $datarecord
-     * @param array $rruff_reference_datatype
-     * @param integer $rruff_reference_id_field
-     *
-     * @return null|array
+     * @param array $prerendered_references
+     * @param array $related_reference_info @see self::getRelatedReferenceInfo()
+     * @param array $ima_datarecord
+     * @param array $datatype_permissions
+     * @param array $datafield_permissions
+     * @param array $token_list
+     * @param array $rendering_options
      */
-    private function findMatchingReference($reference_id, $datarecord, $rruff_reference_datatype, $rruff_reference_id_field)
+    private function prerenderReferences(&$prerendered_references, $related_reference_info, $ima_datarecord, $datatype_permissions, $datafield_permissions, $token_list, $rendering_options)
     {
-        // If no reference id is supplied, then there can't be a matching RRUFF Reference
-        if ( is_null($reference_id) )
-            return null;
+        // The RRUFF References are supposed to be in the 'children' section of the IMA record,
+        //  but the Linked Descendent Merger plugin might have "moved" them somewhere else...
+        //  if so, then it will have left a copy behind under 'original_children'
+        $key = 'children';
+        if ( isset($ima_datarecord['original_children']) )
+            $key = 'original_children';
 
-        // The given $datarecord isn't guaranteed to already link to records that belong to the
-        //  $rruff_reference_datatype...
-        $rruff_reference_dt_id = $rruff_reference_datatype['id'];
-        $linked_references = null;
-        if ( isset($datarecord['children']) && isset($datarecord['children'][$rruff_reference_dt_id]) )
-            $linked_references = $datarecord['children'][$rruff_reference_dt_id];
+        // The IMA record may not link to any RRUFF References...
+        $rruff_reference_dt_id = $related_reference_info['datatype']['id'];
+        if ( !isset($ima_datarecord[$key][$rruff_reference_dt_id]) ) {
+            // ...if it doesn't, then there's nothing to pre-render
+            return;
+        }
 
-        // ...but if it does...
-        if ( !is_null($linked_references) ) {
-            // ...then attempt to find the linked record from $rruff_reference_datatype that has a
-            //  reference id which matches the given $reference_id
-            foreach ($linked_references as $ref_dr_id => $ref_dr) {
-                $linked_record_reference_id = self::findCachedValue($rruff_reference_id_field, $ref_dr, 'IntegerValue');
+        // ...but if it does, then going to attempt to pre-render the references
+        $can_view_references = $related_reference_info['can_view_references'];
+        $rruff_reference_records = $ima_datarecord[$key][$rruff_reference_dt_id];
 
-                // If the id matches, then immediately return
-                if ( $linked_record_reference_id === $reference_id )
-                    return $ref_dr;
+        foreach ($prerendered_references as $ref_id => $num) {
+            // Determine which ODR record this reference ID is referring to
+            $reference_dr_id = $related_reference_info['reference_mapping'][$ref_id];
+
+            // If the user can view the requested reference...
+            if ( $can_view_references[$ref_id] ) {
+                // ...then render it...
+                $reference_dr = $rruff_reference_records[$reference_dr_id];
+
+                /** @var DatatypePluginInterface $rruff_reference_plugin */
+                $rruff_reference_plugin = $this->container->get('odr_plugins.rruff.rruff_references');
+                $content = $rruff_reference_plugin->execute(
+                    array($reference_dr_id => $reference_dr),
+                    $related_reference_info['datatype'],
+                    $related_reference_info['renderPluginInstance'],
+                    $related_reference_info['theme'],
+                    $rendering_options,
+                    $ima_datarecord,
+                    $datatype_permissions,
+                    $datafield_permissions,
+                    $token_list
+                );
+
+                // ...and store it for later use
+                $prerendered_references[$ref_id] = $content;
+            }
+            else {
+                // ...if the user can't view the requested reference, then get rid of the array entry
+                //  so twig can inform the user of their lack of permissions
+                unset( $prerendered_references[$ref_id] );
+            }
+        }
+    }
+
+
+    /**
+     * Attempts to substitute any reference placeholders in the Status Notes value with the
+     * rendered form of the RRUFF Reference, and creates warning blurbs if it can't.
+     *
+     * @param array $relevant_fields @see self::getRelevantFields()
+     * @param array $related_reference_info @see self::getRelatedReferenceInfo()
+     *
+     * @return array
+     */
+    private function getStatusNotesInfo($relevant_fields, $related_reference_info)
+    {
+        // The value of the status notes field has already been found...
+        $status_notes = $relevant_fields['Status Notes'];
+        $status_notes_value = $status_notes['value'];
+        $status_notes_warnings = array();
+
+        // Locate any reference ids in the status notes
+        $reference_ids = self::parseStatusNotesFieldValue($status_notes_value);
+
+        // The field may not have any references in it
+        if ( !empty($reference_ids) ) {
+            // ...but if it does, then they need to be replaced with the pre-rendered reference text
+            $prerendered_references = $related_reference_info['prerendered_references'];
+
+            // Sort the reference ids in descending order to ensure a placeholder like '?:1' doesn't
+            //  clobber a placeholder like '?:100'
+            krsort($reference_ids);
+            foreach ($reference_ids as $ref_id => $num) {
+                // The pre-rendered references aren't guaranteed to have this reference...the user
+                //  might not be able to see this reference, or they could've entered an id for a
+                //  reference that the IMA record doesn't link to
+                if ( isset($prerendered_references[$ref_id]) ) {
+                    // If they can see the reference, then replace the placeholder in the Status
+                    //  Notes field with the pre-rendered reference
+                    // TODO - turn the placeholder '?:' into a renderPluginOption?
+                    $placeholder = '?:'.$ref_id;
+                    $status_notes_value = str_replace($placeholder, $prerendered_references[$ref_id], $status_notes_value);
+                }
+                else {
+                    // ...otherwise, generate a warning depending on whether the reference is missing
+                    //  due to not being linked, or "missing" because they can't see it
+                    if ( isset($related_reference_info['invalid_references'][$ref_id]) )
+                        $status_notes_warnings[] = 'The RRUFF Reference with the ID '.$ref_id.' is not linked to this IMA Record.';
+                    else
+                        $status_notes_warnings[] = 'You are not permitted to view the RRUFF Reference with the ID '.$ref_id.'.';
+                }
             }
         }
 
-        // Otherwise, no linked record was found that matched the given reference id...return null
-        return null;
+        return array(
+            'value' => $status_notes_value,
+            'warnings' => $status_notes_warnings,
+        );
     }
 
 
@@ -1506,7 +1733,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * job without actually changing their values.
      *
      * @param array $render_plugin_instance
-     * @return array An array where the keys are datafield ids, and the values aren't used
+     * @return array An array where the values are datafield ids
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1522,16 +1749,48 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 //            'End Member Formula' => 'End Member Elements',
         );
 
-        $ret = array(
-            'label' => $render_plugin_instance['renderPlugin']['pluginName'],
-            'fields' => array()
-        );
-
+        $ret = array();
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) )
-                $ret['fields'][ $rpf['id'] ] = 1;
+                $ret[] = $rpf['id'];
         }
 
         return $ret;
+    }
+
+
+    /**
+     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
+     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
+     * may not want to activate if the user has also entered a value in the relevant field.
+     *
+     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
+     * should always be activated, or false if it should only be activated when the user didn't
+     * also enter a value into the field.
+     *
+     * @param array $render_plugin_instance
+     * @return array
+     */
+    public function getMassEditTriggerFields($render_plugin_instance)
+    {
+        // Only interested in overriding datafields mapped to these rpf entries
+        $relevant_datafields = array(
+            'Mineral Display Name' => 'Mineral Name',
+            'Mineral Display Abbreviation' => 'Mineral Abbreviation',
+            'IMA Formula' => 'Chemistry Elements',
+            'RRUFF Formula' => 'Valence Elements',
+//            'End Member Formula' => 'End Member Elements',
+        );
+
+        $trigger_fields = array();
+        foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
+            if ( isset($relevant_datafields[$rpf_name]) ) {
+                // The relevant fields should only have the MassEditTrigger event activated when the
+                //  user didn't also specify a new value
+                $trigger_fields[ $rpf['id'] ] = false;
+            }
+        }
+
+        return $trigger_fields;
     }
 }

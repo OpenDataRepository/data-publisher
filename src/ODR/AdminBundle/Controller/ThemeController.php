@@ -24,6 +24,7 @@ use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemePreferences;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -58,12 +59,13 @@ class ThemeController extends ODRCustomController
      * datatype.
      *
      * @param integer $datatype_id
-     * @param string $page_type     'display', 'edit', 'search_results', 'table', or 'linking'
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
+     * @param string $search_key
      * @param Request $request
      *
      * @return Response $response
      */
-    public function getavailablethemesAction($datatype_id, $page_type, Request $request)
+    public function getavailablethemesAction($datatype_id, $page_type, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -77,8 +79,8 @@ class ThemeController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -94,38 +96,43 @@ class ThemeController extends ODRCustomController
             $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
-            // View/Edit mode pages should use theme_types from ThemeInfoService::LONG_FORM_THEMETYPES
-            if ($page_type == "display" || $page_type == "edit")
-                $page_type = "master";
-
+            // Not attempting to verify $page_type...
+            $selected_theme_id = 0;
+            if ( $page_type !== '' ) {
+                // ...ThemeInfoService will verify if being called from a location where it matters
+                $selected_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype_id, $page_type);
+            }
 
             // Get all available themes for this datatype that the user can view
-            $themes = $theme_service->getAvailableThemes($user, $datatype, $page_type);
+            $available_themes = $theme_info_service->getAvailableThemes($user, $datatype);
 
-            // If the previous query didn't return anything, then load the master layout instead
-            if ( empty($themes) )
-                $themes = $theme_service->getAvailableThemes($user, $datatype, "master");
 
-            // Get the user's default theme for this datatype, if they have one
-            $user_preferred_theme_id = null;
-            $user_preferred_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
-            if ( !is_null($user_preferred_theme) )
-                $user_preferred_theme_id = $user_preferred_theme->getTheme()->getId();
+            // ----------------------------------------
+            // Need to provide a formatted version of $page_type that matches what getAvailableThemes()
+            //  returned as part of the "default_for" entry
+            $formatted_page_type = ucfirst( str_replace('_', ' ', $page_type) );
 
-            // Get the theme currently being used on this page
-            $selected_theme_id = $theme_service->getPreferredTheme($user, $datatype_id, $page_type);
+            $available_page_types = array();
+            foreach (ThemeInfoService::PAGE_TYPES as $num => $str)
+                $available_page_types[$str] = ucfirst( str_replace('_', ' ', $str) );
 
 
             // Render and return the theme chooser dialog
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:choose_view.html.twig',
                 array(
-                    'themes' => $themes,
-                    'user_preferred_theme_id' => $user_preferred_theme_id,
+                    'user' => $user,
+                    'is_datatype_admin' => $is_datatype_admin,
+
+                    'datatype' => $datatype,
+                    'search_key' => $search_key,
+
+                    'available_themes' => $available_themes,
                     'selected_theme_id' => $selected_theme_id,
 
-                    'user' => $user,
-                    'is_datatype_admin' => $is_datatype_admin
+                    'page_type' => $page_type,
+                    'formatted_page_type' => $formatted_page_type,
+                    'available_page_types' => $available_page_types,
                 )
             );
         }
@@ -188,8 +195,8 @@ class ThemeController extends ODRCustomController
 
 
         // ----------------------------------------
-        // This complicates permission somewhat...most of the checks need to be peformed against
-        //  the Theme's Datatype
+        // This copying complicates permissions...most of the checks need to be peformed against
+        //  the Theme's Datatype...
         $datatype = $theme->getDataType();
 
         // However, if this is a "local copy" of some "remote" datatype, then some of the checks
@@ -210,6 +217,7 @@ class ThemeController extends ODRCustomController
         // ...and also have to be able to at least view the datatype being modified
         if ( !$pm_service->canViewDatatype($user, $datatype) )
             throw new ODRForbiddenException();
+
         // If this theme is a "local copy" of a remote datatype, then also need to be able to view
         //  the local datatype to be able to make changes to this theme
         if ( !$pm_service->canViewDatatype($user, $local_parent_datatype) )
@@ -227,18 +235,11 @@ class ThemeController extends ODRCustomController
 
         // If the user didn't create this theme...
         if ( $theme->getCreatedBy()->getId() !== $user->getId() ) {
-            if ( $theme->getParentTheme()->isDefault() && $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
-                // ...they're allowed to modify it only if it's the datatype's default theme and
-                //  they're an admin of the local datatype
-
-                // Need to use $theme->getParentTheme() here because the "isDefault" property is only
-                //  updated for the top-level theme
-            }
-            else {
-                // ...if the above is not true, then they're not allowed to modify it
+            // ...then they're only allowed to modify it if they're an admin of the local datatype
+            if ( !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) )
                 throw new ODRForbiddenException();
-            }
         }
+
         // Otherwise, user created the theme, so they're allowed to modify it
     }
 
@@ -285,7 +286,7 @@ class ThemeController extends ODRCustomController
             if ( $theme->getParentTheme()->getId() !== $theme->getId() )
                 throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a child/linked theme');
 
-            // Don't allow on a 'master' theme
+            // Need to allow the derivative theme designer to work on a 'master' theme
 //            if ($theme->getThemeType() === 'master')
 //                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
 
@@ -298,7 +299,6 @@ class ThemeController extends ODRCustomController
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
             // --------------------
-
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -343,8 +343,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var Theme $theme */
@@ -371,37 +371,31 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // Store whether this is a "short" form or not...
-            $is_short_form = in_array($theme->getThemeType(), $theme_service::SHORT_FORM_THEMETYPES);
-
             // Populate new Theme form
             $submitted_data = new ThemeMeta();
             $theme_form = $this->createForm(
                 UpdateThemeForm::class,
                 $submitted_data,
-                array(
-                    'is_short_form' => $is_short_form,
-                )
             );
             $theme_form->handleRequest($request);
 
 
             // --------------------
             if ($theme_form->isSubmitted()) {
-//$theme_form->addError( new FormError('DO NOT SAVE') );
+//                $theme_form->addError( new FormError('DO NOT SAVE') );
+
                 if ($theme_form->isValid()) {
                     // Save any changes made in the form
                     $properties = array(
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
+                        'isTableTheme' => $submitted_data->getIsTableTheme(),
+                        'displaysAllResults' => $submitted_data->getDisplaysAllResults(),
                     );
-                    if ($is_short_form)
-                        $properties['isTableTheme'] = $submitted_data->getIsTableTheme();
-
                     $emm_service->updateThemeMeta($user, $theme, $properties);
 
                     // Update the cached version of this theme
-                    $theme_service->updateThemeCacheEntry($theme, $user);
+                    $theme_info_service->updateThemeCacheEntry($theme, $user);
                 }
                 else {
                     // Form validation failed
@@ -433,7 +427,7 @@ class ThemeController extends ODRCustomController
      *
      * @return Response
      */
-    public function themepublicAction($theme_id, Request $request)
+    public function themesharedAction($theme_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -446,8 +440,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var Theme $theme */
@@ -480,7 +474,7 @@ class ThemeController extends ODRCustomController
 
             // If the theme is currently a "default" theme for the datatype, then it also needs
             //  to always remain "shared"
-            if ($theme->isDefault() && $theme->isShared())
+            if ($theme->getDefaultFor() > 0 && $theme->isShared())
                 throw new ODRBadRequestException("A 'default' theme must always be shared");
 
 
@@ -505,7 +499,7 @@ class ThemeController extends ODRCustomController
             }
 
             // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0xd67b2938;
@@ -522,16 +516,16 @@ class ThemeController extends ODRCustomController
 
 
     /**
-     * Datatypes typically have two "default" Themes...one for the "Short Form" theme_types (both
-     * "search_results and "table"), and another for the "Long Form" theme_types (both "master" and
-     * "custom_view).  This controller action sets the given Theme as "default" within its theme_type.
+     * Datatypes default to the "master" Theme at first, but datatype admins have the ability to set
+     * any shared theme as "default" for a given "page_type".
      *
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      * @param integer $theme_id
      * @param Request $request
      *
      * @return Response
      */
-    public function themedefaultAction($theme_id, Request $request)
+    public function setdatabasedefaultthemeAction($page_type, $theme_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -546,8 +540,8 @@ class ThemeController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var Theme $theme */
@@ -577,54 +571,259 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // Compile a list of theme types that need to be set to "not default"
-            $theme_types = ThemeInfoService::LONG_FORM_THEMETYPES;
-            if ( in_array($theme->getThemeType(), ThemeInfoService::SHORT_FORM_THEMETYPES) )
-                $theme_types = ThemeInfoService::SHORT_FORM_THEMETYPES;
+            // Ensure the provided page_type is valid
+            $page_type_id = array_search($page_type, ThemeInfoService::PAGE_TYPES);
+            if ( $page_type_id === false )
+                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
 
-            // Find all top-level themes for this datatype that have those theme types
-            $query = $em->createQuery(
-               'SELECT t
-                FROM ODRAdminBundle:Theme AS t
-                WHERE t.dataType = :datatype_id AND t.themeType IN (:theme_types)
-                AND t = t.parentTheme AND t.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype_id' => $datatype->getId(),
-                    'theme_types' => $theme_types
-                )
+            // Query the database for the default top-level theme for this datatype/page_type combo
+            // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
+            $query =
+               'SELECT t.id
+                FROM odr_theme AS t
+                JOIN odr_theme_meta AS tm ON tm.theme_id = t.id
+                WHERE t.data_type_id = :datatype_id AND (tm.default_for & :page_type_id)
+                AND t.id = t.parent_theme_id
+                AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
+            $params = array(
+                'datatype_id' => $datatype->getId(),
+                'page_type_id' => $page_type_id,
             );
-            /** @var Theme[] $theme_list */
-            $theme_list = $query->getResult();
+            $conn = $em->getConnection();
+            $results = $conn->executeQuery($query, $params);
 
-            // Each of the themes in this list need to be set to "not default"...
-            foreach ($theme_list as $t) {
-                // ...except the theme that is being set to "default"
-                if ( $t->getId() !== $theme->getId() ) {
+            // Each of the themes in this query need to be set to "not default"...
+            foreach ($results as $result) {
+                $t_id = $result['id'];
+                if ( $theme->getId() !== $t_id ) {
+                    /** @var Theme $t */
+                    $t = $em->getRepository('ODRAdminBundle:Theme')->find($t_id);
+                    $new_defaults = $t->getDefaultFor() - $page_type_id;
                     $properties = array(
-                        'isDefault' => false
+                        'defaultFor' => $new_defaults
                     );
-                    $emm_service->updateThemeMeta($user, $t, $properties, true);    // Don't flush immediately...
 
+                    $emm_service->updateThemeMeta($user, $t, $properties, true);    // Don't flush immediately...
                     // Update cached versions of these themes
-                    $theme_service->updateThemeCacheEntry($t, $user);
+                    $theme_info_service->updateThemeCacheEntry($t, $user);
                 }
             }
 
             // ...afterwards, specify this theme as the default (and shared, if it isn't already)
+            $new_defaults = $theme->getDefaultFor() + $page_type_id;
             $properties = array(
                 'shared' => true,
-                'isDefault' => true,
+                'defaultFor' => $new_defaults
             );
             $emm_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
 
             // Updated cached version of this theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
 
             $return['d'] = "success";
         }
         catch (\Exception $e) {
             $source = 0x763a86a6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Because a theme can be a default for multiple page_types, it's handy to have a way to remove
+     * a default without requiring another theme to take its place.
+     *
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
+     * @param integer $theme_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function unsetdatabasedefaultthemeAction($page_type, $theme_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Child/linked themes inherit this property from their top-level parent
+            if ( $theme->getId() !== $theme->getParentTheme()->getId() )
+                throw new ODRBadRequestException('Not allowed to change properties of a child/linked theme');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // The user must be an admin of the relevant datatype to change this
+            if ($user === "anon.")
+                throw new ODRForbiddenException();
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Ensure the provided page_type is valid
+            $page_type_id = array_search($page_type, ThemeInfoService::PAGE_TYPES);
+            if ( $page_type_id === false )
+                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
+
+
+            // Only do stuff if the theme is currently the default for this page type...
+            if ( ($theme->getDefaultFor() & $page_type_id) ) {
+                $new_defaults = $theme->getDefaultFor() - $page_type_id;
+                $properties = array(
+                    'shared' => true,
+                    'defaultFor' => $new_defaults
+                );
+                $emm_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
+
+                // Updated cached version of this theme
+                $theme_info_service->updateThemeCacheEntry($theme, $user);
+            }
+            else {
+                // If it's not the default for this page type, just return without doing anything
+            }
+
+            $return['d'] = "success";
+        }
+        catch (\Exception $e) {
+            $source = 0xbd4a27f9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Because a theme can be a default for multiple page_types, it's handy to have a way to remove
+     * a default without requiring another theme to take its place.
+     *
+     * NOTE: the corresponding set is in SessionController::applythemeAction()
+     *
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
+     * @param integer $theme_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function unsetpersonaldefaultthemeAction($page_type, $theme_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Child/linked themes inherit this property from their top-level parent
+            if ( $theme->getId() !== $theme->getParentTheme()->getId() )
+                throw new ODRBadRequestException('Not allowed to change properties of a child/linked theme');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // The user must be an admin of the relevant datatype to change this
+            if ($user === "anon.")
+                throw new ODRForbiddenException();
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Ensure the provided page_type is valid
+            $page_type_id = array_search($page_type, ThemeInfoService::PAGE_TYPES);
+            if ( $page_type_id === false )
+                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
+
+
+            // Only do stuff if the user has a themePreference involving this theme and page type...
+            /** @var ThemePreferences $tp */
+            $tp = $em->getRepository('ODRAdminBundle:ThemePreferences')->findOneBy(
+                array(
+                    'theme' => $theme->getId(),
+                    'createdBy' => $user->getId(),
+                )
+            );
+
+            if ($tp == null ) {
+                // Nothing to do when the user doesn't have a themePreference entry for this theme
+            }
+            else {
+                if ( ($tp->getDefaultFor() & $page_type_id) ) {
+                    // Set the user's themePreference entry so it no longer refers to this page_type
+                    $bitfield_value = $tp->getDefaultFor();
+                    $bitfield_value -= $page_type_id;
+                    $tp->setDefaultFor($bitfield_value);
+                    $tp->setUpdatedBy($user);
+
+                    $em->persist($tp);
+                    $em->flush();
+                    $em->refresh($tp);
+                }
+                else {
+                    // If the user's themePreference entry doesn't have this theme listed as the
+                    //  user's default, just return without doing anything
+                }
+            }
+
+            $return['d'] = "success";
+        }
+        catch (\Exception $e) {
+            $source = 0x70ec27b2;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -698,7 +897,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to delete a "master" Theme');
 
             // If the theme is currently marked as a default for the datatype, don't delete it
-            if ($theme->isDefault())
+            if ($theme->getDefaultFor() > 0)
                 throw new ODRBadRequestException('Unable to delete a Theme marked as "default"');
 
             // Don't delete themes for child/linked datatypes
@@ -707,8 +906,7 @@ class ThemeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If a user has this Theme as their "personal default", then remove those prior to
-            //  deleting the Theme
+            // Ensure users no longer have this Theme as their "personal default"
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:ThemePreferences AS tp
                 SET tp.deletedAt = :now
@@ -760,12 +958,11 @@ class ThemeController extends ODRCustomController
      * Clones the given theme, setting the requesting user as its owner.
      *
      * @param int $theme_id
-     * @param string $new_theme_type
      * @param Request $request
      *
      * @return Response
      */
-    public function clonethemeAction($theme_id, $new_theme_type, Request $request)
+    public function clonethemeAction($theme_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -816,35 +1013,13 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // If a destination theme type was given, ensure it's valid first
-            if ( $new_theme_type !== '' && !in_array($new_theme_type, ThemeInfoService::VALID_THEMETYPES) )
-                throw new ODRBadRequestException('Invalid ThemeType');
-            if ( $new_theme_type === 'master' )
-                throw new ODRBadRequestException('Invalid ThemeType');
-
-
-            // If a destination theme type wasn't given...
-            if ( $new_theme_type === '' ) {
-                // ...then just copy the source's theme_type
-                $dest_theme_type = $theme->getThemeType();
-            }
-            else {
-                // ...otherwise, use the requested theme_type
-                $dest_theme_type = $new_theme_type;
-            }
-
-            // Should never create a new "master" theme...those have special meaning
-            if ($dest_theme_type == 'master')
-                $dest_theme_type = 'custom_view';
-
-
             // This actually seems to be fast enough that it doesn't need the TrackedJobService...
-            $new_theme = $clone_theme_service->cloneSourceTheme($user, $theme, $dest_theme_type);
-
+            $new_theme = $clone_theme_service->cloneSourceTheme($user, $theme, 'custom');    // this controller action should never create a "master" theme
 
             $return['d'] = array(
                 'new_theme_id' => $new_theme->getId()
             );
+
 
             // Delete the cached list of top-level themes
             $cache_service->delete('top_level_themes');
@@ -887,8 +1062,8 @@ class ThemeController extends ODRCustomController
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var Theme $theme */
@@ -910,16 +1085,12 @@ class ThemeController extends ODRCustomController
             self::canModifyTheme($user, $theme);
             // --------------------
 
-            // Not allowed to create a new theme element for a table theme
-//            if ($theme->getThemeType() == 'table')
-//                throw new \Exception('Not allowed to have multiple theme elements in a table theme');
-
 
             // Create a new theme element entity
             $theme_element = $ec_service->createThemeElement($user, $theme);
 
             // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
 
             // Need to render a blank theme element so the page can get updated...
             $html = "";
@@ -978,8 +1149,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             // Grab the theme element from the repository
@@ -1008,20 +1179,16 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // Not allowed to delete a theme element from a table theme
-//            if ($theme->getThemeType() == 'table')
-//                throw new \Exception('Not allowed to delete a theme element from a table theme');
+            // Don't allow deletion of themeElement if it still is being used for something
+            if ( $theme_element->getThemeDataFields()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that contains datafields');
+            if ( $theme_element->getThemeDataType()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that contains child/linked datatypes');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that is being used by a render plugin');
 
-            // Don't allow deletion of themeElement if it still has datafields or a child/linked datatype attached to it
-            $theme_datatypes = $theme_element->getThemeDataType();
-            $theme_datafields = $theme_element->getThemeDataFields();
-
-            // TODO - allow deletion of theme elements that still have datafields or a child/linked datatype attached to them?
-            if ( count($theme_datatypes) > 0 || count($theme_datafields) > 0 )
-                throw new ODRBadRequestException('Unable to delete a theme element that contains datafields or datatypes');
 
             // Going to delete both the themeElement and its meta entry...
-            // Also delete the meta entry
             $entities_to_remove = array();
             $entities_to_remove[] = $theme_element;
             $entities_to_remove[] = $theme_element->getThemeElementMeta();
@@ -1037,7 +1204,7 @@ class ThemeController extends ODRCustomController
             $em->flush();
 
             // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0x6d3a448c;
@@ -1075,8 +1242,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -1104,9 +1271,6 @@ class ThemeController extends ODRCustomController
             self::canModifyTheme($user, $theme);
             // --------------------
 
-            // Not allowed to modify properties of a theme element in a table theme
-//            if ($theme->getThemeType() == 'table')
-//                throw new \Exception('Not allowed to change properties of a theme element belonging to a table theme');
 
             // Populate new ThemeElement form
             $submitted_data = new ThemeElementMeta();
@@ -1117,22 +1281,26 @@ class ThemeController extends ODRCustomController
 
             $theme_element_form->handleRequest($request);
             if ($theme_element_form->isSubmitted()) {
-//                $theme_element_form->addError( new FormError('do not save') );
+//                $theme_element_form->addError( new FormError('DO NOT SAVE') );
+
                 if ($theme_element_form->isValid()) {
-                    // Not allowed to mark ThemeElements from 'master' themes as 'hidden'
-                    if ($theme->getThemeType() === 'master')
-                        $submitted_data->setHidden(0);
+                    // Users need to be able to change the "hidden" property on a "master" theme
+                    // Display/Edit/SearchResults/TextResults will respect this property, but most
+                    //  areas of ODR typically ignore it
+//                    if ($theme->getThemeType() === 'master')
+//                        $submitted_data->setHidden(0);
 
                     // Save any changes made to the form
                     $properties = array(
                         'hidden' => $submitted_data->getHidden(),
+                        'hideBorder' => $submitted_data->getHideBorder(),
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
                     );
                     $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
 
                     // Update the cached version of this theme
-                    $theme_service->updateThemeCacheEntry($theme, $user);
+                    $theme_info_service->updateThemeCacheEntry($theme, $user);
                 }
                 else {
                     // Form validation failed
@@ -1204,8 +1372,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             // Grab the first theme element just to check permissions
@@ -1234,10 +1402,6 @@ class ThemeController extends ODRCustomController
             self::canModifyTheme($user, $theme);
             // --------------------
 
-            // Shouldn't happen since there's only one theme element per table theme
-//            if ($theme->getThemeType() == 'table')
-//                throw new \Exception('Not allowed to re-order theme elements inside a table theme');
-
 
             // Go through all of the theme elements, updating their display order if needed
             $changes_made = false;
@@ -1261,7 +1425,7 @@ class ThemeController extends ODRCustomController
 
 
             // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0x26e49fd1;
@@ -1278,7 +1442,8 @@ class ThemeController extends ODRCustomController
 
 
     /**
-     * Toggles the hidden status of a ThemeElement.
+     * Toggles the hidden status of a ThemeElement.  This is its own action because it's toggled
+     * with a UI element, instead of using Symfony's form system.
      *
      * @param integer $theme_element_id
      * @param Request $request
@@ -1298,8 +1463,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -1326,8 +1491,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Users need to be able to change the "hidden" property on a "master" theme
-            // Most areas of ODR will always display themeElements/themeDatafields in a "master"
-            //  theme, but Display/SearchResults/TextResults will respect this property
+            // Display/Edit/SearchResults/TextResults will respect this property, but most areas
+            //  of ODR typically ignore it
 //            if ( $theme->getThemeType() === 'master' )
 //                throw new ODRBadRequestException("Unable to change hidden status of ThemeElements on a datatype's master theme");
 
@@ -1347,10 +1512,100 @@ class ThemeController extends ODRCustomController
             }
 
             // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0xd43cc3b9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles whether a ThemeElement displays its border or not.  This is its own action because
+     * it's toggled with a UI element, instead of using Symfony's form system.
+     *
+     * The UI only allows this on themeElements for top-level datatypes to match the CSS definitions,
+     * but there's technically nothing stopping it from working on themeElements of descendents.
+     *
+     * @param integer $theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeelementbordervisibilityAction($theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( !is_null($datatype->getDeletedAt()) )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifyTheme($user, $theme);
+            // --------------------
+
+            // Users need to be able to change the "hidden" property on a "master" theme
+            // Display/Edit/SearchResults/TextResults will respect this property, but most areas of
+            //  ODR typically ignore it
+//            if ( $theme->getThemeType() === 'master' )
+//                throw new ODRBadRequestException("Unable to change hidden status of ThemeElements on a datatype's master theme");
+
+
+            // Toggle the hidden status of the specified theme_element
+            if ( $theme_element->getHideBorder() ) {
+                $properties = array(
+                    'hideBorder' => false,
+                );
+                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+            }
+            else {
+                $properties = array(
+                    'hideBorder' => true,
+                );
+                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+            }
+
+            // Update cached version of theme
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0x88462342;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1394,8 +1649,6 @@ class ThemeController extends ODRCustomController
             $theme = $theme_element->getTheme();
             if ( !is_null($theme->getDeletedAt()) )
                 throw new ODRNotFoundException('Theme');
-//            if ($theme->getThemeType() === 'master')
-//                throw new ODRBadRequestException("Not allowed to re-render something that belongs to the master Theme");
 
 
             // --------------------
@@ -1513,12 +1766,17 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Might be useful in the future...
+            $is_top_level = true;
+            if ( $child_datatype->getId() !== $child_datatype->getGrandparent()->getId() )
+                $is_top_level = false;
 
             // Create the ThemeDatatype form object
             $theme_datatype_form = $this->createForm(
                 UpdateThemeDatatypeForm::class,
                 $theme_datatype,
                 array(
+                    'is_top_level' => $is_top_level,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             )->createView();
@@ -1575,8 +1833,8 @@ class ThemeController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -1630,11 +1888,17 @@ class ThemeController extends ODRCustomController
                 array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
             );
 
+            // Might be useful in the future...
+            $is_top_level = true;
+            if ( $child_datatype->getId() !== $child_datatype->getGrandparent()->getId() )
+                $is_top_level = false;
+
             // Create the ThemeDatatype form object
             $theme_datatype_form = $this->createForm(
                 UpdateThemeDatatypeForm::class,
                 $submitted_data,
                 array(
+                    'is_top_level' => $is_top_level,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             );
@@ -1650,7 +1914,7 @@ class ThemeController extends ODRCustomController
                     $emm_service->updateThemeDatatype($user, $theme_datatype, $properties);
 
                     // Update cached version of theme
-                    $theme_service->updateThemeCacheEntry($theme, $user);
+                    $theme_info_service->updateThemeCacheEntry($theme, $user);
                 }
                 else {
                     // Form validation failed
@@ -1807,8 +2071,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -1865,9 +2129,11 @@ class ThemeController extends ODRCustomController
 //$theme_datafield_form->addError( new FormError('DO NOT SAVE') );
 
                 if ($theme_datafield_form->isValid()) {
-                    // Don't allow a themeDatafield belonging to a master theme to be hidden
-                    if ($theme->getThemeType() === 'master')
-                        $submitted_data->setHidden(0);
+                    // Users need to be able to change the "hidden" property on a "master" theme
+                    // Display/Edit/SearchResults/TextResults will respect this property, but most
+                    //  areas of ODR typically ignore it
+//                    if ($theme->getThemeType() === 'master')
+//                        $submitted_data->setHidden(0);
 
                     // Save all changes made via the submitted form
                     $properties = array(
@@ -1875,11 +2141,12 @@ class ThemeController extends ODRCustomController
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
 //                        'hidden' => $submitted_data->getHidden(),    // Not allowed to change this value through this controller action
+//                        'hideHeader' => $submitted_data->getHideHeader(),    // Not allowed to change this value through this controller action
                     );
                     $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
 
                     // Update the cached version of the theme
-                    $theme_service->updateThemeCacheEntry($theme, $user);
+                    $theme_info_service->updateThemeCacheEntry($theme, $user);
                 }
                 else {
                     // Form validation failed
@@ -1926,8 +2193,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataFields $datafield */
@@ -1969,8 +2236,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Users need to be able to change the "hidden" property on a "master" theme
-            // Most areas of ODR will always display themeElements/themeDatafields in a "master"
-            //  theme, but Display/SearchResults/TextResults will respect this property
+            // Display/Edit/SearchResults/TextResults will respect this property, but most areas of
+            //  ODR typically ignore it
 //            if ( $theme->getThemeType() === 'master' )
 //                throw new ODRBadRequestException("Unable to change hidden status of ThemeDatafields on a datatype's master theme");
 
@@ -1990,10 +2257,117 @@ class ThemeController extends ODRCustomController
             }
 
             // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0x1dbd0605;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles the hidden status of a header for a ThemeDatafield.
+     *
+     * @param integer $theme_element_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themedatafieldheadervisibilityAction($theme_element_id, $datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ( is_null($datafield) )
+                throw new ODRNotFoundException('Datafield');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+                array(
+                    'themeElement' => $theme_element_id,
+                    'dataField' => $datafield_id,
+                )
+            );
+            if ( is_null($theme_datafield) )
+                throw new ODRNotFoundException('ThemeDatafield');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // For the moment, this only makes sense on an Image datafield
+            if ( $datafield->getFieldType()->getTypeClass() !== 'Image' )
+                throw new ODRBadRequestException();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifyTheme($user, $theme, $datafield);
+            // --------------------
+
+            // Users need to be able to change the "hidden" property on a "master" theme
+            // Display/Edit/SearchResults/TextResults will respect this property, but most areas of
+            //  ODR typically ignore it
+//            if ( $theme->getThemeType() === 'master' )
+//                throw new ODRBadRequestException("Unable to change hidden status of ThemeDatafields on a datatype's master theme");
+
+
+            // Toggle the hidden status of the specified theme_datafield
+            if ( $theme_datafield->getHideHeader() ) {
+                $properties = array(
+                    'hideHeader' => false,
+                );
+                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+            else {
+                $properties = array(
+                    'hideHeader' => true,
+                );
+                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+
+            // Update cached version of theme
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0xc077b07d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -2034,8 +2408,8 @@ class ThemeController extends ODRCustomController
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ThemeElement $initial_theme_element */
@@ -2067,12 +2441,11 @@ class ThemeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Ensure there's not a child or linked datatype in the ending theme_element before actually moving this datafield into it
-            /** @var ThemeDataType[] $theme_datatypes */
-            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')
-                ->findBy( array('themeElement' => $ending_theme_element_id) );
-            if ( count($theme_datatypes) > 0 )
+            // Ensure this datafield isn't trying to move into an illegal theme element
+            if ( $ending_theme_element->getThemeDataType()->count() > 0 )
                 throw new \Exception('Unable to move a Datafield into a ThemeElement that already has a child/linked Datatype');
+            if ( $ending_theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new \Exception('Unable to move a Datafield into a ThemeElement that is already being used by a RenderPlugin');
 
             // NOTE - could technically check for deleted datafields, but it *shouldn't* matter if
             //  any exist...don't think displayOrder can get messed up, and it's not really a
@@ -2161,7 +2534,7 @@ class ThemeController extends ODRCustomController
             $em->flush();
 
             // Update the cached version of the theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0x7d6d495b;

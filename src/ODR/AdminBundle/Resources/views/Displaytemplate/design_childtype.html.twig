@@ -10,7 +10,7 @@
         {# current datatype is a child or linked datatype #}
         <h3 id="Datatype_{{ datatype.id }}_header"
             title="Click to display properties."
-            class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties {% if not is_datatype_admin %}ODRForbidden{% endif %}"
+            class="77 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties {% if not is_datatype_admin %}ODRForbidden{% endif %}"
             role="tab" aria-expanded="true" aria-selected="true" tabindex="0"
         >
             {% if is_datatype_admin %}
@@ -36,6 +36,8 @@
 
             'is_top_level': is_top_level,
             'is_link': is_link,
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
         } %}
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
@@ -43,6 +45,7 @@
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
                 'datafield_properties': datafield_properties,
+                'site_baseurl': site_baseurl,
 
                 'target_datatype_id': target_datatype_id,
                 'target_theme_id': target_theme_id,
@@ -51,7 +54,9 @@
                 'is_datatype_admin': is_datatype_admin,
 
                 'is_top_level': is_top_level,
-                'is_link': is_link
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
     {% else %}
@@ -78,6 +83,8 @@
 
                     'is_top_level': is_top_level,
                     'is_link': is_link,
+                    'display_type': display_type,
+                    'multiple_allowed': multiple_allowed,
                 } %}
             </div>
         </div>
@@ -87,6 +94,7 @@
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
                 'datafield_properties': datafield_properties,
+                'site_baseurl': site_baseurl,
 
                 'target_datatype_id': target_datatype_id,
                 'target_theme_id': target_theme_id,
@@ -95,7 +103,9 @@
                 'is_datatype_admin': is_datatype_admin,
 
                 'is_top_level': is_top_level,
-                'is_link': is_link
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
 

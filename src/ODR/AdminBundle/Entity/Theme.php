@@ -544,13 +544,13 @@ class Theme
     }
 
     /**
-     * Get isDefault
+     * Get defaultFor
      *
-     * @return boolean
+     * @return int
      */
-    public function isDefault()
+    public function getDefaultFor()
     {
-        return $this->getThemeMeta()->getIsDefault();
+        return $this->getThemeMeta()->getDefaultFor();
     }
 
     /**
@@ -591,5 +591,15 @@ class Theme
     public function getIsTableTheme()
     {
         return $this->getThemeMeta()->getIsTableTheme();
+    }
+
+    /**
+     * Get displaysAllResults
+     *
+     * @return bool
+     */
+    public function getDisplaysAllResults()
+    {
+        return $this->getThemeMeta()->getDisplaysAllResults();
     }
 }

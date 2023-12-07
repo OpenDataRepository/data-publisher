@@ -1,17 +1,18 @@
 odr_plugins.rruff.ima:
     name: IMA Plugin
     category: RRUFF
-    datatype: true
-    render: true
-    version: 1.0.0
+    plugin_type: datatype
+    render: odr_plugins.rruff.ima
+    version: 1.1.0
     override_fields: true
     override_field_reload: true
     override_child: false
+    override_table_fields: false
     description: This plugin enforces various constraints placed on the International Mineralogical Association's (IMA) list of minerals.  The various chemistry fields required by the IMA Plugin should also be using the Chemistry Plugin.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate
         PostUpdateEvent: onPostUpdate
-        PostMassEditEvent: onPostMassEdit
+        MassEditTriggerEvent: onMassEditTrigger
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
@@ -85,6 +86,10 @@ odr_plugins.rruff.ima:
         # NOTE - rruff.info also had Fleischer, Handbook of Mineralogy, and End Member chemistry, but those aren't being imported
         # NOTE - ...it also had End Member Elements (derived from the RRUFF formula for some reason)
 
+        status_notes:
+            name: Status Notes
+            description:
+            type: LongText
 
         reference_a:
             name: Reference A    # TODO - this is like the "initial" reference, right?
@@ -94,6 +99,12 @@ odr_plugins.rruff.ima:
             name: Reference B    # TODO - this is like the "most recent redefinition" reference, right?
             description:
             type: IntegerValue
+
+        # Required by the "RRUFF Sample Links" plugin
+        tags:
+            name: Tags
+            description:
+            type: Tag
 
 
         # ----------------------------------------
@@ -118,14 +129,5 @@ odr_plugins.rruff.ima:
             name: Notes
             description:
             type: LongText
-        status_notes:
-            name: Status Notes
-            description:
-            type: LongText
-
-        tags:
-            name: Tags
-            description:
-            type: Tag
 
     config_options:

@@ -8,7 +8,7 @@
 
     <div id="CSVExportForm">
 
-        <form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start') }}">
+        <form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start_express') }}">
             <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
             <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
 
@@ -145,6 +145,7 @@
         {% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {
             'datatype_array': datatype_array,
             'theme_array': theme_array,
+            'site_baseurl': site_baseurl,
 
             'initial_datatype_id': initial_datatype_id,
             'initial_theme_id': initial_theme_id

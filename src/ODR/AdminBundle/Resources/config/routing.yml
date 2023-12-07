@@ -7,6 +7,8 @@ odr_admin_homepage:
 odr_logout:
     path:  /logout
 
+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -320,11 +322,12 @@ odr_copy_normal_database:
 #-----------------------------------------
 # Theme Controller
 odr_get_available_themes:
-    path:  /view/getthemes/{datatype_id}/{page_type}
-    defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes }
+    path:  /view/getthemes/{datatype_id}/{page_type}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes, search_key: '' }
     requirements:
         datatype_id:  \d+
-        page_type:  'display|edit|search_results|table'
+        page_type:  '|search_results|display|edit'
+        search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_save_theme_properties:
     path:  /view/theme_properties/{theme_id}
@@ -338,23 +341,49 @@ odr_design_theme_element_visibility:
     requirements:
         theme_element_id:  \d+
 
+odr_design_theme_element_border_visibility:
+    path:  /design/themeelementbordervisibility/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementbordervisibility }
+    requirements:
+        theme_element_id:  \d+
+
 odr_design_theme_datafield_visibility:
     path:  /design/themedatafieldvisibility/{theme_element_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Theme:themedatafieldvisibility }
     requirements:
         theme_element_id:  \d+
         datafield_id: \d+
+odr_design_theme_datafield_header_visibility:
+    path:  /design/themedatafieldheadervisibility/{theme_element_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themedatafieldheadervisibility }
+    requirements:
+        theme_element_id:  \d+
+        datafield_id: \d+
 
-odr_toggle_theme_public:
-    path:  /design/togglepublic/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:themepublic }
+odr_toggle_theme_shared:
+    path:  /design/toggleshared/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeshared }
     requirements:
         theme_id:  \d+
 
 odr_make_default_theme:
-    path:  /design/makedefault/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:themedefault }
+    path:  /design/makedefault/{page_type}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:setdatabasedefaulttheme }
     requirements:
+        page_type:  '|search_results|display|edit'
+        theme_id:  \d+
+
+odr_unset_default_theme:
+    path:  /design/unsetdefault/{page_type}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:unsetdatabasedefaulttheme }
+    requirements:
+        page_type:  '|search_results|display|edit'
+        theme_id:  \d+
+odr_unset_personal_theme:
+    path:  /design/unsetpersonal/{page_type}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:unsetpersonaldefaulttheme }
+    requirements:
+        page_type:  '|search_results|display|edit'
         theme_id:  \d+
 
 odr_delete_custom_theme:
@@ -372,11 +401,10 @@ odr_modify_theme:
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_clone_theme:
-    path:  /design/copy_view/{theme_id}/{new_theme_type}
-    defaults: { _controller: ODRAdminBundle:Theme:clonetheme, new_theme_type: '' }
+    path:  /design/copy_view/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:clonetheme }
     requirements:
         theme_id:  \d+
-        new_theme_type: '[a-z\-\_]*'
 
 odr_theme_reload_theme_element:
     path: /design/theme/themeelementreload/{theme_element_id}
@@ -531,6 +559,23 @@ odr_design_save_special_datafield_properties:
     requirements:
         datatype_id:  \d+
 
+odr_design_get_stored_search_keys:
+    path:  /design/displaytemplate/search_keys/get/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getstoredsearchkeys }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_convert_to_stored_search_key:
+    path:  /design/displaytemplate/search_keys/create
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:converttostoredsearchkey }
+    methods: [ POST ]
+
+odr_design_save_stored_search_keys:
+    path:  /design/displaytemplate/search_keys/save/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savestoredsearchkeys }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_delete_datafield:
     path:  /design/displaytemplate/deletefield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }
@@ -678,11 +723,19 @@ odr_record_addchild:
         datatype_id:  \d+
         parent_id:  \d+
 
-odr_record_delete_file:
-    path:  /edit/deletefile/{file_id}
-    defaults: { _controller: ODRAdminBundle:Edit:deletefile }
+odr_record_rename_file:
+    path:  /edit/renamefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:renamefile }
+    methods: [ POST ]
     requirements:
         file_id:  \d+
+
+odr_record_rename_image:
+    path:  /edit/renameimage/{image_id}
+    defaults: { _controller: ODRAdminBundle:Edit:renameimage }
+    methods: [ POST ]
+    requirements:
+        image_id:  \d+
 
 odr_record_public_file:
     path:  /edit/publicfile/{file_id}
@@ -695,6 +748,12 @@ odr_record_public_image:
     defaults: { _controller: ODRAdminBundle:Edit:publicimage }
     requirements:
         image_id:  \d+
+
+odr_record_delete_file:
+    path:  /edit/deletefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:deletefile }
+    requirements:
+        file_id:  \d+
 
 odr_record_delete_image:
     path:  /edit/deleteimage/{image_id}
@@ -989,6 +1048,12 @@ odr_image_download:
     requirements:
         image_id:  \d+
 
+odr_public_image_download:
+    path:  /uploads/images/{image_filename}
+    defaults: { }
+    requirements:
+        image_filename: '[a-zA-Z\d\.\_]+'
+
 odr_get_file_list:
     path:  /view/file_list/{grandparent_datarecord_id}/{group_by_datafield}
     defaults: { _controller: ODRAdminBundle:Display:listallfiles, group_by_datafield: 0 }
@@ -1267,6 +1332,10 @@ odr_csv_export_render:
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
+odr_csv_export_start_express:
+    path: /admin/csvexport/express
+    defaults: { _controller: ODRAdminBundle:CSVExport:newCsvExportStart }
+    methods: [ POST ]
 
 odr_csv_export_start:
     path: /admin/csvexport/start
@@ -1425,6 +1494,11 @@ odr_find_duplicate_user_groups:
 odr_check_fieldtype_table:
     path:  /admin/check_fieldtype_table
     defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+
+# Ensure entities don't share uuids
+odr_fix_duplicate_uuids:
+    path:  /admin/fix_duplicate_uuids
+    defaults: { _controller: ODRAdminBundle:Validation:fixduplicateuuids }
 # Ensure datafields with a master_datafield_id also have a template_field_uuid
 odr_fix_missing_datafield_template_uuids:
     path:  /admin/fix_missing_datafield_template_uuids
@@ -1438,6 +1512,10 @@ odr_fix_missing_meta_entries:
 odr_find_duplicate_meta_entries:
     path: /admin/find_duplicate_meta_entries
     defaults: { _controller: ODRAdminBundle:Validation:findduplicatemetaentries }
+# Locates duplicate datatypeSpecialField entries
+odr_find_duplicate_dtsf_entries:
+    path: /admin/find_duplicate_dtsf_entries
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicatespecialfields }
 
 # Locate/delete a pile of child entities that make no sense when their parent entities are deleted
 # This needs to be run repeatedly until it stops making changes
@@ -1488,6 +1566,10 @@ odr_purge_datatype:
     requirements:
         datatype_ids: "^[0-9,]+$"
 
+odr_purge_files:
+    path: /admin/purge_files
+    defaults: { _controller: ODRAdminBundle:Validation:purgefiles }
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1504,474 +1586,15 @@ odr_session_toggle_show_editable:
     methods: [ POST ]
 
 odr_apply_theme:
-    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{persist}
+    path:  /session/apply_theme/apply/{datatype_id}/{page_type}/{theme_id}/{persist}
     defaults: { _controller: ODRAdminBundle:Session:applytheme }
     requirements:
         datatype_id:  \d+
+        page_type:  '|search_results|display|edit'
         theme_id:  \d+
         persist: 0|1
 
 #-----------------------------------------
-
-#-----------------------------------------
-#
-# API Controller
-#
-#-----------------------------------------
-odr_api_userdata:
-    path: /api/{version}/userdata.{_format}
-    defaults: { _controller: ODRAdminBundle:API:userdata, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        _format: '|json|xml'
-
-odr_api_get_datatype_list:
-    path: /api/{version}/search/databases.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'databases',  _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        _format: '|json|xml'
-
-odr_api_get_template_list:
-    path: /api/{version}/search/templates.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'master_templates', _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-odr_api_get_datatype_single:
-    path:  /api/{version}/search/database/{datatype_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'databases', _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        datatype_uuid: '^[a-z0-9]+$'
-        _format: '|json|xml'
-
-#
-# Gets master templates
-#
-odr_api_get_master_template:
-    path:  /api/{version}/master/{datatype_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        datatype_uuid: '^[a-z0-9]+$'
-        _format: '|json|xml'
-
-#
-# Gets dataset templates (non-master)
-#
-odr_api_get_dataset_template:
-    path:  /api/{version}/template/{datatype_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        datatype_uuid: '^[a-z0-9]+$'
-        _format: '|json|xml'
-
-#
-# DEPRECATED (old version for AHED Only)
-# Gets master templates
-#
-odr_api_get_template_single:
-    path:  /api/{version}/search/template/{datatype_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        datatype_uuid: '^[a-z0-9]+$'
-        _format: '|json|xml'
-
-odr_api_datarecord_list:
-    path: /api/{version}/search/database/{datatype_uuid}/records/{limit}/{offset}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        datatype_uuid: '^[a-z0-9]+$'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
-
-odr_api_template_datatype_list:
-    path: /api/{version}/search/template/{datatype_uuid}/databases/{limit}/{offset}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getTemplateDatatypeList, limit: 0, offset: 0, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        datatype_uuid: '^[a-z0-9]+$'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
-
-odr_api_get_datarecord_single_no_format:
-    path:  /api/{version}/search/record/{record_uuid}
-    defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        record_uuid: '^[a-z0-9]+$'
-        format: 'json'
-
-odr_api_get_datarecord_single:
-    path:  /api/{version}/search/record/{record_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        record_uuid: '^[a-z0-9]+$'
-        format: '|xml|json'
-
-odr_api_get_field_stats:
-    path:  /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getfieldstats, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        template_uuid: '^[a-z0-9]+$'
-        template_field_uuid: '^[a-z0-9]+$'
-        format: '|xml|json'
-
-odr_api_get_field_stats_by_dataset:
-    path:  /api/{version}/search/field/statsbydataset/{template_uuid}/{template_field_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getfieldstatsbydataset, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        template_uuid: '^[a-z0-9]+$'
-        template_field_uuid: '^[a-z0-9]+$'
-        format: '|xml|json'
-
-odr_api_get_field_legacystats:
-    path:  /api/{version}/search/field/legacystats/{template_uuid}/{template_field_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:search_field_stats, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        template_uuid: '^[a-z0-9]+$'
-        template_field_uuid: '^[a-z0-9]+$'
-        format: '|xml|json'
-
-odr_api_download_file:
-    path: /api/{version}/search/file_download/{file_id}
-    defaults: { _controller: ODRAdminBundle:API:filedownload }
-    methods: [ GET ]
-    requirements:
-        file_id: \d+
-
-odr_api_download_image:
-    path: /api/{version}/search/image_download/{image_id}
-    defaults: { _controller: ODRAdminBundle:API:imagedownload }
-    methods: [ GET ]
-    requirements:
-        image_id: \d+
-
-
-# Alternative API access routes - migrated from search
-odr_search_api_get_datatype_single:
-    path:  /{search_slug}/api/info.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatatypeExport, search_slug: '', _format: json }
-    requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
-        _format: '|json|xml'
-
-odr_search_api_get_datarecord_list:
-    path:  /{search_slug}/api/records.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordList, search_slug: '', _format: json }
-    requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
-
-odr_search_api_get_datarecord_single:
-    path:  /{search_slug}/api/records/{datarecord_id}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordExport, search_slug: '', _format: json }
-    requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
-        datarecord_id: \d+
-        _format: '|json|xml'
-
-#
-## API for cross template search
-#odr_search_api_get_template_by_uuid_no_format:
-#    path: /api/{version}/search/template/{template_uuid}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1', _format: 'json' }
-#    methods: [ GET ]
-#    requirements:
-#        version: 'v\d+'
-#        template_uuid: '[a-z0-9]+'
-
-#odr_search_api_get_template_by_uuid:
-#    path: /api/{version}/search/template/{template_uuid}.{_format}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1' }
-#    methods: [ GET ]
-#    requirements:
-#        version: 'v\d+'
-#        template_uuid: '[a-z0-9]+'
-#        _format: '|json|xml'
-
-odr_search_api_template_get:
-    path: /api/{version}/search/{json_key}/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGet, limit: 0, offset: 0, _format: json }
-    methods: [ GET ]
-    requirements:
-        json_key: '[a-zA-Z0-9\=]+'
-        version: 'v\d+'
-#        template_uuid: '[a-z0-9]+'
-
-
-#odr_search_api_get_field_stats_by_uuid:
-#    path: /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search_field_stats, version: 'v1', _format: 'json'}
-#    methods: [ GET ]
-#    requirements:
-#        version: 'v\d+'
-#        template_uuid: '[a-z0-9]+'
-#        template_field_uuid: '[a-z0-9]+'
-
-odr_search_api_get_field_by_uuid:
-    path: /api/{version}/search/field/{template_field_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getfield, version: 'v1' }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        template_field_uuid: '[a-z0-9]+'
-
-odr_search_api_general_search:
-    path: /api/{version}/search/{search_key}/{limit}/{offset}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, search_key: '', limit: 0, offset: 0, _format: 'json', version: 'v1'}
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        search_key: '[a-zA-Z0-9\=]+'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
-
-#odr_search_api_template_post_test:
-odr_search_api_template_post:
-    path: /api/{version}/search/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePostOptimized, limit: 0, offset: 0, _format: 'json', version: 'v1'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
-
-
-odr_search_api_template_post_old:
-    path: /api/{version}/legacysearch/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, limit: 0, offset: 0, _format: 'json', version: 'v1'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
-
-odr_search_api_general_search_post:
-    path: /api/{version}/search/{limit}/{offset}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, limit: 0, offset: 0, _format: 'json', version: 'v1'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
-
-
-odr_api_dataset_public:
-    path: /api/{version}/dataset/publish
-    defaults: { _controller: ODRAdminBundle:API:publish, _format: 'json', version: 'v3'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-odr_api_get_dataset_single_no_format:
-    path:  /api/{version}/dataset/{dataset_uuid}
-    defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        dataset_uuid: '^[a-z0-9]+$'
-        record_uuid: null,
-        format: 'json'
-
-odr_api_get_dataset_single:
-    path:  /api/{version}/dataset/{dataset_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        dataset_uuid: '^[a-z0-9]+$'
-        record_uuid: null,
-        format: 'json'
-
-# TODO Should we restrict to version 4 only?
-#odr_api_get_metadata_dataset_record:
-#    path:  /api/{version}/dataset/{dataset_uuid}/{record_uuid}
-#    defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
-#    methods: [ GET ]
-#    requirements:
-#        version: 'v\d+'
-#        dataset_uuid: '^[a-z0-9]+$'
-#        record_uuid: '^[a-z0-9]+$'
-#        format: 'json'
-
-odr_api_delete_dataset:
-    path:  /api/{version}/dataset/{dataset_uuid}
-    defaults: { _controller: ODRAdminBundle:API:deleteDatasetByUUID, version: 'v3' }
-    methods: [ DELETE ]
-    requirements:
-        version: 'v\d+'
-        dataset_uuid: '^[a-z0-9]+$'
-        format: 'json'
-
-odr_api_dataset_quota:
-    path:  /api/{version}/dataset/quota/{dataset_uuid}
-    defaults: { _controller: ODRAdminBundle:API:datasetQuotaByUUID, version: 'v3' }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        dataset_uuid: '^[a-z0-9]+$'
-        format: 'json'
-
-#
-# API Update dataset
-# PUT /api/vX/dataset
-#
-# Use version number to differentiate?
-#
-odr_api_update_dataset_metadata:
-    path: /api/{version}/dataset
-    defaults: { _controller: ODRAdminBundle:API:updatedataset, _format: 'json', version: 'v3'}
-    methods: [ PUT ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-
-odr_api_dataset_delete_file:
-    path: /api/{version}/file/{file_uuid}
-    defaults: { _controller: ODRAdminBundle:API:fileDeleteByUUID, _format: 'json', version: 'v3'}
-    methods: [ DELETE ]
-    requirements:
-        version: 'v\d+'
-        file_uuid: '^[a-z0-9]+$'
-        _format: '|json|xml'
-
-odr_api_dataset_get_file:
-    path: /api/{version}/file/{file_uuid}
-    defaults: { _controller: ODRAdminBundle:API:fileDownloadByUUID, _format: 'json', version: 'v3'}
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        file_uuid: '^[a-z0-9]+$'
-        _format: '|json|xml'
-
-odr_api_dataset_add_file:
-    path: /api/{version}/file
-    defaults: { _controller: ODRAdminBundle:API:addfile, _format: 'json', version: 'v3'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-#
-# Creates a record in a dataset
-# Can contain a user_email POST variable to cause
-# system to 'act as' a specific user.
-#
-odr_api_create_dataset_record:
-    path: /api/{version}/dataset/{dataset_uuid}/record
-    defaults: { _controller: ODRAdminBundle:API:createrecord, _format: 'json', version: 'v3' }
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        dataset_uuid: '^[a-z0-9]+$'
-        _format: '|json|xml'
-
-#
-# Update an individual record
-#
-odr_api_update_dataset_record:
-    path: /api/{version}/dataset/record
-    defaults: { _controller: ODRAdminBundle:API:updatedataset, _format: 'json', version: 'v4' }
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-
-#
-# API Create dataset
-# POST /api/vX/dataset
-#
-odr_api_create_dataset_from_template:
-    path: /api/{version}/dataset
-    defaults: { _controller: ODRAdminBundle:API:createdataset, _format: 'json', version: 'v3'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-#
-# Make a record Public
-#
-odr_api_record_public:
-    path: /api/{version}/dataset/record/public
-    defaults: { _controller: ODRAdminBundle:API:publishRecord, _format: 'json', version: 'v3'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-#
-# Get an individual dataset record
-#
-odr_api_get_dataset_record:
-    path: /api/{version}/dataset/record/{record_uuid}
-    defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        record_uuid: '^[a-z0-9]+$'
-        format: 'json'
-
-odr_api_user_permissions:
-    path: /api/{version}/user/permissions
-    defaults: { _controller: ODRAdminBundle:API:userPermissions, _format: json, version: 'v3' }
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-odr_api_user_check:
-    path: /api/{version}/user
-    defaults: { _controller: ODRAdminBundle:API:user, _format: json, version: 'v3' }
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
-# This doesn't need to be an official route because the firewall sends the request straight to the
-#  lexik_jwt_authentication handler
-#odr_api_token:
-#    path: /api/{version}/token
-#    defaults: { _controller: ODRAdminBundle:API:token, _format: 'json', version: 'v3'}
-#    methods: [ POST ]
-#    requirements:
-#        version: 'v\d+'
-#        _format: '|json|xml'
 
 
 #-----------------------------------------
@@ -1984,7 +1607,6 @@ odr_migrate_1.1:
     path:  /admin/migrate/1.1
     defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
 
-#-----------------------------------------
 
 #-----------------------------------------
 # Tracking Controller
@@ -2036,9 +1658,5 @@ odr_track_get_user_selector:
     defaults: { _controller: ODRAdminBundle:Tracking:getuserselector }
 #-----------------------------------------
 
-
-odr_asdf:
-    path: /admin/asdf/{field_purpose}
-    defaults: { _controller: ODRAdminBundle:Worker:asdf }
-    requirements:
-        field_purpose: \d+
+imports:
+    resource: api.yml

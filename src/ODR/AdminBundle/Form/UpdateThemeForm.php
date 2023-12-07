@@ -33,8 +33,6 @@ class UpdateThemeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-        $is_short_form = $options['is_short_form'];
-
         $builder->add(
             'templateName',
             TextType::class,
@@ -54,7 +52,7 @@ class UpdateThemeForm extends AbstractType
         );
 
         $builder->add(
-            'isDefault',
+            'defaultFor',
             HiddenType::class
         );
 
@@ -73,22 +71,23 @@ class UpdateThemeForm extends AbstractType
             HiddenType::class
         );
 
-        if ($is_short_form) {
-            $builder->add(
-                'isTableTheme',
-                CheckboxType::class,
-                array(
-                    'required' => true,
-                    'label' => 'Render as Table Theme?'
-                )
-            );
-        }
-        else {
-            $builder->add(
-                'isTableTheme',
-                HiddenType::class
-            );
-        }
+        $builder->add(
+            'isTableTheme',
+            CheckboxType::class,
+            array(
+                'required' => true,
+                'label' => 'Render as Table when used for Search Results?'
+            )
+        );
+
+        $builder->add(
+            'displaysAllResults',
+            CheckboxType::class,
+            array(
+                'required' => true,
+                'label' => 'Render up to 10,000 records (Table render only, potentially slow)'
+            )
+        );
     }
 
 
@@ -126,8 +125,5 @@ class UpdateThemeForm extends AbstractType
                 'data_class' => 'ODR\AdminBundle\Entity\ThemeMeta'
             )
         );
-
-        // Required options shouldn't have their defaults set
-        $resolver->setRequired('is_short_form');
     }
 }

@@ -1,0 +1,38 @@
+{% spaceless %}
+
+{% if author != '' %}
+    {{ author|raw }}
+{% endif %}
+{% if year != '' %}
+    ({{ year|raw }})
+{% endif %}
+{% if article_title != '' %}
+    {{ article_title|raw }}.
+{% endif %}
+{% if journal != '' %}
+    {{ journal|raw }}
+{% endif %}
+{% if volume != '' %}
+    {{ volume|raw }},
+{% endif %}
+{% if issue != '' %}
+    issue {{ issue|raw }},
+{% endif %}
+{% if book_title != '' %}
+    {% if original_context != 'text' %}
+        in <i>{{ book_title|raw }}</i>,
+    {% else %}
+        in {{ book_title|raw }},
+    {% endif %}
+{% endif %}
+{% if publisher != '' %}
+    {{ publisher|raw }}
+{% endif %}
+{% if publisher_location != '' %}
+    ({{ publisher_location|raw }})
+{% endif %}
+{% if pages != '' %}
+    {{ pages|raw }}
+{% endif %}
+
+{% endspaceless %}

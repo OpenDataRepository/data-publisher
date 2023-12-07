@@ -80,117 +80,123 @@
 
         {# link to search this datatype #}
         <div>
-            {% if datarecord_count == 0 %}
-                {# don't display link, nothing to view #}
-            {% else %}
-                <a id="ODRDatarecordList_{{ datatype.id }}_search"
-                   href="{{ datatype_baseurl }}"
-                >
-                    <i class="fa fa-lg fa-search"></i>&nbsp;Search
-                </a>
-            {% endif %}
+        {% if datarecord_count == 0 %}
+            {# don't display link, nothing to view #}
+        {% else %}
+            <a id="ODRDatarecordList_{{ datatype.id }}_search"
+               href="{{ datatype_baseurl }}"
+            >
+                <i class="fa fa-lg fa-search"></i>&nbsp;Search
+            </a>
+        {% endif %}
         </div>
 
         {# add record link for this datatype...only makes sense for a metadata datatype if it doesn't already have a record #}
         <div>
-            {% if can_add_datarecord %}
-                {% if (is_metadata_datatype and datarecord_count == 0)
-                    or (not is_metadata_datatype)
-                %}
-                    <a id="ODRDatarecordList_{{ datatype.id }}_add"
-                       href="{{ datatype_baseurl }}#{{ path('odr_edit_fake_record', { 'datatype_id': datatype.id }) }}"
-                    >
-                        <i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record
-                    </a>
-                {% endif %}
+        {% if can_add_datarecord %}
+            {% if (is_metadata_datatype and datarecord_count == 0)
+                or (not is_metadata_datatype)
+            %}
+            <a id="ODRDatarecordList_{{ datatype.id }}_add"
+               href="{{ datatype_baseurl }}#{{ path('odr_edit_fake_record', { 'datatype_id': datatype.id }) }}"
+            >
+                <i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add Record
+            </a>
             {% endif %}
+        {% endif %}
         </div>
 
         {# CSV import link for this datatype...never makes sense for a metadata dataype #}
         <div>
-            {% if is_datatype_admin and not is_metadata_datatype %}
-                <a class="address"
-                   href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"
-                >
-                    <i class="fa fa-lg fa-upload"></i>&nbsp;Import
-                </a>
-            {% endif %}
+        {% if is_datatype_admin and not is_metadata_datatype %}
+            <a class="address"
+               href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"
+            >
+                <i class="fa fa-lg fa-upload"></i>&nbsp;Import
+            </a>
+        {% endif %}
         </div>
 
         {# master layout designer link #}
         <div>
-            {% if is_datatype_admin %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                   class="address"
-                   href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
-                   title="Edit {{ datatype_meta.shortName }} Master Design"
-                >
-                    <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Design
-                </a>
-            {% endif %}
+        {% if is_datatype_admin %}
+            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+               class="address"
+               href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
+               title="Edit {{ datatype_meta.shortName }} Master Design"
+            >
+                <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Design
+            </a>
+        {% endif %}
         </div>
 
         {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
         {# metadata layout designer link...never makes sense for a metadata datatype #}
         <div>
-            {% if not is_metadata_datatype %}
-                {% if is_datatype_admin %}
-                    {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                           class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
-                           title="Edit {{ datatype_meta.shortName }} Master Layout"
-                        >
-                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
-                        </a>
-                    {% else %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                           class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
-                           title="Choose a metadata template"
-                        >
-                            <i class="fa fa-lg fa-plus-circle"></i>
-                            <span>&nbsp;Add Properties Page</span>
-                        </a>
-                    {% endif %}
-                {% endif %}
+        {% if not is_metadata_datatype and is_datatype_admin %}
+            {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
+            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+               class="address"
+               href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
+               title="Edit {{ datatype_meta.shortName }} Master Layout"
+            >
+                <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
+            </a>
+            {% else %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                   class="address"
+                   href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
+                   title="Choose a metadata template"
+                >
+                    <i class="fa fa-lg fa-plus-circle"></i>
+                    <span>&nbsp;Add Properties Page</span>
+                </a>
             {% endif %}
+        {% endif %}
+        </div>
+
+        {# Link to bring up the theme selection modal for the database #}
+        <div>
+            <a id="ODRDatatypeList_{{ datatype.id }}_choose_view"
+               class="address"
+            >
+                <i class="fa fa-lg fa-object-group"></i>&nbsp;Manage Database Layouts
+            </a>
         </div>
 
         {# Group management link for this datatype #}
         <div>
-            {% if is_datatype_admin %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
-                   class="address"
-                   href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
-                >
-                    <i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups
-                </a>
-            {% endif %}
+        {% if is_datatype_admin %}
+            <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
+               class="address"
+               href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
+            >
+                <i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups
+            </a>
+        {% endif %}
         </div>
 
         {# History tracking link for this datatype #}
         <div>
-            {% if can_edit_datarecord %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_track_changes"
-                   class="address"
-                   href="{{ datatype_baseurl }}#{{ path('odr_track_datatype_changes', { 'datatype_id': datatype.id }) }}"
-                >
-                    <i class="fa fa-lg fa-camera"></i>&nbsp;View Recent Changes
-                </a>
-            {% endif %}
+        {% if can_edit_datarecord %}
+            <a id="ODRDatatypeList_{{ datatype.id }}_track_changes"
+               class="address"
+               href="{{ datatype_baseurl }}#{{ path('odr_track_datatype_changes', { 'datatype_id': datatype.id }) }}"
+            >
+                <i class="fa fa-lg fa-camera"></i>&nbsp;View Recent Changes
+            </a>
+        {% endif %}
         </div>
 
+        {# deletion link for this datatype #}
         {% if is_datatype_admin and not is_metadata_datatype %}
-            {# spacer div so it's harder to unintentionally click on the deletion link #}
-            <div>&nbsp;</div>
+        <div>&nbsp;</div>    {# spacer div so it's harder to unintentionally click on the deletion link #}
 
-            {# deletion link for this datatype #}
-            <div>
-                <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="ODRDeleteDatatype Pointer">
-                    <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
-                </a>
-            </div>
+        <div>
+            <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="ODRDeleteDatatype Pointer">
+                <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
+            </a>
+        </div>
         {% endif %}
 
     </div>
@@ -290,6 +296,12 @@
         });
 {% endif %}
 
+        $("#ODRDatatypeList_{{ datatype.id }}_choose_view").unbind('click').click(function(event) {
+            event.stopImmediatePropagation();
+
+            openChooseViewRemodal_landing();
+        });
+
         $('#ODRHelpButton')
             .attr('data-step', '1')
             .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
@@ -312,5 +324,50 @@
                 .start();
         });
     });
+
+    /**
+     * Opens the modal for users to view/select available themes for this datatype.
+     */
+    function openChooseViewRemodal_landing() {
+        modal_options = {
+            title: "Choose from available layouts:",
+            // body: "<div>Loading will not display if body is set.</div>",
+            // loading: true,  // Force loading to display
+        };
+        openODRRemodal(modal_options);
+        var url = '{{ path('odr_get_available_themes', { 'datatype_id': datatype.id, 'page_type': '', 'search_key': '' }) }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                $(".ODRRemodalBody").html( data.d );
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
 </script>
 {% endspaceless %}

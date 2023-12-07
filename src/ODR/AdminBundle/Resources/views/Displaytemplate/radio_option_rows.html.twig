@@ -8,11 +8,13 @@
 
         <div id="radio_option_{{ ro.id }}" class="ODRRadioOption_div">
 
-            {% if sort_by_name == false %}
-                <span class="ODRRadioOptionAnchor"><i class="fa fa-arrows Pointer"></i></span>
+            {% if not disable_controls and not sort_by_name %}
+                <span class="ODRRadioOptionAnchor"><i class="fa fa-arrows-v Pointer"></i></span>
             {% endif %}
 
+            {% if not disable_controls %}
             <span class="ODRDeleteRadioOption" rel="{{ ro.id }}"><i class="fa fa-trash Pointer"></i></span>
+            {% endif %}
 
             <input id="radio_option_{{ ro.id }}_name"
                    class="ODRRadioOptionName"
@@ -23,6 +25,10 @@
                    size="100"
                    maxlength="255"
                    rel="{{ ro.id }}"
+               {% if disable_controls %}
+                   disabled
+                   title="Not allowed to modify this option's name"
+               {% endif %}
             />
 
             <span title="Option is selected by default when a new Record is created">
@@ -32,8 +38,12 @@
                    {% if ro_meta.isDefault %}
                        checked
                    {% endif %}
+                   {% if disable_controls %}
+                       disabled
+                       title="Not allowed to set a default option"
+                   {% endif %}
                 />
-                &nbsp;Default?
+                <span class="Cursor">&nbsp;Default?</span>
             </span>
 
             <span class="ODRInputError">

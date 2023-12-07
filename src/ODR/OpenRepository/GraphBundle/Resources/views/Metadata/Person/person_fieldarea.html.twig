@@ -70,6 +70,7 @@
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
+                                'themeDatafield': theme_datafield,
                             } %}
                         {% else %}
                             {# user is allowed to edit datafield #}

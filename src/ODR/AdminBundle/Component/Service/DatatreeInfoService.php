@@ -14,6 +14,8 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -332,7 +334,7 @@ class DatatreeInfoService
      * @param array $datatype_ids
      * @param null|array $datatree_array
      * @param boolean $deep assuming A links to B links to C links to D, and function is called with {A}
-     *                      then if $deep == false, then only find the closest set of linked descendents
+     *                      then if $deep == false, then only find the closest set of linked descendants
      *                      e.g. getLinkedDescendants() returns {B}
      *                      then if true, then find all possible linked descendants
      *                      e.g. getLinkedDescendants() returns {B, C, D, ...}
@@ -376,28 +378,48 @@ class DatatreeInfoService
      *  $top_level_datarecord_id can be properly rendered.
      *
      * @param int $top_level_datarecord_id
+     * @param string $type  if "render", then return the records belonging to single and multiple-allowed links
+     *                      if "table", then only return the records belonging to single-allowed links
+     *                      if "both", then return both "multiple" and "single"
      *
      * @return array
      */
-    public function getAssociatedDatarecords($top_level_datarecord_id)
+    public function getAssociatedDatarecords($top_level_datarecord_id, $type = "render")
     {
-//        $this->logger->debug('DatatreeInfoService: getAssociatedDatarecords: ' . $top_level_datarecord_id);
-
         // Need to locate all linked datarecords for the provided datarecord
         $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$top_level_datarecord_id);
         if ($associated_datarecords == false) {
-            $associated_datarecords = self::getAssociatedDatarecords_worker( array($top_level_datarecord_id) );
+            // The $render_drs include records from all links, needed so that rendering can work
+            //  properly
+            $render_drs = self::getMultipleAllowedDatarecords_worker( array($top_level_datarecord_id) );
+            // The $table_drs only include records from single-allowed links, used for the table
+            //  search results...this is technically a subset of the previous
+            $table_drs = self::getSingleAllowedDatarecords_worker( array($top_level_datarecord_id) );
 
-            // Also need the requested top-level datarecords in here
-            $associated_datarecords[$top_level_datarecord_id] = 1;
-            // These datarecord ids need to be stored as values instead of keys
-            $associated_datarecords = array_keys($associated_datarecords);
+            // Both of those arrays need the requested top-level datarecord in there...
+            $render_drs[$top_level_datarecord_id] = 1;
+            $table_drs[$top_level_datarecord_id] = 1;
+
+            // ...and most places want the datarecord ids as values instead of keys
+            $associated_datarecords = array(
+                0 => array_keys($render_drs),
+                1 => array_keys($table_drs)
+            );
 
             // Save the list of associated datarecords back into the cache
             $this->cache_service->set('associated_datarecords_for_'.$top_level_datarecord_id, $associated_datarecords);
         }
 
-        return $associated_datarecords;
+        // Return the version the user wanted
+        if ( $type === 'render' )
+            return $associated_datarecords[0];
+        else if ( $type === 'table' )
+            return $associated_datarecords[1];
+        else if ( $type === 'both' )
+            return $associated_datarecords;
+
+        // If this point is reached, then they submitted an invalid $type value
+        throw new ODRException('Invalid argument $type passed to DatatreeInfoService::getAssociatedDatarecords()', 500, 0xcffd5791);
     }
 
 
@@ -408,7 +430,7 @@ class DatatreeInfoService
      *
      * @return array
      */
-    private function getAssociatedDatarecords_worker($datarecord_ids)
+    private function getMultipleAllowedDatarecords_worker($datarecord_ids)
     {
         $datarecords_to_return = array();
         $datarecords_to_check = array();
@@ -433,7 +455,78 @@ class DatatreeInfoService
         }
 
         if ( !empty($datarecords_to_check) ) {
-            $tmp = self::getAssociatedDatarecords_worker($datarecords_to_check);
+            $tmp = self::getMultipleAllowedDatarecords_worker($datarecords_to_check);
+
+            foreach ($tmp as $dr_id => $num)
+                $datarecords_to_return[$dr_id] = 1;
+        }
+
+        return $datarecords_to_return;
+    }
+
+
+    /**
+     * Recursively finds all datarecords that are linked to by all children/grandchildren records in
+     * $datarecord_ids, but ignores those belonging to links where "multiple_allowed" is true.
+     *
+     * @param array $datarecord_ids
+     *
+     * @return array
+     */
+    private function getSingleAllowedDatarecords_worker($datarecord_ids)
+    {
+        $query = $this->em->createQuery(
+           'SELECT d_dt.id AS d_dt_id
+            FROM ODRAdminBundle:DataRecord a_dr
+            JOIN ODRAdminBundle:DataType a_dt WITH a_dr.dataType = a_dt
+            JOIN ODRAdminBundle:DataTree dt WITH dt.ancestor = a_dt
+            JOIN ODRAdminBundle:DataTreeMeta dtm WITH dtm.dataTree = dt
+            JOIN ODRAdminBundle:DataType d_dt WITH dt.descendant = d_dt
+            WHERE a_dr.id IN (:datarecord_ids) AND dtm.multiple_allowed = 0
+            AND a_dr.deletedAt IS NULL AND a_dt.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND d_dt.deletedAt IS NULL'
+        )->setParameters(
+            array('datarecord_ids' => $datarecord_ids)
+        );
+        $results = $query->getArrayResult();
+
+        $single_allowed_datatype_ids = array();
+        foreach ($results as $num => $result) {
+            $d_dt_id = $result['d_dt_id'];
+
+            $single_allowed_datatype_ids[] = $d_dt_id;
+        }
+
+        $datarecords_to_return = array();
+        $datarecords_to_check = array();
+
+        $query = $this->em->createQuery(
+           'SELECT ldr.id AS ldr_id
+            FROM ODRAdminBundle:DataRecord dr
+            JOIN ODRAdminBundle:DataRecord cdr WITH cdr.grandparent = dr
+            JOIN ODRAdminBundle:LinkedDataTree ldt WITH ldt.ancestor = cdr
+            JOIN ODRAdminBundle:DataRecord ldr WITH ldt.descendant = ldr
+            WHERE dr.id IN (:datarecord_ids) AND ldr.dataType IN (:single_allowed_datatype_ids)
+            AND dr.deletedAt IS NULL AND cdr.deletedAt IS NULL
+            AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datarecord_ids' => $datarecord_ids,
+                'single_allowed_datatype_ids' => $single_allowed_datatype_ids
+            )
+        );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $num => $result) {
+            $ldr_id = $result['ldr_id'];
+
+            $datarecords_to_check[] = $ldr_id;
+            $datarecords_to_return[$ldr_id] = 1;
+        }
+
+        if ( !empty($datarecords_to_check) ) {
+            $tmp = self::getSingleAllowedDatarecords_worker($datarecords_to_check);
 
             foreach ($tmp as $dr_id => $num)
                 $datarecords_to_return[$dr_id] = 1;

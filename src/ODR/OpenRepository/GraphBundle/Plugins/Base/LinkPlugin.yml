@@ -1,12 +1,13 @@
 odr_plugins.base.link:
     name: Link Plugin
     category: Base
-    datatype: true
-    render: true
-    version: 1.2.0
+    plugin_type: datatype
+    render: odr_plugins.base.link
+    version: 1.3.0
     override_fields: true
     override_field_reload: false
     override_child: true
+    override_table_fields: false
     description: This Render Plugin only makes sense when used by a Datatype that is linked to from elsewhere.  It renders a button that will take the user to the linked Datarecord's page when clicked, instead of rendering that Datarecord's contents.
     registered_events:
     required_fields:

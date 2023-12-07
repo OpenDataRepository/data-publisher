@@ -1,16 +1,17 @@
 odr_plugins.base.file_renamer:
     name: File Renamer Plugin
     category: Base
-    datatype: false
-    render: true
-    version: 1.0.0
+    plugin_type: datafield
+    render: odr_plugins.base.file_manipulation    # shared with the odr_plugins.base.file_renamer plugin
+    version: 1.1.0
     override_fields: true
     override_field_reload: false
     override_child: false
+    override_table_fields: false
     description: This plugin attempts to rename any file/image that gets uploaded to the attached field, based on the values of other related datafields.  This is an advanced plugin that only works on a proper relational database setup...while there are some safeguards, the plugin can't avoid giving you the option to make completely nonsensical configurations.
     registered_events:
         FilePreEncryptEvent: onFilePreEncrypt
-        PostMassEditEvent: onPostMassEdit
+        MassEditTriggerEvent: onMassEditTrigger
 
     required_fields:
         file_field:

@@ -1,15 +1,17 @@
 odr_plugins.base.gcms:
     name: GCMassSpec Plugin
     category: Base
-    datatype: true
-    render: true
-    version: 1.3.0
+    plugin_type: datatype
+    render: odr_plugins.base.gcms
+    version: 1.5.0
     override_fields: false
     override_field_reload: false
     override_child: true
+    override_table_fields: false
     description: TODO
     registered_events:
         FileDeletedEvent: onFileDelete
+        FilePostEncryptEvent: onFilePostEncrypt
         PluginOptionsChangedEvent: onPluginOptionsChanged
 
     required_fields:

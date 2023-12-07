@@ -21,11 +21,12 @@ use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class CurrencyPlugin implements DatafieldPluginInterface
+class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -190,5 +191,46 @@ class CurrencyPlugin implements DatafieldPluginInterface
         // This is a datafield plugin, so getting the datatype via the datafield...
         $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
         $this->dri_service->deleteCachedTableData($datatype_id);
+    }
+
+
+    /**
+     * Returns an array of datafield values that TableThemeHelperService should display, instead of
+     * using the values in the datarecord.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datarecord
+     * @param array|null $datafield
+     *
+     * @return string[] An array where the keys are datafield ids, and the values are the strings to display
+     */
+    public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
+    {
+        // TODO - need options and stuff...
+
+        // Since this is a datafield plugin, $datafield has a value
+        $df_id = $datafield['id'];
+
+        // Still need to find the value for this datafield in the given datarecord...
+        $value = array();
+        if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
+            $drf = $datarecord['dataRecordFields'][$df_id];
+
+            // Don't know the typeclass, so brute-force it
+            unset( $drf['id'] );
+            unset( $drf['created'] );
+            unset( $drf['file'] );
+            unset( $drf['image'] );
+            unset( $drf['dataField'] );
+
+            // The remaining entry will be the correct value
+            foreach ($drf as $typeclass => $data) {
+                if ( isset($data[0]['value']) && $data[0]['value'] !== '' )
+                    $value[$df_id] = '$'.number_format($data[0]['value'], 2);
+            }
+        }
+
+        // Return the modified value
+        return $value;
     }
 }

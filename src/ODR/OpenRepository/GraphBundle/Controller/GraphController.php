@@ -50,7 +50,7 @@ class GraphController extends ODRCustomController
      *
      * @return RedirectResponse|Response
      */
-    public function staticAction($datatype_id, $datarecord_id, Request $request)
+    public function renderAction($datatype_id, $datarecord_id, Request $request)
     {
         try {
             $is_rollup = false;
@@ -106,6 +106,7 @@ class GraphController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
 
             // If the user isn't allowed to view either the datatype or the datarecord, don't continue
             if ( !$pm_service->canViewDatarecord($user, $datarecord) )
@@ -147,7 +148,7 @@ class GraphController extends ODRCustomController
             // The datatype could technically have multiple render plugins, but since the graph plugin
             //  is set to "render: true", there should only be one of them
             $render_plugin_instance = null;
-            foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
                 $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
                 if ( $plugin_classname === 'odr_plugins.base.graph'
                     || $plugin_classname === 'odr_plugins.base.gcms'
@@ -170,6 +171,8 @@ class GraphController extends ODRCustomController
                 'display_type' => ThemeDataType::ACCORDION_HEADER,
                 'multiple_allowed' => 0,
                 'theme_type' => 'master',
+
+                'is_datatype_admin' => $is_datatype_admin,
             );
 
             if ($is_rollup)
@@ -186,7 +189,18 @@ class GraphController extends ODRCustomController
             $svc = $this->container->get($plugin_classname);
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
 
-            return $this->redirect($filename);
+            $site_baseurl = $this->container->getParameter('site_baseurl');
+//            return $this->redirect($site_baseurl.$filename);
+
+            // Do not want browsers caching the redirect to this request...it can generate completely
+            //  different URLs for the same input
+            $response = new RedirectResponse($site_baseurl.$filename);
+            $response->setMaxAge(0);
+            $response->headers->addCacheControlDirective('no-cache', true);
+            $response->headers->addCacheControlDirective('must-revalidate', true);
+            $response->headers->addCacheControlDirective('no-store', true);
+
+            return $response;
         }
         catch (\Exception $e) {
             $message = $e->getMessage();

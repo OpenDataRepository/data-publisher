@@ -139,16 +139,15 @@ class PermissionsManagementService
             $search_key = $datatype_permissions[ $datatype->getId() ]['datarecord_restriction'];
 
             // Don't need to validate or filter the search key...search as a super-admin
-            $search_result = $this->search_api_service->performSearch(
+            $complete_datarecord_list = $this->search_api_service->performSearch(
                 $datatype,
                 $search_key,
                 array(), // empty user permissions array since searching as super admin
-                array(), // use default sort order for datatype
-                array(), // sort ascending by default
+                true,    // want to return the complete datarecord list
+                array(), // complete datarecord lists can't be sorted
+                array(),
                 true     // search as super admin, so no filtering takes place
             );
-
-            $complete_datarecord_list = $search_result['complete_datarecord_list'];
 
             return $complete_datarecord_list;
         }
@@ -179,6 +178,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't view the datatype
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -215,6 +217,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't view non-public datarecords
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -258,6 +263,9 @@ class PermissionsManagementService
         // ...if the user isn't logged in, they can't view the datarecord
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -297,6 +305,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't add new datarecords
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -329,6 +340,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't edit datarecords
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -374,6 +388,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't edit datarecords
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -426,6 +443,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't delete any datarecords
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -462,6 +482,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't change public status
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in...ensure they can edit the datarecord first
         if ( !self::canEditDatarecord($user, $datarecord) )
@@ -509,6 +532,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they aren't considered a datatype admin
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -547,6 +573,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't view a non-public Datafield
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in
         $datafield_permissions = self::getDatafieldPermissions($user);
@@ -585,6 +614,9 @@ class PermissionsManagementService
         // If the user isn't logged in, they can't edit any Datafield
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Ensure the user has the "dr_edit" permission for this Datatype first...
         if ( !self::canEditDatatype($user, $datafield->getDataType()) )
@@ -642,6 +674,9 @@ class PermissionsManagementService
         // If the file is non-public, it shouldn't be viewable unless logged in...
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in...
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -685,6 +720,9 @@ class PermissionsManagementService
         // If the image is non-public, it shouldn't be viewable unless logged in...
         if ($user === "anon.")
             return false;
+        // If the user is a superadmin, then they automatically have all permissions
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return true;
 
         // Otherwise, the user is logged in...
         $datatype_permissions = self::getDatatypePermissions($user);
@@ -727,7 +765,7 @@ class PermissionsManagementService
             //  whenever they make a change that would invalidate the user's permissions
             $user_id = $user->getId();
             $user_permissions = $this->cache_service->get('user_'.$user_id.'_permissions');
-            if ($user_permissions != false)
+            if ($user_permissions !== false)
                 return $user_permissions;
 
 
@@ -1038,12 +1076,6 @@ class PermissionsManagementService
      */
     public function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
     {
-$debug = true;
-$debug = false;
-
-if ($debug)
-    print '----- permissions filter -----'."\n";
-
         // Save relevant permissions...
         $datatype_permissions = array();
         if ( isset($permissions_array['datatypes']) )
@@ -1093,15 +1125,11 @@ if ($debug)
             ) {
                 // ...then remove the datatype from the list of things for twig to render
                 unset( $datatype_array[$dt_id] );
-if ($debug)
-    print 'removed non-public datatype '.$dt_id."\n";
 
                 // ...also pre-emptively remove all datarecords of that datatype
                 foreach ($datarecord_array as $dr_id => $dr) {
                     if ($dt_id == $dr['dataType']['id'])
                         unset( $datarecord_array[$dr_id] );
-if ($debug)
-    print ' -- removed datarecord '.$dr_id."\n";
                 }
 
                 // No sense checking anything else for this datatype, skip to the next one
@@ -1126,8 +1154,6 @@ if ($debug)
                     // ...then remove it from the layout
                     unset( $datatype_array[$dt_id]['dataFields'][$df_id] );
                     $datafields_to_remove[$df_id] = 1;
-if ($debug)
-    print 'removed datafield '.$df_id.' from datatype '.$dt_id."\n";
                 }
             }
         }
@@ -1150,8 +1176,6 @@ if ($debug)
             ) {
                 // ...then remove the datarecord from the array
                 unset( $datarecord_array[$dr_id] );
-if ($debug)
-    print 'removed non-public datarecord '.$dr_id."\n";
 
                 // No sense checking anything else for this datarecord, skip to the next one
                 continue;
@@ -1164,8 +1188,6 @@ if ($debug)
                 // ...and remove the datafield if the user doesn't have the ability to view it
                 if ( isset($datafields_to_remove[$df_id]) ) {
                     unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
-if ($debug)
-    print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
 
                     // No sense checking file/image public status, skip to the next datafield
                     continue;
@@ -1178,8 +1200,6 @@ if ($debug)
                         && !$can_view_datarecord[$dt_id]
                     ) {
                         unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
-if ($debug)
-    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
                     }
                 }
 
@@ -1193,8 +1213,6 @@ if ($debug)
                         && !$can_view_datarecord[$dt_id]
                     ) {
                         unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
-if ($debug)
-    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
                     }
                 }
             }

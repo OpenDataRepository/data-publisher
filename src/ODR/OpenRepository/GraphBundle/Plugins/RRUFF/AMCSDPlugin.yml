@@ -1,18 +1,19 @@
 odr_plugins.rruff.amcsd:
     name: AMCSD Plugin
     category: RRUFF
-    datatype: true
-    render: true
-    version: 1.3.0
+    plugin_type: datatype
+    render: odr_plugins.rruff.amcsd
+    version: 1.4.0
     override_fields: true
     override_field_reload: false
     override_child: false
+    override_table_fields: false
     description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).  Most of the required fields will be automatically filled out from an uploaded AMC File.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate
         FileDeletedEvent: onFileDeleted
         FilePreEncryptEvent: onFilePreEncrypt
-#        PostMassEditEvent: onPostMassEdit    # TODO - ...don't think i want this firing unless explicitly requested
+#        MassEditTriggerEvent: onMassEditTrigger    # TODO - ...don't think listening to this is useful...if a file can't be read for values, then reading it again doesn't really help
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: fileno
@@ -130,6 +131,29 @@ odr_plugins.rruff.amcsd:
             type: ShortVarchar
             properties:
                 - no_user_edits
+                - is_derived
+
+        pressure:
+            name: Pressure
+            description: The value of the "Pressure" field in the AMC File
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+        temperature:
+            name: Temperature
+            description: The value of the "Temperature" field in the AMC File
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+
+        chemistry:
+            name: Chemistry
+            description: The value of the "Chemistry" field in the CIF File
+            type: LongVarchar
+            properties:
+                - no_user_edits    # TODO - allow editing?  On one hand, all the chemical formulas lack subscripts...on the other, the CIF File value is "official"...
                 - is_derived
 
         # The following isn't needed for operation of the plugin, but should exist anyways

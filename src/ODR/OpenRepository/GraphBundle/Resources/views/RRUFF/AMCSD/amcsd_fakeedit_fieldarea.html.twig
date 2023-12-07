@@ -68,6 +68,7 @@
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
+                                'themeDatafield': theme_datafield,
                             } %}
                         {% else %}
                             {# user is allowed to edit datafield #}
@@ -130,7 +131,7 @@
                         {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
                     {% endif %}
 
-                    {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
+                    {% include 'ODRAdminBundle:FakeEdit:fake_edit_fieldarea_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'datarecord_array': datarecord_array,
                         'theme_array': child_theme,
