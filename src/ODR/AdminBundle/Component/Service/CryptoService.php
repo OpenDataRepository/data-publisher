@@ -215,9 +215,12 @@ class CryptoService
             throw new ODRBadRequestException('Invalid object_type');
 
         // Attempt to open the specified zip archive
-        $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
-        if (!$handle)
-            throw new ODRException('unable to open "'.$archive_filepath.'" for writing');
+        // IMPORTANT: the following lines exist to fix a bug in like libzip 1.6 and earlier, where \ZipArchive::CREATE would whine that the archive doesn't exist
+        // IMPORTANT: however, prod is using libzip 1.7.x, and the following lines instead cause \ZipArchive::CREATE to complain the archive is invalid or unintialized
+        // IMPORTANT: this behavior, obviously is contradictory
+//        $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
+//        if (!$handle)
+//            throw new ODRException('unable to open "'.$archive_filepath.'" for writing');
 
         // Infer whether the specified file/image is public or not based on the fielename it's being
         //  decrypted to, and then ensure the file/image is decrypted prior to acquiring a lock on
