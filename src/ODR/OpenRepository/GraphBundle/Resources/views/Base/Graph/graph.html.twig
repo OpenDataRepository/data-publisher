@@ -133,7 +133,7 @@ jQuery(function() {
 {% for dr_id, file_name in odr_chart_output_files %}
     {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
     {# If the browser fails to load the cached graph image, then instruct it to start the render process #}
-    $("#StaticGraph_{{ dr_id }}_img").on('error', function() {
+    $("#{{ odr_chart_id }}_Static_GraphWrapper").find("img").on('error', function() {
         // console.log( 'original src: ' + $(this).attr('src') );
         {# appending date('U') prevents the browser from caching the response to this request #}
         $(this).attr('src', '{{ path('odr_plugin_graph_render', {'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id }) }}?{{ 'now'|date('U') }}');
