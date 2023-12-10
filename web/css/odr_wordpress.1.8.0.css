@@ -4371,14 +4371,7 @@ i {
 }
 
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
-  background-image:
-    linear-gradient(
-      to right,
-      RGBA(90, 154, 190, 0.2),
-      #ffffff 5%,
-      #ffffff
-    );
-    padding-left: 40px;
+    padding-left: 20px;
     padding-right: 6px;
 }
 
