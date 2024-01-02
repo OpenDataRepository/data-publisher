@@ -102,8 +102,12 @@ class SearchCacheService implements EventSubscriberInterface
     {
         return array(
             // Datatype
-//            DatatypeCreatedEvent::NAME => 'onDatatypeCreate',    // Don't have any search cache entries to clear for these two events
+            // Don't need an onDatatypeCreate() function...none of the relevant cache entries exist
+//            DatatypeCreatedEvent::NAME => 'onDatatypeCreate',
+            // Don't need an onDatatypeModify() function...at the moment, none of the properties of a
+            //  datatype, other than public status, have any effect on the results of a search
 //            DatatypeModifiedEvent::NAME => 'onDatatypeModify',
+
             DatatypeImportedEvent::NAME => 'onDatatypeImport',
             DatatypeDeletedEvent::NAME => 'onDatatypeDelete',
             DatatypePublicStatusChangedEvent::NAME => 'onDatatypePublicStatusChange',
@@ -119,14 +123,15 @@ class SearchCacheService implements EventSubscriberInterface
             DatafieldModifiedEvent::NAME => 'onDatafieldModify',
             DatafieldDeletedEvent::NAME => 'onDatafieldDelete',
 
+            // Don't need events for files/images/storage entities...the relevant cache entries
+            //  get cleared via the DatafieldModifiedEvent
+
+            // Don't need MassEdit/CSVExport/Plugin events here either...they don't affect the
+            //  search cache
+
             // TODO - Nate is also going to eventually need events for Layout changes
         );
     }
-
-    // Don't need an onDatatypeCreate() function...none of the relevant cache entries exist
-
-    // Don't need an onDatatypeModify() function...at the moment, none of the properties of a
-    //  datatype, other than public status, have any effect on the results of a search
 
 
     /**

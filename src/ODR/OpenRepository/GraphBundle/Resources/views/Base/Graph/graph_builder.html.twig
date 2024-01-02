@@ -79,25 +79,10 @@
     </div><!-- end of .DynamicGraphs -->
 {% endif %}
 
-    {# NOTE: phantomJS can't use WebGL...probably unable to save the output...so use SVG instead #}
+    {# NOTE: apparently puppeteer can't save the output when it uses scatterGL... #}
     <input type="checkbox" id="{{ odr_chart_id }}_disable_scatterGL" style="display: none;" checked />
 
 <script type="text/javascript">
-
-    // Polyfills for functions used by odr_plotly_graphs.js, since phantomJS is more out of date
-    //  than expected...
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN#polyfill
-    Number.isNaN = Number.isNaN || function isNaN(input) {
-        return typeof input === 'number' && input !== input;
-    }
-
-    // https://stackoverflow.com/a/27424770
-    Number.isInteger = Number.isInteger || function(value) {
-        return typeof value === "number" &&
-            isFinite(value) &&
-            Math.floor(value) === value;
-    };
-
     // Used to track active plots for resizing
     // Why is this not cleared every time?
     var page_plots = [];
@@ -105,9 +90,6 @@
     jQuery(() => {
         // Plot the chart
         window['SetupGraphs_{{ odr_chart_id }}']();
-        setTimeout(() => {
-            window.odr_graph_status = 'ready';
-        }, 200)
     });
 
     if (!window.ODRChart) {
@@ -115,7 +97,8 @@
             this.chart_id = "";
 
             this.GraphData = function (chart_obj) {
-                /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
+                window['{{ odr_chart_id }}_ready'] = false;
+
                 switch (graph_type) {
                     case "xy":
                         return ODRGraph_lineChartPlotly(chart_obj, preparePlotlyStatic);
@@ -146,7 +129,7 @@
             odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
             odr_chart_{{ odr_chart_id }}.data_files = [];
 
-            // Set the file download URL (static path)
+            // Set the file download URL...static path, since puppeteer is involved
             var file_url = "../../";
 
             // Build array of file data

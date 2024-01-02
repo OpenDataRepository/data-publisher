@@ -8,6 +8,7 @@ odr_plugins.rruff.rruff_sample:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    suppress_no_fields_note: false
     description: This plugin attempts to automatically increment the Sample ID field for the RRUFF Sample database.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate

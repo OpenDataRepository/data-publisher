@@ -8,6 +8,7 @@ odr_plugins.rruff.rruff_sample_links:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    suppress_no_fields_note: false
     description: This plugin creates two "quicksearch" links back to the RRUFF Sample dataype, depending on the IMA mineral that the sample is linked to.
     registered_events:
 

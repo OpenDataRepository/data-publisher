@@ -310,17 +310,6 @@ class ODRUploadService
         $datafield = $image->getDataField();
 
         try {
-            $event = new FilePostEncryptEvent($image, $datafield);
-            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
-        }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
-        }
-
-        try {
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
@@ -334,6 +323,18 @@ class ODRUploadService
         try {
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        // Need this event to be after DatarecordModified, to ensure that cache entries aren't stale...
+        try {
+            $event = new FilePostEncryptEvent($image, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
         }
         catch (\Exception $e) {
             // ...don't want to rethrow the error since it'll interrupt everything after this

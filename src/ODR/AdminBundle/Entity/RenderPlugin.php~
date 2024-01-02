@@ -115,6 +115,11 @@ class RenderPlugin
     private $overrideTableFields;
 
     /**
+     * @var bool
+     */
+    private $suppressNoFieldsNote;
+
+    /**
      * @var integer
      */
     private $plugin_type;
@@ -422,6 +427,30 @@ class RenderPlugin
     public function getOverrideTableFields()
     {
         return $this->overrideTableFields;
+    }
+
+    /**
+     * Set suppressNoFieldsNote.
+     *
+     * @param bool $suppressNoFieldsNote
+     *
+     * @return RenderPlugin
+     */
+    public function setSuppressNoFieldsNote($suppressNoFieldsNote)
+    {
+        $this->suppressNoFieldsNote = $suppressNoFieldsNote;
+
+        return $this;
+    }
+
+    /**
+     * Get suppressNoFieldsNote.
+     *
+     * @return bool
+     */
+    public function getSuppressNoFieldsNote()
+    {
+        return $this->suppressNoFieldsNote;
     }
 
     /**

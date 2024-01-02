@@ -8,6 +8,7 @@ odr_plugins.rruff.ima:
     override_field_reload: true
     override_child: false
     override_table_fields: false
+    suppress_no_fields_note: false
     description: This plugin enforces various constraints placed on the International Mineralogical Association's (IMA) list of minerals.  The various chemistry fields required by the IMA Plugin should also be using the Chemistry Plugin.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate

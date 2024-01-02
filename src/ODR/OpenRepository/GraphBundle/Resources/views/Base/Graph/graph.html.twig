@@ -102,11 +102,11 @@
 
     <div class="pure-u-1 StaticGraphs">
         <div id="{{ odr_chart_id }}_Static_GraphWrapper" class="ODRStaticGraphWrapper">
-        {% for dr_id, file_name in odr_chart_output_files %}
+        {% for dr_id, file_name in odr_chart_output_files %}    {# NOTE: unfortunately the loop is still required...the graph plugin puts more than just the "correct" graph in odr_chart_output_files #}
             {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
-            <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
+            <div id="StaticGraph_{{ odr_chart_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
                 {# Have the browser attempt to load the cached graph image directly, at first... #}
-                <img id="StaticGraph_{{ dr_id }}_img" class="pure-u-1" src="{{ file_name }}" />
+                <img id="StaticGraph_{{ odr_chart_id }}_img" class="pure-u-1" src="{{ config_site_baseurl }}{{ config_files_directory }}{{ file_name }}" />
                 <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
             </div><!-- end of .ODRGraph -->
             {% endif %}
@@ -121,7 +121,7 @@
 // Why is this not cleared every time?
 var page_plots = [];
 jQuery(function() {
-
+    {# Trigger plot resizes when the page dimensions change #}
     window.onresize = function() {
         waitForFinalEvent(function() {
             for(var x in page_plots) {
@@ -130,23 +130,33 @@ jQuery(function() {
         }, 500, "plotly_window_resize")
     };
 
-{% for dr_id, file_name in odr_chart_output_files %}
-    {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
     {# If the browser fails to load the cached graph image, then instruct it to start the render process #}
-    $("#StaticGraph_{{ dr_id }}_img").on('error', function() {
-        // console.log( 'original src: ' + $(this).attr('src') );
-        {# appending date('U') prevents the browser from caching the response to this request #}
-        $(this).attr('src', '{{ path('odr_plugin_graph_render', {'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id }) }}?{{ 'now'|date('U') }}');
+    var {{ odr_chart_id }}_tries = 0;
+    $("#{{ odr_chart_id }}_Static_GraphWrapper").find("img").on('error', function() {
+        var img_id = $(this).attr('id');
+
+        if ( {{ odr_chart_id }}_tries == 0 ) {
+            {{ odr_chart_id }}_tries++;
+
+            // Hopefully the graph renderer isn't busy, so try the first reload quickly
+            setTimeout( 'ODRGraph_waitForRebuild("' + img_id + '")', 200 );
+        }
+        else if ( {{ odr_chart_id }}_tries < 5 ) {
+            {{ odr_chart_id }}_tries++;
+
+            // If the first reload didn't work, then try again after a delay
+            // NOTE: it seems as if the browser doesn't follow the timing "to the letter"...setting
+            //  this to a short delay doesn't actually mean the image will load faster
+            setTimeout( 'ODRGraph_waitForRebuild("' + img_id + '")', 2000 );
+        }
     });
-    {% endif %}
-{% endfor %}
 
-    $(".StaticGraphs").unbind('click').click(function() {
-        var parent = $(this).parent();
+    $("#{{ odr_chart_id }}_Static_GraphWrapper").unbind('click').click(function() {
+        var graph_parent = $(this).parent().parent();
         $(this).hide();
-        $(parent).find('.DynamicGraphs').show();
+        $(graph_parent).find('.DynamicGraphs').show();
 
-        var chart_id = $(parent).find('.ODRDynamicGraph').attr('id');
+        var chart_id = $(graph_parent).find('.ODRDynamicGraph').attr('id');
         var graph_type = "{{ plugin_options.graph_type }}";
         window["SetupGraphs_" + chart_id](graph_type);
     });
@@ -168,9 +178,9 @@ jQuery(function() {
     $.each(elements, function(index, elem) {
         $("#{{ odr_chart_id }}_" + elem).unbind('change').change(function() {
             var pieces = $(this).attr('id').split('_');
-            var chart_id = pieces.slice(0, -2).join('_');  console.log(chart_id);
+            var chart_id = pieces.slice(0, -2).join('_');  // console.log(chart_id);
 
-            ODRGraph_triggerRebuild(chart_id);
+            ODRGraph_triggerDynamicGraph(chart_id);
             $("select.graph_columns").blur();
         });
     });
@@ -189,7 +199,6 @@ if (!window.ODRChart) {
         this.chart_id = "";
 
         this.GraphData = function (graph_type) {
-            /* These lines are all chart setup.  Pick and choose which chart features you want to utilize. */
             if ( graph_type === null || graph_type === undefined )
                 graph_type = "xy";
 
@@ -212,14 +221,11 @@ if (!window.ODRChart) {
 }
 
 var SetupGraphs_{{ odr_chart_id }} = function(graph_type = undefined) {
-    // Should we just be sending a JSON Object in the first place
     if (!{{ odr_chart_id }}_initialized) {
         {{ odr_chart_id }}_initialized = true;
 
-        // If not ODRChart - load class
+        // Create a new chart, and set its id
         odr_chart_{{ odr_chart_id }} = new ODRChart();
-
-        // Set the chart id
         odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
         odr_chart_{{ odr_chart_id }}.data_files = [];
 
@@ -252,8 +258,6 @@ var SetupGraphs_{{ odr_chart_id }} = function(graph_type = undefined) {
     if ( graph_type === undefined )
         $("#{{ odr_chart_id }}_graph_type").val();
     odr_chart_{{ odr_chart_id }}.GraphData(graph_type);
-    // Block 2
-    window.odr_graph_status = 'ready';
 };
 
 var {{ odr_chart_id }}_initialized = false;

@@ -4,7 +4,7 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set typeclass = datafield_meta.fieldType.typeClass %}
 
-
+{% if datafield_properties|length > 0 %}
 <script>
     if (datafield_properties === undefined)
         var datafield_properties = [];
@@ -12,6 +12,7 @@
     datafield_properties[{{ datafield.id }}] = {{ datafield_properties[ datafield.id ]|json_encode|raw }};
     {#console.log('datafield {{ datafield.id }}', datafield_properties[{{ datafield.id }}]);#}
 </script>
+{% endif %}
 
 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}" id="Field_{{ datafield.id }}" >
 

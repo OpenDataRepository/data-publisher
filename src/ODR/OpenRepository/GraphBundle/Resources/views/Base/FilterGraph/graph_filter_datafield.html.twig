@@ -1,0 +1,43 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set is_hidden_field = false %}
+{% if hidden_filter_fields[ df.id ] is defined %}
+    {% set is_hidden_field = true %}
+{% endif %}
+
+<div id="{{ odr_chart_id }}_field_{{ df.id }}" class="ODRDataField pure-u-1-4 {% if is_hidden_field %}ODRHiddenFilterField{% endif %}" {% if is_hidden_field %}style="display:none;"{% endif %}>
+    <form autocomplete="off" class="pure-u-1">
+
+        <fieldset>
+            <label class="ODRRadioField ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
+{#                <label for="df_{{ df.id }}_active">#}
+{#                    <input id="df_{{ df.id }}_active" class="ODRGraphFilterPlugin_active" type="checkbox" title="Include this field in the filter" checked />#}
+{#                </label>#}
+                {{ datafield_meta.fieldName }}
+            </label>
+
+            <div class="ODRGraphFilterPlugin_buttons">
+                <span class="ODRGraphFilterPlugin_select pure-u-5-12">Select All</span>
+                <span class="ODRGraphFilterPlugin_deselect pure-u-5-12">Deselect All</span>
+            </div>
+
+            <div class="ODRGraphFilterPlugin_option_div pure-u-21-24" rel="{{ df.id }}">
+                <select class="ODRGraphFilterPlugin_option_select pure-u-1" multiple="multiple">
+                {% if null_values|length > 0 %}
+                    <option id="df_{{ df.id }}_0" class="ODRGraphFilterPlugin_option" selected>&lt;&lt;No Value&gt;&gt;</option>
+                {% endif %}
+                {% for value,dr_list in values %}
+                    <option id="df_{{ df.id }}_{{ loop.index }}" class="ODRGraphFilterPlugin_option" selected>{{ value }}</option>
+                {% endfor %}
+                </select>
+            </div>
+        </fieldset>
+
+    </form>
+</div><!-- End of #Field_{{ df.id }} -->
+
+{% endspaceless %}

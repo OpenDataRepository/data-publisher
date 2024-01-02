@@ -390,23 +390,18 @@ class CryptoService
         // Encrypt the file
         self::encryptworker($file, $absolute_filepath);
 
+        // If the file is supposed to be public...
+        if ( $file->isPublic() ) {
+            // ...then ensure it's decrypted after the encryption process
+            self::decryptFile($file_id);
+        }
+
         // Update the cached version of the datarecord so whichever controller is handling the
         //  "are you done encrypting yet?" javascript requests can return the correct HTML
         // TODO - ...I'm pretty sure this javascript request no longer exists?  regardless, datarecord should be updated here
         $datarecord = $file->getDataRecord();
         $datafield = $file->getDataField();
         $user = $file->getCreatedBy();
-
-        try {
-            $event = new FilePostEncryptEvent($file, $datafield);
-            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
-        }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
-        }
 
         try {
             $event = new DatafieldModifiedEvent($datafield, $user);
@@ -430,10 +425,16 @@ class CryptoService
 //                throw $e;
         }
 
-        // If the file is supposed to be public...
-        if ( $file->isPublic() ) {
-            // ...then ensure it's decrypted after the encryption process
-            self::decryptFile($file_id);
+        // Need this event to be after DatarecordModified, to ensure that cache entries aren't stale...
+        try {
+            $event = new FilePostEncryptEvent($file, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
         }
     }
 

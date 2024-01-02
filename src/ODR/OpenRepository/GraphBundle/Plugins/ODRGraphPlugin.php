@@ -13,12 +13,11 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// Entities
-use ODR\AdminBundle\Entity\DataFields;
+
 // Symfony
-use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
+// Other
 use Pheanstalk\Pheanstalk;
 
 abstract class ODRGraphPlugin
@@ -36,12 +35,17 @@ abstract class ODRGraphPlugin
     /**
      * @var string
      */
-    private $odr_tmp_directory;
+    private $site_baseurl;
 
     /**
      * @var string
      */
     private $odr_web_directory;
+
+    /**
+     * @var string
+     */
+    private $odr_files_directory;
 
     /**
      * @var Logger
@@ -53,21 +57,25 @@ abstract class ODRGraphPlugin
      * ODRGraph Plugin constructor.
      *
      * @param EngineInterface $templating
-     * @param string $odr_tmp_directory
+     * @param Pheanstalk $pheanstalk
+     * @param string $site_baseurl
      * @param string $odr_web_directory
+     * @param string $odr_files_directory
      * @param Logger $logger
      */
     public function __construct(
         EngineInterface $templating,
         Pheanstalk $pheanstalk,
-        string $odr_tmp_directory,
+        string $site_baseurl,
         string $odr_web_directory,
+        string $odr_files_directory,
         Logger $logger
     ) {
         $this->templating = $templating;
         $this->pheanstalk = $pheanstalk;
-        $this->odr_tmp_directory = $odr_tmp_directory;
+        $this->site_baseurl = $site_baseurl;
         $this->odr_web_directory = $odr_web_directory;
+        $this->odr_files_directory = $odr_files_directory;
         $this->logger = $logger;
     }
 
@@ -75,122 +83,61 @@ abstract class ODRGraphPlugin
     /**
      * Gets Puppeteer to build a static graph, and moves the resulting SVG into the proper directory.
      *
-     * @param array $page_data A Map holding all the data that is needed for creating the graph
-     *                          html, and for the phantomjs js server to render it.
-     * @param string $filename The name that the svg file should have.
-     *
+     * @param array $page_data An array of data about the graph to be created
+     * @param string $graph_filepath The absolute path where the finalized svg file should be saved
+     * @param string $builder_filepath A partial filepath to the html file read by puppeteer
+     * @param array $files_to_delete The list of non-public files puppeteer needs to delete off the
+     *                               server when it's done building the graph
      *
      * @throws \Exception
-     *
-     * @return string
      */
-    protected function buildGraph($page_data, $filename)
+    protected function buildGraph($page_data, $graph_filepath, $builder_filepath, $files_to_delete)
     {
-        // Going to use Symfony to write files
+        // Going to use Symfony to write files...
         $fs = new \Symfony\Component\Filesystem\Filesystem();
 
-        // Files written by this function must be in web folder, otherwise phantomJS can't find them
-        $output_path = $this->odr_web_directory.'/uploads/files/';
-
-        // Prepare other variables needed for the graph file's name
-        $datatype_folder = 'datatype_'.$page_data['target_datatype_id'].'/';
-        $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
-
-        // The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
-        $output1 = $this->templating->render(
+        // The HTML file that generates the svg graph needs to be created so puppeteer can use it
+        $builder_html = $this->templating->render(
             $page_data['template_name'], $page_data
         );
-        $fs->dumpFile($output_path."Chart__".$file_id_list.'.html', $output1);
+        $fs->dumpFile($this->odr_web_directory.$builder_filepath, $builder_html);
         // Note that this will save graphs with data from non-public files in the web-accessible space
-        // TODO - is there a way of keeping them outside of web-accessible space?
+        //  ...but this is unavoidable since puppeteer needs to access them over https
 
-
-        // The temporary output needs to be in ODR's tmp directory, otherwise ODR isn't guaranteed
-        //  to be able to move it to the web-accessible directory
-        $output_tmp_svg = $this->odr_tmp_directory."/graph_" . Uuid::uuid4()->toString();
-        // The final svg needs to be in a web-accessible directory
-        $output_svg = $output_path.'graphs/'.$datatype_folder.$filename;
-
-        // Create node call
-        $this->logger->debug('ODRGraphPlugin:: IN THE GRAPH RENDERER');
-        $this->logger->debug('ODRGraphPlugin:: ' . "Chart__".$file_id_list.'.html');
-        $this->logger->debug('ODRGraphPlugin:: ' . $page_data['odr_chart_id']);
-        $this->logger->debug('ODRGraphPlugin:: ' . $output_tmp_svg);
-        $this->logger->debug('ODRGraphPlugin:: ' . __DIR__);
-
-        // JSON data to be passed to the phantom js server
+        // Create the JSON data to be passed to the puppeteer server...
         $json_data = array(
-            'input_html' => "Chart__".$file_id_list.'.html',
-            'output_svg' => $output_tmp_svg,
-            'selector' => $page_data['odr_chart_id']
+            'site_baseurl' => $this->site_baseurl,
+            'odr_web_dir' => $this->odr_web_directory,
+//            'odr_files_dir' => $this->odr_files_directory,
+
+            // This one doesn't have a full filepath, because puppeteer needs to load it via https
+            'builder_filepath' => $builder_filepath,
+            // These two already use absolute paths
+            'graph_filepath' => $graph_filepath,
+            'files_to_delete' => $files_to_delete,
+
+            'selector' => $page_data['odr_chart_id'],
         );
-        $this->logger->debug('ODRGraphPlugin:: JSON Encode');
         $payload = json_encode($json_data);
-        $this->logger->debug('ODRGraphPlugin:: Get Pheanstalk');
-        $this->logger->debug('ODRGraphPlugin:: Pheanstalk Put');
+
+        // ...and send it off
         $this->pheanstalk->useTube('create_graph_preview')->put($payload, 1, 0); // , $priority, $delay);
-
-        $this->logger->debug('ODRGraphPlugin:: Start waiting.');
-        // Wait for JobID for 2 seconds
-        $wait_time = 0;
-        for($i = 0; $i < 50; $i++) {
-            usleep(40000);
-            if ( file_exists($output_tmp_svg) ) {
-                // go on to processing if file exists.
-                $wait_time = $i;
-                break;
-            }
-        }
-        $this->logger->debug('ODRGraphPlugin:: Done waiting: ' . $wait_time * 40 . "ms");
-
-        // Parse output to fix CamelCase in SVG element
-        if ( file_exists($output_tmp_svg) ) {
-            $this->logger->debug('ODRGraphPlugin:: Output File Exists');
-            $created_file = file_get_contents($output_tmp_svg);
-            $fixed_file = str_replace('viewbox', 'viewBox', $created_file);
-            $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
-            file_put_contents($output_svg, $fixed_file);
-
-            // Remove the svg file in the temporary directory
-            unlink($output_tmp_svg);
-
-            // Remove the HTML file
-            unlink($output_path."Chart__".$file_id_list.'.html');
-            // Return the relative path to the final svg file so the browser can download it
-            return '/uploads/files/graphs/'.$datatype_folder.$filename;
-        }
-        else {
-            $this->logger->debug('ODRGraphPlugin:: Output File Does Not Exist');
-            if ( strlen($output_svg) > 40 ) {
-                $output_svg = "..." . substr($output_svg,(strlen($output_svg) - 40), strlen($output_svg));
-            }
-
-            throw new \Exception('The file "'. $output_svg .'" does not exist');
-        }
     }
 
 
     /**
-     * Locates and deletes all static graphs that are built from a given file.
+     * Locates and deletes all static graphs for the given datatype that have been built from the
+     * given datafield.
      *
-     * @param int $file_id If zero, then delete all graphs created for this datafield.
-     * @param DataFields $datafield
+     * @param int $datatype_id
+     * @param int $datafield_id
      */
-    protected function deleteCachedGraphs($file_id, $datafield)
+    protected function deleteCachedGraphs($datatype_id, $datafield_id)
     {
-        // Need to try to locate the filenames on the server
-        $filename_fragment = '';
-        if ($file_id !== 0) {
-            // If a file_id was passed in, then attempt to find graphs that use just that file
-            $filename_fragment = '_'.$file_id.'_';
-        }
-        else {
-            // If a file_id wasn't passed in, then attempt to find all graphs for the given datafield
-            $filename_fragment = '__'.$datafield->getId().'.svg';
-        }
+        // All the graph files have the primary datafield id immediately before the extension
+        $filename_fragment = '_'.$datafield_id.'.svg';
 
         // Graphs are organized into subdirectories by datatype id
-        $datatype_id = $datafield->getDataType()->getId();
         $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
         if ( file_exists($graph_filepath) ) {
             $files = scandir($graph_filepath);
