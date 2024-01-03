@@ -4,11 +4,11 @@
 <div>
     {% if search_result_count > 1 %}
         <button id="ODRSearchResultsPrevious" class="pure-button" onclick="changeResult('prev');">
-            <i class="fa fa-backward"></i><span>&nbsp;Previous</span>
+            <i class="fa fa-backward"></i><span>&nbsp;Prev</span>
         </button>
     {% endif %}
 
-    <button id="ODRReturnToSearchResults" class="pure-button" onclick="returnToSearchResults();">Return to Search Results</button>
+    <button id="ODRReturnToSearchResults" class="pure-button" onclick="returnToSearchResults();">Back to Search Results</button>
 
     {% if search_result_count > 1 %}
         <button id="ODRSearchResultsNext" class="pure-button" onclick="changeResult('next');">

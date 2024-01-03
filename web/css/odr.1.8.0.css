@@ -4086,6 +4086,30 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     font-weight: bold;
 }
 
+.ODRShortResultsTitle {
+    width: 100% !important;
+    color: #666666 !important;
+}
+.ODRShortResultsHeaderLeft {
+}
+.ODRShortResultsHeaderRight {
+    float: right !important;
+    font-size: 10px;
+    color: #888888;
+    vertical-align: middle;
+}
+.ODRShortResultsHeader_edit {
+    float: right;
+    margin-right: 20px;
+}
+
+.ODRShortResultsUUID {
+    margin-left: 20px !important;
+    font-size: 10px !important;
+    color: #bbbbbb !important;
+    vertical-align: middle;
+}
+
 .csvimport_header {
     margin: 10px 10px 10px 0px;
 }
@@ -4314,14 +4338,7 @@ i {
 }
 
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
-  background-image:
-    linear-gradient(
-      to right, 
-      RGBA(90, 154, 190, 0.2),
-      #ffffff 5%, 
-      #ffffff
-    );
-    padding-left: 40px;
+    padding-left: 20px;
     padding-right: 6px;
 }
 
@@ -4652,6 +4669,10 @@ i {
     min-width: auto !important;
     padding: 2px !important;
     margin: 0px !important;
+}
+
+.ODRSearchHeaderWrapper {
+    text-align: right;
 }
 
 

@@ -614,7 +614,7 @@ class APIController extends ODRCustomController
             // /api/v4/master/{datatype_uuid} now returns a master datatype template
             // previous API versions return master templates
             $is_master_type = 0;
-            if ($type === 'master_template' && $version !== 'v4')
+            if ($type === 'master_template' && $version !== 'v4' && $version !== 'v5')
                 $is_master_type = 1;
 
 

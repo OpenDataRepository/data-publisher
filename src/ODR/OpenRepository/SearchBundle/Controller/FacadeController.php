@@ -559,7 +559,8 @@ class FacadeController extends Controller
             // Random cross domain search
             $log = "Cross domain search: " . $datatype->getUniqueId() . '<br />';
             // $url =$this->container->getParameter('elastic_server_baseurl') . $datatype->getUniqueId() . '/_search?*.*&pretty=true';
-            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_search?pretty=true';
+            $url =$this->container->getParameter('elastic_server_baseurl')[0] . '/' . $datatype->getUniqueId() . '/_search?pretty=true';
+            // print $url . "<br />";exit();
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
@@ -673,6 +674,20 @@ class FacadeController extends Controller
         return $response;
     }
 
+    /**
+     * Seeds the ElasticSearch database with data from a list of dataset_uuids
+     * stored in an array in parameters.yml.  Note that only dataset_uuids and
+     * not mastter type uuids should be present in the array.  If the dataset
+     * is derived from a master type, its public will automatically be added
+     * to the master index for cross-template searching.
+     *
+     * @param $record_uuid
+     * @param $version
+     * @param Request $request
+     * @return Response|void
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
     public function seedElasticRecordAction($record_uuid, $version, Request $request) {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
@@ -775,6 +790,7 @@ class FacadeController extends Controller
                     'unique_id' => $dataset_uuid
                 )
             );
+
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -805,7 +821,6 @@ class FacadeController extends Controller
             $result = curl_exec($ch);
             $log .= $result;
             curl_close($ch);
-
 
             // Also build index for cross template search
             if($datatype->getMasterDataType()) {
@@ -918,6 +933,7 @@ class FacadeController extends Controller
                 'cell_params' => $this->container->getParameter('cell_params'),
                 'cell_params_range' => $this->container->getParameter('cell_params_range'),
                 'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
+                'master_tag_data' => $this->container->getParameter('tag_data'),
                 'tag_data' => $this->container->getParameter('tag_data')
             );
 
@@ -933,6 +949,7 @@ class FacadeController extends Controller
             );
             $ima_url = $baseurl . $ima_url;
 
+            // TODO Check if this needs to be v5
             $ima_template_url = $this->generateUrl(
                 'odr_api_get_template_single',
                 array(
