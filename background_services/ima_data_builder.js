@@ -91,12 +91,15 @@ async function app() {
                     // Initialize master_tag_data
                     content = 'var master_tag_data = new Array();'
                     // Get IMA Template (for Tag Data)
+                    // console.log('IMA Template: ' + data.ima_template_url)
                     let ima_record_template = await loadPage(data.ima_template_url);
                     let ima_record_map = data.ima_record_map;
                     let tag_array = await buildTagData(ima_record_map.ima_template_tags_uuid, ima_record_template);
+                    content += tag_array;
 
                     await writeFile(basepath + data.master_tag_data + '.' + tmp_file_extension, content);
 
+                    throw Error('Break for debugging.');
                     //
                     // Send jobs to IMA Tube
                     //
@@ -343,7 +346,8 @@ async function findValue(field_uuid, record) {
     ) {
         let fields = record['fields_' + record.template_uuid];
         for(let i = 0; i < fields.length; i++) {
-            if(fields[i].template_field_uuid !== undefined && fields[i].template_field_uuid === field_uuid) {
+            if(fields[i].template_field_uuid !== undefined
+                && fields[i].template_field_uuid === field_uuid) {
                 if(
                     fields[i].files !== undefined
                     && fields[i].files[0] !== undefined
@@ -399,7 +403,8 @@ async function findValue(field_uuid, record) {
     ) {
         let fields = record['fields_' + record.record_uuid];
         for(let i = 0; i < fields.length; i++) {
-            if(fields[i].template_field_uuid !== undefined && fields[i].template_field_uuid == field_uuid) {
+            if(fields[i].template_field_uuid !== undefined &&
+                fields[i].template_field_uuid === field_uuid) {
                 if(fields[i].files !== undefined && fields[i].files[0].href !== undefined) {
                     return fields[i].files[0].href;
                 }
@@ -418,7 +423,7 @@ async function findValue(field_uuid, record) {
                     return '';
                 }
             }
-            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid == field_uuid) {
+            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid === field_uuid) {
                 if(fields[i].files !== undefined && fields[i].files[0].href !== undefined) {
                     return fields[i].files[0].href;
                 }
@@ -466,89 +471,106 @@ async function findValue(field_uuid, record) {
 
 async function buildTagTree(tagTree, tag_data, parent_tag) {
     for(let x in tagTree) {
+       console.log('Adding tag')
        let tag = tagTree[x];
        let tag_string = tag.id + '||' + tag.name + '|| ||mineral||1||' + tag.name;
-       if(parent_tag.id !== undefined) {
+       if(parent_tag !== null && parent_tag.id !== undefined) {
            tag_string += '||' + parent_tag.id;
        }
        else {
-           tag_string += '||0';
+           tag_string += '||0\n';
        }
-       tag_data[tag.id] = tag_string;
+       console.log(tag_string);
+       tag_data += tag_string;
 
        if(tag.tags !== undefined) {
+           console.log('Child tags found');
            await buildTagTree(tag.tags, tag_data, tag)
        }
     }
 }
 
 async function buildTagData(field_uuid, record) {
+    console.log('Build Tag Data: ' + field_uuid);
+    let fields = [];
+    if(record['fields'] !== undefined) {
+        fields = record['fields'];
+        console.log('Fields found: ' + fields.length)
+    }
     if(
         record['fields_' + record.template_uuid] !== undefined
         && record['fields_' + record.template_uuid].length > 0
     ) {
-        let fields = record['fields_' + record.template_uuid];
-        for(let i = 0; i < fields.length; i++) {
-            if(fields[i].template_field_uuid !== undefined && fields[i].template_field_uuid === field_uuid) {
-                if(fields[i].tags !== undefined) {
-                    let tag_data = [];
-                    return await buildTagTree(fields[i].tags, tag_data, {});
-                }
-            }
-            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid === field_uuid) {
-                if(fields[i].tags !== undefined) {
-                    let tag_data = [];
-                    return await buildTagTree(fields[i].tags, tag_data, {});
-                }
-            }
-        }
+        fields = record['fields_' + record.template_uuid];
+        console.log('Fields found 2: ' + fields.length)
     }
     if(
         record['fields_' + record.record_uuid] !== undefined
         && record['fields_' + record.record_uuid].length > 0
     ) {
-        let fields = record['fields_' + record.record_uuid];
+        fields = record['fields_' + record.record_uuid];
+        console.log('Fields found 3: ' + fields.length)
+    }
+
+    if(fields.length > 0) {
         for(let i = 0; i < fields.length; i++) {
-            if(
-                fields[i].template_field_uuid !== undefined
-                && fields[i].template_field_uuid === field_uuid
+            console.log('Fields traversal: ', i)
+            let key = Object.keys(fields[i])[0]
+            console.log(fields[i] + ' ' + key);
+            if(fields[i][key].template_field_uuid !== undefined
+                && fields[i][key].template_field_uuid === field_uuid
             ) {
-                if(fields[i].tags !== undefined) {
-                    let tag_data = [];
-                    return await buildTagTree(fields[i].tags, tag_data, {});
+                console.log('Field found by template uuid');
+                if(fields[i][key].tags !== undefined) {
+                    console.log('Tags found')
+                    let tag_data = '';
+                    await buildTagTree(fields[i][key].tags, tag_data, null);
+                    console.log('TAG DATA: ', tag_data)
+                    return tag_data;
                 }
             }
-            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid === field_uuid) {
-                if(fields[i].tags !== undefined) {
-                    let tag_data = [];
-                    return await buildTagTree(fields[i].tags, tag_data, {});
+            else if(fields[i][key].field_uuid !== undefined && fields[i][key].field_uuid === field_uuid) {
+                console.log('Field found by field uuid');
+                if(fields[i][key].tags !== undefined) {
+                    console.log('Tags found')
+                    let tag_data = '';
+                    await buildTagTree(fields[i][key].tags, tag_data, null);
+                    console.log('TAG DATA: ', tag_data)
+                    return tag_data;
                 }
             }
         }
+    }
+    let child_records = [];
+    if(record['related_databases'] !== undefined) {
+        child_records = record['related_databases'];
+        console.log("Child Records Found: " + child_records.length);
     }
     if(
         record['records_' + record.template_uuid] !== undefined
         && record['records_' + record.template_uuid].length > 0
     ) {
-        for(let i = 0; i < record['records_' + record.template_uuid].length; i++) {
-            let result = await buildTagData(field_uuid, record['records_' + record.template_uuid][i]);
-            if(result !== '') {
-                return result;
-            }
-        }
+        child_records = record['records_' + record.template_uuid]
+        console.log("Child Records Found 2: " + child_records.length);
     }
-    else if(
+    if(
         record['records_' + record.record_uuid] !== undefined
         && record['records_' + record.record_uuid].length > 0
     ) {
-        for(let i = 0; i < record['records_' + record.record_uuid].length; i++) {
-            let result = await buildTagData(field_uuid, record['records_' + record.record_uuid][i]);
+        child_records = record['records_' + record.record_uuid]
+        console.log("Child Records Found 3: " + child_records.length);
+    }
+
+    if(child_records.length > 0) {
+        for(let i = 0; i < child_records.length; i++) {
+            console.log('Traversing child records: ', i);
+            let result = await buildTagData(field_uuid, child_records[i]);
             if(result !== '') {
-                return result;
+                output += result;
             }
         }
     }
-    return '';
+    return output;
 
 }
 

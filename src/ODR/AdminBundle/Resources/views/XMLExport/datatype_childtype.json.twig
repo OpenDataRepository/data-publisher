@@ -15,7 +15,7 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set datatype_meta = datatype.dataTypeMeta %}
 
-{% if version == 'v3' or version == 'v4' %}
+{% if version == 'v3' or version == 'v4' or version == 'v5' %}
     {% if show_records == 1 %}
     {
     {% endif %}
@@ -31,11 +31,18 @@
     "template_uuid": {{ datatype.unique_id|json_encode|raw }},
     "updated_at": "{{ datatype_meta.created|date('Y-m-d H:i:s') }}",
 
-    {% for rpi_num,rpi in datatype.renderPluginInstances %}
-        {% if rpi.renderPlugin.render == true %}
-        "render_plugin": {{ rpi.renderPlugin.pluginName|json_encode|raw }},
+        {% if datatype.renderPluginInstances | length > 0 %}
+        "render_plugins": [
+        {% set plugin_block %}
+        {% for rpi_num,rpi in datatype.renderPluginInstances %}
+            {% if rpi.renderPlugin.render == true %}
+            { "render_plugin": {{ rpi.renderPlugin.pluginName|json_encode|raw }} },
+            {% endif %}
+        {% endfor %}
+        {% endset %}
+        {{ plugin_block|comma|raw }}
+        ],
         {% endif %}
-    {% endfor %}
 
         {% if datatype.metadata_for %}
         "metadata_for_uuid": "{{ datatype.metadata_for.unique_id }}",
@@ -73,7 +80,7 @@
         } %}
     {% endif %}
 
-{% if version == 'v3' or version == 'v4' %}
+{% if version == 'v3' or version == 'v4' or version == 'v5' %}
     {% if show_records == 1 %}
         },   {# end of datatype #}
     {% endif %}
