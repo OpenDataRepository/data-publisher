@@ -87,16 +87,18 @@
 
             // Locate the <a> element that spawned this event
             $("a.address").each(function() {
-                var attr_url = $(this).attr('href').substr(1);
-                if ( attr_url == url ) {
-                    // Failsafe incase title attribute doesn't exist
-                    if ( $(this).attr('title') !== undefined )
-                        document.title = $(this).attr('title');
-                    else
-                        document.title = 'ODR Admin';
+                if ( $(this).attr('href') !== undefined ) {
+                    var attr_url = $(this).attr('href').substr(1);
+                    if ( attr_url == url ) {
+                        // Failsafe incase title attribute doesn't exist
+                        if ( $(this).attr('title') !== undefined )
+                            document.title = $(this).attr('title');
+                        else
+                            document.title = 'ODR Admin';
 
-                    // Abort loop
-                    return false;
+                        // Abort loop
+                        return false;
+                    }
                 }
             });
         });
@@ -118,6 +120,15 @@
 
         $("#ODRSearchSidebar").on("click", ".ODRSearchToggle", function() {
             searchToggle();
+
+            // If there are any interactive graphs on the page, get plotly to resize them
+            if ( typeof page_plots !== 'undefined' ) {
+                waitForFinalEvent(function() {
+                    for(var x in page_plots) {
+                        Plotly.Plots.resize(page_plots[x]);
+                    }
+                }, 500, "plotly_window_resize")
+            }
         });
 
         // Start with Search Hidden...
@@ -635,8 +646,15 @@
             var wrapper_div = $(this);
             var tab_div = $(wrapper_div).children(".ODRTabButtonHeader").first();  // should only be one tab div here
 
+            // Need to check whether a tab was already selected...
+            var prev_selection = false;
+
             // Ensure click handlers are attached to all the buttons in this tab div
             $(tab_div).children(".ODRTabButton").each(function() {
+                // If this button already has this class, then it was selected previously somehow
+                if ( $(this).hasClass('pure-button-active') )
+                    prev_selection = true;
+
                 $(this).unbind('click').click(function() {
                     // Ensure the button that just got clicked is marked as "active", while all the
                     //  other buttons are not
@@ -662,13 +680,6 @@
                     setupAccordionHighlights();
                     onWindowResize();
                 });
-            });
-
-            // Check whether a tab was already selected...
-            var prev_selection = false;
-            $(tab_div).children(".ODRTabButton").each(function() {
-                if ( $(this).hasClass('pure-button-active') )
-                    prev_selection = true;
             });
 
             // If a tab hasn't already been selected...
@@ -970,6 +981,83 @@
             } while ($sub.length > 0);
         });
     };
+
+    /**
+     * Scrolls to the given element on the page, if possible.
+     *
+     * @param {HTMLElement} element
+     * @param {HTMLElement} [container]
+     */
+    function ScrollHighlight(element, container) {
+        var obj = $(element);
+        if (container === undefined) {
+            container = $('html, body');
+
+            // Only Scroll to element if it is not visible
+            if ( !obj.isInViewport() ) {
+                container.animate({
+                    scrollTop: obj.offset().top + obj.height() - 50
+                }, 1000)
+            }
+        }
+        else {
+            container.animate({
+                scrollTop: obj.prop('offsetTop')
+            }, 1000)
+        }
+        // Highlight after scrolling
+        obj.effect("highlight", {}, 3000);
+    }
+
+    $.fn.isInViewport = function() {
+        var elementTop = $(this).offset().top;
+        var elementBottom = elementTop + $(this).outerHeight();
+
+        var viewportTop = $(window).scrollTop();
+        var viewportBottom = viewportTop + $(window).height();
+
+        return (elementBottom > viewportTop) && (elementTop < viewportBottom);
+    };
+
+    $.fn.isOverflowHiddenY = function(container) {
+        var element = $(this);
+        // console.log(element.offset());
+        // console.log(container.prop('scrollHeight'));
+        // console.log(container.height());
+        return (element.offset().top > container.height());
+    };
+
+    /**
+     * Scrolls to and displays the requested datarecord.
+     *
+     * @param {string|number} datarecord_id
+     */
+    function selectRecordFieldArea(datarecord_id) {
+        // console.log('attempting to focus on datarecord: ' + datarecord_id);
+
+        var field_area = $("#FieldArea_" + datarecord_id);
+
+        if ( field_area.parent().hasClass("ODRFormAccordion") ) {
+            // Accordion displayType
+            field_area.prev().click();
+        }
+        else if (field_area.parent().hasClass("ODRTabAccordion")) {
+            // Tab displayType
+            field_area.parent().children(".ODRTabButtonHeader").find(".ODRTabButton").each(function() {
+                if ($(this).attr('rel').toString() === datarecord_id.toString()) {
+                    $(this).click();
+                }
+            });
+        }
+        else if ( field_area.parent().hasClass("ODRDropdownAccordion") ) {
+            // Dropdown displayType
+            field_area.parent().children(".ui-accordion-header").children(".ODRSelectWrap").find(".ODRSelect").val(datarecord_id).change();
+        }
+        else {
+            // List displayType
+            ScrollHighlight( $(field_area) );
+        }
+    }
 
 </script>
 

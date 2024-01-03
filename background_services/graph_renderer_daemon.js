@@ -19,10 +19,9 @@ async function app() {
 
                 try {
                     let data = JSON.parse(job.data)
-                    // data: {"input_html":"Chart__63079_63081_63083_63085.html","output_svg":"\\/home\\/odr\\/data-publisher\\/app\\/tmp\\/graph_bea14f33-2105-4699-918d-667efead692a","selector":"Chart_9849ce6d_22b6_4546_8b8d_e435d2f01d50"}
-
                     console.log('Starting job: ' + job.id)
-                    await buildGraph(data.input_html, data.output_svg, data.selector);
+
+                    await buildGraph(data.site_baseurl, data.odr_web_dir, data.builder_filepath, data.graph_filepath, data.selector, data.files_to_delete);
 
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         console.log('Deleted (' + Date.now() + '): ' , job);
@@ -46,7 +45,7 @@ async function app() {
     });
 }
 
-async function buildGraph(page_url, output_svg, selector) {
+async function buildGraph(site_baseurl, odr_web_dir, builder_filepath, graph_filepath, selector, files_to_delete) {
     // configure folder and http url path
     // the folder contain all the html file
     const page = await browser.newPage();
@@ -54,45 +53,87 @@ async function buildGraph(page_url, output_svg, selector) {
         console.log(`${message.type().substr(0, 3).toUpperCase()} ${message.text()}`)
     );
     await page.setViewport({ width: 1400, height: 800 });
-    // await page.goto('https://beta.rruff.net/odr_rruff/uploads/files/Chart__25238_31858_31860.html');
-    // console.log('https://nu.odr.io/uploads/files/' +  page_url);
-    // await page.goto('https://home/odr/data-publisher/web/uploads/files/' +  page_url, {timeout: 300});
 
     try {
-        // let contentHtml = fs.readFileSync('/home/odr/data-publisher/web/uploads/files/' + page_url, 'utf8');
-        // console.log('HTML Retrieved', contentHtml)
-        // await page.setContent(contentHtml);
-        console.log('Content Set')
-        let result = await page.goto('https://nu.odr.io/uploads/files/' +  page_url, {timeout: 30000});
+        // Before doing anything, check whether the final graph file exists first...
+        if ( fs.existsSync(graph_filepath) ) {
+            console.log('final graph file "' + graph_filepath + '" already exists, skipping request');
+
+            // ...if it does, then don't rebuild it
+            await page.close();
+            return 'graph built';
+        }
+
+        let builder_url = 'https:' + site_baseurl + builder_filepath;
+        console.log('Attempting to load: ' + builder_url);
+
+        let result = await page.goto(builder_url, {timeout: 30000});
         if (result.status() === 404) {
-            console.error('404 status code found in result');
-            throw('404 - file not found');
+            // console.error('404 status code found in result');
+            throw('404 - Builder HTML file not found');
         }
 
         await page.content();
-        console.log('Page content loaded')
+        console.log('Page content loaded, waiting for window.' + selector + '_ready');
         // Wait for javascript to render
-        const watchDog = page.waitForFunction('window.odr_graph_status === "ready"');
+        const watchDog = page.waitForFunction('window.' + selector + '_ready === "ready"');
         await watchDog;
         console.log('Watchdog load')
 
         let html = await page.evaluate(() => document.querySelector('body').innerHTML);
         console.log(html);
-        // let svgInline = await page.evaluate(() => document.querySelector('#' + selector).innerHTML)
-        let svgInline = await page.evaluate(() => document.querySelector('svg').outerHTML);
 
-        fs.writeFile(output_svg,svgInline,(err)=>{
-            if (err){
-                console.error(err)
-                return
+        // let svgInline = await page.evaluate(() => document.querySelector('#' + selector).innerHTML)
+        // let svgInline = await page.evaluate(() => document.querySelector('svg').outerHTML);
+        // So, it turns out that plotly is now dividing the graphs it makes into three separate <svg> elements...
+        let svgInline = await page.evaluate(() => document.querySelector('.ODRDynamicGraph').innerHTML);
+        // ...however, browsers expect only one <svg> element as document root.  Awesome.
+
+        if ( svgInline !== '' ) {
+            // Fortunately, fixing this isn't completely horrible...easier to extract the entirety of
+            //  the first <svg> element...
+            let first_closing_bracket = svgInline.indexOf('>');
+            let svg_attributes = svgInline.substring(0, first_closing_bracket+1);
+            // ...and then surround the existing content with the original <svg> attributes
+            svgInline = svg_attributes + svgInline + '</svg>';
+        }
+
+        // Write the modified svg text to the output file
+        console.log('Writing final graph file to "' + graph_filepath + '"...');
+        fs.writeFile(graph_filepath, svgInline, (err)=> {
+            if (err) {
+                console.error(err);
+                return;
             }
-            console.log(`Write SVG finised`);
+            console.log('Write of graph file finished');
+        });
+
+        // Delete the builder HTML since it's no longer needed
+        let builder_absolute_filepath = odr_web_dir + builder_filepath;
+        console.log('Deleting builder HTML file "' + builder_absolute_filepath + '"...');
+        fs.unlink(builder_absolute_filepath, (err) => {
+            if (err) {
+                console.error(err);
+                return;
+            }
+            console.log('Builder HTML file deleted');
+        });
+
+        // Also need to delete any non-public files off the server
+        files_to_delete.forEach((filepath) => {
+            fs.unlink(filepath, (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log('Non-public graph file "' + filepath + '" deleted');
+            });
         });
 
         await page.close();
         return 'graph built';
     } catch (err) {
-        console.error('Error thrown')
+        console.error('Error thrown');
         throw(err);
     }
 }

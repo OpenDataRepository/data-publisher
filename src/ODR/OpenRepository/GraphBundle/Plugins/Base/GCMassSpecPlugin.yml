@@ -3,15 +3,14 @@ odr_plugins.base.gcms:
     category: Base
     plugin_type: datatype
     render: odr_plugins.base.gcms
-    version: 1.5.0
+    version: 1.6.0
     override_fields: false
     override_field_reload: false
     override_child: true
     override_table_fields: false
+    suppress_no_fields_note: false
     description: TODO
     registered_events:
-        FileDeletedEvent: onFileDelete
-        FilePostEncryptEvent: onFilePostEncrypt
         PluginOptionsChangedEvent: onPluginOptionsChanged
 
     required_fields:
@@ -26,13 +25,13 @@ odr_plugins.base.gcms:
         graph_width:
             name: Graph Width
             type: string
-            default: 900
+            default: 1500
             description: Enter a width in pixels for the graph.
             display_order: 1
         graph_height:
             name: Graph Height
             type: string
-            default: 300
+            default: 500
             description: Enter a height in pixels for the graph.
             display_order: 2
 

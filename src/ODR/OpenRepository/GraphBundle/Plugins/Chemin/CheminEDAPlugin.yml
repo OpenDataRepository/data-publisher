@@ -8,6 +8,7 @@ odr_plugins.chemin.chemineda:
     override_field_reload: false
     override_child: true
     override_table_fields: false
+    suppress_no_fields_note: false
     description: Plugin to display Chemin EDA Data
     registered_events:
     required_fields:

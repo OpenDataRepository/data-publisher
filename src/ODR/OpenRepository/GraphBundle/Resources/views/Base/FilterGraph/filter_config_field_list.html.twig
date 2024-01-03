@@ -1,0 +1,34 @@
+{% spaceless %}
+
+<ul {% if is_top_level %}style="padding-left: 0px;"{% endif %}>
+    <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ dt['dataTypeMeta']['shortName'] }}
+    {% if dt['dataFields'] is defined and dt['dataFields']|length > 0 %}
+        <ul>
+        {% for df_id, df in dt['dataFields'] %}
+            {# NOTE: the stacked datatype array has already been filtered to get rid of fields that won't affect the filter #}
+            <li>
+                <span class="ODRTristateCheckbox binary" style="margin-right: 5px;">
+                    <i class="fa {% if not current_filter_fields[df_id] is defined %}fa-check{% endif %}"></i>
+                    <input class="ODRRenderPlugin_FilterGraph_FilterField" type="hidden" value="{{ df_id }}" />
+                </span>
+                {{ df['dataFieldMeta']['fieldName'] }}
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if dt['descendants'] is defined and dt['descendants']|length > 0 %}
+        {% for child_dt_id, child_dt_info in dt['descendants'] %}
+            {% set child_dt = child_dt_info['datatype'][child_dt_id] %}
+            {% include 'ODROpenRepositoryGraphBundle:Base:FilterGraph/filter_config_field_list.html.twig' with {
+                'dt': child_dt,
+
+                'current_filter_fields': current_filter_fields,
+                'is_top_level': false,
+            } %}
+        {% endfor %}
+    {% endif %}
+    </li>
+</ul>
+
+{% endspaceless %}

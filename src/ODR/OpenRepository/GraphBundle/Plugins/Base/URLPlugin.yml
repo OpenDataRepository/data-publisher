@@ -9,6 +9,7 @@ odr_plugins.base.url:
     override_child: false
     description: The contents of this datafield will be used as the basis for a URL link.
     override_table_fields: true
+    suppress_no_fields_note: false
     registered_events:
         PluginAttachEvent: onPluginAttach
         PluginOptionsChangedEvent: onPluginOptionsChanged

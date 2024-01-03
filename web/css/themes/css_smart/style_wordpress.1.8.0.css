@@ -923,11 +923,11 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignForm .ODRRadioOptions {
-    font-size: 80%;
+    /*font-size: 80%;*/
     cursor: pointer;
 }
 #ThemeDesignForm .ODRTagsEdit {
-    font-size: 80%;
+    /*font-size: 80%;*/
     cursor: pointer;
 }
 

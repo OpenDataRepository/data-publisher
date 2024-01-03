@@ -8,6 +8,7 @@ odr_plugins.base.chemistry:
     override_field_reload: false
     override_child: false
     override_table_fields: true
+    suppress_no_fields_note: false
     description: Renders a datafield containing a chemical formula.
     registered_events:
         PluginAttachEvent: onPluginAttach

@@ -1363,52 +1363,6 @@
     }
 
     /**
-     * Scrolls to the given element on the page, if possible.
-     *
-     * @param {HTMLElement} element
-     * @param {HTMLElement} [container]
-     */
-    function ScrollHighlight(element, container) {
-        var obj = $(element);
-        if (container === undefined) {
-            container = $('html, body');
-
-            // Only Scroll to element if it is not visible
-            if ( !obj.isInViewport() ) {
-                container.animate({
-                    scrollTop: obj.offset().top + obj.height()
-                }, 1000)
-            }
-        }
-        else {
-            container.animate({
-                scrollTop: obj.prop('offsetTop')
-            }, 1000)
-        }
-        // Highlight
-        // console.log('highlighting.....');
-        obj.effect("highlight", {}, 3000);
-    }
-
-    $.fn.isOverflowHiddenY = function(container) {
-        var element = $(this);
-        // console.log(element.offset());
-        // console.log(container.prop('scrollHeight'));
-        // console.log(container.height());
-        return (element.offset().top > container.height());
-    };
-
-    $.fn.isInViewport = function() {
-        var elementTop = $(this).offset().top;
-        var elementBottom = elementTop + $(this).outerHeight();
-
-        var viewportTop = $(window).scrollTop();
-        var viewportBottom = viewportTop + $(window).height();
-
-        return elementBottom > viewportTop && elementTop < viewportBottom;
-    };
-
-    /**
      * Toggles the public status of the given entity.
      *
      * @param {number} id

@@ -127,9 +127,14 @@ parameters:
     #  guaranteed to work across multiple users (because of security concerns, most likely...)
     odr_tmp_directory: "%kernel.root_dir%/tmp"
 
-    # ODR stores file directory paths in the database as "uploads/files/File_<id>.<ext>"
-    # This parameter needs to point to the parent directory of that path
+    # This parameter needs to point to the web-accessible directory for ODR
     odr_web_directory: "%kernel.root_dir%/../web"
+
+    # This parameter needs to point to the directory that publically accessible decrypted files are
+    #  stored in...no trailing forward slash
+    odr_files_directory: "/uploads/files"
+    # This parameter is the same as above, but for images
+    odr_images_directory: "/uploads/images"
 
     # This needs to point to the directory that stores ODR's events, so the PluginsController can
     #  verify that plugins are using valid events
