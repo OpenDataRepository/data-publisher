@@ -168,35 +168,22 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
     for (var i = 1; i <= num_selectors; i++) {
         var id = "#" + chart_id + "_column_" + i;
         ids.push(id);
+        // console.log( 'pushing ' + id );
 
         // If the headers variable is defined, then reset the column names in the dropdowns
         if ( file.new_file === true ) {
             $(id).children('option').remove();
-
-            // var element = $("<option>", {"value": "", "html": ""});
-            // $(id).append(element);
 
             for (var j = 0; j < file.headers.length; j++) {
                 var element = $("<option>", {"value": j, "html": file.headers[j]});
                 $(id).append(element);
             }
         }
-
-        // Determine the selected values for each of the dropdowns
-        var val = $(id).val();
-
-        if ( !Array.isArray(val) ) {
-            selected_values.push( Number(val) );
-        }
-        else {
-            $.each(val, function(index,elem) {
-                selected_values.push( Number(elem) );
-            });
-        }
     }
 
-    // If the column headers were reset, then select the default options
     if ( file.new_file === true ) {
+        // If the column headers were reset, then select the default options
+
         // Select the current graph type
         $("#" + chart_id + "_graph_type").children('option').each(function(index, elem) {
             if ( $(elem).val() === chart_type )
@@ -205,27 +192,49 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
                 $(elem).prop('selected', false);
         });
 
-        // Select the default columns based on the plugin settings
+        // Select the default columns based on the plugin settings...all column numbers in the
+        //  chart_obj are 1-indexed, but the values given to plotly should be 0-indexed instead
         var default_x_column = Number(chart_obj.x_values_column) - 1;
+        // Select the correct option for the desired x_column in the interactive graph popup
         $(ids[0] + " option:eq(" + default_x_column + ")").prop('selected', true);
+        // The selected x_column is always the first value in this variable
         selected_values[0] = default_x_column;
 
-        if(chart_obj.y_values_column.match(/,/)) {
-            // Multiple y columns
+        if ( chart_obj.y_values_column.match(/,/) ) {
+            // Multiple y columns...
             var y_columns = chart_obj.y_values_column.split(/,/);
-            for(var i=0; i < y_columns.length; i++) {
-                // Mark the column as selected
-                $(ids[i+1] + " option:eq(" + y_columns[i] +  ")").prop('selected', true);
-                // Add to the render
-                selected_values[i+1] = y_columns[i] - 1;
+            for (var i= 0; i < y_columns.length; i++) {
+                // Select the correct option for this y_column in the interactive graph popup
+                $(ids[1] + " option:eq(" + (y_columns[i] - 1) + ")").prop('selected', true);
+                selected_values.push( y_columns[i] - 1 );
             }
         }
         else {
             var default_y_column = Number(chart_obj.y_values_column) - 1;
+            // Select the correct option for the desired y_column in the interactive graph popup
             $(ids[1] + " option:eq(" + default_y_column + ")").prop('selected', true);
             selected_values[1] = default_y_column;
         }
     }
+    else {
+        // If this is a subsequent selection on the interactive graph, then determine which columns
+        //  the user has selected...do the x_column first...
+        selected_values[0] = $(ids[0]).val();
+
+        // There might be multiple selected y_columns...
+        var selected_y_columns = $(ids[1]).val();
+        if ( Array.isArray(selected_y_columns) ) {
+            // ...if so, then each of them need to go into the array for plotly to use
+            selected_y_columns.forEach((elem) => {
+                selected_values.push(elem);
+            });
+        }
+        else {
+            // ...but there's only a single selection, so don't need to get fancy
+            selected_values[1] = selected_y_columns;
+        }
+    }
+    // console.log( 'selected_values', selected_values );
 
     // Show settings specific to the current graph type
     $("." + chart_id + "_settings").hide();
