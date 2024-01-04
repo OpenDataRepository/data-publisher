@@ -771,6 +771,11 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatreeInfoService $dti_service */
@@ -781,8 +786,8 @@ class LinkController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var CloneThemeService $clone_theme_service */
             $clone_theme_service = $this->container->get('odr.clone_theme_service');
 
@@ -1002,7 +1007,7 @@ class LinkController extends ODRCustomController
                 $ec_service->createDatatree($user, $local_datatype, $new_remote_datatype, $is_link, $multiple_allowed);
 
                 // Locate the master theme for the remote datatype
-                $source_theme = $theme_service->getDatatypeMasterTheme($new_remote_datatype->getId());
+                $source_theme = $theme_info_service->getDatatypeMasterTheme($new_remote_datatype->getId());
 
                 // Create a copy of that theme in this theme element
                 $clone_theme_service->cloneIntoThemeElement($user, $theme_element, $source_theme, $new_remote_datatype, 'master');
@@ -1016,7 +1021,7 @@ class LinkController extends ODRCustomController
                     //  required theme data so the master layout page for B displays properly...
 
                     // Need to locate the master theme for "B"...
-                    $linked_parent_theme = $theme_service->getDatatypeMasterTheme($local_datatype->getId());
+                    $linked_parent_theme = $theme_info_service->getDatatypeMasterTheme($local_datatype->getId());
                     // ...so a new ThemeElement can be created in it...
                     $linked_theme_element = $ec_service->createThemeElement($user, $linked_parent_theme);
                     // ...so another copy of the remote datatype's theme into that new ThemeElement
@@ -1045,10 +1050,6 @@ class LinkController extends ODRCustomController
                     $clear_datarecord_caches = true;
 
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatatypeModifiedEvent($local_datatype, $user, $clear_datarecord_caches);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
@@ -1060,10 +1061,6 @@ class LinkController extends ODRCustomController
                 }
 
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatatypeLinkStatusChangedEvent($local_datatype->getGrandparent(), $new_remote_datatype, $previous_remote_datatype, $user);
                     $dispatcher->dispatch(DatatypeLinkStatusChangedEvent::NAME, $event);
                 }
@@ -1075,7 +1072,7 @@ class LinkController extends ODRCustomController
                 }
 
                 // Mark the ancestor datatype's theme as having been updated
-                $theme_service->updateThemeCacheEntry($theme, $user);
+                $theme_info_service->updateThemeCacheEntry($theme, $user);
                 // Also delete the list of top-level themes, just incase...
                 $cache_service->delete('top_level_themes');
             }
@@ -1550,8 +1547,7 @@ class LinkController extends ODRCustomController
 
     /**
      * Builds and returns a list of available 'descendant' datarecords to link to from this
-     * 'ancestor' datarecord.  If such a link exists, GetDisplayData() will render a read-only
-     * version of the 'remote' datarecord in a ThemeElement of the 'local' datarecord.
+     * 'ancestor' datarecord.
      *
      * @param integer $ancestor_datatype_id   The DataType that is being linked from
      * @param integer $descendant_datatype_id The DataType that is being linked to
@@ -1581,8 +1577,8 @@ class LinkController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TableThemeHelperService $tth_service */
             $tth_service = $this->container->get('odr.table_theme_helper_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var EngineInterface $templating */
@@ -1676,8 +1672,7 @@ class LinkController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to link to Remote Datatype');
 
             // Since the above statement didn't throw an exception, the one below shouldn't either...
-            $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
-            // $theme_id may be for a "master" theme instead of a "search_results" or "table" theme
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $remote_datatype->getId(), 'search_results');    // TODO - do I actually want a separate page type for linking purposes?
 
             // Create a base search key for the remote datatype, so the search sidebar can be used
             $remote_datatype_search_key = $search_key_service->encodeSearchKey(
@@ -1901,6 +1896,11 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             /** @var EntityCreationService $ec_service */
@@ -2059,7 +2059,8 @@ class LinkController extends ODRCustomController
                         if ($local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $descendant_datatype->getId()) {
                             // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match descendant datatype\n";
                             continue;
-                        } else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+                        }
+                        else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
                             // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match ancestor datatype\n";
                             continue;
                         }
@@ -2200,10 +2201,6 @@ class LinkController extends ODRCustomController
             //  their primary cache entries cleared
             try {
                 foreach ($records_needing_events as $dr_id => $dr) {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatarecordModifiedEvent($dr, $user);
                     $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                 }
@@ -2220,10 +2217,6 @@ class LinkController extends ODRCustomController
             $records_to_clear = array_keys($records_needing_events);
 
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordLinkStatusChangedEvent($records_to_clear, $descendant_datatype, $user);
                 $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
             }
@@ -2303,6 +2296,11 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
@@ -2488,10 +2486,6 @@ class LinkController extends ODRCustomController
             //  their primary cache entries cleared
             try {
                 foreach ($records_needing_events as $dr_id => $dr) {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatarecordModifiedEvent($dr, $user);
                     $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                 }
@@ -2508,10 +2502,6 @@ class LinkController extends ODRCustomController
             $records_to_clear = array_keys($records_needing_events);
 
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordLinkStatusChangedEvent($records_to_clear, $descendant_datatype, $user);
                 $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
             }

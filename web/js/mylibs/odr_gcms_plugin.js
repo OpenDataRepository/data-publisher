@@ -187,7 +187,7 @@ function ODRGraph_GCMSlineChartPlotly(chart_obj, onComplete) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting GCMS xy: ' + dr_id);
+                        // console.log('Plotting GCMS xy: ' + dr_id);
 
                         var columns = ODRGraph_GCMSModifyFile(file, chart_obj);
                         if ( columns['errors'] !== undefined )
@@ -249,7 +249,12 @@ function ODRGraph_GCMSlineChartPlotly(chart_obj, onComplete) {
                 // paper_bgcolor: '#7f7f7f',
                 // plot_bgcolor: '#c7c7c7',
                 xaxis: xaxis_settings,
-                yaxis: yaxis_settings
+                yaxis: yaxis_settings,
+
+                showlegend: true,
+                hoverlabel: {
+                    namelength: 50
+                },
             };
 
             if ( error_messages.length > 0 ) {
@@ -265,7 +270,7 @@ function ODRGraph_GCMSlineChartPlotly(chart_obj, onComplete) {
             );
 
             graph_div.on('plotly_click', function (data) {
-                console.log(data);
+                // console.log(data);
                 // for (var i=0; i < data.points.length; i++) {
                     var selected_x = data.points[0].x;
                     var selected_y = Math.log10(data.points[0].y);
@@ -326,7 +331,7 @@ function ODRGraph_GCMSbarChartPlotly(x_value, chart_obj) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting GCMS xy: ' + dr_id);
+                        // console.log('Plotting GCMS xy: ' + dr_id);
 
                         var columns = ODRGraph_GCMSModifyFile(file, chart_obj);
                         if ( columns['errors'] !== undefined )
@@ -383,7 +388,12 @@ function ODRGraph_GCMSbarChartPlotly(x_value, chart_obj) {
                 // paper_bgcolor: '#7f7f7f',
                 // plot_bgcolor: '#c7c7c7',
                 xaxis: xaxis_settings,
-                yaxis: yaxis_settings
+                yaxis: yaxis_settings,
+
+                showlegend: true,
+                hoverlabel: {
+                    namelength: 50
+                },
             };
 
             if ( error_messages.length > 0 ) {
@@ -394,7 +404,7 @@ function ODRGraph_GCMSbarChartPlotly(x_value, chart_obj) {
 
             // Create responsive div for automatic resizing
             var graph_div = plotlyResponsiveDiv(chart_obj, chart_obj.chart_id + "_secondary");
-            console.log( chart_data );
+            // console.log( chart_data );
             Plotly.newPlot(graph_div, chart_data, layout);
         }
     )

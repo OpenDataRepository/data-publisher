@@ -11,9 +11,12 @@ odr_plugins.base.linked_descendant_merger:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: A database can be linked to multiple times from the "same" database...i.e. A links to B, B links to C, and A also links to C...in this situation, ODR would render C twice, usually at very different places on the page.  This plugin allows the user to "move" records of C around so that it appears like C only is rendered once.
     registered_events:
+
     required_fields:
+
     config_options:
         # This plugin needs to base its config off the cached datatype array, so the renderPlugin
         #  settings dialog needs to be partially hijacked

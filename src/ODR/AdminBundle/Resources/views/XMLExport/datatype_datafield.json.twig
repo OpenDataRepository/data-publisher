@@ -2,7 +2,17 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
-{% if version == 'v3' or version == 'v4' %}
+{% if version == 'v5' %}
+{
+    {% if
+        datafield.templateFieldUuid is defined
+        and datafield.templateFieldUuid is not empty
+     %}
+    "field_{{ datafield.templateFieldUuid }}": {
+    {% else %}
+    "field_{{ datafield.fieldUuid }}": {
+    {% endif %}
+{% elseif version == 'v3' or version == 'v4' %}
     {
 {% elseif version == 'v1' %}
     "field_{{ datafield.id }}": {
@@ -19,11 +29,19 @@
         "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
         "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 
-    {% for rpi_num,rpi in datafield.renderPluginInstances %}
-        {% if rpi.renderPlugin.render == true %}
-        "render_plugin": {{ rpi.renderPlugin.pluginName|json_encode|raw }},
+
+        {% if datafield.renderPluginInstances | length > 0 %}
+        "render_plugins": [
+        {% set plugin_block %}
+        {% for rpi_num,rpi in datafield.renderPluginInstances %}
+            {% if rpi.renderPlugin.render == true %}
+                { "render_plugin": {{ rpi.renderPlugin.pluginName|json_encode|raw }} },
+            {% endif %}
+        {% endfor %}
+        {% endset %}
+        {{ plugin_block|comma|raw }}
+        ],
         {% endif %}
-    {% endfor %}
 
     {% if datafield_meta.is_unique == 1 %}
         "is_unique": 1,
@@ -85,5 +103,8 @@
             'datafield': datafield,
         } %}
     {% endif %}
+{% if version == 'v5' %}
+    },
+{% endif %}
 
 },  {# end of datafield #}

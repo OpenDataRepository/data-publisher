@@ -1,0 +1,70 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+
+{% for df_id, df in datatype['dataFields'] %}
+    {% set values = [] %}
+    {% if filter_data['values'][df_id] is defined %}
+        {% set values = filter_data['values'][df_id] %}
+    {% endif %}
+    {% set null_values = [] %}
+    {% if filter_data['null_values'][df_id] is defined %}
+        {% set null_values = filter_data['null_values'][df_id] %}
+    {% endif %}
+
+    {% if values|length > 0 or null_values|length > 0 %}
+        {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_filter_datafield.html.twig" with {
+            'datafield': df,
+
+            'values': values,
+            'null_values': null_values,
+
+            'odr_chart_id': odr_chart_id,
+            'hidden_filter_fields': hidden_filter_fields,
+        } %}
+    {% endif %}
+{% endfor %}
+
+
+{% for theme_element in theme.themeElements %}
+    {% if theme_element.themeDataType is defined %}
+        {% for theme_datatype in theme_element.themeDataType %}
+            {% set child_datatype_id = theme_datatype.dataType.id %}
+            {% set child_theme_id = theme_datatype.childTheme.id %}
+
+            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+            {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
+                {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
+
+                {# Don't want to display any filtering for a particular child/linked descendant datatype if the current set of records doesn't use them #}
+                {% set has_relevant_children = false %}
+                {% for df_id, df in child_datatype[child_datatype_id]['dataFields'] %}
+                    {% if (filter_data['values'][df_id] is defined and filter_data['values'][df_id]|length > 0)
+                        or
+                        (filter_data['null_values'][df_id] is defined and filter_data['null_values'][df_id]|length > 0)
+                    %}
+                        {% set has_relevant_children = true %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if has_relevant_children %}
+                    {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_filter_fieldarea.html.twig" with {
+                        'datatype_array': child_datatype,
+                        'theme_array': child_theme,
+
+                        'target_datatype_id': child_datatype_id,
+                        'target_theme_id': child_theme_id,
+
+                        'filter_data': filter_data,
+                        'odr_chart_id': odr_chart_id,
+                    } %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+
+{% endspaceless %}

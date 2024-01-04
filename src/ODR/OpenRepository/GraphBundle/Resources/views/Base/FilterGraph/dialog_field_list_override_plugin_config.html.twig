@@ -1,0 +1,208 @@
+{% spaceless %}
+
+{% set selected_primary_graph_df = 0 %}
+{% if current_config|length > 0 %}
+    {% set selected_primary_graph_df = current_config['graph_file_df_id'] %}
+{% endif %}
+
+{% set selected_secondary_graph_df = 0 %}
+{% if current_config|length > 0 %}
+    {% set selected_secondary_graph_df = current_config['secondary_graph_file_df_id'] %}
+{% endif %}
+
+<div class="pure-u-1">
+    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_config_str }}</textarea>
+
+    <div class="pure-u-1 ODRRenderPlugin_FilterGraph_header">
+        This table is where you select the datafields with the files you want graphed.
+        <br>
+        The field selected as "Primary" will be checked first, and the first file uploaded to that field will be graphed.
+        <br>
+        The "Secondary" field is optional, and will only be checked when the "Primary" field does not have a file uploaded.
+    </div>
+
+    <div class="pure-u-1 ODRRenderPlugin_FilterGraph_config">
+        <table class="ODRRenderPlugin_FilterGraph_table">
+            <thead>
+            <tr>
+                <th>Database path</th>
+                <th>File Datafield</th>
+                <th>Primary?</th>
+                <th>Secondary?</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for prefix,data in available_config %}
+                {% for df_id, df_name in data['fields'] %}
+                    <tr class="ODRRenderPlugin_FilterGraph_row" rel="{{ prefix }}">
+                        <td>{{ data['label'] }}</td>
+                        <td>{{ df_name }}</td>
+                        <td>
+                            <input class="ODRRenderPlugin_FilterGraph_primary" type="checkbox" value="{{ df_id }}" {% if selected_primary_graph_df == df_id %}checked{% endif %} />
+                        </td>
+                        <td>
+                            <input class="ODRRenderPlugin_FilterGraph_secondary" type="checkbox" value="{{ df_id }}" {% if selected_secondary_graph_df == df_id %}checked{% endif %} />
+                        </td>
+                        <td class="ODRRenderPlugin_FilterGraph_warn" style="display: none;">
+                            <i class="fa fa-warning"></i>
+                            <span></span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+
+    $(function() {
+        // Since the resizing apparently refuses to pick up the actual height of the items inside
+        //  it for this particular application, force the modal to use the entire screen.
+        resetRemodalInnerHeight(true);
+
+        $(".ODRRenderPlugin_FilterGraph_primary").unbind('change').change(function() {
+            ODRRenderPlugin_FilterGraph_updateCheckboxes( $(this) );
+        });
+        $(".ODRRenderPlugin_FilterGraph_secondary").unbind('change').change(function() {
+            ODRRenderPlugin_FilterGraph_updateCheckboxes( $(this) );
+        });
+    });
+
+    /**
+     * Deselects other checkboxes when a new one is selected.
+     *
+     * @param {HTMLElement} elem
+     */
+    function ODRRenderPlugin_FilterGraph_updateCheckboxes(elem) {
+        if ( !$(elem).is(':checked') ) {
+            // Don't care if the checkbox is now unselected
+        }
+        else if ( $(elem).hasClass('ODRRenderPlugin_FilterGraph_primary') ) {
+            // checkbox is for the primary graph file...uncheck all other primary checkboxes
+            var selected_df_id = $(elem).val();
+            $('.ODRRenderPlugin_FilterGraph_primary').each(function() {
+                if ( $(this).val() !== selected_df_id )
+                    $(this).prop('checked', false);
+            });
+        }
+        else {
+            // checkbox is for the secondary graph file
+            var selected_df_id = $(elem).val();
+            $('.ODRRenderPlugin_FilterGraph_secondary').each(function() {
+                if ( $(this).val() !== selected_df_id )
+                    $(this).prop('checked', false);
+            });
+        }
+
+        // Regardless of the new state, warnings should be updated...
+        ODRRenderPlugin_FilterGraph_updateWarnings();
+        // ...and the hidden textarea updated
+        ODRRenderPlugin_FilterGraph_updateValue();
+    }
+
+    /**
+     * Resets warnings on the page.
+     */
+    function ODRRenderPlugin_FilterGraph_updateWarnings() {
+        var selected_primary = null;
+        var selected_secondary = null;
+
+        $('.ODRRenderPlugin_FilterGraph_primary').each(function() {
+            if ( $(this).is(':checked') ) {
+                selected_primary = $(this);
+                return false;
+            }
+        });
+        $('.ODRRenderPlugin_FilterGraph_secondary').each(function() {
+            if ( $(this).is(':checked') ) {
+                selected_secondary = $(this);
+                return false;
+            }
+        });
+
+        // Only need warnings when there's a secondary graph file selected...
+        $('.ODRRenderPlugin_FilterGraph_warn').hide();
+        if ( selected_secondary !== null ) {
+            var warn_column = $(selected_secondary).parent().next();
+            var warn_text = $(warn_column).children('span');
+
+            if ( selected_primary === null ) {
+                // ...there has to be a primary graph file selected
+                $(warn_text).html('Select a primary graph field first');
+                $(warn_column).show();
+            }
+            else {
+                // ...if there is a primary graph field selected...
+                if ( $(selected_primary).val() === $(selected_secondary).val() ) {
+                    // ...then it can't be the same field as the secondary graph field
+                    $(warn_text).html('The primary and secondary graph file fields must not be the same');
+                    $(warn_column).show();
+                }
+                else {
+                    // ...and it needs to belong to the same datatype as the secondary graph field
+                    var primary_prefix = $(selected_primary).parents('tr').first().attr('rel');
+                    var secondary_prefix = $(selected_secondary).parents('tr').first().attr('rel');
+                    if ( primary_prefix !== secondary_prefix ) {
+                        $(warn_text).html('The primary and secondary graph file fields must belong to the same datatype');
+                        $(warn_column).show();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates the hidden textarea with the current value of the block on the right side
+     */
+    function ODRRenderPlugin_FilterGraph_updateValue() {
+        var selected_primary = $('.ODRRenderPlugin_FilterGraph_primary:checked');
+        var selected_secondary = $('.ODRRenderPlugin_FilterGraph_secondary:checked');
+
+        var primary_prefix = null;
+        var primary_value = null;
+        var secondary_prefix = null;
+        var secondary_value = null;
+        if ( $(selected_primary).length > 0 ) {
+            primary_prefix = $(selected_primary).parents('tr').first().attr('rel');
+            primary_value = $(selected_primary).val();
+        }
+        if ( $(selected_secondary).length > 0 ) {
+            secondary_prefix = $(selected_secondary).parents('tr').first().attr('rel');
+            secondary_value = $(selected_secondary).val();
+        }
+
+        // Refuse to save anything if a primary graph file isn't selected
+        var reset = false;
+        if ( primary_prefix === null ) {
+            reset = true;
+        }
+        else if ( secondary_prefix !== null ) {
+            // If there is a selection for the secondary graph file...
+            if ( primary_prefix !== secondary_prefix ) {
+                // ...then the primary and the secondary graph files must have the same prefix
+                reset = true;
+            }
+            else if ( primary_value === secondary_value ) {
+                // ...and they can't refer to the same field
+                reset = true;
+            }
+        }
+
+        if ( reset ) {
+            // If an error was found, reset the hidden textarea
+            $("#plugin_option_{{ rpo_id }}").html('');
+        }
+        else {
+            // If no error was found, then splice the data together
+            if ( secondary_value === null )
+                secondary_value = '';
+
+            $("#plugin_option_{{ rpo_id }}").html(primary_prefix + ',' + primary_value + ',' + secondary_value);
+        }
+    }
+</script>
+{% endspaceless %}

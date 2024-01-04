@@ -11,6 +11,7 @@ odr_plugins.rruff.raman_spectra:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: TODO
     registered_events:
     required_fields:

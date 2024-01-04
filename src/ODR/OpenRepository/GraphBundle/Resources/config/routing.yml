@@ -1,10 +1,10 @@
 # TODO - move these into other files?
-odr_plugin_graph_static:
-    path:  /graph/static/{datatype_id}/{datarecord_id}.{_format}
-    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:static, _format: 'svg' }
+odr_plugin_graph_render:
+    path:  /graph/static/{request_datatype_id}/{request_datarecord_id}.{_format}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:render, _format: 'svg' }
     requirements:
-        datatype_id: \d+
-        datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it
+        request_datatype_id: \d+
+        request_datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it
 
 odr_plugin_file_renamer_rebuild:
     path:  /edit/plugins/file_renamer/rebuild/{dr_id}/{df_id}

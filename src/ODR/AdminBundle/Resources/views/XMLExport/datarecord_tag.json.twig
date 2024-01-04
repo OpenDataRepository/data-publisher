@@ -6,34 +6,31 @@
     {% set has_children = true %}
 {% endif %}
 
-{# Store whether this tag is selected #}
-{% set is_selected = 0 %}
-{% if tag_selections[ tag.id ] is defined %}
-    {% set is_selected = tag_selections[ tag.id ].selected %}
-{% endif %}
-
 {# Store whether any children of this tag are selected #}
 {% set child_is_selected = 0 %}
 {% if child_tag_selections[ tag.id ] is defined %}
     {% set child_is_selected = 1 %}
 {% endif %}
 
-{% if is_selected == 1 %}
 {
     "id": {{ tag.id }},
-    "using_tagSelection2": "true",
     "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
     "name": "{{ tag.tagName }}",
     "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}",
     "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",
-    "selected": 1
+
+    {% if has_children and child_is_selected == 1 %}
+        "selected": 1,
+        "tags": [
+        {% for child_tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
+                'tag_selections': tag_selections,
+                'child_tag_selections': child_tag_selections,
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+        ]
+    {% else %}
+        "selected": 1
+    {% endif %}
 },
-{% elseif has_children and child_is_selected == 1 %}
-    {% for child_tag_id, child_tag in tag.children %}
-        {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
-            'tag_selections': tag_selections,
-            'child_tag_selections': child_tag_selections,
-            'tag': child_tag,
-        } %}
-    {% endfor %}
-{% endif %}

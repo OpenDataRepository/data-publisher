@@ -15,7 +15,7 @@
 namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-use ODR\AdminBundle\Controller\WPAutoLoginController;
+
 // Entities
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
@@ -40,6 +40,7 @@ use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\FilePublicStatusChangedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -138,12 +139,17 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataType $datatype */
@@ -157,7 +163,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+            if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -165,7 +171,7 @@ class EditController extends ODRCustomController
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
             // Adding a top-level datarecord is different than adding a child datarecord, and the
             //  database could get messed up if the wrong controller action is used
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::adddatarecordAction() called for child datatype');
 
@@ -195,10 +201,6 @@ class EditController extends ODRCustomController
             // This is wrapped in a try/catch block because any uncaught exceptions will abort
             //  creation of the new datarecord...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordCreatedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
@@ -260,12 +262,17 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab needed Entities from the repository
@@ -289,9 +296,9 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+            if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+            if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -299,7 +306,7 @@ class EditController extends ODRCustomController
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
             // Adding a child datarecord is different than adding a top-level datarecord, and the
             //  database could get messed up if the wrong controller action is used
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             if ( in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
@@ -315,10 +322,6 @@ class EditController extends ODRCustomController
             // This is wrapped in a try/catch block because any uncaught exceptions will abort
             //  creation of the new datarecord...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordCreatedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
@@ -339,10 +342,6 @@ class EditController extends ODRCustomController
 
             // Need to fire off a DatarecordModified event for the parent datarecord
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($parent_datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -404,10 +403,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityDeletionService $ed_service */
-            $ed_service = $this->container->get('odr.entity_deletion_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var ThemeInfoService $theme_info_service */
@@ -436,9 +435,9 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+            if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
+            if ( !$permissions_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -460,7 +459,7 @@ class EditController extends ODRCustomController
 
 
             // Delete the datarecord
-            $ed_service->deleteDatarecord($datarecord, $user);
+            $entity_deletion_service->deleteDatarecord($datarecord, $user);
 
 
             // ----------------------------------------
@@ -486,7 +485,7 @@ class EditController extends ODRCustomController
 
                 if ( count($remaining) > 0 ) {
                     // Return to the list of datarecords since at least one datarecord of this datatype still exists
-                    $preferred_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                    $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                     $url = $this->generateUrl(
                         'odr_search_render',
                         array(
@@ -561,10 +560,10 @@ class EditController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab the necessary entities
@@ -595,7 +594,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -604,7 +603,7 @@ class EditController extends ODRCustomController
             $props = array(
                 'original_filename' => $post['filename']
             );
-            $emm_service->updateFileMeta($user, $file, $props);
+            $entity_modify_service->updateFileMeta($user, $file, $props);
 
 
             // ----------------------------------------
@@ -678,10 +677,10 @@ class EditController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab the necessary entities
@@ -716,7 +715,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -725,7 +724,7 @@ class EditController extends ODRCustomController
             $props = array(
                 'original_filename' => $post['filename']
             );
-            $emm_service->updateImageMeta($user, $image, $props);
+            $entity_modify_service->updateImageMeta($user, $image, $props);
 
 
             // ----------------------------------------
@@ -794,10 +793,10 @@ class EditController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab the necessary entities
@@ -830,7 +829,7 @@ class EditController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -842,7 +841,7 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
                 $properties = array('publicDate' => $public_date);
-                $emm_service->updateFileMeta($user, $file, $properties);
+                $entity_modify_service->updateFileMeta($user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
                 $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
@@ -857,7 +856,7 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime();
 
                 $properties = array('publicDate' => $public_date);
-                $emm_service->updateFileMeta($user, $file, $properties);
+                $entity_modify_service->updateFileMeta($user, $file, $properties);
 
 
                 // ----------------------------------------
@@ -905,6 +904,18 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Fire off an event notifying that file was modified
+            try {
+                $event = new FilePublicStatusChangedEvent($file, $datafield, 'edit');
+                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Fire off an event notifying that the modification of the datafield is done
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
@@ -966,12 +977,17 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab the necessary entities
@@ -1007,7 +1023,7 @@ class EditController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1025,7 +1041,7 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
                 $properties = array('publicDate' => $public_date );
-                $emm_service->updateImageMeta($user, $image, $properties);
+                $entity_modify_service->updateImageMeta($user, $image, $properties);
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
                 foreach ($all_images as $img) {
@@ -1042,7 +1058,7 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime();
 
                 $properties = array('publicDate' => $public_date);
-                $emm_service->updateImageMeta($user, $image, $properties);
+                $entity_modify_service->updateImageMeta($user, $image, $properties);
 
                 // Immediately decrypt the image and all of its children...don't need to specify
                 //  a filename because the images are guaranteed to be public
@@ -1060,12 +1076,20 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Fire off an event notifying that file was modified
+            try {
+                $event = new FilePublicStatusChangedEvent($image, $datafield, 'edit');
+                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -1078,10 +1102,6 @@ class EditController extends ODRCustomController
 
             // Need to fire off a DatarecordModified event because an image's public status got changed
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -1128,10 +1148,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityDeletionService $ed_service */
-            $ed_service = $this->container->get('odr.entity_deletion_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab the necessary entities
@@ -1162,12 +1182,12 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
             // Delete the file
-            $ed_service->deleteFile($file, $user);
+            $entity_deletion_service->deleteFile($file, $user);
 
             // Don't need to fire off any events
 
@@ -1214,10 +1234,10 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
-            /** @var EntityDeletionService $ed_service */
-            $ed_service = $this->container->get('odr.entity_deletion_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab the necessary entities
@@ -1252,13 +1272,13 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // Delete the image
-            $ed_service->deleteImage($image, $user);
+            $entity_deletion_service->deleteImage($image, $user);
 
             // Don't need to fire off any events
 
@@ -1307,12 +1327,12 @@ class EditController extends ODRCustomController
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ODRUploadService $upload_service */
             $upload_service = $this->container->get('odr.upload_service');
 
@@ -1349,7 +1369,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1439,7 +1459,7 @@ class EditController extends ODRCustomController
             }
             else {
                 // This image is not being overwritten, so create a new one
-                $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
                 $new_image = $upload_service->uploadNewImage($new_image_path, $user, $drf);
 
                 // Still need to copy several properties from the previous image to the new one
@@ -1449,7 +1469,7 @@ class EditController extends ODRCustomController
                     'caption' => $image->getCaption(),
                     'externalId' => $image->getExternalId(),
                 );
-                $emm_service->updateImageMeta($user, $new_image, $props);
+                $entity_modify_service->updateImageMeta($user, $new_image, $props);
 
                 // Mark the original image and its resizes as deleted
                 foreach ($relevant_images as $i) {
@@ -1504,10 +1524,15 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Grab the first image just to check permissions
@@ -1536,7 +1561,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1575,7 +1600,7 @@ class EditController extends ODRCustomController
 
                 if ( $image->getDisplayorder() != $index ) {
                     $properties = array('display_order' => $index);
-                    $emm_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately...
+                    $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately...
                     $changes_made = true;
                 }
             }
@@ -1589,10 +1614,6 @@ class EditController extends ODRCustomController
             //  technically make a change to the cached entries, and any remote copies maintained
             //  over RSS are technically out of sync until they redownload
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -1637,10 +1658,15 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataRecord $datarecord */
@@ -1660,7 +1686,7 @@ class EditController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canChangePublicStatus($user, $datarecord) )
+            if ( !$permissions_service->canChangePublicStatus($user, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1671,14 +1697,14 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
                 $properties = array('publicDate' => $public_date);
-                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
+                $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
             else {
                 // Make the datarecord non-public
                 $public_date = new \DateTime();
 
                 $properties = array('publicDate' => $public_date);
-                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
+                $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
 
 
@@ -1689,10 +1715,6 @@ class EditController extends ODRCustomController
             // NOTE: do NOT want to also fire off a DatarecordModified event...this would effectively
             //  double the work any event subscribers (such as RSS) would have to do
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
             }
@@ -1726,9 +1748,10 @@ class EditController extends ODRCustomController
 
     /**
      * Parses a $_POST request to update the contents of a datafield.
-     * File and Image uploads are handled by @see FlowController
-     * Changes to RadioSelections are handled by EditController::radioselectionAction(), and changes
-     * to Tags are handled by TagsController::tagselectionAction()
+     *
+     * File and Image uploads are handled by FlowController, changes to RadioSelections are handled
+     * by EditController::radioselectionAction(), and changes to Tags are handled by
+     * TagsController::tagselectionAction()
      *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
@@ -1757,12 +1780,12 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -1787,7 +1810,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
 
             // If the datafield is set to prevent user edits, then prevent this controller action
@@ -1844,7 +1867,7 @@ class EditController extends ODRCustomController
             }
 
             // Load the existing storage entity if it exists, or create a new one if it doesn't
-            $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+            $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
             $old_value = $storage_entity->getValue();
 
 
@@ -1896,7 +1919,7 @@ class EditController extends ODRCustomController
 
                         // Save the value...this will also fire a PostUpdate event, which will cause
                         //  any datafields derived from this particular field to update if needed
-                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $new_value));
+                        $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => $new_value));
 
 
                         // TODO Create mirror function for datatypes that have metadata
@@ -2042,8 +2065,8 @@ class EditController extends ODRCustomController
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -2088,9 +2111,9 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+            if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $child_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2141,10 +2164,10 @@ class EditController extends ODRCustomController
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataFields $datafield */
@@ -2176,7 +2199,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2184,7 +2207,7 @@ class EditController extends ODRCustomController
             // Need to locate the theme element being reloaded...
             // TODO - ODRRenderService can technically render a non-master theme for Edit mode...
             // TODO - ...though self::editAction() doesn't let it happen, yet
-            $master_theme = $ti_service->getDatatypeMasterTheme($datatype->getId());
+            $master_theme = $theme_info_service->getDatatypeMasterTheme($datatype->getId());
             $query = $em->createQuery(
                'SELECT te
                 FROM ODRAdminBundle:Theme AS t
@@ -2315,8 +2338,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -2341,7 +2364,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2439,10 +2462,10 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var SearchAPIService $search_api_service */
@@ -2451,8 +2474,10 @@ class EditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
             /** @var Router $router */
@@ -2478,7 +2503,7 @@ class EditController extends ODRCustomController
 
             // Ensure the datatype has a "master" theme...ODRRenderService will use it by default
             // TODO - alternate themes?
-            $ti_service->getDatatypeMasterTheme($datatype->getId());
+            $theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
             // If $search_theme_id is set...
             if ($search_theme_id != 0) {
@@ -2502,13 +2527,13 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canEditDatarecord($user, $datarecord) )
+            if ( !$permissions_service->canEditDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2523,7 +2548,7 @@ class EditController extends ODRCustomController
                 $odr_tab_id = $odr_tab_service->createTabId();
 
             // Determine whether the user has a restriction on which datarecords they can edit
-            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
+            $restricted_datarecord_list = $permissions_service->getDatarecordRestrictionList($user, $datatype);
             $has_search_restriction = false;
             if ( !is_null($restricted_datarecord_list) )
                 $has_search_restriction = true;
@@ -2649,7 +2674,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Determine whether this is a top-level datatype...if not, then the "Add new Datarecord" button in edit_header.html.twig needs to be disabled
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             $is_top_level = 1;
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 $is_top_level = 0;
@@ -2698,10 +2723,13 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Determine the user's preferred theme
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
             // Render the edit page for this datarecord
-            /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
-            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id);
+            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme);
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -2747,8 +2775,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -2772,10 +2800,10 @@ class EditController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 

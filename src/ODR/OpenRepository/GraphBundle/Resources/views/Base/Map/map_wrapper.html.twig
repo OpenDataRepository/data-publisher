@@ -4,9 +4,7 @@
 
 {% set datatype = datatype_array[target_datatype_id] %}
 
-{% if is_top_level == 1 %}
-    <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
-{% endif %}
+<div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
 {% if plugin_options.hide_datafields == "false" %}
     <div class="ODRGraphSpacer pure-u-1">
@@ -105,8 +103,6 @@
         {% endif %}
     </div>
 
-{% if is_top_level == 1 %}
-    </div><!-- end of #DataType_{{ datatype.id }} -->
-{% endif %}
+</div><!-- end of #DataType_{{ datatype.id }} -->
 
 {% endspaceless %}

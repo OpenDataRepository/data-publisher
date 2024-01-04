@@ -84,6 +84,12 @@ ODR\AdminBundle\Entity\RenderPlugin:
             column: override_sort
             default: false
 
+        suppressNoFieldsNote:
+            type: boolean
+            nullable: false
+            column: suppress_no_fields_note
+            default: false
+
         plugin_type:
             type: smallint
             default: 0

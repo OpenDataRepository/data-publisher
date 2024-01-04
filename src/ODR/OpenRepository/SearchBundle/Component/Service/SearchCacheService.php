@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatafieldDeletedEvent;
@@ -101,8 +102,12 @@ class SearchCacheService implements EventSubscriberInterface
     {
         return array(
             // Datatype
-//            DatatypeCreatedEvent::NAME => 'onDatatypeCreate',    // Don't have any search cache entries to clear for these two events
+            // Don't need an onDatatypeCreate() function...none of the relevant cache entries exist
+//            DatatypeCreatedEvent::NAME => 'onDatatypeCreate',
+            // Don't need an onDatatypeModify() function...at the moment, none of the properties of a
+            //  datatype, other than public status, have any effect on the results of a search
 //            DatatypeModifiedEvent::NAME => 'onDatatypeModify',
+
             DatatypeImportedEvent::NAME => 'onDatatypeImport',
             DatatypeDeletedEvent::NAME => 'onDatatypeDelete',
             DatatypePublicStatusChangedEvent::NAME => 'onDatatypePublicStatusChange',
@@ -118,14 +123,15 @@ class SearchCacheService implements EventSubscriberInterface
             DatafieldModifiedEvent::NAME => 'onDatafieldModify',
             DatafieldDeletedEvent::NAME => 'onDatafieldDelete',
 
+            // Don't need events for files/images/storage entities...the relevant cache entries
+            //  get cleared via the DatafieldModifiedEvent
+
+            // Don't need MassEdit/CSVExport/Plugin events here either...they don't affect the
+            //  search cache
+
             // TODO - Nate is also going to eventually need events for Layout changes
         );
     }
-
-    // Don't need an onDatatypeCreate() function...none of the relevant cache entries exist
-
-    // Don't need an onDatatypeModify() function...at the moment, none of the properties of a
-    //  datatype, other than public status, have any effect on the results of a search
 
 
     /**
@@ -872,5 +878,35 @@ class SearchCacheService implements EventSubscriberInterface
 
         // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
         // It doesn't contain any information about linking
+
+
+        // ----------------------------------------
+        // If the descendant datatype has fields which are being used by an ancestor datatype for
+        //  sorting...
+        $query = $this->em->createQuery(
+           'SELECT DISTINCT(dt.id) AS dt_id
+            FROM ODRAdminBundle:DataFields AS df
+            JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+            JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
+            JOIN ODRAdminBundle:DataRecord dr WITH dr.dataType = dt
+            WHERE df.dataType = :descendant_datatype AND dtsf.field_purpose = :field_purpose
+            AND dr IN (:datarecord_ids)
+            AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'descendant_datatype' => $datatype->getId(),
+                'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
+                'datarecord_ids' => $event->getDatarecordIds()
+            )
+        );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            // ...then need to reset the cached sort order of each ancestor datatype when any of its
+            //  records are linked/unlinked
+            $dt_id = $result['dt_id'];
+            $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+        }
     }
 }

@@ -2586,7 +2586,7 @@ class EntityMetaModifyService
         $existing_values = array(
             'templateName' => $old_meta_entry->getTemplateName(),
             'templateDescription' => $old_meta_entry->getTemplateDescription(),
-            'isDefault' => $old_meta_entry->getIsDefault(),
+            'defaultFor' => $old_meta_entry->getDefaultFor(),
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'shared' => $old_meta_entry->getShared(),
             'sourceSyncVersion' => $old_meta_entry->getSourceSyncVersion(),
@@ -2629,30 +2629,27 @@ class EntityMetaModifyService
             $new_theme_meta->setTemplateName( $properties['templateName'] );
         if ( isset($properties['templateDescription']) )
             $new_theme_meta->setTemplateDescription( $properties['templateDescription'] );
-        if ( isset($properties['isDefault']) )
-            $new_theme_meta->setIsDefault( $properties['isDefault'] );
+        if ( isset($properties['defaultFor']) )
+            $new_theme_meta->setDefaultFor( $properties['defaultFor'] );
         if ( isset($properties['displayOrder']) )
             $new_theme_meta->setDisplayOrder( $properties['displayOrder'] );
         if ( isset($properties['shared']) )
             $new_theme_meta->setShared( $properties['shared'] );
         if ( isset($properties['sourceSyncVersion']) )
             $new_theme_meta->setSourceSyncVersion( $properties['sourceSyncVersion'] );
-
-        if ( isset($properties['isTableTheme']) ) {
+        if ( isset($properties['isTableTheme']) )
             $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
-
-            if ($theme->getThemeType() == 'search_results' && $new_theme_meta->getIsTableTheme()) {
-                $theme->setThemeType('table');
-                $this->em->persist($theme);
-            }
-            else if ($theme->getThemeType() == 'table' && !$new_theme_meta->getIsTableTheme()) {
-                $theme->setThemeType('search_results');
-                $this->em->persist($theme);
-            }
-        }
-
         if ( isset($properties['displaysAllResults']) )
             $new_theme_meta->setDisplaysAllResults( $properties['displaysAllResults'] );
+
+        // Earlier versions of ODR used a combination of theme_type and page_type to control
+        //  when and where they were used...in late 2023 this was changed so that any theme
+        //  could be used anywhere, and as a result theme_type only because useful to indicate a
+        //  datatype's "master" theme
+        if ($theme->getThemeType() !== 'master') {
+            $theme->setThemeType('custom');
+            $this->em->persist($theme);
+        }
 
         $new_theme_meta->setUpdated($created);
         $new_theme_meta->setUpdatedBy($user);

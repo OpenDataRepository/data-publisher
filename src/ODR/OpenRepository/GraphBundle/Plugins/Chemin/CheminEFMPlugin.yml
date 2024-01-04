@@ -11,6 +11,7 @@ odr_plugins.chemin.cheminefm:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: Plugin to display Chemin EFM Data
     registered_events:
     required_fields:

@@ -42,6 +42,7 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use FOS\UserBundle\Doctrine\UserManager;
@@ -308,12 +309,7 @@ class DatatypeController extends ODRCustomController
 
                 // ----------------------------------------
                 // Render the required version of the page
-                $edit_html = $odr_render_service->getEditHTML(
-                    $user,
-                    $datarecord,
-                    null,       // don't care about search_key
-                    0           // ...or search_theme_id
-                );
+                $edit_html = $odr_render_service->getEditHTML($user, $datarecord);
 
                 // Need to create a form for editing datatype metadata
                 // Should edit the properties type and the datatype itself...
@@ -1706,7 +1702,7 @@ class DatatypeController extends ODRCustomController
                             $master_theme = $ec_service->createTheme($admin, $datatype, true);    // Don't flush immediately...
 
                             $master_theme_meta = $master_theme->getThemeMeta();
-                            $master_theme_meta->setIsDefault(true);
+                            $master_theme_meta->setDefaultFor(0);
                             $master_theme_meta->setShared(true);
                             $em->persist($master_theme_meta);
 
@@ -1717,7 +1713,8 @@ class DatatypeController extends ODRCustomController
                             $em->persist($search_theme);
 
                             $search_theme_meta = $search_theme->getThemeMeta();
-                            $search_theme_meta->setIsDefault(true);
+                            $bit = array_search('search_results', ThemeInfoService::PAGE_TYPES);
+                            $search_theme_meta->setDefaultFor($bit);
                             $search_theme_meta->setShared(true);
                             $em->persist($search_theme_meta);
 
@@ -1855,7 +1852,7 @@ class DatatypeController extends ODRCustomController
             $master_theme = $ec_service->createTheme($admin, $new_metadata_datatype, true);    // Don't flush immediately...
 
             $master_theme_meta = $master_theme->getThemeMeta();
-            $master_theme_meta->setIsDefault(true);
+            $master_theme_meta->setDefaultFor(0);
             $master_theme_meta->setShared(true);
             $em->persist($master_theme_meta);
 

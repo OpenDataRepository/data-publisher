@@ -252,6 +252,8 @@ class PluginsController extends ODRCustomController
             'override_search',
             'override_sort',
 
+            'suppress_no_fields_note',
+
             'description',
             'registered_events',
             'required_fields',
@@ -408,6 +410,12 @@ class PluginsController extends ODRCustomController
         $has_derived_field = false;
 
         if ( is_array($plugin_config['required_fields']) ) {
+            // No sense suppressing the "no datafields" note in the plugin config dialog if the
+            //  plugin actually has fields to map
+            if ( $plugin_config['suppress_no_fields_note'] === true && !empty($plugin_config['required_fields']) )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", suppress_no_fields_note is true, but plugin has fields defined');
+
+
             // Need to ensure that no RenderPluginField entries share a name, since that is used
             //  as a unique key during install/update...
             $field_names = array();
@@ -602,6 +610,7 @@ class PluginsController extends ODRCustomController
             // Render Plugins need these remaining events
 //            'FilePreEncryptEvent' => 0,
 //            'FilePostEncryptEvent' => 0,
+//            'FilePublicStatusChangedEvent' => 0,
 //            'FileDeletedEvent' => 0,
 
 //            'MassEditTriggerEvent' => 0,
@@ -853,6 +862,11 @@ class PluginsController extends ODRCustomController
             if ( $installed_plugin_data['overrideSort'] !== $plugin_config['override_sort'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_sort';
                 $readable_plugin_updates[$plugin_classname][] = 'override_sort changed to '.$plugin_config['override_sort'];
+            }
+
+            if ( $installed_plugin_data['suppressNoFieldsNote'] !== $plugin_config['suppress_no_fields_note'] ) {
+                $plugins_needing_updates[$plugin_classname]['meta'][] = 'suppress_no_fields_note';
+                $readable_plugin_updates[$plugin_classname][] = 'suppress_no_fields_note changed to '.$plugin_config['suppress_no_fields_note'];
             }
 
 
@@ -1688,6 +1702,12 @@ class PluginsController extends ODRCustomController
             else
                 $render_plugin->setOverrideSort(true);
 
+            if ( $plugin_data['suppress_no_fields_note'] === false )
+                $render_plugin->setSuppressNoFieldsNote(false);
+            else
+                $render_plugin->setSuppressNoFieldsNote(true);
+
+
             if ( !isset($plugin_data['required_theme_elements']) )
                 $render_plugin->setRequiredThemeElements(0);
             else
@@ -2151,6 +2171,12 @@ class PluginsController extends ODRCustomController
             else
                 $render_plugin->setOverrideSort(true);
 
+            if ( $plugin_data['suppress_no_fields_note'] === false )
+                $render_plugin->setSuppressNoFieldsNote(false);
+            else
+                $render_plugin->setSuppressNoFieldsNote(true);
+
+
             if ( !isset($plugin_data['required_theme_elements']) )
                 $render_plugin->setRequiredThemeElements(0);
             else
@@ -2566,8 +2592,8 @@ class PluginsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -2612,12 +2638,12 @@ class PluginsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-//            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+//            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
 //                throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
 
@@ -2812,8 +2838,8 @@ class PluginsController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -2857,12 +2883,12 @@ class PluginsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-//            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+//            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
 //                throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
 
@@ -3219,14 +3245,14 @@ class PluginsController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             // Ensure the relevant entities exist
@@ -3264,7 +3290,7 @@ class PluginsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3361,7 +3387,7 @@ class PluginsController extends ODRCustomController
 
                 // Mark each of the affected themes as updated
                 foreach ($affected_themes as $t_id => $t)
-                    $ti_service->updateThemeCacheEntry($t, $user);
+                    $theme_info_service->updateThemeCacheEntry($t, $user);
 
                 // Convert the list of themeElements so javascript has a little easier time
                 $affected_theme_elements = array_keys($affected_theme_elements);
@@ -3386,9 +3412,9 @@ class PluginsController extends ODRCustomController
             }
 
             // Changes in render plugin tend to require changes in datafield properties
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());
             // Don't need to filter here
-            $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
+            $datafield_properties = json_encode($datafield_info_service->getDatafieldProperties($datatype_array));
 
             $return['d'] = array(
                 'datafield_id' => $datafield_id,     // the entity may be null, so use the param that was passed in
@@ -3467,18 +3493,18 @@ class PluginsController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -3554,12 +3580,12 @@ class PluginsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $target_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $target_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
             // Need the master theme, in case datafields or themeElements need to be created
-            $master_theme = $theme_service->getDatatypeMasterTheme($target_datatype->getId());
+            $master_theme = $theme_info_service->getDatatypeMasterTheme($target_datatype->getId());
 
 
             // ----------------------------------------
@@ -3652,11 +3678,11 @@ class PluginsController extends ODRCustomController
 
                     // Ensure referenced datafields can have any required properties forced on them
                     if ( $rpf->getMustBeUnique() ) {
-                        if ( !$dfi_service->canDatafieldBeUnique($df) )
+                        if ( !$datafield_info_service->canDatafieldBeUnique($df) )
                             throw new ODRBadRequestException('The render plugin requires the field mapped to "'.$rpf->getFieldName().'" to be unique, but the datafield "'.$df->getFieldName().'" can not be unique');
                     }
                     if ( $rpf->getSingleUploadsOnly() ) {
-                        if ( $dfi_service->hasMultipleUploads($df) )
+                        if ( $datafield_info_service->hasMultipleUploads($df) )
                             throw new ODRBadRequestException('The render plugin requires the field mapped to "'.$rpf->getFieldName().'" to only allow single uploads, but the datafield "'.$df->getFieldName().'" already has multiple uploaded files/images');
                     }
                 }
@@ -3707,7 +3733,7 @@ class PluginsController extends ODRCustomController
 
                 // Create a single new ThemeElement to store the new datafields in, if necessary
                 if ( is_null($theme_element) )
-                    $theme_element = $ec_service->createThemeElement($user, $master_theme, true);
+                    $theme_element = $entity_create_service->createThemeElement($user, $master_theme, true);
 
                 // Load information for the new datafield
                 /** @var FieldType $fieldtype */
@@ -3719,7 +3745,7 @@ class PluginsController extends ODRCustomController
                 $rpf = $rpf_lookup[$rpf_id];
 
                 // Create the Datafield and set basic properties from the render plugin settings
-                $datafield = $ec_service->createDatafield($user, $target_datatype, $fieldtype, true);    // Don't flush immediately...
+                $datafield = $entity_create_service->createDatafield($user, $target_datatype, $fieldtype, true);    // Don't flush immediately...
 
                 $datafield_meta = $datafield->getDataFieldMeta();
                 $datafield_meta->setFieldName( $rpf->getFieldName() );
@@ -3728,7 +3754,7 @@ class PluginsController extends ODRCustomController
 
 
                 // Attach the new datafield to the previously created theme_element
-                $ec_service->createThemeDatafield($user, $theme_element, $datafield);    // need to flush here so $datafield->getID() works later
+                $entity_create_service->createThemeDatafield($user, $theme_element, $datafield);    // need to flush here so $datafield->getID() works later
 
                 // Now that the datafield exists, update the plugin map
                 $em->refresh($datafield);
@@ -3736,7 +3762,7 @@ class PluginsController extends ODRCustomController
                 $new_datafields[] = $datafield;
 
                 if ($fieldtype->getTypeClass() == 'Image')
-                    $ec_service->createImageSizes($user, $datafield);    // TODO - test this...no render plugin creates an image at the moment
+                    $entity_create_service->createImageSizes($user, $datafield);    // TODO - test this...no render plugin creates an image at the moment
             }
 
             // If new datafields created, flush entity manager to save the theme_element and datafield meta entries
@@ -3763,7 +3789,7 @@ class PluginsController extends ODRCustomController
             // If the datatype/datafield isn't already using this render plugin...
             if ( is_null($selected_render_plugin_instance) ) {
                 // ...then create a renderPluginInstance entity tying the two together
-                $selected_render_plugin_instance = $ec_service->createRenderPluginInstance($user, $selected_render_plugin, $target_datatype, $target_datafield);    // need to flush here
+                $selected_render_plugin_instance = $entity_create_service->createRenderPluginInstance($user, $selected_render_plugin, $target_datatype, $target_datafield);    // need to flush here
                 /** @var RenderPluginInstance $selected_render_plugin_instance */
 
                 $plugin_attached = true;
@@ -3780,10 +3806,10 @@ class PluginsController extends ODRCustomController
                 if ( $selected_render_plugin_instance->getThemeRenderPluginInstance()->count() === 0 ) {
                     // ...then create a new themeElement...
                     $plugin_theme_elements_added = true;
-                    $theme_element = $ec_service->createThemeElement($user, $master_theme, true);    // can delay flush for a moment...
+                    $theme_element = $entity_create_service->createThemeElement($user, $master_theme, true);    // can delay flush for a moment...
 
                     // ...so it can be used to hold whatever the render plugin wants
-                    $trpi = $ec_service->createThemeRenderPluginInstance($user, $theme_element, $selected_render_plugin_instance);
+                    $trpi = $entity_create_service->createThemeRenderPluginInstance($user, $theme_element, $selected_render_plugin_instance);
 
                     // This call to createThemeRenderPluginInstance() flushes, so don't need to do
                     //  it here
@@ -3820,7 +3846,7 @@ class PluginsController extends ODRCustomController
 
                 // If the render plugin map entity doesn't exist, create it
                 if ( is_null($rpm) ) {
-                    $ec_service->createRenderPluginMap($user, $selected_render_plugin_instance, $rpf, $target_datatype, $df, true);    // don't need to flush...
+                    $entity_create_service->createRenderPluginMap($user, $selected_render_plugin_instance, $rpf, $target_datatype, $df, true);    // don't need to flush...
                     $plugin_fields_added[] = $rpf->getFieldName();
                 }
                 else {
@@ -3833,7 +3859,7 @@ class PluginsController extends ODRCustomController
                     if ( is_null($rpm->getDataField()) && !is_null($df) )
                         $plugin_fields_added[] = $rpf->getFieldName();
 
-                    $changes_made = $emm_service->updateRenderPluginMap($user, $rpm, $props, true);    // don't need to flush...
+                    $changes_made = $entity_modify_service->updateRenderPluginMap($user, $rpm, $props, true);    // don't need to flush...
                     if ($changes_made)
                         $plugin_fields_changed[] = $rpf->getFieldName();
                 }
@@ -3849,7 +3875,7 @@ class PluginsController extends ODRCustomController
                         $props['prevent_user_edits'] = true;
 
                     if ( !empty($props) )
-                        $emm_service->updateDatafieldMeta($user, $df, $props, true);    // don't need to flush...
+                        $entity_modify_service->updateDatafieldMeta($user, $df, $props, true);    // don't need to flush...
                 }
             }
 
@@ -3871,7 +3897,7 @@ class PluginsController extends ODRCustomController
                     /** @var RenderPluginOptionsDef $render_plugin_option */
                     $render_plugin_option = $rpo_lookup[$rpo_id];
 
-                    $ec_service->createRenderPluginOptionsMap($user, $selected_render_plugin_instance, $render_plugin_option, $value, true);    // don't need to flush...
+                    $entity_create_service->createRenderPluginOptionsMap($user, $selected_render_plugin_instance, $render_plugin_option, $value, true);    // don't need to flush...
                     $plugin_settings_changed[] = $render_plugin_option->getName();
                 }
                 else {
@@ -3879,7 +3905,7 @@ class PluginsController extends ODRCustomController
                     $properties = array(
                         'value' => $value
                     );
-                    $changes_made = $emm_service->updateRenderPluginOptionsMap($user, $render_plugin_option_map, $properties, true);    // don't need to flush...
+                    $changes_made = $entity_modify_service->updateRenderPluginOptionsMap($user, $render_plugin_option_map, $properties, true);    // don't need to flush...
 
                     if ($changes_made)
                         $plugin_settings_changed[] = $render_plugin_option_map->getRenderPluginOptionsDef()->getName();
@@ -3912,7 +3938,7 @@ class PluginsController extends ODRCustomController
 
             // Only need to update the theme entry if plugin fields were created
             if ( !empty($plugin_fields_added) || $plugin_theme_elements_added )
-                $theme_service->updateThemeCacheEntry($master_theme, $user);
+                $theme_info_service->updateThemeCacheEntry($master_theme, $user);
 
             if ( !empty($plugin_fields_added) || !empty($plugin_fields_changed) || !empty($plugin_settings_changed) ) {
                 // Some render plugins need to do stuff when their settings get changed
@@ -3939,11 +3965,11 @@ class PluginsController extends ODRCustomController
                 //  property of template datafields/datatypes
                 if ($local_datafield_id == 0) {
                     if ($target_datatype->getIsMasterType())
-                        $emm_service->incrementDatatypeMasterRevision($user, $target_datatype);
+                        $entity_modify_service->incrementDatatypeMasterRevision($user, $target_datatype);
                 }
                 else {
                     if ($target_datafield->getIsMasterField())
-                        $emm_service->incrementDatafieldMasterRevision($user, $target_datafield);
+                        $entity_modify_service->incrementDatafieldMasterRevision($user, $target_datafield);
                 }
 
                 // Mark the datatype as updated
@@ -3962,8 +3988,8 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Ensure datafield properties are up to date
-            $datatype_array = $dbi_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
-            $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
+            $datatype_array = $database_info_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
+            $datafield_properties = json_encode($datafield_info_service->getDatafieldProperties($datatype_array));
 
             $return['d'] = array(
                 'datafield_id' => $local_datafield_id,

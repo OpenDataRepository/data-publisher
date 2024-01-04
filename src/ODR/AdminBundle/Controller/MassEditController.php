@@ -42,6 +42,7 @@ use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
+use ODR\AdminBundle\Component\Event\FilePublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -100,12 +101,12 @@ class MassEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -155,9 +156,9 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
-            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canEditDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) || !$permissions_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -221,7 +222,7 @@ class MassEditController extends ODRCustomController
             //  out whether the datatype has any plugins that listen to the MassEditTrigger event
             $mass_edit_trigger_plugins = array();
 
-            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // not allowed to mass edit linked datatypes
+            $dt_array = $database_info_service->getDatatypeArray($datatype_id, false);    // not allowed to mass edit linked datatypes
             foreach ($dt_array as $dt_id => $dt) {
                 // Check any plugins attached to the datatype...
                 foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
@@ -361,10 +362,10 @@ class MassEditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchRedirectService $search_redirect_service */
@@ -382,7 +383,7 @@ class MassEditController extends ODRCustomController
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
                 throw new ODRBadRequestException('Unable to run MassEdit from a child datatype');
 
-            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // No links, MassEdit isn't allowed to affect them
+            $dt_array = $database_info_service->getDatatypeArray($datatype_id, false);    // No links, MassEdit isn't allowed to affect them
 
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
@@ -394,12 +395,12 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canEditDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) || !$permissions_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -477,7 +478,7 @@ class MassEditController extends ODRCustomController
                 }
                 else {
                     // Verify that the user is allowed to change this field
-                    if ( !$pm_service->canEditDatafield($user, $df) )
+                    if ( !$permissions_service->canEditDatafield($user, $df) )
                         throw new ODRForbiddenException();
 
                     // Verify that the given value is acceptable for the datafield
@@ -935,10 +936,10 @@ class MassEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -964,7 +965,7 @@ class MassEditController extends ODRCustomController
             $user = $user_manager->findUserBy( array('id' => $user_id) );
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canChangePublicStatus($user, $datarecord) )
+            if ( !$permissions_service->canChangePublicStatus($user, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -976,7 +977,7 @@ class MassEditController extends ODRCustomController
             if ( $public_status == -1 && $datarecord->isPublic() ) {
                 // Make the datarecord non-public
                 $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
+                $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
 
                 $updated = true;
                 $ret .= 'set datarecord '.$datarecord_id.' to non-public'."\n";
@@ -984,7 +985,7 @@ class MassEditController extends ODRCustomController
             else if ( $public_status == 1 && !$datarecord->isPublic() ) {
                 // Make the datarecord public
                 $properties = array('publicDate' => new \DateTime());
-                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
+                $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
 
                 $updated = true;
                 $ret .= 'set datarecord '.$datarecord_id.' to public'."\n";
@@ -1109,12 +1110,12 @@ class MassEditController extends ODRCustomController
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var Logger $logger */
@@ -1153,7 +1154,7 @@ class MassEditController extends ODRCustomController
             $user = $user_manager->findUserBy( array('id' => $user_id) );
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1165,7 +1166,7 @@ class MassEditController extends ODRCustomController
 
             if ($field_typeclass == 'Radio') {
                 // Ensure a datarecordfield entity exists...
-                $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                 if ( !is_null($value) ) {
                     // Load all selection objects attached to this radio object
@@ -1184,11 +1185,11 @@ class MassEditController extends ODRCustomController
                             // Ensure a RadioSelection entity exists
                             /** @var RadioOptions $radio_option */
                             $radio_option = $repo_radio_option->find($radio_option_id);
-                            $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+                            $radio_selection = $entity_create_service->createRadioSelection($user, $radio_option, $drf);
 
                             // Ensure it has the correct selected value
                             $properties = array('selected' => $selected);
-                            $emm_service->updateRadioSelection($user, $radio_selection, $properties);
+                            $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties);
 
                             $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
 
@@ -1208,7 +1209,7 @@ class MassEditController extends ODRCustomController
                             if ( $rs->getSelected() == 1 ) {
                                 // Ensure this RadioSelection is deselected
                                 $properties = array('selected' => 0);
-                                $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
+                                $entity_modify_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
                                 $changes_made = true;
 
                                 $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
@@ -1240,7 +1241,7 @@ class MassEditController extends ODRCustomController
             }
             else if ($field_typeclass == 'Tag') {
                 // Ensure a datarecordfield entity exists...
-                $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                 if ( !is_null($value) ) {
                     // Load all selection objects attached to this tag object
@@ -1258,7 +1259,7 @@ class MassEditController extends ODRCustomController
                             $tag_selection = $tag_selections[$tag_id];
 
                             $properties = array('selected' => $selected);
-                            $emm_service->updateTagSelection($user, $tag_selection, $properties);
+                            $entity_modify_service->updateTagSelection($user, $tag_selection, $properties);
 
                             $ret .= 'updated existing tag_selection object for tag '.$tag_id.' ("'.$tag_selection->getTag()->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
                         }
@@ -1266,11 +1267,11 @@ class MassEditController extends ODRCustomController
                             // Ensure a TagSelection entity exists
                             /** @var Tags $tag */
                             $tag = $repo_tag->find($tag_id);
-                            $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+                            $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
 
                             // Ensure it has the correct selected value
                             $properties = array('selected' => $selected);
-                            $emm_service->updateTagSelection($user, $tag_selection, $properties);
+                            $entity_modify_service->updateTagSelection($user, $tag_selection, $properties);
 
                             $ret .= 'created new tag_selection object for tag '.$tag_id.' ("'.$tag->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
                         }
@@ -1316,14 +1317,14 @@ class MassEditController extends ODRCustomController
 
                 if ( !is_null($value) && $value !== 0 && $has_files ) {
                     // Only makes sense to do stuff if there's at least one file uploaded
-                    $changes_made = false;
+                    $files_changed = array();
 
                     foreach ($results as $num => $file) {
                         /** @var File $file */
                         if ( $file->isPublic() && $value == -1 ) {
                             // File is public, but needs to be non-public
                             $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                            $emm_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
+                            $entity_modify_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
                             $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
@@ -1334,24 +1335,39 @@ class MassEditController extends ODRCustomController
                                 unlink($absolute_path);
 
                             $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
-                            $changes_made = true;
+                            $files_changed[] = $file;
                         }
                         else if ( !$file->isPublic() && $value == 1 ) {
                             // File is non-public, but needs to be public
                             $properties = array('publicDate' => new \DateTime());
-                            $emm_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
+                            $entity_modify_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
                             // Immediately decrypt the file...don't need to specify a
                             //  filename because the file is guaranteed to be public
                             $crypto_service->decryptFile($file->getId());
 
                             $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
-                            $changes_made = true;
+                            $files_changed[] = $file;
                         }
                     }
 
-                    if ( $changes_made )
+                    if ( !empty($files_changed) ) {
                         $em->flush();
+
+                        foreach ($files_changed as $file) {
+                            // Fire off an event for each file that was modified
+                            try {
+                                $event = new FilePublicStatusChangedEvent($file, $datafield, 'mass_edit');
+                                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+                            }
+                            catch (\Exception $e) {
+                                // ...don't want to rethrow the error since it'll interrupt everything after this
+                                //  event
+//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                            }
+                        }
+                    }
                 }
 
                 // $event_trigger will only have an entry for this datafield if the event is supposed
@@ -1359,7 +1375,7 @@ class MassEditController extends ODRCustomController
                 if ( !empty($event_trigger) ) {
                     foreach ($event_trigger as $rp_id => $rp_classname) {
                         try {
-                            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                            $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
                             $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
@@ -1390,14 +1406,14 @@ class MassEditController extends ODRCustomController
 
                 if ( !is_null($value) && $value !== 0 && $has_images ) {
                     // Only makes sense to do stuff if there's at least one image uploaded
-                    $changes_made = false;
+                    $images_changed = array();
 
                     foreach ($results as $num => $image) {
                         /** @var Image $image */
                         if ( $image->isPublic() && $value == -1 ) {
                             // Image is public, but needs to be non-public
                             $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                            $emm_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
+                            $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
                             $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
@@ -1408,24 +1424,39 @@ class MassEditController extends ODRCustomController
                                 unlink($absolute_path);
 
                             $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
-                            $changes_made = true;
+                            $images_changed[] = $image;
                         }
                         else if ( !$image->isPublic() && $value == 1 ) {
                             // Image is non-public, but needs to be public
                             $properties = array('publicDate' => new \DateTime());
-                            $emm_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
+                            $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
                             // Immediately decrypt the image...don't need to specify a
                             //  filename because the image is guaranteed to be public
                             $crypto_service->decryptImage($image->getId());
 
                             $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
-                            $changes_made = true;
+                            $images_changed[] = $image;
                         }
                     }
 
-                    if ( $changes_made )
+                    if ( !empty($images_changed) ) {
                         $em->flush();
+
+                        foreach ($images_changed as $image) {
+                            // Fire off an event for each image that was modified
+                            try {
+                                $event = new FilePublicStatusChangedEvent($image, $datafield, 'mass_edit');
+                                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+                            }
+                            catch (\Exception $e) {
+                                // ...don't want to rethrow the error since it'll interrupt everything after this
+                                //  event
+//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                            }
+                        }
+                    }
                 }
 
                 // $event_trigger will only have an entry for this datafield if the event is supposed
@@ -1433,7 +1464,7 @@ class MassEditController extends ODRCustomController
                 if ( !empty($event_trigger) ) {
                     foreach ($event_trigger as $rp_id => $rp_classname) {
                         try {
-                            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                            $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
                             $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
@@ -1451,13 +1482,13 @@ class MassEditController extends ODRCustomController
             else if ($field_typeclass == 'DatetimeValue') {
                 // For the DateTime fieldtype...
                 /** @var DatetimeValue $storage_entity */
-                $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
                 $old_value = $storage_entity->getStringValue();
 
                 if ( !is_null($value) ) {
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
-                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
+                        $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
@@ -1490,13 +1521,13 @@ class MassEditController extends ODRCustomController
             else {
                 // For every other fieldtype...ensure the storage entity exists
                 /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-                $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
                 $old_value = $storage_entity->getValue();
 
                 if ( !is_null($value) ) {
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
-                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
+                        $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
@@ -1616,8 +1647,8 @@ class MassEditController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -1640,10 +1671,10 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
+            if ( !$permissions_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1930,7 +1961,7 @@ class MassEditController extends ODRCustomController
                 );
 
                 // If at least one datarecord remains, redirect to the search results list
-                $preferred_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                 $url = $this->generateUrl(
                     'odr_search_render',
                     array(

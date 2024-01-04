@@ -20,7 +20,7 @@
 {% set render_plugin_instance__edit = null %}
 
 {# ...but always need to determine whether a render plugin needs to be run in the "fake_edit" context #}
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'fake_edit', 'is_datatype_admin': is_datatype_admin} %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'fake_edit', 'is_datatype_admin': is_datatype_admin} %}
 
 {# Ignore array render plugins here for the moment...there's nothing for them to modify in FakeEdit mode #}
 
@@ -154,7 +154,7 @@
             {% else %}
                 {# The only way (currently) to have both "fake" and "real" records in the same datarecord array is when InlineLink fails to save #}
                 {# The "real" records may need to execute render plugins in the Edit context however, so need to set that up... #}
-                {% set rendering_options__edit = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'edit'} %}
+                {% set rendering_options__edit = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'context': 'edit'} %}
 
                 {% if can_execute_plugin__edit is null %}
                     {% for rpi_num,rpi in datatype.renderPluginInstances %}

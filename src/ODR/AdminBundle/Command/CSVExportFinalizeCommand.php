@@ -59,7 +59,7 @@ class CSVExportFinalizeCommand extends ContainerAwareCommand
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
 
-$output->writeln($data->url);
+                $output->writeln($data->url);
 
                 // Create the required url and the parameters to send
                 $parameters = array(

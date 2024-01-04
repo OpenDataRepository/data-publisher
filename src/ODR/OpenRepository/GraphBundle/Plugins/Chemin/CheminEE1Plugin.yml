@@ -11,6 +11,7 @@ odr_plugins.chemin.cheminee1:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: Plugin to display Chemin EE1 Data
     registered_events:
     required_fields:

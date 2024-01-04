@@ -124,6 +124,11 @@ class RenderPlugin
     private $overrideSort;
 
     /**
+     * @var bool
+     */
+    private $suppressNoFieldsNote;
+
+    /**
      * @var integer
      */
     private $plugin_type;
@@ -503,6 +508,30 @@ class RenderPlugin
     public function getOverrideSort()
     {
         return $this->overrideSort;
+    }
+
+    /**
+     * Set suppressNoFieldsNote.
+     *
+     * @param bool $suppressNoFieldsNote
+     *
+     * @return RenderPlugin
+     */
+    public function setSuppressNoFieldsNote($suppressNoFieldsNote)
+    {
+        $this->suppressNoFieldsNote = $suppressNoFieldsNote;
+
+        return $this;
+    }
+
+    /**
+     * Get suppressNoFieldsNote.
+     *
+     * @return bool
+     */
+    public function getSuppressNoFieldsNote()
+    {
+        return $this->suppressNoFieldsNote;
     }
 
     /**

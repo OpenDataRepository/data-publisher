@@ -1,0 +1,249 @@
+{% spaceless %}
+
+{% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+{% set odr_chart_id = odr_chart_ids['rollup'] %}
+
+<div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
+
+    <div class="ODRGraphSpacer pure-u-1">
+    {% if display_graph and odr_chart_files|length > 0 %}
+        {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
+            'context' : 'display',
+
+            'datatype': datatype,
+            'parent_datarecord': parent_datarecord,
+            'datarecord_list': datarecord_array,
+
+            'datatype_permissions': [],
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
+        } %}
+
+        {# Any datarecord id can be used for this #}
+        {% set rollup_id = 'rollup_' ~ parent_datarecord.id %}
+
+        {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph.html.twig" with {
+            'plugin_options': plugin_options,
+
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+            'target_datatype_id': target_datatype_id,
+            'target_datarecord_id': rollup_id,
+
+            'is_top_level': is_top_level,
+            'display_type': display_type,
+
+            'odr_chart_id': odr_chart_id,
+            'odr_chart_legend': odr_chart_legend,
+            'odr_chart_files': odr_chart_files,
+            'odr_chart_output_files': odr_chart_output_files,
+        } %}
+
+        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
+    {% endif %}
+    </div>
+
+    <div class="ODRGraphSpacer ODRContentWrapper pure-u-1 ODRRecord ODRHidden">    {# ODRRecord to trigger different CSS... #}
+        <div class="ODRThemeElement">
+            <div class="ODRInnerBox">
+                <div id="{{ odr_chart_id }}_blurb">
+                    <span class="ODRGraphFilterPlugin_blurb">The selected values in the fields below control which files are displayed on the graphs above.</span>
+                    <div id="ODRGraphFilterPlugin_{{ odr_chart_id }}_settings_div" class="ODRGraphFilterPlugin_settings_div">
+                        <a><i class="fa fa-cog"></i></a>
+
+                        <div class="ODRGraphFilterPlugin_settings">
+                            <div class="ODRGraphFilterPlugin_settings_close">
+                                <label id="ODRGraphFilterPlugin_{{ odr_chart_id }}_close" style="cursor:pointer;">
+                                    <i class="fa fa-close"></i>&nbsp;Close
+                                </label>
+                            </div>
+
+                            <div>
+                                <label for="{{ odr_chart_id }}_show_hidden_filters">Show Hidden Fields: </label>
+                                <input type="checkbox" id="{{ odr_chart_id }}_show_hidden_filters" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="{{ odr_chart_id }}_filter" class="ODRGraphFilterPlugin_fields">
+                    {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_filter_fieldarea.html.twig" with {
+                        'datatype_array': datatype_array,
+                        'theme_array': theme_array,
+
+                        'target_datatype_id': target_datatype_id,
+                        'target_theme_id': target_theme_id,
+
+                        'filter_data': filter_data,
+                        'hidden_filter_fields': hidden_filter_fields,
+                        'odr_chart_id': odr_chart_id,
+                    } %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ODRGraphSpacer pure-u-1 ODRHidden">
+        {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
+            'context' : 'display',
+
+            'datatype': datatype,
+            'parent_datarecord': parent_datarecord,
+            'datarecord_list': datarecord_array,
+
+            'datatype_permissions': [],
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
+        } %}
+
+        {% if display_type != TABLE_CONTENT %}
+            {% for dr_id, datarecord in datarecord_array %}
+
+                {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {
+                    'datarecord': datarecord,
+                    'datatype': datatype,
+                    'is_top_level': is_top_level,
+                    'display_type': display_type
+                } %}
+
+                <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+                    {% include "ODRAdminBundle:Display:display_fieldarea.html.twig" with {
+                        'datatype_array': datatype_array,
+                        'datarecord': datarecord,
+                        'theme_array': theme_array,
+
+                        'target_datatype_id': target_datatype_id,
+                        'parent_datarecord': parent_datarecord,
+                        'target_datarecord_id': datarecord.id,
+                        'target_theme_id': target_theme_id,
+
+                        'is_datatype_admin': is_datatype_admin,
+
+                        'is_top_level': is_top_level,
+                        'is_link': is_link,
+                        'display_type': display_type,
+                        'multiple_allowed': multiple_allowed,
+                    } %}
+                </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+            {% endfor %}
+        {% else %}
+            {% include 'ODRAdminBundle:Display:display_setup_table_layout.html.twig' with {
+                'datatype_array': datatype_array,
+                'datarecord_array': datarecord_array,
+                'theme_array': theme_array,
+
+                'parent_datarecord': parent_datarecord,
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
+
+                'is_top_level': is_top_level,
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
+            } %}
+        {% endif %}
+
+        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
+    </div>
+
+<script>
+    /** @var {odrFilterChartObj} */
+    var {{ odr_chart_id }}_obj = {
+        'chart_id': '{{ odr_chart_id }}',
+        'file_data': [],
+        'sort_order': [],
+        'filter_values': [],
+    };
+
+    $(function() {
+        // Initialize an array of file data, so it's less effort to dynamically give files to plotly
+        var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
+        file_url = file_url.substr(0, file_url.length - 1);
+
+{% for dr_id, file in odr_chart_files %}
+        {{ odr_chart_id }}_obj['file_data'][{{ dr_id }}] = { "url": file_url + {{ file.id }}, "legend": "{{ odr_chart_legend[dr_id] }}", "dr_id": {{ dr_id }}, "file_id": {{ file.id }} };
+{% endfor %}
+
+        // Need another array in order to sort the files correctly...
+{% for dr_id, order in datarecord_sortvalues %}
+        {{ odr_chart_id }}_obj['sort_order'][{{ dr_id }}] = {{ order }};
+{% endfor %}
+
+
+        // Ensure the arrays for each datafield exist...
+{% for df_id, values in filter_data['values'] %}
+        {{ odr_chart_id }}_obj['filter_values'][{{ df_id }}] = [];
+{% endfor %}
+{% for df_id, values in filter_data['null_values'] %}
+        {{ odr_chart_id }}_obj['filter_values'][{{ df_id }}] = [];
+{% endfor %}
+
+        // ...then create the datarecord list for each datafield/option combo...
+{% for df_id, values in filter_data['values'] %}
+    {% for value,dr_list in values %}
+        {{ odr_chart_id }}_obj['filter_values'][{{ df_id }}][{{ loop.index }}] = [{{ dr_list }}];
+    {% endfor %}
+{% endfor %}
+{% for df_id, dr_list in filter_data['null_values'] %}
+        {{ odr_chart_id }}_obj['filter_values'][{{ df_id }}][0] = [{{ dr_list }}];
+{% endfor %}
+
+        {# NOTE: conveniently, javascript will automagically convert the string dr_list into an array of ids #}
+        {#console.log('chart_obj', {{ odr_chart_id }}_obj);#}
+
+        {# Also need to attach events on a per-graph basis... #}
+        $("#ODRGraphFilterPlugin_{{ odr_chart_id }}_settings_div").click(function() {
+            $(this).children(".ODRGraphFilterPlugin_settings").first().show();
+        });
+        $("#ODRGraphFilterPlugin_{{ odr_chart_id }}_close").click(function(event) {
+            $(this).closest(".ODRGraphFilterPlugin_settings").first().hide();
+            event.stopPropagation();
+        });
+
+        $("#{{ odr_chart_id }}_show_hidden_filters").unbind('change').change(function() {
+            var pieces = $(this).attr('id').split('_');
+            var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
+
+            if ( $(this).is(':checked') ) {
+                $("#" + chart_id + "_filter").children(".ODRHiddenFilterField").show();
+            }
+            else {
+                var option_reselected = false;
+                $("#" + chart_id + "_filter").children(".ODRHiddenFilterField").each(function(index,elem) {
+                    $(elem).hide();
+
+                    // If hiding fields, then ensure all of their options are
+                    //  selected so they don't affect the graph
+                    $(elem).find('.ODRGraphFilterPlugin_option').each(function(index2,option) {
+                        if ( !$(option).is(':selected') ) {
+                            option_reselected = true;
+                            $(option).prop('selected', true);
+                        }
+                    });
+                });
+
+                if ( option_reselected ) {
+                    // If an option got reselected, then redo the graph
+                    ODRGraph_triggerDynamicGraph(chart_id);
+                    $("select.graph_columns").blur();
+                }
+            }
+
+            // Don't want the settings div open anymore
+            $(this).closest(".ODRGraphFilterPlugin_settings").first().hide();
+        });
+    });
+</script>
+</div><!-- end of #DataType_{{ datatype.id }} -->
+
+{% endspaceless %}

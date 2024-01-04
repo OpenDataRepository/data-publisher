@@ -23,16 +23,18 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
-use ODR\AdminBundle\Component\Service\DatatypeCreateService;
-use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIServiceNoConflict;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
-// use FOS\UserBundle\Model\UserManagerInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
+use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -478,7 +480,7 @@ class FacadeController extends Controller
                 if($odr_wordpress_user) {
                     // print $odr_wordpress_user . ' ';
                     $user_manager = $this->container->get('fos_user.user_manager');
-                    /** @var User $admin_user */
+                    /** @var ODRUser $admin_user */
                     $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
                 }
             }
@@ -543,7 +545,7 @@ class FacadeController extends Controller
             $odr_tab_id = $odr_tab_service->createTabId();
 
             // TODO - modify search page to allow users to select from available themes
-            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
+            $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -557,7 +559,8 @@ class FacadeController extends Controller
             // Random cross domain search
             $log = "Cross domain search: " . $datatype->getUniqueId() . '<br />';
             // $url =$this->container->getParameter('elastic_server_baseurl') . $datatype->getUniqueId() . '/_search?*.*&pretty=true';
-            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_search?pretty=true';
+            $url =$this->container->getParameter('elastic_server_baseurl')[0] . '/' . $datatype->getUniqueId() . '/_search?pretty=true';
+            // print $url . "<br />";exit();
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
@@ -671,6 +674,20 @@ class FacadeController extends Controller
         return $response;
     }
 
+    /**
+     * Seeds the ElasticSearch database with data from a list of dataset_uuids
+     * stored in an array in parameters.yml.  Note that only dataset_uuids and
+     * not mastter type uuids should be present in the array.  If the dataset
+     * is derived from a master type, its public will automatically be added
+     * to the master index for cross-template searching.
+     *
+     * @param $record_uuid
+     * @param $version
+     * @param Request $request
+     * @return Response|void
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
     public function seedElasticRecordAction($record_uuid, $version, Request $request) {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
@@ -684,7 +701,7 @@ class FacadeController extends Controller
             );
 
         if(!$record) {
-            throw ODRNotFoundException('Record');
+            throw new ODRNotFoundException('Record');
         }
 
         // Get the datatype
@@ -773,6 +790,7 @@ class FacadeController extends Controller
                     'unique_id' => $dataset_uuid
                 )
             );
+
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -803,7 +821,6 @@ class FacadeController extends Controller
             $result = curl_exec($ch);
             $log .= $result;
             curl_close($ch);
-
 
             // Also build index for cross template search
             if($datatype->getMasterDataType()) {
@@ -882,6 +899,210 @@ class FacadeController extends Controller
 
     }
 
+
+    /**
+     * @param $version
+     * @param $ima_uuid
+     * @param $cell_params_uuid
+     * @param Request $request
+     * @return JsonResponse
+     * @throws ODRNotFoundException
+     */
+    public function IMAListRebuildAction($version, Request $request) {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Determine API URL for record lists
+            /*
+                mineral_data: 'web/uploads/mineral_data.js'
+                cell_params: 'web/uploads/cell_params.js'
+                cell_params_range: 'web/uploads/cell_params_range.js'
+                cell_params_synonyms: 'web/uploads/cell_params_synonyms.js'
+                tag_data: 'web/uploads/master_tag_data.js'
+            */
+            $baseurl = $this->container->getParameter('baseurl_no_prefix');
+            $job_data = array(
+                'base_url' => $baseurl,
+                'ima_uuid' => $this->container->getParameter('ima_uuid'),
+                'ima_template_uuid' => $this->container->getParameter('ima_template_uuid'),
+                'cell_params_uuid' => $this->container->getParameter('cell_params_uuid'),
+                'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid'),
+                'powder_diffraction_search_key' => $this->container->getParameter('powder_diffraction_search_key'),
+                'mineral_data' => $this->container->getParameter('mineral_data'),
+                'cell_params' => $this->container->getParameter('cell_params'),
+                'cell_params_range' => $this->container->getParameter('cell_params_range'),
+                'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
+                'master_tag_data' => $this->container->getParameter('tag_data'),
+                'tag_data' => $this->container->getParameter('tag_data')
+            );
+
+            // Get the pheanstalk queue
+            $pheanstalk = $this->get('pheanstalk');
+
+            $ima_url = $this->generateUrl(
+                'odr_api_datarecord_list',
+                array(
+                    'datatype_uuid' => $job_data['ima_uuid'],
+                    'version' => 'v4'
+                )
+            );
+            $ima_url = $baseurl . $ima_url;
+
+            // TODO Check if this needs to be v5
+            $ima_template_url = $this->generateUrl(
+                'odr_api_get_template_single',
+                array(
+                    'datatype_uuid' => $job_data['ima_uuid'],
+                    'version' => 'v4'
+                )
+            );
+            $ima_template_url = $baseurl . $ima_template_url;
+
+            $cell_params_url = $this->generateUrl(
+                'odr_api_datarecord_list',
+                array(
+                    'datatype_uuid' => $job_data['cell_params_uuid'],
+                    'version' => 'v4'
+                )
+            );
+            $cell_params_url = $baseurl . $cell_params_url;
+
+            $powder_diffraction_url = $this->generateUrl(
+                'odr_search_api_general_search',
+                array(
+                    'search_key' => $job_data['powder_diffraction_search_key'],
+                    // 'datatype_uuid' => $job_data['rruff_database_uuid'],
+                    'limit' => 0,
+                    'offset' => 0,
+                    'version' => 'v4',
+                    'return_as_list' => 1
+                )
+            );
+            $powder_diffraction_url = $baseurl . $powder_diffraction_url;
+
+            $job_data['ima_url'] = $ima_url;
+            $job_data['ima_template_url'] = $ima_template_url;
+            $job_data['cell_params_url'] = $cell_params_url;
+            $job_data['powder_diffraction_url'] = $powder_diffraction_url;
+
+            $job_data['ima_record_map'] = $this->container->getParameter('ima_record_map');
+            $job_data['cell_params_map'] = $this->container->getParameter('cell_params_map');
+            $job_data['powder_diffraction_map'] = $this->container->getParameter('powder_diffraction_map');
+
+            // Add record to pheanstalk queue
+            $payload = json_encode($job_data);
+
+            $pheanstalk->useTube('odr_ima_data_builder')->put($payload);
+            // Wrap array for JSON compliance
+            $output = array("done" => true );
+
+            return new JsonResponse($output);
+        }
+        catch(\Exception $e) {
+            print $e->getMessage(); exit();
+        }
+
+    }
+
+
+    /**
+     *
+     * Search an individual datatype via the API
+     *
+     * @param $version
+     * @param $limit
+     * @param $offset
+     * @param Request $request
+     * @return JsonResponse
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
+    public function datasetSearchAction(
+        $version,
+        $search_key,
+        $limit,
+        $offset,
+        $return_as_list = false,
+        Request $request
+    ) {
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        $params = json_decode(base64_decode($search_key), true);
+
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            array(
+                'id' => $params['dt_id']
+            )
+        );
+        if ($datatype == null)
+            throw new ODRNotFoundException('Datatype');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $this->container->get('odr.search_api_service');
+        $baseurl = $this->container->getParameter('site_baseurl');
+        // $records = $search_api_service->performSearch($datatype, $baseurl, $params);
+        $records = $search_api_service->performSearch(
+            $datatype,
+            $search_key,
+            array(),
+            false,
+            array(),
+            array(),
+            false,
+            true
+        );
+
+        // Flatten the associative array
+        $records = array_values($records);
+
+        // Slice for Limit/Offset
+        if($limit > 0) {
+            $records = array_slice($records, $offset, $limit);
+        }
+        $search_api_service_nc = $this->container->get('odr.search_api_service_no_conflict');
+
+        $output_data = [];
+        if(!$return_as_list) {
+            foreach($records as $record) {
+                $record_data = $search_api_service_nc->getRecordData(
+                    'v3',
+                    $record, // should be the record_id
+                    $baseurl,
+                    'json',
+                    true,
+                    null,
+                    false
+                );
+                $output_data[] = json_decode($record_data);
+            }
+        }
+        else {
+            $output_data = $records;
+        }
+
+        // Wrap array for JSON compliance
+        $output = array(
+            'count' => count($output_data),
+            'records' => $output_data
+        );
+        return new JsonResponse($output);
+
+    }
+
+
+    /**
+     * @param $version
+     * @param $limit
+     * @param $offset
+     * @param Request $request
+     * @return JsonResponse
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
     public function searchTemplatePostOptimizedAction($version, $limit, $offset, Request $request) {
 
         /** @var \Doctrine\ORM\EntityManager $em */

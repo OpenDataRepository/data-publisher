@@ -93,7 +93,8 @@
                             {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
                                 {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
                                     'datarecord': datarecord,
-                                    'datafield': datafield.dataField,
+                                    'datafieldOLD': datafield.dataField,
+                                    'datafield': dt_datafield,
                                     'using_metadata': using_metadata,
                                     'baseurl': baseurl,
                                     'version': version,

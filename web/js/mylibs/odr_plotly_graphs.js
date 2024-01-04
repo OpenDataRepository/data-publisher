@@ -129,7 +129,7 @@ var clearPlotlyBars = function(chart_obj) {
 }
 
 /**
- * Sets up the static version of the graph on the page.  Should only be used by the phantomJS graph
+ * Sets up the static version of the graph on the page.  Should only be used by the puppeteer graph
  * builder stuff.
  * @param {odrChartObj} chart_obj
  */
@@ -148,16 +148,16 @@ var preparePlotlyStatic = function(chart_obj) {
     // $(main_svg).attr('viewBox', '0 0 ' + chart_obj.graph_width * 1.5  + ' ' + chart_obj.graph_height * 1.5)
     $(main_svg).attr('viewBox', '0 0 ' + chart_obj.graph_width  + ' ' + chart_obj.graph_height)
 
-    // console.log('appending div')
-    $('body').append('<div id="PlotlyDone"></div>');
+    // Inform puppeteer that the graph is finished now
+    window[chart_obj.chart_id + '_ready'] = 'ready';
 }
 
 /**
- * Forces a (slightly) delayed rebuild of the graph, so that the "loading" bars have a chance to
- * display.
+ * Forces a (slightly) delayed load of the dynamic graph, so that the "loading" bars have a chance
+ * to display.
  * @param {string} chart_id
  */
-function ODRGraph_triggerRebuild(chart_id) {
+function ODRGraph_triggerDynamicGraph(chart_id) {
     // Don't run when the static graph is visible
     if ( $("#" + chart_id + "_Static_GraphWrapper").is(':visible') )
         return;
@@ -183,6 +183,26 @@ function ODRGraph_reloadGraph(chart_id) {
     else {
         window["SetupGraphs_" + chart_id]();
     }
+}
+
+/**
+ * Triggers a reload of a (hopefully no longer) missing cache image that puppeteer has (hopefully)
+ * been ordered to rebuild.
+ * @param {string} img_elem_id
+ */
+function ODRGraph_waitForRebuild(img_elem_id) {
+    var elem = $('#' + img_elem_id);
+    var old_src = $(elem).attr('src');
+    // console.log( 'old_src: ', old_src );
+
+    var new_src = '';
+    if ( old_src.indexOf('.svg#') === -1 )
+        new_src = old_src + '#' + new Date().getTime();
+    else
+        new_src = old_src.substring(0, old_src.indexOf('.svg#')+4 ) + '#' + new Date().getTime();
+    // console.log( 'new_src: ', new_src );
+
+    $(elem).attr( 'src', new_src );
 }
 
 /**
@@ -216,7 +236,7 @@ function ODRGraph_parseFile(file, display_order, callback) {
 
                 // Attempt to guess several properties of the file to be graphed
                 var props = ODRGraph_guessFileProperties(tmpCSV);
-                console.log(props);
+                // console.log(props);
 
                 // Going to split the data up by columns so it's easier for the javascript to switch
                 //  what it actually graphs later on
@@ -273,7 +293,7 @@ function ODRGraph_parseFile(file, display_order, callback) {
                 data_file.headers = headers;
                 data_file.new_file = true;
 
-                console.log("Lines downloaded: " + columns[0].length);
+                // console.log("Lines downloaded: " + columns[0].length);
                 var json = JSON.stringify(columns);
                 // console.log(json);
                 $(element_id).html(json);
@@ -291,7 +311,7 @@ function ODRGraph_parseFile(file, display_order, callback) {
 
         var json = $(element_id).html();
         data_file.columns = JSON.parse(json);
-        console.log("Lines read: " + data_file.columns[0].length);
+        // console.log("Lines read: " + data_file.columns[0].length);
 
         data_file.headers = ODRGraph_getCSVHeaders(data_file.columns);
         data_file.new_file = false;

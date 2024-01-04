@@ -31,7 +31,7 @@ function ODRGraph_getXAxisSettings(chart_obj) {
         xaxis_settings.type = 'log';
 
     if (chart_obj.x_axis_caption != "")    // TODO - need some way to read the captions from file
-        xaxis_settings.title = chart_obj.x_axis_caption;
+        xaxis_settings.title = {text: chart_obj.x_axis_caption};
 
     if (chart_obj.x_axis_tick_interval != "auto") {
         xaxis_settings.dtick = chart_obj.x_axis_tick_interval;
@@ -68,7 +68,7 @@ function ODRGraph_getYAxisSettings(chart_obj) {
         yaxis_settings.type = 'log';
 
     if (chart_obj.y_axis_caption != "")
-        yaxis_settings.title = chart_obj.y_axis_caption;
+        yaxis_settings.title = {text: chart_obj.y_axis_caption};
 
     if (chart_obj.y_axis_tick_interval != "auto") {
         yaxis_settings.dtick = chart_obj.y_axis_tick_interval;
@@ -168,35 +168,22 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
     for (var i = 1; i <= num_selectors; i++) {
         var id = "#" + chart_id + "_column_" + i;
         ids.push(id);
+        // console.log( 'pushing ' + id );
 
         // If the headers variable is defined, then reset the column names in the dropdowns
         if ( file.new_file === true ) {
             $(id).children('option').remove();
-
-            // var element = $("<option>", {"value": "", "html": ""});
-            // $(id).append(element);
 
             for (var j = 0; j < file.headers.length; j++) {
                 var element = $("<option>", {"value": j, "html": file.headers[j]});
                 $(id).append(element);
             }
         }
-
-        // Determine the selected values for each of the dropdowns
-        var val = $(id).val();
-
-        if ( !Array.isArray(val) ) {
-            selected_values.push( Number(val) );
-        }
-        else {
-            $.each(val, function(index,elem) {
-                selected_values.push( Number(elem) );
-            });
-        }
     }
 
-    // If the column headers were reset, then select the default options
     if ( file.new_file === true ) {
+        // If the column headers were reset, then select the default options
+
         // Select the current graph type
         $("#" + chart_id + "_graph_type").children('option').each(function(index, elem) {
             if ( $(elem).val() === chart_type )
@@ -205,27 +192,49 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
                 $(elem).prop('selected', false);
         });
 
-        // Select the default columns based on the plugin settings
+        // Select the default columns based on the plugin settings...all column numbers in the
+        //  chart_obj are 1-indexed, but the values given to plotly should be 0-indexed instead
         var default_x_column = Number(chart_obj.x_values_column) - 1;
+        // Select the correct option for the desired x_column in the interactive graph popup
         $(ids[0] + " option:eq(" + default_x_column + ")").prop('selected', true);
+        // The selected x_column is always the first value in this variable
         selected_values[0] = default_x_column;
 
-        if(chart_obj.y_values_column.match(/,/)) {
-            // Multiple y columns
+        if ( chart_obj.y_values_column.match(/,/) ) {
+            // Multiple y columns...
             var y_columns = chart_obj.y_values_column.split(/,/);
-            for(var i=0; i < y_columns.length; i++) {
-                // Mark the column as selected
-                $(ids[i+1] + " option:eq(" + y_columns[i] +  ")").prop('selected', true);
-                // Add to the render
-                selected_values[i+1] = y_columns[i] - 1;
+            for (var i= 0; i < y_columns.length; i++) {
+                // Select the correct option for this y_column in the interactive graph popup
+                $(ids[1] + " option:eq(" + (y_columns[i] - 1) + ")").prop('selected', true);
+                selected_values.push( y_columns[i] - 1 );
             }
         }
         else {
             var default_y_column = Number(chart_obj.y_values_column) - 1;
+            // Select the correct option for the desired y_column in the interactive graph popup
             $(ids[1] + " option:eq(" + default_y_column + ")").prop('selected', true);
             selected_values[1] = default_y_column;
         }
     }
+    else {
+        // If this is a subsequent selection on the interactive graph, then determine which columns
+        //  the user has selected...do the x_column first...
+        selected_values[0] = $(ids[0]).val();
+
+        // There might be multiple selected y_columns...
+        var selected_y_columns = $(ids[1]).val();
+        if ( Array.isArray(selected_y_columns) ) {
+            // ...if so, then each of them need to go into the array for plotly to use
+            selected_y_columns.forEach((elem) => {
+                selected_values.push(elem);
+            });
+        }
+        else {
+            // ...but there's only a single selection, so don't need to get fancy
+            selected_values[1] = selected_y_columns;
+        }
+    }
+    // console.log( 'selected_values', selected_values );
 
     // Show settings specific to the current graph type
     $("." + chart_id + "_settings").hide();
@@ -268,7 +277,7 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
  */
 function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
     // console.log('plotting histogram chart');
-    // console.log(chart_obj);
+    // console.log( JSON.stringify(chart_obj) );
 
     var chart_data = [];
 
@@ -301,7 +310,7 @@ function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting histogram: ' + dr_id);
+                        // console.log('Plotting histogram: ' + dr_id);
 
                         var columns = file.columns;
                         var selected_columns = ODRGraph_updateSelectedColumns(chart_obj, "histogram", file);
@@ -356,6 +365,11 @@ function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
 
                 xaxis: xaxis_settings,
                 yaxis: yaxis_settings,
+
+                showlegend: true,
+                hoverlabel: {
+                    namelength: 50
+                },
             };
 
             // Histogram-specific layout settings...
@@ -394,7 +408,7 @@ function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
  */
 function ODRGraph_barChartPlotly(chart_obj, onComplete) {
     // console.log('plotting bar chart');
-    // console.log(chart_obj);
+    // console.log( JSON.stringify(chart_obj) );
 /*
     // The error bar values have been sanitized in the Graph Plugin...
     var error_bar_plus_type = chart_obj.error_bar_plus_type;
@@ -434,7 +448,7 @@ function ODRGraph_barChartPlotly(chart_obj, onComplete) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting bar: ' + dr_id);
+                        // console.log('Plotting bar: ' + dr_id);
 
                         var columns = file.columns;
                         var selected_columns = ODRGraph_updateSelectedColumns(chart_obj, "bar", file);
@@ -525,7 +539,12 @@ function ODRGraph_barChartPlotly(chart_obj, onComplete) {
                 // paper_bgcolor: '#7f7f7f',
                 // plot_bgcolor: '#c7c7c7',
                 xaxis: xaxis_settings,
-                yaxis: yaxis_settings
+                yaxis: yaxis_settings,
+
+                showlegend: true,
+                hoverlabel: {
+                    namelength: 50
+                },
             };
 
             // NOTE: "stacked" barmode only works when multiple columns from the same file are graphed
@@ -563,7 +582,7 @@ function ODRGraph_barChartPlotly(chart_obj, onComplete) {
  */
 function ODRGraph_pieChartPlotly(chart_obj, onComplete) {
     // console.log('plotting pie chart');
-    // console.log(chart_obj);
+    // console.log( JSON.stringify(chart_obj) );
 
     var chart_data = [];
 
@@ -597,7 +616,7 @@ function ODRGraph_pieChartPlotly(chart_obj, onComplete) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting pie: ' + dr_id);
+                        // console.log('Plotting pie: ' + dr_id);
 
                         var columns = file.columns;
                         var selected_columns = ODRGraph_updateSelectedColumns(chart_obj, "piechart", file);
@@ -650,6 +669,11 @@ function ODRGraph_pieChartPlotly(chart_obj, onComplete) {
                 },
                 // paper_bgcolor: '#7f7f7f',
                 // plot_bgcolor: '#c7c7c7',
+
+                showlegend: true,
+                hoverlabel: {
+                    namelength: 50
+                },
             };
 
             if ( error_messages.length > 0 ) {
@@ -674,7 +698,7 @@ function ODRGraph_pieChartPlotly(chart_obj, onComplete) {
  */
 function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
     // console.log('plotting line chart');
-    // console.log(chart_obj);
+    // console.log( JSON.stringify(chart_obj) );
 /*
     // The error bar values have been sanitized in the Graph Plugin...
     var error_bar_plus_type = chart_obj.error_bar_plus_type;
@@ -709,10 +733,17 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
             // Normalizing the y axis has consequences both in trace creation and layout settings
             // ...plotly requires each set of data to reference its own y-axis
             var normalize_y_axis = false;
-            if ( $("#" + chart_obj.chart_id + "_normalize_y").length > 0 && $("#" + chart_obj.chart_id + "_normalize_y").is(':checked') )
+            if ( $("#" + chart_obj.chart_id + "_normalize_y").length > 0 ) {
+                // Need to ensure the dynamic option can override the plugin option
+                if ( $("#" + chart_obj.chart_id + "_normalize_y").is(':checked') )
+                    normalize_y_axis = true;
+                else
+                    normalize_y_axis = false;
+            }
+            else if ( chart_obj.normalize_y_axis === "yes" ) {
+                // Otherwise, fall back to the plugin option
                 normalize_y_axis = true;
-            else if ( chart_obj.normalize_y_axis === "yes" )
-                normalize_y_axis = true;
+            }
 
             // Is tracking loaded_data useful?
             var trace_count = 0;
@@ -723,7 +754,7 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting xy: ' + dr_id);
+                        // console.log('Plotting xy: ' + dr_id);
 
                         var columns = file.columns;
                         var selected_columns = ODRGraph_updateSelectedColumns(chart_obj, "xy", file);
@@ -855,7 +886,12 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
                 // paper_bgcolor: '#7f7f7f',
                 // plot_bgcolor: '#c7c7c7',
                 xaxis: xaxis_settings,
-                yaxis: yaxis_settings
+                yaxis: yaxis_settings,
+
+                showlegend: true,
+                hoverlabel: {
+                    namelength: 50
+                },
             };
 
             // When each set of data is being graphed with its own y-axis...
@@ -892,8 +928,9 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
 
             // Create responsive div for automatic resizing
             var graph_div = plotlyResponsiveDiv(chart_obj);
-            console.log(graph_div);
-            console.log(chart_data);
+            // console.log( JSON.stringify(graph_div) );
+            // console.log( JSON.stringify(chart_data) );
+            // console.log( JSON.stringify(layout) );
             Plotly.newPlot(graph_div, chart_data, layout).then(
                 onComplete(chart_obj)
             );
@@ -908,7 +945,7 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
  */
 function ODRGraph_stackedAreaChartPlotly(chart_obj, onComplete) {
     // console.log('plotting stacked area chart');
-    // console.log(chart_obj);
+    // console.log( JSON.stringify(chart_obj) );
 /*
     // The error bar values have been sanitized in the Graph Plugin...
     var error_bar_plus_type = chart_obj.error_bar_plus_type;
@@ -948,7 +985,7 @@ function ODRGraph_stackedAreaChartPlotly(chart_obj, onComplete) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting stacked area: ' + dr_id);
+                        // console.log('Plotting stacked area: ' + dr_id);
 
                         var columns = file.columns;
                         var selected_columns = ODRGraph_updateSelectedColumns(chart_obj, "stackedarea", file);
@@ -1037,7 +1074,12 @@ function ODRGraph_stackedAreaChartPlotly(chart_obj, onComplete) {
                 // paper_bgcolor: '#7f7f7f',
                 // plot_bgcolor: '#c7c7c7',
                 xaxis: xaxis_settings,
-                yaxis: yaxis_settings
+                yaxis: yaxis_settings,
+
+                showlegend: true,
+                hoverlabel: {
+                    namelength: 50
+                },
             };
 
             if ( error_messages.length > 0 ) {

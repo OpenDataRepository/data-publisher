@@ -11,6 +11,7 @@ odr_plugins.base.file_renamer:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: This plugin attempts to rename any file/image that gets uploaded to the attached field, based on the values of other related datafields.  This is an advanced plugin that only works on a proper relational database setup...while there are some safeguards, the plugin can't avoid giving you the option to make completely nonsensical configurations.
     registered_events:
         FilePreEncryptEvent: onFilePreEncrypt

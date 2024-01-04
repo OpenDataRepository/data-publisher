@@ -11,6 +11,7 @@ odr_plugins.rruff.amcsd:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).  Most of the required fields will be automatically filled out from an uploaded AMC File.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate

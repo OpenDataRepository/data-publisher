@@ -18,6 +18,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RenderPlugin;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
@@ -440,10 +441,21 @@ class SearchAPIService
      *                                    by
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
+     * @param bool $return_as_list        Returns a list of records with internal id and unique id
+     *                                    but without the actual data.
+     *
      * @return array
      */
-    public function performSearch($datatype, $search_key, $user_permissions, $return_complete_list = false, $sort_datafields = array(), $sort_directions = array(), $search_as_super_admin = false)
-    {
+    public function performSearch(
+        $datatype,
+        $search_key,
+        $user_permissions,
+        $return_complete_list = false,
+        $sort_datafields = array(),
+        $sort_directions = array(),
+        $search_as_super_admin = false,
+        $return_as_list = false
+    ) {
         // ----------------------------------------
         // This really shouldn't be null, but just in case...
         if ( is_null($datatype) ) {
@@ -733,14 +745,44 @@ class SearchAPIService
                 $sorted_datarecord_list = $this->sort_service->multisortDatarecordList($source_dt_id, $sort_datafields, $sort_directions, $linked_datafields, $numeric_datafields, $grandparent_ids_for_sorting);
             }
 
+            // Query to get
             // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
             $sorted_datarecord_list = array_keys($sorted_datarecord_list);
         }
 
+        $dr_list = array();
+        if($return_as_list) {
+            $str =
+                'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE dr.id IN (:datatype_ids)
+                AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
+
+            $params = array('datatype_ids' => $sorted_datarecord_list);
+
+            $query = $this->em->createQuery($str)->setParameters($params);
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $dr_uuid = $result['dr_uuid'];
+
+                $dr_list[$dr_id] = array(
+                    'internal_id' => $dr_id,
+                    'unique_id' => $dr_uuid,
+                    'external_id' => '',
+                    'record_name' => '',
+                );
+            }
+        }
+        else {
+            $dr_list = $sorted_datarecord_list;
+        }
 
         // ----------------------------------------
         // There's no point to caching the end result...it depends heavily on the user's permissions
-        return $sorted_datarecord_list;
+        return $dr_list;
     }
 
 

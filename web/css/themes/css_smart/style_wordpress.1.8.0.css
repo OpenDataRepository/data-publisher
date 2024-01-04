@@ -35,7 +35,8 @@ file_header: #7fb9d8;
 }
 
 body {
-    background: url("images/subtle_dots.png") repeat;
+    /* background: url("images/subtle_dots.png") repeat;*/
+    background: white;
     /* background-size: 100% auto;
     background-position: center top;
     background-attachment: fixed; */
@@ -77,9 +78,9 @@ input,
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
-    padding-top: 0px;
-    padding-left: 0px;
-    padding-right: 0px;
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
     border-radius: 4px;
     background-color: white;
 }
@@ -106,6 +107,10 @@ input,
     background-color: white;
 }
 
+.ODRResults .DataTypeTools,
+.ODRResults .DatatypeTools {
+    display: none;
+}
 
 .ODRInnerBox_HideBorder {
     border: none !important;
@@ -116,18 +121,18 @@ input,
 }
 
 .ODRBodyContent p {
-    padding: 0px;
-    margin: 0px;
+    padding: 0;
+    margin: 0;
 }
 
 .ODRBodyContent h3 {
-    padding: 0px;
-    margin: 0px;
+    padding: 0;
+    margin: 0;
 }
 
 .ODRDataField {
-    margin-bottom: 0px;
-    padding-left: 0px;
+    margin-bottom: 0;
+    padding-left: 0;
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
@@ -138,8 +143,8 @@ h3.ODRHeader,
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
-    margin-top: 0px;
-    margin-bottom: 0px;
+    margin-top: 0;
+    margin-bottom: 0;
     padding-top: 0.58em;
     padding-bottom: 0.58em;
     padding-left: 24px;
@@ -220,7 +225,7 @@ label.ODRResults_radio {
 
 #ODRMenuLabel {
     padding-left: 74px;
-    padding-bottom: 0px;
+    padding-bottom: 0;
     width: 300px;
     /* margin-top: ; */
     top: 100px;
@@ -268,7 +273,7 @@ h3.ui-accordion-header a {
     box-shadow: none;
     border-radius: 3px;
     /* margin-bottom: 20px; */
-    margin-bottom: 0px;
+    margin-bottom: 0;
 }
 
 .pure-skin-odr .pure-table,
@@ -396,7 +401,7 @@ h3.ui-accordion-header a {
 #search_form input[type=text] {
     background: white none;
     box-shadow: none;
-    margin-top: 0px !important;
+    margin-top: 0 !important;
 }
 
 #search_form label {
@@ -410,7 +415,7 @@ h3.ui-accordion-header a {
 
 .ODRAdvSearch_datafield {
     margin-top: 10px;
-    margin-bottom: 0px;
+    margin-bottom: 0;
 }
 
 /* ===============  forms.css =================================*/
@@ -418,8 +423,8 @@ h3.ui-accordion-header a {
     margin: 6px 0 0 6px;
 }
 .ODRFormHeader {
-    margin-left: 0px;
-    margin-right: 0px;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 .pure-skin-odr .pure-form .ODRRecord label {
@@ -643,7 +648,7 @@ h3.ui-accordion-header a {
     color: white;
 }
 #ODRMainMenu .pure-menu-item {
-    padding-left: 0px;
+    padding-left: 0;
 }
 
 #ODRMainMenu .pure-menu-heading:hover,
@@ -918,11 +923,11 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignForm .ODRRadioOptions {
-    font-size: 80%;
+    /*font-size: 80%;*/
     cursor: pointer;
 }
 #ThemeDesignForm .ODRTagsEdit {
-    font-size: 80%;
+    /*font-size: 80%;*/
     cursor: pointer;
 }
 
@@ -1084,16 +1089,16 @@ ul#wizardStatus li.completed:before{
 }
 
 .ODRShortResults .ODRFormWrap {
-    margin-top: 0px;
-    margin-bottom: 0px;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 .ODRShortResults .ODRFieldArea {
-    margin-top: 0px;
+    margin-top: 0;
 }
 
 .ODRShortResults .ODRThemeElement:first-of-type {
-    margin-bottom: 0px;
+    margin-bottom: 0;
 }
 
 .ODRMarkdownContent {
@@ -1119,18 +1124,18 @@ ul#wizardStatus li.completed:before{
     font-size: 12px;
     background: #b8e8fa none repeat scroll 0 0;
     color: RGBA(77, 136, 220, 0.99);
-    -webkit-box-shadow: 2px 1px 10px 0px rgba(50, 50, 50, 0.3);
-    -moz-box-shadow:    2px 1px 10px 0px rgba(50, 50, 50, 0.3);
-    box-shadow:         2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    -webkit-box-shadow: 2px 1px 10px 0 rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    2px 1px 10px 0 rgba(50, 50, 50, 0.3);
+    box-shadow:         2px 1px 10px 0 rgba(50, 50, 50, 0.3);
     border: 1px solid white;
     opacity: 1;
 }
 .jGrowl-closer {
     background-color: RGBA(77, 136, 220, 1.00);
     color: white;
-    -webkit-box-shadow: 2px 1px 10px 0px rgba(50, 50, 50, 0.3);
-    -moz-box-shadow:    2px 1px 10px 0px rgba(50, 50, 50, 0.3);
-    box-shadow:         2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    -webkit-box-shadow: 2px 1px 10px 0 rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    2px 1px 10px 0 rgba(50, 50, 50, 0.3);
+    box-shadow:         2px 1px 10px 0 rgba(50, 50, 50, 0.3);
     border: 1px solid white;
     opacity: 1;
 }
@@ -1223,8 +1228,8 @@ ul#wizardStatus li.completed:before{
 .ODRDragHandle {
     /*
     top: 12px;
-    // text-shadow: 0px 0px 7px rgba(255, 255, 255, 1);
-    // text-shadow: -3px 0px 12px rgba(150, 150, 150, 1);
+    // text-shadow: 0 0 7px rgba(255, 255, 255, 1);
+    // text-shadow: -3px 0 12px rgba(150, 150, 150, 1);
              */
     text-shadow:
          -1px -1px 0 #fff,
@@ -1259,7 +1264,7 @@ h3.ODRFieldSelected .ODRSortHandle {
     position: absolute;
     z-index: 200;
     top: -5px;
-    left: 0px;
+    left: 0;
     transform: rotate(90deg);
 }
 
@@ -1500,9 +1505,9 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
         position: -o-sticky;
         top: 0;
         left: 0;
-        -webkit-box-shadow: 0px 4px 9px -5px rgba(148,146,148,1) !important;
-        -moz-box-shadow: 0px 4px 9px -5px rgba(148,146,148,1) !important;
-        box-shadow: 0px 4px 9px -5px rgba(148,146,148,1) !important;
+        -webkit-box-shadow: 0 4px 9px -5px rgba(148,146,148,1) !important;
+        -moz-box-shadow: 0 4px 9px -5px rgba(148,146,148,1) !important;
+        box-shadow: 0 4px 9px -5px rgba(148,146,148,1) !important;
     }
 
     #pagination_header {
@@ -1691,7 +1696,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     text-align: left;
     font-size: 0.8em;
     color: #555;
-    padding: 3px 0px 3px 15px;
+    padding: 3px 0 3px 15px;
     cursor: default;
 }
 .ODRPluginName {

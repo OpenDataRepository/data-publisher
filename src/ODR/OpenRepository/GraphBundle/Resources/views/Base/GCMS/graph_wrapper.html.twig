@@ -26,9 +26,7 @@
 
 {% endif %}
 
-{% if is_top_level == 1 %}
-    <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
-{% endif %}
+<div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
 {# Need to present rollup version separately from the accordion header area. #}
 {% if plugin_options.use_rollup is defined and plugin_options.use_rollup == "yes" %}
@@ -238,8 +236,7 @@
 
 {% endif %}
 
-{% if is_top_level == 1 %}
-    </div><!-- end of #DataType_{{ datatype.id }} -->
-{% endif %}
+</div><!-- end of #DataType_{{ datatype.id }} -->
+
 
 {% endspaceless %}

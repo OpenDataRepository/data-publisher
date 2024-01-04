@@ -20,7 +20,7 @@
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
-        'page_type': 'table',
+        'page_type': 'search_results',
         'search_key': search_key,
 
         'has_datarecords': has_datarecords,
@@ -299,6 +299,7 @@
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
+            'page_type': 'search_results',
             'search_key': search_key,
         }%}
         {% endif %}
@@ -478,25 +479,17 @@
         // In order to "manually" add pagination, need to build up some HTML for the buttons
         var paginate_html = '';
         paginate_html += '<div id="TextResults_paginate" class="dataTables_paginate paging_input">';
-        // if ( on_first_page )
-        //     paginate_html += '<span id="TextResults_first" class="first paginate_button disabled">First</span>';
-        // else
-        //     paginate_html += '<span id="TextResults_first" class="first paginate_button">First</span>';
         if ( !has_previous )
-            paginate_html += '<span id="TextResults_previous" class="previous paginate_button disabled">Previous</span>';
+            paginate_html += '<span id="TextResults_previous" class="previous paginate_button disabled">Prev</span>';
         else
-            paginate_html += '<span id="TextResults_previous" class="previous paginate_button">Previous</span>';
+            paginate_html += '<span id="TextResults_previous" class="previous paginate_button">Prev</span>';
 
-        paginate_html += '<span>Page ' + offset + ' of ' + last_page + '</span>';
+        paginate_html += '<span>' + offset + ' of ' + last_page + '</span>';
 
         if ( !has_next )
             paginate_html += '<span id="TextResults_next" class="next paginate_button disabled">Next</span>';
         else
             paginate_html += '<span id="TextResults_next" class="next paginate_button">Next</span>';
-        // if ( on_last_page )
-        //     paginate_html += '<span id="TextResults_last" class="last paginate_button disabled">Last</span>';
-        // else
-        //     paginate_html += '<span id="TextResults_last" class="last paginate_button">Last</span>';
         paginate_html += '</div>';
 
         // This HTML gets appended after the existing info divs...datatables.js won't add otherwise

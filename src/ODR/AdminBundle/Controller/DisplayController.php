@@ -148,8 +148,8 @@ class DisplayController extends ODRCustomController
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -384,7 +384,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Determine the user's preferred theme
-            $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'master');
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 

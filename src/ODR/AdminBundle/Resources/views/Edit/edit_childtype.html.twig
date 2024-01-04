@@ -10,7 +10,7 @@
     and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
     {% set is_datatype_admin = true %}
 {% endif %}
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'edit', 'is_datatype_admin': is_datatype_admin} %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'edit', 'is_datatype_admin': is_datatype_admin} %}
 
 {# Ignore array render plugins here...their modifications are pretty much guaranteed to screw up Edit mode #}
 

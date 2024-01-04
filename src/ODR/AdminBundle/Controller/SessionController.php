@@ -166,14 +166,17 @@ class SessionController extends ODRCustomController
     /**
      * Allows a user to set their session or default theme.
      *
+     * NOTE: the corresponding unset is in ThemeController::unsetpersonaldefaultthemeAction()
+     *
      * @param integer $datatype_id
+     * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      * @param integer $theme_id
      * @param integer $persist If 1, then save this choice to the database
      * @param Request $request
      *
      * @return Response
      */
-    public function applythemeAction($datatype_id, $theme_id, $persist, Request $request)
+    public function applythemeAction($datatype_id, $page_type, $theme_id, $persist, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -186,8 +189,8 @@ class SessionController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataType $datatype */
@@ -219,7 +222,7 @@ class SessionController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Otherwise, set it as the session theme
-                $theme_service->setSessionTheme($datatype->getId(), $theme);
+                $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
 
                 // Silently ignore attempts to save this preference to the database
             }
@@ -229,11 +232,11 @@ class SessionController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Otherwise, set it as the session theme
-                $theme_service->setSessionTheme($datatype->getId(), $theme);
+                $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
 
                 // If the user indicated they wanted to save this as their default, do so
                 if ($persist == 1)
-                    $theme_service->setUserDefaultTheme($user, $theme);
+                    $theme_info_service->setUserThemePreference($user, $theme, $page_type);
             }
 
         }

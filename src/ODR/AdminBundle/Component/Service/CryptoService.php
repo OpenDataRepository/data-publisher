@@ -215,9 +215,12 @@ class CryptoService
             throw new ODRBadRequestException('Invalid object_type');
 
         // Attempt to open the specified zip archive
-        $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
-        if (!$handle)
-            throw new ODRException('unable to open "'.$archive_filepath.'" for writing');
+        // IMPORTANT: the following lines exist to fix a bug in like libzip 1.6 and earlier, where \ZipArchive::CREATE would whine that the archive doesn't exist
+        // IMPORTANT: however, prod is using libzip 1.7.x, and the following lines instead cause \ZipArchive::CREATE to complain the archive is invalid or unintialized
+        // IMPORTANT: this behavior, obviously is contradictory
+//        $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
+//        if (!$handle)
+//            throw new ODRException('unable to open "'.$archive_filepath.'" for writing');
 
         // Infer whether the specified file/image is public or not based on the fielename it's being
         //  decrypted to, and then ensure the file/image is decrypted prior to acquiring a lock on
@@ -390,23 +393,18 @@ class CryptoService
         // Encrypt the file
         self::encryptworker($file, $absolute_filepath);
 
+        // If the file is supposed to be public...
+        if ( $file->isPublic() ) {
+            // ...then ensure it's decrypted after the encryption process
+            self::decryptFile($file_id);
+        }
+
         // Update the cached version of the datarecord so whichever controller is handling the
         //  "are you done encrypting yet?" javascript requests can return the correct HTML
         // TODO - ...I'm pretty sure this javascript request no longer exists?  regardless, datarecord should be updated here
         $datarecord = $file->getDataRecord();
         $datafield = $file->getDataField();
         $user = $file->getCreatedBy();
-
-        try {
-            $event = new FilePostEncryptEvent($file, $datafield);
-            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
-        }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
-        }
 
         try {
             $event = new DatafieldModifiedEvent($datafield, $user);
@@ -430,10 +428,16 @@ class CryptoService
 //                throw $e;
         }
 
-        // If the file is supposed to be public...
-        if ( $file->isPublic() ) {
-            // ...then ensure it's decrypted after the encryption process
-            self::decryptFile($file_id);
+        // Need this event to be after DatarecordModified, to ensure that cache entries aren't stale...
+        try {
+            $event = new FilePostEncryptEvent($file, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
         }
     }
 

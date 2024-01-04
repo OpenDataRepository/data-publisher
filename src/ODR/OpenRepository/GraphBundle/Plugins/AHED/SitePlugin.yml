@@ -11,6 +11,7 @@ odr_plugins.ahed.site:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: The Site Identifier Plugin characterizes a site or location where a sample was collected.
     registered_events:
     required_fields:

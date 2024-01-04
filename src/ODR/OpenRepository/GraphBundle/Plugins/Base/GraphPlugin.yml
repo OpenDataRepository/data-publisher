@@ -3,7 +3,7 @@ odr_plugins.base.graph:
     category: Base
     plugin_type: datatype
     render: odr_plugins.base.graph
-    version: 1.5.0
+    version: 1.6.0
     override_fields: false
     override_field_reload: false
     override_child: true
@@ -11,10 +11,9 @@ odr_plugins.base.graph:
     override_export: false
     override_search: false
     override_sort: false
+    suppress_no_fields_note: false
     description: The Graph Plugin plots XY data from uploaded files, labelling them with an associated pivot field value if possible.  If the "Use Rollup Graph" option is enabled and the plugin is attached to a child Database, then the plugin will attempt to plot data from all of the child Records onto a single graph.
     registered_events:
-        FileDeletedEvent: onFileDelete
-        FilePostEncryptEvent: onFilePostEncrypt
         PluginOptionsChangedEvent: onPluginOptionsChanged
 
     required_fields:
@@ -66,13 +65,13 @@ odr_plugins.base.graph:
         graph_width:
             name: Graph Width
             type: string
-            default: 900
+            default: 1500
             description: Enter a width in pixels for the graph.
             display_order: 2
         graph_height: 
             name: Graph Height
             type: string
-            default: 300 
+            default: 500
             description: Enter a height in pixels for the graph.
             display_order: 3
 

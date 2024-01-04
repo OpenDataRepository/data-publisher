@@ -7,11 +7,9 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * When the Graph Plugin is executed as part of twig rendering, it creates an <img> tag with a src
- * attribute that points to staticAction() in this controller.  When the browser attempts to load
- * the image, this controller action calls the Graph Plugin again with a slightly different set of
- * options that will cause it to return a link to the cached graph image.  If the graph image isn't
- * cached, the Graph Plugin will get phantomJS server to generate/save the image first.
+ * The Graph plugins detect when the graph images don't exist, and silently trigger a rebuild when
+ * they're executed on page load.  As such, a controller action to force a rebuild isn't all that
+ * useful...but I'm not deleting it yet, just in case.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Controller;
@@ -22,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
@@ -40,137 +39,216 @@ class GraphController extends ODRCustomController
 {
 
     /**
-     * Regular rendering of the GraphPlugin in Display mode leaves a link to this controller action
-     * when the cached version of the desired graph doesn't exist...this controller action calls
-     * the GraphPlugin again, but this time instructs it to actually build the graph.
+     * The Graph plugins detect when the graph images don't exist, and silently trigger a rebuild when
+     * they're executed on page load.  As such, a controller action to force a rebuild isn't all that
+     * useful...but I'm not deleting it yet, just in case.
      *
-     * @param integer $datatype_id
-     * @param integer $datarecord_id
+     * @param string $request_datatype_id
+     * @param string $request_datarecord_id
      * @param Request $request
      *
      * @return RedirectResponse|Response
      */
-    public function staticAction($datatype_id, $datarecord_id, Request $request)
+    public function renderAction($request_datatype_id, $request_datarecord_id, Request $request)
     {
         try {
+            // The requested datarecord id could have 'rollup_' in front of it
             $is_rollup = false;
-            // Check if this is a rollup and filter datarecord_id
-            if (preg_match('/rollup_/', $datarecord_id)) {
+            if (preg_match('/rollup_/', $request_datarecord_id)) {
                 $is_rollup = true;
-                $datarecord_id = preg_replace("/rollup_/","",$datarecord_id);
+                $request_datarecord_id = substr($request_datarecord_id, 7);
             }
+
+            $request_datatype_id = intval($request_datatype_id);
+            $request_datarecord_id = intval($request_datarecord_id);
 
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                throw new \Exception('{ "message": "Item Deleted", "detail": "Data record no longer exists."}');
+            /** @var DataRecord $request_datarecord */
+            $request_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($request_datarecord_id);
+            if ($request_datarecord == null)
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Requested Datarecord does not exist."}');
 
-            $datatype = $datarecord->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new \Exception('{ "message": "Item Deleted", "detail": "Data type no longer exists."}');
+            /** @var DataType $request_datatype */
+            $request_datatype = $request_datarecord->getDataType();
+            if ($request_datatype->getDeletedAt() != null)
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Requested Datatype does not exist."}');
 
-            // Save incase the user originally requested a child datarecord
-//            $requested_datarecord = $datarecord;
-//            $requested_datatype = $datatype;
-//            $requested_theme = $theme;
+            // NOTE: when odr_plugins.base.filter_graph calls this, it's likely that $request_datatype
+            //  does not match $request_datatype_id...the id will point to whichever datatype the
+            //  plugin is attached to
 
 
-            // ...want the grandparent datarecord and datatype for everything else, however
+            // Need the grandparent datarecord/datatype for permissions and cached arrays
+            $grandparent_datarecord = $request_datarecord->getGrandparent();
+            if ($grandparent_datarecord->getDeletedAt() != null)
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Requested Datarecord does not exist."}');
+
+            $grandparent_datatype = $request_datatype->getGrandparent();
+            if ($grandparent_datatype->getDeletedAt() != null)
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Requested Datatype does not exist."}');
+
             $is_top_level = 1;
-            if ($datarecord->getId() !== $datarecord->getGrandparent()->getId()) {
+            if ($request_datarecord->getId() !== $request_datarecord->getGrandparent()->getId())
                 $is_top_level = 0;
-                $datarecord = $datarecord->getGrandparent();
-
-                $datatype = $datarecord->getDataType();
-                if ($datatype == null)
-                    throw new \Exception('{ "message": "Item Deleted", "detail": "Data type no longer exists."}');
-            }
 
 
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
-            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+            $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $grandparent_datatype);
 
             // If the user isn't allowed to view either the datatype or the datarecord, don't continue
-            if ( !$pm_service->canViewDatarecord($user, $datarecord) )
+            if ( !$permissions_service->canViewDatarecord($user, $request_datarecord) )
                 throw new \Exception('{ "message": "Permission Denied", "detail": "Insufficient permissions."}');
             // ----------------------------------------
 
 
             // ----------------------------------------
+            // Don't care which theme the user is currently using
+            $master_theme = $theme_info_service->getDatatypeMasterTheme($grandparent_datatype->getId());
+            $plugin_theme_array = $theme_info_service->getThemeArray($master_theme->getId());
+
             // Get all Datarecords and Datatypes that are associated with the datarecord to render
-            $include_links = false;
+            $datarecord_array = $datarecord_info_service->getDatarecordArray($grandparent_datarecord->getId());    // need links due to the odr_plugins.base.filter_graph plugin...
+            $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());
 
-            $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId(), $include_links);
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getId(), $include_links);
-
-            // This is only going to be rendering the graph as an image, so the master theme can
-            //  be used here without any issue
-            $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
-            $theme_array = $theme_service->getThemeArray($theme->getId());
-
-            // Need to restrict to the master theme of the datatype being rendered, however
-            foreach ($theme_array as $theme_id => $t) {
-                if ( $t['dataType']['id'] != $datatype_id )
-                    unset( $theme_array[$theme_id] );
-            }
-
-
-            // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-            // Need to locate cached datarecord, datatype, and render plugin entries
-            foreach ($datarecord_array as $dr_id => $dr) {
-                if ( $dr['dataType']['id'] != $datatype_id ) {
-                    unset( $datarecord_array[$dr_id]) ;
-                }
-            }
-            $datatype = $datatype_array[$datatype_id];
 
-            // The datatype could technically have multiple render plugins, but since the graph plugin
-            //  is set to "render: true", there should only be one of them
-            $render_plugin_instance = null;
-            foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
+            // The datatype to be passed to the plugin should not be wrapped with its id
+            $plugin_dt_array = $database_info_service->stackDatatypeArray($datatype_array, $request_datatype_id);
+
+            // The datatype could technically have multiple render plugins, but there should only be
+            //  one graph plugin active
+            $plugin_classname = null;
+            $plugin_rpi_array = null;
+            foreach ($datatype_array[$request_datatype_id]['renderPluginInstances'] as $rpi_id => $rpi) {
+                // NOTE: not using the stacked version here due to odr_plugins.base.filter_graph...
+                //  That plugin tends to have its renderPlugin entry in a childtype...
                 $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
                 if ( $plugin_classname === 'odr_plugins.base.graph'
                     || $plugin_classname === 'odr_plugins.base.gcms'
+                    || $plugin_classname === 'odr_plugins.base.filter_graph'
                 ) {
-                    $render_plugin_instance = $rpi;
+                    $plugin_rpi_array = $rpi;
                     break;
                 }
             }
-            if ( is_null($render_plugin_instance) )
-                throw new \Exception('{ "message": "Item Deleted", "detail": "RenderPluginInstance does not exist."}');
+            if ( is_null($plugin_rpi_array) )
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Unable to find the RenderPluginInstance info."}');
 
-            // Build Graph - Static Option
+
+            // The various graph plugins require two related but different snapshots of the cached
+            //  datarecord array
+            $plugin_parent_dr_array = null;
+            $plugin_dr_array = null;
+
+            // First task is to determine the id of the parent datarecord...
+            $parent_dr_id = null;
+
+            if ( $is_top_level === 1 ) {
+                // ...the requested datarecord is already top-level, so its "parent" is itself
+                $parent_dr_id = $request_datarecord_id;
+            }
+            else {
+                // ...the requested datarecord is not top-level, so need to find the parent.  Since
+                //  $datarecord_array is not stacked, this can be done iteratively
+                foreach ($datarecord_array as $dr_id => $dr) {
+                    if ( isset($dr['children'][$request_datatype_id]) ) {
+                        if ( in_array($request_datarecord_id, $dr['children'][$request_datatype_id]) ) {
+                            $parent_dr_id = $dr_id;
+                            break;
+                        }
+                    }
+                }
+
+                // This should always find something, since the child record has to exist before
+                //  the graph plugin can request to render something for it...
+            }
+            if ( is_null($parent_dr_id) )
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Unable to find the Parent Datarecord info."}');
+
+
+            if ( !$is_rollup ) {
+                // If this isn't a rollup graph, then the first argument for the plugin service should
+                //  only be a single cached datarecord entry.  The array needs to be wrapped with
+                //  its own id
+                $plugin_dr_array = array($request_datarecord_id => $datarecord_info_service->stackDatarecordArray($datarecord_array, $request_datarecord_id));
+
+                // The argument for the parent datarecord array does not need to be wrapped with its
+                //  own id
+                if ( $is_top_level === 1 )
+                    $plugin_parent_dr_array = $plugin_dr_array[$request_datarecord_id];
+                else
+                    $plugin_parent_dr_array = $datarecord_info_service->stackDatarecordArray($datarecord_array, $parent_dr_id);
+            }
+            else {
+                // If this is a rollup graph, then potentially need to provide multiple cached
+                //  datarecord entries to the first argument of the plugin
+                if ( $is_top_level === 1 ) {
+                    // Regardless of which graph plugin is calling for a rebulid, this variable is
+                    //  acquired the same way
+                    $plugin_parent_dr_array = $datarecord_info_service->stackDatarecordArray($datarecord_array, $request_datarecord_id);
+
+                    if ( $plugin_classname !== 'odr_plugins.base.filter_graph' ) {
+                        // ...if this is a regular graph plugin, and the requested datarecord is
+                        // top-level...then there's only one record anyways
+                        $plugin_dr_array = array($request_datarecord_id => $plugin_parent_dr_array);
+                    }
+                    else {
+                        // ...if this is the FilterGraph plugin, then the plugin needs datarecords
+                        //  belonging to $request_datatype_id
+                        if ( $plugin_parent_dr_array['dataType']['id'] === $request_datatype_id )
+                            $plugin_dr_array = array($plugin_parent_dr_array['id'] => $plugin_parent_dr_array);
+                        else if ( isset($plugin_parent_dr_array['children'][$request_datatype_id]) )
+                            $plugin_dr_array = $plugin_parent_dr_array['children'][$request_datatype_id];
+                        else
+                            throw new \Exception('{ "message": "Not Implemented", "detail": "TODO"}');
+                    }
+                }
+                else {
+                    // ...if the requested datarecord is not top-level, then it's fastest to stack
+                    //  the parent datarecord first...
+                    $plugin_parent_dr_array = $datarecord_info_service->stackDatarecordArray($datarecord_array, $parent_dr_id);
+
+                    // ...then use that to get all the child records of the relevant childtype
+                    $plugin_dr_array = $plugin_parent_dr_array['children'][$request_datatype_id];
+                }
+            }
+
+            if ( is_null($plugin_parent_dr_array) || is_null($plugin_dr_array) )
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Unable to find the Datarecord info."}');
+
+
+            // ----------------------------------------
+            // Need some additional data so twig doesn't complain when rendering graph_builder.html.twig
             $rendering_options = array(
                 'build_graph' => true,
 
-                // The value of these options shouldn't really matter since this call is only
-                //  telling the graph plugin to render/save a graph
+                // The value of the rest of these options shouldn't really matter since this call is
+                //  only telling the graph plugin to render/save a graph
                 'is_top_level' => $is_top_level,
                 'is_link' => 0,
                 'display_type' => ThemeDataType::ACCORDION_HEADER,
                 'multiple_allowed' => 0,
-                'theme_type' => 'master',
 
                 'is_datatype_admin' => $is_datatype_admin,
             );
@@ -178,19 +256,41 @@ class GraphController extends ODRCustomController
             if ($is_rollup)
                 $rendering_options['datarecord_id'] = 'rollup';
             else
-                $rendering_options['datarecord_id'] = $datarecord_id;
+                $rendering_options['datarecord_id'] = $request_datarecord_id;
 
 
             // ----------------------------------------
             // Render the static graph using the correct plugin
-            $plugin_classname = $render_plugin_instance['renderPlugin']['pluginClassName'];
+            $plugin_classname = $plugin_rpi_array['renderPlugin']['pluginClassName'];
 
             /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($plugin_classname);
-            $filename = $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
+            $svc->execute($plugin_dr_array, $plugin_dt_array, $plugin_rpi_array, $plugin_theme_array, $rendering_options, $plugin_parent_dr_array, $datatype_permissions, $datafield_permissions);
 
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            return $this->redirect($site_baseurl.$filename);
+//            $site_baseurl = $this->container->getParameter('site_baseurl');
+//            return $this->redirect($site_baseurl.$filename);
+
+
+            // ----------------------------------------
+            // Do not want browsers caching the redirect to this request...it can generate completely
+            //  different URLs for the same input
+//            $response = new RedirectResponse($site_baseurl.$filename);
+//            $response->setMaxAge(0);
+//            $response->headers->addCacheControlDirective('no-cache', true);
+//            $response->headers->addCacheControlDirective('must-revalidate', true);
+//            $response->headers->addCacheControlDirective('no-store', true);
+//
+//            return $response;
+
+//            $return = array();
+//            $return['r'] = 0;
+//            $return['t'] = '';
+//            $return['d'] = '';
+
+            // TODO - can't really return a redirect because one request could create multiple graphs...
+            // TODO - ...but just returning this doesn't seem right
+            $response = new Response(json_encode( array() ), 202);
+            return $response;
         }
         catch (\Exception $e) {
             $message = $e->getMessage();

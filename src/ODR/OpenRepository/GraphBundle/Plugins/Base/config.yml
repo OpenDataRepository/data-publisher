@@ -22,8 +22,9 @@ services:
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
             $pheanstalk: '@pheanstalk'
-            $odr_tmp_directory: '%odr_tmp_directory%'
+            $site_baseurl: '%site_baseurl%'
             $odr_web_directory: '%odr_web_directory%'
+            $odr_files_directory: '%odr_files_directory%'
             $logger: "@logger"
 
     odr_plugins.base.gcms:
@@ -32,8 +33,21 @@ services:
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
             $pheanstalk: '@pheanstalk'
-            $odr_tmp_directory: '%odr_tmp_directory%'
+            $site_baseurl: '%site_baseurl%'
             $odr_web_directory: '%odr_web_directory%'
+            $odr_files_directory: '%odr_files_directory%'
+            $logger: "@logger"
+
+    odr_plugins.base.filter_graph:
+        class: '%odr_plugin_base_classpath%\Base\FilterGraphPlugin'
+        arguments:
+            $templating: '@templating'
+            $crypto_service: '@odr.crypto_service'
+            $database_info_service: '@odr.database_info_service'
+            $pheanstalk: '@pheanstalk'
+            $site_baseurl: '%site_baseurl%'
+            $odr_web_directory: '%odr_web_directory%'
+            $odr_files_directory: '%odr_files_directory%'
             $logger: "@logger"
 
     odr_plugins.base.map:
@@ -41,6 +55,17 @@ services:
         arguments:
             $templating: '@templating'
             $tokenGenerator: '@fos_user.util.token_generator'
+
+
+    # ----------------------------------------
+    # Array plugins
+    odr_plugins.base.linked_descendant_merger:
+        class: '%odr_plugin_base_classpath%\Base\LinkedDescendantMergerPlugin'
+        arguments:
+            $database_info_service: "@odr.database_info_service"
+            $sort_service: "@odr.sort_service"
+            $templating: '@templating'
+            $logger: "@logger"
 
 
     # ----------------------------------------
@@ -103,16 +128,5 @@ services:
             $database_info_service: "@odr.database_info_service"
             $search_service: "@odr.search_service"
             $search_query_service: "@odr.search_query_service"
-            $templating: '@templating'
-            $logger: "@logger"
-
-
-    # ----------------------------------------
-    # Array plugins
-    odr_plugins.base.linked_descendant_merger:
-        class: '%odr_plugin_base_classpath%\Base\LinkedDescendantMergerPlugin'
-        arguments:
-            $database_info_service: "@odr.database_info_service"
-            $sort_service: "@odr.sort_service"
             $templating: '@templating'
             $logger: "@logger"

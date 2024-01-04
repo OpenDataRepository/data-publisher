@@ -60,9 +60,9 @@
 {% if version == 'v5' %}
 {
     {% if
-        datafield.dataField.templateFieldUuid is defined
+        datafield.dataField is defined
         and datafield.dataField.templateFieldUuid is not empty
-     %}
+    %}
     "field_{{ datafield.dataField.templateFieldUuid }}": {
     {% elseif
         datafield.templateFieldUuid is defined

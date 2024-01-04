@@ -1061,9 +1061,9 @@ class DisplaytemplateController extends ODRCustomController
                 $child_source_theme->setSourceTheme($child_source_theme);    // this is *the* master theme for this child datatype, so should use itself as source
                 $em->persist($child_source_theme);
 
-                // Need to inherit a few properties from its parent...
+                // Need to inherit the default/shared settings from the parent theme
                 $child_source_theme_meta = $child_source_theme->getThemeMeta();
-                $child_source_theme_meta->setIsDefault($source_theme->isDefault());    // both of these should always be true...
+                $child_source_theme_meta->setDefaultFor($source_theme->getDefaultFor());
                 $child_source_theme_meta->setShared($source_theme->isShared());
                 $em->persist($child_source_theme_meta);
             }
@@ -1078,9 +1078,9 @@ class DisplaytemplateController extends ODRCustomController
                 $child_theme->setSourceTheme($child_source_theme);    // being created for a linked datatype, so should use the previously created theme as source instead
             $em->persist($child_theme);
 
-            // Need to inherit a few properties from its parent...
+            // Need to inherit the default/shared settings from the parent theme
             $child_theme_meta = $child_theme->getThemeMeta();
-            $child_theme_meta->setIsDefault($theme->isDefault());    // both of these should always be true...
+            $child_theme_meta->setDefaultFor($theme->getDefaultFor());
             $child_theme_meta->setShared($theme->isShared());
             $em->persist($child_theme_meta);
 

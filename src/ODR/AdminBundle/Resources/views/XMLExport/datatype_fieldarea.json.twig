@@ -2,7 +2,14 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {# describe datafields first #}
-{% if version != 'v3' or version == 'v4' %}
+{% if
+    version == 'v5'
+    and dataType.masterDataType is defined
+    and dataType.masterDataType.unique_id is defined
+    and dataType.masterDataType.unique_id is not empty
+ %}
+"fields_{{ dataType.masterDataType.unique_id }}": [
+{% elseif version != 'v3' and version != 'v4' and version != 'v5' %}
 "fields": {
 {% else %}
 "fields": [
@@ -37,7 +44,7 @@
 
 
 
-{% if version != 'v3' or version == 'v4' %}
+{% if version != 'v3' and version != 'v4' and version != 'v5' %}
 },
 {% else %}
 ],
@@ -50,13 +57,11 @@
 
 
 {# describe child datarecords second #}
-{% if version != 'v3' or version == 'v4' %}
+{% if version != 'v3' and version != 'v4' and version != 'v5' %}
 "child_databases": {
 {% else %}
 "related_databases": [
 {% endif %}
-
-
 
 
 {# describe child datatypes next #}
@@ -81,7 +86,7 @@
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
 
                     {% set show_records = 1 %}
-                    {% if version != 'v3' or version == 'v4' %}
+                    {% if version != 'v3' and version != 'v4' and version != 'v5' %}
                     {% set show_records = 0 %}
                     {% endif %}
 
@@ -115,7 +120,7 @@
 
 
 
-{% if version != 'v3' or version == 'v4' %}
+{% if version != 'v3' and version != 'v4' and version != 'v5' %}
 },
 "linked_databases": {
 {% endif %}
@@ -148,7 +153,7 @@
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
 
                     {% set show_records = 1 %}
-                    {% if version != 'v3' or version == 'v4' %}
+                    {% if version != 'v3' and version != 'v4' and version != 'v5' %}
                     {% set show_records = 0 %}
                     {% endif %}
 
@@ -178,7 +183,7 @@
 
 
 
-{% if version != 'v3' or version == 'v4' %}
+{% if version != 'v3' and version != 'v4' and version != 'v5' %}
 },
 {% else %}
 ]

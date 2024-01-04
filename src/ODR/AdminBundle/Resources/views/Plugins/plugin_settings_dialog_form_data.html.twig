@@ -39,6 +39,7 @@
     </fieldset>
     {% endif %}
 
+    {% if render_plugin['renderPluginFields']|length > 0 or render_plugin['suppressNoFieldsNote'] == false %}
     <fieldset>
         {# Determine if the rendering plugin has any required fields #}
         {% if render_plugin['renderPluginFields']|length == 0 %}
@@ -102,6 +103,7 @@
             </div>
         {% endif %}
     </fieldset>
+    {% endif %}
 
     <script>
         $(function() {

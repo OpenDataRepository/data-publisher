@@ -365,7 +365,7 @@ Forms Core
     padding: 0.4em 0.2em 0.4em 0.4em;
     display: inline-block;
     border: 1px solid #e6e6e6;
-    font-size: 0.8em;
+    font-size: 0.96em;
     box-shadow: inset 0 1px 3px #e6e6e6;
     border-radius: 2px;
     -webkit-transition: 0.3s linear border;
@@ -415,7 +415,7 @@ Forms Core
     padding: 0 0.2em 0.2em 0.2em;
     display: inline-block;
     border: none;
-    font-size: 0.8em;
+    font-size: 0.96em;
     box-shadow: none;
     border-radius: 2px;
     -webkit-transition: 0.3s linear border;
@@ -519,7 +519,7 @@ Forms Core
 .pure-skin-odr .pure-form label {
     margin: 0.3em 0 0.1em;
     /* color: #878787; */
-    font-size: 80%;
+    /* font-size: 80%;  /* MOD NAS 20231030 */
 }
 .pure-skin-odr .pure-form fieldset {
     margin: 0;
@@ -1283,7 +1283,7 @@ a.pure-button-primary {
     cursor: pointer;
     top: -0.813em;
     position: relative;
-    font-size: 0.8em;
+    font-size: 0.96em;
 }
 
 .grid-output-tabs .grid-tab-link,
@@ -2329,8 +2329,8 @@ h3 .DatatypeTools,
 
 .ODRResults .AccordionSelect {
     float: right;
-    margin-top: -5px;
-    margin-right: 38px !important;
+    margin-top: -4px;
+    margin-right: 4px !important;
     max-width: 350px;
     /* padding: 4px 4px 2px 4px !important; */
     height: 32px !important;
@@ -2731,7 +2731,7 @@ form .row {
     box-shadow: none;
     box-sizing: border-box;
     display: inline-block;
-    font-size: 0.8em;
+    font-size: 0.96em;
     padding: 0.2em;
     transition: border 0.3s linear 0s;
     cursor: default;
@@ -2888,7 +2888,7 @@ form .row {
 
 
 .ODRResults label {
-    font-size: 0.8em;
+    font-size: 0.96em !important;
     font-weight: bold;
     padding-left: 0.5em;
 }
@@ -2898,7 +2898,7 @@ form .row {
     margin: 0 0 2px 0;
     min-height: 1em;
     line-height: normal;
-    font-size: 12.8px;
+    font-size: 0.96em;
 }
 
 /*
@@ -3021,7 +3021,7 @@ form .row {
 }
 
 .ODRReference {
-    font-size: 0.8em;
+    font-size: 0.96em;
     padding-left: 0.8em;
     padding-top: 0.3em;
     padding-bottom: 0.6em;
@@ -3280,12 +3280,12 @@ form .row {
     background: none; /* #7fb9d8 none repeat scroll 0 0; */
     color: RGBA(77, 136, 220, 1.00);
     padding: 4px 0 4px 8px;
-    font-size: 0.8em;
+    font-size: 0.96em;
     border-radius: 5px 5px 0px 0px;
 }
 
 .ODRFileDatafield_file, .ODRFileDatafield_empty {
-    font-size: 0.8em;
+    font-size: 0.96em;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
@@ -3309,6 +3309,7 @@ form .row {
 }
 .ODRFileImageHeader_hidden_design {
     /* don't actually want to hide the header in the design page... */
+    opacity: 40%;
     box-shadow: 0 0 4px 4px rgba(255,0,0,0.7);
 }
 
@@ -3328,7 +3329,8 @@ form .row {
     flex: 0 0 auto;
 
     width: 4px;
-    display: inline-block;
+    /* display: inline-block; */
+    display: none;
     cursor: default;
 }
 .ODRFileSpacer_public {
@@ -3583,7 +3585,7 @@ form .row {
 #ODRFileDownloadFormWrapper, #ODRMassDownloadFormWrapper {
     display: none;
     text-align: left;
-    font-size: 0.8em;
+    font-size: 0.96em;
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
@@ -3812,9 +3814,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: relative;
 }
 .ODRDefaultPersonal,
+.ODRUnsetDefaultPersonal,
 .ODRDefaultDatabase,
+.ODRUnsetDefaultDatabase,
 .ODRMakeCurrentView,
-.ODRMakeViewPublic,
+.ODRMakeViewShared,
 .ODREditThemeName,
 .ODRModifyTheme,
 .ODRCopyModifyTheme,
@@ -3823,9 +3827,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRDefaultPersonal:hover,
+.ODRUnsetDefaultPersonal:hover,
 .ODRDefaultDatabase:hover,
+.ODRUnsetDefaultDatabase:hover,
 .ODRMakeCurrentView:hover,
-.ODRMakeViewPublic:hover,
+.ODRMakeViewShared:hover,
 .ODREditThemeName:hover,
 .ODRModifyTheme:hover,
 .ODRCopyModifyTheme:hover,
@@ -4320,6 +4326,7 @@ i {
     font-size: 12px;
     font-weight: 600;
     color: #3b8bba;
+    margin-left: 0;
 }
 
 #ODRMessageList i {
@@ -4334,7 +4341,8 @@ i {
     position: relative;
     background: rgba(0,0,255, 0.04);
     padding: 8px;
-    margin-left: -30px;
+    max-width: 96%;
+    margin-left: 2%;
     margin-right: 8px;
     margin-top: 6px;
     border-radius: 6px;
@@ -4352,7 +4360,7 @@ i {
 
 #ODRMessageList .JobDownloadLink {
     position: absolute;
-    top: 25px;
+    top: -12px;
     right: 10px;
     width: 137px;
 }
@@ -4370,14 +4378,7 @@ i {
 }
 
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
-  background-image:
-    linear-gradient(
-      to right,
-      RGBA(90, 154, 190, 0.2),
-      #ffffff 5%,
-      #ffffff
-    );
-    padding-left: 40px;
+    padding-left: 20px;
     padding-right: 6px;
 }
 
@@ -4455,12 +4456,12 @@ i {
 .ODRRemoteSearch_dialog {
     /*display: none;*/
     text-align: left;
-    /*font-size: 0.8em;*/
+    /*font-size: 0.96em;*/
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
 .ODRRemoteSearch_pre {
-    margin: 0px;
+    margin: 0;
     padding: 7px;
 }
 .ODRRemoteSearch_extra {
@@ -4657,3 +4658,373 @@ button.jGrowl-close {
     top: 10px;
 }
  */
+
+.ODRSearchHeaderWrapper {
+    text-align: right;
+}
+
+
+.ODRRenderPlugin_FileHeaderInserter_header {
+    text-align: left;
+    text-indent: 15px;
+    font-size: 16px;
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+.ODRRenderPlugin_FileHeaderInserter_prefix_list {
+    text-indent: 0px;
+}
+.ODRRenderPlugin_FileHeaderInserter_label {
+    cursor: pointer;
+
+    font-size: 16px;
+    color: #555;
+}
+.ODRRenderPlugin_FileHeaderInserter_source,
+.ODRRenderPlugin_FileHeaderInserter_dest {
+    min-height: 500px;
+    overflow-y: scroll;
+
+    text-align: left;
+    font-size: 16px;
+    color: #555;
+}
+.ODRRenderPlugin_FileHeaderInserter_source ul,
+.ODRRenderPlugin_FileHeaderInserter_fields {
+    list-style: none;
+    padding-left: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+ul.ODRRenderPlugin_FileHeaderInserter_df_list {
+    padding-left: 25px;
+}
+.ODRRenderPlugin_FileHeaderInserter_source li,
+.ODRRenderPlugin_FileHeaderInserter_fields li {
+    list-style-type: none;
+    margin: 3px;
+}
+.ODRRenderPlugin_FileHeaderInserter_dt_header,
+.ODRRenderPlugin_FileHeaderInserter_dt_container {
+    /*padding: 7px;*/
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+}
+.ODRRenderPlugin_FileHeaderInserter_dt_header {
+    padding: 7px;
+    cursor: Pointer;
+    background-color: #6fa5c7;
+    color: #ffffff;
+}
+.ODRRenderPlugin_FileHeaderInserter_fields_container {
+    margin: 3px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    /*height: 36px;*/
+}
+.ODRRenderPlugin_FileHeaderInserter_fields_item span {
+    cursor: default;
+    /*vertical-align: middle;*/
+}
+span.ODRRenderPlugin_FileHeaderInserter_fields_item_name {
+    cursor: default;
+    padding-left: 5px;
+}
+span.ODRRenderPlugin_FileHeaderInserter_fields_item_info {
+    float: right;
+    padding-right: 5px;
+}
+span.ODRRenderPlugin_FileHeaderInserter_placeholder {
+    font-weight: bold;
+}
+span.ODRRenderPlugin_FileHeaderInserter_df_id {
+    font-weight: bold;
+}
+
+.ODRRenderPlugin_FileHeaderInserter_warn {
+    color: red;
+}
+.ODRRenderPlugin_FileHeaderInserter_hide_warn {
+    visibility: hidden;
+}
+
+.ODRRenderPlugin_FileHeaderInserter_textarea_wrapper {
+
+}
+#ODRRenderPlugin_FileHeaderInserter_textarea {
+    width: 100%;
+    min-height: 300px;
+    resize: vertical;
+}
+
+
+.ODRRenderPlugin_FileRenamer_header {
+    text-align: left;
+    text-indent: 15px;
+    font-size: 16px;
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+.ODRRenderPlugin_FileRenamer_prefix_list {
+    text-indent: 0px;
+}
+.ODRRenderPlugin_FileRenamer_label {
+    cursor: pointer;
+
+    font-size: 16px;
+    color: #555;
+}
+.ODRRenderPlugin_FileRenamer_source,
+.ODRRenderPlugin_FileRenamer_dest {
+    min-height: 500px;
+    overflow-y: scroll;
+
+    text-align: left;
+    font-size: 16px;
+    color: #555;
+}
+.ODRRenderPlugin_FileRenamer_source ul,
+.ODRRenderPlugin_FileRenamer_config {
+    list-style: none;
+    padding-left: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+ul.ODRRenderPlugin_FileRenamer_df_list {
+    padding-left: 25px;
+}
+.ODRRenderPlugin_FileRenamer_source li,
+.ODRRenderPlugin_FileRenamer_config li {
+    list-style-type: none;
+    margin: 3px;
+}
+.ODRRenderPlugin_FileRenamer_dt_header,
+.ODRRenderPlugin_FileRenamer_dt_container {
+    /*padding: 7px;*/
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+}
+.ODRRenderPlugin_FileRenamer_dt_header {
+    padding: 7px;
+    cursor: Pointer;
+    background-color: #6fa5c7;
+    color: #ffffff;
+}
+.ODRRenderPlugin_FileRenamer_addField {
+    padding: 7px;
+    cursor: Pointer;
+    background-color: #6fa5c7;
+    color: #ffffff;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+}
+.ODRRenderPlugin_FileRenamer_config_container {
+    margin: 3px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    height: 36px;
+}
+.ODRRenderPlugin_FileRenamer_config_item span {
+    cursor: pointer;
+    vertical-align: middle;
+}
+span.ODRRenderPlugin_FileRenamer_config_item_name {
+    cursor: default;
+    padding-left: 5px;
+}
+input.ODRRenderPlugin_FileRenamer_config_item_name {
+    background-color: #aaaaaa !important;
+    color: white;
+}
+
+.ODRRenderPlugin_FileRenamer_warn {
+    color: red;
+}
+.ODRRenderPlugin_FileRenamer_hide_warn {
+    visibility: hidden;
+}
+
+
+.ODRRenderPlugin_LinkedMerger_header {
+    text-align: left;
+    text-indent: 15px;
+    font-size: 16px;
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding: 5px;
+}
+.ODRRenderPlugin_LinkedMerger_table {
+
+}
+.ODRRenderPlugin_LinkedMerger_table th {
+    padding: 3px 5px;
+    cursor: default;
+
+    font-size: 16px;
+    color: #555;
+}
+.ODRRenderPlugin_LinkedMerger_src_warn,
+.ODRRenderPlugin_LinkedMerger_dest_warn {
+    color: red;
+    cursor: help;
+}
+.ODRRenderPlugin_LinkedMerger_clear {
+    padding: 5px 7px;
+    float: left;
+    cursor: pointer;
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 3px;
+    border-style: solid;
+}
+.ODRRenderPlugin_LinkedMerger_src,
+.ODRRenderPlugin_LinkedMerger_dest {
+    cursor: pointer;
+
+    font-size: 16px;
+    color: #555;
+}
+.ODRRenderPlugin_LinkedMerger_label {
+    text-align: left;
+    cursor: default;
+
+    font-size: 16px;
+    color: #555;
+}
+.ODRRenderPlugin_LinkedMerger_invalid {
+    cursor: help;
+}
+
+
+.ODRRenderPlugin_FilterGraph_header {
+    text-align: left;
+    text-indent: 15px;
+    /*font-size: 16px;*/
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding: 5px;
+}
+.ODRRenderPlugin_FilterGraph_table {
+
+}
+.ODRRenderPlugin_FilterGraph_table th {
+    padding: 3px 5px;
+    cursor: default;
+
+    /*font-size: 16px;*/
+    color: #555;
+}
+.ODRRenderPlugin_FilterGraph_table td {
+    padding: 3px 5px;
+    cursor: default;
+
+    /*font-size: 16px;*/
+    color: #555;
+}
+.ODRRenderPlugin_FilterGraph_warn {
+    color: red !important;
+    cursor: help;
+}
+
+.ODRRenderPlugin_FilterGraph_FilterFields_wrapper {
+    text-align: left;
+    font-size: 0.96em;
+    color: #444;
+}
+
+.ODRRenderPlugin_FilterGraph_FilterFields_wrapper ul {
+    list-style: none;
+}
+.ODRRenderPlugin_FilterGraph_FilterFields_wrapper li {
+    white-space: nowrap;
+    list-style-type: none;
+    cursor: default;
+}
+.ODRRenderPlugin_FilterGraph_FilterFields_wrapper span {
+    cursor: pointer;
+}
+
+.ODRGraphFilterPlugin_fields {
+    background: #ffa;
+}
+.ODRGraphFilterPlugin_buttons {
+    margin-bottom: 5px;
+}
+.ODRGraphFilterPlugin_select, .ODRGraphFilterPlugin_deselect {
+    /*min-width: 10em;*/
+    box-sizing: border-box;
+    box-shadow: none;
+    /*background: none;*/
+    border: 2px solid #1c81d0;
+    border-radius: 4px;
+    background: white none;
+    /*padding: 8px;*/
+    color: #1c81d0;
+    margin-right: 12px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.ODRGraphFilterPlugin_blurb {
+    margin-left: 25px;
+}
+.ODRGraphFilterPlugin_settings_div {
+    cursor: pointer;
+    position: absolute;
+    z-index: 999;
+    top: 10px;
+    /*left: 20px;*/
+}
+.ODRGraphFilterPlugin_settings {
+    background-color: lightyellow;
+    border: 1px dashed gray;
+    padding: 5px;
+    position: absolute;
+    display: none;
+    min-width: 200px;
+    z-index: 999;
+    cursor: default;
+    /*left: 4px;*/
+    top: -1px;
+}
+.ODRGraphFilterPlugin_settings_close {
+    text-align: right;
+}
