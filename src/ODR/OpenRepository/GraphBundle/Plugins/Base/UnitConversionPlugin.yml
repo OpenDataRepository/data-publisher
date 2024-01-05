@@ -1,5 +1,5 @@
 odr_plugins.base.unit_conversion:
-    name: Unit Conversion Field
+    name: Unit Conversion Field (BETA)
     category: Base
     plugin_type: datafield
     render: odr_plugins.base.unit_conversion
@@ -12,7 +12,7 @@ odr_plugins.base.unit_conversion:
     override_search: true
     override_sort: true
     suppress_no_fields_note: false
-    description: This plugin takes all values entered into this field and attempts to convert them to a different unit (e.g. Temperature, Pressure, Distance) based on how the plugin is configured.
+    description: This plugin takes all values entered into this field and attempts to convert them to a different unit (e.g. Temperature, Pressure, Distance) based on how the plugin is configured.  This plugin is in BETA because it may not be correctly applying all the rules for precision/significant figures.
 
     registered_events:
         PluginOptionsChangedEvent: onPluginOptionsChanged

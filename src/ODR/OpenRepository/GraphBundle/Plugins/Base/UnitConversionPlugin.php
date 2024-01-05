@@ -550,7 +550,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                         case 'none':
                         case 'greedy':
                         case 'precise':
-//                        case 'decimal':    // TODO?
+//                        case 'fixed':    // TODO?
                             break;
 
                         default:

@@ -226,10 +226,9 @@ class UnitConversionsDefTest extends WebTestCase
      */
     public function testPerformConversion($original_value, $conversion_type, $target_units, $precision_type, $expected_value)
     {
-        $this->markTestSkipped('Not fully implemented yet');
-
-        // The regex and the logic are the important parts of this function...the units don't really
-        //  matter, but assume they're pressure-based units to further the testing
+        // The tests of the other functions are more important, since this function merely combines
+        //  them in the correct order...explodeValue() has the regex, determinePrecision() has the
+        //  string processing, and applyPrecision() has the "rounding"...
         $ret = UnitConversionsDef::performConversion($original_value, $conversion_type, $target_units, $precision_type);
 
         $this->assertEquals( $expected_value, $ret );
@@ -245,6 +244,45 @@ class UnitConversionsDefTest extends WebTestCase
             // ----------------------------------------
             // Expecting null returns because there's nothing to convert
             'empty string' => [ '', '', '', '', '' ],
+            // Invalid conversion
+            'invalid conversion' => [ '10 C', 'Pressure', 'K', 'none', '' ],
+
+            // Temperatures use different conversion logic
+            'Temp without precision' => [ '10 C', 'Temperature', 'K', 'none', '283.15 K' ],    // precision type of "none" means no post-processing
+            'Temp using precise' => [ '10 C', 'Temperature', 'K', 'precise', '283 K' ],
+            'Temp using greedy' => [ '10 C', 'Temperature', 'K', 'greedy', '283 K' ],    // the actual precision type should have no effect, just turns it on
+
+            'Temp, increasing precision using none' => [ '12 C', 'Temperature', 'K', 'none', '285.15 K' ],
+            'Temp, increasing precision using precise' => [ '12 C', 'Temperature', 'K', 'precise', '285 K' ],
+            'Temp, increasing precision using greedy' => [ '12 C', 'Temperature', 'K', 'greedy', '285 K' ],
+
+            'Temp, using none with decimal' => [ '12.3 C', 'Temperature', 'K', 'none', '285.45 K' ],
+            'Temp, using precise with decimal' => [ '12.3 C', 'Temperature', 'K', 'precise', '285.5 K' ],    // not 285.4 due to rounding...
+            'Temp, using greedy with decimal' => [ '12.3 C', 'Temperature', 'K', 'greedy', '285.5 K' ],    // not 285.4 due to rounding...
+
+            'Temp, using none with 2 decimal places' => [ '12.34 C', 'Temperature', 'K', 'none', '285.49 K' ],
+            'Temp, using precise with 2 decimal places' => [ '12.34 C', 'Temperature', 'K', 'precise', '285.49 K' ],
+            'Temp, using greedy with 2 decimal places' => [ '12.34 C', 'Temperature', 'K', 'greedy', '285.49 K' ],
+
+            // Shouldn't need to test the rest of it too strongly...
+            'Pressure, using none' => [ '2070 bar', 'Pressure', 'GPa', 'none', '0.207 GPa' ],
+            'Pressure, using precise' => [ '2070 bar', 'Pressure', 'GPa', 'precise', '0.207 GPa' ],
+            'Pressure, using greedy' => [ '2070 bar', 'Pressure', 'GPa', 'greedy', '0.2070 GPa' ],    // greedy means this effectively has 4 digits of precision
+
+            // Several absurd conversions...using extreme upper edge of diamond-cell capabilities as of 2018 (i think)
+            // Jenei, Z., O’Bannon, E.F., Weir, S.T. et al. Single crystal toroidal diamond anvils for high pressure experiments beyond 5 megabar. Nat Commun 9, 3563 (2018). https://doi.org/10.1038/s41467-018-06071-x
+//            'Pressure, absurd value 1 using none' => [ '600 GPa', 'Pressure', 'atm', 'none', '5921539.6002961 atm' ],    // not actually running these...they're for reference
+//            'Pressure, absurd value 2 using none' => [ '610 GPa', 'Pressure', 'atm', 'none', '6020231.9269677 atm' ],    // suspect different systems will report different values
+//            'Pressure, absurd value 3 using none' => [ '615 GPa', 'Pressure', 'atm', 'none', '6069578.0903035 atm' ],    // ...so they're useless as actual tests
+            'Pressure, absurd value 1 using precise' => [ '600 GPa', 'Pressure', 'atm', 'precise', '6000000 atm' ],
+            'Pressure, absurd value 2 using precise' => [ '610 GPa', 'Pressure', 'atm', 'precise', '6000000 atm' ],
+            'Pressure, absurd value 3 using precise' => [ '615 GPa', 'Pressure', 'atm', 'precise', '6070000 atm' ],
+            'Pressure, absurd value 4 using precise' => [ '615(22) GPa', 'Pressure', 'atm', 'precise', '6070000(220000) atm' ],    // this last one should drive home how absurd this particular conversion request is
+
+            'Pressure, absurd value 1 using greedy' => [ '600 GPa', 'Pressure', 'atm', 'greedy', '5920000 atm' ],    // as you can see, can get drastically different values when digits are ambiguous...
+            'Pressure, absurd value 2 using greedy' => [ '610 GPa', 'Pressure', 'atm', 'greedy', '6020000 atm' ],
+            'Pressure, absurd value 3 using greedy' => [ '615 GPa', 'Pressure', 'atm', 'greedy', '6070000 atm' ],
+            'Pressure, absurd value 4 using greedy' => [ '615(22) GPa', 'Pressure', 'atm', 'greedy', '6070000(220000) atm' ],
         ];
     }
 }

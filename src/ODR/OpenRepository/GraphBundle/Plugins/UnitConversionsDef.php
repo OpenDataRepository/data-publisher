@@ -666,7 +666,7 @@ class UnitConversionsDef
 
         // NOTE - due to effectively all of these conversions being a multiplication/division, we
         //  don't need to do fancy shit with the tolerance value...the "relative uncertainty" remains
-        //  the same (in theory)
+        //  the same (in theory?)
 
 
         // ----------------------------------------
@@ -710,11 +710,12 @@ class UnitConversionsDef
 
                 // TODO - to copy the argument, 9 inches only has 1 significant digit (implied to be roughly 6% uncertainty)...it converts to 22.86 cm
                 // TODO - ...rounding to one sig fig (to make 20 cm) implies ~25% uncertainty.  rounding to two sig figs (to make 23 cm) implies ~2% uncertainty, and fits a little better
+                // TODO - ...but that's a judgement call by definition.  bleh.
 
                 // Ensure the converted values have the correct precision
                 $target_value = self::applyPrecision($target_value, $source_value_precision);
                 if ( !is_null($tolerance_value) )
-                    $tolerance_value = self::applyPrecision($target_value, $tolerance_value_precision);
+                    $tolerance_value = self::applyPrecision($tolerance_value, $tolerance_value_precision);
             }
         }
 

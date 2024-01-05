@@ -46,7 +46,7 @@
                 <option value="none" {% if current_precision_type == 'none' %}selected{% endif %}>None</option>
                 <option value="greedy" {% if current_precision_type == 'greedy' %}selected{% endif %}>Greedy</option>
                 <option value="precise" {% if current_precision_type == 'precise' %}selected{% endif %}>Precise</option>
-{#                <option value="decimal" {% if current_precision_type == 'decimal' %}selected{% endif %}># of Decimal places</option>#}  {# TODO? #}
+{#                <option value="decimal" {% if current_precision_type == 'fixed' %}selected{% endif %}># of Decimal places</option>#}  {# TODO? #}
             </select>
         </label>
 
@@ -68,7 +68,7 @@
             <br>"100.0 meters" will be converted to "328.1 feet"
         </div>
         <div id="ODRRenderPlugin_UnitConversion_temperature_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
-            Temperature conversions work differently, and will instead be rounded to the same number of decimal places.
+            Temperature conversions work differently because addition/subtraction is involved, and will instead be rounded to the same number of decimal places.
             <br>For instance: "10 C" will be converted to "283 K"
             <br>"10.5 C" will be converted to "283.6 K"
         </div>
