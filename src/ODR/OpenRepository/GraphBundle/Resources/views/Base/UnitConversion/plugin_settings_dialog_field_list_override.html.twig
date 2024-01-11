@@ -5,8 +5,14 @@
     {% set current_option_value = current_plugin_config['conversion_type'] ~ ':' ~ current_plugin_config['target_units'] %}
 {% endif %}
 {% set current_precision_type = 'none' %}
+{% set current_precision_num = null %}
 {% if current_plugin_config['precision_type'] is defined %}
-    {% set current_precision_type = current_plugin_config['precision_type'] %}
+    {% if 'decimal' in current_plugin_config['precision_type'] %}
+        {% set current_precision_type = 'decimal' %}
+        {% set current_precision_num = current_plugin_config['precision_type']|slice(8) %}
+    {% else %}
+        {% set current_precision_type = current_plugin_config['precision_type'] %}
+    {% endif %}
 {% endif %}
 
 <div class="pure-u-1">
@@ -25,8 +31,8 @@
     {% endif %}
 
     <div class="pure-u-1-2 ODRRenderPlugin_UnitConversion_body">
-        <label for="ODRRenderPlugin_UnitConversion_select">
-            Conversion Type:&nbsp;
+        <label for="ODRRenderPlugin_UnitConversion_select" style="width: 40%;">
+            Units to convert into:&nbsp;
             <select id="ODRRenderPlugin_UnitConversion_select">
                 <option value=""></option>
             {% for category,conversions in available_conversions %}
@@ -44,9 +50,17 @@
             Precision Type:&nbsp;
             <select id="ODRRenderPlugin_PrecisionType_select">
                 <option value="none" {% if current_precision_type == 'none' %}selected{% endif %}>None</option>
+                <option value="decimal" {% if current_precision_type == 'decimal' %}selected{% endif %}>Decimal</option>
                 <option value="greedy" {% if current_precision_type == 'greedy' %}selected{% endif %}>Greedy</option>
                 <option value="precise" {% if current_precision_type == 'precise' %}selected{% endif %}>Precise</option>
-{#                <option value="decimal" {% if current_precision_type == 'fixed' %}selected{% endif %}># of Decimal places</option>#}  {# TODO? #}
+            </select>
+        </label>
+        <label for="ODRRenderPlugin_PrecisionType_num" {% if current_precision_type != 'decimal' %}style="display: none;"{% endif %}>
+            # of Decimal Places:&nbsp;
+            <select id="ODRRenderPlugin_PrecisionType_num">
+            {% for i in 0..4 %}
+                <option value="{{ i }}" {% if current_precision_num == i %}selected{% endif %}>{{ i }}</option>
+            {% endfor %}
             </select>
         </label>
 
@@ -54,6 +68,28 @@
             With this option selected, the plugin will completely ignore the idea of significant figures.  As such, the result may have spurious digits.
             <br>For instance: "1 meter" will be converted to something like "3.28084 feet"
         </div>
+
+        <div id="ODRRenderPlugin_UnitConversion_decimal_0_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will round the result so it has no decimal places.  Values with explicit tolerances will use significant figures instead.
+            <br>For instance: "1 meter" will be converted to "3 feet"
+        </div>
+        <div id="ODRRenderPlugin_UnitConversion_decimal_1_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will round the result so it has at most 1 decimal place.  Values with explicit tolerances will use significant figures instead.
+            <br>For instance: "1 meter" will be converted to "3.3 feet"
+        </div>
+        <div id="ODRRenderPlugin_UnitConversion_decimal_2_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will round the result so it has at most 2 decimal places.  Values with explicit tolerances will use significant figures instead.
+            <br>For instance: "1 meter" will be converted to "3.28 feet"
+        </div>
+        <div id="ODRRenderPlugin_UnitConversion_decimal_3_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will round the result so it has at most 3 decimal places.  Values with explicit tolerances will use significant figures instead.
+            <br>For instance: "1 meter" will be converted to "3.281 feet"
+        </div>
+        <div id="ODRRenderPlugin_UnitConversion_decimal_4_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will round the result so it has at most 4 decimal places.  Values with explicit tolerances will use significant figures instead.
+            <br>For instance: "1 meter" will be converted to "3.2808 feet"
+        </div>
+
         <div id="ODRRenderPlugin_UnitConversion_greedy_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
             With this option selected, the plugin will assume that all digits in the source value are significant, and round the converted value accordingly.
             <br>For instance: "1 meter" will be converted to "3 feet"
@@ -75,30 +111,6 @@
     </div>
 </div>
 
-<style>
-    .ODRRenderPlugin_UnitConversion_header {
-        text-align: left;
-        text-indent: 15px;
-
-        margin-top: 5px;
-        margin-bottom: 5px;
-    }
-    .ODRRenderPlugin_UnitConversion_body {
-        text-align: left;
-        text-indent: 15px;
-
-        margin-top: 5px;
-        margin-bottom: 5px;
-    }
-
-    .ODRRenderPlugin_UnitConversion_info {
-        text-indent: 0px;
-        font-size: 0.8em;
-
-        margin-top: 5px;
-    }
-</style>
-
 <script>
     var UnitConversion_timeout = null;
     var UnitConversion_SaveTimeout = 500;
@@ -109,37 +121,53 @@
         resetRemodalInnerHeight(true);
 
         $("#ODRRenderPlugin_UnitConversion_select").unbind('change').change(function() {
-            var conversion_unit_value = $(this).val();
-            var precision_type_value = $("#ODRRenderPlugin_PrecisionType_select").val();
-
-            var option_value = conversion_unit_value + ':' + precision_type_value;
-            // console.log(option_value);
-            $("#plugin_option_{{ rpo_id }}").val(option_value);
+            ODRRenderPlugin_UnitConversion_updateInfo();
         });
 
         $("#ODRRenderPlugin_PrecisionType_select").unbind('change').change(function() {
-            var conversion_unit_value = $("#ODRRenderPlugin_UnitConversion_select").val();
-            var precision_type_value = $(this).val();
-
-            var option_value = conversion_unit_value + ':' + precision_type_value;
-            // console.log(option_value);
-            $("#plugin_option_{{ rpo_id }}").val(option_value);
-
-            $(".ODRRenderPlugin_UnitConversion_info").hide();
-            if ( precision_type_value === 'none' )
-                $("#ODRRenderPlugin_UnitConversion_none_info").show();
-            else {
-                $("#ODRRenderPlugin_UnitConversion_temperature_info").show();
-
-                if ( precision_type_value === 'greedy' )
-                    $("#ODRRenderPlugin_UnitConversion_greedy_info").show();
-                else if ( precision_type_value === 'precise' )
-                    $("#ODRRenderPlugin_UnitConversion_precise_info").show();
-            }
+            ODRRenderPlugin_UnitConversion_updateInfo();
         });
 
-        $("#ODRRenderPlugin_PrecisionType_select").trigger('change');
+        $("#ODRRenderPlugin_PrecisionType_num").unbind('change').change(function() {
+            ODRRenderPlugin_UnitConversion_updateInfo();
+        });
+
+        $("#ODRRenderPlugin_UnitConversion_select").trigger('change');
     });
+
+    /**
+     * Updates the displayed info blurbs based on the selected options.
+     */
+    function ODRRenderPlugin_UnitConversion_updateInfo()
+    {
+        var conversion_unit_value = $("#ODRRenderPlugin_UnitConversion_select").val();
+        var precision_type_value = $("#ODRRenderPlugin_PrecisionType_select").val();
+        var precision_type_num = $("#ODRRenderPlugin_PrecisionType_num").val();
+
+        var rpom_option_value = conversion_unit_value + ':' + precision_type_value;
+        if ( precision_type_value === 'decimal' )
+            rpom_option_value += '_' + precision_type_num;
+
+        $("#plugin_option_{{ rpo_id }}").val(rpom_option_value);
+
+        $(".ODRRenderPlugin_UnitConversion_info").hide();
+        $("#ODRRenderPlugin_PrecisionType_num").parent().hide();
+
+        if ( precision_type_value !== 'decimal' ) {
+            var info_id = 'ODRRenderPlugin_UnitConversion_' + precision_type_value + '_info';
+            $('#' + info_id).show();
+
+            if ( precision_type_value !== 'none' )
+                $("#ODRRenderPlugin_UnitConversion_temperature_info").show();
+        }
+        else {
+            $("#ODRRenderPlugin_PrecisionType_num").parent().show();
+            $("#ODRRenderPlugin_UnitConversion_temperature_info").show();
+
+            var info_id = 'ODRRenderPlugin_UnitConversion_decimal_' + precision_type_num + '_info';
+            $('#' + info_id).show();
+        }
+    }
 
 </script>
 {% endspaceless %}

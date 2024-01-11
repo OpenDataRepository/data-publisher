@@ -312,7 +312,7 @@ class UnitConversionsDef
 
 
     /**
-     * Due to academics,
+     * TODO
      *
      * @var string[]
      */
@@ -320,6 +320,12 @@ class UnitConversionsDef
         'none',
         'precise', // do the calculation "correctly"..."100" has a precision of "1", because the zeros are ambiguous
         'greedy',  // treat "100" as having a precision of "3"
+
+        'decimal_0',  // round to at most this many decimal places
+        'decimal_1',
+        'decimal_2',
+        'decimal_3',
+        'decimal_4',
     );
 
 
@@ -695,9 +701,15 @@ class UnitConversionsDef
             else {
                 $source_value_precision = $tolerance_value_precision = null;
                 if ( is_null($tolerance_value_str) ) {
-                    // If a tolerance value does not exist, then determine the precision based on
-                    //  what the plugin was configured to use
-                    $source_value_precision = self::determinePrecision($source_value_str, $precision_type);
+                    // If a tolerance value does not exist...
+                    if ( strpos($precision_type, 'decimal') === false ) {
+                        // ...and the plugin was not configured to use 'decimal', then determine
+                        //  the precision of the source value
+                        $source_value_precision = self::determinePrecision($source_value_str, $precision_type);
+                    }
+
+                    // If the plugin was instead configured to use 'decimal', the the precision of
+                    //  the source value has no direct effect on the precision of the answer
                 }
                 else {
                     // If a tolerance value exists, then all digits in the source value are significant
@@ -713,9 +725,17 @@ class UnitConversionsDef
                 // TODO - ...but that's a judgement call by definition.  bleh.
 
                 // Ensure the converted values have the correct precision
-                $target_value = self::applyPrecision($target_value, $source_value_precision);
-                if ( !is_null($tolerance_value) )
-                    $tolerance_value = self::applyPrecision($tolerance_value, $tolerance_value_precision);
+                if ( !is_null($tolerance_value) || strpos($precision_type, 'decimal') === false ) {
+                    // The presence of a tolerance value overrides the use of the 'decimal' conversion
+                    $target_value = self::applyPrecision($target_value, $source_value_precision);
+
+                    if ( !is_null($tolerance_value) )
+                        $tolerance_value = self::applyPrecision($tolerance_value, $tolerance_value_precision);
+                }
+                else {
+                    // Only use decimal conversion when there is no tolerance and configured to do so
+                    $target_value = self::applyDecimalPrecision($target_value, $precision_type);
+                }
             }
         }
 
@@ -901,5 +921,32 @@ class UnitConversionsDef
         }
 
         return $fixed_value_str;
+    }
+
+
+    /**
+     * Modifies the given value to have up to a certain number of digits past the decimal point.
+     * TODO - round() or truncate()?
+     *
+     * @param float $target_value
+     * @param string $precision_type
+     *
+     * @return string
+     */
+    public static function applyDecimalPrecision($target_value, $precision_type)
+    {
+        // Get the number of requested digits past the decimal point
+        $num_digits = intval( substr($precision_type, 8) );
+
+        // Need to convert the float back into a string, due to counting digits...
+        $fixed_value_str = strval($target_value);
+        // If the value has decimal places...
+        $decimal_pos = strpos($fixed_value_str, '.');
+        if ( $decimal_pos !== false ) {
+            // ...then round it to the requested number of digits
+            $target_value = round($target_value, $num_digits);
+        }
+
+        return strval($target_value);
     }
 }

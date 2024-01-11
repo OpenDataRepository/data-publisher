@@ -5047,3 +5047,25 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRGraphFilterPlugin_settings_close {
     text-align: right;
 }
+
+.ODRRenderPlugin_UnitConversion_header {
+    text-align: left;
+    text-indent: 15px;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+.ODRRenderPlugin_UnitConversion_body {
+    text-align: left;
+    text-indent: 15px;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.ODRRenderPlugin_UnitConversion_info {
+    text-indent: 0px;
+    font-size: 0.8em;
+
+    margin-top: 5px;
+}

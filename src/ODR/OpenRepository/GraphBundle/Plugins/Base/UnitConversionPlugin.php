@@ -543,14 +543,14 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $precision_type = $original_precision_type;
                     if ( $original_precision_type === '' )
                         $precision_type = '';
-//                    else if ( strpos($original_precision_type, 'decimal') !== false )
-//                        $precision_type = 'decimal';
+                    else if ( strpos($original_precision_type, 'decimal') !== false )
+                        $precision_type = 'decimal';    // Don't care how many decimal places at the moment
 
                     switch ($precision_type) {
                         case 'none':
                         case 'greedy':
                         case 'precise':
-//                        case 'fixed':    // TODO?
+                        case 'decimal':
                             break;
 
                         default:

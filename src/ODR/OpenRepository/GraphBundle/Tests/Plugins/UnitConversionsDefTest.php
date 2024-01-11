@@ -221,6 +221,43 @@ class UnitConversionsDefTest extends WebTestCase
 
 
     /**
+     * @covers \ODR\OpenRepository\GraphBundle\Plugins\UnitConversionsDef::applyDecimalPrecision
+     * @dataProvider provideApplyDecimalPrecisionValues
+     */
+    public function testApplyDecimalPrecision($value, $precision_type, $expected_value_str)
+    {
+        // This function forces a float back into a formatted string, so it's pretty important...
+        $ret = UnitConversionsDef::applyDecimalPrecision($value, $precision_type);
+
+        $this->assertEquals( $expected_value_str, $ret );
+    }
+
+
+    /**
+     * @return array
+     */
+    public function provideApplyDecimalPrecisionValues()
+    {
+        return [
+            // ----------------------------------------
+            'short value, 0 decimal places' => [ 2.54, 'decimal_0', '3' ],
+            'short value, 1 decimal places' => [ 2.54, 'decimal_1', '2.5' ],
+            'short value, 2 decimal places' => [ 2.54, 'decimal_2', '2.54' ],
+            'short value, 3 decimal places' => [ 2.54, 'decimal_3', '2.54' ],
+
+            'long value, 0 decimal places' => [ 3.28084, 'decimal_0', '3' ],
+            'long value, 1 decimal places' => [ 3.28084, 'decimal_1', '3.3' ],
+            'long value, 2 decimal places' => [ 3.28084, 'decimal_2', '3.28' ],
+            'long value, 3 decimal places' => [ 3.28084, 'decimal_3', '3.281' ],
+            'long value, 4 decimal places' => [ 3.28084, 'decimal_4', '3.2808' ],
+
+            'fractional value, 0 decimal places' => [ 0.123, 'decimal_0', '0' ],
+            'fractional value, 1 decimal places' => [ 0.123, 'decimal_1', '0.1' ],
+        ];
+    }
+
+
+    /**
      * @covers \ODR\OpenRepository\GraphBundle\Plugins\UnitConversionsDef::performConversion
      * @dataProvider provideConversionValues
      */
@@ -263,6 +300,18 @@ class UnitConversionsDefTest extends WebTestCase
             'Temp, using none with 2 decimal places' => [ '12.34 C', 'Temperature', 'K', 'none', '285.49 K' ],
             'Temp, using precise with 2 decimal places' => [ '12.34 C', 'Temperature', 'K', 'precise', '285.49 K' ],
             'Temp, using greedy with 2 decimal places' => [ '12.34 C', 'Temperature', 'K', 'greedy', '285.49 K' ],
+
+            // The decimal conversions are easier...
+//            'Decimal, none' => [ '1 m', 'Length', 'ft', 'none', '3.2808398950131 ft' ],    // for reference
+            'Decimal, baseline test 0' => [ '1 m', 'Length', 'ft', 'decimal_0', '3 ft' ],
+            'Decimal, baseline test 1' => [ '1 m', 'Length', 'ft', 'decimal_1', '3.3 ft' ],
+            'Decimal, baseline test 2' => [ '1 m', 'Length', 'ft', 'decimal_2', '3.28 ft' ],
+            'Decimal, baseline test 3' => [ '1 m', 'Length', 'ft', 'decimal_3', '3.281 ft' ],
+            'Decimal, baseline test 4' => [ '1 m', 'Length', 'ft', 'decimal_4', '3.2808 ft' ],
+            // ...but the presence of a tolerance should trigger actual significant figure usage
+            'Decimal, tolerance test 0' => [ '10.0(1) in', 'Length', 'cm', 'decimal_0', '25.4(0.3) cm' ],
+            'Decimal, tolerance test 1' => [ '10(0.1) in', 'Length', 'cm', 'decimal_0', '25(0.3) cm' ],    // not the same as the others, because source value only has 2 digits instead of 3
+            'Decimal, tolerance test 2' => [ '10.0(0.1) in', 'Length', 'cm', 'decimal_0', '25.4(0.3) cm' ],
 
             // Shouldn't need to test the rest of it too strongly...
             'Pressure, using none' => [ '2070 bar', 'Pressure', 'GPa', 'none', '0.207 GPa' ],
