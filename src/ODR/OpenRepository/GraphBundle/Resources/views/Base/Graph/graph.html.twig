@@ -2,6 +2,11 @@
 {# Create a dynamic or static graph - either rollup or individual #}
 {% if odr_chart_legend|length %}
 
+{% set record_name_in_legend = true %}
+{% if plugin_options['record_name_in_legend'] is defined and plugin_options['record_name_in_legend'] == 'no' %}
+    {% set record_name_in_legend = false %}
+{% endif %}
+
     <div class="pure-u-1 DynamicGraphs ODRHidden">
         <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper">
             {% if odr_chart_files|length %}
@@ -241,7 +246,7 @@ var SetupGraphs_{{ odr_chart_id }} = function(graph_type = undefined) {
             {% for mydr_id, legend in odr_chart_legend %}
                 {% if mydr_id == dr_id %}
                     {% set sort_order = datarecord_sortvalues[dr_id] %}
-                    odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }}, "file_id": {{ file.id }} };
+                    odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{% if record_name_in_legend %}{{ legend }}{% endif %}", "dr_id": {{ dr_id }}, "file_id": {{ file.id }} };
                 {% endif %}
             {% endfor %}
             }

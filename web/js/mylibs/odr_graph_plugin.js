@@ -303,6 +303,9 @@ function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
                 file_data[file.display_order] = file;
             }
 
+            // May not always want to show the legend...
+            var show_legend = false;
+
             var loaded_data = [];
             for (var display_order in file_data) {
                 var file = file_data[display_order];
@@ -338,6 +341,10 @@ function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
                         trace.type = 'histogram';
                         trace.name = file.legend;
 
+                        // Only show the legend if there's text there
+                        if ( trace.name !== '' )
+                            show_legend = true;
+
                         // Add line to chart data
                         chart_data.push(trace);
 
@@ -366,7 +373,7 @@ function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
                 xaxis: xaxis_settings,
                 yaxis: yaxis_settings,
 
-                showlegend: true,
+                showlegend: show_legend,
                 hoverlabel: {
                     namelength: 50
                 },
@@ -440,6 +447,9 @@ function ODRGraph_barChartPlotly(chart_obj, onComplete) {
                 file_data[file.display_order] = file;
             }
 
+            // May not always want to show the legend...
+            var show_legend = false;
+
             // Is tracking loaded_data useful?
             var loaded_data = [];
             for (var display_order in file_data) {
@@ -511,6 +521,10 @@ function ODRGraph_barChartPlotly(chart_obj, onComplete) {
                             // Name used for grouping bars
                             trace.name = file.legend;
 
+                            // Only show the legend if there's text there
+                            if ( trace.name !== '' )
+                                show_legend = true;
+
                             // Add line to chart data
                             chart_data.push(trace);
 
@@ -541,7 +555,7 @@ function ODRGraph_barChartPlotly(chart_obj, onComplete) {
                 xaxis: xaxis_settings,
                 yaxis: yaxis_settings,
 
-                showlegend: true,
+                showlegend: show_legend,
                 hoverlabel: {
                     namelength: 50
                 },
@@ -745,6 +759,9 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
                 normalize_y_axis = true;
             }
 
+            // May not always want to show the legend...
+            var show_legend = false;
+
             // Is tracking loaded_data useful?
             var trace_count = 0;
             var loaded_data = [];
@@ -805,6 +822,10 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
                             trace.name = file.legend;
                             if ( selected_columns.length > 2 )
                                 trace.name = file.legend + ' ' + file.headers[ selected_columns[i] ];
+
+                            // Only show the legend if there's text there
+                            if ( trace.name !== '' )
+                                show_legend = true;
 
                             // Want to use WebGL if at all possible, but need the ability to disable
                             //  it because phantomJS only works when rendering SVG
@@ -871,7 +892,6 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
                 yaxis_settings.visible = false;
             }
 
-
             var layout = {
                 // title: 'Title of the Graph',
                 hovermode: 'closest',
@@ -888,7 +908,7 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
                 xaxis: xaxis_settings,
                 yaxis: yaxis_settings,
 
-                showlegend: true,
+                showlegend: show_legend,
                 hoverlabel: {
                     namelength: 50
                 },
@@ -977,6 +997,9 @@ function ODRGraph_stackedAreaChartPlotly(chart_obj, onComplete) {
                 file_data[file.display_order] = file;
             }
 
+            // May not always want to show the legend...
+            var show_legend = false;
+
             // Is tracking loaded_data useful?
             var loaded_data = [];
             for (var display_order in file_data) {
@@ -1046,6 +1069,10 @@ function ODRGraph_stackedAreaChartPlotly(chart_obj, onComplete) {
                             // Name used for grouping bars
                             trace.name = file.legend;
 
+                            // Only show the legend if there's text there
+                            if ( trace.name !== '' )
+                                show_legend = true;
+
                             // Add line to chart data
                             chart_data.push(trace);
 
@@ -1076,7 +1103,7 @@ function ODRGraph_stackedAreaChartPlotly(chart_obj, onComplete) {
                 xaxis: xaxis_settings,
                 yaxis: yaxis_settings,
 
-                showlegend: true,
+                showlegend: show_legend,
                 hoverlabel: {
                     namelength: 50
                 },

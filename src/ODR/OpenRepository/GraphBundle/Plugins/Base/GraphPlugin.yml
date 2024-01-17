@@ -269,6 +269,14 @@ odr_plugins.base.graph:
             description: Choose the layout of the graph area.
             display_order: 32
 
+        record_name_in_legend:
+            name: Record Name/ID in Legend
+            type: String
+            default: yes
+            choices: yes||no
+            description: Whether to include the datarecord name/id on the legend.
+            display_order: 33
+
         # Plotly requires you to set the line width and color at the same time, for whatever reason
 #        line_stroke:
 #            name: Line Width
