@@ -16,14 +16,6 @@
     {% endif %}
 {% endfor %}
 
-
-{% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
-    'datatype': datatype,
-    'theme': theme,
-    'page_type': 'edit',
-    'search_key': search_key,
-} %}
-
 {% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,

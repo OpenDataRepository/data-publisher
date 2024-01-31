@@ -12,7 +12,7 @@
 {% endif %}
 
 <div class="ODRFormWrap">
-    <div class="header">
+    <div class="ODRTextResultsTitle header">
         <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
     </div>
 
@@ -81,7 +81,7 @@
                     </div>
                </div>
             #}
-            "dom": '<"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
+            "dom": '<"ODRDTInfo"il><"ODRDTPager"p>rt<"ODRDTInfoFoot"il><"ODRDTPagerFoot"p>',
 
             {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",

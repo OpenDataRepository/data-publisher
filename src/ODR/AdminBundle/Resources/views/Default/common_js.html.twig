@@ -393,6 +393,8 @@
      * @param {string} [intent]
      */
     function enableSearchSidebar(search_key, force_visible, intent) {
+        if (force_visible === undefined || force_visible === null)
+            force_visible = false;
         // Ensure the sidebar is up to date first...
         if (intent === undefined || intent === null)
             intent = 'searching';
@@ -453,76 +455,51 @@
                     }
 
                     // Need to this to execute after the sidebar gets initialized
-                    setSidebarToggle(force_visible);
+                    console.log('SEARCH TOGGLE 1')
+                    searchToggle(force_visible);
                 }
             });
         }
         else {
             // Don't need to initialize the sidebar, so execute this instead
-            setSidebarToggle(force_visible);
+            console.log('SEARCH TOGGLE 2')
+            // searchToggle(force_visible);
         }
-    }
-
-    /**
-     * TODO
-     *
-     * @param {boolean} [force_visible]
-     */
-    function setSidebarToggle(force_visible) {
-        var sidebar = $("#ODRSearchSidebar");
-        var searchToggle = $(".ODRSearchToggle");
-        var searchContent = $("#ODRSearchContent");
-
-        $(sidebar).removeClass("ODRHidden");
-
-        if (force_visible === undefined || force_visible === null)
-            force_visible = false;
-
-        if ( !force_visible ) {
-            if ($(sidebar).hasClass("ODRSearchVisible"))
-                $(searchContent).removeClass("ODRSearchResultsWide");
-            else
-                $(searchContent).addClass("ODRSearchResultsWide");
-        }
-        else {
-            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
-            $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
-            $(searchContent).removeClass("ODRSearchResultsWide");
-        }
-
-        // Since the sidebar may have changed between visible or not-visible, execute this to be safe
-        recalcDatatablesWidths();
     }
 
     /**
      * Toggles the search sidebar between "visible" and "expanded".
      */
-    function searchToggle() {
+    function searchToggle(force_visible) {
+        if (force_visible === undefined || force_visible === null)
+            force_visible = false;
+
         var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
         var searchContent = $("#ODRSearchContent");
 
-        if ( $(sidebar).hasClass("ODRSearchVisible") ) {
-            $(sidebar).removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+        if (force_visible || $(sidebar).hasClass('ODRSearchHidden')) {
+            // Open the search sidebar
+            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+            $(searchContent).removeClass("ODRSearchResultsWide");
 
             $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-right").removeClass('hidden');
-
-            $(searchContent).addClass("ODRSearchResultsWide");
-        }
-        else {
-            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
-
             $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
             $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
+        }
+        else {
+            // This hides the search sidebar
+            $(sidebar).removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+            $(searchContent).addClass("ODRSearchResultsWide");
 
-            $(searchContent).removeClass("ODRSearchResultsWide");
+            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-right").removeClass('hidden');
         }
 
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         // Have to wait for that to finish before recalculating the width of datatables objects
-        setTimeout("recalcDatatablesWidths()", 300);
+        setTimeout("recalcDatatablesWidths()", 100);
     }
 
     /**

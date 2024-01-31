@@ -12,15 +12,16 @@
 <div class="pure-u-1 clearfix" id="ODRSearchButtons">
 
     <div class="pure-u-1 pure-u-md-1-2">
-    {% if can_edit_datarecord %}
-        <button id="ODREditRecord" type="button" class="pure-button pure-button-primary">Edit</button>
-    {% endif %}
-
-    {% if can_add_datarecord and datatype.isMasterType == 0 %}
-        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">New</button>
-    {% endif %}
-
-        <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary">Download Files...</button>
+        {% if can_edit_datarecord %}
+            <button id="ODREditRecord" type="button" class="pure-button pure-button-primary">Edit</button>
+        {% endif %}
+        <button id="ChooseView" type="button" class="pure-button pure-button-primary">Choose View</button>
+        {% if can_edit_datarecord == true %}
+        <i id="ODRDownloadAllFilesIcon" class="fa fa-file-archive-o Pointer" title="Download files"></i>
+        {% endif %}
+        {% if can_add_datarecord and datatype.isMasterType == 0 %}
+            <i id="ODRAddRecord" class="fa fa-plus Pointer tooltip ODRAddRecord" title="Click to add a record"></i>
+        {% endif %}
     </div>
 
     {% if search_key != '' %}
@@ -49,13 +50,22 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-{% if can_edit_datarecord %}
+        $("#ChooseView").unbind('click').click(function(event) {
+            openChooseViewRemodal();
+        });
+
+
+        {% if can_edit_datarecord %}
+        $("#ODRDownloadAllFilesIcon").unbind('click').click(function() {
+            {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
+            openMassDownloadDialog("{{ search_key }}");
+        });
         $("#ODREditRecord").unbind('click').click(function() {
             loadDataRecord({{ datarecord.id }}, 'edit', '{{ offset }}');
         });
-{% endif %}
+        {% endif %}
 
-{% if can_add_datarecord and datatype.isMasterType == 0 %}
+        {% if can_add_datarecord and datatype.isMasterType == 0 %}
         $("#ODRAddRecord").unbind('click').click(function() {
             var url = '{{ path('odr_edit_fake_record', { 'datatype_id': 0 }) }}';
             url = url.substring(0, (url.length - 1));
@@ -63,12 +73,60 @@
 
             UpdateURL(url);
         });
-{% endif %}
+        {% endif %}
 
         $("#ODRDownloadAllFilesButton").unbind('click').click(function() {
             openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );
         });
     });
+
+
+    /**
+     * Opens the modal for users to view/select available themes for the current page type for
+     * this datatype.
+     */
+    function openChooseViewRemodal() {
+        modal_options = {
+            title: "Choose from available layouts for {{ page_type|replace({'_': ' '})|title }} mode:",
+            // body: "<div>Loading will not display if body is set.</div>",
+            // loading: true,  // Force loading to display
+        };
+        openODRRemodal(modal_options);
+        var url = '{{ path('odr_get_available_themes', { 'datatype_id': datatype.id, 'page_type': page_type, 'search_key': search_key }) }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                $(".ODRRemodalBody").html( data.d );
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
