@@ -105,6 +105,8 @@
                 // Need these in there too
                 data.datatype_id = {{ datatype.id }};
                 data.theme_id = {{ theme.id }};
+
+                data.layout_type = 'short';
                 // console.log('state save', data);
 
                 $.ajax({
@@ -116,7 +118,7 @@
             },
             "stateLoadCallback": function(settings) {
                 var state;
-                var data = {odr_tab_id: window.sessionStorage.getItem('odr_tab_id')};
+                var data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
 
                 $.ajax({
                     "url": "{{ path('odr_datatables_state_load') }}",
@@ -150,7 +152,7 @@
 
                         // Need to also convert any sort_criteria into the correct datatables.js ordering
                         // console.log( sort_criteria );
-                        if ( sort_criteria !== undefined && sort_criteria.datafield_ids.length > 0 ) {
+                        if ( sort_criteria !== undefined && sort_criteria.datafield_ids !== undefined && sort_criteria.datafield_ids.length > 0 ) {
                             var table_obj = $("#TextResults").DataTable();
 
                             var datafield_ids = sort_criteria.datafield_ids;
@@ -199,6 +201,7 @@
                     d.theme_id = {{ theme.id }};
                     d.search_key = "{{ search_key }}";
                     d.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
+                    d.layout_type = 'short';
 
                     // Need to fix problems with the 'order' parameter before it gets saved...
                     d.order = datatablesAjax_cleanOrder(d.order);
@@ -447,9 +450,10 @@
     function datatablesAjax_cleanOrder(order) {
         var cleaned_order = [];
         $.each(order, function(i,elem) {
-            // Determine whether this column was already seen...
+            // Don't attempt to save when it's being ordered on the two "hidden" columns...
             var col_id = elem.column;
             if ( parseInt(col_id) > 1 ) {
+                // Determine whether this column was already seen...
                 var index = -1;
                 $.each(cleaned_order, function(j,saved_col) {
                     if ( saved_col.column == col_id ) {
