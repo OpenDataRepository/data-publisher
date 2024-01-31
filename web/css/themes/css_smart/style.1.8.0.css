@@ -654,7 +654,7 @@ footer ul li:first-child {
 #ODRMainMenu .pure-menu-heading,
 #ODRMainMenu .pure-menu-link {
     text-transform: none;
-    color: RGBA(77, 136, 220, 1.00) !important;
+    color: #EEEEFF;
 }
 #ODRMainMenu .pure-menu-item {
     padding-left: 0;
@@ -1618,6 +1618,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 }
 
 #ODRSearchContent {
+    margin-top: 25px;
     margin-bottom: 20px;
 }
 .ODRPaginationLabel {
