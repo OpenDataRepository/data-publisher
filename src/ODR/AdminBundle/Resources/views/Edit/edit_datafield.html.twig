@@ -213,19 +213,28 @@
                         &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-left" title="Rotate Image 90 degrees counter-clockwise" rel="{{ oimage.id }}"></i>
                         &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-right" title="Rotate Image 90 degrees clockwise" rel="{{ oimage.id }}"></i>
                         &nbsp;<i class="ODRImageRenameTrigger tooltip Pointer fa fa-lg fa-edit" title="Rename Image" rel="{{ oimage.id }}"></i>
+
+                        {% if datafield_meta.quality_str != '' %}
+                            {% include 'ODRAdminBundle:Edit:file_quality.html.twig' with {
+                                'datafield': datafield,
+                                'file': oimage,
+                                'meta': oimage_meta,
+                            } %}
+                        {% endif %}
                     </div>
+
                     <div class="pure-u-1" style="display: none;">
                         <input id="ODRImage_{{ oimage.id }}_rename"
-                               class="ODRImageRenameInput"
+                               class="ODRImageRenameInput pure-u-1"
                                type="text"
                                maxlength="255"
-                               size="50"
                                value="{{ image_filename }}"
                         />
                         <button class="pure-button ODRImageRenameButton" title="Save changes to filename">
                             <i class="fa fa-lg fa-save"></i>
                         </button>
                     </div>
+
                     <div class="pure-u-23-24">
                         <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
                             <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}?{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />

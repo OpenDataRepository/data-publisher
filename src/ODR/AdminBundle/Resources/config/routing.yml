@@ -737,6 +737,20 @@ odr_record_rename_image:
     requirements:
         image_id:  \d+
 
+odr_record_file_quality:
+    path:  /edit/filequality/{file_id}/{quality}
+    defaults: { _controller: ODRAdminBundle:Edit:filequality }
+    requirements:
+        file_id:  \d+
+        quality:  -?\d+
+
+odr_record_image_quality:
+    path:  /edit/imagequality/{image_id}/{quality}
+    defaults: { _controller: ODRAdminBundle:Edit:imagequality }
+    requirements:
+        image_id:  \d+
+        quality:  -?\d+
+
 odr_record_public_file:
     path:  /edit/publicfile/{file_id}
     defaults: { _controller: ODRAdminBundle:Edit:publicfile }

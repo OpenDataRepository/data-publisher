@@ -357,6 +357,8 @@ class DisplayController extends ODRCustomController
             $header_html = $templating->render(
                 'ODRAdminBundle:Display:display_header.html.twig',
                 array(
+                    'page_type' => 'display',
+
                     'can_edit_datarecord' => $can_edit_datarecord,
                     'can_add_datarecord' => $can_add_datarecord,
                     'datarecord' => $datarecord,

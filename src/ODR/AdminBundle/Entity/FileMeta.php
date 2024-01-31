@@ -37,6 +37,11 @@ class FileMeta
     private $originalFileName;
 
     /**
+     * @var int
+     */
+    private $quality;
+
+    /**
      * @var string
      */
     private $external_id;
@@ -131,6 +136,30 @@ class FileMeta
     public function getOriginalFileName()
     {
         return $this->originalFileName;
+    }
+
+    /**
+     * Set quality.
+     *
+     * @param int $quality
+     *
+     * @return FileMeta
+     */
+    public function setQuality($quality)
+    {
+        $this->quality = $quality;
+
+        return $this;
+    }
+
+    /**
+     * Get quality.
+     *
+     * @return int
+     */
+    public function getQuality()
+    {
+        return $this->quality;
     }
 
     /**

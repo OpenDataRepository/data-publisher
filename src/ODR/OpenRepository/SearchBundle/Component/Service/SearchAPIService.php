@@ -384,7 +384,7 @@ class SearchAPIService
                 $pieces = explode('_', $key);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // This is a DatetimeValue field...
+                    // This is a DatetimeValue or a File/Image field...
                     $df_id = intval($pieces[0]);
 
                     foreach ($searchable_datafields as $dt_id => $datafields) {
@@ -572,9 +572,8 @@ class SearchAPIService
                             $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                         }
                         else if ($typeclass === 'File' || $typeclass === 'Image') {
-                            // TODO - implement searching based on public status of file/image?
                             // Searches on Files/Images are effectively interchangable
-                            $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term['filename'], $search_term['has_files']);
+                            $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term);    // There could be three different terms in there, actually
                         }
                         else if ($typeclass === 'DatetimeValue') {
                             // DatetimeValue needs to worry about before/after...
@@ -1266,9 +1265,8 @@ class SearchAPIService
                         $results = $this->search_service->searchTagTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
                     else if ($typeclass === 'File' || $typeclass === 'Image') {
-                        // TODO - implement searching based on public status of file/image?
                         // Searches on Files/Images are effectively interchangable
-                        $results = $this->search_service->searchFileOrImageTemplateDatafield($entity, $search_term['filename'], $search_term['has_files']);
+                        $results = $this->search_service->searchFileOrImageTemplateDatafield($entity, $search_term);    // There could be three different terms in there, actually
                     }
                     else if ($typeclass === 'DatetimeValue') {
                         // DatetimeValue needs to worry about before/after...
@@ -1409,8 +1407,8 @@ class SearchAPIService
      *
      * @param array $records
      * @param array $labels
-     * @param array $searchable_datafields @see self::getSearchableDatafieldsForUser()
-     * @param array $flattened_list @see self::getSearchArrays()
+     * @param array $searchable_datafields {@link self::getSearchableDatafieldsForUser()}
+     * @param array $flattened_list {@link self::getSearchArrays()}
      *
      * @return array
      */
@@ -1452,7 +1450,7 @@ class SearchAPIService
      * gathers that required info in a single spot.
      *
      * @param DataType[] $hydrated_datatypes
-     * @param int[] $affected_datatypes @see SearchKeyService::convertSearchKeyToCriteria()
+     * @param int[] $affected_datatypes {@link SearchKeyService::convertSearchKeyToCriteria()}
      * @param array $user_permissions The permissions of the user doing the search, or an empty
      *                                array when not logged in
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
@@ -1531,13 +1529,13 @@ class SearchAPIService
      *  is some compound of the various binary flags defined at the top of the SearchAPIService.
      *
      * The second array is an "inflated" array of all records and their descendants, used to locate
-     *  each individual datarecord that matches the search. @see self::buildDatarecordTree()
+     *  each individual datarecord that matches the search. {@link self::buildDatarecordTree()}
      *
-     * The third array (@see self::buildSearchDatatree()) is used as a guide for merging the various
-     * facets of records that matched the search. @see self::mergeSearchResults()
+     * The third array {@link self::buildSearchDatatree()} is used as a guide for merging the various
+     * facets of records that matched the search. {@link self::mergeSearchResults()}
      *
      * @param int[] $top_level_datatype_ids
-     * @param array $permissions_array @see self::getSearchPermissionsArray()
+     * @param array $permissions_array {@link self::getSearchPermissionsArray()}
      *
      * @return array
      */
@@ -1664,7 +1662,7 @@ class SearchAPIService
 
 
     /**
-     * Recursively builds an array of the following form for @see self::mergeSearchResults() to use:
+     * Recursively builds an array of the following form for {@link self::mergeSearchResults()} to use:
      *
      * <datatype_id> => array(
      *     'dr_list' => <datarecord_list>,
@@ -1674,7 +1672,7 @@ class SearchAPIService
      *
      * ...where the array structure is recursively repeated inside 'children' and 'links', depending
      *  on whether the descendant is a child or a linked datatype.
-     * The <datarecord_list> stores whatever @see SearchService::getCachedSearchDatarecordList()
+     * The <datarecord_list> stores whatever {@link SearchService::getCachedSearchDatarecordList()}
      *  returns for the current datatype.
      *
      * @param array $datatree_array
@@ -1791,7 +1789,7 @@ class SearchAPIService
      * The "template" analog of self::getSearchArrays() does mostly the same thing, but it doesn't
      * attempt to get the list of records from cached data...instead, it uses a handful of specific
      * queries to load all records that the user is allowed to see, with as little overhead as
-     * possible. @see self::getSearchArrays()
+     * possible. {@link self::getSearchArrays()}
      *
      * @param string $template_uuid
      * @param array $top_level_datatype_ids An array where the keys are top-level datatype ids that
@@ -2101,9 +2099,9 @@ class SearchAPIService
      * This function requires that self::buildSearchDatatree() is run on the template datatype first,
      * so it can modify that result to "pretend" that the template datatypes "own" all records from
      * all datatypes derived from their relevant templates.
-     * @see self::mergeSearchResults()
+     * {@link self::mergeSearchResults()}
      *
-     * @param array $search_datatree @see self::buildSearchDatatree()
+     * @param array $search_datatree {@link self::buildSearchDatatree()}
      * @param array $all_datatypes
      * @param array $all_datarecords
      * @param bool $is_link
@@ -2187,7 +2185,7 @@ class SearchAPIService
      * into a long chain of AND statements...but a "general" search is technically a shorthand for a
      * lot of individual searches that need their results combined using both OR and AND statements,
      * and therefore requires noticeably different logic for it to return the correct results.
-     * @see SearchKeyService::convertSearchKeyToCriteria() for what a "general" search actually is
+     * {@link SearchKeyService::convertSearchKeyToCriteria()} for what a "general" search actually is
      *
      *
      * The majority of the that logic is in this function...using $search_datatree as a guide, the

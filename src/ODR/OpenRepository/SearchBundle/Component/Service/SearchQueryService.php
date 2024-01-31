@@ -967,23 +967,24 @@ class SearchQueryService
      * @param int $datatype_id
      * @param int $datafield_id
      * @param string $typeclass
-     * @param string|null $filename
-     * @param bool $has_files
+     * @param string $search_type
+     * @param string $search_value
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $filename, $has_files)
+    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_type, $search_value)
     {
         // ----------------------------------------
         // Figure out which type of query to use
         $conn = $this->em->getConnection();
         $results = array();
 
-        if ( !is_null($filename) && $filename !== '' ) {
-            $search_params = self::parseField($filename, $typeclass);
+        if ( $search_type === 'filename' ) {
+            $search_params = self::parseField($search_value, $typeclass);
             $search_params['params']['datafield_id'] = $datafield_id;
 
-            $filename_match_query =
+            // Define the base query for searching by filenames...
+            $query =
                'SELECT dr.id AS dr_id
                 FROM odr_data_record AS dr
                 JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
@@ -993,39 +994,74 @@ class SearchQueryService
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
                 AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
 
-            $results = $conn->fetchAll($filename_match_query, $search_params['params']);
-        }
-        else if ($has_files) {
-            $has_files_query =
-               'SELECT dr.id AS dr_id
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE e.data_field_id = :datafield_id
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-
-            // Don't need any special parameters when searching for which datarecords have files
-            $params = array(
-                'datafield_id' => $datafield_id
-            );
-
-            $results = $conn->fetchAll($has_files_query, $params);
-        }
-        else {
-            $does_not_have_files_query =
+            // Also define the query used when searching for something without uploaded files/images...
+            $null_query =
                'SELECT dr.id AS dr_id
                 FROM odr_data_record AS dr
                 LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
                 LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
                 WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
 
-            // Don't need any special parameters when searching for which datarecords don't have files
-            $params = array(
-                'datatype_id' => $datatype_id
+            // Determine whether this query's search parameters contain an empty string...if so, may
+            //  have to to run an additional query because of how ODR is designed...
+            if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+                // ...but only when the query actually has a logical chance of returning results...
+                if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+                    $search_params['params']['datatype_id'] = $datatype_id;
+                    $query .= "\nUNION\n".$null_query;
+                }
+            }
+
+            $results = $conn->fetchAll($query, $search_params['params']);
+        }
+        else if ( $search_type === 'public_status' ) {
+            // Assume the search is for public files/images at first...
+            $search_params = array(
+                'str' => 'e.data_field_id = :datafield_id AND e_m.public_date != :public_date',
+                'params' => array(
+                    'datafield_id' => $datafield_id,
+                    'public_date' => '2200-01-01 00:00:00'
+                )
+            );
+            // ...but if the value is zero then it's a search for non-public files/images
+            if ( $search_value === 0 )
+                $search_params['str'] = 'e_m.public_date = :public_date';
+
+            $public_status_query =
+               'SELECT dr.id AS dr_id
+                FROM odr_data_record AS dr
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+                WHERE '.$search_params['str'].'
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+            $results = $conn->fetchAll($public_status_query, $search_params['params']);
+        }
+        else if ( $search_type === 'quality' ) {
+            // Don't need to modify the stuff for quality
+            $search_params = array(
+                'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
+                'params' => array(
+                    'datafield_id' => $datafield_id,
+                    'quality' => $search_value
+                )
             );
 
-            $results = $conn->fetchAll($does_not_have_files_query, $params);
+            $quality_query =
+               'SELECT dr.id AS dr_id
+                FROM odr_data_record AS dr
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+                WHERE '.$search_params['str'].'
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+            $results = $conn->fetchAll($quality_query, $search_params['params']);
         }
+
 
         // Convert the results into an array of datarecord ids
         $datarecords = array();
@@ -1042,77 +1078,118 @@ class SearchQueryService
      *
      * @param string $master_datafield_uuid
      * @param string $typeclass
-     * @param string|null $filename
-     * @param bool $has_files
+     * @param string $search_type
+     * @param string $search_value
      *
      * @return array
      */
-    public function searchFileOrImageTemplateDatafield($master_datafield_uuid, $typeclass, $filename, $has_files)
+    public function searchFileOrImageTemplateDatafield($master_datafield_uuid, $typeclass, $search_type, $search_value)
     {
+        // TODO - this is both technically unused, and actually untested...
+
         // ----------------------------------------
         // Figure out which type of query this is
         $conn = $this->em->getConnection();
         $results = array();
 
-        if ( !is_null($filename) && $filename !== '' ) {
-            $search_params = self::parseField($filename, $typeclass);
+        if ( $search_type === 'filename' ) {
+            $search_params = self::parseField($search_value, $typeclass);
             $search_params['params']['template_df_id'] = $master_datafield_uuid;
 
-            $filename_match_query =
-               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
-                FROM odr_data_type AS mdt
-                JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
-                JOIN odr_data_fields AS df ON df.data_type_id = dt.id
-                JOIN odr_data_record_fields AS drf ON drf.data_field_id = df.id
-                JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE df.template_field_uuid = :template_df_id AND ('.$search_params['str'].')
-                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            $results = $conn->fetchAll($filename_match_query, $search_params['params']);
-        }
-        else if ($has_files) {
-            $has_files_query =
-               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
-                FROM odr_data_type AS mdt
-                JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
-                JOIN odr_data_fields AS df ON df.data_type_id = dt.id
-                JOIN odr_data_record_fields AS drf ON drf.data_field_id = df.id
-                JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE df.template_field_uuid = :template_df_id
-                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND e.deletedAt IS NULL';
-
-            // Don't need any special parameters when searching for which datarecords have files
-            $params = array(
-                'template_df_id' => $master_datafield_uuid
-            );
-
-            $results = $conn->fetchAll($has_files_query, $params);
-        }
-        else {
-            $does_not_have_files_query =
+            // Define the base query for searching by filenames...
+            $query =
                'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
                 FROM odr_data_type AS mdt
                 JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
                 JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
                 JOIN odr_data_fields AS df ON df.data_type_id = dt.id
-                LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = df.id AND drf.deletedAt IS NULL) OR drf.id IS NULL)
-                LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE df.template_field_uuid = :template_df_id AND e.id IS NULL
-                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
-                AND df.deletedAt IS NULL';
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+                WHERE df.template_field_uuid = :template_df_id AND ('.$search_params['str'].')
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NULL
+                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
 
-            // Don't need any special parameters when searching for which datarecords don't have files
-            $params = array(
-                'template_df_id' => $master_datafield_uuid
+            // Also define the query used when searching for something without uploaded files/images...
+            $null_query =
+               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+                FROM odr_data_type AS mdt
+                JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+                JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
+                JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+                LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+                LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                WHERE df.template_field_uuid = :template_df_id
+                AND e.id IS NULL
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND dr.deletedAt IS NULL AND df.deletedAt IS NULL';
+
+            // Determine whether this query's search parameters contain an empty string...if so, may
+            //  have to to run an additional query because of how ODR is designed...
+            if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+                // ...but only when the query actually has a logical chance of returning results...
+                if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+                    $query .= "\nUNION\n".$null_query;
+                }
+            }
+
+            $results = $conn->fetchAll($query, $search_params['params']);
+        }
+        else if ( $search_type === 'public_status' ) {
+            // Assume the search is for public files/images at first...
+            $search_params = array(
+                'str' => 'e.template_field_uuid = :template_df_id AND e_m.public_date != :public_date',
+                'params' => array(
+                    'template_df_id' => $master_datafield_uuid,
+                    'public_date' => '2200-01-01 00:00:00'
+                )
+            );
+            // ...but if the value is zero then it's a search for non-public files/images
+            if ( $search_value === 0 )
+                $search_params['str'] = 'e_m.public_date = :public_date';
+
+            $public_status_query =
+               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+                FROM odr_data_type AS mdt
+                JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+                JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
+                JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+                WHERE '.$search_params['str'].'
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NULL
+                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+            $results = $conn->fetchAll($public_status_query, $search_params['params']);
+        }
+        else if ( $search_type === 'quality' ) {
+            // Don't need to modify the stuff for quality
+            $search_params = array(
+                'str' => 'e.template_field_uuid = :template_df_id AND e_m.quality = :quality',
+                'params' => array(
+                    'template_df_id' => $master_datafield_uuid,
+                    'quality' => $search_value
+                )
             );
 
-            $results = $conn->fetchAll($does_not_have_files_query, $params);
+            $quality_query =
+               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+                FROM odr_data_type AS mdt
+                JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+                JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
+                JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+                WHERE '.$search_params['str'].'
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NULL
+                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+            $results = $conn->fetchAll($quality_query, $search_params['params']);
         }
 
         // Convert the results into an array of datarecord ids
@@ -1530,13 +1607,19 @@ class SearchQueryService
 
             $pieces = explode(' AND ', $block);
             foreach ($pieces as $piece) {
+                // This is usually going to be called on text/number fields, which use e.value...
                 $char = $piece[8];
+                if ( strpos($piece, 'orig') !== false ) {
+                    // ...but file/image filenames use e_m.original_file_name
+                    $char = $piece[23];
+                }
+
                 if ($char === 'L') {
-                    // searching for  e.value LIKE <something>  ...can't be null
+                    // searching for   `LIKE <something>`  ...can't be null
                     $possible = false;
                 }
                 else if ($char === 'N') {
-                    // searching for  e.value NOT LIKE <something>  ...can be null
+                    // searching for   `NOT LIKE <something>`  ...can be null
                 }
                 else if ($char === '<' || $char === '>') {
                     // searching on some inequality...can't be null
@@ -1545,7 +1628,7 @@ class SearchQueryService
                 else if ($char === 'I') {
                     // Searching based on a null value...
                     if ( strpos($piece, 'NOT') !== false ) {
-                        // searching for e.value IS NOT NULL  ...can't be null
+                        // searching for   `IS NOT NULL`  ...can't be null
                         $possible = false;
                     }
                 }
@@ -1554,11 +1637,11 @@ class SearchQueryService
                     $term = substr($piece, strpos($piece, ':')+1);
 
                     if ($char === '!' && $params[$term] === '') {
-                        // seaching for  e.value != "" ...can't be null
+                        // seaching for   `!= ""`   ...can't be null
                         $possible = false;
                     }
                     else if ($char === '=' && $params[$term] !== '') {
-                        // searching for  e.value = "<something>"  ...can't be null
+                        // searching for   `= "<something>"`   ...can't be null
                         $possible = false;
                     }
                 }
@@ -1781,6 +1864,19 @@ class SearchQueryService
                             }
                             break;
                         default:
+                            if ( $i > 0 && $str[$i-1] === '"' ) {
+                                // If this character is immediately preceeded by a double-quote, then
+                                //  assume it's a typo and that the user intended to have a space
+                                $pieces[] = '&&';
+
+                                // NOTE: this might not be the best solution...but without something
+                                //  here a string like '"":' will cause an exception later on...it'll
+                                //  end up being converted to something like
+                                //  "e.value = :term_0 LIKE :term_1"
+                                //  due to not having a logical connective between the doublequotes
+                                //  and the colon.
+                            }
+
                             // part of a string
                             $tmp .= $char;
                             break;

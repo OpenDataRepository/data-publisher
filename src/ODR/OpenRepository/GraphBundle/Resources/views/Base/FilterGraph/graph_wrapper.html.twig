@@ -68,6 +68,8 @@
                             <div>
                                 <label for="{{ odr_chart_id }}_show_hidden_filters">Show Hidden Fields: </label>
                                 <input type="checkbox" id="{{ odr_chart_id }}_show_hidden_filters" />
+                                <label for="{{ odr_chart_id }}_show_odr_data">Always Show ODR Data: </label>
+                                <input type="checkbox" id="{{ odr_chart_id }}_show_odr_data" />
                             </div>
                         </div>
                     </div>
@@ -238,6 +240,17 @@
                     $("select.graph_columns").blur();
                 }
             }
+
+            // Don't want the settings div open anymore
+            $(this).closest(".ODRGraphFilterPlugin_settings").first().hide();
+        });
+
+        $("#{{ odr_chart_id }}_show_odr_data").unbind('change').change(function() {
+            var pieces = $(this).attr('id').split('_');
+            var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
+
+            // Just trigger a graph redraw
+            ODRGraph_triggerDynamicGraph(chart_id);
 
             // Don't want the settings div open anymore
             $(this).closest(".ODRGraphFilterPlugin_settings").first().hide();

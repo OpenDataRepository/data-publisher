@@ -5116,3 +5116,18 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRGraphFilterPlugin_settings_close {
     text-align: right;
 }
+
+
+.ODRFileQuality_wrapper {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+}
+.ODRImageQuality_wrapper {
+    float:right;
+    margin-right: 5px;
+}
+.ODRFileQuality_label {
+    position: relative !important;
+    top: 0px !important;
+}

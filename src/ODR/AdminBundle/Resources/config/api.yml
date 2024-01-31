@@ -477,7 +477,7 @@ odr_api_user_permissions:
     _format: '|json|xml'
 
 odr_api_user_check:
-  path: ^/api/{version}/user
+  path: /api/{version}/user
   defaults: { _controller: ODRAdminBundle:API:user, _format: json, version: 'v3' }
   methods: [ POST ]
   requirements:

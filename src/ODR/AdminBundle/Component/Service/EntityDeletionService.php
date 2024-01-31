@@ -355,6 +355,18 @@ class EntityDeletionService
             );
             $rows = $query->execute();
 
+            // ...derived datafields
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:DataFields AS df
+                SET df.templateFieldUuid = NULL
+                WHERE df.templateFieldUuid = :field_uuid'
+            )->setParameters(
+                array(
+                    'field_uuid' => $datafield->getFieldUuid()
+                )
+            );
+            $rows = $query->execute();
+
 
             // ----------------------------------------
             // Need to locate all other datatypes that are using this soon-to-be-deleted datafield

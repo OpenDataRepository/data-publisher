@@ -101,7 +101,7 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             nullable: false
             default: false
 
-        # These three apply to both files and images
+        # These four apply to both files and images
         allow_multiple_uploads:
             type: boolean
             nullable: false
@@ -117,6 +117,14 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             nullable: false
             default: false
             column: new_files_are_public
+
+        quality_str:
+            type: string
+            length: 255
+            fixed: false
+            nullable: false
+            default: ''
+            column: quality_str
 
         # This one only applies to radio options
         children_per_row:

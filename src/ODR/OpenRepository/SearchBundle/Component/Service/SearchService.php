@@ -901,12 +901,11 @@ class SearchService
      * any files or not, and returns an array of datarecord ids that match the given criteria.
      *
      * @param DataFields $datafield
-     * @param string|null $filename
-     * @param bool|null $has_files
+     * @param array $search_terms
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datafield, $filename = null, $has_files = null)
+    public function searchFileOrImageDatafield($datafield, $search_terms)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -920,49 +919,76 @@ class SearchService
 
 
         // ----------------------------------------
-        // Need to convert the two arguments into a single key...
-        if ( $filename === '' )
-            $filename = null;
+        // There are potentially three different entries in $search_terms to deal with
+        $filename = $public_status = $quality = null;
+        if ( isset($search_terms['filename']) && $search_terms['filename'] !== '' )
+            $filename = $search_terms['filename'];
+        if ( isset($search_terms['public_status']) )
+            $public_status = $search_terms['public_status'];
+        if ( isset($search_terms['quality']) )
+            $quality = intval($search_terms['quality']);
 
-        if ( is_null($filename) && is_null($has_files) )
-            throw new ODRBadRequestException("The filename and has_files arguments to searchFileOrImageDatafield() can't both be null at the same time", 0xab627079);
+        if ( is_null($filename) && is_null($public_status) && is_null($quality) )
+            throw new ODRBadRequestException("The arguments to searchFileOrImageDatafield() can't all be null at the same time", 0xab627079);
 
-        if ( !is_null($filename) )
-            $has_files = true;
 
-        $key = array(
+        // Overwrite the search terms array, since these three searches are going to be independent
+        $search_terms = array(
             'filename' => $filename,
-            'has_files' => $has_files
+            'public_status' => $public_status,
+            'quality' => $quality,
         );
-        $key = md5( serialize($key) );
+        $datarecord_lists = array();
 
 
+        // ----------------------------------------
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
             $cached_searches = array();
 
-        if ( isset($cached_searches[$key]) )
-            return $cached_searches[$key];
+        foreach ($search_terms as $key => $value) {
+            // For each of the three possible searches...
+            if ( !is_null($value) ) {
+                // ...if the search has a term defined, then check whether it's already cached
+                if ( !isset($cached_searches[$key][$value]) ) {
+                    // Doesn't exist, so run the search again...
+                    $result = $this->search_query_service->searchFileOrImageDatafield(
+                        $datafield->getDataType()->getId(),
+                        $datafield->getId(),
+                        $typeclass,
+                        $key,
+                        $value
+                    );
+
+                    // Store for later...
+                    $cached_searches[$key][$value] = $result;
+                }
+
+                // Now that it's guaranteed to exist, pull it back out of the cache entry
+                $datarecord_lists[$key] = $cached_searches[$key][$value];
+            }
+        }
 
 
         // ----------------------------------------
-        // Otherwise, going to need to run the search again...
-        $result = $this->search_query_service->searchFileOrImageDatafield(
-            $datafield->getDataType()->getId(),
-            $datafield->getId(),
-            $typeclass,
-            $filename,
-            $has_files
-        );
+        // Need to merge the results of the queries together...
+        $result = null;
+
+        // TODO - always merging by AND...should it merge by OR in some situations?
+        foreach ($datarecord_lists as $key => $dr_list) {
+            if ( is_null($result) )
+                $result = $dr_list;
+            else
+                $result = array_intersect_key($result, $dr_list);
+        }
 
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result
         );
 
-        // ...then recache the search result
-        $cached_searches[$key] = $end_result;
+        // ...and recache the search result
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
@@ -976,12 +1002,11 @@ class SearchService
      * criteria.
      *
      * @param DataFields $template_datafield
-     * @param string|null $filename
-     * @param bool|null $has_files
+     * @param array $search_terms
      *
      * @return array
      */
-    public function searchFileOrImageTemplateDatafield($template_datafield, $filename = null, $has_files = null)
+    public function searchFileOrImageTemplateDatafield($template_datafield, $search_terms)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -991,54 +1016,89 @@ class SearchService
         );
         $typeclass = $template_datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
-            throw new ODRBadRequestException('searchFileOrImageTemplateDatafield() called with '.$typeclass.' datafield', 0xab627079);
+            throw new ODRBadRequestException('searchFileOrImageTemplateDatafield() called with '.$typeclass.' datafield', 0x45eca2a7);
         if ( !$template_datafield->getIsMasterField() )
-            throw new ODRBadRequestException('searchFileOrImageTemplateDatafield() called with non-master datafield', 0xab627079);
+            throw new ODRBadRequestException('searchFileOrImageTemplateDatafield() called with non-master datafield', 0x45eca2a7);
 
 
         // ----------------------------------------
-        // Need to convert the two arguments into a single key...
-        if ( $filename === '' )
-            $filename = null;
+        // There are potentially three different entries in $search_terms to deal with
+        $filename = $public_status = $quality = null;
+        if ( isset($search_terms['filename']) && $search_terms['filename'] !== '' )
+            $filename = $search_terms['filename'];
+        if ( isset($search_terms['public_status']) )
+            $public_status = $search_terms['public_status'];
+        if ( isset($search_terms['quality']) )
+            $quality = intval($search_terms['quality']);
 
-        if ( is_null($filename) && is_null($has_files) )
-            throw new ODRBadRequestException("The filename and has_files arguments to searchFileOrImageTemplateDatafield() can't both be null at the same time", 0xab627079);
+        if ( is_null($filename) && is_null($public_status) && is_null($quality) )
+            throw new ODRBadRequestException("The arguments to searchFileOrImageTemplateDatafield() can't all be null at the same time", 0x45eca2a7);
 
-        if ( !is_null($filename) )
-            $has_files = true;
 
-        $key = array(
+        // Overwrite the search terms array, since these three searches are going to be independent
+        $search_terms = array(
             'filename' => $filename,
-            'has_files' => $has_files
+            'public_status' => $public_status,
+            'quality' => $quality,
         );
-        $key = md5( serialize($key) );
+        $results = null;
 
 
+        // ----------------------------------------
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
             $cached_searches = array();
 
-        if ( isset($cached_searches[$key]) )
-            return $cached_searches[$key];
+        foreach ($search_terms as $key => $value) {
+            // For each of the three possible searches...
+            if ( !is_null($value) ) {
+                // ...if the search has a term defined, then check whether it's already cached
+                if ( !isset($cached_searches[$key][$value]) ) {
+                    // ...it's not, so run the search again
+                    $result = $this->search_query_service->searchFileOrImageTemplateDatafield(
+                        $template_datafield->getId(),
+                        $typeclass,
+                        $key,
+                        $value
+                    );
+                    // TODO - this is both technically unused, and actually untested...
+
+                    // Store for later...
+                    $cached_searches[$key][$value] = $result;
+                }
+
+                // Now that it's guaranteed to exist, pull it back out of the cache entry
+                $results[$key] = $cached_searches[$key][$value];
+            }
+        }
 
 
         // ----------------------------------------
-        // Otherwise, going to need to run the search again...
-        $result = $this->search_query_service->searchFileOrImageTemplateDatafield(
-            $template_datafield->getFieldUuid(),
-            $typeclass,
-            $filename,
-            $has_files
-        );
+        // Need to merge the results of the queries together...
+        $end_result = null;
 
+        // TODO - always merging by AND...should it merge by OR in some situations?
+        foreach ($results as $key => $dr_list) {
+            if ( is_null($end_result) ) {
+                // If first run, then use the first set of results to start off with
+                $end_result = $dr_list;
+            }
+            else {
+                // Otherwise, only save the datarecord ids that are in both arrays
+                $end_result = self::templateResultsIntersect($end_result, $dr_list);
+            }
+
+            // If nothing in the array, then no results are possible
+            if ( count($end_result) == 0 )
+                break;
+        }
 
         // ...then recache the search result
-        $cached_searches[$key] = $result;
         $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid(), $cached_searches);
 
-        // ...then return it
-        return $result;
+        // ...and return it
+        return $end_result;
     }
 
 

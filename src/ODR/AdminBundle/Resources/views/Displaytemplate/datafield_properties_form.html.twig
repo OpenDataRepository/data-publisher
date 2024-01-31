@@ -383,6 +383,40 @@
             </span>
         </div>
 #}
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.quality_str) }}
+
+            <span>
+                {% set quality_str = datafield_form.quality_str.vars.value %}
+                {% if quality_str != '' and quality_str != 'toggle' and quality_str != 'stars5' %}
+                    {% set quality_str = 'custom' %}
+                {% endif %}
+
+                <label for="{{ datafield_form.quality_str.vars.id }}">
+                    {{ datafield_form.quality_str.vars.label }}
+
+                    <i class="ODRDesign_quality_warning fa fa-lg {% if valid_quality_json %}fa-check-circle ODRActiveIcon{% else %}fa-exclamation-triangle ODRInputError{% endif %}" title="{{ quality_json_error }}" {% if quality_str != 'custom' %}style="display: none;"{% endif %}></i>
+                </label>
+
+                <select id="{{ datafield_form.quality_str.vars.id }}_select" class="ODRDesign_quality_select">
+                    <option value="" title="Users are unable to set quality/rating for {{ typename }}s" {% if quality_str == '' %}selected{% endif %}>Disabled</option>
+                    <option value="toggle" {% if quality_str == 'toggle' %}selected{% endif %}>Toggle</option>
+                    <option value="stars5" {% if quality_str == 'stars5' %}selected{% endif %}>Stars (out of 5)</option>
+                    <option value="custom" {% if quality_str == 'custom' %}selected{% endif %}>Custom...</option>
+                </select>
+
+                <input id="{{ datafield_form.quality_str.vars.id }}_field" class="ODRDesign_quality_field" type="text" {% if quality_str != 'custom' %}style="display: none;"{% endif %} value="{{ datafield_form.quality_str.vars.value }}" />
+
+                {# Need the actual control to remain hidden... #}
+                {{ form_widget(datafield_form.quality_str, {
+                    'attr': {
+                        'style': 'display: none;',
+                    }
+                }) }}
+
+                {# NOTE: the special javascript required for this field is off in InitDatafieldPropertiesForm() #}
+            </span>
+        </div>
     {% endif %}
 
         <div class="">

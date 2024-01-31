@@ -15,6 +15,8 @@ namespace ODR\AdminBundle\Twig;
 
 // Entities
 use ODR\AdminBundle\Entity\RenderPlugin;
+// Utilities
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Interfaces
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
@@ -83,51 +85,11 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('filesize', array($this, 'filesizeFilter')),
             new \Twig\TwigFilter('is_empty', array($this, 'isEmptyFilter')),
             new \Twig\TwigFilter('is_filtered', array($this, 'isFilteredDivFilter')),
+            new \Twig\TwigFilter('quality_json_decode', array($this, 'qualityJsonFilter')),
 
             new \Twig\TwigFilter('get_value', array($this, 'getValueFilter')),
             new \Twig\TwigFilter('get_field_value', array($this, 'getFieldValueFilter')),
-            new \Twig\TwigFilter('ceil', array($this, 'ceilingFilter')),
-            new \Twig\TwigFilter('floor', array($this, 'floorFilter')),
-            new \Twig\TwigFilter('chemistry', array($this, 'chemistryFilter')),
         );
-    }
-
-    public function ceilingFilter($num) {
-        return ceil($num);
-    }
-
-    public function floorFilter($num) {
-        return floor($num);
-    }
-
-    public function chemistryFilter($str) {
-
-        // Extract subscript/superscript characters from render plugin options
-        $sub = "_";
-        $super = "^";
-        /*
-        if ( isset($options['subscript_delimiter']) && $options['subscript_delimiter'] != '' )
-            $sub = $options['subscript_delimiter'];
-        else
-            $sub = "_";
-        if ( isset($options['superscript_delimiter']) && $options['superscript_delimiter'] != '' )
-            $super = $options['superscript_delimiter'];
-        else
-            $super = "^";
-        */
-
-        // Apply the subscripts...
-        $sub = preg_quote($sub);
-        $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);
-
-        // Apply the superscripts...
-        $super = preg_quote($super);
-        $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', $str);
-
-        // Redo the boxes...
-        // TODO - replace with a css class? or with the '□' character? (0xE2 0x96 0xA1)
-        return preg_replace('/\[box\]/', '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>', $str);
-
     }
 
     /**
@@ -660,11 +622,12 @@ class PlugExtension extends \Twig_Extension
         }
     }
 
+
     /**
      * Converts invalid XML characters to their XML-safe format.
-     * 
+     *
      * @param string $str
-     * 
+     *
      * @return string
      * @throws \Exception
      */
@@ -856,8 +819,8 @@ class PlugExtension extends \Twig_Extension
 
     /**
      * Returns true if the given theme_element only contains datafields/datatypes that are filtered
-     *  from the user's view because of permissions reasons.  If true, then this theme_element can't
-     *  really be manipulated by the user at all, so it should be hidden.
+     * from the user's view because of permissions reasons.  If true, then this theme_element can't
+     * really be manipulated by the user at all, so it should be hidden.
      *
      * @param array $theme_element
      * @param array $datatype
@@ -908,6 +871,23 @@ class PlugExtension extends \Twig_Extension
         catch (\Exception $e) {
             throw new \Exception( "Error executing is_empty_theme filter: ".$e->getMessage() );
         }
+    }
+
+
+    /**
+     * If the given $str describes a valid quality JSON object/array, then returns the decoded array.
+     * If not, then returns the empty string.
+     *
+     * @param string $str
+     * @return array|string
+     */
+    public function qualityJsonFilter($str)
+    {
+        $ret = ValidUtility::isValidQualityJSON($str);
+        if ( is_array($ret) )
+            return $ret;
+        else
+            return '';
     }
 
 

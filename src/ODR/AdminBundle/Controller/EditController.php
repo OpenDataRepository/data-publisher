@@ -59,6 +59,8 @@ use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
@@ -71,6 +73,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -769,6 +772,310 @@ class EditController extends ODRCustomController
 
 
     /**
+     * Changes the quality/rating of a file.
+     *
+     * @param integer $file_id The database id of the File to modify.
+     * @param integer $quality
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function filequalityAction($file_id, $quality, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Grab the necessary entities
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+            $datafield_id = $datafield->getId();
+
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Files that aren't done encrypting shouldn't be modified
+            if ($file->getEncryptKey() === '')
+                throw new ODRNotFoundException('File');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Only do something if the datafield is allowed to have a quality/rating
+            $quality_value = null;
+            $quality_str = $datafield->getQualityStr();
+            if ( $quality_str !== '' ) {
+                // NOTE: these quality strings are effectively defined in Displaytemplate::datafield_properties_form.html.twig
+                if ( $quality_str === 'toggle' ) {
+                    // Might as well clamp this to either 0 or 1
+                    if ( $quality >= 1 )
+                        $quality_value = 1;
+                    else
+                        $quality_value = 0;
+                }
+                else if ( $quality_str === 'stars5' ) {
+                    // Similar to above, but clamped between 0 and 5 inclusive
+                    if ( $quality >= 5 )
+                        $quality_value = 5;
+                    else if ( $quality <= 0 )
+                        $quality_value = 0;
+                    else
+                        $quality_value = $quality;
+                }
+                else {
+                    // Need this to be an integer...
+                    $quality_value = intval($quality);
+
+                    // Need to verify the quality value...
+                    $ret = ValidUtility::isValidQualityJSON($quality_str);
+                    // Complain if there's a parse error in the JSON
+                    if ( !is_array($ret) )
+                        throw new ODRException($ret, 503);
+                    // Complain if the given value wasn't mentioned in the JSON
+                    if ( !isset($ret[$quality_value]) )
+                        throw new ODRBadRequestException('Invalid quality value');
+                }
+            }
+
+
+            // ----------------------------------------
+            // If the quality/rating given is valid...
+            if ( !is_null($quality_value) && $quality_value !== $file->getQuality() ) {
+                // ...then save it to the database
+                $properties = array('quality' => $quality);
+                $entity_modify_service->updateFileMeta($user, $file, $properties);
+
+
+                // Fire off an event notifying of the modification of a datafield
+                try {
+                    $event = new DatafieldModifiedEvent($datafield, $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+
+                // Need to fire off a DatarecordModified event because the file's array entry needs rebuilt
+                try {
+                    $event = new DatarecordModifiedEvent($datarecord, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xdddb7bd7;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles the quality/rating of an image.
+     *
+     * @param integer $image_id The database id of the Image to modify
+     * @param integer $quality
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function imagequalityAction($image_id, $quality, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Grab the necessary entities
+            /** @var Image $image */
+            $image = $repo_image->find($image_id);
+            if ($image == null)
+                throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
+
+            $datafield = $image->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+            $datafield_id = $datafield->getId();
+
+            $datarecord = $image->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Images that aren't done encrypting shouldn't be downloaded
+            if ($image->getEncryptKey() == '')
+                throw new ODRNotFoundException('Image');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Only do something if the datafield is allowed to have a quality/rating
+            $quality_value = null;
+            $quality_str = $datafield->getQualityStr();
+            if ( $quality_str !== '' ) {
+                // NOTE: these quality strings are effectively defined in Displaytemplate::datafield_properties_form.html.twig
+                if ( $quality_str === 'toggle' ) {
+                    // Might as well clamp this to either 0 or 1
+                    if ( $quality >= 1 )
+                        $quality_value = 1;
+                    else
+                        $quality_value = 0;
+                }
+                else if ( $quality_str === 'stars5' ) {
+                    // Similar to above, but clamped between 0 and 5 inclusive
+                    if ( $quality >= 5 )
+                        $quality_value = 5;
+                    else if ( $quality <= 0 )
+                        $quality_value = 0;
+                    else
+                        $quality_value = $quality;
+                }
+                else {
+                    // Need this to be an integer...
+                    $quality_value = intval($quality);
+
+                    // Need to verify the quality value...
+                    $ret = ValidUtility::isValidQualityJSON($quality_str);
+                    // Complain if there's a parse error in the JSON
+                    if ( !is_array($ret) )
+                        throw new ODRException($ret, 503);
+                    // Complain if the given value wasn't mentioned in the JSON
+                    if ( !isset($ret[$quality_value]) )
+                        throw new ODRBadRequestException('Invalid quality value');
+                }
+            }
+
+
+            // ----------------------------------------
+            // If the quality/rating given is valid...
+            if ( !is_null($quality_value) && $quality_value !== $image->getQuality() ) {
+                // ...then save it to the database
+                $properties = array('quality' => $quality);
+                $entity_modify_service->updateImageMeta($user, $image, $properties);
+
+
+                // Fire off an event notifying of the modification of a datafield
+                try {
+                    $event = new DatafieldModifiedEvent($datafield, $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+
+                // Need to fire off a DatarecordModified event because the image's array entry needs rebuilt
+                try {
+                    $event = new DatarecordModifiedEvent($datarecord, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x3fe8f7d0;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Toggles the public status of a file.
      *
      * @param integer $file_id The database id of the File to modify.
@@ -939,8 +1246,6 @@ class EditController extends ODRCustomController
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
-
-            // TODO - implement searching based on public status of file/image?
         }
         catch (\Exception $e) {
             $source = 0x5201b0cd;
@@ -1111,8 +1416,6 @@ class EditController extends ODRCustomController
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
-
-            // TODO - implement searching based on public status of file/image?
         }
         catch (\Exception $e) {
             $source = 0xf051d2f4;
@@ -2331,6 +2634,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
@@ -2403,13 +2710,23 @@ class EditController extends ODRCustomController
                 $file_list[$num] = $file;
             }
 
+            // Twig behaves better if it receives arrays instead of hydrated objects...
+            $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+            $df_array = $dt_array[ $datatype->getId() ]['dataFields'][ $datafield->getId() ];
+
+            $dr_array = $datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);    // don't want links
+            $dr_array = $dr_array[ $datarecord->getId() ];
+
+            // NOTE: can't use whatever is in the datarecord array for the file list...any files
+            //  being uploaded won't really be properly formed in there
+
             // Render and return the HTML for the list of files
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:edit_file_datafield.html.twig',
                     array(
-                        'datafield' => $datafield,
-                        'datarecord' => $datarecord,
+                        'datafield' => $df_array,
+                        'datarecord' => $dr_array,
                         'files' => $file_list,
 
                         'datarecord_is_fake' => false,    // "Fake" records can't reach this, because they don't have a datarecord_id

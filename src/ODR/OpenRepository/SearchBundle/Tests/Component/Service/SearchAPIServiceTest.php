@@ -246,6 +246,39 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'Graph Test: records without files' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '""',
+                ),
+                array(318),
+                true
+            ],
+            'Graph Test: files containing "csv"' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => 'csv',
+                ),
+                array(305,306,308,317),
+                true
+            ],
+            'Graph Test: no files AND "csv"' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '"" csv',
+                ),
+                array(),
+                true
+            ],
+            'Graph Test: no files OR csv' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '"" OR csv',
+                ),
+                array(305,306,308,317,318),
+                true
+            ],
+
             // ----------------------------------------
             // Searches involving child/linked datatypes
             'RRUFF Sample: samples where mineral_name contains "b", including non-public records' => [

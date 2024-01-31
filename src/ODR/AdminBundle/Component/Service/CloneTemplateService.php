@@ -711,7 +711,10 @@ class CloneTemplateService
                         // Need to check radio options...
                         if ( isset($template_datafields[$master_df_id]['radioOptions']) ) {
                             $template_options = $template_datafields[$master_df_id]['radioOptions'];
-                            $derived_options = $derived_datafields[$df_id]['radioOptions'];
+                            $derived_options = array();
+                            if ( isset($derived_datafields[$df_id]['radioOptions']) )
+                                $derived_options = $derived_datafields[$df_id]['radioOptions'];
+
                             $radio_option_changelists = self::buildRadioOptionsChangelist($template_options, $derived_options);
 
                             if ( count($radio_option_changelists) > 0 ) {
@@ -726,7 +729,10 @@ class CloneTemplateService
                         // Need to check tags...
                         if ( isset($template_datafields[$master_df_id]['tags']) ) {
                             $template_tags = $template_datafields[$master_df_id]['tags'];
-                            $derived_tags = $derived_datafields[$df_id]['tags'];
+                            $derived_tags = array();
+                            if ( isset($derived_datafields[$df_id]['tags']) )
+                                $derived_tags = $derived_datafields[$df_id]['tags'];
+
                             $tags_changelist = self::buildTagsChangelist($template_tags, $derived_tags);
 
                             if ( count($tags_changelist) > 0 ) {

@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set datafield_meta = datafield.dataFieldMeta %}
+
     {% for file in files %}
     <div id="File_{{ file.id }}" class="ODRFileDatafield_file pure-u-1">
         {% set file_meta = file.fileMeta %}
@@ -50,6 +52,14 @@
 
             <a class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
         </span>
+
+        {% if datafield_meta.quality_str != '' %}
+            {% include 'ODRAdminBundle:Edit:file_quality.html.twig' with {
+                'datafield': datafield,
+                'file': file,
+                'meta': file_meta,
+            } %}
+        {% endif %}
 
         <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>
             <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>

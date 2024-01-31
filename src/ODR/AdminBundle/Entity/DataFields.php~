@@ -919,6 +919,16 @@ class DataFields
     }
 
     /**
+     * Get qualityStr
+     *
+     * @return string
+     */
+    public function getQualityStr()
+    {
+        return $this->getDataFieldMeta()->getQualityStr();
+    }
+
+    /**
      * Get children_per_row
      *
      * @return integer
