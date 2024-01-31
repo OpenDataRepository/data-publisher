@@ -29,9 +29,12 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Symfony
 use Doctrine\ORM\EntityManager;
+use Pheanstalk\Pheanstalk;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\Form\FormFactory;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\Router;
 
 
 class ODRRenderService
@@ -43,6 +46,21 @@ class ODRRenderService
     private $site_baseurl;
 
     /**
+     * @var string
+     */
+    private $odr_web_dir;
+
+    /**
+     * @var string
+     */
+    private $api_key;
+
+    /**
+     * @var string
+     */
+    private $redis_prefix;
+
+    /**
      * @var EntityManager
      */
     private $em;
@@ -50,27 +68,27 @@ class ODRRenderService
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatafieldInfoService
      */
-    private $dfi_service;
+    private $datafield_info_service;
 
     /**
      * @var DatarecordInfoService
      */
-    private $dri_service;
+    private $datarecord_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var PermissionsManagementService
      */
-    private $pm_service;
+    private $permissions_service;
 
     /**
      * @var ThemeInfoService
@@ -90,7 +108,7 @@ class ODRRenderService
     /**
      * @var EntityMetaModifyService
      */
-    private $emm_service;
+    private $entity_modify_service;
 
     /**
      * @var FormFactory
@@ -103,6 +121,16 @@ class ODRRenderService
     private $templating;
 
     /**
+     * @var Pheanstalk
+     */
+    private $pheanstalk;
+
+    /**
+     * @var Router
+     */
+    private $router;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -112,6 +140,9 @@ class ODRRenderService
      * ODRRender Service
      *
      * @param string $site_baseurl
+     * @param string $odr_web_dir
+     * @param string $api_key
+     * @param string $redis_prefix
      * @param EntityManager $entity_manager
      * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
@@ -124,10 +155,15 @@ class ODRRenderService
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param FormFactory $form_factory
      * @param EngineInterface $templating
+     * @param Pheanstalk $pheanstalk
+     * @param Router $router
      * @param Logger $logger
      */
     public function __construct(
         string $site_baseurl,
+        string $odr_web_dir,
+        string $api_key,
+        string $redis_prefix,
         EntityManager $entity_manager,
         DatabaseInfoService $database_info_service,
         DatafieldInfoService $datafield_info_service,
@@ -140,21 +176,30 @@ class ODRRenderService
         EntityMetaModifyService $entity_meta_modify_service,
         FormFactory $form_factory,
         EngineInterface $templating,
+        Pheanstalk $pheanstalk,
+        Router $router,
         Logger $logger
     ) {
         $this->site_baseurl = $site_baseurl;
+        $this->odr_web_dir = $odr_web_dir;
+        $this->api_key = $api_key;
+        $this->redis_prefix = $redis_prefix;
+
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->dfi_service = $datafield_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatree_info_service;
-        $this->pm_service = $permissions_service;
+        $this->database_info_service = $database_info_service;
+        $this->datafield_info_service = $datafield_info_service;
+        $this->datarecord_info_service = $datarecord_info_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->permissions_service = $permissions_service;
         $this->theme_info_service = $theme_info_service;
         $this->clone_theme_service = $clone_theme_service;
         $this->clone_template_service = $clone_template_service;
-        $this->emm_service = $entity_meta_modify_service;
+        $this->entity_modify_service = $entity_meta_modify_service;
+
         $this->form_factory = $form_factory;
         $this->templating = $templating;
+        $this->pheanstalk = $pheanstalk;
+        $this->router = $router;
         $this->logger = $logger;
     }
 
@@ -242,7 +287,7 @@ class ODRRenderService
         $datatype = $theme->getDataType();
         $datarecord = null;
 
-        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
+        $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $datatype);
 
         // ----------------------------------------
         // Build the Form to save changes to the Theme's name/description
@@ -290,6 +335,7 @@ class ODRRenderService
         $template_name = 'ODRAdminBundle:Display:display_ajax.html.twig';
         $extra_parameters = array(
             'is_top_level' => 1,    // TODO - get rid of this requirement
+            'ensure_images_exist' => 1,    // Triggers the check to decrypt images in cached arrays if they don't exist
 
             'record_display_view' => 'single',
             'search_key' => $search_key,
@@ -311,7 +357,7 @@ class ODRRenderService
 
         // Need to provide this bit of info so render plugins can decide whether to simply not
         //  execute, or throw errors instead
-        $extra_parameters['is_datatype_admin'] = $this->pm_service->isDatatypeAdmin($user, $datarecord->getDataType());
+        $extra_parameters['is_datatype_admin'] = $this->permissions_service->isDatatypeAdmin($user, $datarecord->getDataType());
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
@@ -344,7 +390,7 @@ class ODRRenderService
 
         $datatype = $datarecord->getDataType();
 
-        $cached_datatree_array = $this->dti_service->getDatatreeArray();
+        $cached_datatree_array = $this->datatree_info_service->getDatatreeArray();
         if ( isset($cached_datatree_array['linked_from'][$datatype->getId()]) ) {
             $ancestor_ids = $cached_datatree_array['linked_from'][$datatype->getId()];
             $query = $this->em->createQuery(
@@ -577,7 +623,7 @@ class ODRRenderService
         // All templates need the datatype and theme arrays...
         $initial_datatype_id = $datatype->getId();
         $initial_theme_id = $theme->getId();
-        $datatype_array = $this->dbi_service->getDatatypeArray($initial_datatype_id, $include_links);
+        $datatype_array = $this->database_info_service->getDatatypeArray($initial_datatype_id, $include_links);
         $theme_array = $this->theme_info_service->getThemeArray($initial_theme_id);
 
         // ...only get the datarecord arrays if a datarecord was specified
@@ -586,11 +632,11 @@ class ODRRenderService
         if ( !is_null($datarecord) ) {
             // Load the requested datarecord's data from the cache
             $initial_datarecord_id = $datarecord->getId();
-            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
+            $datarecord_array = $this->datarecord_info_service->getDatarecordArray($initial_datarecord_id, $include_links);
         }
         else if ( $is_fake_datarecord ) {
             // Otherwise, this is Edit mode attempting to render a "fake" datarecord...
-            $fake_dr = $this->dri_service->createFakeDatarecordEntry($datatype_array, $datatype->getId());
+            $fake_dr = $this->datarecord_info_service->createFakeDatarecordEntry($datatype_array, $datatype->getId());
             $initial_datarecord_id = $fake_dr['id'];
 
             $datarecord_array[$initial_datarecord_id] = $fake_dr;
@@ -600,26 +646,26 @@ class ODRRenderService
         // ----------------------------------------
         // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
         //  they shouldn't...the theme array intentionally isn't filtered
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
         if ( isset($extra_parameters['target_user']) ) {
             // If rendering for "view_as_user" mode, then use the target user's permissions instead
-            $user_permissions = $this->pm_service->getUserPermissionsArray( $extra_parameters['target_user'] );
+            $user_permissions = $this->permissions_service->getUserPermissionsArray( $extra_parameters['target_user'] );
         }
 
         $datatype_permissions = $user_permissions['datatypes'];
         $datafield_permissions = $user_permissions['datafields'];
 
         if ( !isset($extra_parameters['group']) ) {
-            $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // If rendering for Edit mode, the token list requires filtering to be done first...
             if ( isset($extra_parameters['token_list']) )
-                $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+                $extra_parameters['token_list'] = $this->datarecord_info_service->generateCSRFTokens($datatype_array, $datarecord_array);
 
             // If rendering for Master Design, only load datafield properties for the datafields the
             //  user is allowed to see...
             if ( isset($extra_parameters['datafield_properties']) )
-                $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array);
+                $extra_parameters['datafield_properties'] = $this->datafield_info_service->getDatafieldProperties($datatype_array);
         }
         else {
             // If displaying HTML for viewing/modifying a group, then the permission arrays need
@@ -627,27 +673,32 @@ class ODRRenderService
             /** @var Group $group */
             $group = $extra_parameters['group'];
 
-            $permissions = $this->pm_service->getGroupPermissionsArray( $group->getId() );
+            $permissions = $this->permissions_service->getGroupPermissionsArray( $group->getId() );
             $datatype_permissions = $permissions['datatypes'];
             $datafield_permissions = $permissions['datafields'];
         }
 
 
         // ----------------------------------------
+        // If the system needs to verify that decrypted images exist...
+        if ( isset($extra_parameters['ensure_images_exist']) ) {
+            // ...then it's easier to look through the cached datarecord array before it gets stacked
+            self::ensureImagesExist($datarecord_array);
+        }
+
+
+        // ----------------------------------------
         // "Inflate" the currently flattened arrays to make twig's life easier...
         $stacked_datatype_array[ $initial_datatype_id ] =
-            $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
+            $this->database_info_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
         $stacked_theme_array[ $initial_theme_id ] =
             $this->theme_info_service->stackThemeArray($theme_array, $initial_theme_id);
 
         $stacked_datarecord_array = array();
         if ( !is_null($datarecord) || $is_fake_datarecord ) {
             $stacked_datarecord_array[ $initial_datarecord_id ] =
-                $this->dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
+                $this->datarecord_info_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
         }
-//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>'; exit();
-//print '<pre>'.print_r($stacked_theme_array, true).'</pre>'; exit();
-//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>'; exit();
 
         // If any of the stacked data arrays are empty, it's most likely a permissions problem
         // This probably only really happens when a user attempts to directly access child
@@ -685,6 +736,62 @@ class ODRRenderService
             $template_name,
             $parameters
         );
+    }
+
+
+    /**
+     * Ensures that all public thumbnail images in the given datarecord array exist in decrypted form
+     * on the server.
+     *
+     * @param array $datarecord_array
+     */
+    public function ensureImagesExist($datarecord_array)
+    {
+        foreach ($datarecord_array as $dr_id => $dr) {
+            if ( isset($dr['dataRecordFields']) ) {
+                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+                    // The image entry should theoretically always exist...
+                    if ( !empty($drf['image']) ) {
+                        foreach ($drf['image'] as $num => $image) {
+                            // $image is currently the thumbnail...
+                            $filepath = $this->odr_web_dir.'/'.$image['localFileName'];
+
+                            // Ensure the image is public before attempting to decrypt it...
+                            $public_date = ($image['parent']['imageMeta']['publicDate'])->format('Y-m-d H:i:s');
+                            $is_public = false;
+                            if ( $public_date !== '2200-01-01 00:00:00' )
+                                $is_public = true;
+
+                            if ( !file_exists($filepath) && $is_public ) {
+                                // Need to decrypt the file...generate the url for cURL to use
+                                $url = $this->router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+                                // Schedule a beanstalk job to start decrypting the file
+                                $priority = 1024;   // should be roughly default priority
+                                $payload = json_encode(
+                                    array(
+                                        "object_type" => 'image',
+                                        "object_id" => $image['id'],    // Decrypt the original image, not the thumbnail
+                                        "crypto_type" => 'decrypt',
+
+                                        "local_filename" => '',    // Use the default filename
+                                        "archive_filepath" => '',
+                                        "desired_filename" => '',
+
+                                        "redis_prefix" => $this->redis_prefix,    // debug purposes only
+                                        "url" => $url,
+                                        "api_key" => $this->api_key,
+                                    )
+                                );
+
+                                $delay = 0;
+                                $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
 
@@ -746,7 +853,7 @@ class ODRRenderService
                 $properties = array(
                     'sourceSyncVersion' => $source_theme_version
                 );
-                $this->emm_service->updateThemeMeta($user, $t, $properties, true);    // don't flush immediately...
+                $this->entity_modify_service->updateThemeMeta($user, $t, $properties, true);    // don't flush immediately...
                 $need_flush = true;
             }
         }
@@ -759,7 +866,7 @@ class ODRRenderService
         //  least one of the added datafields/datatypes...
         $added_datafields = array();
         $added_datatypes = array();
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
 
         foreach ($theme_diff_array as $theme_id => $diff_array) {
             if ( isset($diff_array['new_datafields']) )
@@ -953,19 +1060,19 @@ class ODRRenderService
         $child_dt_id = $child_datatype->getId();
 
         // Load cached arrays of all the top-level entities
-        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype->getId());    // do want links
-        $datarecord_array = $this->dri_service->getDatarecordArray($top_level_datarecord->getId());    // do want links
+        $datatype_array = $this->database_info_service->getDatatypeArray($top_level_datatype->getId());    // do want links
+        $datarecord_array = $this->datarecord_info_service->getDatarecordArray($top_level_datarecord->getId());    // do want links
         $theme_array = $this->theme_info_service->getThemeArray($top_level_theme->getId());
 
 
         // ----------------------------------------
         // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
         //  they shouldn't...the theme array intentionally isn't filtered
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
         $datafield_permissions = $user_permissions['datafields'];
 
-        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // Inline linking requires the insertion of a "fake" datarecord into the child/linked datatype
         //  during the reload process
@@ -976,7 +1083,7 @@ class ODRRenderService
                 $datafield_values = $extra_parameters['datafield_values'];
 
             // Create the "fake" datarecord...
-            $fake_dr_entry = $this->dri_service->createFakeDatarecordEntry($datatype_array, $child_datatype->getId(), $datafield_values);
+            $fake_dr_entry = $this->datarecord_info_service->createFakeDatarecordEntry($datatype_array, $child_datatype->getId(), $datafield_values);
 
             // Splice it into the existing $datarecord_array
             $fake_dr_id = $fake_dr_entry['id'];
@@ -994,15 +1101,15 @@ class ODRRenderService
         }
 
         // Building the token list requires filtering to be done first...
-        $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+        $extra_parameters['token_list'] = $this->datarecord_info_service->generateCSRFTokens($datatype_array, $datarecord_array);
 
 
         // ----------------------------------------
         // "Inflate" the currently flattened arrays to make twig's life easier...
         $stacked_datatype_array[ $child_datatype->getId() ] =
-            $this->dbi_service->stackDatatypeArray($datatype_array, $child_datatype->getId());
+            $this->database_info_service->stackDatatypeArray($datatype_array, $child_datatype->getId());
         $stacked_datarecord_array[ $parent_datarecord->getId() ] =
-            $this->dri_service->stackDatarecordArray($datarecord_array, $parent_datarecord->getId());
+            $this->datarecord_info_service->stackDatarecordArray($datarecord_array, $parent_datarecord->getId());
         $stacked_theme_array[ $child_theme->getId() ] =
             $this->theme_info_service->stackThemeArray($theme_array, $child_theme->getId());
 
@@ -1071,7 +1178,7 @@ class ODRRenderService
     {
         $template_name = 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig';
 
-        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
+        $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = array(
             'is_datatype_admin' => $is_datatype_admin,
             'site_baseurl' => $this->site_baseurl,
@@ -1099,7 +1206,7 @@ class ODRRenderService
     {
         $template_name = 'ODRAdminBundle:Theme:theme_fieldarea.html.twig';
 
-        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
+        $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = array(
             'is_datatype_admin' => $is_datatype_admin
         );
@@ -1141,7 +1248,7 @@ class ODRRenderService
         $parent_theme = $initial_theme->getParentTheme();
         $top_level_datatype = $parent_theme->getDataType();
 
-        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype->getId(), $include_links);
+        $datatype_array = $this->database_info_service->getDatatypeArray($top_level_datatype->getId(), $include_links);
         $theme_array = $this->theme_info_service->getThemeArray($parent_theme->getId());
 
         // ...only get the datarecord arrays if a datarecord was specified
@@ -1149,7 +1256,7 @@ class ODRRenderService
         $datarecord_array = array();
 //        if ( !is_null($datarecord) ) {
 //            $initial_datarecord_id = $datarecord->getId();
-//            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
+//            $datarecord_array = $this->datarecord_info_service->getDatarecordArray($initial_datarecord_id, $include_links);
 //        }
 
         // All of the templates rendered through this also require several boolean flags...
@@ -1165,30 +1272,30 @@ class ODRRenderService
         // ----------------------------------------
         // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
         //  they shouldn't...the theme array intentionally isn't filtered
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
 
         $datatype_permissions = $user_permissions['datatypes'];
 //        $datafield_permissions = $user_permissions['datafields'];
 
-        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // If rendering for Master Design, only load datafield properties for the datafields the
         //  user is allowed to see...
         if ( isset($extra_parameters['datafield_properties']) )
-            $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array);
+            $extra_parameters['datafield_properties'] = $this->datafield_info_service->getDatafieldProperties($datatype_array);
 
 
         // ----------------------------------------
         // "Inflate" the currently flattened arrays to make twig's life easier...
         $stacked_datatype_array[ $initial_datatype->getId() ] =
-            $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype->getId());
+            $this->database_info_service->stackDatatypeArray($datatype_array, $initial_datatype->getId());
         $stacked_theme_array[ $initial_theme->getId() ] =
             $this->theme_info_service->stackThemeArray($theme_array, $initial_theme->getId());
 
 //        $stacked_datarecord_array = array();
 //        if ( !is_null($datarecord) ) {
 //            $stacked_datarecord_array[ $initial_datarecord_id ] =
-//                $this->dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
+//                $this->datarecord_info_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
 //        }
 
 
@@ -1351,7 +1458,7 @@ class ODRRenderService
         $initial_datatype_id = $datafield->getDataType()->getId();
         $initial_theme_id = $theme_element->getTheme()->getId();
 
-        $datatype_array = $this->dbi_service->getDatatypeArray($source_datatype->getId(), $include_links);
+        $datatype_array = $this->database_info_service->getDatatypeArray($source_datatype->getId(), $include_links);
         $master_theme = $this->theme_info_service->getDatatypeMasterTheme($source_datatype->getId());
         $theme_array = $this->theme_info_service->getThemeArray($master_theme->getId());
 
@@ -1360,24 +1467,24 @@ class ODRRenderService
         $datarecord_array = array();
         if ( !is_null($datarecord) ) {
             $initial_datarecord_id = $datarecord->getId();
-            $datarecord_array = $this->dri_service->getDatarecordArray($datarecord->getGrandparent()->getId(), $include_links);
+            $datarecord_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), $include_links);
         }
 
 
         // ----------------------------------------
         // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
         //  they shouldn't...the theme array intentionally isn't filtered
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
-        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
+        $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // If rendering for Edit mode, the token list requires filtering to be done first...
         if ( isset($extra_parameters['token_list']) )
-            $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+            $extra_parameters['token_list'] = $this->datarecord_info_service->generateCSRFTokens($datatype_array, $datarecord_array);
 
         // If rendering for Master Design, only load datafield properties for the datafields the
         //  user is allowed to see...
         if ( isset($extra_parameters['datafield_properties']) )
-            $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array, $datafield_id);
+            $extra_parameters['datafield_properties'] = $this->datafield_info_service->getDatafieldProperties($datatype_array, $datafield_id);
 
 
         // ----------------------------------------
@@ -1387,8 +1494,8 @@ class ODRRenderService
         $parameters = array();
         if ( isset($extra_parameters['token_list']) ) {
             // This is a datafield reload for the edit page...need to ensure the arrays are stacked...
-            $datatype_array = $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
-            $datarecord_array = $this->dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
+            $datatype_array = $this->database_info_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
+            $datarecord_array = $this->datarecord_info_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
             $theme_array = $this->theme_info_service->stackThemeArray($theme_array, $initial_theme_id);
 
             // Then pull specific entities out of these arrays...
@@ -1403,7 +1510,7 @@ class ODRRenderService
 
             // Tag datafields need to know whether the user is a datatype admin or not
             $is_datatype_admin = 0;
-            if ( $this->pm_service->isDatatypeAdmin($user, $source_datatype) )
+            if ( $this->permissions_service->isDatatypeAdmin($user, $source_datatype) )
                 $is_datatype_admin = 1;
 
 

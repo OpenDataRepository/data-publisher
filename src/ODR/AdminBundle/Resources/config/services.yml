@@ -300,6 +300,10 @@ services:
         class: ODR\AdminBundle\Component\Service\ODRRenderService
         arguments:
             $site_baseurl: "%site_baseurl%"
+            $odr_web_dir: "%odr_web_directory%"    # These three are needed for image decryption...
+            $api_key: "%beanstalk_api_key%"
+            $redis_prefix: "%memcached_key_prefix%"
+
             $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datafield_info_service: "@odr.datafield_info_service"
@@ -310,9 +314,14 @@ services:
             $clone_theme_service: "@odr.clone_theme_service"
             $clone_template_service: "@odr.clone_template_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+
             $form_factory: "@form.factory"
             $templating: "@templating"
+            $pheanstalk: "@pheanstalk"    # these two are needed for image decryption
+            $router: "@router"
+
             $logger: "@logger"
+
 
     odr.datarecord_export_service:
         class: ODR\AdminBundle\Component\Service\DatarecordExportService

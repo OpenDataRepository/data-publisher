@@ -46,6 +46,7 @@
 
         // Set up image galleries
         setupImageGalleries();
+        // NOTE: do not attach event handlers to images here...setupImageGalleries() will move them around
 
         // Hide divs for accordion purposes
         setupAccordions();
@@ -90,6 +91,11 @@
             openFileDownloadDialog({{ initial_datarecord_id }}, datarecord_id, datafield_id);
         });
     }
+
+    {% if record_display_view == "single" %}
+    // Need this for reloading attempts on images which aren't decrypted
+    var missing_images = {};
+    {% endif %}
 
     $(function() {
         initPage();
