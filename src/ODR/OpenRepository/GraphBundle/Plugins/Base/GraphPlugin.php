@@ -308,6 +308,8 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 if ( isset($datafield_mapping['secondary_pivot_field']) )
                     $secondary_pivot_df_value = self::getPivotValue($dr, $datafield_mapping, 'secondary_pivot_field');
 
+                // NOTE: not dealing with the option "record_name_in_legend" here
+
                 if ( is_null($pivot_df_value) && is_null($secondary_pivot_df_value) )
                     $legend_values[$dr_id] = $dr['nameField_value'];
                 else if ( !is_null($pivot_df_value) && is_null($secondary_pivot_df_value) )
