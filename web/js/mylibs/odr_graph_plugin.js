@@ -192,28 +192,63 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
                 $(elem).prop('selected', false);
         });
 
-        // Select the default columns based on the plugin settings...all column numbers in the
-        //  chart_obj are 1-indexed, but the values given to plotly should be 0-indexed instead
+        // The x_column is straightforward...all of the column numbers in the chart_obj are 1-indexed,
+        //  but the values given to plotly should be 0-indexed instead
         var default_x_column = Number(chart_obj.x_values_column) - 1;
         // Select the correct option for the desired x_column in the interactive graph popup
         $(ids[0] + " option:eq(" + default_x_column + ")").prop('selected', true);
         // The selected x_column is always the first value in this variable
         selected_values[0] = default_x_column;
 
-        if ( chart_obj.y_values_column.match(/,/) ) {
-            // Multiple y columns...
-            var y_columns = chart_obj.y_values_column.split(/,/);
-            for (var i= 0; i < y_columns.length; i++) {
-                // Select the correct option for this y_column in the interactive graph popup
-                $(ids[1] + " option:eq(" + (y_columns[i] - 1) + ")").prop('selected', true);
-                selected_values.push( y_columns[i] - 1 );
+        // The y_columns are more complicated...want to use column names if they're present
+        var used_column_names = false;
+        if (chart_obj.y_value_columns_start !== '' && chart_obj.y_value_columns_end !== '') {
+            // ...the column names may not exist in the file, though
+            var start_column = null;
+            var end_column = null;
+            for (var column_id in file.headers) {
+                var column_name = file.headers[column_id].replaceAll(/[ \n\t\r]/g, '').toLowerCase();
+                if (chart_obj.y_value_columns_start === column_name)
+                    start_column = parseInt(column_id);
+                if (chart_obj.y_value_columns_end === column_name)
+                    end_column = parseInt(column_id);
+            }
+
+            if ( start_column !== null && end_column !== null ) {
+                // Since both the start and end columns are in the file, they can get used
+                used_column_names = true;
+
+                // May not want the columns being named to be included in the graph...
+                if ( chart_obj.y_value_columns_type === 'exclusive' ) {
+                    start_column += 1;
+                    end_column -= 1;
+                }
+
+                // Select the correct option for each y_column in the interactive graph popup
+                for (var i = start_column; i <= end_column; i++) {
+                    $(ids[1] + " option:eq(" + i + ")").prop('selected', true);
+                    selected_values.push( i );
+                }
             }
         }
-        else {
-            var default_y_column = Number(chart_obj.y_values_column) - 1;
-            // Select the correct option for the desired y_column in the interactive graph popup
-            $(ids[1] + " option:eq(" + default_y_column + ")").prop('selected', true);
-            selected_values[1] = default_y_column;
+
+        if ( !used_column_names ) {
+            // Since column names weren't used, fall back to column numbers...
+            if ( chart_obj.y_values_column.match(/,/) ) {
+                // Multiple y columns...
+                var y_columns = chart_obj.y_values_column.split(/,/);
+                for (var i = 0; i < y_columns.length; i++) {
+                    // Select the correct option for this y_column in the interactive graph popup
+                    $(ids[1] + " option:eq(" + (y_columns[i] - 1) + ")").prop('selected', true);
+                    selected_values.push( y_columns[i] - 1 );
+                }
+            }
+            else {
+                var default_y_column = Number(chart_obj.y_values_column) - 1;
+                // Select the correct option for the desired y_column in the interactive graph popup
+                $(ids[1] + " option:eq(" + default_y_column + ")").prop('selected', true);
+                selected_values[1] = default_y_column;
+            }
         }
     }
     else {

@@ -153,7 +153,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             case 'MediumVarchar':
             case 'LongVarchar':
                 $drf_typeclass = lcfirst($typeclass);
-                if ( isset($drf[$drf_typeclass]) && isset($drf[$drf_typeclass][0]['value']) )
+                if ( isset($drf[$drf_typeclass][0]['value']) )
                     return $drf[$drf_typeclass][0]['value'];
                 break;
 
@@ -212,6 +212,88 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
 
     /**
+     * Due to the requirement of more generalistic (aka: complicated) column selection for this
+     * plugin, having some validation on the options is desirable...
+     *
+     * @param array $plugin_options
+     */
+    private function validateGraphColumns(&$plugin_options)
+    {
+        // ----------------------------------------
+        // Should only be one positive integer for the x_values_column...
+        if ( !isset($plugin_options['x_values_column']) || preg_match('/^\d+$/', $plugin_options['x_values_column']) !== 1 )
+            $plugin_options['x_values_column'] = 1;
+
+        // y values column is a bit more complicated...
+        $pattern = '/^';                // always read the entire string
+        $pattern .= '(?:';              // the capture groups aren't important...
+            $pattern .= '(?:\d+\:)?';   // ...want an optional sequence of digits followed by a colon
+            $pattern .= '(?:\d+,?)';    // ...and a non-optional sequence of digits followed by an optional comma
+        $pattern .= ')+';
+        $pattern .= '$/';               // always read the entire string
+
+        // The above pattern will match stuff like "11", "1,2,3", "1:5", "1,2,3:5,6", "1,2,", etc
+        // Trailing commas are acceptable
+        // It will not match stuff like ",1", "1::5", ":2,3,4", "1:2:3", etc
+
+        if ( !isset($plugin_options['y_values_column']) || preg_match($pattern, $plugin_options['y_values_column']) !== 1 ) {
+            // Missing column, or failed regex should return to the default
+            $plugin_options['y_values_column'] = 2;
+        }
+        else if ( strpos($plugin_options['y_values_column'], ':') !== false ) {
+            // The range operator (e.g. 1:5) should be converted into a comma-separated list
+            //  (e.g. 1,2,3,4.5) for plotly
+            // Due to passing the earlier regex, can explode first by commas...
+            $pieces = explode(',', $plugin_options['y_values_column']);
+            $tmp = array();
+            foreach ($pieces as $val) {
+                if ( strpos($val, ':') === false ) {
+                    $tmp[] = intval($val);
+                }
+                else {
+                    // ...and only explode by colon if needed
+                    $fragments = explode(':', $val);
+                    // Don't actually care if the range is inverted (e.g. "5:1")
+                    foreach ( range($fragments[0], $fragments[1]) as $num)
+                        $tmp[] = $num;
+                }
+            }
+
+            // ...all column vals get sorted anyways
+            sort($tmp);
+            $plugin_options['y_values_column'] = implode(',', $tmp);
+        }
+
+        // Don't need to do anything to the y_values_column if it doesn't contain a colon
+
+
+        // ----------------------------------------
+        // If both of these plugin options are defined...
+        if ( isset($plugin_options['y_value_columns_start']) && isset($plugin_options['y_value_columns_end']) ) {
+            // ...then going to modify them a bit to try to be as forgiving as possible
+            $start = str_replace(array("\t","\r","\n"," "), '', $plugin_options['y_value_columns_start']);
+            $end = str_replace(array("\t","\r","\n"," "), '', $plugin_options['y_value_columns_end']);
+
+            if ( strlen($start) > 0 && strlen($end) > 0 ) {
+                // ...that modification also involves eliminating case comparison
+                $plugin_options['y_value_columns_start'] = strtolower($start);
+                $plugin_options['y_value_columns_end'] = strtolower($end);
+            }
+            else {
+                // If they fail the check, then set them to the empty string so they do nothing
+                $plugin_options['y_value_columns_start'] = '';
+                $plugin_options['y_value_columns_end'] = '';
+            }
+        }
+        else {
+            // If they fail the check, then set them to the empty string so they do nothing
+            $plugin_options['y_value_columns_start'] = '';
+            $plugin_options['y_value_columns_end'] = '';
+        }
+    }
+
+
+    /**
      * Executes the Graph Plugin on the provided datarecords
      *
      * @param array $datarecords
@@ -243,6 +325,9 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             if ( isset($options['use_rollup']) && $options['use_rollup'] === 'yes' )
                 $is_rollup = true;
 
+            // Attempt to verify the default x/y columns...
+            self::validateGraphColumns($options);
+
             // Should only be one element in $theme_array...
             $theme = null;
             foreach ($theme_array as $t_id => $t)
@@ -259,7 +344,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                     $is_optional = true;
 
                 $df = null;
-                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                if ( isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ( $df == null && !$is_optional ) {
