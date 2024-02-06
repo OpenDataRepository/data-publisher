@@ -3035,8 +3035,7 @@ class ValidationController extends ODRCustomController
             $query =
                 'SELECT dt.id AS dt_id
                  FROM odr_data_type AS dt
-                 WHERE dt.id IN (?) AND dt.id = dt.grandparent_id
-                 AND dt.deletedAt IS NOT NULL';
+                 WHERE dt.id IN (?) AND dt.id = dt.grandparent_id';
             $parameters = array(1 => $initial_datatype_ids);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $results = $conn->fetchAll($query, $parameters, $types);
