@@ -26,6 +26,12 @@ ODR\AdminBundle\Entity\FileMeta:
             nullable: true
             column: original_file_name
 
+        quality:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
         external_id:
             type: string
             length: 64

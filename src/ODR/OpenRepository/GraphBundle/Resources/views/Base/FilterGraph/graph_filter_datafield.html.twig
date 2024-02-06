@@ -17,12 +17,12 @@
 {#                <label for="df_{{ df.id }}_active">#}
 {#                    <input id="df_{{ df.id }}_active" class="ODRGraphFilterPlugin_active" type="checkbox" title="Include this field in the filter" checked />#}
 {#                </label>#}
-                {{ datafield_meta.fieldName }}
+                {{ datafield_meta.fieldName }}{% if field_typeclass == 'File' %}&nbsp;Quality{% endif %}
             </label>
 
             <div class="ODRGraphFilterPlugin_buttons">
-                <span class="ODRGraphFilterPlugin_select pure-u-5-12">Select All</span>
-                <span class="ODRGraphFilterPlugin_deselect pure-u-5-12">Deselect All</span>
+                Select: <span class="ODRGraphFilterPlugin_select">all</span>
+                <span class="ODRGraphFilterPlugin_deselect">none</span>
             </div>
 
             <div class="ODRGraphFilterPlugin_option_div pure-u-21-24" rel="{{ df.id }}">

@@ -25,6 +25,7 @@
  */
 function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     var odr_chart_id = odr_chart_obj['chart_id'];
+    // console.log(odr_chart_obj['filter_values']);
 
     var permitted_datarecords = [];
     $('#' + odr_chart_id + '_filter').find('.ODRGraphFilterPlugin_option_div').each(function(index,div) {
@@ -72,29 +73,38 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
         });
     }
 
-    // Also want to set visibility of the related data div depending on how many files remain...
+
+
+    // Want to set visibility of the related data div depending on how many files remain...
     var data_div = $("#" + odr_chart_id + "_filter").parents('.ODRGraphSpacer').first().next();
-    if ( file_count < 2 ) {
+    // ...but also need an override to always show the data
+    var show_data = false;
+    if ( $("#" + odr_chart_id + "_show_odr_data").is(':checked') )
+        show_data = true;
+
+    if ( file_count < 2 || show_data ) {
         // If there's one datarecord...
-        if ( remaining_dr_id !== null ) {
+        if ( remaining_dr_id !== null || show_data ) {
             // ...then want to display it.  However, it's likely that it's a descendant of some other
             //  record, so it'll take some effort to guarantee it's visible...
             var record_ids = [remaining_dr_id];
             var fieldarea = $("#FieldArea_" + remaining_dr_id);
-            while ( !$(fieldarea).parent().parent().hasClass('ODRGraphSpacer') ) {
-                // Need to traverse up the HTML to get each parent of the remaining datarecord
-                fieldarea = $(fieldarea).parents('.ODRFieldArea').first();
-                record_ids.push( $(fieldarea).attr('id').split(/_/)[1] );
+            if ( $(fieldarea).length > 0 ) {
+                while ( !$(fieldarea).parent().parent().hasClass('ODRGraphSpacer') ) {
+                    // Need to traverse up the HTML to get each parent of the remaining datarecord
+                    fieldarea = $(fieldarea).parents('.ODRFieldArea').first();
+                    record_ids.push( $(fieldarea).attr('id').split(/_/)[1] );
+                }
+
+                // This list of ids needs to be reversed, so that the parent accordion/tab/dropdown
+                //  elements can be selected before the children
+                record_ids.reverse();
+                // console.log( 'record ids', record_ids );
+
+                record_ids.forEach((dr_id) => {
+                    selectRecordFieldArea(dr_id);
+                });
             }
-
-            // This list of ids needs to be reversed, so that the parent accordion/tab/dropdown
-            //  elements can be selected before the children
-            record_ids.reverse();
-            // console.log( 'record ids', record_ids );
-
-            record_ids.forEach((dr_id) => {
-                selectRecordFieldArea(dr_id);
-            });
         }
 
         // Regardless of whether there's a datarecord or not, show the data div now

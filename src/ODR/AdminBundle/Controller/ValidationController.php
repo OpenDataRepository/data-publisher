@@ -455,10 +455,13 @@ class ValidationController extends ODRCustomController
                     $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
                     $dfm->setChildrenPerRow(1);
-                    $dfm->setRadioOptionNameSort(0);
-                    $dfm->setRadioOptionDisplayUnselected(0);
-                    $dfm->setAllowMultipleUploads(0);
-                    $dfm->setShortenFilename(0);
+                    $dfm->setRadioOptionNameSort(false);
+                    $dfm->setRadioOptionDisplayUnselected(false);
+                    $dfm->setAllowMultipleUploads(false);
+                    $dfm->setShortenFilename(false);
+                    $dfm->setNewFilesArePublic(false);
+                    $dfm->setQualityStr('');
+
 
                     $dfm->setCreatedBy($user);
                     $dfm->setUpdatedBy($user);
@@ -625,6 +628,7 @@ class ValidationController extends ODRCustomController
                     $fm = new FileMeta();
                     $fm->setFile($file);
                     $fm->setOriginalFileName('file_name');
+                    $fm->setQuality(0);
                     $fm->setExternalId('');
 
                     if ( $file->getDataField()->getNewFilesArePublic() )
@@ -674,6 +678,7 @@ class ValidationController extends ODRCustomController
                     $im->setDisplayorder(0);
                     $im->setOriginalFileName('image name');
                     $im->setCaption('image caption');
+                    $im->setQuality(0);
                     $im->setExternalId('');
 
                     if ( $image->getDataField()->getNewFilesArePublic() )

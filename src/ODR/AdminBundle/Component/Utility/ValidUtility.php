@@ -270,4 +270,49 @@ class ValidUtility
                 self::getAvailableTags($tag['children'], $available_tags);
         }
     }
+
+
+    /**
+     * If the given $str describes a valid quality JSON object/array, then returns the decoded array.
+     * If not, then return an error string instead.
+     *
+     * Either a single-level object or array with numeric keys is considered valid.  e.g.
+     *  {"-1":"ignore","0":"unrated","1":"poor","2":"fair","3":"excellent"}
+     *  ["F","D","C","B","A","S"]
+     *
+     * @param string $str
+     * @return string|array
+     */
+    static public function isValidQualityJSON($str)
+    {
+        $quality_json_error = '';
+        try {
+            $quality_json = json_decode($str, true, 2, JSON_THROW_ON_ERROR);
+            if ( is_array($quality_json) && count($quality_json) > 1 ) {
+                // If it's an array, then it's probably valid, but also want to ensure the keys are
+                //  numeric first
+                foreach ($quality_json as $key => $value) {
+                    if ( !is_int($key) ) {
+                        $quality_json_error = 'Provided JSON does not have numeric keys';
+                        break;
+                    }
+                }
+            }
+            else {
+                $quality_json_error = 'Provided JSON does not have at least 2 entries';
+            }
+
+            if ( $quality_json_error === '' )
+                return $quality_json;
+        }
+        catch (\Exception $e) {
+            // Disappear the JSON parse exception
+            if ( $e->getMessage() === 'Maximum stack depth exceeded' )
+                $quality_json_error = 'Provided JSON must not have have multiple levels';
+            else
+                $quality_json_error = $e->getMessage();
+        }
+
+        return $quality_json_error;
+    }
 }

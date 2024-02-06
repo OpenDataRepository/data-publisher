@@ -18,7 +18,7 @@ odr_plugins.rruff.powder_diffraction:
 #        child_rruff_id:
 #            name: Child RRUFF ID
 #            description:
-#            type: ShortVarchar
+#            type: MediumVarchar
 
         description:
             name: Description
@@ -70,10 +70,10 @@ odr_plugins.rruff.powder_diffraction:
             description:
             type: Single Select
 
-        instrument:
-            name: Instrument
-            description:
-            type: LongVarchar
+#        instrument:    # supposed to be a linked datatype now
+#            name: Instrument
+#            description:
+#            type: LongVarchar
         operator:
             name: Operator
             description:

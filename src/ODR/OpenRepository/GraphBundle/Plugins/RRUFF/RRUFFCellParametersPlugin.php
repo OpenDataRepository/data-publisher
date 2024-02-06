@@ -1127,7 +1127,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
         // TODO - disabled for import testing, re-enable this later on
-//        return;
+        return;
 
         // Pull some required data from the event
         $user = $event->getUser();

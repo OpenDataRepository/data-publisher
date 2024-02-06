@@ -2096,35 +2096,59 @@
         });
 
         // Attach event handlers to most of the rest of the input elements
-        tdf_odpf.find("select").each(function() {
-            // console.log('Setting up datafield.');
-            // Grab Datafield id
+        tdf_odpf.find("select").each(function(index, elem) {
+            // console.log( 'select', $(elem) );
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
 
-            // Save changes
-            $(this).unbind('change').change(function() {
+            $(elem).unbind('change').change(function() {
                 // This also affects the fieldtype selector, but that gets overridden again further
                 //  down in the function
+                var trigger_save = true;
 
-                // Trigger a delayed save of the properties form for this datafield
-                // console.log('<select> changed, triggering delayed save for datafield', datafield_id);
-                SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
-                SaveDatafieldProperty_Interval[datafield_id] = window.setInterval("SaveDatafieldProperties(" + datafield_id + ")", SaveTimeout);
-                SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
+                // The quality_str field is effectively compound, so it needs special javascript
+                //  to work properly
+                if ( $(this).hasClass('ODRDesign_quality_select') ) {
+                    var selection = $(this).val();
+                    // console.log(selection);
+
+                    var base_id = $(this).attr('id');
+                    base_id = base_id.substring(0, base_id.length-7);
+
+                    if ( selection === 'custom' ) {
+                        // Don't want to trigger a save when this is selected...
+                        trigger_save = false;
+
+                        // Instead, show the input for the custom value
+                        $("#" + base_id + "_field").show();
+                        $(".ODRDesign_quality_warning").show();
+                    }
+                    else {
+                        // Do want to trigger a save when the other values are selected
+                        $("#" + base_id).val( selection );
+
+                        $("#" + base_id + "_field").hide();
+                        $(".ODRDesign_quality_warning").hide();
+                    }
+                }
+
+                if ( trigger_save ) {
+                    // Trigger a delayed save of the properties form for this datafield
+                    // console.log('<select> changed, triggering delayed save for datafield', datafield_id);
+                    SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
+                    SaveDatafieldProperty_Interval[datafield_id] = window.setInterval("SaveDatafieldProperties(" + datafield_id + ")", SaveTimeout);
+                    SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
+                }
             });
         });
 
-        tdf_odpf.find("textarea").each(function() {
-            // console.log('Setting up datafield. 2');
-            // Grab Datafield id
+        tdf_odpf.find("textarea").each(function(index, elem) {
+            // console.log( 'textarea', $(elem) );
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
 
-            // Save changes
-            $(this).unbind('keyup');
-            $(this).unbind('paste');
-            $(this).on('keyup paste', function() {
+            $(elem).unbind('keyup').unbind('paste');
+            $(elem).on('keyup paste', function() {
                 // Want to update markdown fields immediately
                 if ( $(this).hasClass('ODRDatafieldMarkdown') ) {
                     var text = $(this).val();
@@ -2143,16 +2167,14 @@
                 SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
             });
         });
-        tdf_odpf.find("input").each(function() {
-            // console.log('Setting up datafield. 3');
-            // Grab Datafield id
+
+        tdf_odpf.find("input").each(function(index, elem) {
+            // console.log( 'input', $(elem) );
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
 
-            // Save changes
-            if ($(this).is(":checkbox")) {
-                $(this).unbind('change').change(function() {
-
+            if ($(elem).is(":checkbox")) {
+                $(elem).unbind('change').change(function() {
                     // Trigger a delayed save of the properties form for this datafield
                     // console.log('checkbox changed, triggering delayed save for datafield', datafield_id);
                     SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
@@ -2161,17 +2183,27 @@
                 });
             }
             else {
-                $(this).unbind('keyup');
-                $(this).unbind('paste');
-                $(this).on('keyup paste', function() {
+                $(elem).unbind('keyup').unbind('paste');
+                $(elem).on('keyup paste', function() {
+                    var text = $(this).val().trim();
+
                     // If the textfield being changed is for the datafield's name...
                     if ( $(this).hasClass('ODRDatafieldName') ) {
                         // ...then immediately update it on the page without having to wait for a
                         //  datafield reload
-                        var text = $(this).val();
                         $("#ODRDatafield_" + datafield_id + "_name").text(text);
 
                         // TODO - error handling?
+                    }
+                    else if ( $(this).hasClass('ODRDesign_quality_field') ) {
+                        // If this is for the compound quality_str field instead, then copy the
+                        //  entered value into the "correct" field
+                        var base_id = $(this).attr('id');
+                        base_id = base_id.substring(0, base_id.length-6);
+
+                        $("#" + base_id).val( text );
+
+                        validateQualityJson(text);
                     }
 
                     // Trigger a delayed save of the properties form for this datafield
@@ -2185,14 +2217,10 @@
 
         // Override the handler for the fieldtype selector
         tdf_odpf.find("#DatafieldsForm_field_type").each(function() {
-            // console.log('Setting up datafield. 4');
-            // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id =  datafield_id_data[1];
 
-            // ...
             $(this).unbind('change').change(function() {
-
                 var previous_fieldtype_id = $("#previous_fieldtype").val();
                 var new_fieldtype_id = $("#DatafieldsForm_field_type").val();
 
@@ -2236,6 +2264,51 @@
         });
 
         $(form_div).fadeIn('fast');
+    }
+
+
+    /**
+     * Close-ish Javascipt implementation of ValidUtility::isValidQualityJSON()
+     *
+     * @param {string} str
+     * @returns {boolean}
+     */
+    function validateQualityJson(str) {
+        try {
+            var json = JSON.parse(str);
+
+            if ( Array.isArray(json) ) {
+                if ( json.length < 2 )
+                    throw new SyntaxError('Provided JSON does not have at least 2 entries');
+            }
+            else {
+                var total = 0;
+                for (const key in json) {
+                    total++;
+                    if ( isNaN(key) )
+                        throw new SyntaxError('Provided JSON does not have numeric keys');
+                }
+                if ( total < 2 )
+                    throw new SyntaxError('Provided JSON does not have at least 2 entries');
+            }
+
+            for (const elem of json) {
+                if ( typeof elem !== "string" && typeof elem !== "number" )
+                    throw new SyntaxError('Provided JSON must not have have multiple levels');
+            }
+
+            // If this point is reached, then no error
+            $(".ODRDesign_quality_warning")
+                .removeClass('fa-exclamation-triangle ODRInputError')
+                .addClass('fa-check-circle ODRActiveIcon')
+                .prop('title', '');
+        }
+        catch (e) {
+            $(".ODRDesign_quality_warning")
+                .removeClass('fa-check-circle ODRActiveIcon')
+                .addClass('fa-exclamation-triangle ODRInputError')
+                .prop('title', e.message);
+        }
     }
 
 
@@ -2701,11 +2774,12 @@
 
         var tdf_odpf = $("#ThemeDesignForm .ODRDatatypePropertiesForm");
 
-        tdf_odpf.find("select").each(function() {
+        tdf_odpf.find("select").each(function(index, elem) {
+            // console.log( 'select', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
 
-            $(this).unbind('change').change(function() {
+            $(elem).unbind('change').change(function() {
                 // Don't want a delay here, otherwise a change could get lost
                 // SaveDatatypeProperties(datatype_id);
 
@@ -2717,13 +2791,13 @@
             });
         });
 
-        tdf_odpf.find("textarea").each(function() {
+        tdf_odpf.find("textarea").each(function(index, elem) {
+            // console.log( 'textarea', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
 
-            $(this).unbind('keyup');
-            $(this).unbind('paste');
-            $(this).on('keyup paste', function() {
+            $(elem).unbind('keyup').unbind('paste');
+            $(elem).on('keyup paste', function() {
                 // Trigger a delayed save of the properties form for this datatype
                 // console.log('<textarea> changed, triggering delayed save for datatype', datatype_id);
                 SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
@@ -2732,12 +2806,13 @@
             });
         });
 
-        tdf_odpf.find("input").each(function() {
+        tdf_odpf.find("input").each(function(index, elem) {
+            // console.log( 'input', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
 
-            if( $(this).is(":checkbox") ) {
-                $(this).unbind('change').change(function() {
+            if( $(elem).is(":checkbox") ) {
+                $(elem).unbind('change').change(function() {
                     // Trigger a delayed save of the properties form for this datatype
                     // console.log('checkbox changed, triggering delayed save for datatype', datatype_id);
                     SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
@@ -2746,9 +2821,8 @@
                 });
             }
             else {
-                $(this).unbind('keyup');
-                $(this).unbind('paste');
-                $(this).on('keyup paste', function() {
+                $(elem).unbind('keyup').unbind('paste');
+                $(elem).on('keyup paste', function() {
                     // If the textfield being changed is for the datatype's name...
                     if ( $(this).hasClass("ODRDatasetName") ) {
                         // ...then immediately update it on the page without having to wait for a

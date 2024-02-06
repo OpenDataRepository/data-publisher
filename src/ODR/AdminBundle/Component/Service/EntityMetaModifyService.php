@@ -82,7 +82,7 @@ class EntityMetaModifyService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var EventDispatcherInterface
@@ -116,7 +116,7 @@ class EntityMetaModifyService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatree_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->logger = $logger;
     }
@@ -311,6 +311,7 @@ class EntityMetaModifyService
             'allow_multiple_uploads' => $old_meta_entry->getAllowMultipleUploads(),
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
             'newFilesArePublic' => $old_meta_entry->getNewFilesArePublic(),
+            'quality_str' => $old_meta_entry->getQualityStr(),
             'children_per_row' => $old_meta_entry->getChildrenPerRow(),
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
@@ -397,6 +398,14 @@ class EntityMetaModifyService
         if ($relevant_typeclass !== 'Markdown')
             $properties['markdownText'] = '';
 
+        // Clear properties related to files and images if it's not one of those fieldtypes
+        if ($relevant_typeclass !== 'File' && $relevant_typeclass !== 'Image') {
+            $properties['allow_multiple_uploads'] = false;
+            $properties['shorten_filename'] = false;
+            $properties['newFilesArePublic'] = false;
+            $properties['quality_str'] = '';
+        }
+
         // Clear properties related to radio options and tags if it's not one of those fieldtypes
         if ($relevant_typeclass !== 'Radio' && $relevant_typeclass !== 'Tag') {
             // These properties are shared by radio options and tags
@@ -473,6 +482,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setNewFilesArePublic( $properties['newFilesArePublic'] );
         if ( isset($properties['shorten_filename']) )
             $new_datafield_meta->setShortenFilename( $properties['shorten_filename'] );
+        if ( isset($properties['quality_str']) )
+            $new_datafield_meta->setQualityStr( $properties['quality_str'] );
         if ( isset($properties['children_per_row']) )
             $new_datafield_meta->setChildrenPerRow( $properties['children_per_row'] );
         if ( isset($properties['radio_option_name_sort']) )
@@ -960,7 +971,7 @@ class EntityMetaModifyService
             else {
                 // This is currently a top-level template datatype...check whether it's a linked
                 //  descendant of other template datatypes...
-                $linked_ancestors = $this->dti_service->getLinkedAncestors(array($datatype->getId()));
+                $linked_ancestors = $this->datatree_info_service->getLinkedAncestors(array($datatype->getId()));
                 if ( !empty($linked_ancestors) ) {
                     // ...because if it is, all linked ancestors of this datatype also need to have
                     //  their "master_revision" value updated
@@ -1107,6 +1118,7 @@ class EntityMetaModifyService
         $existing_values = array(
             'description' => $old_meta_entry->getDescription(),
             'original_filename' => $old_meta_entry->getOriginalFileName(),
+            'quality' => $old_meta_entry->getQuality(),
             'external_id' => $old_meta_entry->getExternalId(),
             'publicDate' => $old_meta_entry->getPublicDate(),
         );
@@ -1144,6 +1156,8 @@ class EntityMetaModifyService
             $new_file_meta->setDescription( $properties['description'] );
         if ( isset($properties['original_filename']) )
             $new_file_meta->setOriginalFileName( $properties['original_filename'] );
+        if ( isset($properties['quality']) )
+            $new_file_meta->setQuality( $properties['quality'] );
         if ( isset($properties['external_id']) )
             $new_file_meta->setExternalId( $properties['external_id'] );
         if ( isset($properties['publicDate']) )
@@ -1461,6 +1475,7 @@ class EntityMetaModifyService
         $existing_values = array(
             'caption' => $old_meta_entry->getCaption(),
             'original_filename' => $old_meta_entry->getOriginalFileName(),
+            'quality' => $old_meta_entry->getQuality(),
             'external_id' => $old_meta_entry->getExternalId(),
             'publicDate' => $old_meta_entry->getPublicDate(),
             'display_order' => $old_meta_entry->getDisplayorder()
@@ -1499,6 +1514,8 @@ class EntityMetaModifyService
             $new_image_meta->setCaption( $properties['caption'] );
         if ( isset($properties['original_filename']) )
             $new_image_meta->setOriginalFileName( $properties['original_filename'] );
+        if ( isset($properties['quality']) )
+            $new_image_meta->setQuality( $properties['quality'] );
         if ( isset($properties['external_id']) )
             $new_image_meta->setExternalId( $properties['external_id'] );
         if ( isset($properties['publicDate']) )

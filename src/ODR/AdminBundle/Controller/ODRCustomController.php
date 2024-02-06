@@ -32,6 +32,7 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
@@ -80,22 +81,24 @@ class ODRCustomController extends Controller
 
         /** @var CloneThemeService $clone_theme_service */
         $clone_theme_service = $this->container->get('odr.clone_theme_service');
-        /** @var DatabaseInfoService $dbi_service */
-        $dbi_service = $this->container->get('odr.database_info_service');
-        /** @var DatarecordInfoService $dri_service */
-        $dri_service = $this->container->get('odr.datarecord_info_service');
-        /** @var DatatreeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatree_info_service');
+        /** @var DatabaseInfoService $database_info_service */
+        $database_info_service = $this->container->get('odr.database_info_service');
+        /** @var DatarecordInfoService $datarecord_info_service */
+        $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+        /** @var DatatreeInfoService $datatree_info_service */
+        $datatree_info_service = $this->container->get('odr.datatree_info_service');
+        /** @var ODRRenderService $odr_render_service */
+        $odr_render_service = $this->container->get('odr.render_service');
         /** @var ODRTabHelperService $odr_tab_service */
         $odr_tab_service = $this->container->get('odr.tab_helper_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var PermissionsManagementService $permissions_service */
+        $permissions_service = $this->container->get('odr.permissions_management_service');
         /** @var ThemeInfoService $theme_info_service */
         $theme_info_service = $this->container->get('odr.theme_info_service');
         /** @var SearchService $search_service */
         $search_service = $this->container->get('odr.search_service');
-        /** @var TableThemeHelperService $tth_service */
-        $tth_service = $this->container->get('odr.table_theme_helper_service');
+        /** @var TableThemeHelperService $table_theme_helper_service */
+        $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
 
         /** @var EngineInterface $templating */
         $templating = $this->get('templating');
@@ -105,12 +108,12 @@ class ODRCustomController extends Controller
         if ($user !== 'anon.')
             $logged_in = true;
 
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
+        $user_permissions = $permissions_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
 //        $datafield_permissions = $user_permissions['datafields'];
 
         // Store whether the user is permitted to edit at least one datarecord for this datatype
-        $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
+        $can_edit_datatype = $permissions_service->canEditDatatype($user, $datatype);
 
 
         // ----------------------------------------
@@ -182,7 +185,7 @@ class ODRCustomController extends Controller
 
         // -----------------------------------
         // Determine whether the user has a restriction on which datarecords they can edit
-        $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
+        $restricted_datarecord_list = $permissions_service->getDatarecordRestrictionList($user, $datatype);
         $has_search_restriction = false;
         if ( !is_null($restricted_datarecord_list) )
             $has_search_restriction = true;
@@ -305,13 +308,13 @@ class ODRCustomController extends Controller
             // So, for each datarecord on this page of the search results...
             foreach ($datarecord_list as $num => $dr_id) {
                 // ...load the list of any datarecords it links to (this always includes $dr_id)...
-                $associated_dr_ids = $dti_service->getAssociatedDatarecords($dr_id);
+                $associated_dr_ids = $datatree_info_service->getAssociatedDatarecords($dr_id);
 
                 foreach ($associated_dr_ids as $num => $a_dr_id) {
                     // If this record is going to be displayed, and it hasn't already been loaded...
                     if ( isset($acceptable_dr_ids[$a_dr_id]) && !isset($related_datarecord_array[$a_dr_id]) ) {
                         // ...then load just this record
-                        $dr_data = $dri_service->getDatarecordArray($a_dr_id, false);
+                        $dr_data = $datarecord_info_service->getDatarecordArray($a_dr_id, false);
                         // ...then save this record and all its children so they can get stacked
                         foreach ($dr_data as $local_dr_id => $data)
                             $related_datarecord_array[$local_dr_id] = $data;
@@ -320,18 +323,21 @@ class ODRCustomController extends Controller
             }
 
             // Filter everything that the user isn't allowed to see from the datatype/datarecord arrays
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getId(), true);
-            $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId(), true);
+            $permissions_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
 
             // Stack what remains of the datatype and datarecord arrays
             $stacked_datatype_array[ $datatype->getId() ] =
-                $dbi_service->stackDatatypeArray($datatype_array, $datatype->getId());
+                $database_info_service->stackDatatypeArray($datatype_array, $datatype->getId());
+
+            // Should also ensure the images exist...
+            $odr_render_service->ensureImagesExist($related_datarecord_array);
 
             $datarecord_array = array();
             foreach ($related_datarecord_array as $dr_id => $dr) {
                 // Only stack the top-level datarecords of this datatype
                 if ( $dr['dataType']['id'] == $datatype->getId() )
-                    $datarecord_array[$dr_id] = $dri_service->stackDatarecordArray($related_datarecord_array, $dr_id);
+                    $datarecord_array[$dr_id] = $datarecord_info_service->stackDatarecordArray($related_datarecord_array, $dr_id);
             }
 
 
@@ -435,7 +441,7 @@ class ODRCustomController extends Controller
             $scroll_target = '';
             if ( $intent !== 'linking' && $theme->getDisplaysAllResults() ) {
                 // Determine the columns to use for the table
-                $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId(), 'array');
+                $column_data = $table_theme_helper_service->getColumnNames($user, $datatype->getId(), $theme->getId(), 'array');
 
                 // NOTE: it seems that $datarecord_list doesn't have to be sorted prior to calling
                 //  getRowData()...datatables.js will re-sort the rows on the page to match the
@@ -444,7 +450,7 @@ class ODRCustomController extends Controller
                 // When displaying all results it's better for the rows to be built here so twig
                 //  can print them, bypassing TextResultsController::datatablesrowrequestAction()
                 //  completely
-                $row_data = $tth_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
+                $row_data = $table_theme_helper_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
 
                 // ...due to this bypass, the scroll target needs to be set here if it exists
                 if ( !is_null($session) && $session->has('scroll_target') ) {
@@ -461,7 +467,7 @@ class ODRCustomController extends Controller
             }
             else {
                 // Get the columns to use for the table in json format
-                $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
+                $column_data = $table_theme_helper_service->getColumnNames($user, $datatype->getId(), $theme->getId());
             }
 
             $column_names = $column_data['column_names'];
@@ -741,8 +747,8 @@ class ODRCustomController extends Controller
         $clone_theme_service = $this->container->get('odr.clone_theme_service');
         /** @var EntityMetaModifyService $emm_service */
         $emm_service = $this->container->get('odr.entity_meta_modify_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var PermissionsManagementService $permissions_service */
+        $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
         // If the theme can't be synched, then there's no sense notifying the user of anything...
@@ -798,7 +804,7 @@ class ODRCustomController extends Controller
         //  least one of the added datafields/datatypes...
         $added_datafields = array();
         $added_datatypes = array();
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
+        $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
         foreach ($theme_diff_array as $theme_id => $diff_array) {
             if ( isset($diff_array['new_datafields']) )

@@ -3,23 +3,25 @@
 {% if search_key != '' %}
 <div>
     {% if search_result_count > 1 %}
-        <button id="ODRSearchResultsPrevious" class="pure-button" onclick="changeResult('prev');">
+        <button id="ODRSearchResultsPrevious" class="pure-button pure-button-primary" onclick="changeResult('prev');">
             <i class="fa fa-backward"></i><span>&nbsp;Prev</span>
         </button>
     {% endif %}
 
-    <button id="ODRReturnToSearchResults" class="pure-button" onclick="returnToSearchResults();">Back to Search Results</button>
+    <button id="ODRReturnToSearchResults"
+            class="pure-button pure-button-primary" onclick="returnToSearchResults();">
+        Browse Results
+        <div class="ODRBrowseLabels">
+            <span id="ODRRecordSummary">Record {{ search_result_current }} of {{ search_result_count }}</span>
+        </div>
+    </button>
 
     {% if search_result_count > 1 %}
-        <button id="ODRSearchResultsNext" class="pure-button" onclick="changeResult('next');">
+        <button id="ODRSearchResultsNext" class="pure-button pure-button-primary" onclick="changeResult('next');">
             <span>Next&nbsp;</span><i class="fa fa-forward"></i>
         </button>
     {% endif %}
 
-    <div class="ODRBrowseLabels">
-        <strong id="ODRBrowseSearchResults" class="ODRBrowseTitle">Browse Search Results</strong>
-        <strong id="ODRRecordSummary" class="FRight">Record {{ search_result_current }} of {{ search_result_count }}</strong>
-    </div>
 </div>
 {% endif %}
 

@@ -62,14 +62,14 @@
 
 {% if notitle is defined %}
 {% else %}
-    <h1 class="no-margin-top-phone">
+    <h1 class="no-margin-top-phone ODRSearchPageTitle">
         <span>{{ title }} &raquo; <span class="ODRRecordName">{{ datatype.dataTypeMeta.shortName }}</span></span>
         <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </h1>
 {% endif %}
 
     {# Record View Menu #}
-    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal" style="display:none;">
+    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal">
         <ul class="pure-menu-list">
         {% if display_editable_records_toggle %}
             <li class="pure-menu-item SpacerRight">

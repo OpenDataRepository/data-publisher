@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * RRUFF Oriented Raman Spectra Plugin
+ * RRUFF Instruments Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -19,7 +19,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use Symfony\Bridge\Monolog\Logger;
 
 
-class RRUFFOrientedRamanSpectraPlugin implements DatatypePluginInterface
+class RRUFFInstrumentsPlugin implements DatatypePluginInterface
 {
 
     /**
@@ -29,7 +29,7 @@ class RRUFFOrientedRamanSpectraPlugin implements DatatypePluginInterface
 
 
     /**
-     * RRUFF Oriented Raman Spectra Plugin constructor
+     * RRUFF Instruments Plugin constructor
      *
      * @param Logger $logger
      */
@@ -57,7 +57,7 @@ class RRUFFOrientedRamanSpectraPlugin implements DatatypePluginInterface
 
 
     /**
-     * Executes the RRUFF Oriented Raman Spectra Plugin on the provided datarecord
+     * Executes the RRUFF Instruments Plugin on the provided datarecord
      *
      * @param array $datarecords
      * @param array $datatype

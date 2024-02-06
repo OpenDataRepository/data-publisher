@@ -300,7 +300,7 @@ class DatarecordInfoService
                dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
                dtm, partial dt_eif.{id}, partial dtsf.{id, dataField, field_purpose, displayOrder}, partial s_df.{id}, partial s_df_dt.{id},
 
-               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, publicDate, xml_fieldName}, partial ft.{id, typeClass, typeName},
+               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, publicDate, xml_fieldName, quality_str}, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 

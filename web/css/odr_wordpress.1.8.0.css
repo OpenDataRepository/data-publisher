@@ -121,8 +121,8 @@ a {
 .pure-skin-odr .pure-button-selected,
 .pure-skin-odr a.pure-button-primary,
 .pure-skin-odr a.pure-button-selected {
-    background-color: #9AB5EF;
-    color: #0e275d;
+    background-color: #EEEEFF !important;
+    color: #7777EE;
 }
 
 /*! Copyright 2013 Yahoo! Inc. http://yuilibrary.com/license/ */
@@ -810,7 +810,7 @@ h1 {
 body {
     min-width: 320px;
     color: #555;
-    line-height: 1.6;
+    line-height: 1.6em;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -1562,8 +1562,12 @@ pre .support.value  {
         margin-right: 5px;
     }
     .ODRTristateCheckbox > .fa {
-        /*line-height: 1.25em;*/
-        /*margin-left: -0.1em;*/
+        line-height: 1.6em;
+        padding: 0 0 0 0 !important;
+        margin: 0 0 0 0 !important;
+        position: relative;
+        top: -3px;
+        left: 3px;
     }
     .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
         background: #9cd4d4;
@@ -1876,11 +1880,15 @@ body {
 }
 /*#TextResults_length {*/
 .dataTables_length {
-    padding-top: 10px;
-    padding-left: 10px;
+    padding-top: 6px;
+    padding-left: 20px;
 }
 .dataTables_length > label {
     font-size: 100% !important;
+}
+.dataTables_length select {
+    height: 30px !important;
+    top: 0 !important;
 }
 #TextResults_filter {
     padding-left: 10px;
@@ -1892,7 +1900,8 @@ body {
     padding-left: 10px;
 }
 #TextResults_paginate {
-    padding-top: 6px;
+    margin-top: -5px;
+    padding-top: 0;
     cursor: pointer;
 }
 #TextResults_paginate a:visited,
@@ -2544,15 +2553,16 @@ form .row {
     position: -moz-sticky;
     position: -ms-sticky;
     position: -o-sticky;
-    top: 0;
-    z-index: 990;
-    background: white;
     margin-bottom: 3px;
     padding-bottom: 8px;
     text-align: center;
-    -webkit-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
-    -moz-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
-    box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+
+    top: 0;
+    z-index: 990;
+    background: white;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+    box-shadow: none !important;
 }
 
 #pagination_header button {
@@ -2663,32 +2673,61 @@ form .row {
 }
 
 .ODRDesign .ODRPseudoField {
-    /* border: 1px solid #ddd; */
     padding: 0.48em 0.3em;
     min-height: 1em;
     height: 32px !important;
     line-height: normal;
     margin-right: 0.4em;
     margin-left: 0.3em;
-    /*-moz-box-shadow: inset 0 0 1px #aaa;
-    -webkit-box-shadow: inset 0 0 1px #aaa;
-    box-shadow: inset 0 0 1px #aaa; */
+}
+
+.ODRResultsPseudoField {
+    padding: 0 0.2em 0.2em 0.2em;
+    margin: 0 0 2px 0;
+    min-height: 1em;
+    line-height: normal;
+    font-size: 0.92em;
+}
+
+/*
+.ODRResults input[readonly],
+.ODRResults textarea[readonly] {
+    font-size: 1em;
+    background-color: white;
+    border: none;
+    padding: 6px 4px 4px 4px;
+}
+*/
+
+.ODRResults .ODRFieldLabel {
+    padding-left: 0.5em;
+    font-size: 0.92em !important;
+    font-weight: 700;
+    color: #7777EE;
 }
 
 .ODRDesign .ODRFieldLabel {
-    font-weight: bold;
+    font-size: 0.92em !important;
+    font-weight: 700;
+    color: #7777EE;
     cursor: default;
 }
 
 .ODRShortResults .ODRFieldLabel {
-    font-weight: bold;
+    font-size: 0.92em !important;
+    font-weight: 700;
+    color: #7777EE;
 }
 
 .ODRRecord .ODRFieldLabel {
+    font-size: 0.92em !important;
+    color: #7777EE;
     font-weight: bold;
 }
 .ODRRecord label.ODRRadioField {
-    font-size: 100%;
+    font-size: 0.92em !important;
+    font-weight: 700;
+    color: #7777EE;
 }
 
 .ODRRadioOptionsEdit {
@@ -2753,14 +2792,14 @@ form .row {
 }
 
 .ODRCreatedBy {
-    margin-top: -10px;
+    margin-top: 0;
     font-size: 0.7em;
     text-align: right;
-    min-height: 2em;
+    line-height: 1em !important;
 }
 
 #ODRSearchButtons {
-    margin-top: -24px;
+    margin-top: -18px;
 }
 
 .ODRBrowseTitle {
@@ -2887,34 +2926,20 @@ form .row {
 }
 
 
-.ODRResults label {
-    font-size: 0.96em !important;
-    font-weight: bold;
-    padding-left: 0.5em;
-}
-
-.ODRResultsPseudoField {
-    padding: 0 0.2em 0.2em 0.2em;
-    margin: 0 0 2px 0;
-    min-height: 1em;
-    line-height: normal;
-    font-size: 0.96em;
-}
-
-/*
-.ODRResults input[readonly],
-.ODRResults textarea[readonly] {
-    font-size: 1em;
-    background-color: white;
-    border: none;
-    padding: 6px 4px 4px 4px;
-}
-*/
 
 .ui-state-active,
-.ui-state-default {
-    border: none;
+.ui-state-default,
+.ui-widget-content .ui-state-active,
+.ui-widget-header .ui-state-active,
+a.ui-button:active,
+.ui-button:active,
+.ui-button.ui-state-active:hover {
+    border: none !important;
+    background: #ffffff;
+    font-weight: normal;
+    color: #212121;
 }
+
 
 .pure-table,
 .pure-table thead,
@@ -3013,6 +3038,7 @@ form .row {
 
 .ODRBrowseLabels {
     font-size: 0.6em;
+    text-align: center;
 }
 
 .pure-skin-odr .pure-button {
@@ -3122,6 +3148,9 @@ form .row {
     height: 0;
     opacity: 0;
     transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    margin: 0 0 0 10px !important;
+    border: 1px solid #ddddee;
+    border-radius: 6px;
     overflow: hidden;
 }
 
@@ -3132,7 +3161,7 @@ form .row {
 #ODRMainMenu ul li.show > ul.ODR-pure-submenu {
     /* display:inherit; */
     display: block;
-    width:225px;
+    width: 225px;
     opacity: 1;
     height: auto;
     transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
@@ -3144,7 +3173,7 @@ form .row {
     display: block;
     float: left;
     position: absolute;
-    top: 0px;
+    top: 0;
     left: 225px;
     opacity: 1;
     height: auto;
@@ -3270,7 +3299,7 @@ form .row {
 }
 
 .ODRFileDatafield {
-    margin: 4px;
+    margin: 0 4px 0 4px;
 }
 
 .ODRFileDatafield_header {
@@ -3278,10 +3307,13 @@ form .row {
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
     background: none; /* #7fb9d8 none repeat scroll 0 0; */
-    color: RGBA(77, 136, 220, 1.00);
-    padding: 4px 0 4px 8px;
-    font-size: 0.96em;
+    /* color: RGBA(77, 136, 220, 1.00); */
+    color: #7777EE;
+    padding: 0 0 0 8px;
+    font-size: 0.92em;
+    font-weight: 700;
     border-radius: 5px 5px 0px 0px;
+    box-shadow: none;
 }
 
 .ODRFileDatafield_file, .ODRFileDatafield_empty {
@@ -3348,15 +3380,14 @@ form .row {
 }
 
 .ODRFileInfoDiv {
-    line-height: 2.0em;
     cursor: pointer;
-    padding-left: 5px;
-    padding-right: 5px;
+    padding-left: 8px;
+    padding-right: 8px;
     display: inline-block;
 }
 .ODRFileInfo {
-    background-color: lightyellow;
-    border: 1px dashed gray;
+    background-color: white;
+    border: 1px solid #EEEEFF;
     padding: 5px;
     position: absolute;
     visibility: hidden;
@@ -3364,6 +3395,7 @@ form .row {
     z-index: 999;
     cursor: default;
     left: 0px;
+    box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
 }
 .ODRFileInfoDiv:hover .ODRFileInfo {
     visibility: visible;
@@ -3484,7 +3516,8 @@ form .row {
     position: absolute;
     line-height: 35px;
     top: 0;
-    margin: 0px 0px 0px 0px;
+    left: 0;
+    margin: 0 0 0 0;
     overflow: visible;
     text-align: center;
     width: 100%;
@@ -3522,14 +3555,7 @@ form .row {
 }
 .ODRRemodalInner {
     overflow: scroll;
-    margin-top: 35px;
-    /* margin-left: 10px; */
     height: 10px;
-    /* -webkit-transition: max-height 2s;
-    -moz-transition: max-height 2s;
-    -ms-transition: max-height 2s;
-    -o-transition: max-height 2s;
-    transition: max-height 2s; */
 }
 .ODRRemodalInnerContent {
     /* overflow: scroll; */
@@ -3542,18 +3568,40 @@ form .row {
     padding-top: 20px;
     padding-bottom: 20px;
 }
+.remodal-close:hover {
+    background: transparent !important;
+}
+
+
+
+/* Fixing bad Remodal CSS Decisions */
+.remodal {
+    /* max-width: 700px; */
+    max-width: 90% !important;
+    max-height: 90% !important;
+}
+@media only screen and (min-width: 641px) {
+    .remodal {
+        /* max-width: 700px; */
+        max-width: 90% !important;
+        max-height: 90% !important;
+    }
+}
+
+
+
 /* Media Queries */
 /* pure-hidden-xs */
 @media screen and (max-width:567px) {
     .ODRRemodal h3 {
-        margin: 0px 0px 0px 0px;
+        margin: 0 0 0 0;
         padding: 0;
         overflow: scroll;
     }
     .ODRRemodalButtons {
         /* display: block; */
         position: absolute;
-        bottom: 0px;
+        bottom: 0;
     }
     .ODRRemodal {
         max-width: 100%;
@@ -3749,6 +3797,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     -webkit-margin-start: 0;
     -webkit-margin-end: 0;
     -webkit-padding-start: 0;
+    padding-bottom: 100px;
 }
 
 #ODRChooseView > li {
@@ -3846,8 +3895,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 #ODRReturnToSearchResults {
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-right: 14px;
+    padding-left: 14px;
+    position: relative;
+    top: -5px;
 }
 
 .ODRJobList_header {
@@ -3917,15 +3970,21 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     list-style-type: none;
 }
 .ODRTagWrapper .ODRTagLabel {
+    margin-left: 4px !important;
     cursor: default;
+    display: inline !important;
 }
 .ODRTagWrapper .ODRTagLabel p {
     display: inline;
 }
 .ODRTagGroup {
     position: relative;
-    padding-left: 15px;
-    margin-top: 5px;
+    padding-left: 0 !important;
+    margin-top: 0 !important;
+    margin-left: 2px !important;
+}
+.ODRTagGroup li > ul {
+    margin-left: 14px !important;
 }
 .ODRTagGroup:before {
     position: absolute;
@@ -3944,7 +4003,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRTagSpacer {
     display: inline-block;
-    padding-left: 9px;
+    padding-left: 1px;
+}
+.ODRTagSpacer i {
+    line-height: 1.6em !important;
 }
 
 
@@ -4082,21 +4144,29 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: -ms-sticky;
     position: -o-sticky;
     top: 0;
+    left: 20px;
 }
 .ODRSearchHidden {
     position: absolute;
-    top: 48px;
-    right: 96vw;
+    top: 148px !important;
+    right: calc(100vw - 45px) !important;
+    /* transform: translateX(calc(100vs-365px));
+    transition: transform 0.35s ease-in-out; */
 }
 .ODRSearchHidden > .ODRThemeElement {
     position: sticky !important;
-    top: 48px;
+    top: 148px !important;
+}
+
+#ODRSearchContent {
+    /* transition: width 0.35s ease-in-out; */
 }
 .ODRSearchResultsWide {
     width: 100% !important;
     -webkit-transition: width 0.25s; /* Safari */
     transition: width 0.25s;
 }
+
 @media only screen and (max-width : 740px) {
     .ODRSearchVisible {
         position: relative;
@@ -4111,9 +4181,13 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 
+.ODRSearchPageTitle,
+.ODRTextResultsListTitle,
+.ODRTextResultsTitle,
 .ODRShortResultsTitle {
     width: 100% !important;
     color: #666666 !important;
+    display: none;
 }
 .ODRShortResultsHeaderLeft {
 }
@@ -4469,8 +4543,15 @@ i {
 
 .ODRChemistryPlugin_button {
     min-width: 0 !important;
-    padding: 3px !important;
-    margin: 5px 5px 0 5px !important;
+    padding: 2px !important;
+    margin: 5px 5px 2px 5px !important;
+    border: 1px solid #EEEEFF;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.ODRChemistryPlugin_button i {
+    position: relative;
+    top: -3px;
 }
 .ODRChemistryPlugin_popup {
     position: absolute;
@@ -4612,17 +4693,19 @@ i {
     top: 10px;
     left: 20px;
 }
+.ODRGraphFilterPlugin_settings,
 .DynamicGraphSettings {
-    background-color: lightyellow;
-    border: 1px dashed gray;
+    background-color: white;
+    border: 1px solid #ddddee;
+    box-shadow: none;
+    border-radius: 6px;
     padding: 5px;
     position: absolute;
     display: none;
     min-width: 200px;
     z-index: 999;
     cursor: default;
-    /*left: 4px;*/
-    top: -45px;
+    top: -5px;
 }
 .DynamicGraphSettingsDiv_close {
     text-align: right;
@@ -4656,6 +4739,20 @@ button.jGrowl-close {
     text-align: right;
 }
 
+#ODRSearchHeaderWrapper {
+    margin-top: -10px;
+}
+
+#ODRSearchHeaderWrapper button {
+    margin-top: 0 !important;
+}
+#ODRSearchHeaderWrapper .fa {
+    padding: 3px 8px 3px 8px !important;
+}
+
+#ODRDownloadAllFilesIcon.fa {
+    padding-left: 22px !important;;
+}
 
 .ODRRenderPlugin_FileHeaderInserter_header {
     text-align: left;
@@ -4976,48 +5073,53 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 
 .ODRGraphFilterPlugin_fields {
-    background: #ffa;
+    background: white;
 }
 .ODRGraphFilterPlugin_buttons {
     margin-bottom: 5px;
+    margin-left: 10px;
 }
 .ODRGraphFilterPlugin_select, .ODRGraphFilterPlugin_deselect {
-    /*min-width: 10em;*/
+    display: inline-block;
     box-sizing: border-box;
     box-shadow: none;
-    /*background: none;*/
-    border: 2px solid #1c81d0;
+    border: 1px solid #EEEEFF;
     border-radius: 4px;
     background: white none;
-    /*padding: 8px;*/
-    color: #1c81d0;
+    width: 60px;
+    color: #7777EE;
     margin-right: 12px;
     text-align: center;
     cursor: pointer;
 }
 
 .ODRGraphFilterPlugin_blurb {
-    margin-left: 25px;
+    margin-left: 30px;
 }
 .ODRGraphFilterPlugin_settings_div {
     cursor: pointer;
     position: absolute;
     z-index: 999;
-    top: 10px;
-    /*left: 20px;*/
+    top: 0;
+    left: 14px;
 }
-.ODRGraphFilterPlugin_settings {
-    background-color: lightyellow;
-    border: 1px dashed gray;
-    padding: 5px;
-    position: absolute;
-    display: none;
-    min-width: 200px;
-    z-index: 999;
-    cursor: default;
-    /*left: 4px;*/
-    top: -1px;
-}
+
 .ODRGraphFilterPlugin_settings_close {
     text-align: right;
 }
+
+
+.ODRFileQuality_wrapper {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+}
+.ODRImageQuality_wrapper {
+    float:right;
+    margin-right: 5px;
+}
+.ODRFileQuality_label {
+    position: relative !important;
+    top: 0px !important;
+}
+
