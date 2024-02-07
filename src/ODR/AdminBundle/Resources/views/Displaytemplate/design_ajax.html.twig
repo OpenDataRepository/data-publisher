@@ -2292,10 +2292,12 @@
                     throw new SyntaxError('Provided JSON does not have at least 2 entries');
             }
 
-            for (const elem of json) {
+            for (const key in json) {
+                let elem = json[key];
                 if ( typeof elem !== "string" && typeof elem !== "number" )
                     throw new SyntaxError('Provided JSON must not have have multiple levels');
             }
+            // NOTE: can't use for..of because json isn't guaranteed to be iterable
 
             // If this point is reached, then no error
             $(".ODRDesign_quality_warning")
