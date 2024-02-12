@@ -117,6 +117,8 @@
         'user_permissions': user_permissions,
 
         'notitle': true,
+
+        'activate_filter_graph_results': activate_filter_graph_results,
     } %}
 </div>
 
@@ -200,7 +202,7 @@
 
     /**
      * Changes the displayed page for a search result.
-     * @param {integer} [page]
+     * @param {number} [page]
      */
     function goToPage(page) {
         if ( page === undefined ) {

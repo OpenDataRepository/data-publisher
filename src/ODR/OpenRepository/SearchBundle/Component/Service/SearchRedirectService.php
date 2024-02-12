@@ -253,4 +253,35 @@ class SearchRedirectService
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
+    /**
+     * TODO
+     *
+     * @param string $filtered_search_key
+     * @param integer $offset
+     *
+     * @return Response
+     */
+    public function redirectToFilterGraphSetup($filtered_search_key, $offset)
+    {
+        // Can't use $this->redirect, because it won't update the hash...
+        $return = array(
+            'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
+            't' => '',
+            'd' => array(
+                'url' => $this->router->generate(
+                    'odr_plugin_filter_graph_setup',
+                    array(
+                        'search_key' => $filtered_search_key,
+                        'offset' => $offset,
+                    )
+                )
+            )
+        );
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

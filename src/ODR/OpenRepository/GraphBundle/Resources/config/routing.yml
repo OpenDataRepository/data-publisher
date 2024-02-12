@@ -6,12 +6,14 @@ odr_plugin_graph_render:
         request_datatype_id: \d+
         request_datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it
 
+
 odr_plugin_file_renamer_rebuild:
     path:  /edit/plugins/file_renamer/rebuild/{dr_id}/{df_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:FileRenamer:rebuild }
     requirements:
         dr_id: \d+
         df_id: \d+
+
 
 odr_plugin_file_header_inserter_rebuild:
     path:  /edit/plugins/file_header_inserter/rebuild/{dr_id}/{df_id}
@@ -20,7 +22,21 @@ odr_plugin_file_header_inserter_rebuild:
         dr_id: \d+
         df_id: \d+
 
+
 odr_plugin_cellparam_save:
     path:  /edit/plugins/cellparams/save
     defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFCellparams:save }
+    methods: [POST]
+
+
+odr_plugin_filter_graph_setup:
+    path:  /view/plugins/filter_graph/setup/{search_key}/{offset}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:FilterGraph:setup }
+    requirements:
+        search_key: '[^\/]*'
+        offset: \d+
+
+odr_plugin_filter_graph_asdf:
+    path:  /view/plugins/filter_graph/asdf
+    defaults: { _controller: ODROpenRepositoryGraphBundle:FilterGraph:asdf }
     methods: [POST]

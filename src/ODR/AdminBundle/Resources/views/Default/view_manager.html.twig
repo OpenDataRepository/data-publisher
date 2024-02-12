@@ -125,6 +125,14 @@
                 </label>
             </li>
         {% endif %}
+
+        {% if activate_filter_graph_results %}
+            <li class="pure-menu-item SpacerRight">
+                <label id="ODRFilterGraphTrigger" class="pure-button">
+                    Graph...
+                </label>
+            </li>
+        {% endif %}
         </ul>
 {#
     {% if display_export_options is defined and display_export_options == true and intent == 'searching' and has_datarecords %}
@@ -189,6 +197,13 @@
         $("#ODRMassFileDownload").unbind('click').click(function() {
             {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
             openMassDownloadDialog("{{ search_key }}");
+        });
+{% endif %}
+
+{% if activate_filter_graph_results %}
+        $("#ODRFilterGraphTrigger").unbind('click').click(function() {
+            var url = '{{ path('odr_plugin_filter_graph_setup', { 'search_key': search_key, 'offset': offset }) }}';
+            UpdateURL(url);
         });
 {% endif %}
 

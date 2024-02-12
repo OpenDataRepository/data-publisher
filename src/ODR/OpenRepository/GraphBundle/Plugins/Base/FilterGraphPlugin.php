@@ -362,7 +362,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                         foreach ($dr['children'][$child_dt_id] as $child_dr_id => $child_dr) {
                             // Need to extend the nameField_value of the child datarecord with its
                             //  parent's nameField_value, so that the files can still be identified
-                            if ( !is_array($dr['nameField_value']) ) {
+                            if ( !is_array($dr['nameField_value']) ) {    // TODO - this isn't properly creating arrays when called from search results
                                 // $dr is a top-level datarecord, and its nameField_value will be a
                                 //  string...convert the values into an array so that sorting doesn't
                                 //  go stupid
@@ -477,7 +477,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         // First step is to reorganize the sort values into columns so array_multisort() works
         $levels_count = 0;
         foreach ($graph_files as $dr_id => $data) {
-            $levels_count = count($data['sortField_value']);
+//            $levels_count = 1;
+//            if ( is_array($data['sortField_value']) )    // TODO - see line 365
+                $levels_count = count($data['sortField_value']);
+
             break;
         }
         // Intentionally using '<=' instead of '<', because this use of array_multisort() demands

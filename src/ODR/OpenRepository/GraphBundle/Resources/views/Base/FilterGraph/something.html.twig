@@ -1,0 +1,50 @@
+{% spaceless %}
+
+<form id="form">
+    <input type="hidden" name="search_key" value="{{ search_key }}" />
+    {% for df_id,df in relevant_datafields %}
+        {% set rpi_id = df['graph_rpi']['id'] %}
+        <input type="radio" id="df_{{ df_id }}" class="radio" name="target" value="{{ rpi_id }}_{{ df_id }}" />
+        <label for="df_{{ df_id }}">{{ df['dataFieldMeta']['fieldName'] }}</label>
+    {% endfor %}
+</form>
+
+<div id="asdf"></div>
+
+<script>
+    $(function() {
+        $(".radio").unbind('change').change(function() {
+            var post_data = $("#form").serialize();
+            var url = '{{ path('odr_plugin_filter_graph_asdf') }}';
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: post_data,
+                dataType: "json",
+                success: function(data) {
+                    // $("#form").remove();
+                    $("#asdf").html( data.d.html );
+                },
+                error: function() {
+
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endspaceless %}

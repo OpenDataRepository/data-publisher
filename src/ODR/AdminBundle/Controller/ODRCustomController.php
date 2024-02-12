@@ -323,8 +323,14 @@ class ODRCustomController extends Controller
             }
 
             // Filter everything that the user isn't allowed to see from the datatype/datarecord arrays
-            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId(), true);
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId());    // do want links
             $permissions_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
+
+            // Need to perform this check after permissions filtering, but before array stacking
+            $graph_plugin_instances = self::hasGraphPluginInstance($datatype_array);
+            $activate_filter_graph_results = false;
+            if ( !empty($graph_plugin_instances) )
+                $activate_filter_graph_results = true;
 
             // Stack what remains of the datatype and datarecord arrays
             $stacked_datatype_array[ $datatype->getId() ] =
@@ -383,7 +389,9 @@ class ODRCustomController extends Controller
                         'has_search_restriction' => $has_search_restriction,
                         'editable_only' => $only_display_editable_datarecords,
                         'can_edit_datatype' => $can_edit_datatype,
+
                         'use_jupyterhub' => $use_jupyterhub,
+                        'activate_filter_graph_results' => $activate_filter_graph_results,
                     )
                 );
             }
@@ -435,6 +443,19 @@ class ODRCustomController extends Controller
             // -----------------------------------
             // This is a theme that the user wants to render as a table
             $theme_array = $theme_info_service->getThemeArray($theme->getId());
+
+
+            // Need to check whether to activate the filter graph button...
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId());    // do want links
+            $empty = array();
+            $permissions_service->filterByGroupPermissions($datatype_array, $empty, $user_permissions);
+
+            // Need to perform this check after permissions filtering, but before array stacking
+            $graph_plugin_instances = self::hasGraphPluginInstance($datatype_array);
+            $activate_filter_graph_results = false;
+            if ( !empty($graph_plugin_instances) )
+                $activate_filter_graph_results = true;
+
 
             $column_data = array();
             $row_data = array();
@@ -522,6 +543,7 @@ class ODRCustomController extends Controller
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,    // This is used by the datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
+                    'activate_filter_graph_results' => $activate_filter_graph_results,
                 )
             );
         }
@@ -591,6 +613,26 @@ class ODRCustomController extends Controller
 
         // Done checking this theme
         return $rendered_dt_ids;
+    }
+
+
+    /**
+     * Need to check whether the related search results list is using a graph-type plugin...
+     *
+     * @param array $datatype_array An unstacked/unfiltered cached datatype array
+     * @return boolean
+     */
+    private function hasGraphPluginInstance($datatype_array)
+    {
+        foreach ($datatype_array as $dt_id => $dt) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
+                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                if ( $plugin_classname === 'odr_plugins.base.graph' || $plugin_classname === 'odr_plugins.base.filter_graph' )
+                    return true;
+            }
+        }
+
+        return false;
     }
 
 
