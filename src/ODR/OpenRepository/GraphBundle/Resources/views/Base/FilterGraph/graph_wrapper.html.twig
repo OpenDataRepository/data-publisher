@@ -51,7 +51,7 @@
     </div>
 
     <div class="ODRGraphSpacer ODRContentWrapper pure-u-1 ODRRecord ODRHidden">    {# ODRRecord to trigger different CSS... #}
-        <div class="ODRThemeElement">
+        <div class="ODRThemeElement {% if odr_chart_file_ids|length < 2 %}ODRHidden{% endif %}">    {# Don't display the filter area if there's nothing to filter by #}
             <div class="ODRInnerBox">
                 <div id="{{ odr_chart_id }}_blurb">
                     <span class="ODRGraphFilterPlugin_blurb">The selected values in the fields below control which files are displayed on the graphs above.</span>
@@ -69,7 +69,7 @@
                                 <label for="{{ odr_chart_id }}_show_hidden_filters">Show Hidden Fields: </label>
                                 <input type="checkbox" id="{{ odr_chart_id }}_show_hidden_filters" />
                                 <label for="{{ odr_chart_id }}_show_odr_data">Always Show ODR Data: </label>
-                                <input type="checkbox" id="{{ odr_chart_id }}_show_odr_data" />
+                                <input type="checkbox" id="{{ odr_chart_id }}_show_odr_data" {% if odr_chart_file_ids|length < 2 %}checked{% endif %}/>
                             </div>
                         </div>
                     </div>
