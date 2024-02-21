@@ -81,8 +81,8 @@ class FakeEditController extends ODRCustomController
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -98,7 +98,7 @@ class FakeEditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+            if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // TODO - ...shouldn't this also require the user to be able to edit at least one datafield?  doesn't really make sense otherwise...
             // --------------------
@@ -199,12 +199,17 @@ class FakeEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var CsrfTokenManager $token_manager */
@@ -222,60 +227,16 @@ class FakeEditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+            if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canEditDatatype($user, $datatype) )
+            if ( !$permissions_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
             // Need to verify that the datafields and tokens make sense
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
             $found_datafields = array();
 
-            // ...but first, ensure that the form wasn't submitted without data when it should
-            //  have something
-            $needs_data = false;
-            $missing_data = true;
-            foreach ($datatype_array[$datatype->getId()]['dataFields'] as $df_id => $df) {
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                switch ($typeclass) {
-                    // If the datatype has at least one datafield with any of these typeclasses,
-                    //  then at least one of those fields must have a value
-                    case 'IntegerValue':
-                    case 'DecimalValue':
-                    case 'LongText':    // paragraph text
-                    case 'LongVarchar':
-                    case 'MediumVarchar':
-                    case 'ShortVarchar':
-                    case 'DatetimeValue':
-                        $needs_data = true;
-                        if ( isset($datafields[$df_id]) )
-                            $missing_data = false;
-                        break;
-
-                    // If a datatype only has fields with these typeclasses, then creating an empty
-                    //  record is allowed...
-//                    case 'Boolean':
-//                    case 'Radio':
-//                    case 'Tags':
-
-                    // These typeclasses can't be given a value at all in FakeEdit, so they also
-                    //  shouldn't influence whether a record is empty or not
-//                    case 'File':
-//                    case 'Image':
-//                    case 'Markdown':
-                    default:
-                        break;
-                }
-            }
-
-            // If the datatype has at least one text/number/date field, but none of them have any
-            //  values, then complain that the user submitted a completely empty datarecord
-            if ( $needs_data && $missing_data )
-                throw new ODRBadRequestException('The new record must have data entered in at least one field before it can be saved');
-
-
-            // ----------------------------------------
             // Easier to locate any datafields that are going to receive autogenerated values here
             $autogenerated_datafields = self::findAutogeneratedDatafields($datatype_array);
             // Same theory for any derived datafields
@@ -395,10 +356,6 @@ class FakeEditController extends ODRCustomController
                     throw new ODRBadRequestException('Invalid Datafield');
             }
 
-            // Verify that at least one datafield was provided
-            if ( empty($datafields) )
-                throw new ODRBadRequestException("The new record must have data entered in at least one field before it can be saved");
-
 
             // ----------------------------------------
             // Load datafield entities to prepare for entity creation, and to perform final
@@ -420,7 +377,7 @@ class FakeEditController extends ODRCustomController
 
             // Also ensure the user can edit all of these fields before continuing
             foreach ($df_mapping as $df_id => $df) {
-                if ( !$pm_service->canEditDatafield($user, $df) )
+                if ( !$permissions_service->canEditDatafield($user, $df) )
                     throw new ODRForbiddenException();
             }
 
@@ -450,7 +407,7 @@ class FakeEditController extends ODRCustomController
             }
 
             // Now that all the post data makes sense, it's time to create some entities
-            $new_datarecord = $ec_service->createDatarecord(
+            $new_datarecord = $entity_create_service->createDatarecord(
                 $user,
                 $datatype,
                 false,   // Delaying flush here is pointless, due to creation of storage entities below
@@ -462,10 +419,6 @@ class FakeEditController extends ODRCustomController
             // This is wrapped in a try/catch block because any uncaught exceptions will abort
             //  creation of the new datarecord...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordCreatedEvent($new_datarecord, $user);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
@@ -495,9 +448,9 @@ class FakeEditController extends ODRCustomController
                         $ro = $repo_radio_options->find($ro_id);    // this should already exist
 
                         // Create the drf entry...
-                        $drf = $ec_service->createDatarecordField($user, $new_datarecord, $df);
+                        $drf = $entity_create_service->createDatarecordField($user, $new_datarecord, $df);
                         // ...then create the radio selection
-                        $radio_selection = $ec_service->createRadioSelection($user, $ro, $drf);
+                        $radio_selection = $entity_create_service->createRadioSelection($user, $ro, $drf);
 
                         // These are unselected when created, so change that
                         $radio_selection->setSelected(1);
@@ -510,9 +463,9 @@ class FakeEditController extends ODRCustomController
                         $tag = $repo_tags->find($tag_id);    // this should already exist
 
                         // Create the drf entry...
-                        $drf = $ec_service->createDatarecordField($user, $new_datarecord, $df);
+                        $drf = $entity_create_service->createDatarecordField($user, $new_datarecord, $df);
                         // ...then create the tag selection
-                        $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+                        $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
 
                         // New tags are unselected by default
                         $tag_selection->setSelected(1);
@@ -527,7 +480,7 @@ class FakeEditController extends ODRCustomController
                         $value = null;
                     }
 
-                    $ec_service->createStorageEntity($user, $new_datarecord, $df, $value);
+                    $entity_create_service->createStorageEntity($user, $new_datarecord, $df, $value);
 
                     // Don't need to worry about clearing sort order of other datatypes as a result
                     //  of these new datafield values...this new datarecord won't be linked to by
@@ -549,10 +502,6 @@ class FakeEditController extends ODRCustomController
                     $df = $df_mapping[$df_id];
 
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatafieldModifiedEvent($df, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
@@ -568,10 +517,6 @@ class FakeEditController extends ODRCustomController
             // Since the datarecord got modified to have values in at least one field...probably
             //  should fire off a modified event
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($new_datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -773,8 +718,8 @@ class FakeEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -803,9 +748,9 @@ class FakeEditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+            if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canEditDatatype($user, $datatype) )
+            if ( !$permissions_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -922,12 +867,12 @@ class FakeEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -974,9 +919,9 @@ class FakeEditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+            if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $child_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -985,7 +930,7 @@ class FakeEditController extends ODRCustomController
             // Need to verify that the datafields and tokens make sense
             // Most of the verification is the same as self::savefakerecordAction(), but slightly
             //  relaxed because InlineLink can't be strict and still do its actual job
-            $datatype_array = $dbi_service->getDatatypeArray($child_datatype->getGrandparent()->getId(), false);    // don't need links
+            $datatype_array = $database_info_service->getDatatypeArray($child_datatype->getGrandparent()->getId(), false);    // don't need links
             $found_datafields = array();
 
             // Easier to locate any datafields that are going to receive autogenerated values here
