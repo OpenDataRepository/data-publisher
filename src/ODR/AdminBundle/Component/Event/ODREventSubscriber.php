@@ -770,6 +770,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $user = $event->getUser();
             $datarecord = $event->getDatarecord();
 //            $datatype = $datarecord->getDataType();
+            $update_database = $event->getUpdateDatabase();
 
             // This event currently isn't allowed to fire for render plugins
 //            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
@@ -783,21 +784,25 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  to be marked as updated
             $dr = $datarecord;
             while ($dr->getId() !== $dr->getParent()->getId()) {
-                // Mark this (non-top-level) datarecord as updated by this user
-                $dr->setUpdatedBy($user);
-                $dr->setUpdated(new \DateTime());
-                $this->em->persist($dr);
+                if ( $update_database ) {
+                    // Mark this (non-top-level) datarecord as updated by this user
+                    $dr->setUpdatedBy($user);
+                    $dr->setUpdated(new \DateTime());
+                    $this->em->persist($dr);
+                }
 
                 // Continue locating parent datarecords...
                 $dr = $dr->getParent();
             }
 
             // $dr is now the grandparent of $datarecord, save all changes made
-            $dr->setUpdatedBy($user);
-            $dr->setUpdated(new \DateTime());
+            if ( $update_database ) {
+                $dr->setUpdatedBy($user);
+                $dr->setUpdated(new \DateTime());
 
-            $this->em->persist($dr);
-            $this->em->flush();
+                $this->em->persist($dr);
+                $this->em->flush();
+            }
 
             // Delete all regular cache entries that need to be rebuilt due to whatever change
             //  triggered this event

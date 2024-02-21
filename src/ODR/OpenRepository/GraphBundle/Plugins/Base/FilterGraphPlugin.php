@@ -664,10 +664,17 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             // $dr_lookup needs another pass before it's useful...
             self::combineDatarecordLookup($dr_lookup);
 
+
+            // If there's only one file, then the following step needs to include "all" the filter
+            //  values and not "just the values that change"...
+            $only_one_file = false;
+            if ( count($odr_chart_file_ids) === 1 )
+                $only_one_file = true;
+
             // The pile of datafield_ids/values/datarecord_ids that get returned need to be reduced
             //  to only contain the values that change, and simultaneously tweak which values refer
             //  to which records to make the graph plugin javascript's life easier
-            $reduced_filter_values = self::reduceFilterValues($available_filter_values, $dr_lookup);
+            $reduced_filter_values = self::reduceFilterValues($available_filter_values, $dr_lookup, $only_one_file);
 
             // It's a bit easier to find the desired value if they're sorted...
             foreach ($reduced_filter_values['values'] as $df_id => $values) {
@@ -1156,9 +1163,11 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      *
      * @param array $available_filter_values
      * @param array $dr_lookup
+     * @param boolean $only_one_file If true, then don't filter out unchanging values
+     *
      * @return array
      */
-    private function reduceFilterValues($available_filter_values, $dr_lookup)
+    private function reduceFilterValues($available_filter_values, $dr_lookup, $only_one_file)
     {
         $reduced_filter_values = array(
             'values' => array(),
@@ -1166,7 +1175,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         );
 
         foreach ($available_filter_values['values'] as $df_id => $values) {
-            if ( count($values) < 2 && !isset($available_filter_values['null_values'][$df_id]) ) {
+            if ( !$only_one_file && count($values) < 2 && !isset($available_filter_values['null_values'][$df_id]) ) {
                 // Makes no sense to provide a filter to choose values when there's actually only
                 //  a single value across all the graphed files (including null values)
 
@@ -1185,7 +1194,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             }
         }
         foreach ($available_filter_values['null_values'] as $df_id => $dr_list) {
-            if ( !isset($available_filter_values['values'][$df_id]) ) {
+            if ( !$only_one_file && !isset($available_filter_values['values'][$df_id]) ) {
                 // If there's nothing in the 'values' array, then a value here means there's still
                 //  only a single value across all the graphed files...get rid of it
 

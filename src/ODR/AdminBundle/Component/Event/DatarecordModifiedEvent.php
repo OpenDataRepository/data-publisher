@@ -37,19 +37,27 @@ class DatarecordModifiedEvent extends Event implements ODREventInterface
      */
     private $user;
 
+    /**
+     * @var bool
+     */
+    private $update_database;
+
 
     /**
      * DatarecordModifiedEvent constructor.
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
+     * @param bool $update_database
      */
     public function __construct(
         DataRecord $datarecord,
-        ODRUser $user
+        ODRUser $user,
+        bool $update_database = true
     ) {
         $this->datarecord = $datarecord;
         $this->user = $user;
+        $this->update_database = $update_database;
     }
 
 
@@ -76,6 +84,15 @@ class DatarecordModifiedEvent extends Event implements ODREventInterface
 
 
     /**
+     * Returns whether the database update should happen.
+     */
+    public function getUpdateDatabase()
+    {
+        return $this->update_database;
+    }
+
+
+    /**
      * {@inheritDoc}
      */
     public function getEventName()
@@ -92,6 +109,7 @@ class DatarecordModifiedEvent extends Event implements ODREventInterface
         return array(
             self::NAME,
             'dr '.$this->datarecord->getId(),
+            self::getUpdateDatabase(),
         );
     }
 }
