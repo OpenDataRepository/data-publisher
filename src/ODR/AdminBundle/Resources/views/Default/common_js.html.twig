@@ -556,6 +556,68 @@
     }
 
     /**
+     * Opens the modal for users to view/select available themes for the current page type for
+     * this datatype.
+     *
+     * @param {number} datatype_id
+     * @param {string} page_type
+     * @param {string} search_key
+     */
+    function openChooseViewRemodal(datatype_id, page_type, search_key) {
+        var page_type_title = "Choose from available layouts:";
+        if ( page_type != '' ) {
+            var pieces = page_type.split(/_/);
+            for (var key in pieces)
+                pieces[key] = pieces[key][0].toUpperCase() + pieces[key].slice(1);
+            page_type_title = "Choose from available layouts for " + pieces.join(' ') + " mode:";
+        }
+
+        modal_options = {
+            title: page_type_title,
+            // body: "<div>Loading will not display if body is set.</div>",
+            // loading: true,  // Force loading to display
+        };
+        openODRRemodal(modal_options);
+
+        var url = '{{ path('odr_get_available_themes', { 'datatype_id': 0, 'page_type': '', 'search_key': '' }) }}';
+        url = url.substring(0, url.length - 2);
+        url += datatype_id + '/' + page_type + '/' + search_key;
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                $(".ODRRemodalBody").html( data.d );
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
      * Attaches click handlers to the accordion, tabbed, and dropdown header display_types.
      */
     function setupAccordions() {

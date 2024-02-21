@@ -241,6 +241,31 @@
 #}
     });
 
+
+    /**
+     * Several design actions attempt to default to the first empty themeElement...
+     *
+     * @param {number} datatype_id
+     * @return {HTMLElement|null}
+     */
+    function locateEmptyThemeElement(datatype_id) {
+        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
+            var te_id = $(this).attr('id').replace('ThemeElement_', '');
+            var te_props = theme_element_properties[te_id];
+
+            if ( !te_props.has_datafields && !te_props.child_is_link && !te_props.has_childtype ) {
+                if ( $(this).find('.ODRPluginErrorDiv').length == 0 ) {
+                    // console.log('found existing empty ThemeElement: ' + te_id, te_props);
+                    return $(this);
+                }
+            }
+        });
+
+        // If a theme element is not found, return null
+        return null;
+    }
+
+
     /**
      * Loads the properties form for the given theme_element.
      *
@@ -618,20 +643,10 @@
                         // console.log('adding child dataset to datatype: ' + datatype_id);
 
                         // Locate an empty theme element, if possible
-                        var te = null;
-                        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
-                            var te_id = $(this).attr('id').replace('ThemeElement_', '');
-                            var te_props = theme_element_properties[te_id];
-
-                            if ( te === null && !te_props.has_datafields && !te_props.child_is_link && !te_props.has_childtype ) {
-                                te = $(this);
-                                // console.log('found existing empty ThemeElement: ' + te_id, te_props);
-                            }
-                        });
-
+                        var te = locateEmptyThemeElement(datatype_id);
                         if (te != null) {
                             // Add child dataset to the empty theme element
-                            var te_id = te.attr('id').replace('ThemeElement_', '');
+                            var te_id = $(te).attr('id').replace('ThemeElement_', '');
                             addChildType(te_id);
                             ScrollHighlight("#ThemeElement_" + te_id);
                         }
@@ -705,20 +720,10 @@
                         // console.log('linking dataset into datatype: ' + datatype_id);
 
                         // Locate an empty theme element, if possible
-                        var te = null;
-                        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
-                            var te_id = $(this).attr('id').replace('ThemeElement_', '');
-                            var te_props = theme_element_properties[te_id];
-
-                            if ( te === null && !te_props.has_datafields && !te_props.child_is_link && !te_props.has_childtype ) {
-                                te = $(this);
-                                // console.log('found existing empty ThemeElement: ' + te_id, te_props);
-                            }
-                        });
-
+                        var te = locateEmptyThemeElement(datatype_id);
                         if (te != null) {
                             // Add dataset from template to the empty theme element
-                            var te_id = te.attr('id').replace('ThemeElement_', '');
+                            var te_id = $(te).attr('id').replace('ThemeElement_', '');
                             linkDatatype(te_id);
                             ScrollHighlight("#ThemeElement_" + te_id);
                         }
@@ -748,20 +753,10 @@
                         // console.log('adding dataset from template to datatype: ' + datatype_id);
 
                         // Locate an empty theme element, if possible
-                        var te = null;
-                        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
-                            var te_id = $(this).attr('id').replace('ThemeElement_', '');
-                            var te_props = theme_element_properties[te_id];
-
-                            if ( te === null && !te_props.has_datafields && !te_props.child_is_link && !te_props.has_childtype ) {
-                                te = $(this);
-                                // console.log('found existing empty ThemeElement: ' + te_id, te_props);
-                            }
-                        });
-
+                        var te = locateEmptyThemeElement(datatype_id);
                         if (te != null) {
                             // Add dataset from template to the empty theme element
-                            var te_id = te.attr('id').replace('ThemeElement_', '');
+                            var te_id = $(te).attr('id').replace('ThemeElement_', '');
                             linkFromTemplate(te_id);
                             ScrollHighlight("#ThemeElement_" + te_id);
                         }

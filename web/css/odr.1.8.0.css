@@ -2755,10 +2755,6 @@ form .row {
     line-height: 1em !important;
 }
 
-#ODRSearchButtons {
-    margin-top: -18px;
-}
-
 .ODRBrowseTitle {
     padding-right: 4em;
 }
@@ -4743,10 +4739,6 @@ button.jGrowl-close {
     min-width: auto !important;
     padding: 2px !important;
     margin: 0px !important;
-}
-
-.ODRSearchHeaderWrapper {
-    text-align: right;
 }
 
 #ODRSearchHeaderWrapper {

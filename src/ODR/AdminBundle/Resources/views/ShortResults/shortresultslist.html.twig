@@ -131,6 +131,10 @@
             handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
         });
 
+        $("#ChooseView").unbind('click').click(function(event) {
+            openChooseViewRemodal({{ datatype.id }}, 'search_results', '{{ search_key }}');
+        });
+
 {% if not can_edit_datatype %}
         $(".ODRDownloadAllFiles").remove();
 {% else %}
