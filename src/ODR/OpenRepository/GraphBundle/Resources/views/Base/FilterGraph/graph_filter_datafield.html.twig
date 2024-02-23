@@ -9,29 +9,23 @@
     {% set is_hidden_field = true %}
 {% endif %}
 
-<div id="{{ odr_chart_id }}_field_{{ df.id }}" class="ODRDataField pure-u-1-4 {% if is_hidden_field %}ODRHiddenFilterField{% endif %}" {% if is_hidden_field %}style="display:none;"{% endif %}>
+<div id="{{ odr_chart_id }}_field_{{ df.id }}" class="ODRDataField pure-u-1-4 {% if is_hidden_field %}ODRFilterGraphPlugin_HiddenFilterField{% endif %}" {% if is_hidden_field %}style="display:none;"{% endif %}>
     <form autocomplete="off" class="pure-u-1">
 
         <fieldset>
-            <label class="ODRRadioField ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
-{#                <label for="df_{{ df.id }}_active">#}
-{#                    <input id="df_{{ df.id }}_active" class="ODRGraphFilterPlugin_active" type="checkbox" title="Include this field in the filter" checked />#}
-{#                </label>#}
+            <label class="ODRRadioField ODRFieldLabel pure-u-21-24" title="{{ datafield_meta.description }}">
                 {{ datafield_meta.fieldName }}{% if field_typeclass == 'File' %}&nbsp;Quality{% endif %}
+
+                <span class="ODRFilterGraphPlugin_select_all ODRFilterGraphPlugin_select_all_faded">Select all</span>
             </label>
 
-            <div class="ODRGraphFilterPlugin_buttons">
-                Select: <span class="ODRGraphFilterPlugin_select">all</span>
-                <span class="ODRGraphFilterPlugin_deselect">none</span>
-            </div>
-
-            <div class="ODRGraphFilterPlugin_option_div pure-u-21-24" rel="{{ df.id }}">
-                <select class="ODRGraphFilterPlugin_option_select pure-u-1" multiple="multiple">
+            <div class="ODRFilterGraphPlugin_select_div pure-u-21-24" rel="{{ df.id }}">
+                <select class="ODRFilterGraphPlugin_select pure-u-1" multiple="multiple">
                 {% if null_values|length > 0 %}
-                    <option id="df_{{ df.id }}_0" class="ODRGraphFilterPlugin_option" selected>&lt;&lt;No Value&gt;&gt;</option>
+                    <option id="df_{{ df.id }}_0" rel="0" class="ODRFilterGraphPlugin_option" selected>&lt;&lt;No Value&gt;&gt;</option>
                 {% endif %}
                 {% for value,dr_list in values %}
-                    <option id="df_{{ df.id }}_{{ loop.index }}" class="ODRGraphFilterPlugin_option" selected>{{ value }}</option>
+                    <option id="df_{{ df.id }}_{{ loop.index }}" rel="{{ loop.index }}" class="ODRFilterGraphPlugin_option" selected>{{ value }}</option>
                 {% endfor %}
                 </select>
             </div>

@@ -9,7 +9,7 @@
             <li>
                 <span class="ODRTristateCheckbox binary" style="margin-right: 5px;">
                     <i class="fa {% if not current_filter_fields[df_id] is defined %}fa-check{% endif %}"></i>
-                    <input class="ODRRenderPlugin_FilterGraph_FilterField" type="hidden" value="{{ df_id }}" />
+                    <input class="ODRFilterGraphPlugin_FilterField" type="hidden" value="{{ df_id }}" />
                 </span>
                 {{ df['dataFieldMeta']['fieldName'] }}
             </li>

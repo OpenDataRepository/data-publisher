@@ -3,13 +3,13 @@
 <div class="pure-u-1">
     <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_filter_fields|join(',') }}</textarea>
 
-    <div class="pure-u-1 ODRRenderPlugin_FilterGraph_header">
+    <div class="pure-u-1 ODRFilterGraphPlugin_header">
         This section allows you to modify which fields are displayed by default in the filter area.
         <br>
         Fields with a checkmark will show up by default, while fields without a checkmark only show up in "Advanced" mode TODO
     </div>
 
-    <div class="pure-u-1 ODRRenderPlugin_FilterGraph_FilterFields_wrapper">
+    <div class="pure-u-1 ODRFilterGraphPlugin_FilterFields_wrapper">
         {% include 'ODROpenRepositoryGraphBundle:Base:FilterGraph/filter_config_field_list.html.twig' with {
             'dt': stacked_dt_array,
 
@@ -27,14 +27,14 @@
         // Don't need to run this again as the other custom option override already has
         // resetRemodalInnerHeight(true);
 
-        ODRRenderPlugin_FilterGraph_initForm();
+        ODRFilterGraphPlugin_initForm();
     });
 
     /**
      * Attaches click handlers to this dialog's
      */
-    function ODRRenderPlugin_FilterGraph_initForm() {
-        $(".ODRRenderPlugin_FilterGraph_FilterFields_wrapper").find(".ODRTristateCheckbox").not(".binary").each(function(index,elem) {
+    function ODRFilterGraphPlugin_initForm() {
+        $(".ODRFilterGraphPlugin_FilterFields_wrapper").find(".ODRTristateCheckbox").not(".binary").each(function(index,elem) {
             var children = $(elem).parent().find(".ODRTristateCheckbox.binary");
 
             var total_checkboxes = $(children).find(".fa").length;
@@ -46,7 +46,7 @@
                 $(elem).children(".fa").addClass("fa-check partial");
         });
 
-        $(".ODRRenderPlugin_FilterGraph_FilterFields_wrapper").find(".ODRTristateCheckbox").unbind('click').click(function() {
+        $(".ODRFilterGraphPlugin_FilterFields_wrapper").find(".ODRTristateCheckbox").unbind('click').click(function() {
             var icon_div = $(this).children('.fa').first();
 
             if ( $(this).hasClass('binary') ) {
@@ -79,9 +79,9 @@
             }
 
             // Update classes for parent elements
-            ODRRenderPlugin_FilterGraph_applyToParents( $(this) );
+            ODRFilterGraphPlugin_applyToParents( $(this) );
             // Update the value in the hidden textarea
-            ODRRenderPlugin_FilterGraph_updateFilterValue();
+            ODRFilterGraphPlugin_updateFilterValue();
         });
     }
 
@@ -91,7 +91,7 @@
      *
      * @param {HTMLElement} source_element
      */
-    function ODRRenderPlugin_FilterGraph_applyToParents(source_element) {
+    function ODRFilterGraphPlugin_applyToParents(source_element) {
         var parent_list_element = $(source_element).parent().parent().parent().not('form');
         if (parent_list_element.length == 0)
             return;
@@ -114,16 +114,16 @@
             $(parent_checkbox_element).children('i').addClass('fa-check partial');
         }
 
-        ODRRenderPlugin_FilterGraph_applyToParents(parent_checkbox_element);
+        ODRFilterGraphPlugin_applyToParents(parent_checkbox_element);
     }
 
     /**
      * Updates the hidden textarea with the current value of the block on the right side
      */
-    function ODRRenderPlugin_FilterGraph_updateFilterValue() {
+    function ODRFilterGraphPlugin_updateFilterValue() {
         var advanced_fields = [];
 
-        $(".ODRRenderPlugin_FilterGraph_FilterField").each(function(index,elem) {
+        $(".ODRFilterGraphPlugin_FilterField").each(function(index,elem) {
             if ( !$(elem).prev().hasClass('fa-check') )
                 advanced_fields.push( $(elem).val() );
         });
