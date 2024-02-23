@@ -5090,7 +5090,7 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 
 .ODRFilterGraphPlugin_option {
-    /* the browser will forcibly set any option in a focused select to white...therefore need the font color of the options to always be white */
+    /* the browser will forcibly set any option in a focused select to white...therefore the font color of the options to always be white */
     color: white;
 }
 .ODRFilterGraphPlugin_option, .ODRFilterGraphPlugin_select:focus option:checked {
@@ -5098,18 +5098,23 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     /* also want to change the background color of an option that's not in focus */
     background: linear-gradient(0deg, rgb(66 135 0 / 100%), rgb(66 135 0 / 100%) 100%);
 
-    /* can't set color here though, as the browser will override it to white */
+    /* can't set font color here, the browser will override it to white */
 }
 .ODRFilterGraphPlugin_option.ODRFilterGraphPlugin_fake_unselected, .ODRFilterGraphPlugin_select:focus option:not(:checked) {
-    /* this matches ODR's default background color of a select */
+    /* this matches ODR's default background color of a select element */
     background: linear-gradient(0deg, #ECF7FB, #ECF7FB 100%) !important;
 
-    /* need to set the font color to grey so the option can still be seen */
+    /* this is needed, though not entirely sure how it works...in theory the browsers should be overriding it, but don't somehow */
     color: #555 !important;
-    -webkit-text-fill-color: #555 !important;    /* edge ignores 'color' */
+    -webkit-text-fill-color: #555 !important;    /* edge */
 }
 .ODRFilterGraphPlugin_option.ODRFilterGraphPlugin_bad_selection {
+    /* this is activated when the user selects options that describe disjoint sets...no files returned */
     background: linear-gradient(0deg, rgb(135 0 66 / 100%), rgb(135 0 66 / 100%) 100%) !important;
+
+    /* this sets the font color in non-focused select elements to match the focused select element */
+    color: white !important;
+    -webkit-text-fill-color: white !important;    /* edge */
 }
 
 .ODRFilterGraphPlugin_blurb {
