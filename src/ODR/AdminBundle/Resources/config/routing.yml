@@ -1580,6 +1580,12 @@ odr_purge_datatype:
     requirements:
         datatype_ids: "^[0-9,]+$"
 
+odr_purge_deleted_records:
+    path: /admin/purge_deleted_records/{datatype_ids}
+    defaults: { _controller: ODRAdminBundle:Validation:purgedeletedrecords }
+    requirements:
+        datatype_ids: "^[0-9,]+$"
+
 odr_purge_files:
     path: /admin/purge_files
     defaults: { _controller: ODRAdminBundle:Validation:purgefiles }
