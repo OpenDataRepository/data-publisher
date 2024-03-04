@@ -38,5 +38,5 @@
     <div id="ODRSearchContent" class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4 ODRSearchResultsWide"></div>
 
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
-    {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated) }}
+    {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) }}
 {% endblock %}

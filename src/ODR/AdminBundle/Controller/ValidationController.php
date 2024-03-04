@@ -3126,9 +3126,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT t.id AS t_id
                  FROM odr_theme AS t
-                 WHERE t.parent_theme_id IN (?)';
-            $parameters = array(1 => $theme_ids);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                 WHERE t.parent_theme_id IN (?) OR t.source_theme_id IN (?)';
+            $parameters = array(1 => $theme_ids, 2 => $theme_ids);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
             $results = $conn->fetchAll($query_str, $parameters, $types);
             foreach ($results as $result)
                 $theme_ids[] = $result['t_id'];

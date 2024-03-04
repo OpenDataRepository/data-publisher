@@ -1,4 +1,4 @@
-{% macro write(logged_in, site_baseurl, odr_wordpress_integrated) %}
+{% macro write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) %}
 <script>
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
@@ -150,12 +150,31 @@
         // Extract unique id
         var current_url = window.location.href;
         var url_data = current_url.split('#');
-        var url_bits = url_data[0].split('/');
 
-        // Unique ID is the last bit
-        var unique_id = url_bits[(url_bits.length - 1)];
-        // There won't be anything to find in this case
-        if (unique_id === 'admin') {
+        {# The config variable to use depends on whether it's wordpress integrated or not #}
+{% if odr_wordpress_integrated %}
+        var site_baseurl = '{{ wordpress_site_baseurl }}';
+{% else %}
+        var site_baseurl = '{{ site_baseurl }}';
+{% endif %}
+        // console.log(site_baseurl);
+
+        // Cut out the baseurl...
+        var pos = url_data[0].indexOf(site_baseurl);
+        var length = site_baseurl.length;
+        var reduced_url = url_data[0].substring(pos + length + 1);    // the length earlier doesn't include the trailing slash
+
+        if ( reduced_url.indexOf('app_dev.php/') > -1 )
+            reduced_url = reduced_url.substring( 'app_dev.php/'.length );
+        // console.log(reduced_url);
+
+        // ...which should leave the unique_id or search_slug as the first part of the remainder
+        var url_pieces = reduced_url.split('/');
+        var relevant_str = url_pieces[0];
+        // console.log(relevant_str);
+
+        if (relevant_str === 'admin') {
+            // There won't be anything to find in this case
             $('#ODRDatabaseLanding').children('a').first().prop("href", "{{ path('odr_admin_homepage') }}");
             return;
         }
@@ -163,7 +182,7 @@
         // NOTE - despite being named as unique_ids, this also works with search slugs
         var url = '{{ path('odr_datatype_find_landing', { 'datatype_unique_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
-        url += unique_id;
+        url += relevant_str;
 
         $.ajax({
             cache: false,

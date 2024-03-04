@@ -5972,9 +5972,9 @@ class APIController extends ODRCustomController
             )->setParameters( array('datatype_id' => $datatype->getId()) );
             $total = $query->getScalarResult();
 
-            if ($total[0][1] > 20000000000) {
-                // 20 GB temporary limit
-                throw new ODRForbiddenException("Quota Exceeded (20GB)");
+            if ($total[0][1] > 25000000000) {
+                // 25 GB temporary limit
+                throw new ODRForbiddenException("Quota Exceeded (25GB)");
             }
 
             // Check for local file on server (with name & path from data
