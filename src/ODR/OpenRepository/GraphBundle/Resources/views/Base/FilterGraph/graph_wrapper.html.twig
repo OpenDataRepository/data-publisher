@@ -213,47 +213,11 @@
         });
 
         $("#{{ odr_chart_id }}_show_hidden_filters").unbind('change').change(function() {
-            var pieces = $(this).attr('id').split('_');
-            var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
-
-            if ( $(this).is(':checked') ) {
-                $("#" + chart_id + "_filter").children(".ODRFilterGraphPlugin_HiddenFilterField").show();
-            }
-            else {
-                var option_reselected = false;
-                $("#" + chart_id + "_filter").children(".ODRFilterGraphPlugin_HiddenFilterField").each(function(index,elem) {
-                    $(elem).hide();
-
-                    // If hiding fields, then ensure all of their options are
-                    //  selected so they don't affect the graph
-                    $(elem).find('.ODRFilterGraphPlugin_option').each(function(index2,option) {
-                        if ( !$(option).is(':selected') ) {
-                            option_reselected = true;
-                            $(option).prop('selected', true);
-                        }
-                    });
-                });
-
-                if ( option_reselected ) {
-                    // If an option got reselected, then redo the graph
-                    ODRGraph_triggerDynamicGraph(chart_id);
-                    $("select.graph_columns").blur();
-                }
-            }
-
-            // Don't want the settings div open anymore
-            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
+            ODRFilterGraph_toggleHiddenFields('{{ odr_chart_id }}');
         });
 
         $("#{{ odr_chart_id }}_show_odr_data").unbind('change').change(function() {
-            var pieces = $(this).attr('id').split('_');
-            var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
-
-            // Just trigger a graph redraw
-            ODRGraph_triggerDynamicGraph(chart_id);
-
-            // Don't want the settings div open anymore
-            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
+            ODRFilterGraph_toggleODRData('{{ odr_chart_id }}');
         });
     });
 </script>

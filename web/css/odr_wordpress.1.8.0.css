@@ -5090,26 +5090,29 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 
 .ODRFilterGraphPlugin_option {
-    /* the browser will forcibly set any option in a focused select to white...therefore the font color of the options to always be white */
+    /* the browser will forcibly set any option in a focused select to white...to prevent font color from changing, therefore, the text should always be white */
     color: white;
 }
-.ODRFilterGraphPlugin_option, .ODRFilterGraphPlugin_select:focus option:checked {
+.ODRFilterGraphPlugin_possible_selection {
     /* using linear-gradient can override the browser setting background-color of a selected option */
-    /* also want to change the background color of an option that's not in focus */
+    /* the order of these linear-gradients is important */
     background: linear-gradient(0deg, rgb(66 135 0 / 100%), rgb(66 135 0 / 100%) 100%);
-
-    /* can't set font color here, the browser will override it to white */
 }
-.ODRFilterGraphPlugin_option.ODRFilterGraphPlugin_fake_unselected, .ODRFilterGraphPlugin_select:focus option:not(:checked) {
+.ODRFilterGraphPlugin_active_selection, .ODRFilterGraphPlugin_select:focus option:checked {
+    /* want to indicate which field is currently in focus by the user, and also indicate which options they've manually selected */
+    background: linear-gradient(0deg, rgb(0 66 135 / 100%), rgb(0 66 135 / 100%) 100%);
+}
+.ODRFilterGraphPlugin_fake_unselection, .ODRFilterGraphPlugin_select:focus option:not(:checked) {
+    /* this class indicates options the user shouldn't select, because otherwise it'll result in no files displayed */
     /* this matches ODR's default background color of a select element */
     background: linear-gradient(0deg, #ECF7FB, #ECF7FB 100%) !important;
 
-    /* this is needed, though not entirely sure how it works...in theory the browsers should be overriding it, but don't somehow */
+    /* this is needed, though not entirely sure why it works...the browsers should be overriding it in theory, but somehow aren't */
     color: #555 !important;
     -webkit-text-fill-color: #555 !important;    /* edge */
 }
-.ODRFilterGraphPlugin_option.ODRFilterGraphPlugin_bad_selection {
-    /* this is activated when the user selects options that describe disjoint sets...no files returned */
+.ODRFilterGraphPlugin_bad_selection {
+    /* this class is the stronger form of .ODRFilterGraphPlugin_fake_unselection, indicating what the user needs to fix to get back to displaying files */
     background: linear-gradient(0deg, rgb(135 0 66 / 100%), rgb(135 0 66 / 100%) 100%) !important;
 
     /* this sets the font color in non-focused select elements to match the focused select element */

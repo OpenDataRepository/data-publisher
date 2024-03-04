@@ -198,36 +198,11 @@ jQuery(function() {
     });
 
     $('#{{ odr_chart_id }}_filter').find('.ODRFilterGraphPlugin_select_all').unbind('click').click(function() {
-        $(this).parent().next().find('option').each(function(index,elem) {
-            $(elem).prop('selected', true).removeClass('ODRFilterGraphPlugin_fake_unselected ODRFilterGraphPlugin_selected ODRFilterGraphPlugin_bad_selection');
-        });
-
-        // Since all options are selected, don't need to display this button
-        $(this).addClass('ODRFilterGraphPlugin_select_all_faded');
-
-        ODRGraph_triggerDynamicGraph('{{ odr_chart_id }}');
+        ODRFilterGraph_selectAllHandler( $(this), '{{ odr_chart_id }}' );
     });
 
     $('#{{ odr_chart_id }}_filter').find('.ODRFilterGraphPlugin_select').unbind('change').change(function(event, obj) {
-        // Need to determine whether the options are selected or not...
-        var all_selected = true;
-        $(this).find('option').each(function(index,option) {
-            if ( !$(option).is(':selected') )
-                all_selected = false;
-        });
-
-        // If at least one option is deselected, then show the 'Select All' button
-        var button = $(this).parent().parent().find('.ODRFilterGraphPlugin_select_all');
-        if ( all_selected )
-            $(button).addClass('ODRFilterGraphPlugin_select_all_faded');
-        else
-            $(button).removeClass('ODRFilterGraphPlugin_select_all_faded');
-
-        ODRGraph_triggerDynamicGraph('{{ odr_chart_id }}');
-    });
-
-    $('#{{ odr_chart_id }}_filter').find('.ODRFilterGraphPlugin_active').unbind('change').change(function() {
-        ODRGraph_triggerDynamicGraph('{{ odr_chart_id }}');
+        ODRFilterGraph_selectionHandler( $(this), '{{ odr_chart_id }}' );
     });
 });
 
