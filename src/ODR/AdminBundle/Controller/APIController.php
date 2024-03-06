@@ -2847,7 +2847,10 @@ class APIController extends ODRCustomController
                                 $em->remove($bool);
                                 /** @var Boolean $new_field */
                                 $new_field = new Boolean();
+                                $new_field->setDataField($data_field);
+                                $new_field->setDataRecord($data_record);
                                 $new_field->setDataRecordFields($drf);
+                                $new_field->setFieldType($data_field->getFieldType());
                                 $new_field->setCreatedBy($user);
                                 $new_field->setUpdatedBy($user);
                                 self::setDates($new_field, $field['created']);
@@ -2859,7 +2862,10 @@ class APIController extends ODRCustomController
                         else {
                             /** @var Boolean $new_field */
                             $new_field = new Boolean();
+                            $new_field->setDataField($data_field);
+                            $new_field->setDataRecord($data_record);
                             $new_field->setDataRecordFields($drf);
+                            $new_field->setFieldType($data_field->getFieldType());
                             $new_field->setCreatedBy($user);
                             $new_field->setUpdatedBy($user);
                             self::setDates($new_field, $field['created']);
