@@ -1189,6 +1189,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             // The line after that contains the a/b/c/alpha/beta/gamma/space group values
             elseif ( ($database_code_line+1) === $line_num ) {
+                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
                 $pieces = explode(' ', $line);
 
                 // Need to have 7 values in this line
@@ -1273,7 +1274,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             // The line after that contains the a/b/c/alpha/beta/gamma/space group values
             elseif ( ($database_code_line+1) === $line_num ) {
+                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
+                // The replacement could end up stripping the newline from the end, which is bad
+                if ( strpos($line, "\n") === false )
+                    $line .= "\n";
                 $pieces = explode(' ', $line);
+
                 $value_mapping['a'] = $pieces[0];
                 $value_mapping['b'] = $pieces[1];
                 $value_mapping['c'] = $pieces[2];

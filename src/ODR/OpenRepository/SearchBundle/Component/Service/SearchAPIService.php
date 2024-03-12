@@ -39,33 +39,48 @@ class SearchAPIService
     // When determining whether a datarecord actually matches a search, it can be in a handful of
     //  different states...
 
-    // The user is not allowed to view this record...this is completely different from a record that
-    //  doesn't match the search.  The presence (or lack thereof) of child/linked datarecords that
-    //  the user can't view MUST NOT affect whether the parent datarecord in question matches the
-    //  search or not.
+    /**
+     * The user is not allowed to view this record...this is completely different from a record that
+     * doesn't match the search.  The presence (or lack thereof) of child/linked datarecords that
+     * the user can't view MUST NOT affect whether the parent datarecord in question matches the
+     * search or not.
+     */
     const CANT_VIEW = 0b1000;
 
-    // The record has a datafield being searched on, and it will be excluded from the final search
-    //  result list unless it matches.  This is not set for datafields that are only being searched
-    //  on because of "general search"
+    /**
+     * The record has a datafield being searched on, and it will be excluded from the final search
+     * result list unless it matches.  This is not set for datafields that are only being searched
+     * on because of "general search"
+     */
     const MUST_MATCH = 0b0100;
-    // When a search has both "advanced" and "general" terms, a record with this value ended up
-    //  matching all of the "advanced" search terms
+    /**
+     * When a search has both "advanced" and "general" terms, a record with this value ended up
+     * matching all of the "advanced" search terms
+     */
     const MATCHES_ADV = 0b0010;
-    // When a search has both "advanced" and "general" terms, a record with this value ended up
-    //  matching all of the "general" search terms
+    /**
+     * When a search has both "advanced" and "general" terms, a record with this value ended up
+     * matching all of the "general" search terms
+     */
     const MATCHES_GEN = 0b0001;
-    // The record matches both "advanced" and "general" search, and will be in the final search
-    //  results list...unless its parent gets excluded, or all child/linked records of a specific
-    //  child/linked datatype don't match the search
-    // This value is also used when the search has either "advanced" or "general" terms, but not both
+    /**
+     * The record matches both "advanced" and "general" search, and will be in the final search
+     * results list...unless its parent gets excluded, or all child/linked records of a specific
+     * child/linked datatype don't match the search.
+     *
+     * This value also gets used when the search has either "advanced" or "general" terms, but not both
+     */
     const MATCHES_BOTH = 0b0011;
 
-    // The record isn't being searched on (or it doesn't match the "general search" terms)...it could
-    //  still end up in the final search results list, if its parents or its children match the search
+    /**
+     * The record isn't being searched on (or it doesn't match the "general search" terms)...it could
+     * still end up in the final search results list, if its parents or its children match the search
+     */
     const DOESNT_MATTER = 0b0000;
 
-    // There are also situations where a datarecord needs to be set to not match a search
+    /**
+     * There are also situations where a datarecord needs to be set to not match a search
+     */
     const DISABLE_MATCHES_MASK = 0b1100;
 
 
@@ -217,16 +232,17 @@ class SearchAPIService
 
 
     /**
-     * This function fulfills a purpose similar to self::getSearchableDatafieldsForUser()...both a
-     * "regular" search and a "template" search need to know which datafields the user is allowed to
-     * view...but a "template" search may easily involve hundreds of datatypes that are derived from
-     * the template being searched on.
+     * This function fulfills a purpose similar to {@link getSearchableDatafieldsForUser()}...both
+     * a "regular" search and a "template" search need to know which datafields the user is allowed
+     * to view...but a "template" search may easily involve hundreds of datatypes that are derived
+     * from the template being searched on.
      *
-     * As such, the strategy used by self::getSearchableDatafieldsForUser() of loading info for one
+     * As such, the strategy used by {@link getSearchableDatafieldsForUser()} of loading info for one
      * datatype at a time is unviable...this function instead loads the relevant data for every single
-     * relevant derived datatypes/datafields at once.  Caching the original ddata is unfeasible.
+     * relevant derived datatypes/datafields at once.  Caching this data is unfeasible, unfortunately,
+     * which is why it only gets used for template searches.
      *
-     * Additionally, the array returned by self::getSearchableDatafieldsForUser() contains each
+     * Additionally, the array returned by {@link getSearchableDatafieldsForUser()} contains each
      * datafield's typeclass and searchable status, but the array returned by this function does not.
      *
      * @param string[] $datafield_uuids The uuids of the datafields being searched on
@@ -368,7 +384,7 @@ class SearchAPIService
                 $filtered_search_params['sort_by'] = $value;
             }
             else if ( is_numeric($key) ) {
-                // This is a datafield entry...
+                // Most of the fieldtypes provide search data like this...
                 $df_id = intval($key);
 
                 // Determine if the user can view the datafield...
@@ -384,16 +400,34 @@ class SearchAPIService
                 $pieces = explode('_', $key);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // This is a DatetimeValue or a File/Image field...
+                    // This is a DatetimeValue or the public_status/quality of a File/Image field...
                     $df_id = intval($pieces[0]);
 
+                    $is_valid_field = false;
                     foreach ($searchable_datafields as $dt_id => $datafields) {
                         if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] > DataFields::NOT_SEARCHED ) {
-                            // User can both view and search this datafield
-                            $filtered_search_params[$key] = $value;
+                            // User can both view and search this datafield...
+                            $is_valid_field = true;
                             break;
                         }
                     }
+
+                    // Searching on public status of files/images needs an additional check...
+                    if ( $pieces[1] === 'pub' ) {
+                        $dt_id = $datatype->getId();
+                        if ( !isset($user_permissions['datatypes'][$dt_id]['dr_view'])
+                            || !isset($user_permissions['datafields'][$df_id]['view'])
+                        ) {
+                            // ...because a user without the ability to see non-public files should
+                            //  not be able to search on this criteria
+                            $is_valid_field = false;
+                        }
+                    }
+                    if ( $search_as_super_admin )
+                        $is_valid_field = true;
+
+                    if ( $is_valid_field )
+                        $filtered_search_params[$key] = $value;
                 }
                 else {
                     // $key is one of the modified/created/modifiedBy/createdBy/publicStatus entries
@@ -427,22 +461,21 @@ class SearchAPIService
      * Runs a search specified by the given $search_key.  The contents of the search key are
      * silently tweaked based on the user's permissions.
      *
-     * @param DataType|null $datatype     Preferably not null, but can parse $search_key if so
+     * @param DataType|null $datatype Preferably not null, but can parse $search_key if so
      * @param string $search_key
-     * @param array $user_permissions     The permissions of the user doing the search, or an empty
-     *                                    array when not logged in
-     * @param bool $return_complete_list  If false, then returns a sorted list of grandparent
-     *                                    datarecord ids...if true, then returns an unsorted list of
-     *                                    the grandparent datarecords and all their descendents that
-     *                                    match the search
-     * @param int[] $sort_datafields      An ordered list of the datafields to sort by, or an empty
-     *                                    array to sort by whatever is default for the datatype
-     * @param string[] $sort_directions   An ordered list of which direction to sort each datafield
-     *                                    by
+     * @param array $user_permissions The permissions of the user doing the search, or an empty
+     *                                array when not logged in
+     * @param bool $return_complete_list If false, then returns a sorted list of grandparent
+     *                                   datarecord ids...if true, then returns an unsorted list of
+     *                                   the grandparent datarecords and all their descendents that
+     *                                   match the search
+     * @param int[] $sort_datafields An ordered list of the datafields to sort by, or an empty
+     *                               array to sort by whatever is default for the datatype
+     * @param string[] $sort_directions An ordered list of which direction to sort each datafield by
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
-     * @param bool $return_as_list        Returns a list of records with internal id and unique id
-     *                                    but without the actual data.
+     * @param bool $return_as_list If true, then returns a list of records with internal id and
+     *                             unique id instead
      *
      * @return array
      */
@@ -467,7 +500,7 @@ class SearchAPIService
         // ----------------------------------------
         // Convert the search key into a format suitable for searching
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
-        $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
+        $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = self::hydrateCriteria($criteria);
@@ -1400,15 +1433,15 @@ class SearchAPIService
 
 
     /**
-     * APIController::getfieldstatsAction() needs to return a count of how many datarecords have
-     * a specific radio option or tag selected across all instances of a template datafield.  This
-     * function filters the raw search results by the user's permissions before the APIController
+     * {@link APIController::getfieldstatsAction()} needs to return a count of how many datarecords
+     * have a specific radio option or tag selected across all instances of a template datafield.
+     * This function filters the raw search results by the user's permissions before the APIController
      * action gets it.
      *
      * @param array $records
      * @param array $labels
-     * @param array $searchable_datafields {@link self::getSearchableDatafieldsForUser()}
-     * @param array $flattened_list {@link self::getSearchArrays()}
+     * @param array $searchable_datafields {@link getSearchableDatafieldsForUser()}
+     * @param array $flattened_list {@link getSearchArrays()}
      *
      * @return array
      */
@@ -1445,9 +1478,9 @@ class SearchAPIService
 
 
     /**
-     * It's easier for performSearch() when getSearchArrays() returns arrays that already contain
-     * the user's permissions and which datatypes are being searched on...this utility function
-     * gathers that required info in a single spot.
+     * It's easier for {@link performSearch()} when {@link getSearchArrays()} returns arrays that
+     * already contain the user's permissions and which datatypes are being searched on...this
+     * utility function gathers that required info in a single spot.
      *
      * @param DataType[] $hydrated_datatypes
      * @param int[] $affected_datatypes {@link SearchKeyService::convertSearchKeyToCriteria()}
@@ -1529,13 +1562,13 @@ class SearchAPIService
      *  is some compound of the various binary flags defined at the top of the SearchAPIService.
      *
      * The second array is an "inflated" array of all records and their descendants, used to locate
-     *  each individual datarecord that matches the search. {@link self::buildDatarecordTree()}
+     *  each individual datarecord that matches the search. See {@link buildDatarecordTree()}
      *
-     * The third array {@link self::buildSearchDatatree()} is used as a guide for merging the various
-     * facets of records that matched the search. {@link self::mergeSearchResults()}
+     * The third array {@link buildSearchDatatree()} is used as a guide for merging the various
+     * facets of records that matched the search. {@link mergeSearchResults()}
      *
      * @param int[] $top_level_datatype_ids
-     * @param array $permissions_array {@link self::getSearchPermissionsArray()}
+     * @param array $permissions_array {@link getSearchPermissionsArray()}
      *
      * @return array
      */
@@ -1662,16 +1695,17 @@ class SearchAPIService
 
 
     /**
-     * Recursively builds an array of the following form for {@link self::mergeSearchResults()} to use:
-     *
+     * Recursively builds an array of the following form for {@link mergeSearchResults()} to use:
+     * <pre>
      * <datatype_id> => array(
      *     'dr_list' => <datarecord_list>,
      *     'children' => array(...),
      *     'links' => array(...),
      * )
-     *
-     * ...where the array structure is recursively repeated inside 'children' and 'links', depending
+     * </pre>
+     * ...where the array structure is recursively repeated inside 'children' or 'links', depending
      *  on whether the descendant is a child or a linked datatype.
+     *
      * The <datarecord_list> stores whatever {@link SearchService::getCachedSearchDatarecordList()}
      *  returns for the current datatype.
      *
@@ -1717,35 +1751,36 @@ class SearchAPIService
     /**
      * Turns the originally flattened $descendants_of_datarecord array into a recursive tree
      *  structure of the form...
-     *
-     * parent_datarecord_id => array(
-     *     child_datatype_1_id => array(
-     *         child_datarecord_1_id of child_datatype_1 => '',
-     *         child_datarecord_2_id of child_datatype_1 => '',
+     * <pre>
+     * <parent_datarecord_id> => array(
+     *     <child_datatype_1_id> => array(
+     *         <child_datarecord_1_id of child_datatype_1> => '',
+     *         <child_datarecord_2_id of child_datatype_1> => '',
      *         ...
      *     ),
-     *     child_datatype_2_id => array(
-     *         child_datarecord_1_id of child_datatype_2 => '',
-     *         child_datarecord_2_id of child_datatype_2 => '',
+     *     <child_datatype_2_id> => array(
+     *         <child_datarecord_1_id of child_datatype_2> => '',
+     *         <child_datarecord_2_id of child_datatype_2> => '',
      *         ...
      *     ),
      *     ...
      * )
+     * </pre>
      *
      * If child_datarecord_X_id has children of its own, then it is also a parent datarecord, and
      *  it points to another recursive tree structure of this type instead of an empty string.
      * Linked datatypes/datarecords are handled identically to child datatypes/datarecords.
      *
      * The tree's root looks like...
-     *
+     * <pre>
      * 0 => array(
-     *     target_datatype_id => array(
-     *         top_level_datarecord_1_id => ...
-     *         top_level_datarecord_2_id => ...
+     *     <target_datatype_id> => array(
+     *         <top_level_datarecord_1_id> => ...
+     *         <top_level_datarecord_2_id> => ...
      *         ...
      *     )
      * )
-     *
+     * </pre>
      * TODO - now that $inflated_list isn't used to perform search logic, are the datatype ids still useful?
      *
      * @param array $descendants_of_datarecord
@@ -1786,10 +1821,10 @@ class SearchAPIService
 
 
     /**
-     * The "template" analog of self::getSearchArrays() does mostly the same thing, but it doesn't
+     * The "template" analog of {@link getSearchArrays()} does mostly the same thing, but it doesn't
      * attempt to get the list of records from cached data...instead, it uses a handful of specific
      * queries to load all records that the user is allowed to see, with as little overhead as
-     * possible. {@link self::getSearchArrays()}
+     * possible. {@link getSearchArrays()}
      *
      * @param string $template_uuid
      * @param array $top_level_datatype_ids An array where the keys are top-level datatype ids that
@@ -2086,22 +2121,21 @@ class SearchAPIService
     /**
      * Recursively builds an array of the following form for self::mergeSearchResults() to use for
      * a template search:
-     *
+     * <pre>
      * <datatype_id> => array(
      *     'dr_list' => <datarecord_list>,
      *     'children' => array(...),
      *     'links' => array(...),
      * )
-     *
+     * </pre>
      * ...where the array structure is recursively repeated inside 'children' and 'links', depending
      * on whether the descendant is a child or a linked datatype.
      *
      * This function requires that self::buildSearchDatatree() is run on the template datatype first,
      * so it can modify that result to "pretend" that the template datatypes "own" all records from
-     * all datatypes derived from their relevant templates.
-     * {@link self::mergeSearchResults()}
+     * all datatypes derived from their relevant templates. See {@link mergeSearchResults()}
      *
-     * @param array $search_datatree {@link self::buildSearchDatatree()}
+     * @param array $search_datatree {@link buildSearchDatatree()}
      * @param array $all_datatypes
      * @param array $all_datarecords
      * @param bool $is_link
@@ -2198,12 +2232,12 @@ class SearchAPIService
      * childtype don't match"...if you're dying to know how the previous version worked for whatever
      * reason, then you can check out SearchAPIService::mergeSearchArrays() in commit 17df21c.
      *
-     * @param array $criteria
+     * @param array $criteria {@link SearchKeyService::convertSearchKeyToCriteria()}
      * @param bool $is_top_level
      * @param int $datatype_id
-     * @param array $search_datatree
+     * @param array $search_datatree {@link buildSearchDatatree()}
      * @param array $facet_dr_list
-     * @param array $flattened_list
+     * @param array $flattened_list {@link getSearchArrays()}
      * @param bool $differentiate_search_types
      *
      * @return array
@@ -2553,9 +2587,9 @@ class SearchAPIService
      * $flattened_list to determine all datarecords (top-level and descendants) that ended up
      * matching the search.
      *
-     * The recursion looks a little strange in order to reduce the number of recursive calls made.
+     * The recursion looks a little strange in order to avoid recursing into an empty child array.
      *
-     * @param array $flattened_list
+     * @param array $flattened_list {@link getSearchArrays()}
      * @param array $inflated_list
      *
      * @return array
@@ -2592,9 +2626,9 @@ class SearchAPIService
      * $flattened_list to determine all datarecords (top-level and descendants) that ended up
      * matching the search.
      *
-     * The recursion looks a little strange in order to reduce the number of recursive calls made.
+     * The recursion looks a little strange in order to avoid recursing into an empty child array.
      *
-     * @param array $flattened_list
+     * @param array $flattened_list {@link getSearchArrays()}
      * @param array $dt_list
      *
      * @return array

@@ -122,12 +122,14 @@ class RemoteController extends Controller
             //  https://odr.io/admin#/remote_search ...which requires a login
             $site_baseurl = $this->container->getParameter('site_baseurl');
             $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:Remote:index.html.twig',
                 array(
                     'site_baseurl' => $site_baseurl,
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
+                    'wordpress_site_baseurl' => $wordpress_site_baseurl,
                     'window_title' => 'ODR Admin',
 
                     'user' => $user,

@@ -150,7 +150,10 @@
                 //  is_link technically doesn't matter
                 var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'is_link': 0, 'search_key': '' }) }}';
                 url = url.substring(0, (url.length - 3));
-                url += '{{ datarecord.id }}' + '/0'{% if search_key == '' %} + '/{{ search_key }}'{% endif %};
+                url += '{{ datarecord.id }}' + '/0';
+{% if search_key != '' %}
+                url += '/{{ search_key }}';
+{% endif %}
 
                 $.ajax({
                     type: 'GET',

@@ -270,6 +270,8 @@ class DefaultController extends Controller
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
             $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:Default:index.html.twig',
                 array(
@@ -288,6 +290,7 @@ class DefaultController extends Controller
                     'search_string' => $search_string,
                     'odr_tab_id' => $odr_tab_id,
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
+                    'wordpress_site_baseurl' => $wordpress_site_baseurl,
 
                     // required for background image
                     'background_image_id' => $background_image_id,
@@ -565,9 +568,10 @@ class DefaultController extends Controller
             // Wordpress Integrated - use full & body
             $site_baseurl = $this->container->getParameter('site_baseurl');
             $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
             // print "WP Header: " . $request->wordpress_header; exit();
-            if ( $is_wordpress_integrated ) {
 
+            if ( $is_wordpress_integrated ) {
                 // WPNonce Should exist
                 $logout_url = wp_logout_url();
 
@@ -579,6 +583,7 @@ class DefaultController extends Controller
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
                         'odr_wordpress_integrated' => $is_wordpress_integrated,
+                        'wordpress_site_baseurl' => $wordpress_site_baseurl,
                         'logout_url' => $logout_url,
 
                         'user_list' => $user_list,
@@ -630,6 +635,7 @@ class DefaultController extends Controller
                         'search_string' => $search_string,
                         'odr_tab_id' => $odr_tab_id,
                         'odr_wordpress_integrated' => $is_wordpress_integrated,
+                        'wordpress_site_baseurl' => $wordpress_site_baseurl,
 
                         // required for background image
                         'background_image_id' => $background_image_id,

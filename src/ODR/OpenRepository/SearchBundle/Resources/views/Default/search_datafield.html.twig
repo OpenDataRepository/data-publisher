@@ -81,6 +81,13 @@
         </select>
 
     {% elseif field_typename == "File" or field_typename == "Image" %}
+        {% set can_view_nonpublic_files = false %}
+        {% if datatype_permissions[datatype_id] is defined and datatype_permissions[datatype_id]['dr_view'] is defined
+            and datafield_permissions[datafield_id] is defined and datafield_permissions[datafield_id]['view'] is defined
+        %}
+            {% set can_view_nonpublic_files = true %}
+        {% endif %}
+
         <input type="text" class="ODRInput ODRFileDatafieldName pure-u-1" id="datafield_{{ datafield_id }}_fn" name="{{ datafield_id }}" value="{{ preset_value }}" rel="{{ datatype_id }}" title="Search based on the {{ field_typename }}'s filename"/>
 
         <label class="pure-u-1"></label>
@@ -90,17 +97,20 @@
             <option value="0" {% if preset_value == '""' %}selected{% endif %}>Does not have {{ field_typename }}s</option>
         </select>
 
-        {% set key = datafield_id ~ '_pub' %}
-        {% set value = '' %}
-        {% if search_params[key] is defined %}
-            {% set value = search_params[key] %}
+        {# Don't allow users to search on file public status if they can't view non-public files #}
+        {% if can_view_nonpublic_files %}
+            {% set key = datafield_id ~ '_pub' %}
+            {% set value = '' %}
+            {% if search_params[key] is defined %}
+                {% set value = search_params[key] %}
+            {% endif %}
+            <label class="pure-u-1" for="{{ datafield_id }}_pub" title="Find {{ field_typename }}s based on public status">{{ fieldname }} Public status:</label>
+            <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}">
+                <option id="Option_0" value="">Any</option>
+                <option id="Option_nonpublic" value="0" {% if value == '0' %}selected{% endif %}>Non-public</option>
+                <option id="Option_public" value="1" {% if value == '1' %}selected{% endif %}>Public</option>
+            </select>
         {% endif %}
-        <label class="pure-u-1" for="{{ datafield_id }}_pub" title="Find {{ field_typename }}s based on public status">{{ fieldname }} Public status:</label>
-        <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}">
-            <option id="Option_0" value="">Any</option>
-            <option id="Option_nonpublic" value="0" {% if value == '0' %}selected{% endif %}>Non-public</option>
-            <option id="Option_public" value="1" {% if value == '1' %}selected{% endif %}>Public</option>
-        </select>
 
         {% if datafield_meta.quality_str != '' %}
             {% set key = datafield_id ~ '_qual' %}

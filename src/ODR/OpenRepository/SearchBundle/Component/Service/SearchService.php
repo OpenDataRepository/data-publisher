@@ -23,6 +23,7 @@ use ODR\AdminBundle\Entity\DataType;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
@@ -919,14 +920,20 @@ class SearchService
 
 
         // ----------------------------------------
-        // There are potentially three different entries in $search_terms to deal with
+        // There are potentially four different entries in $search_terms to deal with...
         $filename = $public_status = $quality = null;
+        // ...three of them are actual search terms
         if ( isset($search_terms['filename']) && $search_terms['filename'] !== '' )
             $filename = $search_terms['filename'];
         if ( isset($search_terms['public_status']) )
             $public_status = $search_terms['public_status'];
         if ( isset($search_terms['quality']) )
             $quality = intval($search_terms['quality']);
+        // ...and the fourth is used to ensure non-public files don't "leak" their existence to a
+        //  user without the permissions to view them
+        $public_only = false;
+        if ( isset($search_terms['public_only']) )
+            $public_only = true;
 
         if ( is_null($filename) && is_null($public_status) && is_null($quality) )
             throw new ODRBadRequestException("The arguments to searchFileOrImageDatafield() can't all be null at the same time", 0xab627079);
@@ -947,6 +954,7 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
+        $involves_empty_string = false;
         foreach ($search_terms as $key => $value) {
             // For each of the three possible searches...
             if ( !is_null($value) ) {
@@ -966,7 +974,13 @@ class SearchService
                 }
 
                 // Now that it's guaranteed to exist, pull it back out of the cache entry
-                $datarecord_lists[$key] = $cached_searches[$key][$value];
+                if ( !$public_only || $key === 'public_status' )
+                    $datarecord_lists[$key] = $cached_searches[$key][$value]['all_records'];
+                else
+                    $datarecord_lists[$key] = $cached_searches[$key][$value]['public_only'];
+
+                if ( $key === 'filename' )
+                    $involves_empty_string = $cached_searches[$key][$value]['guard'];
             }
         }
 
@@ -975,6 +989,56 @@ class SearchService
         // Need to merge the results of the queries together...
         $result = null;
 
+        // ...the tricky part is when the search requires both 'public_only' and also involved the
+        //  empty string...
+        if ( $public_only && $involves_empty_string ) {
+            // ...because that means there's now a file-specific aspect of the problem...the results
+            //  need to not just contain records without files/images, they need to also contain
+            //  records that only have non-public files.  Without the "extra" records, the user can
+            //  can guess which records have non-public files/images...while they wouldn't be able
+            //  to see or get them anyways, it's still bad practice to "leak" the existence of
+            //  non-public stuff...
+
+            // To perform this final step correctly, we need the list of records with non-public
+            //  files/images, and the list of records with public files/images...
+            if ( !isset($cached_searches['public_status'][0]) ) {
+                // Doesn't exist, so run the search again and store for later...
+                $cached_searches['public_status'][0] = $this->search_query_service->searchFileOrImageDatafield(
+                    $datafield->getDataType()->getId(),
+                    $datafield->getId(),
+                    $typeclass,
+                    'public_status',
+                    0    // find non-public files/images
+                );
+            }
+            if ( !isset($cached_searches['public_status'][1]) ) {
+                // Doesn't exist, so run the search again and store for later...
+                $cached_searches['public_status'][1] = $this->search_query_service->searchFileOrImageDatafield(
+                    $datafield->getDataType()->getId(),
+                    $datafield->getId(),
+                    $typeclass,
+                    'public_status',
+                    1    // find public files/images
+                );
+            }
+
+            // Now that the lists are guaranteed to exist, pull them from the cache entry
+            $nonpublic_file_drs = $cached_searches['public_status'][0]['all_records'];
+            $public_file_drs = $cached_searches['public_status'][1]['all_records'];
+
+            // For every record that has at least one non-public file...
+            foreach ($nonpublic_file_drs as $dr_id => $num) {
+                // ...if it does not also have a public file...
+                if ( !isset($public_file_drs[$dr_id]) ) {
+                    // ...then add it to the list of results
+                    $datarecord_lists['filename'][$dr_id] = 1;
+                }
+            }
+
+            // NOTE: this only works because the final merge is done by AND
+        }
+
+        // Now that the 'public_only' term has been dealt with, the remaining results can get merged
         // TODO - always merging by AND...should it merge by OR in some situations?
         foreach ($datarecord_lists as $key => $dr_list) {
             if ( is_null($result) )
@@ -1008,6 +1072,8 @@ class SearchService
      */
     public function searchFileOrImageTemplateDatafield($template_datafield, $search_terms)
     {
+        throw new ODRNotImplementedException("Not allowing this to run without an example to work from first", 0x45eca2a7);
+
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
         $allowed_typeclasses = array(
@@ -1024,12 +1090,18 @@ class SearchService
         // ----------------------------------------
         // There are potentially three different entries in $search_terms to deal with
         $filename = $public_status = $quality = null;
+        // ...three of them are actual search terms
         if ( isset($search_terms['filename']) && $search_terms['filename'] !== '' )
             $filename = $search_terms['filename'];
         if ( isset($search_terms['public_status']) )
             $public_status = $search_terms['public_status'];
         if ( isset($search_terms['quality']) )
             $quality = intval($search_terms['quality']);
+        // ...and the fourth is used to ensure non-public files don't "leak" their existence to a
+        //  user without the permissions to view them
+        $public_only = false;
+        if ( isset($search_terms['public_only']) )
+            $public_only = true;
 
         if ( is_null($filename) && is_null($public_status) && is_null($quality) )
             throw new ODRBadRequestException("The arguments to searchFileOrImageTemplateDatafield() can't all be null at the same time", 0x45eca2a7);
@@ -1050,6 +1122,7 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
+        $involves_empty_string = false;
         foreach ($search_terms as $key => $value) {
             // For each of the three possible searches...
             if ( !is_null($value) ) {
@@ -1058,18 +1131,24 @@ class SearchService
                     // ...it's not, so run the search again
                     $result = $this->search_query_service->searchFileOrImageTemplateDatafield(
                         $template_datafield->getId(),
+                        $template_datafield->getTemplateFieldUuid(),
                         $typeclass,
                         $key,
                         $value
                     );
-                    // TODO - this is both technically unused, and actually untested...
 
                     // Store for later...
                     $cached_searches[$key][$value] = $result;
                 }
 
                 // Now that it's guaranteed to exist, pull it back out of the cache entry
-                $results[$key] = $cached_searches[$key][$value];
+                if ( !$public_only || $key === 'public_status' )
+                    $datarecord_lists[$key] = $cached_searches[$key][$value]['all_records'];
+                else
+                    $datarecord_lists[$key] = $cached_searches[$key][$value]['public_only'];
+
+                if ( $key === 'filename' )
+                    $involves_empty_string = $cached_searches[$key][$value]['guard'];
             }
         }
 
@@ -1078,6 +1157,57 @@ class SearchService
         // Need to merge the results of the queries together...
         $end_result = null;
 
+        // ...the tricky part is when the search requires both 'public_only' and also involved the
+        //  empty string...
+        if ( $public_only && $involves_empty_string ) {
+            // ...because that means there's now a file-specific aspect of the problem...the results
+            //  need to not just contain records without files/images, they need to also contain
+            //  records that only have non-public files.  Without the "extra" records, the user can
+            //  can guess which records have non-public files/images...while they wouldn't be able
+            //  to see or get them anyways, it's still bad practice to "leak" the existence of
+            //  non-public stuff...
+
+            // To perform this final step correctly, we need the list of records with non-public
+            //  files/images, and the list of records with public files/images...
+            if ( !isset($cached_searches['public_status'][0]) ) {
+                // Doesn't exist, so run the search again and store for later...
+                $nonpublic_file_drs = $this->search_query_service->searchFileOrImageTemplateDatafield(
+                    $template_datafield->getId(),
+                    $template_datafield->getTemplateFieldUuid(),
+                    $typeclass,
+                    'public_status',
+                    0    // find non-public files/images
+                );
+            }
+            if ( !isset($cached_searches['public_status'][1]) ) {
+                // Doesn't exist, so run the search again and store for later...
+                $cached_searches['public_status'][1] = $this->search_query_service->searchFileOrImageTemplateDatafield(
+                    $template_datafield->getId(),
+                    $template_datafield->getTemplateFieldUuid(),
+                    $typeclass,
+                    'public_status',
+                    1    // find public files/images
+                );
+            }
+
+            // Now that the lists are guaranteed to exist, pull them from the cache entry
+            $nonpublic_file_drs = $cached_searches['public_status'][0]['all_records'];
+            $public_file_drs = $cached_searches['public_status'][1]['all_records'];
+
+            // TODO - this is definitely not going to work, but without an example to work with...
+            // For every record that has at least one non-public file...
+            foreach ($nonpublic_file_drs as $dr_id => $num) {
+                // ...if it does not also have a public file...
+                if ( !isset($public_file_drs[$dr_id]) ) {
+                    // ...then add it to the list of results
+                    $datarecord_lists['filename'][$dr_id] = 1;
+                }
+            }
+
+            // NOTE: this only works because the final merge is done by AND
+        }
+
+        // Now that the 'public_only' term has been dealt with, the remaining results can get merged
         // TODO - always merging by AND...should it merge by OR in some situations?
         foreach ($results as $key => $dr_list) {
             if ( is_null($end_result) ) {
@@ -2005,9 +2135,9 @@ class SearchService
     /**
      * Returns a cached list of the uuids of all datarecords of the given datatype.
      *
-     * This exists because SearchService::getCachedSearchDatarecordList() is also convenient for
-     * quickly getting a list of datarecord ids for a given datatype...but sometimes uuids are wanted
-     * instead.
+     * This exists because {@link SearchService::getCachedSearchDatarecordList()} is also convenient
+     * for quickly getting a list of datarecord ids for a given datatype...but sometimes uuids are
+     * wanted instead.
      *
      * @param int $datatype_id
      * @return array
@@ -2095,7 +2225,7 @@ class SearchService
     /**
      * Returns an array of datafields, organized by public status, for each related datatype.  The
      * datatype's public status is also included, for additional ease of permissions filtering.
-     *
+     * <pre>
      * $searchable_datafields = array(
      *     [<datatype_id>] => array(
      *         'public_date' => <datatype_public_date>,
@@ -2111,15 +2241,16 @@ class SearchService
      *     ),
      *     ...
      * )
+     * </pre>
      *
-     * <searchable> can have four different values...
-     * 0: "not searchable" doesn't show up on the search page
-     * 1: "general search only" doesn't show up as its on field on the search page, but is searched
-     *                          through the "general" textbox
-     * 2: "advanced search" shows up as its own field on the search page, and is also searched
-     *                      through the "general" textbox
-     * 3: "advanced search only" shows up as its own field on the search page, but is not searched
-     *                           through the "general" textbox
+     * searchable can have four different values...
+     * - 0: "not searchable"...doesn't show up on the search page
+     * - 1: "general search only"...doesn't show up as its on field on the search page, but is
+     * searched through the "general" textbox
+     * - 2: "advanced search"...shows up as its own field on the search page, and is also searched
+     * through the "general" textbox
+     * - 3: "advanced search only"...shows up as its own field on the search page, but is not
+     * searched through the "general" textbox
      *
      * @param int $datatype_id
      *
@@ -2212,7 +2343,7 @@ class SearchService
 
 
     /**
-     * Works mostly the same way as self::getSearchableDatafields(), but stores data for templates
+     * Works mostly the same way as {@link getSearchableDatafields()}, but stores data for templates
      * instead...the main difference is that there's no point dividing the datafields into public
      * and non-public groups, since the datatype/datafield permissions for a template have no effect
      * on whether users can see the derived data.
@@ -2290,7 +2421,7 @@ class SearchService
 
     /**
      * In order for general search to be run on a template, ODR needs to have an array of template
-     * uuids available for self::getSearchableTemplateDatafields() to work.
+     * uuids available for {@link getSearchableTemplateDatafields()} to work.
      *
      * @param int $datatype_id
      *
@@ -2325,7 +2456,7 @@ class SearchService
 
     /**
      * In order for general search to be run on a template, ODR needs to have an array of template
-     * uuids available for self::getSearchableTemplateDatafields() to work.
+     * uuids available for {@link getSearchableTemplateDatafields()} to work.
      *
      * @param string $template_uuid
      *

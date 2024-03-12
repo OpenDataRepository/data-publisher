@@ -28,15 +28,15 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     // console.log(odr_chart_obj['filter_values']);
 
     var permitted_datarecords = [];
-    $('#' + odr_chart_id + '_filter').find('.ODRGraphFilterPlugin_option_div').each(function(index,div) {
-        // if ( $(div).parent().find('.ODRGraphFilterPlugin_active').is(':checked') ) {
+    $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select_div').each(function(index,div) {
+        // if ( $(div).parent().find('.ODRFilterGraphPlugin_active').is(':checked') ) {
             var df_id = $(div).attr('rel');
             permitted_datarecords[df_id] = [];
 
             $(div).find('option:selected').each(function (index,input) {
-                var option_id = $(input).attr('id').split('_')[2];
-                $.each(odr_chart_obj['filter_values'][df_id][option_id], function (index, dr_list) {
-                    permitted_datarecords[df_id].push(dr_list);
+                var option_id = $(input).attr('rel');
+                $.each(odr_chart_obj['filter_values'][df_id][option_id], function (index, dr_id) {
+                    permitted_datarecords[df_id].push(dr_id);
                 });
             });
         // }
@@ -70,6 +70,33 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
 
             // Save the datarecord id in case the data section of the graph needs to be shown
             remaining_dr_id = dr_id;
+        });
+
+        $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select_div').each(function(index,div) {
+            // if ( $(div).parent().find('.ODRFilterGraphPlugin_active').is(':checked') ) {
+            var df_id = $(div).attr('rel');
+
+            $(div).find('option').each(function (index,input) {
+                var option_id = $(input).attr('rel');
+
+                var included = false;
+                $.each(odr_chart_obj['filter_values'][df_id][option_id], function (index, dr_id) {
+                    if ( final_dr_list.includes(dr_id) )
+                        included = true;
+                });
+
+                // Can't disable or hide the option...selecting one option in a field will immediately
+                //  disable/hide the others in the same field
+                if ( !included )
+                    $(input).addClass('ODRFilterGraphPlugin_fake_unselected');
+                else
+                    $(input).removeClass('ODRFilterGraphPlugin_fake_unselected');
+
+
+
+                // TODO - need a "third" class here...those that "could be selected without returning zero results"
+                // TODO - in theory, should be able to get this by taking "all the options the user selected", the computing the intersection of what's allowed for each of them
+            });
         });
     }
 
@@ -113,6 +140,16 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     else {
         // Otherwise, more than one file, so "no point" displaying the raw data...
         $(data_div).addClass('ODRHidden');
+    }
+
+    if ( file_count == 0 ) {
+        $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select').each(function(index,elem) {
+            if ( !$(elem).parent().parent().find('.ODRFilterGraphPlugin_select_all').hasClass('ODRFilterGraphPlugin_select_all_faded') )
+                $(elem).find('option:selected').addClass('ODRFilterGraphPlugin_bad_selection');
+        });
+    }
+    else {
+        $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_option').removeClass('ODRFilterGraphPlugin_bad_selection');
     }
 
     return files_to_graph;

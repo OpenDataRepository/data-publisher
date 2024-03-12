@@ -52,6 +52,7 @@ class DefaultController extends ODRCustomController
 
             $site_baseurl = $this->container->getParameter('site_baseurl');
             $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
 
             if ($is_wordpress_integrated) {
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
@@ -62,6 +63,7 @@ class DefaultController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'site_baseurl' => $site_baseurl,
                         'odr_wordpress_integrated' => $is_wordpress_integrated,
+                        'wordpress_site_baseurl' => $wordpress_site_baseurl,
                     )
                 );
             }
@@ -74,6 +76,7 @@ class DefaultController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'site_baseurl' => $site_baseurl,
                         'odr_wordpress_integrated' => $is_wordpress_integrated,
+                        'wordpress_site_baseurl' => $wordpress_site_baseurl,
                     )
                 );
             }
