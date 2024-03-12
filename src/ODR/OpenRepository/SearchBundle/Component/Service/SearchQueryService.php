@@ -13,6 +13,8 @@
 
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
+// Exceptions
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
@@ -642,8 +644,8 @@ class SearchQueryService
      * radio option from the given template datafield.
      *
      * The parts about radio_option_uuid and option_name are only necessary because of the API
-     * route for APIController::getfieldstatsAction()...unfortunately that specific route ends up
-     * requiring permissions across datatypes, and it's easier in the long run to hijack the
+     * route for {@link APIController::getfieldstatsAction()}...unfortunately that specific route
+     * ends up requiring permissions across datatypes, and it's easier in the long run to hijack the
      * existing template search system, as opposed to re-implementing ~2/3rds of it just for that
      * purpose.
      *
@@ -761,10 +763,10 @@ class SearchQueryService
 
 
     /**
-     * SearchService::searchTagTemplateDatafield() needs to be able to return data when it gets
-     * passed an empty selections array (see comments in that function).  However, the lack of a
-     * tag uuid means SearchQueryService::searchTagTemplateDatafield() won't work...so this function
-     * ends up collecting the data to return a similar array where everything is "unselected".
+     * {@link SearchService::searchTagTemplateDatafield()} needs to be able to return data when it
+     * gets passed an empty selections array (see comments in that function).  However, the lack of
+     * a tag uuid means {@link SearchQueryService::searchTagTemplateDatafield()} won't work...so this
+     * function ends up collecting the data to return a similar array where everything is "unselected".
      *
      * @param array $all_datarecord_ids
      * @param int $template_field_id
@@ -974,6 +976,10 @@ class SearchQueryService
      */
     public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_type, $search_value)
     {
+        // Unfortunately, SearchService::searchFileOrImageDatafield() needs to know whether the
+        //  search involved the empty string or not
+        $involves_empty_string = false;
+
         // ----------------------------------------
         // Figure out which type of query to use
         $conn = $this->em->getConnection();
@@ -985,7 +991,7 @@ class SearchQueryService
 
             // Define the base query for searching by filenames...
             $query =
-               'SELECT dr.id AS dr_id
+               'SELECT dr.id AS dr_id, e_m.public_date
                 FROM odr_data_record AS dr
                 JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
                 JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
@@ -996,7 +1002,7 @@ class SearchQueryService
 
             // Also define the query used when searching for something without uploaded files/images...
             $null_query =
-               'SELECT dr.id AS dr_id
+               'SELECT dr.id AS dr_id, "" AS public_date
                 FROM odr_data_record AS dr
                 LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
                 LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
@@ -1009,23 +1015,33 @@ class SearchQueryService
                 if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
                     $search_params['params']['datatype_id'] = $datatype_id;
                     $query .= "\nUNION\n".$null_query;
+
+                    // Need to let SearchService::searchFileOrImageDatafield() know they might have
+                    //  to trigger the 'public_only' protections, since the query involves the empty
+                    //  string
+                    $involves_empty_string = true;
                 }
             }
 
             $results = $conn->fetchAll($query, $search_params['params']);
         }
         else if ( $search_type === 'public_status' ) {
-            // Assume the search is for public files/images at first...
+            // Setup params for either type of public search...
             $search_params = array(
-                'str' => 'e.data_field_id = :datafield_id AND e_m.public_date != :public_date',
+                'str' => 'e.data_field_id = :datafield_id AND ',
                 'params' => array(
                     'datafield_id' => $datafield_id,
                     'public_date' => '2200-01-01 00:00:00'
                 )
             );
-            // ...but if the value is zero then it's a search for non-public files/images
-            if ( $search_value === 0 )
-                $search_params['str'] = 'e_m.public_date = :public_date';
+            if ( $search_value === 1 ) {
+                // search for public files/images
+                $search_params['str'] .= 'e_m.public_date != :public_date';
+            }
+            else {
+                // search for non-public files/images
+                $search_params['str'] .= 'e_m.public_date = :public_date';
+            }
 
             $public_status_query =
                'SELECT dr.id AS dr_id
@@ -1036,6 +1052,9 @@ class SearchQueryService
                 WHERE '.$search_params['str'].'
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
                 AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+            // Don't need a null query...in order for a file to match a search on quality or public
+            //  status, it has to exist in the first place
 
             $results = $conn->fetchAll($public_status_query, $search_params['params']);
         }
@@ -1050,7 +1069,7 @@ class SearchQueryService
             );
 
             $quality_query =
-               'SELECT dr.id AS dr_id
+               'SELECT dr.id AS dr_id, e_m.public_date
                 FROM odr_data_record AS dr
                 JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
                 JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
@@ -1059,16 +1078,35 @@ class SearchQueryService
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
                 AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
 
+            // Don't need a null query...in order for a file to match a search on quality or public
+            //  status, it has to exist in the first place
+
             $results = $conn->fetchAll($quality_query, $search_params['params']);
         }
 
 
-        // Convert the results into an array of datarecord ids
-        $datarecords = array();
-        foreach ($results as $result)
-            $datarecords[ $result['dr_id'] ] = 1;
+        // ----------------------------------------
+        // Convert the results into two arrays of datarecord ids
+        $public_datarecords = array();
+        $all_datarecords = array();
+        if ( $search_type !== 'public_status' ) {
+            foreach ($results as $result) {
+                $all_datarecords[ $result['dr_id'] ] = 1;
+                if ( $result['public_date'] !== '2200-01-01 00:00:00' )
+                    $public_datarecords[ $result['dr_id'] ] = 1;
+            }
+        }
+        else {
+            // Makes no sense to store 'public_only' records when searching on public status
+            foreach ($results as $result)
+                $all_datarecords[ $result['dr_id'] ] = 1;
+        }
 
-        return $datarecords;
+        return array(
+            'all_records' => $all_datarecords,
+            'public_only' => $public_datarecords,
+            'guard' => $involves_empty_string,
+        );
     }
 
 
@@ -1086,6 +1124,11 @@ class SearchQueryService
     public function searchFileOrImageTemplateDatafield($master_datafield_uuid, $typeclass, $search_type, $search_value)
     {
         // TODO - this is both technically unused, and actually untested...
+        throw new ODRNotImplementedException("null query is busted, but can't fix without an example to work from", 0x2b9e2a23);
+
+        // Unfortunately, SearchService::searchFileOrImageTemplateDatafield() needs to know whether
+        //  the search involved the empty string or not
+        $involves_empty_string = false;
 
         // ----------------------------------------
         // Figure out which type of query this is
@@ -1098,7 +1141,7 @@ class SearchQueryService
 
             // Define the base query for searching by filenames...
             $query =
-               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id, e_m.public_date
                 FROM odr_data_type AS mdt
                 JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
                 JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
@@ -1113,7 +1156,7 @@ class SearchQueryService
 
             // Also define the query used when searching for something without uploaded files/images...
             $null_query =
-               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id, "" AS public_date
                 FROM odr_data_type AS mdt
                 JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
                 JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
@@ -1131,23 +1174,33 @@ class SearchQueryService
                 // ...but only when the query actually has a logical chance of returning results...
                 if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
                     $query .= "\nUNION\n".$null_query;
+
+                    // Need to let SearchService::searchFileOrImageTemplateDatafield() know they might
+                    //  have to trigger the 'public_only' protections, since the query involves the
+                    //  empty string
+                    $involves_empty_string = true;
                 }
             }
 
             $results = $conn->fetchAll($query, $search_params['params']);
         }
         else if ( $search_type === 'public_status' ) {
-            // Assume the search is for public files/images at first...
+            // Setup params for either type of public search...
             $search_params = array(
-                'str' => 'e.template_field_uuid = :template_df_id AND e_m.public_date != :public_date',
+                'str' => 'e.template_field_uuid = :template_df_id AND ',
                 'params' => array(
                     'template_df_id' => $master_datafield_uuid,
                     'public_date' => '2200-01-01 00:00:00'
                 )
             );
-            // ...but if the value is zero then it's a search for non-public files/images
-            if ( $search_value === 0 )
-                $search_params['str'] = 'e_m.public_date = :public_date';
+            if ( $search_value === 1 ) {
+                // search for public files/images
+                $search_params['str'] .= 'e_m.public_date != :public_date';
+            }
+            else {
+                // search for non-public files/images
+                $search_params['str'] .= 'e_m.public_date = :public_date';
+            }
 
             $public_status_query =
                'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
@@ -1176,7 +1229,7 @@ class SearchQueryService
             );
 
             $quality_query =
-               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id, e_m.public_date
                 FROM odr_data_type AS mdt
                 JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
                 JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
@@ -1211,7 +1264,10 @@ class SearchQueryService
             $datarecords[$dt_id][$df_id][$dr_id] = 1;
         }
 
-        return $datarecords;
+        return array(
+            'records' => $datarecords,
+            'guard' => $involves_empty_string,
+        );
     }
 
 
@@ -1729,7 +1785,6 @@ class SearchQueryService
 
         return $results_are_possible;
     }
-
 
 
     /**

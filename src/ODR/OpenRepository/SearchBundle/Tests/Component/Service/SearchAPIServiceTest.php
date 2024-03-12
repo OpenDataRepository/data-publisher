@@ -246,20 +246,45 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'Graph Test: records without files' => [
+            'Graph Test: records with files, with permissions' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '!""',
+                ),
+                array(305,306,307,308,309,310,311,312,313,315,317,320,321),
+                true
+            ],
+            'Graph Test: records with files, but without permissions' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '!""',
+                ),
+                array(305,306,307,308,309,310,311,312,313,315,317,321),  // 320 has a non-public file they shouldn't know about
+                false
+            ],
+            'Graph Test: records without files, with permissions' => [
                 array(
                     'dt_id' => 9,
                     '59' => '""',
                 ),
-                array(318),
+                array(318,319),
                 true
             ],
+            'Graph Test: records without files, without permissions' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '""',
+                ),
+                array(318,320),  // 319 is non-public, and 320 has a non-public file they shouldn't know about
+                false
+            ],
+
             'Graph Test: files containing "csv"' => [
                 array(
                     'dt_id' => 9,
                     '59' => 'csv',
                 ),
-                array(305,306,308,317),
+                array(305,306,308,317,321),
                 true
             ],
             'Graph Test: no files AND "csv"' => [
@@ -270,13 +295,31 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),
                 true
             ],
-            'Graph Test: no files OR csv' => [
+
+            'Graph Test: no files OR csv, with permissions' => [
                 array(
                     'dt_id' => 9,
                     '59' => '"" OR csv',
                 ),
-                array(305,306,308,317,318),
+                array(305,306,308,317,318,319,321),
                 true
+            ],
+            'Graph Test: no files OR csv, without permissions' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '"" OR csv',
+                ),
+                array(305,306,308,317,318,320),  // 319 is non-public, but does include 320 or 321 because they don't know about the file
+                false
+            ],
+
+            'Graph Test: no files OR txt, without permissions' => [
+                array(
+                    'dt_id' => 9,
+                    '59' => '"" OR txt',
+                ),
+                array(307,310,311,312,313,315,318,320,321),
+                false
             ],
 
             // ----------------------------------------

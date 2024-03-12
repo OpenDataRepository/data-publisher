@@ -62,8 +62,7 @@ class SearchKeyService
     private $logger;
 
 
-    // NOTE - don't bother doing anything that requires the PermissionsManagementService in here...
-    //  it'll create a circular service reference
+    // NOTE: DO NOT use the PermissionsManagementService in here...it'll create a circular service reference
 
     /**
      * SearchKeyService constructor.
@@ -264,21 +263,24 @@ class SearchKeyService
 
 
     /**
-     * Splits a string that has been run through clean() into an array of terms that were separated
-     * by logical operators.  e.g.
+     * Splits a string that has been run through {@link clean()} into an array of terms that
+     * were separated by logical operators...e.g.
+     * <pre>
      * "Gold" => array("Gold")
      * "Gold OR Silver" => array("Gold", "||", "Silver")
      * "Gold || Silver" => array("Gold", "||", "Silver")
      * "Gold Silver" => array("Gold", "&&", "Silver")
      * "Gold Silver OR Quartz" => array("Gold", "&&", "Silver", "||", "Quartz")
-     *
-     * Strings that have been run through clean() but aren't entirely logical aren't "fixed"...e.g.
+     * </pre>
+     * This also works on strings that have been run through clean() but aren't entirely "fixed"...e.g.
+     * <pre>
      * "Gold OR OR Quartz" => array("Gold", "||", "OR", "&&", "Quartz")
+     * </pre>
      *
      * The current implementation is ONLY useful for the current version of general search...in the
      * future this will need to get completely rewritten to return an expression tree instead.
      *
-     * self::tokenizeGeneralSearch() should probably be the only function that calls this.
+     * {@link tokenizeGeneralSearch()} should probably be the only function that calls this.
      *
      * @param string $str
      *
@@ -811,8 +813,8 @@ class SearchKeyService
 
 
     /**
-     * Converts a search key into an array of searching criteria for use by self::performSearch()
-     *
+     * Converts a search key into an array of searching criteria for use by {@link SearchAPIService::performSearch()}
+     * <pre>
      * $search_params = array(
      *     'affected_datatypes' => array(    // This has the id of each datatype with a datafield/metadata condition being searched on
      *         0 => <datatype_A_id>,
@@ -860,13 +862,16 @@ class SearchKeyService
      *     [<datatype_B_id>] => array(...),    // All child/linked datatypes with a searchable datafield have an entry
      *     ...
      * )
+     * </pre>
      *
      * @param string $search_key
-     * @param array $searchable_datafields @see SearchAPIService::getSearchableDatafieldsForUser()
+     * @param array $searchable_datafields {@link SearchAPIService::getSearchableDatafieldsForUser()}
+     * @param array $user_permissions
+     * @param bool $search_as_super_admin
      *
      * @return array
      */
-    public function convertSearchKeyToCriteria($search_key, $searchable_datafields)
+    public function convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions, $search_as_super_admin = false)
     {
         // Each datatype with a searchable datafield gets its own entry in the criteria array
         $criteria = array(
@@ -994,7 +999,28 @@ class SearchKeyService
                         );
                     }
 
+                    // Now that the array is guaranteed to exist, search on the filename
                     $criteria[$dt_id][0]['search_terms'][$df_id]['filename'] = $value;
+
+                    // Need to determine if the user can view non-public files/images...
+                    $can_view_file = false;
+                    if ( isset($user_permissions['datatypes'][$dt_id]['dr_view'])
+                        && isset($user_permissions['datafields'][$df_id]['view'])
+                    ) {
+                        $can_view_file = true;
+                    }
+                    if ( $search_as_super_admin )
+                        $can_view_file = true;
+
+                    // If they can't view non-public files/images, then silently force their search
+                    //  to only work on public files/images while ignoring non-public files/images
+                    if ( !$can_view_file )
+                        $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+
+                    // NOTE: this is to prevent users without permissions from being able to figure
+                    //  out which records match a filename/presence/absence search...using the
+                    //  existing 'public_status' flag won't work
+                    // @see SearchService::searchFileOrImageDatafield()
                 }
                 else if ($typeclass === 'Radio' || $typeclass === 'Tag') {
                     // Radio selections and Tags are stored by id, separated by commas
@@ -1043,7 +1069,8 @@ class SearchKeyService
                 $pieces = explode('_', $key);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // This is a DatetimeValue or File/Image field...need to find the datatype id
+                    // This is a DatetimeValue, or the public_status/quality for a File/Image field
+                    //  ...need to find the datatype id
                     $dt_id = null;
                     $df_id = intval($pieces[0]);
                     foreach ($searchable_datafields as $dt_id => $df_list) {
@@ -1071,13 +1098,41 @@ class SearchKeyService
                             );
                         }
 
+                        // Need to determine if the user can view non-public files/images...
+                        $can_view_file = false;
+                        if ( isset($user_permissions['datatypes'][$dt_id]['dr_view'])
+                            && isset($user_permissions['datafields'][$df_id]['view'])
+                        ) {
+                            $can_view_file = true;
+                        }
+                        if ( $search_as_super_admin )
+                            $can_view_file = true;
+
                         if ($pieces[1] === 'pub') {
                             // public status for a File/Image
-                            $criteria[$dt_id][0]['search_terms'][$df_id]['public_status'] = intval($value);
+                            if ( $can_view_file ) {
+                                // If the user can view non-public files, then use their choice
+                                $criteria[$dt_id][0]['search_terms'][$df_id]['public_status'] = intval($value);
+                            }
+                            else {
+                                // ...otherwise, ignore the public_status search and force public
+                                //  files/images only
+                                $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+                            }
                         }
                         else {
                             // quality for a File/Image
                             $criteria[$dt_id][0]['search_terms'][$df_id]['quality'] = intval($value);
+
+                            // If they can't view non-public files/images, then silently force their
+                            //  search to only check public files/images
+                            if ( !$can_view_file )
+                                $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+
+                            // NOTE: this is to prevent users without permissions from being able
+                            //  to figure out which records match a filename/presence/absence search
+                            //  ...using the existing 'public_status' flag won't work
+                            // @see SearchService::searchFileOrImageDatafield()
                         }
                     }
                     else if ($pieces[1] === 's' || $pieces[1] === 'e') {
@@ -1494,10 +1549,10 @@ class SearchKeyService
 
 
     /**
-     * Converts a search key for templates into a format usable by performTemplateSearch()
+     * Converts a search key for templates into a format usable by {@link SearchAPIService::performTemplateSearch()}
      *
      * @param string $search_key
-     * @param array $template_structure @see SearchAPIService::getSearchableTemplateDatafields()
+     * @param array $template_structure {@link SearchAPIService::getSearchableTemplateDatafields()}
      *
      * @return array
      */

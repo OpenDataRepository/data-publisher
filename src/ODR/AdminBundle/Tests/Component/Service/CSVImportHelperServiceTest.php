@@ -40,6 +40,7 @@ class CSVImportHelperServiceTest extends WebTestCase
      */
     private function runUniquenessChecks($post, $csv_filename)
     {
+        exec('redis-cli flushall');
         $client = static::createClient();
 
         /** @var CSVImportHelperService $csv_helper_service */
