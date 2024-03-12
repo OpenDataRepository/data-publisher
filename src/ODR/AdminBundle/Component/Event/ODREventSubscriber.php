@@ -727,6 +727,9 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
             // ----------------------------------------
+            // Delete the related dashboard entry
+            $this->cache_service->delete('dashboard_'.$datatype->getGrandparent()->getId());
+
             // Delete the cached default ordering of records in this datatype
             $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
@@ -804,6 +807,9 @@ class ODREventSubscriber implements EventSubscriberInterface
             $this->cache_service->delete('cached_datarecord_'.$dr->getId());
             $this->cache_service->delete('cached_table_data_'.$dr->getId());
             $this->cache_service->delete('json_record_' . $dr->getUniqueId());
+
+            // Also delete the related dashboard entry
+            $this->cache_service->delete('dashboard_'.$dr->getDataType()->getId());
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -853,6 +859,9 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
             // ----------------------------------------
+            // Delete the related dashboard entry
+            $this->cache_service->delete('dashboard_'.$datatype->getGrandparent()->getId());
+
             // Delete the cached default ordering of records in this datatype
             $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
