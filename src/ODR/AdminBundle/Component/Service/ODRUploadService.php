@@ -323,7 +323,7 @@ class ODRUploadService
         }
 
         try {
-            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $event = new DatarecordModifiedEvent($datarecord, $user, false);    // Do NOT mark the record as updated in the database
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
         catch (\Exception $e) {
@@ -471,7 +471,7 @@ class ODRUploadService
         }
 
         try {
-            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $event = new DatarecordModifiedEvent($datarecord, $user);    // Do want to update the database here, unlike the image upload action
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
         catch (\Exception $e) {

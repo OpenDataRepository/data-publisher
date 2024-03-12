@@ -2755,10 +2755,6 @@ form .row {
     line-height: 1em !important;
 }
 
-#ODRSearchButtons {
-    margin-top: -18px;
-}
-
 .ODRBrowseTitle {
     padding-right: 4em;
 }
@@ -4629,6 +4625,7 @@ i {
 
 .ODRDynamicGraph {
     position: relative;
+    height: 450px;
 }
 .DynamicGraphSettingsDiv {
     cursor: pointer;
@@ -4637,7 +4634,7 @@ i {
     top: 10px;
     left: 20px;
 }
-.ODRGraphFilterPlugin_settings,
+.ODRFilterGraphPlugin_settings,
 .DynamicGraphSettings {
     background-color: white;
     border: 1px solid #ddddee;
@@ -4743,10 +4740,6 @@ button.jGrowl-close {
     min-width: auto !important;
     padding: 2px !important;
     margin: 0px !important;
-}
-
-.ODRSearchHeaderWrapper {
-    text-align: right;
 }
 
 #ODRSearchHeaderWrapper {
@@ -5027,7 +5020,7 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 
 
-.ODRRenderPlugin_FilterGraph_header {
+.ODRFilterGraphPlugin_header {
     text-align: left;
     text-indent: 15px;
     /*font-size: 16px;*/
@@ -5042,78 +5035,109 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     margin-bottom: 5px;
     padding: 5px;
 }
-.ODRRenderPlugin_FilterGraph_table {
+.ODRFilterGraphPlugin_table {
 
 }
-.ODRRenderPlugin_FilterGraph_table th {
+.ODRFilterGraphPlugin_table th {
     padding: 3px 5px;
     cursor: default;
 
     /*font-size: 16px;*/
     color: #555;
 }
-.ODRRenderPlugin_FilterGraph_table td {
+.ODRFilterGraphPlugin_table td {
     padding: 3px 5px;
     cursor: default;
 
     /*font-size: 16px;*/
     color: #555;
 }
-.ODRRenderPlugin_FilterGraph_warn {
+.ODRFilterGraphPlugin_warn {
     color: red !important;
     cursor: help;
 }
 
-.ODRRenderPlugin_FilterGraph_FilterFields_wrapper {
+.ODRFilterGraphPlugin_FilterFields_wrapper {
     text-align: left;
     font-size: 0.96em;
     color: #444;
 }
-
-.ODRRenderPlugin_FilterGraph_FilterFields_wrapper ul {
+.ODRFilterGraphPlugin_FilterFields_wrapper ul {
     list-style: none;
 }
-.ODRRenderPlugin_FilterGraph_FilterFields_wrapper li {
+.ODRFilterGraphPlugin_FilterFields_wrapper li {
     white-space: nowrap;
     list-style-type: none;
     cursor: default;
 }
-.ODRRenderPlugin_FilterGraph_FilterFields_wrapper span {
+.ODRFilterGraphPlugin_FilterFields_wrapper span {
     cursor: pointer;
 }
 
-.ODRGraphFilterPlugin_fields {
+.ODRFilterGraphPlugin_fields {
     background: white;
 }
-.ODRGraphFilterPlugin_buttons {
-    margin-bottom: 5px;
-    margin-left: 10px;
-}
-.ODRGraphFilterPlugin_select, .ODRGraphFilterPlugin_deselect {
+.ODRFilterGraphPlugin_select_all {
     display: inline-block;
     box-sizing: border-box;
     box-shadow: none;
     border: 1px solid #EEEEFF;
     border-radius: 4px;
     background: white none;
-    width: 60px;
+    /*width: 60px;*/
     color: #7777EE;
     margin-right: 12px;
     text-align: center;
     cursor: pointer;
+
+    width: 80px;
+    white-space: nowrap;
+    float: right;
+    padding: 3px;
+}
+.ODRFilterGraphPlugin_select_all_faded {
+    opacity: 0.3;
 }
 
-.ODRGraphFilterPlugin_blurb {
+.ODRFilterGraphPlugin_option {
+    /* the browser will forcibly set any option in a focused select to white...therefore the font color of the options to always be white */
+    color: white;
+}
+.ODRFilterGraphPlugin_option, .ODRFilterGraphPlugin_select:focus option:checked {
+    /* using linear-gradient can override the browser setting background-color of a selected option */
+    /* also want to change the background color of an option that's not in focus */
+    background: linear-gradient(0deg, rgb(66 135 0 / 100%), rgb(66 135 0 / 100%) 100%);
+
+    /* can't set font color here, the browser will override it to white */
+}
+.ODRFilterGraphPlugin_option.ODRFilterGraphPlugin_fake_unselected, .ODRFilterGraphPlugin_select:focus option:not(:checked) {
+    /* this matches ODR's default background color of a select element */
+    background: linear-gradient(0deg, #ECF7FB, #ECF7FB 100%) !important;
+
+    /* this is needed, though not entirely sure how it works...in theory the browsers should be overriding it, but don't somehow */
+    color: #555 !important;
+    -webkit-text-fill-color: #555 !important;    /* edge */
+}
+.ODRFilterGraphPlugin_option.ODRFilterGraphPlugin_bad_selection {
+    /* this is activated when the user selects options that describe disjoint sets...no files returned */
+    background: linear-gradient(0deg, rgb(135 0 66 / 100%), rgb(135 0 66 / 100%) 100%) !important;
+
+    /* this sets the font color in non-focused select elements to match the focused select element */
+    color: white !important;
+    -webkit-text-fill-color: white !important;    /* edge */
+}
+
+.ODRFilterGraphPlugin_blurb {
     margin-left: 30px;
 }
-.ODRGraphFilterPlugin_settings_div {
+.ODRFilterGraphPlugin_settings_div {
     cursor: pointer;
     position: absolute;
     z-index: 999;
     top: 0;
     left: 14px;
 }
-.ODRGraphFilterPlugin_settings_close {
+.ODRFilterGraphPlugin_settings_close {
     text-align: right;
 }
 
