@@ -2019,10 +2019,9 @@ class EntityMetaModifyService
             $this->em->remove($entity);
 
         // Save the new meta entry
-        if (!$delay_flush) {
-            $this->em->persist($new_entity);
+        $this->em->persist($new_entity);
+        if ( !$delay_flush )
             $this->em->flush();
-        }
 
         if ( $fire_event ) {
             // ----------------------------------------

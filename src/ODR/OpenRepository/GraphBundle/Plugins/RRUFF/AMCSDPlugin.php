@@ -1453,8 +1453,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($storage_entities as $df_id => $entity) {
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 $event = new DatafieldModifiedEvent($entity->getDataField(), $user);
                 $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -1468,8 +1466,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // The datarecord needs to be marked as updated
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
@@ -1489,9 +1485,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
-        // TODO - disabled for import testing, re-enable this later on
-        return;
-
         // Pull some required data from the event
         $user = $event->getUser();
         $datarecord = $event->getDatarecord();

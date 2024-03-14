@@ -250,6 +250,9 @@
 
 {% if can_edit_datatype %}
             if ( $(event.target).is('span.ODREditLink') ) {
+                // Ensure no floating header remains on the edit page
+                $(".dtfh-floatingparent").remove();
+
                 // Don't load view mode for Datarecord...
                 event.stopImmediatePropagation();
 
@@ -271,6 +274,9 @@
                 //  visible column in the table is where you click to show the hidden columns
             }
             else {
+                // Ensure no floating header remains on the view page
+                $(".dtfh-floatingparent").remove();
+
                 // A click anywhere else should load view mode of Datarecord
                 var offset = $("#TextResults").DataTable().page.info().page + 1;
                 loadDataRecord( $(this).attr('rel'), 'view', offset );
@@ -365,6 +371,9 @@
             // Scroll to a specific record in the search results
             var target = '.DataRecord_' + scroll_target;
             if ( $(target) !== undefined && $(target).offset() !== undefined ) {
+                // Ensure the floating header gets reset
+                $(".dtfh-floatingparent").remove();
+
                 setTimeout(function() {
                     $('html, body').animate({
                         scrollTop: $(target).offset().top-75

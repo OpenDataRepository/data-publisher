@@ -11,6 +11,8 @@
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^(.*)$ app.php [QSA,L]
+    #RewriteRule ^(.*)$ maintenance/index.php [QSA,L]
+
 </IfModule>
 
 #php_flag xdebug.profiler_enable 0 

@@ -3517,6 +3517,9 @@ a.ui-button:active,
 .remodal-close {
     z-index: 100;
 }
+.ODRRemodalBody {
+    margin-top: 40px;
+}
 .ODRRemodalBody > div {
     padding-top: 20px;
     padding-bottom: 20px;

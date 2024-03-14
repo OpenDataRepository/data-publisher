@@ -67,6 +67,7 @@ use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -105,10 +106,10 @@ class CSVImportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var EngineInterface $templating */
@@ -125,10 +126,10 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -155,7 +156,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Locate any child or linked datatypes
-            $datatree_array = $dti_service->getDatatreeArray();
+            $datatree_array = $datatree_info_service->getDatatreeArray();
             $childtypes = array();
             foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $datatype_id) {
@@ -300,12 +301,12 @@ class CSVImportController extends ODRCustomController
             $session = $request->getSession();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var EngineInterface $templating */
@@ -330,7 +331,7 @@ class CSVImportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $source_datatype) )    // TODO - less restrictive permissions?
+            if ( !$permissions_service->isDatatypeAdmin($user, $source_datatype) )    // TODO - less restrictive permissions?
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -367,7 +368,7 @@ class CSVImportController extends ODRCustomController
             $parent_datatype = null;
 
 
-            $datatree_array = $dti_service->getDatatreeArray();
+            $datatree_array = $datatree_info_service->getDatatreeArray();
             if ( $source_datatype_id !== $target_datatype_id
                 && isset($datatree_array['linked_from'][$target_datatype_id])
                 && in_array($source_datatype_id, $datatree_array['linked_from'][$target_datatype_id])
@@ -410,7 +411,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Grab all datafields belonging to that datatype
-            $datatype_array = $dbi_service->getDatatypeArray($grandparent_target_datatype->getId(), false);
+            $datatype_array = $database_info_service->getDatatypeArray($grandparent_target_datatype->getId(), false);
             $datafields = $datatype_array[$target_datatype_id]['dataFields'];
             uasort($datafields, "self::name_sort");
 
@@ -1146,8 +1147,8 @@ class CSVImportController extends ODRCustomController
 
             /** @var CSVImportHelperService $csv_helper_service */
             $csv_helper_service = $this->container->get('odr.csv_import_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
@@ -1192,7 +1193,7 @@ class CSVImportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1725,8 +1726,8 @@ class CSVImportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
 
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -1777,7 +1778,7 @@ class CSVImportController extends ODRCustomController
 
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
                 $parent_external_id_value = trim( $line[$parent_external_id_column] );
-                $dr = $dri_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id_value);
+                $dr = $datarecord_info_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id_value);
 
                 // If a parent with this external id does not exist, warn the user (the row will be ignored)
                 // Don't want to throw an error here (which will prevent the import from happening)
@@ -1844,7 +1845,7 @@ class CSVImportController extends ODRCustomController
 
                 if ($import_into_top_level) {
                     // Importing into top-level datatype...attempt to locate the top-level datarecord
-                    $dr = $dri_service->getDatarecordByExternalId($external_id_field, $value);
+                    $dr = $datarecord_info_service->getDatarecordByExternalId($external_id_field, $value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
 
@@ -1852,7 +1853,7 @@ class CSVImportController extends ODRCustomController
                 }
                 else if ($import_as_linked_datatype) {
                     // Importing into linked datatype...attempt to locate the remote datarecord
-                    $dr = $dri_service->getDatarecordByExternalId($external_id_field, $value);
+                    $dr = $datarecord_info_service->getDatarecordByExternalId($external_id_field, $value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
 
@@ -1870,7 +1871,7 @@ class CSVImportController extends ODRCustomController
                 else if ($import_into_child_datatype) {
                     // Importing into child datatype...attempt to locate the child datarecord
                     $parent_external_id = trim( $line[$parent_external_id_column] );
-                    $dr = $dri_service->getChildDatarecordByExternalId($external_id_field, $value, $parent_datatype->getExternalIdField(), $parent_external_id);
+                    $dr = $datarecord_info_service->getChildDatarecordByExternalId($external_id_field, $value, $parent_datatype->getExternalIdField(), $parent_external_id);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
 
@@ -1909,7 +1910,7 @@ class CSVImportController extends ODRCustomController
                 // Doesn't make sense to locate something in a multiple-allowed child datatype that
                 //  doesn't have an external ID...
                 if ($datatree->getMultipleAllowed() == false) {
-                    $dr = $dri_service->getSingleChildDatarecordByParent($datatype, $parent_external_id_field, $parent_external_id_value);
+                    $dr = $datarecord_info_service->getSingleChildDatarecordByParent($datatype, $parent_external_id_field, $parent_external_id_value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
                 }
@@ -2334,12 +2335,12 @@ class CSVImportController extends ODRCustomController
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TagHelperService $tag_helper_service */
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var TrackedJobService $tracked_job_service */
@@ -2373,10 +2374,10 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
                 throw new ODRForbiddenException();
 
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
@@ -2418,7 +2419,7 @@ class CSVImportController extends ODRCustomController
 
 
             // Also locate any child or linked datatypes for this datatype
-            $datatree_array = $dti_service->getDatatreeArray();
+            $datatree_array = $datatree_info_service->getDatatreeArray();
             /** @var DataType[]|null $childtypes */
             $childtypes = null;
             if ($parent_datatype_id !== '') {
@@ -2472,7 +2473,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Grab all datafields belonging to the correct datatype
-            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't load linked datatypes
+            $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't load linked datatypes
             $datafields = $datatype_array[$datatype->getId()]['dataFields'];
             uasort($datafields, "self::name_sort");
 
@@ -2681,12 +2682,12 @@ class CSVImportController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TagHelperService $tag_helper_service */
@@ -2697,6 +2698,14 @@ class CSVImportController extends ODRCustomController
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
+
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
 
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
@@ -2730,7 +2739,7 @@ class CSVImportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
                 throw new ODRForbiddenException();
 
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
@@ -2806,7 +2815,6 @@ class CSVImportController extends ODRCustomController
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
 
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
@@ -2912,7 +2920,7 @@ class CSVImportController extends ODRCustomController
 
                     // Create new datafield...can't delay flush here, need the id of the new datafield
                     $created = true;
-                    $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype);
+                    $datafield = $entity_create_service->createDatafield($user, $datatype, $fieldtype);
 
                     // Set the datafield's name
                     $datafield_meta = $datafield->getDataFieldMeta();
@@ -2946,23 +2954,19 @@ class CSVImportController extends ODRCustomController
                 // Since datafields were created for this import, create a new theme element and
                 //  attach the new datafields to it
                 $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
-                $theme_element = $ec_service->createThemeElement($user, $theme, true);    // don't flush immediately...
+                $theme_element = $entity_create_service->createThemeElement($user, $theme, true);    // don't flush immediately...
 
                 foreach ($new_datafields as $new_datafield) {
                     // Attach each of the previously created datafields to the new theme_element
-                    $ec_service->createThemeDatafield($user, $theme_element, $new_datafield, true);    // don't flush immediately...
+                    $entity_create_service->createThemeDatafield($user, $theme_element, $new_datafield, true);    // don't flush immediately...
 
                     // If this is a newly created image datafield, ensure it has the required
                     //  ImageSizes entities
                     if ($new_datafield->getFieldType()->getTypeClass() == 'Image')
-                        $ec_service->createImageSizes($user, $new_datafield, true);    // don't flush immediately...
+                        $entity_create_service->createImageSizes($user, $new_datafield, true);    // don't flush immediately...
 
                     // Notify that a datafield was just created...
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatafieldCreatedEvent($new_datafield, $user);
                         $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
                     }
@@ -2983,7 +2987,7 @@ class CSVImportController extends ODRCustomController
                 $theme_service->updateThemeCacheEntry($theme, $user);
 
                 // Don't need to worry about datafield permissions here, those are taken care of
-                //  inside $ec_service->createDatafield()
+                //  inside $entity_create_service->createDatafield()
             }
 
 /*
@@ -2994,7 +2998,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Create any needed tags based on the additional_data stored in the tracked job...
-            $dt_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);
             $df_array = $dt_array[$datatype->getId()]['dataFields'];
 
             // The validation process will have stored an array of every tag that will get selected
@@ -3040,7 +3044,7 @@ print_r($new_mapping);
 
                     $stacked_tag_array = self::createTagsForListImport(
                         $em,           // Needed to persist new tag uuids and tag tree entries
-                        $ec_service,   // Needed to create new tags
+                        $entity_create_service,   // Needed to create new tags
                         $uuid_service, // Needed to create new tags
                         $user,         // Needed to create new tags
                         $df,           // Needed to create new tags
@@ -3076,10 +3080,6 @@ print_r($new_mapping);
                 // Update cached versions of datatype and master theme since new datafields and/or
                 //  tags were added
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatatypeModifiedEvent($datatype, $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
@@ -3177,7 +3177,7 @@ print_r($new_mapping);
      * TODO -
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param EntityCreationService $ec_service
+     * @param EntityCreationService $entity_create_service
      * @param UUIDService $uuid_service
      * @param ODRUser $user
      * @param DataFields $datafield
@@ -3191,7 +3191,7 @@ print_r($new_mapping);
      *
      * @return array
      */
-    private function createTagsForListImport($em, $ec_service, $uuid_service, $user, $datafield, &$hydrated_tag_array, &$stacked_tag_array, $posted_tags, &$created_new_tags, $parent_tag)
+    private function createTagsForListImport($em, $entity_create_service, $uuid_service, $user, $datafield, &$hydrated_tag_array, &$stacked_tag_array, $posted_tags, &$created_new_tags, $parent_tag)
     {
         $current_tag = null;
         $tag_name = $posted_tags[0];
@@ -3206,7 +3206,7 @@ print_r($new_mapping);
 
             $force_create = true;
             $delay_uuid = true;
-            $current_tag = $ec_service->createTag($user, $datafield, $force_create, $tag_name, $delay_uuid);
+            $current_tag = $entity_create_service->createTag($user, $datafield, $force_create, $tag_name, $delay_uuid);
 
             // Generate a new uuid for this tag...
             $new_tag_uuid = $uuid_service->generateTagUniqueId();
@@ -3229,7 +3229,7 @@ print_r($new_mapping);
             //  insert it at the correct spot in the tag hierarchy
             if ( !is_null($parent_tag) ) {
                 // TODO - ...createTagTree() needs a flush before, or the lock file doesn't have all the info it needs to lock properly
-//                $ec_service->createTagTree($user, $parent_tag, $new_tag);
+//                $entity_create_service->createTagTree($user, $parent_tag, $new_tag);
 
                 $tag_tree = new TagTree();
                 $tag_tree->setParent($parent_tag);
@@ -3252,7 +3252,7 @@ print_r($new_mapping);
             $new_tags = array_slice($posted_tags, 1);
             $stacked_tag_array[$tag_name]['children'] = self::createTagsForListImport(
                 $em,           // Needed to persist new tag uuids and tag tree entries
-                $ec_service,   // Needed to create new tags
+                $entity_create_service,   // Needed to create new tags
                 $uuid_service, // Needed to create new tags
                 $user,         // Needed to create new tags
                 $datafield,    // Needed to create new tags
@@ -3325,7 +3325,6 @@ print_r($new_mapping);
             // ----------------------------------------
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $logger = $this->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -3334,21 +3333,28 @@ print_r($new_mapping);
             $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var ODRUploadService $upload_service */
             $upload_service = $this->container->get('odr.upload_service');
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
 
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRException('Invalid Form');
@@ -3364,7 +3370,7 @@ print_r($new_mapping);
                 throw new ODRBadRequestException('Unable to import into a master template');
 
             // Going to need the cached datatype array if tags are involved...
-            $cached_dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+            $cached_dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
 
 
             // ----------------------------------------
@@ -3384,7 +3390,7 @@ print_r($new_mapping);
 
             if ($parent_external_id_column !== '') {
                 // $datatype_id points to a child datatype
-                $datatree_array = $dti_service->getDatatreeArray();
+                $datatree_array = $datatree_info_service->getDatatreeArray();
 
                 // Locate the top-level datatype
                 $parent_datatype_id = null;
@@ -3404,7 +3410,7 @@ print_r($new_mapping);
 
                 // Since this is importing into a child datatype, parent datarecord must exist
                 // csvvalidateAction() purposely only gives a warning so the user is not prevented from importing the rest of the file
-                $parent_datarecord = $dri_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id_value);
+                $parent_datarecord = $datarecord_info_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id_value);
                 if ($parent_datarecord == null)
                     throw new ODRException('Parent Datarecord pointed to by datafield '.$parent_external_id_field->getId().', value "'.$parent_external_id_value.'" does not exist');
 
@@ -3436,7 +3442,7 @@ print_r($new_mapping);
                     }
 
                     // Have an external ID field, so attempt to locate a top-level datarecord
-                    $datarecord = $dri_service->getDatarecordByExternalId($external_id_field, $external_id_value);
+                    $datarecord = $datarecord_info_service->getDatarecordByExternalId($external_id_field, $external_id_value);
                 }
                 else {
                     // Otherwise, no external ID...leave $datarecord as null so a new datarecord
@@ -3453,13 +3459,13 @@ print_r($new_mapping);
                     }
 
                     // Have an external ID field, so attempt to locate the child datarecord with the parent
-                    $datarecord = $dri_service->getChildDatarecordByExternalId($external_id_field, $external_id_value, $parent_external_id_field, $parent_external_id_value);
+                    $datarecord = $datarecord_info_service->getChildDatarecordByExternalId($external_id_field, $external_id_value, $parent_external_id_field, $parent_external_id_value);
                 }
                 else {
                     // Otherwise, no external ID...
                     if (!$multiple_allowed) {
                         // ...if only a single child datarecord is allowed for this datatype, attempt to locate it
-                        $datarecord = $dri_service->getSingleChildDatarecordByParent($datatype, $parent_external_id_field, $parent_external_id_value);
+                        $datarecord = $datarecord_info_service->getSingleChildDatarecordByParent($datatype, $parent_external_id_field, $parent_external_id_value);
                     }
                     else {
                         // ...otherwise, multiple child datarecords are allowed...don't attempt to
@@ -3503,7 +3509,7 @@ exit();
             if ($datarecord == null) {
                 // Create a new datarecord, since one doesn't exist
                 $datarecord_created = true;
-                $datarecord = $ec_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
+                $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
                 if ( !is_null($parent_datarecord) ) {
                     $datarecord->setParent($parent_datarecord);
                     $datarecord->setGrandparent($parent_datarecord->getGrandparent());
@@ -3551,10 +3557,6 @@ exit();
                 // This is wrapped in a try/catch block because any uncaught exceptions will abort
                 //  creation of the new datarecord...
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatarecordCreatedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                 }
@@ -3677,10 +3679,10 @@ exit();
                             // Get the existing entity for this datarecord/datafield, or create a new
                             //  one if it doesn't exist
                             /** @var ODRBoolean $entity */
-                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                            $entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
 
                             // Ensure the value in the datafield matches the value in the import file
-                            $emm_service->updateStorageEntity($user, $entity, array('value' => $checked));
+                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $checked));
                             $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
                         }
                     }
@@ -3692,7 +3694,7 @@ exit();
                         // If a filename is in this column...
                         if ($column_data !== '') {
                             // Grab the associated datarecordfield entity
-                            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                            $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             // Store the path to the user's upload area...
                             $storage_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
@@ -3881,7 +3883,7 @@ exit();
                             // Get the existing entity for this datarecord/datafield, or create a new
                             //  one if it doesn't exist
                             /** @var IntegerValue $entity */
-                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                            $entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
 
                             // NOTE - intentionally not using intval() here...updateStorageEntity() has
                             //  to have values passed as strings, and will convert back to integer before
@@ -3891,7 +3893,7 @@ exit();
                                 $value = $column_data;
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $value));
                             $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
                         }
                     }
@@ -3909,7 +3911,7 @@ exit();
                             // Get the existing entity for this datarecord/datafield, or create a new
                             //  one if it doesn't exist
                             /** @var DecimalValue $entity */
-                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                            $entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
 
                             // NOTE - intentionally not using floatval() here...updateStorageEntity() has
                             //  to have values passed as strings, and DecimalValue::setValue() will deal
@@ -3919,7 +3921,7 @@ exit();
                                 $value = $column_data;
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $value));
                             $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
                         }
                     }
@@ -3937,7 +3939,7 @@ exit();
                             // Get the existing entity for this datarecord/datafield, or create a
                             //  new one if it doesn't exist
                             /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
-                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                            $entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
 
                             // Need to truncate overly-long strings here...otherwise doctrine will throw
                             //  an error and the import of this record will fail
@@ -3956,7 +3958,7 @@ exit();
                             }
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $emm_service->updateStorageEntity($user, $entity, array('value' => $column_data));
+                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $column_data));
 
                             if ( $truncated )
                                 $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
@@ -3978,7 +3980,7 @@ exit();
                             // Get the existing entity for this datarecord/datafield, or create a
                             //  new one if it doesn't exist
                             /** @var DatetimeValue $entity */
-                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                            $entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
 
                             // Turn the data into a DateTime object...csvvalidateAction() already
                             //  would've warned if column data isn't actually a date
@@ -3987,7 +3989,7 @@ exit();
                                 $value = new \DateTime($column_data);
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $value));
                             if ($value == null)
                                 $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
                             else
@@ -4001,7 +4003,7 @@ exit();
                             continue;
 
                         // Going to need the datarecordfield entry for later...
-                        $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                        $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                         // If multiple radio/select, get an array of all the options...
                         $options = array($column_data);
@@ -4027,7 +4029,7 @@ exit();
                                 //  it doesn't already exist.  $force_create MUST be false, otherwise
                                 //  it will create duplicate radio options
                                 $force_create = false;
-                                $radio_option = $ec_service->createRadioOption(
+                                $radio_option = $entity_create_service->createRadioOption(
                                     $user,
                                     $datafield,
                                     $force_create,
@@ -4065,7 +4067,7 @@ exit();
                                     ) {
                                         // ...ensure it's deselected
                                         $properties = array('selected' => 0);
-                                        $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately
+                                        $entity_modify_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately
 
                                         $status .= '      >> deselected radio selection for radio_option ("'.$rs->getRadioOption()->getOptionName().'").'."\n";
                                     }
@@ -4076,11 +4078,11 @@ exit();
 
                             // Now that there won't be extraneous radio options selected afterwards...
                             //  ensure the radio selection entity for the desired radio option exists
-                            $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+                            $radio_selection = $entity_create_service->createRadioSelection($user, $radio_option, $drf);
 
                             // Ensure it has the correct selected status
                             $properties = array('selected' => 1);
-                            $emm_service->updateRadioSelection($user, $radio_selection, $properties);
+                            $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties);
 
                             $status .= '      >> radio_selection for radio_option ("'.$radio_option->getOptionName().'") now selected'."\n";
                         }
@@ -4098,7 +4100,7 @@ exit();
                         $stacked_tag_array = $df_array['tags'];
 
                         // Going to need the datarecordfield entry for later...
-                        $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                        $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                         // TODO - add Tag equivalent of "delete all unlisted files/images"?
 
@@ -4119,11 +4121,11 @@ exit();
                                         $tag = $repo_tags->find($tag_id);
 
                                         // Ensure a tagSelection entity exists
-                                        $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+                                        $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
 
                                         // Mark it as selected
                                         $properties = array('selected' => 1);
-                                        $emm_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
+                                        $entity_modify_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
 
                                         $status .= '      >> tag_selection for tag ("'.$tag_name.'") now selected'."\n";
 
@@ -4163,11 +4165,11 @@ exit();
                                     $tag = $repo_tags->find($tag_id);
 
                                     // Ensure a tagSelection entity exists
-                                    $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+                                    $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
 
                                     // Mark it as selected
                                     $properties = array('selected' => 1);
-                                    $emm_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
+                                    $entity_modify_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
 
                                     $full_tag_name = implode(' '.$hierarchy_delimiters[$column_num].' ', $tag_chain);
                                     $status .= '      >> tag_selection for tag ("'.$full_tag_name.'") now selected'."\n";
@@ -4258,10 +4260,6 @@ exit();
                     $status .= ' == updated datatype cache entry for datatype '.$datatype->getId().' ("'.$datatype->getShortName().'")'."\n";
 
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatatypeModifiedEvent($datatype, $user);
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                     }
@@ -4276,10 +4274,6 @@ exit();
                 // Since the job is now done (in theory), delete all search cache entries
                 //  relevant to this datatype
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatatypeImportedEvent($datatype, $user);
                     $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
                 }
@@ -4302,10 +4296,6 @@ exit();
             // ----------------------------------------
             // Mark this datarecord as updated...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -4466,17 +4456,24 @@ exit();
             // ----------------------------------------
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $logger = $this->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
+
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -4487,12 +4484,12 @@ exit();
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
-                throw new ODRException('Invalid Form...Datatype is deleted');
+                throw new ODRException('Invalid Form...Remote Datatype is deleted');
 
             /** @var DataType $parent_datatype */
             $parent_datatype = $repo_datatype->find($parent_datatype_id);
             if ($parent_datatype == null)
-                throw new ODRException('Invalid Form...Parent Datatype is deleted');
+                throw new ODRException('Invalid Form...Local Datatype is deleted');
 
             // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
@@ -4510,52 +4507,74 @@ exit();
             // Locate "local" and "remote" datarecords
             $local_external_id_field = $parent_datatype->getExternalIdField();
             $local_external_id = trim( $line[$parent_external_id_column] );
-            $local_datarecord = $dri_service->getDatarecordByExternalId($local_external_id_field, $local_external_id);
+            $local_datarecord = $datarecord_info_service->getDatarecordByExternalId($local_external_id_field, $local_external_id);
+            if ( is_null($local_datarecord) )
+                $logger->debug('no local datarecord in Datatype '.$parent_datatype_id.' with "'.$local_external_id.'"...');
+            else
+                $logger->debug('located local datarecord in Datatype '.$parent_datatype_id.' with "'.$local_external_id.'"...');
 
             $remote_external_id_field = $datatype->getExternalIdField();
             $remote_external_id = trim( $line[$remote_external_id_column] );
-            $remote_datarecord = $dri_service->getDatarecordByExternalId($remote_external_id_field, $remote_external_id);
+            $remote_datarecord = $datarecord_info_service->getDatarecordByExternalId($remote_external_id_field, $remote_external_id);
+            if ( is_null($remote_datarecord) )
+                $logger->debug('no remote datarecord in Datatype '.$datatype_id.' with "'.$local_external_id.'"...');
+            else
+                $logger->debug('located remote datarecord in Datatype '.$datatype_id.' with "'.$local_external_id.'"...');
 
 
             // ----------------------------------------
-            // Ensure a link exists from the local datarecord to the remote datarecord
-            $ec_service->createDatarecordLink($user, $local_datarecord, $remote_datarecord);
-            $status .= ' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")'."\n";
+            // The local and the remote datarecords aren't technically guaranteed to exist...
+            $change_made = false;
+            if ( !is_null($local_datarecord) && !is_null($remote_datarecord) ) {
+                // ...but if they do, then ensure a link exists from the local datarecord to the
+                //  remote datarecord
+                $entity_create_service->createDatarecordLink($user, $local_datarecord, $remote_datarecord);
+                $change_made = true;
 
-            // Force a rebuild of the cached entry for the ancestor datarecord
-            try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordModifiedEvent($local_datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $status .= ' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")'."\n";
+                $logger->debug(' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")');
             }
-            catch (\Exception $e) {
-                // ...don't want to rethrow the error since it'll interrupt everything after this
-                //  event
+            else {
+                if ( is_null($local_datarecord) && is_null($remote_datarecord) )
+                    $status .= ' -- neither the local datarecord referred to by "'.$local_external_id.'" nor the remote datarecord referred to by "'.$remote_external_id.'" exist, skipping'."\n";
+                else if ( is_null($local_datarecord) )
+                    $status .= ' -- the local datarecord referred to by "'.$local_external_id.'" does not exist, skipping'."\n";
+                else
+                    $status .= ' -- the remote datarecord referred to by "'.$remote_external_id.'" does not exist, skipping'."\n";
+
+                $logger->debug(' -- one or both datarecords do not exist, skipping');
+            }
+
+            // No sense firing events unless a change was made
+            if ( $change_made ) {
+                // Force a rebuild of the cached entry for the ancestor datarecord
+                try {
+                    $event = new DatarecordModifiedEvent($local_datarecord, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $logger->debug('DatarecordModifiedEvent dispatched');
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
-            }
+                }
 
-            // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
-            try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordLinkStatusChangedEvent( array($local_datarecord->getId()), $remote_datarecord->getDataType(), $user);
-                $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't want to rethrow the error since it'll interrupt everything after this
-                //  event
+                // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
+                try {
+                    $event = new DatarecordLinkStatusChangedEvent( array($local_datarecord->getId()), $remote_datarecord->getDataType(), $user);
+                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                    $logger->debug('DatarecordLinkStatusChangedEvent dispatched');
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
+                }
+
+                // Linking/unlinking a datarecord has no effect on datarecord order
             }
-
-            // Linking/unlinking a datarecord has no effect on datarecord order
-
 
             // ----------------------------------------
             // Update the job tracker if necessary
