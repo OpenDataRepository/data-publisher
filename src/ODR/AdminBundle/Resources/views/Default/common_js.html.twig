@@ -317,6 +317,21 @@
         }
     }
 
+    /**
+     * Forces a URL to open in a new tab
+     *
+     * @param {string} hash
+     */
+    function OpenURL(hash) {
+        var current_baseurl = window.location.href;
+        if ( current_baseurl.indexOf('#') !== -1 ) {
+            var pieces = window.location.href.split(/#/);
+            current_baseurl = pieces[0];
+        }
+
+        window.open(current_baseurl + '#' + hash, '_blank');
+    }
+
     var xhr = null;
     var timer = null;
 

@@ -1,0 +1,240 @@
+{% spaceless %}
+
+<div class="pure-u-1">
+    <label for="ODRReplaceLinks_select">
+        Datatype to operate on:
+    </label>
+    <select id="ODRReplaceLinks_select" class="">
+        <option value=""></option>
+    {% for dt_id,dt_data in datatype_data %}
+        <option value="{{ dt_id }}">({{ dt_id }}) {{ dt_data['dt_name'] }}</option>
+    {% endfor %}
+    </select>
+</div>
+
+<div class="pure-u-1"></div>
+
+
+{% for dt_id,dt_data in datatype_data %}
+<div id="ODRReplaceLinks_dt_{{ dt_id }}" class="ODRReplaceLinks_content_div pure-u-1" rel="{{ dt_data['df_id'] }}" style="display: none;">
+    <div>External ID Field: "{{ dt_data['df_name'] }}"</div>
+    <div class="pure-u-11-24">
+        <form id="ODRReplaceLinks_left" class="ODRReplaceLinks_form pure-u-1" rel="left">
+            <input type="hidden" name="external_id_field_id" value="{{ dt_data['df_id'] }}" />
+            <label for="ODRReplaceLinks_left_input" class="">
+                Record to Replace: <input id="ODRReplaceLinks_left_input" class="ODRReplaceLinks_input" type="text" maxlength="255" size="40" value="" name="replaced_datarecord_id" />
+            </label>
+            <button class="ODRReplaceLinks_search pure-button pure-button-primary" rel="left">Search</button>
+            <button class="ODRReplaceLinks_edit pure-button pure-button-secondary" rel="left">Edit</button>
+        </form>
+        <div class="ODRReplaceLinks_left_info pure-u-1">
+            <div class="links_to pure-u-1-2"></div>
+            <div class="linked_from pure-u-1-2"></div>
+        </div>
+        <div class="ODRReplaceLinks_left_content pure-u-1"></div>
+    </div>
+    <div class="pure-u-1-24"></div>
+    <div class="pure-u-11-24">
+        <form id="ODRReplaceLinks_right" class="ODRReplaceLinks_form pure-u-1" rel="right">
+            <input type="hidden" name="external_id_field_id" value="{{ dt_data['df_id'] }}" />
+            <label for="ODRReplaceLinks_right_input" class="">
+                Record to Replace with: <input id="ODRReplaceLinks_right_input" class="ODRReplaceLinks_input" type="text" maxlength="255" size="40" value="" name="replacement_datarecord_id" />
+            </label>
+            <button class="ODRReplaceLinks_search pure-button pure-button-primary" rel="right">Search</button>
+            <button class="ODRReplaceLinks_edit pure-button pure-button-secondary" rel="right">Edit</button>
+        </form>
+        <div class="ODRReplaceLinks_right_info pure-u-1">
+            <div class="links_to pure-u-1-2"></div>
+            <div class="linked_from pure-u-1-2"></div>
+        </div>
+        <div class="ODRReplaceLinks_right_content pure-u-1"></div>
+    </div>
+</div>
+{% endfor %}
+
+<div class="pure-u-1"></div>
+<div id="ODRReplaceLinks_final" style="display: none;">
+    <form id="ODRReplaceLinks_final_form">
+        <label for="ODRReplaceLinks_final_delete">
+            <input id="ODRReplaceLinks_final_delete" type="checkbox" name="delete_after_link" value="1" />&nbsp;Delete after replace?
+        </label>
+    </form>
+    <span id="ODRReplaceLinks_final_blurb"></span><button id="ODRReplaceLinks_trigger" class="pure-button-primary">Go</button>
+</div>
+
+<script>
+    $(function() {
+        $(".ODRReplaceLinks_edit").unbind('click').click(function(event) {
+            event.preventDefault();
+
+            var content_div = $(this).parent().next().next();
+            var dr_div = $(content_div).find('.ODRFieldArea').first();
+            var pieces = $(dr_div).attr('id').split(/_/);
+            var dr_id = pieces[1];
+
+            var url = '{{ path('odr_record_edit', {'datarecord_id': 0}) }}';
+            url = url.substring(0, url.length-1);
+            url += dr_id;
+            // alert(url);
+
+            OpenURL(url);
+        });
+
+        $("#ODRReplaceLinks_select").unbind('change').change(function() {
+            var dt_id = $(this).val();
+
+            ODRReplaceLinks_reset(dt_id);
+        });
+
+        $(".ODRReplaceLinks_form").unbind('submit').submit(function(event) {
+            event.preventDefault();
+
+            var pieces = $(this).closest('.ODRReplaceLinks_content_div').attr('id').split(/_/);
+            var dt_id = pieces[2];
+
+            var form = $(this);
+            var side = $(form).attr('rel');
+            var url = '{{ path('odr_replace_links_data') }}';
+            var data = $(form).serialize();
+            // console.log(data);  return;
+
+            var info_div = $("#ODRReplaceLinks_dt_" + dt_id).find(".ODRReplaceLinks_" + side + "_info");
+            $(info_div).find(".links_to").html('');
+            $(info_div).find(".linked_from").html('');
+            $(info_div).next().html('');
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: data,
+                dataType: "json",
+                success: function(data) {
+                    var dt_div = $("#ODRReplaceLinks_dt_" + dt_id);
+                    var info_div = $(dt_div).find(".ODRReplaceLinks_" + side + "_info");
+                    $(info_div).find(".links_to").html( data.d.links_to );
+                    $(info_div).find(".linked_from").html( data.d.linked_from );
+                    $(info_div).next().html( data.d.html );
+
+                    if ( $(dt_div).find('.ODRReplaceLinks_left_content').html() !== ''
+                        && $(dt_div).find('.ODRReplaceLinks_right_content').html() !== ''
+                    ) {
+                        var left_input = $(dt_div).find('#ODRReplaceLinks_left_input').val();
+                        var right_input = $(dt_div).find('#ODRReplaceLinks_right_input').val();
+                        $("#ODRReplaceLinks_final").show();
+                        $("#ODRReplaceLinks_final_blurb").html('Replace all links to/from "' + left_input + '" with "' + right_input + '"?');
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Should clear the data divs if an error happened
+                    var info_div = $("#ODRReplaceLinks_dt_" + dt_id).find(".ODRReplaceLinks_" + side + "_info");
+                    $(info_div).find(".links_to").html('');
+                    $(info_div).find(".linked_from").html('');
+                    $(info_div).next().html('');
+
+                    $("#ODRReplaceLinks_final").hide();
+                    $("#ODRReplaceLinks_final_blurb").html('');
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $("#ODRReplaceLinks_trigger").unbind('click').click(function() {
+            // Remove any already-existing input elements added by this function
+            $("#ODRReplaceLinks_final_form .odrreplacelinks_form_input").remove();
+
+            $(".ODRReplaceLinks_content_div").each(function(index,div) {
+                if ( $(div).is(':visible') ) {
+                    var external_id_field_id = $(div).attr('rel');
+                    var replaced_record_id = $(div).find('#ODRReplaceLinks_left_input').val();
+                    var replacement_record_id = $(div).find('#ODRReplaceLinks_right_input').val();
+
+                    var element = $("<input>", {"class": "odrreplacelinks_form_input", "type": "hidden", "value": external_id_field_id, "name": "external_id_field_id"});
+                    $("#ODRReplaceLinks_final_form").append(element);
+                    var element = $("<input>", {"class": "odrreplacelinks_form_input", "type": "hidden", "value": replaced_record_id, "name": "replaced_record_id"});
+                    $("#ODRReplaceLinks_final_form").append(element);
+                    var element = $("<input>", {"class": "odrreplacelinks_form_input", "type": "hidden", "value": replacement_record_id, "name": "replacement_record_id"});
+                    $("#ODRReplaceLinks_final_form").append(element);
+
+                    return false;
+                }
+            });
+
+            $("#ODRReplaceLinks_final_form").trigger('submit');
+        });
+
+        $("#ODRReplaceLinks_final_form").unbind('submit').submit(function(event) {
+            event.preventDefault();
+
+            var dt_id = '';
+            $(".ODRReplaceLinks_content_div").each(function(index,div) {
+                if ( $(div).is(':visible') ) {
+                    var pieces = $(this).attr('id').split(/_/);
+                    dt_id = pieces[2];
+                }
+            });
+
+            var url = '{{ path('odr_replace_links_worker') }}';
+            var data = $(this).serialize();
+            // console.log(dt_id);  console.log(data);  return;
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: data,
+                dataType: "json",
+                success: function(data) {
+                    ODRReplaceLinks_reset(dt_id);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Should clear the data divs if an error happened
+                    ODRReplaceLinks_reset(dt_id);
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+    });
+
+    /**
+     * Resets all data on the page.
+     * @param {number} dt_id
+     */
+    function ODRReplaceLinks_reset(dt_id) {
+        $(".ODRReplaceLinks_content_div").hide();
+        $("#ODRReplaceLinks_dt_" + dt_id).show();
+
+        $(".ODRReplaceLinks_left_info .links_to").html('');
+        $(".ODRReplaceLinks_left_info .linked_from").html('');
+        $(".ODRReplaceLinks_right_info .links_to").html('');
+        $(".ODRReplaceLinks_right_info .linked_from").html('');
+        $(".ODRReplaceLinks_left_content").html('');
+        $(".ODRReplaceLinks_right_content").html('');
+
+        $("#ODRReplaceLinks_final").hide();
+        $("#ODRReplaceLinks_final_blurb").html('');
+    }
+</script>
+{% endspaceless %}

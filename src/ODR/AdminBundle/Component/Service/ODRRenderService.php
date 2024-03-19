@@ -327,17 +327,18 @@ class ODRRenderService
      * @param DataRecord $datarecord
      * @param string $search_key
      * @param Theme|null $theme
+     * @param string $record_display_view
      *
      * @return string
      */
-    public function getDisplayHTML($user, $datarecord, $search_key, $theme = null)
+    public function getDisplayHTML($user, $datarecord, $search_key, $theme = null, $record_display_view = 'single')
     {
         $template_name = 'ODRAdminBundle:Display:display_ajax.html.twig';
         $extra_parameters = array(
             'is_top_level' => 1,    // TODO - get rid of this requirement
             'ensure_images_exist' => 1,    // Triggers the check to decrypt images in cached arrays if they don't exist
 
-            'record_display_view' => 'single',
+            'record_display_view' => $record_display_view,
             'search_key' => $search_key,
         );
 
@@ -896,9 +897,7 @@ class ODRRenderService
             //  have permissions...
             $datafield_permissions = $user_permissions['datafields'];
             foreach ($added_datafields as $num => $df_id) {
-                if ( isset($datafield_permissions[$df_id])
-                    && isset($datafield_permissions[$df_id]['view'])
-                ) {
+                if (  isset($datafield_permissions[$df_id]['view']) ) {
                     // User has permission to see this datafield, notify them of the synchronization
                     return true;
                 }
@@ -927,9 +926,7 @@ class ODRRenderService
             //  have permissions...
             $datatype_permissions = $user_permissions['datatypes'];
             foreach ($added_datatypes as $num => $dt_id) {
-                if ( isset($datatype_permissions[$dt_id])
-                    && isset($datatype_permissions[$dt_id]['dt_view'])
-                ) {
+                if ( isset($datatype_permissions[$dt_id]['dt_view']) ) {
                     // User has permission to see this datatype, notify them of the synchronization
                     return true;
                 }
@@ -1071,6 +1068,7 @@ class ODRRenderService
         $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
         $datafield_permissions = $user_permissions['datafields'];
+        $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $top_level_datatype);
 
         $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
@@ -1101,7 +1099,8 @@ class ODRRenderService
         }
 
         // Building the token list requires filtering to be done first...
-        $extra_parameters['token_list'] = $this->datarecord_info_service->generateCSRFTokens($datatype_array, $datarecord_array);
+        if ( isset($extra_parameters['token_list']) )
+            $extra_parameters['token_list'] = $this->datarecord_info_service->generateCSRFTokens($datatype_array, $datarecord_array);
 
 
         // ----------------------------------------
@@ -1122,7 +1121,7 @@ class ODRRenderService
         $tdt = null;
         foreach ($theme_array[$parent_theme->getId()]['themeElements'] as $num => $te) {
             if ( $te['id'] === $theme_element->getId() ) {
-                if ( isset($te['themeDataType']) && isset($te['themeDataType'][0]) ) {
+                if ( isset($te['themeDataType'][0]) ) {
                     $tdt = $te['themeDataType'][0];
 
                     $is_link = $tdt['is_link'];
@@ -1148,6 +1147,7 @@ class ODRRenderService
             'parent_datarecord_id' => $parent_datarecord->getId(),
             'target_theme_id' => $child_theme->getId(),
 
+            'is_datatype_admin' => $is_datatype_admin,
             'datatype_permissions' => $datatype_permissions,
             'datafield_permissions' => $datafield_permissions,
 
@@ -1536,7 +1536,7 @@ class ODRRenderService
                 if (!is_null($theme_datafield))
                     break;
 
-                if (isset($te['themeDataFields'])) {
+                if ( isset($te['themeDataFields']) ) {
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                         if ($tdf['dataField']['id'] === $datafield_id) {
                             $theme_datafield = $tdf;
