@@ -1009,6 +1009,20 @@ odr_record_inline_link:
         parent_datarecord_id: \d+
         top_level_datarecord_id: \d+
 
+odr_replace_links_page:
+    path:  /edit/replace_datarecord_links
+    defaults: { _controller: ODRAdminBundle:Link:replacelinkspage }
+
+odr_replace_links_data:
+    path:  /edit/replace_link_data
+    defaults: { _controller: ODRAdminBundle:Link:replacelinksdata }
+    methods: [ POST ]
+
+odr_replace_links_worker:
+    path:  /edit/replace_link_worker
+    defaults: { _controller: ODRAdminBundle:Link:replacelinksworker }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------

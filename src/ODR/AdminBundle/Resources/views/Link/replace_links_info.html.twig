@@ -1,0 +1,7 @@
+{% spaceless %}
+
+{% for dt_id,data in link_data %}
+    <li>{% if direction == 'to' %}links to{% else %}linked to by{% endif %} {{ data['count'] }} "{{ data['dt_name'] }}" record{% if data['count'] > 1 %}s{% endif %}</li>
+{% endfor %}
+
+{% endspaceless %}
