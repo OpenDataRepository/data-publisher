@@ -104,6 +104,11 @@ services:
 
     # ----------------------------------------
     # Temporary datatype plugins
+    odr_plugins.rruff.instruments:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFInstrumentsPlugin'
+        arguments:
+            $logger: "@logger"
+
     odr_plugins.rruff.chemistry_analysis:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFChemistryAnalysisPlugin'
         arguments:
@@ -111,11 +116,6 @@ services:
 
     odr_plugins.rruff.raman_spectra:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFRamanSpectraPlugin'
-        arguments:
-            $logger: "@logger"
-
-    odr_plugins.rruff.oriented_raman_spectra:
-        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFOrientedRamanSpectraPlugin'
         arguments:
             $logger: "@logger"
 

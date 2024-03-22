@@ -226,6 +226,7 @@ class EntityCreationService
             $datafield_meta->setShortenFilename(false);
         }
         $datafield_meta->setNewFilesArePublic(false);    // Newly uploaded files/images default to non-public
+        $datafield_meta->setQualityStr('');
 
         $datafield_meta->setCreated($created);
         $datafield_meta->setUpdated($created);
@@ -1271,10 +1272,11 @@ class EntityCreationService
      * @param string $filepath The path to the unencrypted file on the server
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      * @param \DateTime|null $public_date If provided, then the public date is set to this
+     * @param int $quality If provided, then the quality property is set to this
      *
      * @return File
      */
-    public function createFile($user, $drf, $filepath, $created = null, $public_date = null)
+    public function createFile($user, $drf, $filepath, $created = null, $public_date = null, $quality = null)
     {
         // Ensure a file exists at the given path
         if ( !file_exists($filepath) )
@@ -1291,6 +1293,9 @@ class EntityCreationService
             else
                 $public_date = new \DateTime('2200-01-01 00:00:00');
         }
+
+        if ( is_null($quality) )
+            $quality = 0;
 
 
         // ----------------------------------------
@@ -1340,6 +1345,7 @@ class EntityCreationService
         $file_meta->setFile($file);
 
         $file_meta->setOriginalFileName($original_filename);
+        $file_meta->setQuality($quality);
         $file_meta->setDescription(null);    // TODO
         $file_meta->setExternalId('');
 
@@ -1375,10 +1381,11 @@ class EntityCreationService
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      * @param \DateTime|null $public_date If provided, then the public date is set to this
      * @param int|null $display_order If provided, then the display_order is set to this
+     * @param int $quality If provided, then the quality property is set to this
      *
      * @return Image
      */
-    public function createImage($user, $drf, $filepath, $created = null, $public_date = null, $display_order = null)
+    public function createImage($user, $drf, $filepath, $created = null, $public_date = null, $display_order = null, $quality = null)
     {
         // Ensure a file exists at the given path
         if ( !file_exists($filepath) )
@@ -1398,6 +1405,9 @@ class EntityCreationService
 
         if ( is_null($display_order) )
             $display_order = 0;
+
+        if ( is_null($quality) )
+            $quality = 0;
 
 
         // ----------------------------------------
@@ -1464,6 +1474,7 @@ class EntityCreationService
         $image_meta->setDisplayorder($display_order);
 
         $image_meta->setOriginalFileName($original_filename);
+        $image_meta->setQuality($quality);
         $image_meta->setCaption(null);    // TODO
         $image_meta->setExternalId('');
 
@@ -2241,9 +2252,8 @@ class EntityCreationService
                 if ($typeclass === 'DecimalValue')
                     $storage_entity->setOriginalValue($insert_value);
 
-                if ($typeclass === 'ShortVarchar') {
+                if ($typeclass === 'ShortVarchar')
                     $storage_entity->setConvertedValue('');
-                }
 
                 $storage_entity->setCreated($created);
                 $storage_entity->setUpdated($created);

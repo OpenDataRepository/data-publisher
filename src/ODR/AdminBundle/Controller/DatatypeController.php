@@ -743,9 +743,9 @@ class DatatypeController extends ODRCustomController
                     )
                 );
 
-                // Not caching since it barely makes a difference
-//                $cache_service->set('dashboard_'.$dt_id, $graph);
-//                $cache_service->expire('dashboard_'.$dt_id, 1*24*60*60);    // Cache this dashboard entry for upwards of one day
+                // Cache this, because it does make a difference on large datasets...
+                $cache_service->set('dashboard_'.$dt_id, $graph);
+                $cache_service->expire('dashboard_'.$dt_id, 1*24*60*60);    // Cache this dashboard entry for upwards of one day
 
                 $graph_str .= $graph;
             }

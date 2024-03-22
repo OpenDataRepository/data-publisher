@@ -62,8 +62,7 @@ class SearchKeyService
     private $logger;
 
 
-    // NOTE - don't bother doing anything that requires the PermissionsManagementService in here...
-    //  it'll create a circular service reference
+    // NOTE: DO NOT use the PermissionsManagementService in here...it'll create a circular service reference
 
     /**
      * SearchKeyService constructor.
@@ -264,21 +263,24 @@ class SearchKeyService
 
 
     /**
-     * Splits a string that has been run through clean() into an array of terms that were separated
-     * by logical operators.  e.g.
+     * Splits a string that has been run through {@link clean()} into an array of terms that
+     * were separated by logical operators...e.g.
+     * <pre>
      * "Gold" => array("Gold")
      * "Gold OR Silver" => array("Gold", "||", "Silver")
      * "Gold || Silver" => array("Gold", "||", "Silver")
      * "Gold Silver" => array("Gold", "&&", "Silver")
      * "Gold Silver OR Quartz" => array("Gold", "&&", "Silver", "||", "Quartz")
-     *
-     * Strings that have been run through clean() but aren't entirely logical aren't "fixed"...e.g.
+     * </pre>
+     * This also works on strings that have been run through clean() but aren't entirely "fixed"...e.g.
+     * <pre>
      * "Gold OR OR Quartz" => array("Gold", "||", "OR", "&&", "Quartz")
+     * </pre>
      *
      * The current implementation is ONLY useful for the current version of general search...in the
      * future this will need to get completely rewritten to return an expression tree instead.
      *
-     * self::tokenizeGeneralSearch() should probably be the only function that calls this.
+     * {@link tokenizeGeneralSearch()} should probably be the only function that calls this.
      *
      * @param string $str
      *
@@ -732,7 +734,8 @@ class SearchKeyService
                     throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // $key is for a DatetimeValue...ensure the datafield is valid to search on
+                    // $key is for a DatetimeValue, or a File/Image's public status/quality
+                    //  ...ensure the datafield is valid to search on
                     $df_id = intval($pieces[0]);
 
                     $found = false;
@@ -752,13 +755,22 @@ class SearchKeyService
                     if (!$found)
                         throw new ODRBadRequestException('Invalid search key: invalid datafield '.$df_id, $exception_code);
 
-                    // TODO - check that the 'end' date is later than the 'start' date?
-                    // Ensure the values are valid datetimes
-                    $ret = \DateTime::createFromFormat('Y-m-d', $value);
-                    if (!$ret)
-                        throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid date', $exception_code);
 
-                    // TODO - provide the option to search for fields without dates?
+                    if ( $pieces[1] === 's' || $pieces[1] === 'e' ) {
+                        // This is for a DatetimeValue...ensure the given value is a valid datetime
+                        $ret = \DateTime::createFromFormat('Y-m-d', $value);
+                        if (!$ret)
+                            throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid date', $exception_code);
+
+                        // TODO - check that the 'end' date is later than the 'start' date?
+                        // TODO - provide the option to search for fields without dates?
+                    }
+                    else if ( $pieces[1] === 'pub' || $pieces[1] === 'qual' ) {
+                        // This is for a File/Image...nothing to validate here
+                    }
+                    else {
+                        throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
+                    }
                 }
                 else {
                     if ( $pieces[0] !== 'dt' || !is_numeric($pieces[1]) )
@@ -790,7 +802,6 @@ class SearchKeyService
                         else if ( $pieces[3] !== 'by') {
                             throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
                         }
-
                     }
                 }
             }
@@ -802,8 +813,8 @@ class SearchKeyService
 
 
     /**
-     * Converts a search key into an array of searching criteria for use by self::performSearch()
-     *
+     * Converts a search key into an array of searching criteria for use by {@link SearchAPIService::performSearch()}
+     * <pre>
      * $search_params = array(
      *     'affected_datatypes' => array(    // This has the id of each datatype with a datafield/metadata condition being searched on
      *         0 => <datatype_A_id>,
@@ -851,13 +862,16 @@ class SearchKeyService
      *     [<datatype_B_id>] => array(...),    // All child/linked datatypes with a searchable datafield have an entry
      *     ...
      * )
+     * </pre>
      *
      * @param string $search_key
-     * @param array $searchable_datafields @see SearchAPIService::getSearchableDatafieldsForUser()
+     * @param array $searchable_datafields {@link SearchAPIService::getSearchableDatafieldsForUser()}
+     * @param array $user_permissions
+     * @param bool $search_as_super_admin
      *
      * @return array
      */
-    public function convertSearchKeyToCriteria($search_key, $searchable_datafields)
+    public function convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions, $search_as_super_admin = false)
     {
         // Each datatype with a searchable datafield gets its own entry in the criteria array
         $criteria = array(
@@ -976,27 +990,37 @@ class SearchKeyService
                 }
 
                 if ($typeclass === 'File' || $typeclass === 'Image') {
-                    // Files/Images need to tweak the single given parameter into two...
-                    $filename = $value;
-                    $has_files = null;
-                    if ($value === "\"\"") {
-                        $has_files = false;
-                        $filename = '';
-                    }
-                    else if ($value === "!\"\"") {
-                        $has_files = true;
-                        $filename = '';
+                    // Create an entry in the criteria array for this datafield...
+                    if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
+                        $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                            'entity_type' => 'datafield',
+                            'entity_id' => $df_id,
+                            'datatype_id' => $dt_id,
+                        );
                     }
 
-                    // Create an entry in the criteria array for this datafield...there won't be any
-                    //  duplicate entries
-                    $criteria[$dt_id][0]['search_terms'][$df_id] = array(
-                        'filename' => $filename,
-                        'has_files' => $has_files,
-                        'entity_type' => 'datafield',
-                        'entity_id' => $df_id,
-                        'datatype_id' => $dt_id,
-                    );
+                    // Now that the array is guaranteed to exist, search on the filename
+                    $criteria[$dt_id][0]['search_terms'][$df_id]['filename'] = $value;
+
+                    // Need to determine if the user can view non-public files/images...
+                    $can_view_file = false;
+                    if ( isset($user_permissions['datatypes'][$dt_id]['dr_view'])
+                        && isset($user_permissions['datafields'][$df_id]['view'])
+                    ) {
+                        $can_view_file = true;
+                    }
+                    if ( $search_as_super_admin )
+                        $can_view_file = true;
+
+                    // If they can't view non-public files/images, then silently force their search
+                    //  to only work on public files/images while ignoring non-public files/images
+                    if ( !$can_view_file )
+                        $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+
+                    // NOTE: this is to prevent users without permissions from being able to figure
+                    //  out which records match a filename/presence/absence search...using the
+                    //  existing 'public_status' flag won't work
+                    // @see SearchService::searchFileOrImageDatafield()
                 }
                 else if ($typeclass === 'Radio' || $typeclass === 'Tag') {
                     // Radio selections and Tags are stored by id, separated by commas
@@ -1045,7 +1069,8 @@ class SearchKeyService
                 $pieces = explode('_', $key);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // This is a DatetimeValue field...need to find the datatype id
+                    // This is a DatetimeValue, or the public_status/quality for a File/Image field
+                    //  ...need to find the datatype id
                     $dt_id = null;
                     $df_id = intval($pieces[0]);
                     foreach ($searchable_datafields as $dt_id => $df_list) {
@@ -1063,37 +1088,86 @@ class SearchKeyService
                         );
                     }
 
-                    if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
-                        $criteria[$dt_id][0]['search_terms'][$df_id] = array(
-                            'before' => null,
-                            'after' => null,
-                            'entity_type' => 'datafield',
-                            'entity_id' => $df_id,
-                            'datatype_id' => $dt_id,
-                        );
-                    }
-
-                    // $key is a datetime entry
-                    if ($pieces[1] === 's') {
-                        // start date, aka "after this date"
-                        $criteria[$dt_id][0]['search_terms'][$df_id]['after'] = new \DateTime($value);
-                    }
-                    else {
-                        // end date, aka "before this date"
-                        $date_end = new \DateTime($value);
-
-                        $starting_key = $pieces[0].'_s';
-                        if ( isset($search_params[$starting_key]) && $search_params[$starting_key] !== '' ) {
-                            // When a user selects a start date of...say, 2015-04-26 and an end date
-                            //  of 2015-04-28...they're under the assumption that the search will
-                            //  return everything between the "26th" and the "28th", inclusive.
-
-                            // However, to actually include results from the "28th", the end date
-                            //  needs to be incremented by 1 to 2015-04-29...
-                            $date_end->add(new \DateInterval('P1D'));
+                    if ($pieces[1] === 'pub' || $pieces[1] === 'qual') {
+                        // This is a File/Image field
+                        if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                                'entity_type' => 'datafield',
+                                'entity_id' => $df_id,
+                                'datatype_id' => $dt_id,
+                            );
                         }
 
-                        $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;
+                        // Need to determine if the user can view non-public files/images...
+                        $can_view_file = false;
+                        if ( isset($user_permissions['datatypes'][$dt_id]['dr_view'])
+                            && isset($user_permissions['datafields'][$df_id]['view'])
+                        ) {
+                            $can_view_file = true;
+                        }
+                        if ( $search_as_super_admin )
+                            $can_view_file = true;
+
+                        if ($pieces[1] === 'pub') {
+                            // public status for a File/Image
+                            if ( $can_view_file ) {
+                                // If the user can view non-public files, then use their choice
+                                $criteria[$dt_id][0]['search_terms'][$df_id]['public_status'] = intval($value);
+                            }
+                            else {
+                                // ...otherwise, ignore the public_status search and force public
+                                //  files/images only
+                                $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+                            }
+                        }
+                        else {
+                            // quality for a File/Image
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['quality'] = intval($value);
+
+                            // If they can't view non-public files/images, then silently force their
+                            //  search to only check public files/images
+                            if ( !$can_view_file )
+                                $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+
+                            // NOTE: this is to prevent users without permissions from being able
+                            //  to figure out which records match a filename/presence/absence search
+                            //  ...using the existing 'public_status' flag won't work
+                            // @see SearchService::searchFileOrImageDatafield()
+                        }
+                    }
+                    else if ($pieces[1] === 's' || $pieces[1] === 'e') {
+                        // This is a DatetimeValue field
+                        if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                                'before' => null,
+                                'after' => null,
+                                'entity_type' => 'datafield',
+                                'entity_id' => $df_id,
+                                'datatype_id' => $dt_id,
+                            );
+                        }
+
+                        if ($pieces[1] === 's') {
+                            // start date for a DatetimeValue, aka "after this date"
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['after'] = new \DateTime($value);
+                        }
+                        else {
+                            // end date for a DatetimeValue, aka "before this date"
+                            $date_end = new \DateTime($value);
+
+                            $starting_key = $pieces[0].'_s';
+                            if ( isset($search_params[$starting_key]) && $search_params[$starting_key] !== '' ) {
+                                // When a user selects a start date of...say, 2015-04-26 and an end date
+                                //  of 2015-04-28...they're under the assumption that the search will
+                                //  return everything between the "26th" and the "28th", inclusive.
+
+                                // However, to actually include results from the "28th", the end date
+                                //  needs to be incremented by 1 to 2015-04-29...
+                                $date_end->add(new \DateInterval('P1D'));
+                            }
+
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;
+                        }
                     }
                 }
                 else {
@@ -1416,6 +1490,18 @@ class SearchKeyService
 
                         // Don't need to do anything else
                     }
+                    else if ( isset($search_df['public_status']) ) {
+                        if ($typeclass !== 'File' && $typeclass !== 'Image' )
+                            throw new ODRBadRequestException('Invalid search key: "public_status" defined for a "'.$typeclass.'" datafield, expected a File or Image datafield', $exception_code);
+
+                        // Don't need to do anything else
+                    }
+                    else if ( isset($search_df['quality']) ) {
+                        if ($typeclass !== 'File' && $typeclass !== 'Image' )
+                            throw new ODRBadRequestException('Invalid search key: "quality" defined for a "'.$typeclass.'" datafield, expected a File or Image datafield', $exception_code);
+
+                        // Don't need to do anything else
+                    }
                     else {
                         //
                         throw new ODRBadRequestException('Invalid search key: no search criteria defined for datafield '.$field_uuid, $exception_code);
@@ -1463,10 +1549,10 @@ class SearchKeyService
 
 
     /**
-     * Converts a search key for templates into a format usable by performTemplateSearch()
+     * Converts a search key for templates into a format usable by {@link SearchAPIService::performTemplateSearch()}
      *
      * @param string $search_key
-     * @param array $template_structure @see SearchAPIService::getSearchableTemplateDatafields()
+     * @param array $template_structure {@link SearchAPIService::getSearchableTemplateDatafields()}
      *
      * @return array
      */
@@ -1717,28 +1803,23 @@ class SearchKeyService
                         }
 
                     }
-                    else if ( isset($df['filename']) ) {
-                        // Files/Images need to tweak the single given parameter into two...
-                        $filename = $df['filename'];
-                        $has_files = null;
-                        if ($filename === "\"\"") {
-                            $has_files = false;
-                            $filename = '';
-                        }
-                        else if ($filename === "!\"\"") {
-                            $has_files = true;
-                            $filename = '';
-                        }
-
+                    else if ( isset($df['filename']) || isset($df['public_status']) || isset($df['quality']) ) {
                         // Create an entry in the criteria array for this datafield...there won't be any
                         //  duplicate entries
-                        $criteria[$dt_uuid][0]['search_terms'][$field_uuid] = array(
-                            'filename' => $filename,
-                            'has_files' => $has_files,
-                            'entity_type' => 'datafield',
-                            'entity_id' => $field_uuid,
-                            'datatype_id' => $dt_uuid,
-                        );
+                        if ( !isset($criteria[$dt_uuid][0]['search_terms'][$field_uuid]) ) {
+                            $criteria[$dt_uuid][0]['search_terms'][$field_uuid] = array(
+                                'entity_type' => 'datafield',
+                                'entity_id' => $field_uuid,
+                                'datatype_id' => $dt_uuid,
+                            );
+                        }
+
+                        if ( isset($df['filename']) )
+                            $criteria[$dt_uuid][0]['search_terms'][$field_uuid]['filename'] = $df['filename'];
+                        if ( isset($df['public_status']) )
+                            $criteria[$dt_uuid][0]['search_terms'][$field_uuid]['public_status'] = $df['public_status'];
+                        if ( isset($df['quality']) )
+                            $criteria[$dt_uuid][0]['search_terms'][$field_uuid]['quality'] = $df['quality'];
                     }
                     else if ( isset($df['value']) ) {
                         // All other searchable fieldtypes
@@ -1915,8 +1996,15 @@ class SearchKeyService
                         else
                             $value = '<not empty>';
                     }
+                    else if ( $df_typeclass === 'File' || $df_typeclass === 'Image' ) {
+                        $value = '<filename matches "'.$value.'">';
+                    }
 
-                    $readable_search_key[$df_name] = $value;
+                    // Files/Images might have an existing entry in $readable_search_key
+                    if ( !isset($readable_search_key[$df_name]) )
+                        $readable_search_key[$df_name] = $value;
+                    else
+                        $readable_search_key[$df_name] .= ', '.$value;
                 }
             }
             else {
@@ -1930,27 +2018,50 @@ class SearchKeyService
                         continue;
                     }
 
-                    // This is a DatetimeValue field...locate/deal with both possible pieces at once
-                    $df_name = $df_lookup[$pieces[0]]['fieldName'];
+                    // This could be either a DatetimeValue field or a File/Image field...
+                    $df_name = $df_lookup[ $pieces[0] ]['fieldName'];
+                    $start = $end = $public_status = $quality = null;
 
-                    $start_key = $pieces[0].'_s';
-                    $start = null;
-                    if ( isset($search_params[$start_key]) )
-                        $start = $search_params[$start_key];
-                    unset( $search_params[$start_key] );
+                    // These are for DatetimeValues...
+                    if ( $pieces[1] === 's' )
+                        $start = $search_params[$key];
+                    if ( $pieces[1] === 'e' )
+                        $end = $search_params[$key];
 
-                    $end_key = $pieces[0].'_e';
-                    $end = null;
-                    if ( isset($search_params[$end_key]) )
-                        $end = $search_params[$end_key];
-                    unset( $search_params[$end_key] );
+                    // These are for File/Images...
+                    if ( $pieces[1] === 'pub' )
+                        $public_status = $search_params[$key];
+                    if ( $pieces[1] === 'qual' )
+                        $quality = $search_params[$key];
 
-                    if ( !is_null($start) && !is_null($end) )
-                        $readable_search_key[$df_name] = 'Between "'.$start.'" and "'.$end.'"';
-                    else if ( !is_null($start) )
-                        $readable_search_key[$df_name] = 'After "'.$start.'"';
-                    else
-                        $readable_search_key[$df_name] = 'Before "'.$end.'"';
+
+                    if ( !is_null($start) || !is_null($end) ) {
+                        // Datetime values won't have an existing entry for $readable_search_key
+                        if ( !is_null($start) && !is_null($end) )
+                            $readable_search_key[$df_name] = 'Between "'.$start.'" and "'.$end.'"';
+                        else if ( !is_null($start) )
+                            $readable_search_key[$df_name] = 'After "'.$start.'"';
+                        else
+                            $readable_search_key[$df_name] = 'Before "'.$end.'"';
+                    }
+                    else if ( !is_null($public_status) || !is_null($quality) ) {
+                        // Files/Images might have an existing entry in $readable_search_key
+                        $tmp = array();
+                        if ( isset($readable_search_key[$df_name]) )
+                            $tmp[] = $readable_search_key[$df_name];
+
+                        if ( !is_null($public_status) ) {
+                            $df_typeclass = $df_lookup[ $pieces[0] ]['typeClass'];
+                            if ( intval($value) === 1 )
+                                $tmp[] = '<public '.$df_typeclass.'s only>';
+                            else
+                                $tmp[] = '<non-public '.$df_typeclass.'s only>';
+                        }
+                        if ( !is_null($quality) )
+                            $tmp[] = '<quality: '.$value.'>';
+
+                        $readable_search_key[$df_name] = implode(', ', $tmp);
+                    }
                 }
                 else if ( count($pieces) === 3 ) {
                     // If this datatype doesn't exist (most likely due to deletion), then don't fully

@@ -12,7 +12,7 @@
 {% endif %}
 
 <div class="ODRFormWrap">
-    <div class="header">
+    <div class="ODRTextResultsTitle header">
         <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
     </div>
 
@@ -54,6 +54,10 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
+        $("#ChooseView").unbind('click').click(function(event) {
+            openChooseViewRemodal({{ datatype.id }}, 'search_results', '{{ search_key }}');
+        });
+
         var table = $("#TextResults").dataTable({
             "columns": [{{ column_names | raw }} {% if can_edit_datatype %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
             "order": [[1, 'asc']],
@@ -81,7 +85,7 @@
                     </div>
                </div>
             #}
-            "dom": '<"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
+            "dom": '<"ODRDTInfo"il><"ODRDTPager"p>rt<"ODRDTInfoFoot"il><"ODRDTPagerFoot"p>',
 
             {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",
@@ -105,6 +109,8 @@
                 // Need these in there too
                 data.datatype_id = {{ datatype.id }};
                 data.theme_id = {{ theme.id }};
+
+                data.layout_type = 'short';
                 // console.log('state save', data);
 
                 $.ajax({
@@ -116,7 +122,7 @@
             },
             "stateLoadCallback": function(settings) {
                 var state;
-                var data = {odr_tab_id: window.sessionStorage.getItem('odr_tab_id')};
+                var data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
 
                 $.ajax({
                     "url": "{{ path('odr_datatables_state_load') }}",
@@ -150,7 +156,7 @@
 
                         // Need to also convert any sort_criteria into the correct datatables.js ordering
                         // console.log( sort_criteria );
-                        if ( sort_criteria !== undefined && sort_criteria.datafield_ids.length > 0 ) {
+                        if ( sort_criteria !== undefined && sort_criteria.datafield_ids !== undefined && sort_criteria.datafield_ids.length > 0 ) {
                             var table_obj = $("#TextResults").DataTable();
 
                             var datafield_ids = sort_criteria.datafield_ids;
@@ -199,6 +205,7 @@
                     d.theme_id = {{ theme.id }};
                     d.search_key = "{{ search_key }}";
                     d.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
+                    d.layout_type = 'short';
 
                     // Need to fix problems with the 'order' parameter before it gets saved...
                     d.order = datatablesAjax_cleanOrder(d.order);
@@ -243,6 +250,9 @@
 
 {% if can_edit_datatype %}
             if ( $(event.target).is('span.ODREditLink') ) {
+                // Ensure no floating header remains on the edit page
+                $(".dtfh-floatingparent").remove();
+
                 // Don't load view mode for Datarecord...
                 event.stopImmediatePropagation();
 
@@ -264,6 +274,9 @@
                 //  visible column in the table is where you click to show the hidden columns
             }
             else {
+                // Ensure no floating header remains on the view page
+                $(".dtfh-floatingparent").remove();
+
                 // A click anywhere else should load view mode of Datarecord
                 var offset = $("#TextResults").DataTable().page.info().page + 1;
                 loadDataRecord( $(this).attr('rel'), 'view', offset );
@@ -358,6 +371,9 @@
             // Scroll to a specific record in the search results
             var target = '.DataRecord_' + scroll_target;
             if ( $(target) !== undefined && $(target).offset() !== undefined ) {
+                // Ensure the floating header gets reset
+                $(".dtfh-floatingparent").remove();
+
                 setTimeout(function() {
                     $('html, body').animate({
                         scrollTop: $(target).offset().top-75
@@ -447,9 +463,10 @@
     function datatablesAjax_cleanOrder(order) {
         var cleaned_order = [];
         $.each(order, function(i,elem) {
-            // Determine whether this column was already seen...
+            // Don't attempt to save when it's being ordered on the two "hidden" columns...
             var col_id = elem.column;
             if ( parseInt(col_id) > 1 ) {
+                // Determine whether this column was already seen...
                 var index = -1;
                 $.each(cleaned_order, function(j,saved_col) {
                     if ( saved_col.column == col_id ) {

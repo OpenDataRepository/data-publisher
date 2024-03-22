@@ -51,16 +51,16 @@
     </div>
 
     <div class="ODRGraphSpacer ODRContentWrapper pure-u-1 ODRRecord ODRHidden">    {# ODRRecord to trigger different CSS... #}
-        <div class="ODRThemeElement">
+        <div class="ODRThemeElement {% if odr_chart_file_ids|length < 2 %}ODRHidden{% endif %}">    {# Don't display the filter area if there's nothing to filter by #}
             <div class="ODRInnerBox">
                 <div id="{{ odr_chart_id }}_blurb">
-                    <span class="ODRGraphFilterPlugin_blurb">The selected values in the fields below control which files are displayed on the graphs above.</span>
-                    <div id="ODRGraphFilterPlugin_{{ odr_chart_id }}_settings_div" class="ODRGraphFilterPlugin_settings_div">
+                    <span class="ODRFilterGraphPlugin_blurb">The selected values in the fields below control which files are displayed on the graphs above.</span>
+                    <div id="ODRFilterGraphPlugin_{{ odr_chart_id }}_settings_div" class="ODRFilterGraphPlugin_settings_div">
                         <a><i class="fa fa-cog"></i></a>
 
-                        <div class="ODRGraphFilterPlugin_settings">
-                            <div class="ODRGraphFilterPlugin_settings_close">
-                                <label id="ODRGraphFilterPlugin_{{ odr_chart_id }}_close" style="cursor:pointer;">
+                        <div class="ODRFilterGraphPlugin_settings">
+                            <div class="ODRFilterGraphPlugin_settings_close">
+                                <label id="ODRFilterGraphPlugin_{{ odr_chart_id }}_close" style="cursor:pointer;">
                                     <i class="fa fa-close"></i>&nbsp;Close
                                 </label>
                             </div>
@@ -68,12 +68,14 @@
                             <div>
                                 <label for="{{ odr_chart_id }}_show_hidden_filters">Show Hidden Fields: </label>
                                 <input type="checkbox" id="{{ odr_chart_id }}_show_hidden_filters" />
+                                <label for="{{ odr_chart_id }}_show_odr_data">Always Show ODR Data: </label>
+                                <input type="checkbox" id="{{ odr_chart_id }}_show_odr_data" {% if odr_chart_file_ids|length < 2 %}checked{% endif %}/>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="{{ odr_chart_id }}_filter" class="ODRGraphFilterPlugin_fields">
+                <div id="{{ odr_chart_id }}_filter" class="ODRFilterGraphPlugin_fields">
                     {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_filter_fieldarea.html.twig" with {
                         'datatype_array': datatype_array,
                         'theme_array': theme_array,
@@ -202,11 +204,11 @@
         {#console.log('chart_obj', {{ odr_chart_id }}_obj);#}
 
         {# Also need to attach events on a per-graph basis... #}
-        $("#ODRGraphFilterPlugin_{{ odr_chart_id }}_settings_div").click(function() {
-            $(this).children(".ODRGraphFilterPlugin_settings").first().show();
+        $("#ODRFilterGraphPlugin_{{ odr_chart_id }}_settings_div").click(function() {
+            $(this).children(".ODRFilterGraphPlugin_settings").first().show();
         });
-        $("#ODRGraphFilterPlugin_{{ odr_chart_id }}_close").click(function(event) {
-            $(this).closest(".ODRGraphFilterPlugin_settings").first().hide();
+        $("#ODRFilterGraphPlugin_{{ odr_chart_id }}_close").click(function(event) {
+            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
             event.stopPropagation();
         });
 
@@ -215,16 +217,16 @@
             var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
 
             if ( $(this).is(':checked') ) {
-                $("#" + chart_id + "_filter").children(".ODRHiddenFilterField").show();
+                $("#" + chart_id + "_filter").children(".ODRFilterGraphPlugin_HiddenFilterField").show();
             }
             else {
                 var option_reselected = false;
-                $("#" + chart_id + "_filter").children(".ODRHiddenFilterField").each(function(index,elem) {
+                $("#" + chart_id + "_filter").children(".ODRFilterGraphPlugin_HiddenFilterField").each(function(index,elem) {
                     $(elem).hide();
 
                     // If hiding fields, then ensure all of their options are
                     //  selected so they don't affect the graph
-                    $(elem).find('.ODRGraphFilterPlugin_option').each(function(index2,option) {
+                    $(elem).find('.ODRFilterGraphPlugin_option').each(function(index2,option) {
                         if ( !$(option).is(':selected') ) {
                             option_reselected = true;
                             $(option).prop('selected', true);
@@ -240,7 +242,18 @@
             }
 
             // Don't want the settings div open anymore
-            $(this).closest(".ODRGraphFilterPlugin_settings").first().hide();
+            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
+        });
+
+        $("#{{ odr_chart_id }}_show_odr_data").unbind('change').change(function() {
+            var pieces = $(this).attr('id').split('_');
+            var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
+
+            // Just trigger a graph redraw
+            ODRGraph_triggerDynamicGraph(chart_id);
+
+            // Don't want the settings div open anymore
+            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
         });
     });
 </script>

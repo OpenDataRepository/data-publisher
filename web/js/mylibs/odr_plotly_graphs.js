@@ -49,8 +49,6 @@
  * @property {string} bar_options
  * @property {string} histogram_dir
  * @property {string} histogram_stack
- * @property {number} x_values_column
- * @property {number} y_values_column
  * @property {string} x_axis_min
  * @property {string} x_axis_max
  * @property {string} x_axis_dir
@@ -68,6 +66,11 @@
  * @property {string} y_axis_labels
  * @property {string} y_axis_caption
  * @property {string} y_axis_log
+ * @property {number} x_values_column
+ * @property {number} y_values_column
+ * @property {string} y_value_columns_start
+ * @property {string} y_value_columns_end
+ * @property {string} y_value_columns_type
  *
  * // These properties are only defined for chartObjs created via the GCMassSpecPlugin
  * @property {number} time_column

@@ -1189,6 +1189,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             // The line after that contains the a/b/c/alpha/beta/gamma/space group values
             elseif ( ($database_code_line+1) === $line_num ) {
+                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
                 $pieces = explode(' ', $line);
 
                 // Need to have 7 values in this line
@@ -1273,7 +1274,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             // The line after that contains the a/b/c/alpha/beta/gamma/space group values
             elseif ( ($database_code_line+1) === $line_num ) {
+                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
+                // The replacement could end up stripping the newline from the end, which is bad
+                if ( strpos($line, "\n") === false )
+                    $line .= "\n";
                 $pieces = explode(' ', $line);
+
                 $value_mapping['a'] = $pieces[0];
                 $value_mapping['b'] = $pieces[1];
                 $value_mapping['c'] = $pieces[2];
@@ -1447,8 +1453,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($storage_entities as $df_id => $entity) {
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 $event = new DatafieldModifiedEvent($entity->getDataField(), $user);
                 $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -1462,8 +1466,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // The datarecord needs to be marked as updated
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
@@ -1483,9 +1485,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
-        // TODO - disabled for import testing, re-enable this later on
-//        return;
-
         // Pull some required data from the event
         $user = $event->getUser();
         $datarecord = $event->getDatarecord();

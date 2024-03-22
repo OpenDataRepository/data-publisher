@@ -488,7 +488,7 @@ class CSVExportController extends ODRCustomController
 
             // Convert the search key into a format suitable for searching
             $searchable_datafields = $search_api_service->getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions);
-            $criteria = $search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
+            $criteria = $search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions);
 
             // Need to grab hydrated versions of the datafields/datatypes being searched on
             $hydrated_entities = $search_api_service->hydrateCriteria($criteria);
@@ -892,7 +892,7 @@ class CSVExportController extends ODRCustomController
 
             // Convert the search key into a format suitable for searching
             $searchable_datafields = $search_api_service->getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions);
-            $criteria = $search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
+            $criteria = $search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions);
 
             // Need to grab hydrated versions of the datafields/datatypes being searched on
             $hydrated_entities = $search_api_service->hydrateCriteria($criteria);

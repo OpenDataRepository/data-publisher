@@ -67,6 +67,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormError;
@@ -100,10 +101,10 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityDeletionService $ed_service */
-            $ed_service = $this->container->get('odr.entity_deletion_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataFields $datafield */
@@ -127,14 +128,14 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // ----------------------------------------
             // deleteDatafield() will throw an exception if the datafield shouldn't be deleted
-            $ed_service->deleteDatafield($datafield, $user);
+            $entity_deletion_service->deleteDatafield($datafield, $user);
 
         }
         catch (\Exception $e) {
@@ -171,10 +172,10 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityDeletionService $ed_service */
-            $ed_service = $this->container->get('odr.entity_deletion_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -188,14 +189,14 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // ----------------------------------------
             // deleteDatatype() will throw an exception if the datafield shouldn't be deleted
-            $ed_service->deleteDatatype($datatype, $user);
+            $entity_deletion_service->deleteDatatype($datatype, $user);
 
         }
         catch (\Exception $e) {
@@ -331,8 +332,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -369,7 +370,7 @@ class DisplaytemplateController extends ODRCustomController
             }
             else {
                 // Ensure user has permissions to be doing this
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
 
                 /** @var ODRRenderService $odr_render_service */
@@ -420,14 +421,14 @@ class DisplaytemplateController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -450,7 +451,7 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -487,7 +488,7 @@ class DisplaytemplateController extends ODRCustomController
             $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
 
             // Create the datafield...works the same whether it's for a local or a linked datatype
-            $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, true);    // Don't flush immediately...
+            $datafield = $entity_create_service->createDatafield($user, $datatype, $fieldtype, true);    // Don't flush immediately...
 
             // Don't need to worry about datafield permissions here, those are taken care of inside createDatafield()
 
@@ -495,14 +496,14 @@ class DisplaytemplateController extends ODRCustomController
             //  or a linked datatype...the new field MUST become visible where the user expects it
             //  to be, and using CloneThemeService::syncThemeWithSource() will instead place the
             //  field in a hidden themeElement (although design mode ignores hidden themeElements)
-            $ec_service->createThemeDatafield($user, $theme_element, $datafield, true);    // Don't flush immediately...
+            $entity_create_service->createThemeDatafield($user, $theme_element, $datafield, true);    // Don't flush immediately...
 
             if ( $add_to_linked_datatype ) {
                 // When adding to a linked datatype...at this point there's a ThemeDatafield entry
                 //  in the local datatype's copy of the linked datatype's theme.  The new datafield
                 //  also needs a ThemeDatafield entry in the linked datatype's master theme, otherwise
                 //  it won't show up there.
-                $theme_data = $theme_service->getThemeArray($source_theme->getId());
+                $theme_data = $theme_info_service->getThemeArray($source_theme->getId());
 
                 // Since there's not necessarily a correlation between the ThemeElements in the linked
                 //  datatype's master theme and the ThemeElements in the local datatype's copy of
@@ -520,7 +521,7 @@ class DisplaytemplateController extends ODRCustomController
 
                                 // Create a ThemeDatafield entry so the new datafield shows up in
                                 //  the ThemeElement that was just located
-                                $ec_service->createThemeDatafield($user, $linked_theme_element, $datafield, true);    // Don't flush immediately...
+                                $entity_create_service->createThemeDatafield($user, $linked_theme_element, $datafield, true);    // Don't flush immediately...
 
                                 // Don't need to look for another themeElement
                                 $added = true;
@@ -533,9 +534,9 @@ class DisplaytemplateController extends ODRCustomController
                 // The linked datatype isn't guaranteed to have a suitable ThemeElement, however...
                 if (!$added) {
                     // ...in which case a new ThemeElement needs to get created...
-                    $new_te = $ec_service->createThemeElement($user, $source_theme, true);    // Don't flush immediately...
+                    $new_te = $entity_create_service->createThemeElement($user, $source_theme, true);    // Don't flush immediately...
                     // ...so the new datafield can be attached to it
-                    $ec_service->createThemeDatafield($user, $new_te, $datafield, true);    // Don't flush immediately...
+                    $entity_create_service->createThemeDatafield($user, $new_te, $datafield, true);    // Don't flush immediately...
                 }
 
                 // Increment the linked datatype's master theme's "sourceSyncVersion" property so
@@ -544,13 +545,13 @@ class DisplaytemplateController extends ODRCustomController
                 $properties = array(
                     'sourceSyncVersion' => $source_theme->getSourceSyncVersion() + 1
                 );
-                $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
+                $entity_modify_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
 
             // Adding a new datafield requires an update of the "master_revision" property of the
             //  datatype it got added to
             if ( $datatype->getIsMasterType() )
-                $emm_service->incrementDatatypeMasterRevision($user, $datatype, true);    // Don't flush immediately...
+                $entity_modify_service->incrementDatatypeMasterRevision($user, $datatype, true);    // Don't flush immediately...
 
             // Increment the "sourceSyncVersion" property of the theme that just received the new
             //  datafield, so that all derived/search results themes know they need update themselves
@@ -558,7 +559,7 @@ class DisplaytemplateController extends ODRCustomController
             $properties = array(
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
             );
-            $emm_service->updateThemeMeta($user, $theme, $properties);    // Flush here
+            $entity_modify_service->updateThemeMeta($user, $theme, $properties);    // Flush here
 
 
             // ----------------------------------------
@@ -586,12 +587,12 @@ class DisplaytemplateController extends ODRCustomController
 //                    throw $e;
             }
 
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
 
             if ( $add_to_linked_datatype ) {
                 // If the field was added to a linked datatype, then need to also mark the linked
                 //  datatype's master theme as updated
-                $theme_service->updateThemeCacheEntry($source_theme, $user);
+                $theme_info_service->updateThemeCacheEntry($source_theme, $user);
             }
 
             // NOTE: this doesn't need to clear any of the datarecord caches...they're built/used
@@ -655,18 +656,18 @@ class DisplaytemplateController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -704,7 +705,7 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -726,8 +727,8 @@ class DisplaytemplateController extends ODRCustomController
             // TODO - ...allow this to happen, but clear any master datafield stuff?  Meh...
 
             // Several other conditions can prevent copying of a datafield too
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-            $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $old_datafield->getId());
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+            $datafield_properties = $datafield_info_service->getDatafieldProperties($datatype_array, $old_datafield->getId());
             if ( !$datafield_properties['can_copy'] )
                 throw new ODRBadRequestException('Unable to clone this field');
 
@@ -775,7 +776,7 @@ class DisplaytemplateController extends ODRCustomController
             self::persistObject($em, $new_df_meta, $user, true);    // Don't flush immediately...
 
             // Need to create the groups for the new datafield...
-            $ec_service->createGroupsForDatafield($user, $new_df, true);    // Don't flush immediately...
+            $entity_create_service->createGroupsForDatafield($user, $new_df, true);    // Don't flush immediately...
 
 
             // Clone the old datafield's ThemeDatafield entry so it shows up on the page...
@@ -794,7 +795,7 @@ class DisplaytemplateController extends ODRCustomController
                 //  in the local datatype's copy of the linked datatype's theme.  The new datafield
                 //  also needs a ThemeDatafield entry in the linked datatype's master theme, otherwise
                 //  it won't show up there.
-                $theme_data = $theme_service->getThemeArray($source_theme->getId());
+                $theme_data = $theme_info_service->getThemeArray($source_theme->getId());
 
                 // Might as well ensure the copied datafield appears immediately after its source
                 //  datafield in the linked datatype's master theme...
@@ -822,13 +823,13 @@ class DisplaytemplateController extends ODRCustomController
                 $properties = array(
                     'sourceSyncVersion' => $source_theme->getSourceSyncVersion() + 1
                 );
-                $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
+                $entity_modify_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
 
             // Copying a datafield requires an update of the "master_revision" property of the
             //  datatype it got added to
             if ( $datatype->getIsMasterType() )
-                $emm_service->incrementDatatypeMasterRevision($user, $datatype, true);    // Don't flush immediately...
+                $entity_modify_service->incrementDatatypeMasterRevision($user, $datatype, true);    // Don't flush immediately...
 
             // Increment the "sourceSyncVersion" property of the theme that just received the new
             //  datafield, so that all derived/search results themes know they need update themselves
@@ -836,7 +837,7 @@ class DisplaytemplateController extends ODRCustomController
             $properties = array(
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
             );
-            $emm_service->updateThemeMeta($user, $theme, $properties);    // Flush here
+            $entity_modify_service->updateThemeMeta($user, $theme, $properties);    // Flush here
 
 
             // ----------------------------------------
@@ -864,12 +865,12 @@ class DisplaytemplateController extends ODRCustomController
 //                    throw $e;
             }
 
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
 
             if ( $add_to_linked_datatype ) {
                 // If the field was copied to a linked datatype, then need to also mark the linked
                 //  datatype's master theme as updated
-                $theme_service->updateThemeCacheEntry($source_theme, $user);
+                $theme_info_service->updateThemeCacheEntry($source_theme, $user);
             }
 
             // NOTE: this doesn't need to clear any of the datarecord caches...they're built/used
@@ -962,14 +963,14 @@ class DisplaytemplateController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -991,7 +992,7 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $parent_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $parent_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1026,7 +1027,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Create the new child datatype...
-            $child_datatype = $ec_service->createDatatype($user, 'New Child', true);    // Don't flush immediately...
+            $child_datatype = $entity_create_service->createDatatype($user, 'New Child', true);    // Don't flush immediately...
 
             // Several of the child datatype's properties are inherited from its parent...
             $child_datatype->setParent($parent_datatype);
@@ -1046,7 +1047,7 @@ class DisplaytemplateController extends ODRCustomController
             // Create a new DataTree entry to link the new child datatype with its parent...
             $is_link = false;
             $multiple_allowed = true;
-            $ec_service->createDatatree($user, $parent_datatype, $child_datatype, $is_link, $multiple_allowed, true);    // don't flush immediately...
+            $entity_create_service->createDatatree($user, $parent_datatype, $child_datatype, $is_link, $multiple_allowed, true);    // don't flush immediately...
 
 
             // ----------------------------------------
@@ -1056,7 +1057,7 @@ class DisplaytemplateController extends ODRCustomController
                 // ...then it needs to be created with two Themes...a "master" Theme belonging to
                 //  the linked datatype's master theme, and a second Theme representing a "copy" in
                 //  the local datatype theme (defined after this block)
-                $child_source_theme = $ec_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
+                $child_source_theme = $entity_create_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
                 $child_source_theme->setParentTheme($source_theme->getParentTheme());    // this theme belongs with the rest of the "master" themes for the linked datatype
                 $child_source_theme->setSourceTheme($child_source_theme);    // this is *the* master theme for this child datatype, so should use itself as source
                 $em->persist($child_source_theme);
@@ -1070,7 +1071,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Create a new Theme for this child datatype, attached to the local datatype's
             //  master Theme...
-            $child_theme = $ec_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
+            $child_theme = $entity_create_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
             $child_theme->setParentTheme($theme->getParentTheme());    // this theme belongs with the rest of the "master" themes for the local datatype
             if ( !$add_to_linked_datatype )
                 $child_theme->setSourceTheme($child_theme);    // not being created for a linked datatype, so should use itself as source
@@ -1091,9 +1092,9 @@ class DisplaytemplateController extends ODRCustomController
                 //  this block).  Without both of these, the new child datatype won't show up
 
                 // Don't bother looking for an empty ThemeElement, just create a new one...
-                $new_te = $ec_service->createThemeElement($user, $source_theme, true);    // Don't flush immediately...
+                $new_te = $entity_create_service->createThemeElement($user, $source_theme, true);    // Don't flush immediately...
                 // ...so the new child datatype can be attached to it
-                $ec_service->createThemeDatatype($user, $new_te, $child_datatype, $child_source_theme, true);    // Don't flush immediately...
+                $entity_create_service->createThemeDatatype($user, $new_te, $child_datatype, $child_source_theme, true);    // Don't flush immediately...
 
                 // Increment the linked datatype's master theme's "sourceSyncVersion" property so
                 //  that all themes derived from it know they need to get updated...otherwise the
@@ -1101,24 +1102,24 @@ class DisplaytemplateController extends ODRCustomController
                 $properties = array(
                     'sourceSyncVersion' => $new_te->getTheme()->getSourceSyncVersion() + 1
                 );
-                $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
+                $entity_modify_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
 
             // Create a new ThemeDatatype entry to let the renderer know it has to render a child
             //  datatype in this ThemeElement
-            $ec_service->createThemeDatatype($user, $theme_element, $child_datatype, $child_theme, true);    // don't flush immediately...
+            $entity_create_service->createThemeDatatype($user, $theme_element, $child_datatype, $child_theme, true);    // don't flush immediately...
 
             // Since a child datatype was added, any themes that use this master theme as their
             //  source need to get updated themselves
             $properties = array(
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
             );
-            $emm_service->updateThemeMeta($user, $theme, $properties, true);    // don't flush immediately
+            $entity_modify_service->updateThemeMeta($user, $theme, $properties, true);    // don't flush immediately
 
             // Adding a new child datatype requires an update of the "master_revision" property of
             //  the datatype it got added to
             if ( $child_datatype->getParent()->getIsMasterType() )
-                $emm_service->incrementDatatypeMasterRevision($user, $child_datatype->getParent(), true);    // don't flush immediately...
+                $entity_modify_service->incrementDatatypeMasterRevision($user, $child_datatype->getParent(), true);    // don't flush immediately...
 
 
             // ----------------------------------------
@@ -1128,7 +1129,7 @@ class DisplaytemplateController extends ODRCustomController
             $em->refresh($child_datatype);
 
             // Create the default groups for this child datatype
-            $ec_service->createGroupsForDatatype($user, $child_datatype);
+            $entity_create_service->createGroupsForDatatype($user, $child_datatype);
 
             // Child datatype should be fully operational now
             $child_datatype->setSetupStep(DataType::STATE_OPERATIONAL);
@@ -1140,10 +1141,10 @@ class DisplaytemplateController extends ODRCustomController
             if ( $add_to_linked_datatype ) {
                 // If the child datatype was added to a linked datatype, then need to also mark the
                 //  linked datatype's master theme as updated
-                $theme_service->updateThemeCacheEntry($source_theme, $user);
+                $theme_info_service->updateThemeCacheEntry($source_theme, $user);
             }
             // Do the same for the cached version of this theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
 
 
             // ----------------------------------------
@@ -1225,8 +1226,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -1261,7 +1262,7 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $grandparent_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1312,10 +1313,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataType $source_datatype */
@@ -1338,7 +1339,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Ensure the datatype has a master theme...
-            $theme_service->getDatatypeMasterTheme($datatype->getId());
+            $theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
 
             // --------------------
@@ -1347,7 +1348,7 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $source_datatype) || !$pm_service->canViewDatafield($user, $datafield) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $source_datatype) || !$permissions_service->canViewDatafield($user, $datafield) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1399,14 +1400,14 @@ class DisplaytemplateController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -1462,23 +1463,23 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Intentionally checking permissions against $grandparent_datatype here...users that aren't
             //  admins of linked datatypes still need to be able to view the Datatree and ThemeDatatype
             //  forms that describe the link to the remote datatype
-            if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $grandparent_datatype) )
                 throw new ODRForbiddenException();
 
             // Still need to store whether the user is an admin of the datatype that got clicked on,
             //  since they might not actually be allowed to modify it
-            $is_target_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            $is_target_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
             // The dialog to change searchable/public status for multiple datafields at once depends
             //  on whether the user can make changes to the datatype in question...NOT whatever is
             //  in $grandparent_datatype
-            $can_open_multi_df_dialog = $pm_service->isDatatypeAdmin($user, $datatype);
+            $can_open_multi_df_dialog = $permissions_service->isDatatypeAdmin($user, $datatype);
 
 
             // If $parent_datatype_id is set, locate the datatree and theme_datatype entities
@@ -1552,7 +1553,7 @@ class DisplaytemplateController extends ODRCustomController
                 //  admin of the datatype they're trying to save to in order to continue
                 // The related Datatree and ThemeDatatype forms are handled by other controller
                 //  actions, and therefore aren't blocked by this
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
 
 
@@ -1657,7 +1658,7 @@ class DisplaytemplateController extends ODRCustomController
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField();
 
                     // Commit all changes to the DatatypeMeta entry to the database
-                    $emm_service->updateDatatypeMeta($user, $datatype, $properties);
+                    $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
                     $em->refresh($datatype);
 
 
@@ -1690,11 +1691,11 @@ class DisplaytemplateController extends ODRCustomController
                     // ----------------------------------------
                     // This controller action may have changed whether datafields can be deleted or
                     //  not (changes to other properties may also be possible)
-                    $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());    // do want links here
+                    $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // do want links here
                     $datarecord_array = array();
-                    $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+                    $permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-                    $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
+                    $datafield_properties = json_encode($datafield_info_service->getDatafieldProperties($datatype_array));
                     $return['d']['datafield_properties'] = $datafield_properties;
 
                     // Any change to the search slug needs to be reflected in the URL, otherwise
@@ -1904,12 +1905,12 @@ class DisplaytemplateController extends ODRCustomController
      */
     private function getSortfieldDatatypes($datatype)
     {
-        /** @var DatatreeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatree_info_service');
+        /** @var DatatreeInfoService $datatree_info_service */
+        $datatree_info_service = $this->container->get('odr.datatree_info_service');
 
         // Locate the ids of all datatypes that the given parent datatype links to
-        $datatree_array = $dti_service->getDatatreeArray();
-        $linked_descendants = $dti_service->getLinkedDescendants( array($datatype->getId()), $datatree_array );
+        $datatree_array = $datatree_info_service->getDatatreeArray();
+        $linked_descendants = $datatree_info_service->getLinkedDescendants( array($datatype->getId()), $datatree_array );
 
         // The parent datatype should always be in here, otherwise no fields will get listed as
         //  candidates for a sortfield
@@ -1961,10 +1962,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataTree $datatree */
@@ -1983,7 +1984,7 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $ancestor_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $ancestor_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2060,7 +2061,7 @@ class DisplaytemplateController extends ODRCustomController
                         'multiple_allowed' => $submitted_data->getMultipleAllowed(),
 //                        'is_link' => $submitted_data->getIsLink(),    // Not allowed to change this value through this controller action
                     );
-                    $emm_service->updateDatatreeMeta($user, $datatree, $properties);
+                    $entity_modify_service->updateDatatreeMeta($user, $datatree, $properties);
 
                     // If multiple descendant records are now allowed for this descendant datatype,
                     //  and at least one of the ancestor datatype's sortfields comes from a descendant...
@@ -2188,20 +2189,20 @@ class DisplaytemplateController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var EngineInterface $templating */
@@ -2228,7 +2229,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Ensure the datatype has a master theme...
-            $theme_service->getDatatypeMasterTheme($datatype->getId());
+            $theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
             $is_derived_field = false;
             if ( !is_null($datafield->getMasterDataField()) )
@@ -2241,7 +2242,7 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2258,20 +2259,20 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Don't really need this when validating a form, but do need it for rendering one
-            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
-            $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $datafield->getId());
+            $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());
+            $datafield_properties = $datafield_info_service->getDatafieldProperties($datatype_array, $datafield->getId());
 
             // TODO - incorrect fieldtypes show up as one of the fieldtypes required by the plugin, regardless of what it actually is
 
             // Determine which changes, if any, can be made to this datafield's fieldtype
-            $fieldtype_info = $dfi_service->getFieldtypeInfo($datatype_array, $datafield->getDataType()->getId(), array($datafield->getId()));
+            $fieldtype_info = $datafield_info_service->getFieldtypeInfo($datatype_array, $datafield->getDataType()->getId(), array($datafield->getId()));
             $prevent_fieldtype_change = $fieldtype_info[$datafield->getId()]['prevent_change'];
             $prevent_fieldtype_change_message = $fieldtype_info[$datafield->getId()]['prevent_change_message'];
             $allowed_fieldtypes = $fieldtype_info[$datafield->getId()]['allowed_fieldtypes'];
 
 
             // Store whether the "allow multiple uploads" checkbox needs to be disabled for file/image fields
-            $has_multiple_uploads = $dfi_service->hasMultipleUploads($datafield);
+            $has_multiple_uploads = $datafield_info_service->hasMultipleUploads($datafield);
             // Store whether the "allow multiple levels" checkbox needs to be disabled for tag fields
             $has_tag_hierarchy = $datafield_properties['has_tag_hierarchy'];
             // Render plugins can demand that a file/image datafield only allows a single upload...
@@ -2410,6 +2411,7 @@ class DisplaytemplateController extends ODRCustomController
                     $submitted_data->setAllowMultipleUploads( $master_datafield->getAllowMultipleUploads() );
 //                    $submitted_data->setShortenFilename( $master_datafield->getShortenFilename() );
 //                    $submitted_data->setNewFilesArePublic( $master_datafield->getNewFilesArePublic() );
+//                    $submitted_data->setQualityStr( $master_datafield->getQualityStr() );
 //                    $submitted_data->setChildrenPerRow( $master_datafield->getChildrenPerRow() );
                     $submitted_data->setRadioOptionNameSort( $master_datafield->getRadioOptionNameSort() );
 //                    $submitted_data->setRadioOptionDisplayUnselected( $master_datafield->getRadioOptionDisplayUnselected() );
@@ -2434,10 +2436,22 @@ class DisplaytemplateController extends ODRCustomController
                         $datafield_form->addError( new FormError("The \"".$new_fieldtype_typeclass."\" fieldtype can't be set to 'unique'") );
 
                     // ...if it has duplicate values, manually add an error to the Symfony form
-                    if ( !$dfi_service->canDatafieldBeUnique($datafield) )
+                    if ( !$datafield_info_service->canDatafieldBeUnique($datafield) )
                         $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because some Datarecords have duplicate values stored in this Datafield...click the list icon to view the duplicates.") );
                 }
 
+                // NOTE: do not attempt to verify the JSON input for quality_str here...failures
+                //  force a reload of the form, which destroys any in-progress typing
+                if ( is_null($submitted_data->getQualityStr()) ) {
+                    // Apparently need to ensure this value is non-null
+                    $submitted_data->setQualityStr('');
+                }
+                else if ( strlen($submitted_data->getQualityStr()) > 255 ) {
+                    // ...forcing a reload is appropriate when the length is exceeded, however
+                    $datafield_form->addError( new FormError("'Quality Type' is not allowed to exceed 255 characters") );
+                }
+
+//                $datafield_form->addError( new FormError("Do not continue") );
 
                 if ($datafield_form->isValid()) {
                     // No errors in form
@@ -2495,6 +2509,7 @@ class DisplaytemplateController extends ODRCustomController
                         'allow_multiple_uploads' => $submitted_data->getAllowMultipleUploads(),
                         'shorten_filename' => $submitted_data->getShortenFilename(),
                         'newFilesArePublic' => $submitted_data->getNewFilesArePublic(),
+                        'quality_str' => $submitted_data->getQualityStr(),
                         'children_per_row' => $submitted_data->getChildrenPerRow(),
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
@@ -2504,7 +2519,7 @@ class DisplaytemplateController extends ODRCustomController
                         'publicDate' => $submitted_data->getPublicDate(),
                         'internal_reference_name' => $submitted_data->getInternalReferenceName(),
                     );
-                    $emm_service->updateDatafieldMeta($user, $datafield, $properties);
+                    $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
                     $em->refresh($datafield);
 
 
@@ -2524,7 +2539,7 @@ class DisplaytemplateController extends ODRCustomController
                     // If migrating to an image fieldtype, then ensure ImageSize entities exist for
                     //  this datafield
                     if ($check_image_sizes)
-                        $ec_service->createImageSizes($user, $datafield);
+                        $entity_create_service->createImageSizes($user, $datafield);
 
                     // If migrating data, then begin the migration now
                     if ($migrate_data)
@@ -2573,9 +2588,9 @@ class DisplaytemplateController extends ODRCustomController
                     // Don't think that any modifications here can change the result of the
                     //  getDatafieldProperties() call, but the computation is cheap and the array
                     //  entry needs to get recached anyways
-                    $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
+                    $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());
                     // Don't need to filter here
-                    $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $datafield->getId());
+                    $datafield_properties = $datafield_info_service->getDatafieldProperties($datatype_array, $datafield->getId());
                     $return['d']['datafield_properties'] = json_encode($datafield_properties);
                 }
                 else {
@@ -2620,6 +2635,22 @@ class DisplaytemplateController extends ODRCustomController
                 $return['d']['force_slideout_reload'] = $force_slideout_reload;
                 $return['d']['reload_datafield'] = $reload_datafield;
 
+                // Easier to check whether any quality json is valid out here
+                $valid_quality_json = false;
+                $quality_json_error = '';
+                if ( $datafield->getQualityStr() !== '' ) {
+                    $quality_str = $datafield->getQualityStr();
+
+                    // NOTE: these quality strings are effectively defined in Displaytemplate::datafield_properties_form.html.twig
+                    if ( $quality_str !== 'toggle' && $quality_str !== 'stars5' ) {
+                        $ret = ValidUtility::isValidQualityJSON($quality_str);
+                        if ( is_array($ret) )
+                            $valid_quality_json = true;
+                        else
+                            $quality_json_error = $ret;
+                    }
+                }
+
 
                 // ----------------------------------------
                 // Render the html for the form
@@ -2637,6 +2668,9 @@ class DisplaytemplateController extends ODRCustomController
 
                         'prevent_fieldtype_change' => $prevent_fieldtype_change,
                         'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
+
+                        'valid_quality_json' => $valid_quality_json,
+                        'quality_json_error' => $quality_json_error,
 
                         'datatype' => $datatype,
                         'datafield' => $datafield,
@@ -2879,8 +2913,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -2896,7 +2930,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2984,8 +3018,8 @@ $debug = false;
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows, because we want to display old selected mappings/options
@@ -3022,7 +3056,7 @@ $debug = false;
             // Determine user privileges
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3244,10 +3278,10 @@ if ($debug)
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataType $datatype */
@@ -3261,7 +3295,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3272,14 +3306,14 @@ if ($debug)
                 $properties = array(
                     'publicDate' => new \DateTime('2200-01-01 00:00:00')
                 );
-                $emm_service->updateDatatypeMeta($user, $datatype, $properties);
+                $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
             }
             else {
                 // Make the datatype public
                 $properties = array(
                     'publicDate' => new \DateTime()
                 );
-                $emm_service->updateDatatypeMeta($user, $datatype, $properties);
+                $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
             }
 
 
@@ -3337,10 +3371,10 @@ if ($debug)
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataFields $datafield */
@@ -3359,7 +3393,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3370,14 +3404,14 @@ if ($debug)
                 $properties = array(
                     'publicDate' => new \DateTime('2200-01-01 00:00:00')
                 );
-                $emm_service->updateDatafieldMeta($user, $datafield, $properties);
+                $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
             else {
                 // Make the datafield public
                 $properties = array(
                     'publicDate' => new \DateTime()
                 );
-                $emm_service->updateDatafieldMeta($user, $datafield, $properties);
+                $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
 
 
@@ -3489,10 +3523,10 @@ if ($debug)
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataType $datatype */
@@ -3507,7 +3541,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3520,7 +3554,7 @@ if ($debug)
                 'searchNotesUpper' => $post['upper_value'],
                 'searchNotesLower' => $post['lower_value'],
             );
-            $emm_service->updateDatatypeMeta($user, $datatype, $properties);
+            $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
 
 
             // ----------------------------------------
@@ -3574,8 +3608,8 @@ if ($debug)
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataType $datatype */
@@ -3590,7 +3624,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3684,8 +3718,8 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -3702,7 +3736,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3793,12 +3827,12 @@ if ($debug)
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -3814,12 +3848,12 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
             // Most of the data can come from the cached datatype array
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
             // Generate a csrf token for the form before the datafields are sorted by name
@@ -3843,7 +3877,7 @@ if ($debug)
             foreach ($all_fieldtypes as $ft)
                 $fieldtype_map[$ft->getId()] = $ft->getTypeName();
 
-            $fieldtype_info = $dfi_service->getFieldtypeInfo($datatype_array, $datatype->getId());
+            $fieldtype_info = $datafield_info_service->getFieldtypeInfo($datatype_array, $datatype->getId());
 
 
             // ----------------------------------------
@@ -3921,16 +3955,16 @@ if ($debug)
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var CsrfTokenManager $token_manager */
@@ -3948,7 +3982,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3973,7 +4007,7 @@ if ($debug)
 
             // ----------------------------------------
             // Get the cached datatype array to verify the form
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
 
@@ -3989,7 +4023,7 @@ if ($debug)
 
 
             // Also need to verify that the provided fieldtypes are valid
-            $fieldtype_info = $dfi_service->getFieldtypeInfo($datatype_array, $datatype->getId());
+            $fieldtype_info = $datafield_info_service->getFieldtypeInfo($datatype_array, $datatype->getId());
 
 
             // Ensure that the provided datafields match the datatype
@@ -4110,7 +4144,7 @@ if ($debug)
                         'searchable' => $post['searchable'][$df_id],
                         'publicDate' => $public_date,
                     );
-                    $emm_service->updateDatafieldMeta($user, $datafield, $properties, true);    // don't flush immediately
+                    $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties, true);    // don't flush immediately
 
                     // If the fieldtype changed...
                     if ( $old_fieldtype->getId() !== $new_fieldtype->getId() ) {
@@ -4121,7 +4155,7 @@ if ($debug)
                         // If migrating to an image fieldtype, then ensure ImageSize entities exist
                         //  for this datafield
                         if ($new_fieldtype->getTypeClass() === 'Image')
-                            $ec_service->createImageSizes($user, $datafield, true);    // don't flush immediately
+                            $entity_create_service->createImageSizes($user, $datafield, true);    // don't flush immediately
                     }
 
                     // Need to fire events for these datafields in a bit
@@ -4205,10 +4239,10 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
             /** @var CsrfTokenManager $token_manager */
@@ -4226,7 +4260,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -4253,7 +4287,7 @@ if ($debug)
             $available_datafields = array();
 
             // All of the data can come from the cached datatype array
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
             $dt = $datatype_array[$datatype->getId()];
 
             // The current fields only have the datafield id...
@@ -4409,14 +4443,14 @@ if ($debug)
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -4432,7 +4466,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -4454,7 +4488,7 @@ if ($debug)
 
             // Get the cached datatype array to verify the form
             $available_datafields = array();
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
 
             $datatypes_to_check = array($datatype->getId());
             while ( !empty($datatypes_to_check) ) {
@@ -4552,7 +4586,7 @@ if ($debug)
                 if ( !isset($entities[$df_id]) ) {
                     // ...this datafield is not already marked as a special field, so create a new
                     //  entry for it
-                    $dtsf = $ec_service->createDatatypeSpecialField($user, $datatype, $df_lookup[$df_id], $field_purpose, $display_order, true);    // don't flush immediately...
+                    $dtsf = $entity_create_service->createDatatypeSpecialField($user, $datatype, $df_lookup[$df_id], $field_purpose, $display_order, true);    // don't flush immediately...
                     $changes_made = true;
 
                     // Don't need to deal with this entity later on
@@ -4566,7 +4600,7 @@ if ($debug)
                         $props = array(
                             'displayOrder' => $display_order
                         );
-                        $emm_service->updateDatatypeSpecialField($user, $dtsf, $props, true);    // don't flush immediately...
+                        $entity_modify_service->updateDatatypeSpecialField($user, $dtsf, $props, true);    // don't flush immediately...
                         $changes_made = true;
                     }
 
@@ -4638,14 +4672,14 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var SearchSidebarService $ssb_service */
-            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -4661,21 +4695,21 @@ if ($debug)
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // Going to attempt to render the regular search sidebar here, which would allow the
             //  use of the SearchSidebarService...
-            $datatype_array = $ssb_service->getSidebarDatatypeArray($user, $datatype->getId());
-            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $datatype->getId());
-            $datafields = $dfi_service->getDatafieldProperties($datatype_array);
+            $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId());
+            $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $datatype->getId());
+            $datafields = $datafield_info_service->getDatafieldProperties($datatype_array);
             // Don't want the user list or the preferred theme id
 
 
@@ -4742,7 +4776,7 @@ if ($debug)
                     // Should only be one stored search key, for the moment
                     $default_search_key = $ssk['search_key'];
                     $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
-                    $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $default_search_params);
+                    $search_sidebar_service->fixSearchParamsOptionsAndTags($datatype_array, $default_search_params);
                     break;
                 }
             }
@@ -4821,12 +4855,12 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatafieldInfoService $dfi_service */
-            $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
 
@@ -4845,7 +4879,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -4861,8 +4895,8 @@ if ($debug)
 
             // Need to display a warning when the search key contains non-public fields, since it
             //  won't work properly with users that can't view said fields...
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getId());
-            $datafields = $dfi_service->getDatafieldProperties($datatype_array);
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId());
+            $datafields = $datafield_info_service->getDatafieldProperties($datatype_array);
 
             // NOTE: don't need to use the SearchSidebarService to get the datatype array...the
             //  current user is a datatype admin, so the filtering done by that service is useless
@@ -4925,12 +4959,12 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
 
@@ -4957,7 +4991,7 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -4975,11 +5009,11 @@ if ($debug)
                     $props = array(
                         'searchKey' => $search_key,
                     );
-                    $emm_service->updateStoredSearchKey($user, $ssk, $props);
+                    $entity_modify_service->updateStoredSearchKey($user, $ssk, $props);
                 }
                 else {
                     // ...if no entry, then create a new one
-                    $ssk = $ec_service->createStoredSearchKey(
+                    $ssk = $entity_create_service->createStoredSearchKey(
                         $user,
                         $datatype,
                         $search_key,

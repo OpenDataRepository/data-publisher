@@ -49,6 +49,9 @@
 
 <script>
 {% if intent == 'searching' %}
+    // Need this for reloading attempts on images which aren't decrypted
+    var missing_images = {};
+
     $(function() {
         $(".ODRShortResultsHeader").unbind('click').click(function() {
             var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'');
@@ -62,6 +65,8 @@
             var id = $(this).parent().attr('id').replace(/ShortResultsHeader_/,'');
             loadDataRecord(id, 'edit', '{{ offset }}');
         });
+
+        // NOTE: do not attach event handlers to images here...setupImageGalleries() will move them around
     });
 {% elseif intent == 'linking' %}
     // Need to be able to store all datarecords returned from the search incase "Select All" is clicked

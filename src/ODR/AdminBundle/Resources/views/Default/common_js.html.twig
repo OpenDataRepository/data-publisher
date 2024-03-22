@@ -1,4 +1,4 @@
-{% macro write(logged_in, site_baseurl, odr_wordpress_integrated) %}
+{% macro write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) %}
 <script>
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
@@ -150,12 +150,31 @@
         // Extract unique id
         var current_url = window.location.href;
         var url_data = current_url.split('#');
-        var url_bits = url_data[0].split('/');
 
-        // Unique ID is the last bit
-        var unique_id = url_bits[(url_bits.length - 1)];
-        // There won't be anything to find in this case
-        if (unique_id === 'admin') {
+        {# The config variable to use depends on whether it's wordpress integrated or not #}
+{% if odr_wordpress_integrated %}
+        var site_baseurl = '{{ wordpress_site_baseurl }}';
+{% else %}
+        var site_baseurl = '{{ site_baseurl }}';
+{% endif %}
+        // console.log(site_baseurl);
+
+        // Cut out the baseurl...
+        var pos = url_data[0].indexOf(site_baseurl);
+        var length = site_baseurl.length;
+        var reduced_url = url_data[0].substring(pos + length + 1);    // the length earlier doesn't include the trailing slash
+
+        if ( reduced_url.indexOf('app_dev.php/') > -1 )
+            reduced_url = reduced_url.substring( 'app_dev.php/'.length );
+        // console.log(reduced_url);
+
+        // ...which should leave the unique_id or search_slug as the first part of the remainder
+        var url_pieces = reduced_url.split('/');
+        var relevant_str = url_pieces[0];
+        // console.log(relevant_str);
+
+        if (relevant_str === 'admin') {
+            // There won't be anything to find in this case
             $('#ODRDatabaseLanding').children('a').first().prop("href", "{{ path('odr_admin_homepage') }}");
             return;
         }
@@ -163,7 +182,7 @@
         // NOTE - despite being named as unique_ids, this also works with search slugs
         var url = '{{ path('odr_datatype_find_landing', { 'datatype_unique_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
-        url += unique_id;
+        url += relevant_str;
 
         $.ajax({
             cache: false,
@@ -298,6 +317,21 @@
         }
     }
 
+    /**
+     * Forces a URL to open in a new tab
+     *
+     * @param {string} hash
+     */
+    function OpenURL(hash) {
+        var current_baseurl = window.location.href;
+        if ( current_baseurl.indexOf('#') !== -1 ) {
+            var pieces = window.location.href.split(/#/);
+            current_baseurl = pieces[0];
+        }
+
+        window.open(current_baseurl + '#' + hash, '_blank');
+    }
+
     var xhr = null;
     var timer = null;
 
@@ -393,6 +427,8 @@
      * @param {string} [intent]
      */
     function enableSearchSidebar(search_key, force_visible, intent) {
+        if (force_visible === undefined || force_visible === null)
+            force_visible = false;
         // Ensure the sidebar is up to date first...
         if (intent === undefined || intent === null)
             intent = 'searching';
@@ -453,76 +489,51 @@
                     }
 
                     // Need to this to execute after the sidebar gets initialized
-                    setSidebarToggle(force_visible);
+                    console.log('SEARCH TOGGLE 1')
+                    searchToggle(force_visible);
                 }
             });
         }
         else {
             // Don't need to initialize the sidebar, so execute this instead
-            setSidebarToggle(force_visible);
+            console.log('SEARCH TOGGLE 2')
+            // searchToggle(force_visible);
         }
-    }
-
-    /**
-     * TODO
-     *
-     * @param {boolean} [force_visible]
-     */
-    function setSidebarToggle(force_visible) {
-        var sidebar = $("#ODRSearchSidebar");
-        var searchToggle = $(".ODRSearchToggle");
-        var searchContent = $("#ODRSearchContent");
-
-        $(sidebar).removeClass("ODRHidden");
-
-        if (force_visible === undefined || force_visible === null)
-            force_visible = false;
-
-        if ( !force_visible ) {
-            if ($(sidebar).hasClass("ODRSearchVisible"))
-                $(searchContent).removeClass("ODRSearchResultsWide");
-            else
-                $(searchContent).addClass("ODRSearchResultsWide");
-        }
-        else {
-            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
-            $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
-            $(searchContent).removeClass("ODRSearchResultsWide");
-        }
-
-        // Since the sidebar may have changed between visible or not-visible, execute this to be safe
-        recalcDatatablesWidths();
     }
 
     /**
      * Toggles the search sidebar between "visible" and "expanded".
      */
-    function searchToggle() {
+    function searchToggle(force_visible) {
+        if (force_visible === undefined || force_visible === null)
+            force_visible = false;
+
         var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
         var searchContent = $("#ODRSearchContent");
 
-        if ( $(sidebar).hasClass("ODRSearchVisible") ) {
-            $(sidebar).removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+        if (force_visible || $(sidebar).hasClass('ODRSearchHidden')) {
+            // Open the search sidebar
+            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+            $(searchContent).removeClass("ODRSearchResultsWide");
 
             $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-right").removeClass('hidden');
-
-            $(searchContent).addClass("ODRSearchResultsWide");
-        }
-        else {
-            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
-
             $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
             $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
+        }
+        else {
+            // This hides the search sidebar
+            $(sidebar).removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+            $(searchContent).addClass("ODRSearchResultsWide");
 
-            $(searchContent).removeClass("ODRSearchResultsWide");
+            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-right").removeClass('hidden');
         }
 
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         // Have to wait for that to finish before recalculating the width of datatables objects
-        setTimeout("recalcDatatablesWidths()", 300);
+        setTimeout("recalcDatatablesWidths()", 100);
     }
 
     /**
@@ -576,6 +587,68 @@
          $("#odr_content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
             .alternateNestedBgColor(".ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3", ['ODRAccordionPrimary', 'ODRAccordionSecondary']);
         // console.log('accordion highlight')
+    }
+
+    /**
+     * Opens the modal for users to view/select available themes for the current page type for
+     * this datatype.
+     *
+     * @param {number} datatype_id
+     * @param {string} page_type
+     * @param {string} search_key
+     */
+    function openChooseViewRemodal(datatype_id, page_type, search_key) {
+        var page_type_title = "Choose from available layouts:";
+        if ( page_type != '' ) {
+            var pieces = page_type.split(/_/);
+            for (var key in pieces)
+                pieces[key] = pieces[key][0].toUpperCase() + pieces[key].slice(1);
+            page_type_title = "Choose from available layouts for " + pieces.join(' ') + " mode:";
+        }
+
+        modal_options = {
+            title: page_type_title,
+            // body: "<div>Loading will not display if body is set.</div>",
+            // loading: true,  // Force loading to display
+        };
+        openODRRemodal(modal_options);
+
+        var url = '{{ path('odr_get_available_themes', { 'datatype_id': 0, 'page_type': '', 'search_key': '' }) }}';
+        url = url.substring(0, url.length - 2);
+        url += datatype_id + '/' + page_type + '/' + search_key;
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                $(".ODRRemodalBody").html( data.d );
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
     }
 
     /**
@@ -823,6 +896,11 @@
             $(gallery).children(".ODRImage").last().remove().appendTo(storage);
             $(storage).children(".ODRImage").first().remove().prependTo(gallery);
         });
+
+        // Need this for reloading attempts on images which aren't decrypted
+        $("div.ODRImage").find("img").on('error', function() {
+            setupDecryptWait( $(this) );
+        });
     }
 
     /**
@@ -1057,6 +1135,54 @@
             // List displayType
             ScrollHighlight( $(field_area) );
         }
+    }
+
+    /**
+     * Sets up the timing/timeout for use when a decrypted version of an image doesn't exist.
+     *
+     * @param {HTMLElement} elem
+     */
+    function setupDecryptWait(elem) {
+        var parent = $(elem).closest('div');
+        var img_id = $(parent).attr('rel');
+
+        if ( !missing_images.hasOwnProperty(img_id) ) {
+            missing_images[img_id] = 1;
+
+            // Hopefully there aren't too many images that need decrypting, so try the first reload
+            //  relatively quickly...
+            setTimeout( 'waitForDecrypt("' + $(parent).attr('id') + '")', 500 );
+        }
+        else if ( missing_images[img_id] < 10 ) {
+            missing_images[img_id]++;
+
+            // If the first reload didn't work, then try again after a delay
+            // NOTE: it seems as if the browser doesn't follow the timing "to the letter"...setting
+            //  this to a short delay doesn't actually mean the timeout will load faster
+            setTimeout( 'waitForDecrypt("' + $(parent).attr('id') + '")', 2000 );
+            // NOTE: decryption is also fairly slow, so hammering the requests won't help
+        }
+    }
+
+    /**
+     * Triggers a reload of a (hopefully no longer) missing decrypted image that pheanstalk has
+     * (hopefully) already been ordered to rebuild.
+     *
+     * @param {string} image_id
+     */
+    function waitForDecrypt(image_id) {
+        var image_elem = $("#" + image_id).find('img');
+        var old_src = $(image_elem).attr('src');
+        // console.log( 'old_src: ', old_src );
+
+        var new_src = '';
+        if ( old_src.indexOf('#') === -1 )
+            new_src = old_src + '#' + new Date().getTime();
+        else
+            new_src = old_src.substring(0, old_src.indexOf('#') ) + '#' + new Date().getTime();
+        // console.log( 'new_src: ', new_src );
+
+        $(image_elem).attr( 'src', new_src );
     }
 
 </script>

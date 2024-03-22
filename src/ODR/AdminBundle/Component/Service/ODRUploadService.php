@@ -132,26 +132,27 @@ class ODRUploadService
      * process.
      *
      * For a File, the encryption process is deferred through beanstalk because of the possibility
-     * of huge files.
+     * of multi-gigabyte files.
      *
      * @param string $filepath The path to the uploaded file on the server
      * @param ODRUser $user
      * @param DataRecordFields $drf
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      * @param \DateTime|null $public_date If provided, then the public date is set to this
+     * @param int $quality If provided, then the quality property is set to this
      *
      * @return File The new incomplete File entity for the file at $filepath...The beanstalk process
      *              will be deleting the file at $filepath and modifying the File entity at some
      *              unknown time in the future.  USE WITH CAUTION.
      */
-    public function uploadNewFile($filepath, $user, $drf, $created = null, $public_date = null)
+    public function uploadNewFile($filepath, $user, $drf, $created = null, $public_date = null, $quality = null)
     {
         // Ensure the filepath is valid
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('The file at "'.$filepath.'" does not exist on the server', true, 0x6fe6e25d);
 
         // The user uploaded a File...create a database entry with as much info as possible
-        $file = $this->ec_service->createFile($user, $drf, $filepath, $created, $public_date);
+        $file = $this->ec_service->createFile($user, $drf, $filepath, $created, $public_date, $quality);
 
 
         // ----------------------------------------
@@ -238,17 +239,18 @@ class ODRUploadService
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      * @param \DateTime|null $public_date If provided, then the public date is set to this
      * @param int|null $display_order If provided, then the display_order is set to this
+     * @param int $quality If provided, then the quality property is set to this
      *
      * @return Image
      */
-    public function uploadNewImage($filepath, $user, $drf, $created = null, $public_date = null, $display_order = null)
+    public function uploadNewImage($filepath, $user, $drf, $created = null, $public_date = null, $display_order = null, $quality = null)
     {
         // Ensure the filepath is valid
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('The image at "'.$filepath.'" does not exist on the server', true, 0x5a301f18);
 
         // The user uplaoded an Image...create a database entry with as much info as possible
-        $image = $this->ec_service->createImage($user, $drf, $filepath, $created, $public_date, $display_order);
+        $image = $this->ec_service->createImage($user, $drf, $filepath, $created, $public_date, $display_order, $quality);
 
 
         // ----------------------------------------
@@ -321,7 +323,7 @@ class ODRUploadService
         }
 
         try {
-            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $event = new DatarecordModifiedEvent($datarecord, $user, false);    // Do NOT mark the record as updated in the database
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
         catch (\Exception $e) {
@@ -469,7 +471,7 @@ class ODRUploadService
         }
 
         try {
-            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $event = new DatarecordModifiedEvent($datarecord, $user);    // Do want to update the database here, unlike the image upload action
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
         catch (\Exception $e) {

@@ -1,0 +1,40 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set quality_str = datafield_meta.quality_str %}
+{% if quality_str == '' %}
+    {# do nothing #}
+{% else %}
+    <span class="{% if typeclass == 'File' %}ODRFileQuality_wrapper{% else %}ODRImageQuality_wrapper{% endif %}">
+    {% if quality_str == 'toggle' %}
+        <label for="{{ typeclass }}_{{ file.id }}_quality" class="ODRFileQuality_label">
+            Quality:&nbsp;
+        </label>
+        <input type="checkbox" id="{{ typeclass }}_{{ file.id }}_quality" class="ODRFileQuality_selector" {% if meta.quality >= 1 %}checked{% endif %} disabled />
+
+    {% elseif quality_str == 'stars5' %}
+        <label for="{{ typeclass }}_{{ file.id }}_quality" class="ODRFileQuality_label">
+            Quality:&nbsp;
+        </label>
+        <span id="{{ typeclass }}_{{ file.id }}_quality">
+        {% for i in 1..5 %}
+            <i class="ODRFileQuality_selector fa {% if meta.quality >= i %}fa-star{% else %}fa-star-o{% endif %}" rel="{{ i }}"></i>
+        {% endfor %}
+        </span>
+
+    {% else %}
+        {% set decoded_quality = quality_str|quality_json_decode %}    {# TODO - attempt to cache this? #}
+        {% if decoded_quality != '' %}
+            {% set current_quality = decoded_quality[ meta.quality ] %}
+            <label for="{{ typeclass }}_{{ file.id }}_quality" class="ODRFileQuality_label">
+                Quality:&nbsp;{{ current_quality }}
+            </label>
+        {% endif %}
+    {% endif %}
+
+    </span>
+{% endif %}
+
+{% endspaceless %}

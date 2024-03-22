@@ -59,5 +59,5 @@
     </div>
 
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
-    {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated) }}
+    {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) }}
 {% endblock %}

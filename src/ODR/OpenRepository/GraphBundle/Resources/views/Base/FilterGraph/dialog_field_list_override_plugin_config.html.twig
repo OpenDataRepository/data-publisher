@@ -13,7 +13,7 @@
 <div class="pure-u-1">
     <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_config_str }}</textarea>
 
-    <div class="pure-u-1 ODRRenderPlugin_FilterGraph_header">
+    <div class="pure-u-1 ODRFilterGraphPlugin_header">
         This table is where you select the datafields with the files you want graphed.
         <br>
         The field selected as "Primary" will be checked first, and the first file uploaded to that field will be graphed.
@@ -21,8 +21,8 @@
         The "Secondary" field is optional, and will only be checked when the "Primary" field does not have a file uploaded.
     </div>
 
-    <div class="pure-u-1 ODRRenderPlugin_FilterGraph_config">
-        <table class="ODRRenderPlugin_FilterGraph_table">
+    <div class="pure-u-1 ODRFilterGraphPlugin_config">
+        <table class="ODRFilterGraphPlugin_table">
             <thead>
             <tr>
                 <th>Database path</th>
@@ -36,16 +36,16 @@
             <tbody>
             {% for prefix,data in available_config %}
                 {% for df_id, df_name in data['fields'] %}
-                    <tr class="ODRRenderPlugin_FilterGraph_row" rel="{{ prefix }}">
+                    <tr class="ODRFilterGraphPlugin_row" rel="{{ prefix }}">
                         <td>{{ data['label'] }}</td>
                         <td>{{ df_name }}</td>
                         <td>
-                            <input class="ODRRenderPlugin_FilterGraph_primary" type="checkbox" value="{{ df_id }}" {% if selected_primary_graph_df == df_id %}checked{% endif %} />
+                            <input class="ODRFilterGraphPlugin_primary" type="checkbox" value="{{ df_id }}" {% if selected_primary_graph_df == df_id %}checked{% endif %} />
                         </td>
                         <td>
-                            <input class="ODRRenderPlugin_FilterGraph_secondary" type="checkbox" value="{{ df_id }}" {% if selected_secondary_graph_df == df_id %}checked{% endif %} />
+                            <input class="ODRFilterGraphPlugin_secondary" type="checkbox" value="{{ df_id }}" {% if selected_secondary_graph_df == df_id %}checked{% endif %} />
                         </td>
-                        <td class="ODRRenderPlugin_FilterGraph_warn" style="display: none;">
+                        <td class="ODRFilterGraphPlugin_warn" style="display: none;">
                             <i class="fa fa-warning"></i>
                             <span></span>
                         </td>
@@ -64,11 +64,11 @@
         //  it for this particular application, force the modal to use the entire screen.
         resetRemodalInnerHeight(true);
 
-        $(".ODRRenderPlugin_FilterGraph_primary").unbind('change').change(function() {
-            ODRRenderPlugin_FilterGraph_updateCheckboxes( $(this) );
+        $(".ODRFilterGraphPlugin_primary").unbind('change').change(function() {
+            ODRFilterGraphPlugin_updateCheckboxes( $(this) );
         });
-        $(".ODRRenderPlugin_FilterGraph_secondary").unbind('change').change(function() {
-            ODRRenderPlugin_FilterGraph_updateCheckboxes( $(this) );
+        $(".ODRFilterGraphPlugin_secondary").unbind('change').change(function() {
+            ODRFilterGraphPlugin_updateCheckboxes( $(this) );
         });
     });
 
@@ -77,14 +77,14 @@
      *
      * @param {HTMLElement} elem
      */
-    function ODRRenderPlugin_FilterGraph_updateCheckboxes(elem) {
+    function ODRFilterGraphPlugin_updateCheckboxes(elem) {
         if ( !$(elem).is(':checked') ) {
             // Don't care if the checkbox is now unselected
         }
-        else if ( $(elem).hasClass('ODRRenderPlugin_FilterGraph_primary') ) {
+        else if ( $(elem).hasClass('ODRFilterGraphPlugin_primary') ) {
             // checkbox is for the primary graph file...uncheck all other primary checkboxes
             var selected_df_id = $(elem).val();
-            $('.ODRRenderPlugin_FilterGraph_primary').each(function() {
+            $('.ODRFilterGraphPlugin_primary').each(function() {
                 if ( $(this).val() !== selected_df_id )
                     $(this).prop('checked', false);
             });
@@ -92,32 +92,32 @@
         else {
             // checkbox is for the secondary graph file
             var selected_df_id = $(elem).val();
-            $('.ODRRenderPlugin_FilterGraph_secondary').each(function() {
+            $('.ODRFilterGraphPlugin_secondary').each(function() {
                 if ( $(this).val() !== selected_df_id )
                     $(this).prop('checked', false);
             });
         }
 
         // Regardless of the new state, warnings should be updated...
-        ODRRenderPlugin_FilterGraph_updateWarnings();
+        ODRFilterGraphPlugin_updateWarnings();
         // ...and the hidden textarea updated
-        ODRRenderPlugin_FilterGraph_updateValue();
+        ODRFilterGraphPlugin_updateValue();
     }
 
     /**
      * Resets warnings on the page.
      */
-    function ODRRenderPlugin_FilterGraph_updateWarnings() {
+    function ODRFilterGraphPlugin_updateWarnings() {
         var selected_primary = null;
         var selected_secondary = null;
 
-        $('.ODRRenderPlugin_FilterGraph_primary').each(function() {
+        $('.ODRFilterGraphPlugin_primary').each(function() {
             if ( $(this).is(':checked') ) {
                 selected_primary = $(this);
                 return false;
             }
         });
-        $('.ODRRenderPlugin_FilterGraph_secondary').each(function() {
+        $('.ODRFilterGraphPlugin_secondary').each(function() {
             if ( $(this).is(':checked') ) {
                 selected_secondary = $(this);
                 return false;
@@ -125,7 +125,7 @@
         });
 
         // Only need warnings when there's a secondary graph file selected...
-        $('.ODRRenderPlugin_FilterGraph_warn').hide();
+        $('.ODRFilterGraphPlugin_warn').hide();
         if ( selected_secondary !== null ) {
             var warn_column = $(selected_secondary).parent().next();
             var warn_text = $(warn_column).children('span');
@@ -158,9 +158,9 @@
     /**
      * Updates the hidden textarea with the current value of the block on the right side
      */
-    function ODRRenderPlugin_FilterGraph_updateValue() {
-        var selected_primary = $('.ODRRenderPlugin_FilterGraph_primary:checked');
-        var selected_secondary = $('.ODRRenderPlugin_FilterGraph_secondary:checked');
+    function ODRFilterGraphPlugin_updateValue() {
+        var selected_primary = $('.ODRFilterGraphPlugin_primary:checked');
+        var selected_secondary = $('.ODRFilterGraphPlugin_secondary:checked');
 
         var primary_prefix = null;
         var primary_value = null;

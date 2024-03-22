@@ -737,6 +737,16 @@ class File
     }
 
     /**
+     * Get quality
+     *
+     * @return int
+     */
+    public function getQuality()
+    {
+        return $this->getFileMeta()->getQuality();
+    }
+
+    /**
      * Get external_id
      *
      * @return string

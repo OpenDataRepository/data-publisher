@@ -14,6 +14,7 @@
 namespace ODR\AdminBundle\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
@@ -37,8 +38,10 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -78,8 +81,8 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -103,10 +106,10 @@ class LinkController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $local_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $local_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -248,10 +251,10 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataType $local_datatype */
@@ -282,11 +285,11 @@ class LinkController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be creating a link to another datatype
-            if (!$pm_service->isDatatypeAdmin($user, $local_datatype))
+            if (!$permissions_service->isDatatypeAdmin($user, $local_datatype))
                 throw new ODRForbiddenException();
 
             // Prevent user from linking to a datatype they don't have permissions to view
-            if (!$pm_service->canViewDatatype($user, $template_datatype))
+            if (!$permissions_service->canViewDatatype($user, $template_datatype))
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -321,7 +324,7 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Create a new datatype for the selected template to be cloned into
-            $new_datatype = $ec_service->createDatatype($user, 'New Dataset', true);    // don't flush immediately...
+            $new_datatype = $entity_create_service->createDatatype($user, 'New Dataset', true);    // don't flush immediately...
             $new_datatype_meta = $new_datatype->getDataTypeMeta();
 
             // ...clone from the selected template
@@ -425,10 +428,10 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -453,10 +456,10 @@ class LinkController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $local_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $local_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -506,7 +509,7 @@ class LinkController extends ODRCustomController
             }
 
             // Going to need the id of the local datatype's grandparent datatype
-            $current_datatree_array = $dti_service->getDatatreeArray();
+            $current_datatree_array = $datatree_info_service->getDatatreeArray();
             $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
 
 
@@ -778,14 +781,14 @@ class LinkController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var CloneThemeService $clone_theme_service */
@@ -831,13 +834,13 @@ class LinkController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be creating a link to another datatype
-            if (!$pm_service->isDatatypeAdmin($user, $local_datatype))
+            if (!$permissions_service->isDatatypeAdmin($user, $local_datatype))
                 throw new ODRForbiddenException();
 
             // Prevent user from linking/unlinking a datatype they don't have permissions to view
-            if ( !is_null($new_remote_datatype) && !$pm_service->canViewDatatype($user, $new_remote_datatype) )
+            if ( !is_null($new_remote_datatype) && !$permissions_service->canViewDatatype($user, $new_remote_datatype) )
                 throw new ODRForbiddenException();
-            if ( !is_null($previous_remote_datatype) && !$pm_service->canViewDatatype($user, $previous_remote_datatype) )
+            if ( !is_null($previous_remote_datatype) && !$permissions_service->canViewDatatype($user, $previous_remote_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -886,7 +889,7 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Get the most recent version of the datatree array
-            $current_datatree_array = $dti_service->getDatatreeArray();
+            $current_datatree_array = $datatree_info_service->getDatatreeArray();
 
             if (isset($current_datatree_array['descendant_of'][$remote_datatype_id])
                 && $current_datatree_array['descendant_of'][$remote_datatype_id] !== ''
@@ -982,7 +985,7 @@ class LinkController extends ODRCustomController
                 // Ensure that the "master_revision" property gets updated if required
                 $needs_flush = false;
                 if ( $local_datatype->getIsMasterType() ) {
-                    $emm_service->incrementDatatypeMasterRevision($user, $local_datatype, true);    // don't flush immediately
+                    $entity_modify_service->incrementDatatypeMasterRevision($user, $local_datatype, true);    // don't flush immediately
                     $needs_flush = true;
                 }
 
@@ -1004,7 +1007,7 @@ class LinkController extends ODRCustomController
 
                 $is_link = true;
                 $multiple_allowed = true;
-                $ec_service->createDatatree($user, $local_datatype, $new_remote_datatype, $is_link, $multiple_allowed);
+                $entity_create_service->createDatatree($user, $local_datatype, $new_remote_datatype, $is_link, $multiple_allowed);
 
                 // Locate the master theme for the remote datatype
                 $source_theme = $theme_info_service->getDatatypeMasterTheme($new_remote_datatype->getId());
@@ -1023,21 +1026,21 @@ class LinkController extends ODRCustomController
                     // Need to locate the master theme for "B"...
                     $linked_parent_theme = $theme_info_service->getDatatypeMasterTheme($local_datatype->getId());
                     // ...so a new ThemeElement can be created in it...
-                    $linked_theme_element = $ec_service->createThemeElement($user, $linked_parent_theme);
+                    $linked_theme_element = $entity_create_service->createThemeElement($user, $linked_parent_theme);
                     // ...so another copy of the remote datatype's theme into that new ThemeElement
                     $clone_theme_service->cloneIntoThemeElement($user, $linked_theme_element, $source_theme, $new_remote_datatype, 'master');
                 }
 
                 // Ensure that the "master_revision" property gets updated if required
                 if ( $local_datatype->getIsMasterType() )
-                    $emm_service->incrementDatatypeMasterRevision($user, $local_datatype, true);    // don't flush immediately
+                    $entity_modify_service->incrementDatatypeMasterRevision($user, $local_datatype, true);    // don't flush immediately
 
                 // A datatype got linked, so any themes that use this master theme as their source
                 //  need to get updated themselves
                 $properties = array(
                     'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
                 );
-                $emm_service->updateThemeMeta($user, $theme, $properties);    // flush here
+                $entity_modify_service->updateThemeMeta($user, $theme, $properties);    // flush here
             }
 
 
@@ -1571,12 +1574,12 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var TableThemeHelperService $tth_service */
-            $tth_service = $this->container->get('odr.table_theme_helper_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var TableThemeHelperService $table_theme_helper_service */
+            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var SearchKeyService $search_key_service */
@@ -1640,14 +1643,14 @@ class LinkController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canViewDatatype($user, $ancestor_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $ancestor_datatype) )
                 throw new ODRForbiddenException();
 
             // TODO - create a new permission specifically for linking/unlinking datarecords?
-            if ( !$pm_service->canEditDatarecord($user, $local_datarecord) )
+            if ( !$permissions_service->canEditDatarecord($user, $local_datarecord) )
                 throw new ODRForbiddenException();
 
-            if ( !$pm_service->canViewDatatype($user, $descendant_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $descendant_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1740,7 +1743,7 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Store whether the link allows multiples or not
-            $datatree_array = $dti_service->getDatatreeArray();
+            $datatree_array = $datatree_info_service->getDatatreeArray();
 
             $allow_multiple_links = false;
             if ( isset($datatree_array['multiple_allowed'][$descendant_datatype->getId()])
@@ -1791,11 +1794,11 @@ class LinkController extends ODRCustomController
             foreach ($linked_datarecords as $dr_id => $value)
                 $datarecord_list[] = $dr_id;
 
-            $table_html = $tth_service->getRowData($user, $datarecord_list, $remote_datatype->getId(), $theme_id);
+            $table_html = $table_theme_helper_service->getRowData($user, $datarecord_list, $remote_datatype->getId(), $theme_id);
             $table_html = json_encode($table_html);
 
             // Grab the column names for the datatables plugin
-            $column_data = $tth_service->getColumnNames($user, $remote_datatype->getId(), $theme_id);
+            $column_data = $table_theme_helper_service->getColumnNames($user, $remote_datatype->getId(), $theme_id);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 
@@ -1903,10 +1906,10 @@ class LinkController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataRecord $local_datarecord */
@@ -1950,12 +1953,12 @@ class LinkController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
-            $can_view_ancestor_datatype = $pm_service->canViewDatatype($user, $ancestor_datatype);
-            $can_view_descendant_datatype = $pm_service->canViewDatatype($user, $descendant_datatype);
-            $can_view_local_datarecord = $pm_service->canViewDatarecord($user, $local_datarecord);
-            $can_edit_ancestor_datarecord = $pm_service->canEditDatatype($user, $ancestor_datatype);
+            $can_view_ancestor_datatype = $permissions_service->canViewDatatype($user, $ancestor_datatype);
+            $can_view_descendant_datatype = $permissions_service->canViewDatatype($user, $descendant_datatype);
+            $can_view_local_datarecord = $permissions_service->canViewDatarecord($user, $local_datarecord);
+            $can_edit_ancestor_datarecord = $permissions_service->canEditDatatype($user, $ancestor_datatype);
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !$can_view_ancestor_datatype || !$can_view_descendant_datatype || !$can_view_local_datarecord || !$can_edit_ancestor_datarecord )
@@ -2182,7 +2185,7 @@ class LinkController extends ODRCustomController
                 }
 
                 // Ensure there is a link between the two datarecords
-                $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
+                $entity_create_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
 
                 // Setup for figuring out which cache entries need deleted
                 $gp_dr = $ancestor_datarecord->getGrandparent();
@@ -2304,8 +2307,8 @@ class LinkController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataRecord $local_datarecord */
@@ -2344,12 +2347,12 @@ class LinkController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
-            $can_view_ancestor_datatype = $pm_service->canViewDatatype($user, $ancestor_datatype);
-            $can_view_descendant_datatype = $pm_service->canViewDatatype($user, $descendant_datatype);
-            $can_view_local_datarecord = $pm_service->canViewDatarecord($user, $local_datarecord);
-            $can_edit_ancestor_datarecord = $pm_service->canEditDatatype($user, $ancestor_datatype);
+            $can_view_ancestor_datatype = $permissions_service->canViewDatatype($user, $ancestor_datatype);
+            $can_view_descendant_datatype = $permissions_service->canViewDatatype($user, $descendant_datatype);
+            $can_view_local_datarecord = $permissions_service->canViewDatarecord($user, $local_datarecord);
+            $can_edit_ancestor_datarecord = $permissions_service->canEditDatatype($user, $ancestor_datatype);
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !$can_view_ancestor_datatype || !$can_view_descendant_datatype || !$can_view_local_datarecord || !$can_edit_ancestor_datarecord )
@@ -2562,8 +2565,8 @@ class LinkController extends ODRCustomController
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -2608,9 +2611,9 @@ class LinkController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+            if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $child_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2625,6 +2628,599 @@ class LinkController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xe36a63f7;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders a page to setup replacing all links to/from one datarecord with another datarecord
+     * of the same datatype.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function replacelinkspageAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$user->isSuperAdmin() )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            // ----------------------------------------
+            // Figure out which datatypes link to others, or are linked to
+            $query = $em->createQuery(
+               'SELECT adt.id AS ancestor_id, ddt.id AS descendant_id
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                JOIN ODRAdminBundle:DataType AS adt WITH dt.ancestor = adt
+                JOIN ODRAdminBundle:DataType AS ddt WITH dt.descendant = ddt
+                WHERE dtm.is_link = 1
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                AND adt.deletedAt IS NULL AND ddt.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $datatype_ids = array();
+            foreach ($results as $result) {
+                $ancestor_id = $result['ancestor_id'];
+                $descendant_id = $result['descendant_id'];
+
+                $datatype_ids[$ancestor_id] = 1;
+                $datatype_ids[$descendant_id] = 1;
+            }
+            $datatype_ids = array_keys($datatype_ids);
+
+            // Get info about the datatypes in question
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.longName, df.id AS df_id, dfm.fieldName
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE dt IN (:datatype_ids) AND dtm.externalIdField = df
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                ORDER BY dtm.longName'
+            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $datatype_data = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dt_name = $result['longName'];
+                $df_id = $result['df_id'];
+                $df_name = $result['fieldName'];
+
+                $datatype_data[$dt_id] = array(
+                    'dt_name' => $dt_name,
+                    'df_id' => $df_id,
+                    'df_name' => $df_name,
+                );
+            }
+
+            // ----------------------------------------
+            // Render and return a page displaying the installed/available plugins
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Link:replace_links_page.html.twig',
+                    array(
+                        'datatype_data' => $datatype_data,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x8d61c640;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * The page for replacing all links to/from a datarecord with another datarecord needs a way
+     * to visualize the records in question...
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function replacelinksdataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$user->isSuperAdmin() )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Grab the data from the POST request
+            $post = $request->request->all();
+
+            if ( !isset($post['external_id_field_id']) )
+                throw new ODRBadRequestException('Invalid Form');
+            if ( !( isset($post['replaced_datarecord_id']) || isset($post['replacement_datarecord_id']) ) )
+                throw new ODRBadRequestException('Invalid Form');
+
+            $external_id_field_id = $post['external_id_field_id'];
+
+            $external_id_value = '';
+            if ( isset($post['replaced_datarecord_id']) )
+                $external_id_value = $post['replaced_datarecord_id'];
+            else
+                $external_id_value = $post['replacement_datarecord_id'];
+
+            if ( $external_id_value === '' )
+                throw new ODRBadRequestException('Invalid Form');
+
+
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            /** @var DataFields $external_id_field */
+            $external_id_field = $em->getRepository('ODRAdminBundle:DataFields')->find($external_id_field_id);
+            if ($external_id_field == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $dr = $datarecord_info_service->getDatarecordByExternalId($external_id_field, $external_id_value);
+            if ($dr == null)
+                throw new ODRNotFoundException('Datarecord');
+
+
+            // ----------------------------------------
+            // Useful to count how many links the relevant record has...
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+            $linked_ancestors = $datatree_info_service->getLinkedAncestors(array($dr->getDataType()->getId()), $datatree_array);
+            $linked_descendants = $datatree_info_service->getLinkedDescendants(array($dr->getDataType()->getId()), $datatree_array);
+
+            $affected_datatype_ids = array();
+            foreach ($linked_ancestors as $dt_id)
+                $affected_datatype_ids[$dt_id] = 1;
+            foreach ($linked_descendants as $dt_id)
+                $affected_datatype_ids[$dt_id] = 1;
+
+            $affected_datatype_ids = array_keys($affected_datatype_ids);
+            $all_linked_datatrees = self::getLinkedDatatrees($em, $dr, $affected_datatype_ids);
+
+            $links_to = array();
+            foreach ($all_linked_datatrees['dr_is_ancestor'] as $ldt) {
+                /** @var LinkedDataTree $ldt */
+                $dt = $ldt->getDescendant()->getDataType();
+                $dt_id = $dt->getId();
+
+                if ( !isset($links_to[$dt_id]) )
+                    $links_to[$dt_id] = array('dt_name' => $dt->getShortName(), 'count' => 0);
+                $links_to[$dt_id]['count']++;
+            }
+
+            $linked_from = array();
+            foreach ($all_linked_datatrees['dr_is_descendant'] as $ldt) {
+                /** @var LinkedDataTree $ldt */
+                $dt = $ldt->getAncestor()->getDataType();
+                $dt_id = $dt->getId();
+
+                if ( !isset($linked_from[$dt_id]) )
+                    $linked_from[$dt_id] = array('dt_name' => $dt->getShortName(), 'count' => 0);
+                $linked_from[$dt_id]['count']++;
+            }
+
+
+            // ----------------------------------------
+            // Render and return
+            $return['d'] = array(
+                'dr_id' => $dr->getId(),
+                'links_to' => $templating->render(
+                    'ODRAdminBundle:Link:replace_links_info.html.twig',
+                    array(
+                        'direction' => 'to',
+                        'link_data' => $links_to,
+                    ),
+                ),
+                'linked_from' => $templating->render(
+                    'ODRAdminBundle:Link:replace_links_info.html.twig',
+                    array(
+                        'direction' => 'from',
+                        'link_data' => $linked_from,
+                    ),
+                ),
+                'html' => $odr_render_service->getDisplayHTML(
+                    $user,
+                    $dr,
+                    '',        // no search key
+                    null,      // just use the master theme
+                    'multiple' // don't attach the javascript for a display page
+                ),
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x2b5218d3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Split off into its own function since it's used by two parts of the link replacement functionality.
+     *
+     * @param @var \Doctrine\ORM\EntityManager $em
+     * @param DataRecord $datarecord
+     * @param int[] $affected_datatype_ids
+     * @return array
+     */
+    private function getLinkedDatatrees($em, $datarecord, $affected_datatype_ids)
+    {
+        // Get all linked datatree entries where the datarecord in question is the ancestor...
+        $query = $em->createQuery(
+           'SELECT ldt
+            FROM ODRAdminBundle:DataRecord AS adr
+            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = adr
+            JOIN ODRAdminBundle:DataRecord AS ddr WITH ldt.descendant = ddr
+            WHERE adr = :replaced_datarecord AND ddr.dataType IN (:datatype_ids)
+            AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'replaced_datarecord' => $datarecord->getId(),
+                'datatype_ids' => $affected_datatype_ids
+            )
+        );
+        /** @var LinkedDataTree[] $dr_is_ancestor */
+        $dr_is_ancestor = $query->getResult();
+
+        // ...and where the datarecord in question is the descendant
+        $query = $em->createQuery(
+           'SELECT ldt
+            FROM ODRAdminBundle:DataRecord AS adr
+            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = adr
+            JOIN ODRAdminBundle:DataRecord AS ddr WITH ldt.descendant = ddr
+            WHERE ddr = :replaced_datarecord AND adr.dataType IN (:datatype_ids)
+            AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'replaced_datarecord' => $datarecord->getId(),
+                'datatype_ids' => $affected_datatype_ids
+            )
+        );
+        /** @var LinkedDataTree[] $dr_is_descendant */
+        $dr_is_descendant = $query->getResult();
+
+        return array(
+            'dr_is_ancestor' => $dr_is_ancestor,
+            'dr_is_descendant' => $dr_is_descendant,
+        );
+    }
+
+
+    /**
+     * Replaces all links to/from one record with another record.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function replacelinksworkerAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$user->isSuperAdmin() )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Grab the data from the POST request
+            $post = $request->request->all();
+
+            if ( !isset($post['external_id_field_id']) || !isset($post['replaced_record_id']) || !isset($post['replacement_record_id']) /*|| !isset($post['affected_datatype_ids'])*/)
+                throw new ODRBadRequestException('Invalid Form');
+
+            $external_id_field_id = $post['external_id_field_id'];
+            $replaced_record_id = $post['replaced_record_id'];
+            $replacement_record_id = $post['replacement_record_id'];
+//            $affected_datatype_ids = $post['affected_datatype_ids'];    // TODO - do I want an option so this only works on a subset of the available datatypes?
+
+            // This one may not exist
+            $delete_after_link = false;
+            if ( isset($post['delete_after_link']) )
+                $delete_after_link = true;
+
+
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityDeletionService $entity_delete_service */
+            $entity_delete_service = $this->container->get('odr.entity_deletion_service');
+
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+
+
+            /** @var DataFields $external_id_field */
+            $external_id_field = $em->getRepository('ODRAdminBundle:DataFields')->find($external_id_field_id);
+            if ($external_id_field == null)
+                throw new ODRNotFoundException('External ID Field');
+
+            /** @var DataRecord $replaced_datarecord */
+            $replaced_datarecord = $datarecord_info_service->getDatarecordByExternalId($external_id_field, $replaced_record_id);
+            if ($replaced_datarecord == null)
+                throw new ODRNotFoundException('Replaced Record');
+
+            /** @var DataRecord $replacement_datarecord */
+            $replacement_datarecord = $datarecord_info_service->getDatarecordByExternalId($external_id_field, $replacement_record_id);
+            if ($replacement_datarecord == null)
+                throw new ODRNotFoundException('Replacement Record');
+
+            if ( $replaced_datarecord->getId() === $replacement_datarecord->getId() )
+                throw new ODRBadRequestException('No sense replacing a record with itself');
+            if ( $replaced_datarecord->getDataType()->getId() !== $replacement_datarecord->getDataType()->getId() )
+                throw new ODRBadRequestException('Invalid datarecords');
+
+            $relevant_datatype = $replaced_datarecord->getDataType();
+            if ( $relevant_datatype->getId() !== $relevant_datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Not usable on child records');
+
+
+            // Need to verify the given datatree information...
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+            $linked_ancestors = $datatree_info_service->getLinkedAncestors(array($relevant_datatype->getId()), $datatree_array);
+            $linked_descendants = $datatree_info_service->getLinkedDescendants(array($relevant_datatype->getId()), $datatree_array);
+
+            // TODO - do I want an option so this only works on a subset of the available datatypes?
+//            foreach ($affected_datatype_ids as $dt_id) {
+//                if ( !in_array($dt_id, $linked_ancestors) && !in_array($dt_id, $linked_descendants) )
+//                    throw new ODRBadRequestException('Invalid datatype id');
+//            }
+
+            $affected_datatype_ids = array();
+            foreach ($linked_ancestors as $dt_id)
+                $affected_datatype_ids[$dt_id] = 1;
+            foreach ($linked_descendants as $dt_id)
+                $affected_datatype_ids[$dt_id] = 1;
+            $affected_datatype_ids = array_keys($affected_datatype_ids);
+
+
+            // ----------------------------------------
+            // This action can replace links where the record to replace is the ancestor...
+            $all_linked_datatrees = self::getLinkedDatatrees($em, $replaced_datarecord, $affected_datatype_ids);
+            $dr_is_ancestor = $all_linked_datatrees['dr_is_ancestor'];
+            $dr_is_descendant = $all_linked_datatrees['dr_is_descendant'];
+
+            // ----------------------------------------
+            // Need to keep track of which datarecords need to have events fired...
+            // Each of the ancestor records being modified needs to fire a DatarecordModified Event
+            $datarecord_modified_events = array();
+            // Each of the descendant records needs to fire a DatarecordLinkStatusChanged Event,
+            //  but grouped together by the datatype of the descendant records
+            $datarecord_link_status_change_events = array();
+
+            $descendants_to_replace = array();
+            foreach ($dr_is_ancestor as $ldt) {
+                // Can't create new links inside this loop, so save for another loop
+                $old_descendant_record = $ldt->getDescendant();
+                $descendants_to_replace[ $old_descendant_record->getId() ] = $old_descendant_record;
+
+
+                // Going to need to fire a DatarecordModified Event for the record being replaced...
+                if ( !$delete_after_link ) {
+                    // ...but it only makes sense to do so if it's not getting deleted
+                    $datarecord_modified_events[$replaced_record_id] = $replaced_datarecord;
+                }
+                // Always going to need to fire a DatarecordModified Event for the replacement record,
+                //  since it'll link to at least one new record after this point
+                $datarecord_modified_events[$replacement_record_id] = $replacement_datarecord;
+
+                // Going to need to fire off a DatarecordLinkStatusChanged Event for each datatype
+                //  that is going to end up linked to
+                $descendant_dt = $old_descendant_record->getDataType();
+                $descendant_dt_id = $descendant_dt->getId();
+                if ( !isset($datarecord_link_status_change_events[$descendant_dt_id]) )
+                    $datarecord_link_status_change_events[$descendant_dt_id] = array('records' => array(), 'dt' => $descendant_dt);
+                $datarecord_link_status_change_events[$descendant_dt_id]['records'][ $old_descendant_record->getId() ] = 1;
+
+
+                // Delete the current linked_datatree entry
+                $ldt->setDeletedBy($user);
+                $ldt->setDeletedAt(new \DateTime());
+                $em->persist($ldt);
+            }
+
+            $ancestors_to_replace = array();
+            foreach ($dr_is_descendant as $ldt) {
+                // Can't create new links inside this loop, so save for another loop
+                $old_ancestor_record = $ldt->getAncestor();
+                $ancestors_to_replace[ $old_ancestor_record->getId() ] = $old_ancestor_record;
+
+
+                // Each ancestor record being modified is going to need a DatarecordModified Event
+                $gp_dr = $old_ancestor_record->getGrandparent();
+                $datarecord_modified_events[ $gp_dr->getId() ] = $gp_dr;
+
+                // Also need to fire off a DatarecordLinkStatusChanged Event for the datatype of
+                //  the record being replaced...
+                $descendant_dt = $replaced_datarecord->getDataType();
+                $descendant_dt_id = $descendant_dt->getId();
+                if ( !isset($datarecord_link_status_change_events[$descendant_dt_id]) ) {
+                    $datarecord_link_status_change_events[$descendant_dt_id] = array('records' => array(), 'dt' => $descendant_dt);
+
+                    // It should always contain the id of the replacement record...
+                    $datarecord_link_status_change_events[$descendant_dt_id]['records'][ $replacement_datarecord->getId() ] = 1;
+                    // ...but should only contain the replaced record if it's not getting deleted
+                    if ( !$delete_after_link )
+                        $datarecord_link_status_change_events[$descendant_dt_id]['records'][ $replaced_datarecord->getId() ] = 1;
+                }
+
+
+                // Delete the linked_datatree entry
+                $ldt->setDeletedBy($user);
+                $ldt->setDeletedAt(new \DateTime());
+                $em->persist($ldt);
+            }
+
+            // Flush once everything is deleted
+            $em->flush();
+
+
+            // Now that everything is deleted, recreate the links
+            foreach ($descendants_to_replace as $dr_id => $dr)
+                $entity_create_service->createDatarecordLink($user, $replacement_datarecord, $dr);
+
+            foreach ($ancestors_to_replace as $dr_id => $dr)
+                $entity_create_service->createDatarecordLink($user, $dr, $replacement_datarecord);
+
+
+            // ----------------------------------------
+            // If the record that got replaced contains a datafield that is being used to sort an
+            //  ancestor datatype, then that datatype's sort order needs to be cleared
+            $query = $em->createQuery(
+               'SELECT adt.id AS dt_id
+                FROM ODRAdminBundle:DataType AS adt
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataType = adt
+                LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
+                WHERE adt IN (:ancestor_datatype_ids) AND dtsf.field_purpose = :field_purpose
+                AND remote_df.dataType = :remote_datatype_id
+                AND adt.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'ancestor_datatype_ids' => $affected_datatype_ids,
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
+                    'remote_datatype_id' => $relevant_datatype->getId(),
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $cache_service->delete('datatype_'.$dt_id.'_record_order');
+            }
+
+
+            // ----------------------------------------
+            // If the record being replaced should be deleted...
+            if ( $delete_after_link ) {
+                // ...then deal with that
+                $entity_delete_service->deleteDatarecord($replaced_datarecord, $user);
+            }
+
+
+            // ----------------------------------------
+            // Each of the records in $records_needing_events needs to be marked as updated and have
+            //  their primary cache entries cleared
+            try {
+                foreach ($datarecord_modified_events as $dr_id => $dr) {
+                    $event = new DatarecordModifiedEvent($dr, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Each of these records also needs to have their "associated_datarecords_for_<dr_id>"
+            //  cache entry deleted so the view/edit pages can show the correct linked records
+            try {
+                foreach ($datarecord_link_status_change_events as $dt_id => $data) {
+                    $record_list = array_keys( $data['records'] );
+                    $descendant_dt = $data['dt'];
+
+                    $event = new DatarecordLinkStatusChangedEvent($record_list, $descendant_dt, $user);
+                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+
+            // ----------------------------------------
+            $return['d'] = array(
+
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xbe15828a;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

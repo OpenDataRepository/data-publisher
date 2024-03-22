@@ -304,7 +304,7 @@ class TableThemeHelperService
             $table_dr_data = $this->cache_service->get('cached_table_data_'.$search_dr_id);
             if ($table_dr_data == false) {
                 // ...if it doesn't exist, rebuild it
-                $table_dr_array = $this->dri_service->getDatarecordArray($search_dr_id);    // do want links...not for this one specifically, but for the next
+                $table_dr_array = $this->dri_service->getDatarecordArray($search_dr_id);    // do want links...not for this record specifically, but for any associated records
                 $table_dr_data = self::buildTableData($table_dr_array, $search_dr_id);
             }
             $datarecord_array[$search_dr_id] = $table_dr_data;
@@ -321,8 +321,20 @@ class TableThemeHelperService
                     // Ensure the original datarecord isn't loaded again...
                     if ( $tmp_dr_id !== $search_dr_id ) {
                         $table_dr_data = $this->cache_service->get('cached_table_data_'.$tmp_dr_id);
-                        if ($table_dr_data == false)
-                            $table_dr_data = self::buildTableData($table_dr_array, $tmp_dr_id);
+                        if ($table_dr_data == false) {
+                            if ( !is_null($table_dr_array) ) {
+                                // In theory, the earlier call to getDatarecordArray() will also
+                                //  contain data for this associated linked record...
+                                $table_dr_data = self::buildTableData($table_dr_array, $tmp_dr_id);
+                            }
+                            else {
+                                // ...but if it doesn't for some reason (most likely due to being
+                                //  called from LinkController::getlinkabledatarecordsAction()), then
+                                //  need to make an additional call to getDatarecordArray()
+                                $associated_dr_array = $this->dri_service->getDatarecordArray($tmp_dr_id, false);    // don't want links here
+                                $table_dr_data = self::buildTableData($associated_dr_array, $tmp_dr_id);
+                            }
+                        }
 
                         // Don't want to save the sortfield_value of the linked datarecord...
                         unset( $table_dr_data['sortField_value'] );

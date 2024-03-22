@@ -124,7 +124,8 @@
                     "_external_id": "{{ file_meta.external_id }}",
                     "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
-                    "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}"
+                    "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}",
+                    "_quality": "{{ file_meta.quality }}"
                 },
                 {% endif %}
                 "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"
@@ -156,7 +157,8 @@
                     "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
                     "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
-                    "_display_order": "{{ oimage_meta.displayorder}}"
+                    "_display_order": "{{ oimage_meta.displayorder}}",
+                    "_quality": "{{ oimage_meta.quality }}"
                 },
                 {% endif %}
                 "id":
@@ -176,7 +178,8 @@
                     "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
                     "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
-                    "_display_order": "{{ oimage_meta.displayorder}}"
+                    "_display_order": "{{ oimage_meta.displayorder}}",
+                    "_quality": "{{ oimage_meta.quality }}"
                 },
                 {% endif %}
                 "id":

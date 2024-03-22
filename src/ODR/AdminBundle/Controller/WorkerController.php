@@ -833,17 +833,21 @@ $ret .= '  Set current to '.$count."\n";
             $post = $_POST;
 //print_r($post);
 //return;
-            if ( !isset($post['crypto_type']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['local_filename']) || !isset($post['api_key']) )
+            if ( !isset($post['crypto_type']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
             $crypto_type = $post['crypto_type'];
             $object_type = strtolower( $post['object_type'] );
             $object_id = $post['object_id'];
-            $local_filename = $post['local_filename'];
             $api_key = $post['api_key'];
 
             $error_prefix .= $crypto_type.' for '.$object_type.' '.$object_id.'...';
+
+            // This is required if encrypting, optional if decrypting
+            $local_filename = '';
+            if ( isset($post['local_filename']) )
+                $local_filename = $post['local_filename'];
 
             // These two are only used if the files are being decrypted into a zip archive
             $archive_filepath = '';
@@ -888,17 +892,21 @@ $ret .= '  Set current to '.$count."\n";
 
             // ----------------------------------------
             if ($crypto_type == 'encrypt') {
+                if ( $local_filename === '' )
+                    throw new ODRBadRequestException('Need $local_filename to encrypt');
+
                 // Need to encrypt this file/image...
                 if ($object_type === 'file')
                     $crypto_service->encryptFile($object_id, $local_filename);
                 else
                     $crypto_service->encryptImage($object_id, $local_filename);    // NOTE - images are currently not encrypted through this controller action
-
-                // TODO - this would be the place to fire some sort of FilePostEncrypt event...but is that even useful?
             }
             else if ($crypto_type == 'decrypt') {
                 // Need to decrypt this file/image...
                 if ( $archive_filepath !== '' ) {
+                    if ( $local_filename === '' )
+                        throw new ODRBadRequestException('Need $local_filename to decrypt for archives');
+
                     // ...and store it in a zip archive
                     $crypto_service->decryptObjectForArchive($object_type, $object_id, $local_filename, $desired_filename, $archive_filepath);
                 }
@@ -907,7 +915,7 @@ $ret .= '  Set current to '.$count."\n";
                     if ($object_type === 'file')
                         $crypto_service->decryptFile($object_id, $local_filename);
                     else
-                        $crypto_service->decryptImage($object_type, $local_filename);
+                        $crypto_service->decryptImage($object_id, $local_filename);
                 }
             }
             else {

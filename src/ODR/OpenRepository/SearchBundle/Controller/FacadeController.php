@@ -370,6 +370,7 @@ class FacadeController extends Controller
         $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
         $baseurl = $this->container->getParameter('site_baseurl');
         $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+        $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
         $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
@@ -383,6 +384,7 @@ class FacadeController extends Controller
                 'user' => $user,
                 'datatype_permissions' => array(),
                 'odr_wordpress_integrated' => $is_wordpress_integrated,
+                'wordpress_site_baseurl' => $wordpress_site_baseurl,
             )
         );
 
@@ -617,6 +619,8 @@ class FacadeController extends Controller
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
             $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:TemplateSearch:index.html.twig',
                 array(
@@ -636,6 +640,7 @@ class FacadeController extends Controller
                     'search_string' => '',
                     'odr_tab_id' => $odr_tab_id,
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
+                    'wordpress_site_baseurl' => $wordpress_site_baseurl,
 
                     // required for background image
                     'background_image_id' => $background_image_id,

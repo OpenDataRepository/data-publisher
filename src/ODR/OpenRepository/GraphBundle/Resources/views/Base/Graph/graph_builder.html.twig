@@ -69,6 +69,11 @@
 {# Create a dynamic or static graph - either rollup or individual #}
 {% set datatype = datatype_array[target_datatype_id] %}
 
+{% set record_name_in_legend = true %}
+{% if plugin_options['record_name_in_legend'] is defined and plugin_options['record_name_in_legend'] == 'no' %}
+    {% set record_name_in_legend = false %}
+{% endif %}
+
 {% if odr_chart_legend|length %}
     <div class="pure-u-1 DynamicGraphs">
         <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper" style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px">
@@ -140,7 +145,7 @@
                     {% if mydr_id == dr_id %}
                         // Use Static File Path
                         {% set sort_order = datarecord_sortvalues[dr_id] %}
-                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }} };
+                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{% if record_name_in_legend %}{{ legend }}{% endif %}", "dr_id": {{ dr_id }} };
                     {% endif %}
                 {% endfor %}
             }

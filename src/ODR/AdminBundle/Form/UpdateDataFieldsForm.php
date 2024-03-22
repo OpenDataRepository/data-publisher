@@ -302,6 +302,16 @@ class UpdateDataFieldsForm extends AbstractType
                 )
             );
 */
+            $builder->add(
+                'quality_str',
+                TextType::class,
+                array(
+                    'label' => 'Quality Type'
+
+                    // NOTE: the actual implementation is spread between InitDatafieldPropertiesForm()
+                    //  in design_ajax.html.twig, and datafield_properties_form.html.twig
+                )
+            );
         }
 
         $builder->add(
@@ -309,7 +319,7 @@ class UpdateDataFieldsForm extends AbstractType
             TextType::class,
             array(
                 'required' => true,
-                'label'  => 'Internal Reference Name',
+                'label' => 'Internal Reference Name',
             )
         );
     }

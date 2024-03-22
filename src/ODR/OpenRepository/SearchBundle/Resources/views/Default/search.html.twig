@@ -199,10 +199,11 @@
             else if (exist_value == 0) {
                 $(this).val('""');   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
             }
-            else if (exist_value == 1 && value == '') {
+            else if (exist_value == 1 && (value == '' || value == '""')) {
                 $(this).val('!""');  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
             }
         });
+        // Don't need to do anything specific for the file/image's public status or quality
 
         $(".ODRPluginSearchField").each(function(index,elem) {
             var id = '#' + $(elem).attr("id");

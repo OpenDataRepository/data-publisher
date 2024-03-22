@@ -56,14 +56,23 @@ class LinkPlugin implements DatatypePluginInterface
             $context = $rendering_options['context'];
             $is_link = $rendering_options['is_link'];
 
-            // This render plugin isn't allowed to work outside of display mode
-            if ( $context !== 'display' )
+            // This plugin should only be executed when it's being used to render a linked datatype
+            if ( $is_link !== 1 )
                 return false;
 
-            // TODO - allow execution in Edit mode?
+            // This render plugin always works in Display mode...
+            if ( $context === 'display' )
+                return true;
 
-            // This plugin should only be executed when it's being used to render a linked datatype
-            if ( $is_link === 1 )
+            // ...but only works in Edit mode if the relevant option is set
+            $work_in_edit_mode = false;
+            if ( isset($render_plugin_instance['renderPluginOptionsMap']['work_in_edit_mode'])
+                && $render_plugin_instance['renderPluginOptionsMap']['work_in_edit_mode'] === 'yes'
+            ) {
+                $work_in_edit_mode = true;
+            }
+
+            if ( $context === 'edit' && $work_in_edit_mode )
                 return true;
         }
 

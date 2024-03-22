@@ -876,6 +876,19 @@ class Image
     }
 
     /**
+     * Get quality
+     *
+     * @return int
+     */
+    public function getQuality()
+    {
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getQuality();
+        else
+            return $this->getParent()->getImageMeta()->getQuality();
+    }
+
+    /**
      * Get external_id
      *
      * @return string

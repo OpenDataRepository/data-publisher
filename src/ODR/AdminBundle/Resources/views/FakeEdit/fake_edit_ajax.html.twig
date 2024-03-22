@@ -327,6 +327,7 @@ function SaveAsNew() {
     form_data.special_tokens = {};
 
     // For each datafield on the page...
+    var has_data = false;
     $(".ODRDataField").each(function(index, df) {
         var df_id_data = $(df).attr('id').split(/_/);
         var df_id = df_id_data[2];
@@ -346,6 +347,7 @@ function SaveAsNew() {
                     var ro_id = ro_id_data[3];
 
                     if ( ro_id !== '0') {
+                        has_data = true;
                         if (form_data.datafields[df_id] === undefined)
                             form_data.datafields[df_id] = {};
 
@@ -361,6 +363,7 @@ function SaveAsNew() {
                     var tag_id = tag_id_data[3];
 
                     if ( tag_id !== '0') {
+                        has_data = true;
                         if (form_data.datafields[df_id] === undefined)
                             form_data.datafields[df_id] = {};
 
@@ -377,6 +380,7 @@ function SaveAsNew() {
                     var ro_id = ro_id_data[1];
 
                     if ( ro_id !== '0' ) {
+                        has_data = true;
                         form_data.datafields[df_id] = {};
                         form_data.datafields[df_id][ro_id] = 1;
                         form_data.tokens[df_id] = token;
@@ -390,6 +394,7 @@ function SaveAsNew() {
 
                 var val = $(textarea).val().trim();
                 if (val !== '') {
+                    has_data = true;
                     form_data.datafields[df_id] = val;
                     form_data.tokens[df_id] = token;
                 }
@@ -401,6 +406,7 @@ function SaveAsNew() {
                 if ( $(input).is(":checkbox") ) {
                     // Boolean field
                     if ( $(input).is(":checked") ) {
+                        has_data = true;
                         form_data.datafields[df_id] = 1;
                         form_data.tokens[df_id] = token;
                     }
@@ -409,6 +415,7 @@ function SaveAsNew() {
                     // Text/number/datetime fields
                     var val = $(input).val().trim();
                     if (val !== '') {
+                        has_data = true;
                         form_data.datafields[df_id] = val;
                         form_data.tokens[df_id] = token;
                     }
@@ -425,8 +432,13 @@ function SaveAsNew() {
         var df_id = $(df).attr('rel');
         var token = $(df).val();
 
+        has_data = true;
         form_data.special_tokens[df_id] = token;
     });
+
+    // Allow the user to create a blank record if they wish
+    if ( !has_data && !confirm('No data has been entered...are you sure you want to create a blank record?') )
+        return;
 
     // Now that the form data has been built...
     // console.log(form_data);    return;

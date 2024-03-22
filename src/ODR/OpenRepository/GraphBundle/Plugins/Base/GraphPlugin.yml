@@ -91,6 +91,19 @@ odr_plugins.base.graph:
             description: Choose whether y-values of data are normalized or not.  Only works with line plots.
             display_order: 5
 
+# Plotly requires you to set the line width and color at the same time, for whatever reason
+#        line_stroke:
+#            name: Line Width
+#            type: integer
+#            default: 1
+#            choices: 1||2||3||4||5
+#            description: Set the width of the line or the pixel width of the markers.
+#        line_colors:
+#            name: Line Colors
+#            type: string
+#            default: black
+#            description: Enter a comma-separated list of colors in HEX or web color names that will be used to color the lines and makers.
+
         bar_type:
             name: Bar Type
             type: string
@@ -121,18 +134,166 @@ odr_plugins.base.graph:
             description: Grouped will appear next to each other for a given value.  Stacked will sum the data showing the sets as different colors.  Overlaid will plot the bars in front of each other with a transparency effect.
             display_order: 9
 
+
+        layout:
+            name: Layout
+            type: String
+            default: full_width
+            choices: full_width||Graphs and Fields are full width.,13_23||Data is 1/3. Graph is 2/3.,23_13||Data is 2/3. Graph is 1/3.,14_34||Data is 1/4. Graph is 3/4.,34_14||Data is 3/4. Graph is 1/4.
+            description: Choose the layout of the graph area.
+            display_order: 10
+
+        record_name_in_legend:
+            name: Record Name/ID in Legend
+            type: String
+            default: yes
+            choices: yes||no
+            description: Whether to include the datarecord name/id on the legend.
+            display_order: 11
+
+
+
+
+        x_axis_min:
+            name: X Axis Minimum
+            type: string
+            default: auto
+            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation.
+            display_order: 20
+        y_axis_min:
+            name: Y Axis Minimum
+            type: string
+            default: auto
+            description: Minimum Y Value.  Defaults to "auto" which results in automatic calculation.
+            display_order: 21
+        x_axis_max:
+            name: X Axis Maximum
+            type: string
+            default: auto
+            description: Maximum X Value.  Defaults to "auto" which results in automatic calculation.
+            display_order: 22
+        y_axis_max:
+            name: Y Axis Maximum
+            type: string
+            default: auto
+            description: Maximum Y Value.  Defaults to "auto" which results in automatic calculation.
+            display_order: 23
+
+        x_axis_dir:
+            name: X Axis Direction
+            type: string
+            default: asc
+            choices: asc||desc
+            description: Whether the X-axis values will be ascending or descending.
+            display_order: 24
+        y_axis_dir:
+            name: Y Axis Direction
+            type: string
+            default: asc
+            choices: asc||desc
+            description: Whether the Y-axis values will be ascending or descending.
+            display_order: 25
+        x_axis_labels:
+            name: X Axis Labels
+            type: string
+            default: yes
+            choices: yes||no
+            description: Display numeric labels on the X axis.
+            display_order: 26
+        y_axis_labels:
+            name: Y Axis Labels
+            type: string
+            default: yes
+            choices: yes||no
+            description: Display numeric labels on the Y axis.
+            display_order: 27
+
+        x_axis_tick_interval:
+            name: X Axis Tick Interval
+            type: string
+            default: auto
+            description: Numeric value for inteval bewtween tick markers.  Defaults to "auto" which results in automatic calculation.
+            display_order: 28
+        y_axis_tick_interval:
+            name: Y Axis Tick Interval
+            type: string
+            default: auto
+            description: Numeric value for tick placement.  Defaults to "auto" which results in automatic calculation.
+            display_order: 29
+        x_axis_tick_start:
+            name: X Axis Tick Start
+            type: string
+            default: auto
+            description: Numeric value for placement of first tick.  If tick interval is not "auto", this value must be set. Defaults to "auto" which results in automatic calculation.
+            display_order: 30
+        y_axis_tick_start:
+            name: Y Axis Tick Start
+            type: string
+            default: auto
+            description: Numeric value for placement of first tick.  If tick interval is not "auto", this value must be set. Defaults to "auto" which results in automatic calculation.
+            display_order: 31
+
+        x_axis_log:
+            name: X Axis Logarithmic
+            type: string
+            default: no
+            choices: yes||no
+            description: Choose to display on a logarithmic scale.
+            display_order: 32
+        y_axis_log:
+            name: Y Axis Logarithmic
+            type: string
+            default: no
+            choices: yes||no
+            description: Choose to display on a logarithmic scale.
+            display_order: 33
+
+        x_axis_caption:
+            name: X Axis Caption
+            type: string
+            default: null
+            description: Enter a caption to display on the X axis.
+            display_order: 34
+        y_axis_caption:
+            name: Y Axis Caption
+            type: string
+            default: null
+            description: Enter a caption to display on the Y axis.
+            display_order: 35
+
         x_values_column:
             name: Default X Values Column
             type: integer
             default: 1
             description: Which column of data from the file to use for the graph's X values, or the values for a histogram/pie chart.  The value should not be less than 1.
-            display_order: 10
+            display_order: 40
         y_values_column:
             name: Default Y Values Column
             type: integer
             default: 2
-            description: Which column of data from the file to use for the graph's Y values, or the labels for a pie chart.  Ignored for a histogram.
-            display_order: 11
+            description: Which column(s) of data from the file to use for the graph's Y values, or the labels for a pie chart.  Ignored for a histogram.  Can define multiple columns separated by commas (e.g. 2,3,5), or a range of columns with a colon (e.g. 2:5), or both.
+            display_order: 41
+
+        y_value_columns_start:
+            name: Y Value Columns Start
+            type: string
+            default:
+            description: Defines the name of the column to begin graphing columns from.  If both this start and the related end column have values, then they override any value in the "Default Y Values Column".
+            display_order: 42
+        y_value_columns_end:
+            name: Y Value Columns End
+            type: string
+            default:
+            description: Defines the name of the column to stop graphing columns with.  If both the related start and this end column have values, then they override any value in the "Default Y Values Column".
+            display_order: 43
+        y_value_columns_type:
+            name: Y Value Columns Type
+            type: string
+            default: inclusive
+            choices: inclusive||exclusive
+            description: If set to "inclusive", then the columns named by the "Y Value Columns Start/End" options are included in the graph.  If set to "exclusive", then they aren't included.  Ignored when the Start/End columns aren't being used.
+            display_order: 44
+
 #        error_bar_plus_type:
 #            name: Error Bars (+)
 #            type: string
@@ -159,135 +320,3 @@ odr_plugins.base.graph:
 #            default: 0
 #            description: If the previous option is set to "Constant Value", then this value determines the length of each error bar...you can also set a percentage value like "10%", or use "sqrt".  If it's set to "Data from File", then this value determines which column of data from the graph file to use.
 #            display_order: 15
-
-        x_axis_min:
-            name: X Axis Minimum
-            type: string
-            default: auto
-            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation.
-            display_order: 16
-        x_axis_max:
-            name: X Axis Maximum
-            type: string
-            default: auto
-            description: Maximum X Value.  Defaults to "auto" which results in automatic calculation.
-            display_order: 17
-        x_axis_dir:
-            name: X Axis Direction
-            type: string
-            default: asc
-            choices: asc||desc
-            description: X-axis values will be ascending or descending.
-            display_order: 18
-        x_axis_labels:
-            name: X Axis Labels
-            type: string
-            default: yes
-            choices: yes||no
-            description: Display numeric labels on the X axis.
-            display_order: 19
-        x_axis_tick_interval:
-            name: X Axis Tick Interval
-            type: string
-            default: auto
-            description: Numeric value for inteval bewtween tick markers.  Defaults to "auto" which results in automatic calculation.
-            display_order: 20
-        x_axis_tick_start:
-            name: X Axis Tick Start
-            type: string
-            default: auto
-            description: Numeric value for placement of first tick.  If tick interval is not "auto", this value must be set. Defaults to "auto" which results in automatic calculation.
-            display_order: 21
-        x_axis_caption:
-            name: X Axis Caption
-            type: string
-            default: null
-            description: Enter a caption to display on the X axis.
-            display_order: 22
-        x_axis_log:
-            name: X Axis Logarithmic
-            type: string
-            default: no
-            choices: yes||no
-            description: Choose to display on a logarithmic scale.
-            display_order: 23
-
-        y_axis_min:
-            name: Y Axis Minimum
-            type: string
-            default: auto
-            description: Minimum Y Value.  Defaults to "auto" which results in automatic calculation.
-            display_order: 24
-        y_axis_max:
-            name: Y Axis Maximum
-            type: string
-            default: auto
-            description: Maximum Y Value.  Defaults to "auto" which results in automatic calculation.
-            display_order: 25
-        y_axis_dir:
-            name: Y Axis Direction
-            type: string
-            default: asc
-            choices: asc||desc
-            description: Y-axis values will be ascending or descending.
-            display_order: 26
-        y_axis_tick_interval:
-            name: Y Axis Tick Interval
-            type: string
-            default: auto
-            description: Numeric value for tick placement.  Defaults to "auto" which results in automatic calculation.
-            display_order: 27
-        y_axis_tick_start:
-            name: Y Axis Tick Start
-            type: string
-            default: auto
-            description: Numeric value for placement of first tick.  If tick interval is not "auto", this value must be set. Defaults to "auto" which results in automatic calculation.
-            display_order: 28
-        y_axis_labels:
-            name: Y Axis Labels
-            type: string
-            default: yes
-            choices: yes||no
-            description: Display numeric labels on the Y axis.
-            display_order: 29
-        y_axis_caption:
-            name: Y Axis Caption
-            type: string
-            default: null
-            description: Enter a caption to display on the Y axis.
-            display_order: 30
-        y_axis_log:
-            name: Y Axis Logarithmic
-            type: string
-            default: no
-            choices: yes||no
-            description: Choose to display on a logarithmic scale.
-            display_order: 31
-
-        layout:
-            name: Layout
-            type: String
-            default: full_width
-            choices: full_width||Graphs and Fields are full width.,13_23||Data is 1/3. Graph is 2/3.,23_13||Data is 2/3. Graph is 1/3.,14_34||Data is 1/4. Graph is 3/4.,34_14||Data is 3/4. Graph is 1/4.
-            description: Choose the layout of the graph area.
-            display_order: 32
-
-        # Plotly requires you to set the line width and color at the same time, for whatever reason
-#        line_stroke:
-#            name: Line Width
-#            type: integer
-#            default: 1
-#            choices: 1||2||3||4||5
-#            description: Set the width of the line or the pixel width of the markers.
-#        line_colors:
-#            name: Line Colors
-#            type: string
-#            default: black
-#            description: Enter a comma-separated list of colors in HEX or web color names that will be used to color the lines and makers.
-
-#        header:
-#            name: Header Type
-#            type: String
-#            default: selector 
-#            choices: selector||Use dropdown selector on pivot field.,tabs||Tabs will display different graph children.,accordion||Different data sets will unfold like an accordion.
-#            description: Choose how multiple data sets will display.

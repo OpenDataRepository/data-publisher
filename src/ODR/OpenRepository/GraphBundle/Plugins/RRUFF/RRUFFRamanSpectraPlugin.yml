@@ -21,7 +21,7 @@ odr_plugins.rruff.raman_spectra:
 #        child_rruff_id:
 #            name: Child RRUFF ID
 #            description:
-#            type: ShortVarchar
+#            type: MediumVarchar
 
         description:
             name: Description
@@ -63,19 +63,19 @@ odr_plugins.rruff.raman_spectra:
             description:
             type: Boolean
 
-#        raman_angle:
-#            name: Raman Angle
-#            description:
-#            type: ShortVarchar
-#        raman_angle_direction:
-#            name: Raman Angle Direction
-#            description:
-#            type: ShortVarchar
-
-        instrument:
-            name: Instrument
+        raman_angle:    # This is supposed to run with both unoriented and oriented raman spectra now
+            name: Raman Angle
             description:
-            type: LongVarchar
+            type: ShortVarchar
+        raman_angle_direction:
+            name: Raman Angle Direction
+            description:
+            type: Single Select
+
+#        instrument:    # supposed to be a linked datatype now
+#            name: Instrument
+#            description:
+#            type: LongVarchar
         operator:
             name: Operator
             description:
@@ -87,10 +87,10 @@ odr_plugins.rruff.raman_spectra:
             type: File
             properties:
                 - single_uploads_only
-        raw_file_quality:
-            name: Spectrum Quality (RAW)
-            description:
-            type: Single Select
+#        raw_file_quality:    # the qualities are going to be handled in ODR's file entity itself
+#            name: Spectrum Quality (RAW)
+#            description:
+#            type: Single Select
 
         processed_file:
             name: Raman Data (Processed)
@@ -98,9 +98,9 @@ odr_plugins.rruff.raman_spectra:
             type: File
             properties:
                 - single_uploads_only
-        processed_file_quality:
-            name: Spectrum Quality (Processed)
-            description:
-            type: Single Select
+#        processed_file_quality:
+#            name: Spectrum Quality (Processed)
+#            description:
+#            type: Single Select
 
     config_options:

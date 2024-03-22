@@ -29,52 +29,56 @@
 <div class="pure-u-1 clearfix" id="ODRSearchHeaderWrapper">
 
     {% if search_key != '' %}
-        <div class="pure-u-2-3" id="ODRPublicExportButtons">
+    <div class="pure-u-1-2" id="ODRPublicExportButtons">
     {% else %}
-        <div class="pure-u-1" id="ODRPublicExportButtons">
+    <div class="pure-u-1" id="ODRPublicExportButtons">
     {% endif %}
         <button id="ODRViewRecord" type="button" class="pure-button pure-button-primary">View</button>
-{#        <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord()">Export Record</button>#}
+
+        <button id="ChooseView" class="pure-button pure-button-primary" data-step="3"
+                data-intro="Clicking this brings up a dialog of options for selecting from alternate layouts, or for creating one of your own."
+        >
+            Choose View
+        </button>
+
+        <button id="ODRTracking" type="button" class="pure-button pure-button-primary">History</button>
+
+        <i id="ODRDownloadAllFilesIcon" class="fa fa-file-archive-o Pointer" title="Download files"></i>
 
     {% if can_change_public_status %}
-        <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary">Make {% if datarecord.ispublic %}Non-{% endif %}Public</button>
+        <i class="ODRPublic ODRPublicRecord tooltip fa fa-globe ODRActiveIcon Pointer {% if not datarecord.ispublic %}hidden{% endif %}" title="This record is public"></i>
+        <i class="ODRPublic ODRNotPublicRecord tooltip fa fa-globe Pointer {% if datarecord.ispublic %}hidden{% endif %}" title="This record is not public"></i>
     {% endif %}
 
     {% if can_delete_record %}
-        <button id="ODRDeleteRecord" type="button" class="pure-button pure-button-primary">Delete</button>
+        <i id="ODRDeleteRecord" class="Pointer tooltip fa fa-times ODRDeleteRecord" title="Click to delete record"></i>
     {% endif %}
 
     {% if can_add_record and is_top_level and datatype.isMasterType == 0 %}
-        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">New</button>
+        <i id="ODRAddRecord" class="fa fa-plus Pointer tooltip ODRAddRecord" title="Click to add a record"></i>
     {% endif %}
-
-        <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary">Download Files...</button>
-
-        <button id="ODRTracking" type="button" class="pure-button pure-button-primary">View History</button>
     </div>
+
     {% if search_key != '' %}
-        <div class="pure-u-1-3" style="text-align: right">
-            {% include 'ODRAdminBundle:Default:search_header.html.twig' with {
-                'search_key': search_key,
-                'page_length': page_length,
-                'offset': offset,
-                'prev_datarecord': prev_datarecord,
-                'next_datarecord': next_datarecord,
-                'redirect_path': redirect_path,
-                'search_result_current': search_result_current,
-                'search_result_count': search_result_count,
+    <div class="pure-u-1-2" style="text-align: right">
+        {% include 'ODRAdminBundle:Default:search_header.html.twig' with {
+            'search_key': search_key,
+            'page_length': page_length,
+            'offset': offset,
+            'prev_datarecord': prev_datarecord,
+            'next_datarecord': next_datarecord,
+            'redirect_path': redirect_path,
+            'search_result_current': search_result_current,
+            'search_result_count': search_result_count,
 
-                'page_type': 'edit'
-            } %}
-        </div>
+            'page_type': 'edit'
+        } %}
+    </div>
     {% endif %}
-
 </div>
 
 <script>
     $(function() {
-        $(".MenuDesignArea").remove();
-
         // Need a tab id in html5 sessionStorage if one doesn't exist
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
@@ -83,11 +87,24 @@
             loadDataRecord({{ datarecord.id }}, 'view', '{{ offset }}');
         });
 
+        $("#ChooseView").unbind('click').click(function(event) {
+            openChooseViewRemodal({{ datatype.id }}, 'edit', '{{ search_key }}');
+        });
+
+        $("#ODRDownloadAllFilesIcon").unbind('click').click(function() {
+            {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
+            openMassDownloadDialog("{{ search_key }}");
+        });
+
+        $(".MenuDesignArea").remove();
+
 {% if can_change_public_status %}
-        $("#ODRPublicRecord").unbind('click').click(function() {
+        $(".ODRPublic").unbind('click').click(function() {
             var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
             url = url.substring(0, (url.length - 1));
             url += '{{ datarecord.id }}';
+
+            var isPublic = !$(this).hasClass('ODRNotPublicRecord');
 
             $.ajax({
                 cache: false,
@@ -95,12 +112,15 @@
                 url: url,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    var html = $("#ODRPublicRecord").html();
-                    if ( html.indexOf('Non') !== -1 )
-                        $("#ODRPublicRecord").html('Make Public');
-                    else
-                        $("#ODRPublicRecord").html('Make Non-Public');
-
+                    if(isPublic) {
+                        // Was Public
+                        $(".ODRNotPublicRecord").removeClass('hidden')
+                        $(".ODRPublicRecord").addClass('hidden');
+                    }
+                    else {
+                        $(".ODRPublicRecord").removeClass('hidden');
+                        $(".ODRNotPublicRecord").addClass('hidden');
+                    }
                     $.jGrowl('SAVED');
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -130,7 +150,10 @@
                 //  is_link technically doesn't matter
                 var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'is_link': 0, 'search_key': '' }) }}';
                 url = url.substring(0, (url.length - 3));
-                url += '{{ datarecord.id }}' + '/0'{% if search_key == '' %} + '/{{ search_key }}'{% endif %};
+                url += '{{ datarecord.id }}' + '/0';
+{% if search_key != '' %}
+                url += '/{{ search_key }}';
+{% endif %}
 
                 $.ajax({
                     type: 'GET',
@@ -172,7 +195,7 @@
         });
 {% endif %}
 
-        $("#ODRDownloadAllFilesButton").unbind('click').click(function() {
+        $("#ODRDownloadAllFilesIcon").unbind('click').click(function() {
             openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );
         });
 

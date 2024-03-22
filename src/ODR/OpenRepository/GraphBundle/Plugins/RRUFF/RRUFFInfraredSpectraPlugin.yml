@@ -21,7 +21,7 @@ odr_plugins.rruff.infrared_spectra:
 #        child_rruff_id:
 #            name: Child RRUFF ID
 #            description:
-#            type: ShortVarchar
+#            type: MediumVarchar
 
         description:
             name: Description
@@ -35,10 +35,10 @@ odr_plugins.rruff.infrared_spectra:
             name: Accumulations
             description:
             type: IntegerValue
-        instrument:
-            name: Instrument
-            description:
-            type: LongVarchar
+#        instrument:    # supposed to be a linked datatype now
+#            name: Instrument
+#            description:
+#            type: LongVarchar
         operator:
             name: Operator
             description:
@@ -50,11 +50,11 @@ odr_plugins.rruff.infrared_spectra:
             type: File
             properties:
                 - single_uploads_only
-        processed_file:
-            name: Infrared Data (Processed)
-            description:
-            type: File
-            properties:
-                - single_uploads_only
+#        processed_file:    # there are no processed files for infrared
+#            name: Infrared Data (Processed)
+#            description:
+#            type: File
+#            properties:
+#                - single_uploads_only
 
     config_options:

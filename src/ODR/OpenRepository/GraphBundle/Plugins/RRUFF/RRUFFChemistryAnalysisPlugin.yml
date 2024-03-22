@@ -21,7 +21,7 @@ odr_plugins.rruff.chemistry_analysis:
         child_rruff_id:        # belongs to tbl_sample_child
             name: Child RRUFF ID
             description:
-            type: ShortVarchar
+            type: MediumVarchar
 #            properties:
 #                - must_be_unique    # Intentionally not enforcing uniqueness on this
         sample_description:    # belongs to tbl_sample_child...the description field from tbl_sample_child_record_chemistry is not being imported
@@ -57,10 +57,10 @@ odr_plugins.rruff.chemistry_analysis:
             name: Probe Status
             description:
             type: Single Radio
-        instrument:
-            name: Instrument
-            description:
-            type: LongVarchar
+#        instrument:    # supposed to be a linked datatype now
+#            name: Instrument
+#            description:
+#            type: LongVarchar
         operator:
             name: Operator
             description:
@@ -81,9 +81,9 @@ odr_plugins.rruff.chemistry_analysis:
             name: Microprobe Data
             description:
             type: File
-        reference_file:
-            name: Reference PDF
-            description:
-            type: File
+#        reference_file:    # moved into microprobe files
+#            name: Reference PDF
+#            description:
+#            type: File
 
     config_options:

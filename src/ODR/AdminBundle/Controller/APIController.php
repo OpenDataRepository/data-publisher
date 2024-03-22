@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
@@ -1714,22 +1715,19 @@ class APIController extends ODRCustomController
                         );
                     }
 
+                    $typename = $data_field->getFieldType()->getTypeName();
+
                     // Deal with files and images here
-                    if(
-                        $data_field->getFieldType()->getId() == 2
-                        || $data_field->getFieldType()->getId() == 3
-                    ) {
+                    if ( $typename === 'File' || $typename === 'Image' ) {
                         if(isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
                             foreach ($field['files'] as $file) {
-                                if (isset($file['public_date'])) {
+                                if ( isset($file['public_date']) || isset($file['quality']) ) {
                                     $fields_updated = true;
                                 }
                             }
                         }
                     }
-                    else if(
-                        $data_field->getFieldType()->getId() == 1
-                    ) {
+                    else if ( $typename === 'Boolean' ) {
                         /** @var DataRecordFields $drf */
                         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                             array(
@@ -1766,10 +1764,10 @@ class APIController extends ODRCustomController
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
-                        switch ($data_field->getFieldType()->getId()) {
+                        switch ($typename) {
 
                             // Tag field - need to difference hierarchy
-                            case '18':
+                            case 'Tags':
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 // print $field['template_field_uuid']."\n";
@@ -1883,7 +1881,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Single Radio
-                            case '8':
+                            case 'Single Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1995,7 +1993,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Multiple Radio
-                            case '13':
+                            case 'Multiple Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2109,7 +2107,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Single Select
-                            case '14':
+                            case 'Single Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2222,7 +2220,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Multiple Select
-                            case '15':
+                            case 'Multiple Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2731,45 +2729,53 @@ class APIController extends ODRCustomController
                         );
                     }
 
+                    $typename = $data_field->getFieldType()->getTypeName();
+
                     // Deal with files and images here
-                    if(
-                        $data_field->getFieldType()->getId() == 2
-                        || $data_field->getFieldType()->getId() == 3
-                    ) {
+                    if ( $typename === 'File' || $typename === 'Image' ) {
                         if(isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
                             for($j = 0; $j < count($field['files']); $j++) {
                                 $file = $field['files'][$j];
-                                if(isset($file['public_date'])) {
-                                    // Calculate the Public Date
-                                    $public_date = new \DateTime('2200-01-01T00:00:00.0Z');
-                                    if(isset($file['public_date'])) {
-                                        $public_date = new \DateTime($file['public_date']);
-                                    }
 
-                                    switch($data_field->getFieldType()->getId()) {
-                                        case 2: // File
-                                           /** @var File $file_obj */
-                                           $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
-                                               array(
-                                                   'unique_id' => $file['file_uuid']
-                                               )
-                                           );
+                                $new_public_date = null;
+                                $new_quality = null;
+
+                                if ( isset($file['public_date']) )
+                                    $new_public_date = new \DateTime($file['public_date']);
+                                if ( isset($file['quality']) )
+                                    $new_quality = intval($file['quality']);
+
+                                if ( !is_null($new_public_date) || !is_null($new_quality) ) {
+                                    switch ($typename) {
+                                        case 'File':
+                                            /** @var File $file_obj */
+                                            $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+                                                array(
+                                                    'unique_id' => $file['file_uuid']
+                                                )
+                                            );
                                             if ($file_obj == null)
                                                 throw new ODRNotFoundException('File');
 
-                                            $file_meta = clone $file_obj->getFileMeta();
-                                            $file_meta->setPublicDate($public_date);
+                                            $new_file_meta = clone $file_obj->getFileMeta();
+                                            if ( !is_null($new_public_date) )
+                                                $new_file_meta->setPublicDate($new_public_date);
+                                            if ( !is_null($new_quality) )
+                                                $new_file_meta->setQuality($new_quality);
 
                                             $em->remove($file_obj->getFileMeta());
-                                            $em->persist($file_meta);
+                                            $em->persist($new_file_meta);
                                             $fields_updated = true;
 
-                                            unset($file['public_date']);
+                                            unset( $file['public_date'] );
+                                            unset( $file['quality'] );
+
                                             $field['files'][$j] = $file;
                                             $dataset['fields'][$i] = $field;
 
                                             break;
-                                        case 3: // Image
+
+                                        case 'Image':
                                             /** @var Image $image_obj */
                                             $image_obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
                                                 array(
@@ -2777,13 +2783,16 @@ class APIController extends ODRCustomController
                                                 )
                                             );
                                             if ($image_obj == null)
-                                                throw new ODRNotFoundException('File');
+                                                throw new ODRNotFoundException('Image');
 
                                             // Only act on items with image meta
-                                            if($image_meta = $image_obj->getImageMeta()) {
+                                            if ($image_meta = $image_obj->getImageMeta()) {
                                                 $new_image_meta = clone $image_meta;
-                                                $new_image_meta->setPublicDate($public_date);
 
+                                                if ( !is_null($new_public_date) )
+                                                    $new_image_meta->setPublicDate($new_public_date);
+                                                if ( !is_null($new_quality) )
+                                                    $new_image_meta->setQuality($new_quality);
 
                                                 $em->remove($image_meta);
                                                 $em->persist($new_image_meta);
@@ -2791,8 +2800,10 @@ class APIController extends ODRCustomController
                                             }
 
                                             // Set this for all?  How do we know if it updated the parent
-                                            $file['_file_metadata']['_public_date'] = date_format($public_date,"Y-m-d H:i:s");
-                                            unset($file['public_date']);
+                                            $file['_file_metadata']['_public_date'] = date_format($new_public_date,"Y-m-d H:i:s");
+                                            unset( $file['public_date'] );
+                                            unset( $file['quality'] );
+
                                             $field['files'][$j] = $file;
                                             $dataset['fields'][$i] = $field;
 
@@ -2802,9 +2813,7 @@ class APIController extends ODRCustomController
                             }
                         }
                     }
-                    else if(
-                        $data_field->getFieldType()->getId() == 1
-                    ) {
+                    else if ( $typename === 'Boolean' ) {
                         /** @var DataRecordFields $drf */
                         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                             array(
@@ -2838,7 +2847,10 @@ class APIController extends ODRCustomController
                                 $em->remove($bool);
                                 /** @var Boolean $new_field */
                                 $new_field = new Boolean();
+                                $new_field->setDataField($data_field);
+                                $new_field->setDataRecord($data_record);
                                 $new_field->setDataRecordFields($drf);
+                                $new_field->setFieldType($data_field->getFieldType());
                                 $new_field->setCreatedBy($user);
                                 $new_field->setUpdatedBy($user);
                                 self::setDates($new_field, $field['created']);
@@ -2850,7 +2862,10 @@ class APIController extends ODRCustomController
                         else {
                             /** @var Boolean $new_field */
                             $new_field = new Boolean();
+                            $new_field->setDataField($data_field);
+                            $new_field->setDataRecord($data_record);
                             $new_field->setDataRecordFields($drf);
+                            $new_field->setFieldType($data_field->getFieldType());
                             $new_field->setCreatedBy($user);
                             $new_field->setUpdatedBy($user);
                             self::setDates($new_field, $field['created']);
@@ -2863,10 +2878,10 @@ class APIController extends ODRCustomController
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
-                        switch ($data_field->getFieldType()->getId()) {
+                        switch ( $typename ) {
 
                             // Tag field - need to difference hierarchy
-                            case '18':
+                            case 'Tags':
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 // print $field['template_field_uuid']."\n";
@@ -3109,7 +3124,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Single Radio
-                            case '8':
+                            case 'Single Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3305,7 +3320,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Multiple Radio
-                            case '13':
+                            case 'Multiple Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3500,7 +3515,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Single Select
-                            case '14':
+                            case 'Single Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3695,7 +3710,7 @@ class APIController extends ODRCustomController
                                 break;
 
                             // Multiple Select
-                            case '15':
+                            case 'Multiple Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3952,38 +3967,42 @@ class APIController extends ODRCustomController
                                 $drf->setDataRecord($data_record);
                                 $em->persist($drf);
                             } else {
-                                switch ($data_field->getFieldType()->getId()) {
-                                    case '4':
+                                switch ($typename) {
+                                    case 'Integer':
                                         $existing_field = $em->getRepository('ODRAdminBundle:IntegerValue')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '5':
+                                    case 'Paragraph Text':
                                         $existing_field = $em->getRepository('ODRAdminBundle:LongText')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '6':
+                                    case 'Long Text':
                                         $existing_field = $em->getRepository('ODRAdminBundle:LongVarchar')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '7':
+                                    case 'Medium Text':
                                         $existing_field = $em->getRepository('ODRAdminBundle:MediumVarchar')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '9':
+                                    case 'Short Text':
                                         $existing_field = $em->getRepository('ODRAdminBundle:ShortVarchar')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '16':
+                                    case 'Decimal':
                                         $existing_field = $em->getRepository('ODRAdminBundle:DecimalValue')
+                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                        break;
+                                    case 'DateTime':
+                                        $existing_field = $em->getRepository('ODRAdminBundle:DatetimeValue')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
                                 }
 
                             }
 
-                            switch ($data_field->getFieldType()->getId()) {
+                            switch ($typename) {
                                 // IntegerValue
-                                case '4':
+                                case 'Integer':
                                     /** @var IntegerValue $new_field */
                                     $new_field = new IntegerValue();
                                     if ($existing_field) {
@@ -4020,7 +4039,7 @@ class APIController extends ODRCustomController
                                     break;
 
                                 // Paragraph Text
-                                case '5':
+                                case 'Paragraph Text':
                                     /** @var LongText $new_field */
                                     $new_field = new LongText();
                                     if ($existing_field) {
@@ -4057,7 +4076,7 @@ class APIController extends ODRCustomController
                                     break;
 
                                 // LongVarchar
-                                case '6':
+                                case 'Long Text':
                                     /** @var LongVarchar $new_field */
                                     $new_field = new LongVarchar();
                                     if ($existing_field) {
@@ -4094,7 +4113,7 @@ class APIController extends ODRCustomController
                                     break;
 
                                 // MediumVarchar
-                                case '7':
+                                case 'Medium Text':
                                     /** @var MediumVarchar $new_field */
                                     $new_field = new MediumVarchar();
                                     if ($existing_field) {
@@ -4131,7 +4150,7 @@ class APIController extends ODRCustomController
                                     break;
 
                                 // ShortVarchar
-                                case '9':
+                                case 'Short Text':
                                     /** @var ShortVarchar $new_field */
                                     $new_field = new ShortVarchar();
                                     if ($existing_field) {
@@ -4168,7 +4187,7 @@ class APIController extends ODRCustomController
                                     break;
 
                                 // DecimalValue
-                                case '16':
+                                case 'Decimal':
                                     /** @var DecimalValue $new_field */
                                     $new_field = new DecimalValue();
                                     if ($existing_field) {
@@ -4184,6 +4203,54 @@ class APIController extends ODRCustomController
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
                                     self::setDates($new_field, $field['created']);
+                                    $new_field->setValue($field['value']);
+
+                                    $em->persist($new_field);
+                                    if ($existing_field) {
+                                        $em->remove($existing_field);
+                                    }
+                                    $fields_updated = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Assign the updated field back to the dataset.
+                                    $field['value'] = $new_field->getValue();
+                                    $field['id'] = $new_field->getId();
+                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                    self::fieldMeta($field, $data_field, $new_field);
+                                    $dataset['fields'][$i] = $field;
+                                    break;
+
+                                // DatetimeValue
+                                case 'DateTime':
+                                    /** @var DatetimeValue $new_field */
+                                    $new_field = new DatetimeValue();
+                                    if ($existing_field) {
+                                        // clone and update?
+                                        $new_field = clone $existing_field;
+                                    } else {
+                                        $new_field->setDataField($data_field);
+                                        $new_field->setDataRecord($data_record);
+                                        $new_field->setDataRecordFields($drf);
+                                        $new_field->setFieldType($data_field->getFieldType());
+                                    }
+
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    self::setDates($new_field, $field['created']);
+
+                                    if ( is_null($field['value'])
+                                        || $field['value'] === '0000-00-00'
+                                        || $field['value'] === '0000-00-00 00:00:00'
+                                    ) {
+                                        $field['value'] = new \DateTime('9999-12-31 00:00:00');    // matches EditController::updateAction()
+                                    }
+                                    else {
+                                        $field['value'] = new \DateTime( $field['value'] );
+                                    }
+
                                     $new_field->setValue($field['value']);
 
                                     $em->persist($new_field);
@@ -5159,6 +5226,12 @@ class APIController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->findOneBy(
                 array(
@@ -5198,15 +5271,15 @@ class APIController extends ODRCustomController
 
             // Determine if file or image
             $deleting_file = false;
-            switch($file->getFieldType()->getId()) {
+            switch($file->getFieldType()->getTypeName()) {
                 // File
-                case 2:
+                case 'File':
                     $deleting_file = true;
                     $em->remove($file);
                     break;
 
                 // Image
-                case 3:
+                case 'Image':
                     /** @var Image $image */
                     $image = $file;
                     if(method_exists($image, 'getParent')) {
@@ -5236,10 +5309,6 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Need to fire off a DatarecordModified event because a file got deleted
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($data_record, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -5253,10 +5322,6 @@ class APIController extends ODRCustomController
             // Only need to fire off a FileDeleted event if a file got deleted...images don't matter
             if ( $deleting_file ) {
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new FileDeletedEvent($file->getId(), $datafield, $data_record, $user);
                     $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
                 }
@@ -5790,8 +5855,13 @@ class APIController extends ODRCustomController
 
             // display order for new images is also optional
             $display_order = null;
-            if ( isset($data['display_order']) && is_integer($data['display_order']) )
+            if ( isset($data['display_order']) && is_numeric($data['display_order']) )
                 $display_order = intval($data['display_order']);
+
+            // quality is optional
+            $quality = null;
+            if ( isset($data['quality']) && is_numeric($data['quality']) )
+                $quality = intval($data['quality']);
 
 
             /** @var EntityManager $em */
@@ -5908,9 +5978,9 @@ class APIController extends ODRCustomController
             )->setParameters( array('datatype_id' => $datatype->getId()) );
             $total = $query->getScalarResult();
 
-            if ($total[0][1] > 20000000000) {
-                // 20 GB temporary limit
-                throw new ODRForbiddenException("Quota Exceeded (20GB)");
+            if ($total[0][1] > 25000000000) {
+                // 25 GB temporary limit
+                throw new ODRForbiddenException("Quota Exceeded (25GB)");
             }
 
             // Check for local file on server (with name & path from data
@@ -6013,7 +6083,8 @@ class APIController extends ODRCustomController
                             $user,
                             $drf,
                             $created,
-                            $public_date
+                            $public_date,
+                            $quality
                         );
 
                         break;
@@ -6040,7 +6111,8 @@ class APIController extends ODRCustomController
                             $drf,
                             $created,
                             $public_date,
-                            $display_order
+                            $display_order,
+                            $quality
                         );
                         break;
                 }

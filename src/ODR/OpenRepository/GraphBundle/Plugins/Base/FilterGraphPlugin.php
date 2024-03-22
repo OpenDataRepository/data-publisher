@@ -31,6 +31,7 @@ use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
@@ -660,10 +661,20 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             $dr_lookup = array();
             $available_filter_values = self::getAvailableFilterValues($filter_info, $datarecords, $current_plugin_config['prefix'], $dr_lookup);
 
+            // $dr_lookup needs another pass before it's useful...
+            self::combineDatarecordLookup($dr_lookup);
+
+
+            // If there's only one file, then the following step needs to include "all" the filter
+            //  values and not "just the values that change"...
+            $only_one_file = false;
+            if ( count($odr_chart_file_ids) === 1 )
+                $only_one_file = true;
+
             // The pile of datafield_ids/values/datarecord_ids that get returned need to be reduced
             //  to only contain the values that change, and simultaneously tweak which values refer
             //  to which records to make the graph plugin javascript's life easier
-            $reduced_filter_values = self::reduceFilterValues($available_filter_values, $dr_lookup);
+            $reduced_filter_values = self::reduceFilterValues($available_filter_values, $dr_lookup, $only_one_file);
 
             // It's a bit easier to find the desired value if they're sorted...
             foreach ($reduced_filter_values['values'] as $df_id => $values) {
@@ -854,60 +865,69 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             'descendants' => array(),
         );
 
-        foreach ($dt['dataFields'] as $df_id => $df) {
-            $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-            switch ($typeclass) {
-                case 'File':
-                case 'Image':
-                case 'Markdown':
-                case 'Tag':    // TODO - implement this
-                    // These can't be filtered on, skip to the next datafield
-                    continue 2;
+        if ( isset($dt['dataFields']) ) {
+            foreach ($dt['dataFields'] as $df_id => $df) {
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                $quality_str = $df['dataFieldMeta']['quality_str'];
 
-                case 'Boolean':
-                case 'IntegerValue':
-                case 'DecimalValue':
-                case 'ShortVarchar':
-                case 'MediumVarchar':
-                case 'LongVarchar':
-                case 'LongText':
-                case 'DatetimeValue':
-                case 'Radio':
-                    // Each of these can be filtered on
+                switch ($typeclass) {
+                    case 'Image':
+                    case 'Markdown':
+                    case 'Tag':    // TODO - implement this
+                        // These can't be filtered on, skip to the next datafield
+                        continue 2;
+
+                    case 'File':
+                        if ( $quality_str === '' ) {
+                            // Can't filter on files when the field isn't using quality
+                            continue 2;
+                        }
+
+                    case 'Boolean':
+                    case 'IntegerValue':
+                    case 'DecimalValue':
+                    case 'ShortVarchar':
+                    case 'MediumVarchar':
+                    case 'LongVarchar':
+                    case 'LongText':
+                    case 'DatetimeValue':
+                    case 'Radio':
+                        // Each of these can be filtered on
+                }
+
+                // Uncapitalize the first letter of the typeclass so it can be used as an array key
+                $filter_info['datafields'][$df_id] = lcfirst($typeclass);
             }
+        }
 
-            // Uncapitalize the first letter of the typeclass so it can be used as an array key
-            $filter_info['datafields'][$df_id] = lcfirst($typeclass);
+        // Need to also save which child/linked descendants could be filtered on
+        if ( isset($dt['descendants']) ) {
+            foreach ($dt['descendants'] as $child_dt_id => $child_dt_info) {
+                // There's a child/linked descendant datatype here, and it should be checked for
+                //  unique values...but only if it's either:
+                //  1) part of the prefix, or
+                //  2) only allows a single descendant record
+                // By following those two rules, it's guaranteed that we can always state that
+                //  a file matches a value (or the absence of a value)
+                $allowed_descendant = false;
+                if ( $child_dt_info['multiple_allowed'] === 0 || ( isset($prefix_values[1]) && $prefix_values[1] === $child_dt_id ) )
+                    $allowed_descendant = true;
 
-            // Need to also save which child/linked descendants could be filtered on
-            if ( isset($dt['descendants']) ) {
-                foreach ($dt['descendants'] as $child_dt_id => $child_dt_info) {
-                    // There's a child/linked descendant datatype here, and it should be checked for
-                    //  unique values...but only if it's either:
-                    //  1) part of the prefix, or
-                    //  2) only allows a single descendant record
-                    // By following those two rules, it's guaranteed that we can always state that
-                    //  a file matches a value (or the absence of a value)
-                    $allowed_descendant = false;
-                    if ( $child_dt_info['multiple_allowed'] === 0 || ( isset($prefix_values[1]) && $prefix_values[1] === $child_dt_id ) )
-                        $allowed_descendant = true;
+                if ( $allowed_descendant ) {
+                    // ...since it passes the conditions, set up for the next level of recursion
+                    $child_dt = $child_dt_info['datatype'][$child_dt_id];
 
-                    if ( $allowed_descendant ) {
-                        // ...since it passes the conditions, set up for the next level of recursion
-                        $child_dt = $child_dt_info['datatype'][$child_dt_id];
+                    // Need to inform the next level of recursion of the prefix state, if
+                    //  it exists
+                    $new_prefix_values = null;
+                    if ( !is_null($prefix_values) && isset($prefix_values[1]) && $prefix_values[1] === $child_dt_id )
+                        $new_prefix_values = array_slice($prefix_values, 1);
 
-                        // Need to inform the next level of recursion of the prefix state, if
-                        //  it exists
-                        $new_prefix_values = null;
-                        if ( !is_null($prefix_values) && $prefix_values[1] === $child_dt_id )
-                            $new_prefix_values = array_slice($prefix_values, 1);
+                    // Repeat the process for each of this datatype's descendants
+                    $tmp = self::getFilterDatafields($child_dt, $new_prefix_values);
 
-                        // Repeat the process for each of this datatype's descendants
-                        $tmp = self::getFilterDatafields($child_dt, $new_prefix_values);
-
-                        // Copy the descendant datatype's info into the current array
-                        $filter_info['descendants'][$child_dt_id] = $tmp;
-                    }
+                    // Copy the descendant datatype's info into the current array
+                    $filter_info['descendants'][$child_dt_id] = $tmp;
                 }
             }
         }
@@ -979,6 +999,27 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 else if ( $typeclass === 'tag' ) {
                     throw new \Exception('not implemented');
                 }
+                else if ( $typeclass === 'file' ) {
+                    // If a file datafield is in here, then it's using the quality stuff...
+                    if ( isset($drf['dataField']) && isset($drf['file']) ) {
+                        $quality_str = $drf['dataField']['dataFieldMeta']['quality_str'];
+                        if ( $quality_str === 'toggle' || $quality_str === 'stars5' ) {
+                            $quality_val = $drf['file']['fileMeta']['quality'];
+                            $values[$df_id][$quality_val][] = $dr_id;
+                        }
+                        else {
+                            $ret = ValidUtility::isValidQualityJSON($quality_str);
+                            if ( is_array($ret) ) {
+                                $quality_val = $drf['file'][0]['fileMeta']['quality'];    // should only have one file...
+                                $quality_label = $ret[$quality_val];
+                                $values[$df_id][$quality_label][] = $dr_id;
+                            }
+                            else {
+                                // Ignore invalid quality values
+                            }
+                        }
+                    }
+                }
                 else {
                     // Locating the value is straightforward for the text/integer typeclasses, though
                     //  it might also be the empty string
@@ -1004,7 +1045,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
                     // Need to also inform the next level of recursion of the prefix state if possible
                     $new_prefix_values = null;
-                    if ( !is_null($prefix_values) && $prefix_values[1] === $child_dt_id )
+                    if ( !is_null($prefix_values) && isset($prefix_values[1]) && $prefix_values[1] === $child_dt_id )
                         $new_prefix_values = array_slice($prefix_values, 1);
 
                     $tmp = self::getAvailableFilterValues($child_dt_filter_info, $child_dr_array, $new_prefix_values, $dr_lookup);
@@ -1035,8 +1076,11 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                         // This is a child/linked datatype that's not in the prefix...any value
                         //  referencing one of these descendant records should reference *this*
                         //  record instead
-                        foreach ($child_dr_array as $child_dr_id => $child_dr)
-                            $dr_lookup[$child_dr_id] = $dr_id;
+                        foreach ($child_dr_array as $child_dr_id => $child_dr) {
+                            $dr_lookup[$child_dr_id][] = $dr_id;
+                            // NOTE: not creating an array screws up substitution of descendants of
+                            //  the datatype with the files in it
+                        }
                     }
                 }
                 else {
@@ -1075,6 +1119,40 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
 
     /**
+     * The datarecord lookup created by {@link self::getAvailableFilterValues()} might need a bit
+     * of work before it can be used by {@link self::reduceFilterValues()}...records in the prefix
+     * or records that are descended from those with the graph files are correct, but records that
+     * branch off earlier in the prefix only point to their parent.
+     */
+    private function combineDatarecordLookup(&$dr_lookup)
+    {
+        // Going to iteratively update the values in $dr_lookup until they are guaranteed to point
+        //  to a record with a graph file
+        do {
+            $replacement_made = false;
+
+            foreach ($dr_lookup as $source_dr_id => $target_dr_list) {
+                // For each record mentioned in the array...
+                foreach ($target_dr_list as $num => $target_dr_id) {
+                    // ...if it points to a record that doesn't have a graph file...
+                    if ( isset($dr_lookup[$target_dr_id]) ) {
+                        // ...then need to transitively replace what it originally pointed to...
+                        $replacement_made = true;
+                        unset( $dr_lookup[$source_dr_id][$num] );
+
+                        // ...with what its original target pointed to
+                        foreach ($dr_lookup[$target_dr_id] as $num => $asdf_dr_id)
+                            $dr_lookup[$source_dr_id][] = $asdf_dr_id;
+                    }
+
+                }
+            }
+        }
+        while ($replacement_made);
+    }
+
+
+    /**
      * The data gathered by {@link self::getAvailableFilterValues()} needs to be reduced somewhat
      * before it's passed to twig...there are likely datafields that have no impact on which files
      * should be graphed.
@@ -1085,9 +1163,11 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      *
      * @param array $available_filter_values
      * @param array $dr_lookup
+     * @param boolean $only_one_file If true, then don't filter out unchanging values
+     *
      * @return array
      */
-    private function reduceFilterValues($available_filter_values, $dr_lookup)
+    private function reduceFilterValues($available_filter_values, $dr_lookup, $only_one_file)
     {
         $reduced_filter_values = array(
             'values' => array(),
@@ -1095,7 +1175,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         );
 
         foreach ($available_filter_values['values'] as $df_id => $values) {
-            if ( count($values) < 2 && !isset($available_filter_values['null_values'][$df_id]) ) {
+            if ( !$only_one_file && count($values) < 2 && !isset($available_filter_values['null_values'][$df_id]) ) {
                 // Makes no sense to provide a filter to choose values when there's actually only
                 //  a single value across all the graphed files (including null values)
 
@@ -1114,7 +1194,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             }
         }
         foreach ($available_filter_values['null_values'] as $df_id => $dr_list) {
-            if ( !isset($available_filter_values['values'][$df_id]) ) {
+            if ( !$only_one_file && !isset($available_filter_values['values'][$df_id]) ) {
                 // If there's nothing in the 'values' array, then a value here means there's still
                 //  only a single value across all the graphed files...get rid of it
 
@@ -1152,27 +1232,13 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 $tmp[$dr_id] = 1;
             }
             else {
-                // This datarecord did not have a graph file...
+                // This datarecord does not have a graph file...
                 $tmp_dr_id = $dr_id;
-                while ( !is_array($dr_lookup[$tmp_dr_id]) ) {
-                    // ...if it was a record not in the prefix, then there will be a path
-                    //  to reach a datarecord that is in the prefix
-                    $tmp_dr_id = $dr_lookup[$tmp_dr_id];
-                }
 
-                // At this point, $tmp_dr_id is guaranteed to point to a datarecord in
-                //  the prefix...
-                if ( !isset($dr_lookup[$tmp_dr_id]) ) {
-                    // ...no entry in the lookup for this datarecord means this is one
-                    //  of the records with the graph files
-                    $tmp[$tmp_dr_id] = 1;
-                }
-                else {
-                    // ...otherwise, this is one of the parents of the records with the
-                    //  graph files
-                    foreach ($dr_lookup[$tmp_dr_id] as $num => $child_dr_id)
-                        $tmp[$child_dr_id] = 1;
-                }
+                // ...any reference to this datarecord needs to be replaced with a reference to
+                //  a datarecord with a graph file
+                foreach ($dr_lookup[$tmp_dr_id] as $num => $child_dr_id)
+                    $tmp[$child_dr_id] = 1;
             }
         }
 
@@ -1309,13 +1375,20 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         if ( isset($tmp['dataFields']) ) {
             foreach ($tmp['dataFields'] as $df_id => $df) {
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                $quality_str = $df['dataFieldMeta']['quality_str'];
+
                 switch ($typeclass) {
-                    case 'File':
                     case 'Image':
                     case 'Markdown':
                     case 'Tag':    // TODO - implement this
                         // These can't be filtered on, skip to the next datafield
                         unset( $tmp['dataFields'][$df_id] );
+
+                    case 'File':
+                        if ( $quality_str === '' ) {
+                            // Can't filter on files when the field isn't using quality
+                            unset( $tmp['dataFields'][$df_id] );
+                        }
 
                     case 'Boolean':
                     case 'IntegerValue':

@@ -1090,24 +1090,16 @@ class PermissionsManagementService
         $datafields_to_remove = array();
         foreach ($datatype_array as $dt_id => $dt) {
             // Store whether the user can view each of the datatypes
-            if ( isset($datatype_permissions[$dt_id])
-                && isset($datatype_permissions[$dt_id]['dt_view'])
-            ) {
+            if ( isset($datatype_permissions[$dt_id]['dt_view']) )
                 $can_view_datatype[$dt_id] = true;
-            }
-            else {
+            else
                 $can_view_datatype[$dt_id] = false;
-            }
 
             // Store whether the user can view non-public datarecords of each datatype
-            if ( isset($datatype_permissions[$dt_id])
-                && isset($datatype_permissions[ $dt_id ][ 'dr_view' ])
-            ) {
+            if ( isset($datatype_permissions[$dt_id]['dr_view']) )
                 $can_view_datarecord[$dt_id] = true;
-            }
-            else {
+            else
                 $can_view_datarecord[$dt_id] = false;
-            }
         }
 
 
@@ -1141,11 +1133,8 @@ class PermissionsManagementService
             foreach ($dt['dataFields'] as $df_id => $df) {
                 // Determine whether the user can view the datafield or not
                 $can_view_datafield = false;
-                if ( isset($datafield_permissions[$df_id])
-                    && isset($datafield_permissions[$df_id]['view'])
-                ) {
+                if ( isset($datafield_permissions[$df_id]['view']) )
                     $can_view_datafield = true;
-                }
 
                 // If the user doesn't have the 'can_view_datafield' permission for that datafield...
                 if ( $df['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'

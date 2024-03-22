@@ -138,7 +138,7 @@ abstract class ODRGraphPlugin
         $filename_fragment = '_'.$datafield_id.'.svg';
 
         // Graphs are organized into subdirectories by datatype id
-        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
+        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id;
         if ( file_exists($graph_filepath) ) {
             $files = scandir($graph_filepath);
             foreach ($files as $filename) {
@@ -147,8 +147,10 @@ abstract class ODRGraphPlugin
                     continue;
 
                 // If this cached graph used this file, unlink it to force a rebuild later on
-                if ( strpos($filename, $filename_fragment) !== false )
+                if ( strpos($filename, $filename_fragment) !== false ) {
                     unlink($graph_filepath.'/'.$filename);
+//                    $this->logger->debug('deleting "'.$graph_filepath.'/'.$filename.'"');
+                }
             }
         }
     }

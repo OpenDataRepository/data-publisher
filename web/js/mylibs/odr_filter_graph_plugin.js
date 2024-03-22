@@ -25,17 +25,18 @@
  */
 function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     var odr_chart_id = odr_chart_obj['chart_id'];
+    // console.log(odr_chart_obj['filter_values']);
 
     var permitted_datarecords = [];
-    $('#' + odr_chart_id + '_filter').find('.ODRGraphFilterPlugin_option_div').each(function(index,div) {
-        // if ( $(div).parent().find('.ODRGraphFilterPlugin_active').is(':checked') ) {
+    $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select_div').each(function(index,div) {
+        // if ( $(div).parent().find('.ODRFilterGraphPlugin_active').is(':checked') ) {
             var df_id = $(div).attr('rel');
             permitted_datarecords[df_id] = [];
 
             $(div).find('option:selected').each(function (index,input) {
-                var option_id = $(input).attr('id').split('_')[2];
-                $.each(odr_chart_obj['filter_values'][df_id][option_id], function (index, dr_list) {
-                    permitted_datarecords[df_id].push(dr_list);
+                var option_id = $(input).attr('rel');
+                $.each(odr_chart_obj['filter_values'][df_id][option_id], function (index, dr_id) {
+                    permitted_datarecords[df_id].push(dr_id);
                 });
             });
         // }
@@ -70,31 +71,67 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
             // Save the datarecord id in case the data section of the graph needs to be shown
             remaining_dr_id = dr_id;
         });
+
+        $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select_div').each(function(index,div) {
+            // if ( $(div).parent().find('.ODRFilterGraphPlugin_active').is(':checked') ) {
+            var df_id = $(div).attr('rel');
+
+            $(div).find('option').each(function (index,input) {
+                var option_id = $(input).attr('rel');
+
+                var included = false;
+                $.each(odr_chart_obj['filter_values'][df_id][option_id], function (index, dr_id) {
+                    if ( final_dr_list.includes(dr_id) )
+                        included = true;
+                });
+
+                // Can't disable or hide the option...selecting one option in a field will immediately
+                //  disable/hide the others in the same field
+                if ( !included )
+                    $(input).addClass('ODRFilterGraphPlugin_fake_unselected');
+                else
+                    $(input).removeClass('ODRFilterGraphPlugin_fake_unselected');
+
+
+
+                // TODO - need a "third" class here...those that "could be selected without returning zero results"
+                // TODO - in theory, should be able to get this by taking "all the options the user selected", the computing the intersection of what's allowed for each of them
+            });
+        });
     }
 
-    // Also want to set visibility of the related data div depending on how many files remain...
+
+
+    // Want to set visibility of the related data div depending on how many files remain...
     var data_div = $("#" + odr_chart_id + "_filter").parents('.ODRGraphSpacer').first().next();
-    if ( file_count < 2 ) {
+    // ...but also need an override to always show the data
+    var show_data = false;
+    if ( $("#" + odr_chart_id + "_show_odr_data").is(':checked') )
+        show_data = true;
+
+    if ( file_count < 2 || show_data ) {
         // If there's one datarecord...
-        if ( remaining_dr_id !== null ) {
+        if ( remaining_dr_id !== null || show_data ) {
             // ...then want to display it.  However, it's likely that it's a descendant of some other
             //  record, so it'll take some effort to guarantee it's visible...
             var record_ids = [remaining_dr_id];
             var fieldarea = $("#FieldArea_" + remaining_dr_id);
-            while ( !$(fieldarea).parent().parent().hasClass('ODRGraphSpacer') ) {
-                // Need to traverse up the HTML to get each parent of the remaining datarecord
-                fieldarea = $(fieldarea).parents('.ODRFieldArea').first();
-                record_ids.push( $(fieldarea).attr('id').split(/_/)[1] );
+            if ( $(fieldarea).length > 0 ) {
+                while ( !$(fieldarea).parent().parent().hasClass('ODRGraphSpacer') ) {
+                    // Need to traverse up the HTML to get each parent of the remaining datarecord
+                    fieldarea = $(fieldarea).parents('.ODRFieldArea').first();
+                    record_ids.push( $(fieldarea).attr('id').split(/_/)[1] );
+                }
+
+                // This list of ids needs to be reversed, so that the parent accordion/tab/dropdown
+                //  elements can be selected before the children
+                record_ids.reverse();
+                // console.log( 'record ids', record_ids );
+
+                record_ids.forEach((dr_id) => {
+                    selectRecordFieldArea(dr_id);
+                });
             }
-
-            // This list of ids needs to be reversed, so that the parent accordion/tab/dropdown
-            //  elements can be selected before the children
-            record_ids.reverse();
-            // console.log( 'record ids', record_ids );
-
-            record_ids.forEach((dr_id) => {
-                selectRecordFieldArea(dr_id);
-            });
         }
 
         // Regardless of whether there's a datarecord or not, show the data div now
@@ -103,6 +140,16 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     else {
         // Otherwise, more than one file, so "no point" displaying the raw data...
         $(data_div).addClass('ODRHidden');
+    }
+
+    if ( file_count == 0 ) {
+        $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select').each(function(index,elem) {
+            if ( !$(elem).parent().parent().find('.ODRFilterGraphPlugin_select_all').hasClass('ODRFilterGraphPlugin_select_all_faded') )
+                $(elem).find('option:selected').addClass('ODRFilterGraphPlugin_bad_selection');
+        });
+    }
+    else {
+        $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_option').removeClass('ODRFilterGraphPlugin_bad_selection');
     }
 
     return files_to_graph;

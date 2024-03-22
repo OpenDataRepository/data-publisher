@@ -131,6 +131,14 @@
                             <a {#href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"#} class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
                         </span>
 
+                        {% if datafield_meta.quality_str != '' %}
+                            {% include 'ODRAdminBundle:Display:file_quality.html.twig' with {
+                                'datafield': datafield,
+                                'file': file,
+                                'meta': file_meta,
+                            } %}
+                        {% endif %}
+
                         <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>
                             <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>
                         </span>
@@ -174,17 +182,20 @@
                     {% set image_filename = oimage.imageMeta.originalFileName %}
                     {% set public_image_filename = 'Image_' ~ image.id ~ '.' ~ oimage.ext %}
 
-                    {#
-                        {% if dom.dueDate|date('U') > '2012-12-31'|date('U') %}
-                        Public images should link directly to file...
-                        Are we even using thumbnails???
-                    #}
-                    <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield_meta.children_per_row }}"  rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
+                    <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield_meta.children_per_row }}" rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
+                        {% if datafield_meta.quality_str != '' %}
+                            {% include 'ODRAdminBundle:Display:file_quality.html.twig' with {
+                                'datafield': datafield,
+                                'file': oimage,
+                                'meta': oimage_meta,
+                            } %}
+                        {% endif %}
+
                         <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
                             {% if oimage_meta.publicDate|date('U') < 'now'|date('U') %}
-                                <img class="pure-img" src="{{ config_site_baseurl }}/uploads/images/{{ public_image_filename }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                                <img class="pure-img" src="{{ config_site_baseurl }}{{ config_images_directory }}/{{ public_image_filename }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
                             {% else %}
-                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}?{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}#{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
                             {% endif %}
                         </a>
                     </div>

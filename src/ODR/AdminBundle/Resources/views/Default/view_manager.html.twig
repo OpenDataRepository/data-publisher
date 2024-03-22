@@ -62,14 +62,14 @@
 
 {% if notitle is defined %}
 {% else %}
-    <h1 class="no-margin-top-phone">
+    <h1 class="no-margin-top-phone ODRSearchPageTitle">
         <span>{{ title }} &raquo; <span class="ODRRecordName">{{ datatype.dataTypeMeta.shortName }}</span></span>
         <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </h1>
 {% endif %}
 
     {# Record View Menu #}
-    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal" style="display:none;">
+    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal">
         <ul class="pure-menu-list">
         {% if display_editable_records_toggle %}
             <li class="pure-menu-item SpacerRight">
@@ -151,10 +151,6 @@
 
         $("#ODRPageSelectSettings").unbind('click').click(function(event) {
             $("#page_settings_menu").toggle('fast');
-        });
-
-        $("#ChooseView").unbind('click').click(function(event) {
-            openChooseViewRemodal();
         });
 
 {% if display_add_record %}
@@ -262,52 +258,6 @@
         });
 {% endif %}
     });
-
-    /**
-     * Opens the modal for users to view/select available themes for the current page type for
-     * this datatype.
-     */
-    function openChooseViewRemodal() {
-        modal_options = {
-            title: "Choose from available layouts for {{ page_type|replace({'_': ' '})|title }} mode:",
-            // body: "<div>Loading will not display if body is set.</div>",
-            // loading: true,  // Force loading to display
-        };
-        openODRRemodal(modal_options);
-        var url = '{{ path('odr_get_available_themes', { 'datatype_id': datatype.id, 'page_type': page_type, 'search_key': search_key }) }}';
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function (data, textStatus, jqXHR) {
-                $(".ODRRemodalBody").html( data.d );
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    resetRemodalInnerHeight();
-                });
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                // Don't need to create a jGrowl because exception handlers will automatically
-                //  display. Close the dialog so it's not in some half-initialized state.
-                closeODRRemodal();
-            },
-            complete: function (jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                }
-            }
-        });
-    }
 </script>
 
 {% endspaceless %}

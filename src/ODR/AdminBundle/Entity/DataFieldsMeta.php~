@@ -113,6 +113,11 @@ class DataFieldsMeta
     private $newFilesArePublic;
 
     /**
+     * @var string
+     */
+    private $quality_str;
+
+    /**
      * @var integer
      */
     private $children_per_row;
@@ -589,6 +594,30 @@ class DataFieldsMeta
     public function getNewFilesArePublic()
     {
         return $this->newFilesArePublic;
+    }
+
+    /**
+     * Set qualityStr.
+     *
+     * @param string $qualityStr
+     *
+     * @return DataFieldsMeta
+     */
+    public function setQualityStr($qualityStr)
+    {
+        $this->quality_str = $qualityStr;
+
+        return $this;
+    }
+
+    /**
+     * Get qualityStr.
+     *
+     * @return string
+     */
+    public function getQualityStr()
+    {
+        return $this->quality_str;
     }
 
     /**

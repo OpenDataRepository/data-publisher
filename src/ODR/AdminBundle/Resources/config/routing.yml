@@ -737,6 +737,20 @@ odr_record_rename_image:
     requirements:
         image_id:  \d+
 
+odr_record_file_quality:
+    path:  /edit/filequality/{file_id}/{quality}
+    defaults: { _controller: ODRAdminBundle:Edit:filequality }
+    requirements:
+        file_id:  \d+
+        quality:  -?\d+
+
+odr_record_image_quality:
+    path:  /edit/imagequality/{image_id}/{quality}
+    defaults: { _controller: ODRAdminBundle:Edit:imagequality }
+    requirements:
+        image_id:  \d+
+        quality:  -?\d+
+
 odr_record_public_file:
     path:  /edit/publicfile/{file_id}
     defaults: { _controller: ODRAdminBundle:Edit:publicfile }
@@ -994,6 +1008,20 @@ odr_record_inline_link:
         theme_element_id: \d+
         parent_datarecord_id: \d+
         top_level_datarecord_id: \d+
+
+odr_replace_links_page:
+    path:  /edit/replace_datarecord_links
+    defaults: { _controller: ODRAdminBundle:Link:replacelinkspage }
+
+odr_replace_links_data:
+    path:  /edit/replace_link_data
+    defaults: { _controller: ODRAdminBundle:Link:replacelinksdata }
+    methods: [ POST ]
+
+odr_replace_links_worker:
+    path:  /edit/replace_link_worker
+    defaults: { _controller: ODRAdminBundle:Link:replacelinksworker }
+    methods: [ POST ]
 
 #-----------------------------------------
 
@@ -1563,6 +1591,12 @@ odr_compare_datatypes:
 odr_purge_datatype:
     path: /admin/purge/{datatype_ids}
     defaults: { _controller: ODRAdminBundle:Validation:purge }
+    requirements:
+        datatype_ids: "^[0-9,]+$"
+
+odr_purge_deleted_records:
+    path: /admin/purge_deleted_records/{datatype_ids}
+    defaults: { _controller: ODRAdminBundle:Validation:purgedeletedrecords }
     requirements:
         datatype_ids: "^[0-9,]+$"
 

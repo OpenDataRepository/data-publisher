@@ -35,11 +35,11 @@
                 {% if is_datatype_admin == 1 %}
                     {% if datarecord.ispublic %}
                         <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary"
-                                onclick="publicRecord( {{ datarecord.id }} );">Make Record Non-Public
+                                onclick="publicRecord( {{ datarecord.id }} );">Make Non-Public
                         </button>
                     {% else %}
                         <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary"
-                                onclick="publicRecord( {{ datarecord.id }} );">Make Record Public
+                                onclick="publicRecord( {{ datarecord.id }} );">Make Public
                         </button>
                     {% endif %}
                 {% endif %}

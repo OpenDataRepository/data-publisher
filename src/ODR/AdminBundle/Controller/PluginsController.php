@@ -3140,12 +3140,14 @@ class PluginsController extends ODRCustomController
                 }
             }
 
-            // So, if the datatype/datafield is using a render plugin that "renders" stuff...
+            // So, if the datatype/datafield is already using a render plugin that "renders" stuff...
             if ( !is_null($twig_render_plugin_id) ) {
-                // ...and the plugin requested by the controller action doesn't play nice with the
-                //  plugin that's currently set to "render" stuff...
-                if ( $target_render_plugin->getId() !== $twig_render_plugin_id && $render_plugin['render'] !== $twig_render_plugin_render_value ) {
-                    // ...then the datatype/datafield is not allowed to also use this plugin
+                if ( $render_plugin['render'] !== 'false' &&
+                    $target_render_plugin->getId() !== $twig_render_plugin_id &&
+                    $render_plugin['render'] !== $twig_render_plugin_render_value
+                ) {
+                    // ...and the plugin requested by the controller action also wants to "render"
+                    //  stuff, then the datatype/datafield is not allowed to also use this plugin
                     $is_illegal_render_plugin = true;
                     $illegal_render_plugin_message = 'This Render Plugin cannot be used at the same time as the "'.$twig_render_plugin_name.'" Render Plugin';
                 }
@@ -3619,8 +3621,9 @@ class PluginsController extends ODRCustomController
             if ( !is_null($already_renders) ) {
                 // ...then ensure the user didn't just attempt to attach a second plugin that also
                 //  "renders" something
-                if ( $already_renders->getRenderPlugin()->getId() !== $selected_render_plugin->getId()
-                    && $selected_render_plugin->getRender() !== $already_renders->getRenderPlugin()->getRender()
+                if ( $selected_render_plugin->getRender() !== "false" &&
+                    $already_renders->getRenderPlugin()->getId() !== $selected_render_plugin->getId() &&
+                    $selected_render_plugin->getRender() !== $already_renders->getRenderPlugin()->getRender()
                 ) {
                     throw new ODRBadRequestException('Not allowed to have two plugins that "render" different things at a time');
                 }

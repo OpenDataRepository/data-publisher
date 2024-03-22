@@ -1,0 +1,34 @@
+odr_plugins.rruff.instruments:
+    name: RRUFF Instruments Plugin
+    category: RRUFF
+    plugin_type: datatype
+    render: false
+    version: 0.0.1
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: TODO
+    registered_events:
+    required_fields:
+
+        # ----------------------------------------
+        # These fields are temporary...they only exist to make it easier to import
+        instrument_id:
+            name: Instrument ID
+            description:
+            type: ShortVarchar
+        instrument_name:
+            name: Instrument Name
+            description:
+            type: LongVarchar
+        description:
+            name: Instrument Description
+            description:
+            type: LongText
+
+    config_options:
