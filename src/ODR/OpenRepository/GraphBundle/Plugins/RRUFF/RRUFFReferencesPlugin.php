@@ -24,6 +24,7 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\LockService;
+use ODR\AdminBundle\Component\Service\SortService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
@@ -45,7 +46,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
     /**
      * @var EntityCreationService
      */
-    private $ec_service;
+    private $entity_create_service;
 
     /**
      * @var LockService
@@ -53,9 +54,17 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
     private $lock_service;
 
     /**
+     * @var SortService
+     */
+    private $sort_service;
+
+    /**
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var CsrfTokenManager
@@ -77,8 +86,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      * RRUFF References constructor
      *
      * @param EntityManager $entity_manager
-     * @param EntityCreationService $entity_creation_service
+     * @param EntityCreationService $entity_create_service
      * @param LockService $lock_service
+     * @param SortService $sort_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
@@ -86,16 +96,18 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      */
     public function __construct(
         EntityManager $entity_manager,
-        EntityCreationService $entity_creation_service,
+        EntityCreationService $entity_create_service,
         LockService $lock_service,
+        SortService $sort_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->ec_service = $entity_creation_service;
+        $this->entity_create_service = $entity_create_service;
         $this->lock_service = $lock_service;
+        $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
@@ -118,8 +130,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         if ( isset($rendering_options['context']) ) {
             if ($rendering_options['context'] === 'display'
                 || $rendering_options['context'] === 'fake_edit'
+                || $rendering_options['context'] === 'edit'
             ) {
-                // Needs to be executed in both fake_edit (for autogeneration) and display modes
+                // Needs to be executed in display, fake_edit (for autogeneration), and
+                //  edit modes (for journal selection)
                 return true;
             }
 
@@ -198,7 +212,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                     $rpf_df_id = $rpf_df['id'];
 
                     $df = null;
-                    if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                    if ( isset($datatype['dataFields'][$rpf_df_id]) )
                         $df = $datatype['dataFields'][$rpf_df_id];
 
                     if ($df == null) {
@@ -401,6 +415,53 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                     )
                 );
             }
+            else if ( $rendering_options['context'] === 'edit') {
+                // Want to provide a sorted list of the existing journals to the user to reduce
+                //  input errors...
+                $journal_df_id = 0;
+                if ( !isset($fields['Journal']['id']) ) {
+                    // I the Journal field doesn't exist, then the plugin can't continue executing
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "Journal"...check plugin config.');
+                }
+
+                $journal_df_id = $fields['Journal']['id'];
+                $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
+
+                $journal_list = array();
+                foreach ($sort_data as $dr_id => $sort_value)
+                    $journal_list[$sort_value] = 1;
+
+                $output = $this->templating->render(
+                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
+                    array(
+                        'datatype_array' => array($initial_datatype_id => $datatype),
+                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                        'theme_array' => $theme_array,
+
+                        'target_datatype_id' => $initial_datatype_id,
+                        'parent_datarecord' => $parent_datarecord,
+                        'target_datarecord_id' => $datarecord['id'],
+                        'target_theme_id' => $initial_theme_id,
+
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
+                        'is_top_level' => $rendering_options['is_top_level'],
+                        'is_link' => $rendering_options['is_link'],
+                        'display_type' => $rendering_options['display_type'],
+
+                        'token_list' => $token_list,
+
+                        'journal_df_id' => $journal_df_id,
+                        'journal_list' => $journal_list,
+                    )
+                );
+            }
 
             return $output;
         }
@@ -467,7 +528,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         $new_value = $old_value + 1;
 
         // Create a new storage entity with the new value
-        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
         $this->logger->debug('Setting df '.$datafield->getId().' "Reference ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
@@ -477,8 +538,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         // ----------------------------------------
         // Fire off an event notifying that the modification of the datafield is done
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }

@@ -75,32 +75,32 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatarecordInfoService
      */
-    private $dri_service;
+    private $datarecord_info_service;
 
     /**
      * @var ThemeInfoService
      */
-    private $ti_service;
+    private $theme_info_service;
 
     /**
      * @var EntityCreationService
      */
-    private $ec_service;
+    private $entity_create_service;
 
     /**
      * @var EntityMetaModifyService
      */
-    private $emm_service;
+    private $entity_modify_service;
 
     /**
      * @var PermissionsManagementService
      */
-    private $pm_service;
+    private $permissions_service;
 
     /**
      * @var LockService
@@ -144,8 +144,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param ThemeInfoService $theme_info_service
-     * @param EntityCreationService $entity_creation_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityCreationService $entity_create_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param PermissionsManagementService $permissions_service
      * @param LockService $lock_service
      * @param SortService $sort_service
@@ -160,8 +160,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
         ThemeInfoService $theme_info_service,
-        EntityCreationService $entity_creation_service,
-        EntityMetaModifyService $entity_meta_modify_service,
+        EntityCreationService $entity_create_service,
+        EntityMetaModifyService $entity_modify_service,
         PermissionsManagementService $permissions_service,
         LockService $lock_service,
         SortService $sort_service,
@@ -172,12 +172,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     ) {
         $this->container = $container;
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->ti_service = $theme_info_service;
-        $this->ec_service = $entity_creation_service;
-        $this->emm_service = $entity_meta_modify_service;
-        $this->pm_service = $permissions_service;
+        $this->database_info_service = $database_info_service;
+        $this->datarecord_info_service = $datarecord_info_service;
+        $this->theme_info_service = $theme_info_service;
+        $this->entity_create_service = $entity_create_service;
+        $this->entity_modify_service = $entity_modify_service;
+        $this->permissions_service = $permissions_service;
         $this->lock_service = $lock_service;
         $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
@@ -712,7 +712,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $new_value = $old_value + 1;
 
         // Create a new storage entity with the new value
-        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
         $this->logger->debug('Setting df '.$datafield->getId().' "Mineral ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
@@ -847,7 +847,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $derived_value = self::convertRRUFFFormula($source_value);
 
                 // ...which is saved in the storage entity for the datafield
-                $this->emm_service->updateStorageEntity(
+                $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $destination_entity,
                     array('value' => $derived_value),
@@ -975,7 +975,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         $derived_value = self::convertRRUFFFormula($source_value);
 
                     // ...which is saved in the storage entity for the datafield
-                    $this->emm_service->updateStorageEntity(
+                    $this->entity_modify_service->updateStorageEntity(
                         $user,
                         $destination_entity,
                         array('value' => $derived_value),
@@ -1023,7 +1023,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
         if ( !isset($dt_array[$datatype->getId()]['renderPluginInstances']) )
             return null;
 
@@ -1074,7 +1074,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private function findDestinationEntity($user, $datatype, $datarecord, $destination_rpf_name)
     {
         // Going to use the cached datatype array to locate the correct datafield...
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
         foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 $df_id = $rpi['renderPluginMap'][$destination_rpf_name]['id'];
@@ -1087,7 +1087,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
 
         // Return the storage entity for this datarecord/datafield pair
-        return $this->ec_service->createStorageEntity($user, $datarecord, $datafield);
+        return $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield);
     }
 
 
@@ -1211,7 +1211,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         try {
             if ( !is_null($destination_storage_entity) ) {
-                $this->emm_service->updateStorageEntity(
+                $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $destination_storage_entity,
                     array('value' => ''),
@@ -1294,8 +1294,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
         // Want the derived fields in IMA to complain if they're blank, but their source field isn't
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());    // need links for Reference A/B
-        $dr_array = $this->dri_service->getDatarecordArray($datarecord->getGrandparent()->getId());
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());    // need links for Reference A/B
+        $dr_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId());
 
         // Locate any problems with the values
         $relevant_fields = self::getRelevantFields($dt_array[$datatype->getId()], $dr_array[$datarecord->getId()]);
@@ -1341,16 +1341,16 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             //  get overridden
 
             // Going to also need the theme array so the RRUFF Reference plugin can get rendered
-            $theme_array = $this->ti_service->getThemeArray($theme->getParentTheme()->getId());
+            $theme_array = $this->theme_info_service->getThemeArray($theme->getParentTheme()->getId());
 
             // Need to filter the cached arrays so the plugin doesn't reveal non-public references
-            $user_permissions = $this->pm_service->getUserPermissionsArray($user);
-            $this->pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+            $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
+            $this->permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
             // Then need to stack the cached arrays so getRelatedReferenceInfo() can determine whether
             //  the database with the IMA plugin links to the database with the RRUFF Reference plugin
-            $dt_array = $this->dbi_service->stackDatatypeArray($dt_array, $datatype->getId());
-            $dr_array = $this->dri_service->stackDatarecordArray($dr_array, $datarecord->getId());
-            $theme_array = $this->ti_service->stackThemeArray($theme_array, $theme->getId());
+            $dt_array = $this->database_info_service->stackDatatypeArray($dt_array, $datatype->getId());
+            $dr_array = $this->datarecord_info_service->stackDatarecordArray($dr_array, $datarecord->getId());
+            $theme_array = $this->theme_info_service->stackThemeArray($theme_array, $theme->getId());
 
             $related_reference_info = self::getRelatedReferenceInfo($dt_array, $dr_array, $theme_array, $relevant_fields, $rendering_context);
 
@@ -1477,12 +1477,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // In order to allow the plugin to tell users that "you can't see this related reference",
             //  it needs to look for the related reference in an unfiltered version of the datarecord
             $ima_dr_id = $datarecord_array['id'];
-            $unfiltered_datarecord_array = $this->dri_service->getDatarecordArray($ima_dr_id);    // do want links here
+            $unfiltered_datarecord_array = $this->datarecord_info_service->getDatarecordArray($ima_dr_id);    // do want links here
 
             // If the IMA record links to at least one RRUFF Reference...
             if ( isset($unfiltered_datarecord_array[$ima_dr_id]['children'][$rruff_reference_dt_id]) ) {
                 // ...then stack the unfiltered datarecord array to make it easier to use
-                $unfiltered_datarecord_array = $this->dri_service->stackDatarecordArray($unfiltered_datarecord_array, $ima_dr_id);
+                $unfiltered_datarecord_array = $this->datarecord_info_service->stackDatarecordArray($unfiltered_datarecord_array, $ima_dr_id);
 
                 foreach ($unfiltered_datarecord_array['children'][$rruff_reference_dt_id] as $dr_id => $dr) {
                     // Each of these RRUFF Reference records should have a Reference ID field...
