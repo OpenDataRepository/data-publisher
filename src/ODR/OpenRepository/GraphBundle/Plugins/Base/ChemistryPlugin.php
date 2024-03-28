@@ -210,6 +210,9 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
      */
     private function applyChemistryFormatting($superscript_delimiter, $subscript_delimiter, $str)
     {
+        // Ensure any less/greater than signs don't confuse the browser
+        $str = str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
+
         // Apply the subscripts...
         $sub = preg_quote($subscript_delimiter);
         $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);

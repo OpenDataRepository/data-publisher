@@ -4494,7 +4494,7 @@ i {
 }
 .ODRChemistryPlugin_button i {
     position: relative;
-    top: -3px;
+    /*top: -3px;*/
 }
 .ODRChemistryPlugin_popup {
     position: absolute;
@@ -4516,11 +4516,27 @@ i {
 .ODRChemistryPlugin_textarea {
     margin: 5px 0 0 0 !important;
     font-size: 100% !important;
+    overflow: auto;
+
+    background: white !important;
 }
 .ODRChemistryPlugin_SaveIndicator {
     top: 8px !important;
 }
-
+.ODRChemistryPlugin_div {
+    margin-top: 5px;
+}
+.ODRChemistryPlugin_checkbox {
+    font-size: 100% !important;
+    margin: 0 !important;
+}
+.ODRChemistryPlugin_insert_label {
+    text-align: center;
+}
+.ODRChemistryPlugin_insert {
+    height: 25px;
+    width: 25px;
+}
 
 .ODRCellparamPlugin_button {
     min-width: 0 !important;
