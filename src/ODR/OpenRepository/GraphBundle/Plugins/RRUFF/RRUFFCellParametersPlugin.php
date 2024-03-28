@@ -94,22 +94,22 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatarecordInfoService
      */
-    private $dri_service;
+    private $datarecord_info_service;
 
     /**
      * @var EntityCreationService
      */
-    private $ec_service;
+    private $entity_create_service;
 
     /**
      * @var EntityMetaModifyService
      */
-    private $emm_service;
+    private $entity_modify_service;
 
     /**
      * @var LockService
@@ -147,8 +147,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
-     * @param EntityCreationService $entity_creation_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityCreationService $entity_create_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -160,8 +160,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         CacheService $cache_service,
         DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
-        EntityCreationService $entity_creation_service,
-        EntityMetaModifyService $entity_meta_modify_service,
+        EntityCreationService $entity_create_service,
+        EntityMetaModifyService $entity_modify_service,
         LockService $lock_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -170,10 +170,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dbi_service = $database_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->ec_service = $entity_creation_service;
-        $this->emm_service = $entity_meta_modify_service;
+        $this->database_info_service = $database_info_service;
+        $this->datarecord_info_service = $datarecord_info_service;
+        $this->entity_create_service = $entity_create_service;
+        $this->entity_modify_service = $entity_modify_service;
         $this->lock_service = $lock_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -833,7 +833,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $new_value = $old_value + 1;
 
         // Create a new storage entity with the new value
-        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
         $this->logger->debug('Setting df '.$datafield->getId().' "Cell Parameter ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
@@ -951,7 +951,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $derived_value = substr($source_value, 0, 1);
 
                 // ...which is saved in the storage entity for the datafield
-                $this->emm_service->updateStorageEntity(
+                $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $destination_entity,
                     array('value' => $derived_value),
@@ -1062,7 +1062,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         $derived_value = substr($source_value, 0, 1);
 
                     // ...which is saved in the storage entity for the datafield
-                    $this->emm_service->updateStorageEntity(
+                    $this->entity_modify_service->updateStorageEntity(
                         $user,
                         $destination_entity,
                         array('value' => $derived_value),
@@ -1110,7 +1110,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
         if ( !isset($dt_array[$datatype->getId()]['renderPluginInstances']) )
             return null;
 
@@ -1157,7 +1157,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     private function findDestinationEntity($user, $datatype, $datarecord, $destination_rpf_name)
     {
         // Going to use the cached datatype array to locate the correct datafield...
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
         foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
                 $df_id = $rpi['renderPluginMap'][$destination_rpf_name]['id'];
@@ -1170,7 +1170,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
 
         // Return the storage entity for this datarecord/datafield pair
-        return $this->ec_service->createStorageEntity($user, $datarecord, $datafield);
+        return $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield);
     }
 
 
@@ -1216,14 +1216,16 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $df = $destination_storage_entity->getDataField();
 
         try {
-            $this->emm_service->updateStorageEntity(
-                $user,
-                $destination_storage_entity,
-                array('value' => ''),
-                false,    // no point delaying flush
-                false    // don't fire PostUpdate event...nothing depends on these fields
-            );
-            $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', array(self::class, 'saveOnError()'));
+            if ( !is_null($destination_storage_entity) ) {
+                $this->entity_modify_service->updateStorageEntity(
+                    $user,
+                    $destination_storage_entity,
+                    array('value' => ''),
+                    false,    // no point delaying flush
+                    false    // don't fire PostUpdate event...nothing depends on these fields
+                );
+                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', array(self::class, 'saveOnError()'));
+            }
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it
@@ -1298,8 +1300,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
 
         // Want the derived fields in IMA to complain if they're blank, but their source field isn't
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
-        $dr_array = $this->dri_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
+        $dr_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);
 
         // Locate any problems with the values
         $relevant_fields = self::getRelevantFields($dt_array[$datatype->getId()], $dr_array[$datarecord->getId()]);

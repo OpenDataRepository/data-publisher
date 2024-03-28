@@ -42,7 +42,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
     /**
      * @var EntityCreationService
      */
-    private $ec_service;
+    private $entity_create_service;
 
     /**
      * @var LockService
@@ -77,7 +77,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
      * RRUFF Sample Plugin constructor.
      *
      * @param EntityManager $entity_manager
-     * @param EntityCreationService $entity_creation_service
+     * @param EntityCreationService $entity_create_service
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -86,7 +86,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
      */
     public function __construct(
         EntityManager $entity_manager,
-        EntityCreationService $entity_creation_service,
+        EntityCreationService $entity_create_service,
         LockService $lock_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -94,7 +94,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->ec_service = $entity_creation_service;
+        $this->entity_create_service = $entity_create_service;
         $this->lock_service = $lock_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -301,7 +301,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         $new_value = $old_value + 1;
 
         // Create a new storage entity with the new value
-        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
         $this->logger->debug('Setting df '.$datafield->getId().' "Sample ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock

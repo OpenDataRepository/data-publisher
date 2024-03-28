@@ -117,6 +117,14 @@
         'pages': pages,
     } %}
 
+    {% if mapping.url is defined and mapping.url != '' and original_context != 'text' %}
+        {% if 'doi.org' in mapping.url %}
+            ;&nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">{{ mapping.url }}</a>
+        {% else %}
+            &nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">[<i class="fa fa-external-link"></i> source]</a>
+        {% endif %}
+    {% endif %}
+
     {% if mapping.file|length > 0 and original_context != 'text' %}
         {% for file in mapping.file.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
             &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" rel="{{ file.id }}">[view file]</a>
@@ -126,10 +134,6 @@
                 <span id="ODRFileDecrypt_{{ file.id }}_progress" {#class="ODRFakeProgressBar"#}></span>
             </span>
         {% endfor %}
-    {% endif %}
-
-    {% if mapping.url is defined and mapping.url != '' and original_context != 'text' %}
-        &nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">[<i class="fa fa-external-link"></i> source]</a>
     {% endif %}
 {% endif %}
 
