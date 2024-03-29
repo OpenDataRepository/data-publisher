@@ -8,9 +8,13 @@ odr_plugins.base.references:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: The References Plugin parses multiple linked DataRecords and returns HTML that looks like something you would expect to see for multiple references...
     registered_events:
+
     required_fields:
         authors:
             name: Authors

@@ -14,10 +14,12 @@
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
+// Symfony
 use Symfony\Bridge\Monolog\Logger;
 
 
@@ -972,7 +974,7 @@ class SearchQueryService
      * @param string $search_type
      * @param string $search_value
      *
-     * @return array
+     * @return array The datarecord IDs are keys, not values
      */
     public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_type, $search_value)
     {
@@ -1278,7 +1280,7 @@ class SearchQueryService
      * @param int $datafield_id
      * @param array $params
      *
-     * @return array
+     * @return array The datarecord IDs are keys, not values
      */
     public function searchDatetimeDatafield($datafield_id, $params)
     {
@@ -1395,14 +1397,15 @@ class SearchQueryService
      * @param int $datafield_id
      * @param string $typeclass
      * @param string $value
+     * @param bool $search_converted If true, then run the search against 'converted_value' instead of 'value'
      *
-     * @return array
+     * @return array The datarecord IDs are keys, not values
      */
-    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value)
+    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $search_converted = false)
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
-        $search_params = self::parseField($value, $typeclass);
+        $search_params = self::parseField($value, $typeclass, $search_converted);
         $search_params['params']['datafield_id'] = $datafield_id;
 
 
@@ -1431,7 +1434,7 @@ class SearchQueryService
         // ----------------------------------------
         // Determine whether this query's search parameters contain an empty string...if so, may
         //  have to to run an additional query because of how ODR is designed...
-        if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
             // ...but only when the query actually has a logical chance of returning results...
             if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
                 $search_params['params']['datatype_id'] = $datatype_id;
@@ -1628,10 +1631,11 @@ class SearchQueryService
      *
      * @param string $str
      * @param array $params
+     * @param bool $search_converted If true, then assume the search uses 'converted_value' instead of 'value'
      *
      * @return boolean
      */
-    private function isNullDrfPossible($str, $params)
+    private function isNullDrfPossible($str, $params, $search_converted = false)
     {
         // ----------------------------------------
         // If the given string is impossible to match, then the query can't match the empty string
@@ -1663,10 +1667,14 @@ class SearchQueryService
 
             $pieces = explode(' AND ', $block);
             foreach ($pieces as $piece) {
-                // This is usually going to be called on text/number fields, which use e.value...
+                // This is usually going to be called on text/number fields, which use "e.value"...
                 $char = $piece[8];
-                if ( strpos($piece, 'orig') !== false ) {
-                    // ...but file/image filenames use e_m.original_file_name
+                if ( $search_converted ) {
+                    // ...but when searching on a "converted" value, the query uses "e.converted_value"
+                    $char = $piece[18];
+                }
+                else if ( strpos($piece, 'orig') !== false ) {
+                    // ...and file/image filenames queries use "e_m.original_file_name"
                     $char = $piece[23];
                 }
 
@@ -1792,11 +1800,25 @@ class SearchQueryService
      *
      * @param string $str The string to turn into SQL...
      * @param string $typeclass
+     * @param bool $search_converted If true, then build the search to use 'converted_value' instead of 'value'
      *
      * @return array
      */
-    private function parseField($str, $typeclass)
+    private function parseField($str, $typeclass, $search_converted = false)
     {
+        // ----------------------------------------
+        // Ensure that the search doesn't attempt to work with converted_value on invalid typeclasses
+        if ( $search_converted ) {
+            switch ($typeclass) {
+                case 'ShortVarchar':
+                    break;
+
+                default:
+                    throw new ODRBadRequestException("The ".$typeclass." typeclass only has a 'value' column, and can't search on the 'converted_value' column", 0x0cba99c6);
+            }
+        }
+
+
         // ----------------------------------------
         // Most of the database fields that are searched can't have null values...
         $can_be_null = false;
@@ -2036,9 +2058,13 @@ class SearchQueryService
         $searching_on_null = false;
         $parameters = array();
 
-        $str = 'e.value';
-        if ($typeclass === 'File' || $typeclass === 'Image')
-            $str = 'e_m.original_file_name';
+        $sql_target_column = 'e.value';
+        if ( $typeclass === 'File' || $typeclass === 'Image' )
+            $sql_target_column = 'e_m.original_file_name';
+        else if ( $search_converted )
+            $sql_target_column = 'e.converted_value';
+
+        $str = $sql_target_column;
 
         $count = 0;
         foreach ($pieces as $num => $piece) {
@@ -2046,16 +2072,10 @@ class SearchQueryService
                 $negate = true;
             }
             else if ($piece == '&&') {
-                if ( $typeclass !== 'File' && $typeclass !== 'Image' )
-                    $str .= ' AND e.value';
-                else
-                    $str .= ' AND e_m.original_file_name';
+                $str .= ' AND '.$sql_target_column;
             }
             else if ($piece == '||') {
-                if ( $typeclass !== 'File' && $typeclass !== 'Image' )
-                    $str .= ' OR e.value';
-                else
-                    $str .= ' OR e_m.original_file_name';
+                $str .= ' OR '.$sql_target_column;
             }
             else if ($piece == '>') {
                 $inequality = true;

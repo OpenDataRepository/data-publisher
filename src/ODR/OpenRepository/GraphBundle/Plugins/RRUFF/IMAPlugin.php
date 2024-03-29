@@ -1197,9 +1197,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * If some sort of error/exception was thrown, then attempt to blank out all the fields derived
-     * from the file being read...this won't stop the file from being encrypted, which will allow
-     * the renderplugin to recognize and display that something is wrong with this file.
+     * If some sort of error/exception was thrown, then attempt to blank out the given derived
+     * field...this doesn't fix the underlying problem, but at least the renderplugin can recognize
+     * and display that something is wrong with the source field.
      *
      * @param ODRUser $user
      * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $destination_storage_entity

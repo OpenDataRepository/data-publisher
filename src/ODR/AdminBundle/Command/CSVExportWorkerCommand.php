@@ -82,6 +82,7 @@ class CSVExportWorkerCommand extends ContainerAwareCommand
                     'datarecord_id' => $data->datarecord_id,
                     'complete_datarecord_list' => $data->complete_datarecord_list,
                     'datafields' => $data->datafields,
+                    'plugin_datafields' => $data->plugin_datafields,
 
                     'api_key' => $data->api_key,
                     'random_key' => $random_key,

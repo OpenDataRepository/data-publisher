@@ -8,6 +8,9 @@ odr_plugins.rruff.amcsd:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).  Most of the required fields will be automatically filled out from an uploaded AMC File.
     registered_events:
@@ -156,6 +159,8 @@ odr_plugins.rruff.amcsd:
             properties:
                 - no_user_edits    # TODO - allow editing?  On one hand, all the chemical formulas lack subscripts...on the other, the CIF File value is "official"...
                 - is_derived
+
+        # TODO - might as well get the plugin to derive point group/crystal system, and calculate volume
 
         # The following isn't needed for operation of the plugin, but should exist anyways
         reference_file:

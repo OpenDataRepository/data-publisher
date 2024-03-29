@@ -33,6 +33,9 @@
             <directory>../src/ODR/AdminBundle/Tests/Component/Service</directory>
             <directory>../src/ODR/OpenRepository/*Bundle/Tests/Component/Service</directory>
         </testsuite>
+        <testsuite name="plugins">
+            <directory>../src/ODR/OpenRepository/GraphBundle/Tests/Plugins</directory>
+        </testsuite>
         <testsuite name="api">
             <file>../src/ODR/AdminBundle/Tests/Controller/APIControllerTest.php</file>
         </testsuite>

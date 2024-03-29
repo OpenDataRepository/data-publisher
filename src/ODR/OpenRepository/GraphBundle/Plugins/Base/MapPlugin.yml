@@ -8,9 +8,13 @@ odr_plugins.base.map:
     override_field_reload: false
     override_child: true
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: Provides the basic ability to plot one or more GPS points onto a map using data from OpenStreetMap.
     registered_events:
+
     required_fields:
         latitude:
             name: Latitude
@@ -20,6 +24,7 @@ odr_plugins.base.map:
             name: Longitude
             description: Longitude in Decimal Degree format
             type: DecimalValue
+
     config_options:
         map_height:
             name: Map Height

@@ -2388,6 +2388,13 @@ class DisplaytemplateController extends ODRCustomController
                     // While not technically needed 100% of the time, it's easier if the datafield
                     //  always gets reloaded when the fieldtype gets changed
                     $reload_datafield = true;
+
+                    // force_numeric_sort only makes sense when the fieldtype is a text field
+                    if ( !($new_fieldtype_typeclass === 'ShortVarchar' || $new_fieldtype_typeclass === 'MediumVarchar'
+                        || $new_fieldtype_typeclass === 'LongVarchar' || $new_fieldtype_typeclass === 'LongText')
+                    ) {
+                        $submitted_data->setForceNumericSort(false);
+                    }
                 }
 
                 // ----------------------------------------
@@ -2399,6 +2406,7 @@ class DisplaytemplateController extends ODRCustomController
                     // The commented lines are there in case I change my mind later on...
 //                    $submitted_data->setRequired( $master_datafield->getRequired() );
                     $submitted_data->setIsUnique( $master_datafield->getIsUnique() );
+//                    $submitted_data->setForceNumericSort( $master_datafield->getForceNumericSort() );
 //                    $submitted_data->setPreventUserEdits( $master_datafield->getPreventUserEdits() );
                     $submitted_data->setAllowMultipleUploads( $master_datafield->getAllowMultipleUploads() );
 //                    $submitted_data->setShortenFilename( $master_datafield->getShortenFilename() );
@@ -2496,6 +2504,7 @@ class DisplaytemplateController extends ODRCustomController
                         'phpValidator' => $submitted_data->getPhpValidator(),
                         'required' => $submitted_data->getRequired(),
                         'is_unique' => $submitted_data->getIsUnique(),
+                        'force_numeric_sort' => $submitted_data->getForceNumericSort(),
                         'prevent_user_edits' => $submitted_data->getPreventUserEdits(),
                         'allow_multiple_uploads' => $submitted_data->getAllowMultipleUploads(),
                         'shorten_filename' => $submitted_data->getShortenFilename(),

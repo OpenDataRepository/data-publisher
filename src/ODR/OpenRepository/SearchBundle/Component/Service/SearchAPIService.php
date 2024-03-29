@@ -26,7 +26,7 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
@@ -573,7 +573,7 @@ class SearchAPIService
                         // The render plugin is already loaded, stored by the id of the datafield
                         //  that is using it
                         $tmp = $hydrated_entities['renderPlugin'][$entity_id];
-                        /** @var SearchPluginInterface $rp */
+                        /** @var SearchOverrideInterface $rp */
                         $rp = $tmp['renderPlugin'];
                         $rpo = $tmp['renderPluginOptions'];
 
@@ -963,11 +963,11 @@ class SearchAPIService
             // For a regular search, need to hydrate all datafields being searched on
             $params = array(
                 'datafield_ids' => $datafield_ids,
-                'plugin_type' => RenderPlugin::SEARCH_PLUGIN,
+                'override_search' => true
             );
 
-            // Due to search plugins only being allowed on datafields, the query below does not
-            //  have to use the renderPluginMap table
+            // Due to search_override plugins only being allowed on datafields, the query below does
+            //  not have to use the renderPluginMap table
             $query = $this->em->createQuery(
                'SELECT df.id AS df_id, rp.pluginClassName AS plugin_classname,
                     rpom.value AS rpom_value, rpod.name AS rpod_name
@@ -976,7 +976,7 @@ class SearchAPIService
                 JOIN ODRAdminBundle:DataFields AS df WITH rpi.dataField = df
                 LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
                 LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
-                WHERE rp.plugin_type = :plugin_type AND rp.active = 1 AND df.id IN (:datafield_ids)
+                WHERE rp.overrideSearch = :override_search AND rp.active = 1 AND df.id IN (:datafield_ids)
                 AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
                 AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
                 AND df.deletedAt IS NULL'
@@ -990,7 +990,7 @@ class SearchAPIService
                 $plugin_classname = $result['plugin_classname'];
 
                 if ( !isset($render_plugins_cache[$plugin_classname]) ) {
-                    /** @var SearchPluginInterface $plugin */
+                    /** @var SearchOverrideInterface $plugin */
                     $plugin = $this->container->get($plugin_classname);
                     $render_plugins_cache[$plugin_classname] = $plugin;
                 }

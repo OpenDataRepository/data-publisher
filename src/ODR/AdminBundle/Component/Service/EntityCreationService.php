@@ -206,6 +206,7 @@ class EntityCreationService
 
         $datafield_meta->setMarkdownText('');
         $datafield_meta->setIsUnique(false);
+        $datafield_meta->setForceNumericSort(false);
         $datafield_meta->setRequired(false);
         $datafield_meta->setPreventUserEdits(false);
         $datafield_meta->setSearchable(DataFields::NOT_SEARCHED);
@@ -2250,6 +2251,9 @@ class EntityCreationService
 
                 if ($typeclass === 'DecimalValue')
                     $storage_entity->setOriginalValue($insert_value);
+
+                if ($typeclass === 'ShortVarchar')
+                    $storage_entity->setConvertedValue('');
 
                 $storage_entity->setCreated($created);
                 $storage_entity->setUpdated($created);

@@ -1,0 +1,72 @@
+odr_plugins.base.unit_conversion:
+    name: Unit Conversion Field (BETA)
+    category: Base
+    plugin_type: datafield
+    render: odr_plugins.base.unit_conversion
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: true
+    override_export: true
+    override_search: true
+    override_sort: true
+    suppress_no_fields_note: false
+    description: This plugin takes all values entered into this field and attempts to convert them to a different unit (e.g. Temperature, Pressure, Distance) based on how the plugin is configured.  This plugin is in BETA because it may not be correctly applying all the rules for precision/significant figures.
+
+    registered_events:
+        PluginOptionsChangedEvent: onPluginOptionsChanged
+        PluginPreRemoveEvent: onPluginPreRemove    # slightly better to use this event to delete "converted_values" instead of using PluginAttachEvent
+        PostUpdateEvent: onPostUpdate
+        MassEditTriggerEvent: onMassEditTrigger
+
+    required_fields:
+        field:
+            name: Field
+            description: A datafield to convert units in
+            type: ShortVarchar    # NOTE: can't add to this without changing ODR's backend database
+
+    config_options:
+        display_converted:
+            name: Display Converted values
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: Whether to display the converted values by default.
+            display_order: 0
+        export_converted:
+            name: Export Converted values
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: Whether to export the converted values by default.
+            display_order: 1
+
+        search_converted:
+            name: Search on Converted values
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: Whether to search on the converted values by default.
+            display_order: 2
+        sort_converted:
+            name: Sort using Converted values
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: Whether to sort the datafield using the converted values.
+            display_order: 3
+
+        # TODO - probably need some other options to configure how values are returned...
+
+        # Because the 'choices' option in these config files sucks, this config options is going to
+        #  be done with custom rendering
+        conversion_type:
+            # These five properties aren't really used, but are still required by the database
+            name: Conversion Type
+            type: string
+            default:
+            description: The type of conversion the field should receive (e.g. Temperature, Pressure)
+            display_order: 10
+            # This optional property is the one that triggers the hijack of the dialog
+            uses_custom_render: true

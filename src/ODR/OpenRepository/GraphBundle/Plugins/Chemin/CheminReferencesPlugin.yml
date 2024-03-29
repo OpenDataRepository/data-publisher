@@ -8,6 +8,9 @@ odr_plugins.chemin.chemin_references:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: A modified version of the References Plugin that has an additional "Supporting Files" field.
     registered_events:

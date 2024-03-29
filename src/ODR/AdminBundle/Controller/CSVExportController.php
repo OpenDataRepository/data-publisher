@@ -628,7 +628,6 @@ class CSVExportController extends ODRCustomController
 //print_r($post);  exit();
 
             if ( !isset($post['odr_tab_id'])
-                || !isset($post['datafields'])
                 || !isset($post['datatype_id'])
                 || !isset($post['delimiter'])
             ) {
@@ -636,10 +635,22 @@ class CSVExportController extends ODRCustomController
             }
 
             $odr_tab_id = $post['odr_tab_id'];
-            $datafields = $post['datafields'];
             $datatype_id = $post['datatype_id'];
             $delimiter = trim($post['delimiter']);
 
+            // Need to have either 'datafields' or 'plugin_datafields'
+            $datafields = array();
+            if ( isset($post['datafields']) )
+                $datafields = $post['datafields'];
+            $plugin_datafields = array();
+            if ( isset($post['plugin_datafields']) )
+                $plugin_datafields = $post['plugin_datafields'];
+
+            if ( empty($datafields) && empty($plugin_datafields) )
+                throw new ODRBadRequestException();
+
+
+            // The rest of these are only needed if a field of that typeclass is marked for export
             $file_image_delimiter = null;
             if ( isset($post['file_image_delimiter']) )
                 $file_image_delimiter = trim($post['file_image_delimiter']);
@@ -789,10 +800,13 @@ class CSVExportController extends ODRCustomController
             $dr_array = array();
             $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
+            // $datafields could be empty, but if not then need to verify its info
+            $flipped_datafields = array_flip($datafields);
+
             $df_mapping = array();
-            foreach ($datafields as $num => $df_id) {
-                foreach ($dt_array as $dt_id => $dt) {
-                    if ( isset($dt['dataFields'][$df_id]) ) {
+            foreach ($dt_array as $dt_id => $dt) {
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    if ( isset($flipped_datafields[$df_id]) || isset($plugin_datafields[$df_id]) ) {
                         $df_mapping[$df_id] = $dt_id;
 
                         $df = $dt['dataFields'][$df_id];
@@ -818,7 +832,7 @@ class CSVExportController extends ODRCustomController
             // If these arrays don't match...then either the user can't view at least one of the
             //  fields they want to export, or they tried to export a field from an unrelated
             //  datatype.  This will typically only be triggered by manual edits of the POST data.
-            if ( count($datafields) !== count($df_mapping) )
+            if ( (count($datafields) + count($plugin_datafields)) !== count($df_mapping) )
                 throw new ODRBadRequestException('Invalid Datafield list');
 
 
@@ -948,6 +962,7 @@ class CSVExportController extends ODRCustomController
                         'datarecord_id' => $datarecord_id,    // top-level datarecord id
                         'complete_datarecord_list' => $filtered_datarecord_list,    // list of all datarecords related to $datarecord_id that matched the search
                         'datafields' => $datafields,
+                        'plugin_datafields' => $plugin_datafields,
 
                         'redis_prefix' => $redis_prefix,    // debug purposes only
                         'url' => $url,
@@ -1039,6 +1054,7 @@ class CSVExportController extends ODRCustomController
                 || !isset($post['datarecord_id'])
                 || !isset($post['complete_datarecord_list'])
                 || !isset($post['datafields'])
+                || !isset($post['plugin_datafields'])
 
                 || !isset($post['api_key'])
                 || !isset($post['random_key'])
@@ -1054,6 +1070,7 @@ class CSVExportController extends ODRCustomController
             $datarecord_id = $post['datarecord_id'];
             $complete_datarecord_list = $post['complete_datarecord_list'];
             $datafields = $post['datafields'];
+            $plugin_datafields = $post['plugin_datafields'];
 
             $api_key = $post['api_key'];
             $random_key = $post['random_key'];
@@ -1161,6 +1178,9 @@ class CSVExportController extends ODRCustomController
 
             // Need to locate fieldtypes of all datafields that are going to be exported
             $flipped_datafields = array_flip($datafields);
+            foreach ($plugin_datafields as $df_id => $df_data)
+                $flipped_datafields[$df_id] = 1;
+
             $datafields_to_export = array();
             foreach ($dt_array as $dt_id => $dt) {
                 foreach ($dt['dataFields'] as $df_id => $df) {
@@ -1195,6 +1215,13 @@ class CSVExportController extends ODRCustomController
                 $df_ids = implode(',', array_keys($flipped_datafields));
                 throw new ODRBadRequestException('Unable to locate Datafields "'.$df_ids.'" for User '.$user_id.', Datatype '.$datatype_id);
             }
+
+
+            // ----------------------------------------
+            // Check whether this datatype has any attached render plugins that could override
+            //  exporting
+
+            // TODO - have the arrays here...dig through those, or use a database query?
 
 
             // ----------------------------------------

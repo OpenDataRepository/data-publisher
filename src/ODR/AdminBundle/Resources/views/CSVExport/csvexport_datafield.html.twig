@@ -1,171 +1,198 @@
 {% spaceless %}
 
+{% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 
-<div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
-    {% set classes = 'ODRCSVExport' %}
-    {% if field_typename != 'Markdown' %}
-        {# markdown fields shouldn't be selectable in here #}
-        {% set classes = classes ~ ' ODROverlayDiv Pointer ODRUnselectedDatafield' %}
-    {% endif %}
+{% set classes = '' %}
+{% if field_typename != 'Markdown' %}
+    {# markdown fields shouldn't be selectable in here #}
+    {% set classes = classes ~ ' ODRCSVExportField Pointer ODRUnselectedCSVExportField' %}
+{% endif %}
 
-    {% if field_typename == 'File' or field_typename == 'Image' %}
-        {% set classes = classes ~ ' ODRExportFileImageField' %}
-    {% elseif field_typename == 'Multiple Radio' or field_typename == 'Multiple Select' %}
-        {% set classes = classes ~ ' ODRExportRadioField' %}
-    {% elseif field_typename == 'Tags' %}
-        {% set classes = classes ~ ' ODRExportTagField' %}
-    {% endif %}
+{% if field_typename == 'File' or field_typename == 'Image' %}
+    {% set classes = classes ~ ' ODRExportFileImageField' %}
+{% elseif field_typename == 'Multiple Radio' or field_typename == 'Multiple Select' %}
+    {% set classes = classes ~ ' ODRExportRadioField' %}
+{% elseif field_typename == 'Tags' %}
+    {% set classes = classes ~ ' ODRExportTagField' %}
+{% endif %}
 
-    {% if datafield_meta.tags_allow_multiple_levels == 1 %}
-        {% set classes = classes ~ ' ODRExportTagHierarchy' %}
-    {% endif %}
+{% if datafield_meta.tags_allow_multiple_levels == 1 %}
+    {% set classes = classes ~ ' ODRExportTagHierarchy' %}
+{% endif %}
 
-    <div id="Field_{{ datafield.id }}_overlay" class="{{ classes }}" rel="{{ datafield.id }}"></div>
+<div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {{ classes }}" id="Field_{{ datafield.id }}" >
 
     <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
-    <input type="hidden" name="theme_field_id" value="{{ theme_datafield.id }}" />
+        {# NOTE - need this in here to prevent stuff from being hidden, apparently #}
+        <input type="hidden" value="{{ theme_datafield.id }}" />
 
-    {% if field_typename == "Boolean" %}
-    <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
-            <input type="checkbox" name="" disabled>
-            {{ datafield_meta.fieldName }}
-        </label>
-    </fieldset>
+        {# Determine whether a render plugin needs to be run #}
+        {% set rendering_options = {'context': 'csv_export'} %}
+        {% set render_plugin_instance = null %}
+        {% set can_execute_plugin = false %}
 
-    {% elseif field_typename == "File" %}
-    <div class="ODRFileDatafield">
-        <div class="ODRFileDatafield_header pure-u-1">
-            <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+        {% for rpi_num,rpi in datafield.renderPluginInstances %}
+            {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+                {% set can_execute_plugin = rpi|can_execute_datafield_plugin(datafield, null, rendering_options) %}
 
-            <span id="ODRDataField_{{ datafield.id }}" title="{{ datafield_meta.description }}">
-                <span id="ODRDatafield_{{ datafield.id }}_name" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</span>
-            </span>
-        </div>
-        <div class="ODRFileDatafield_file pure-u-1">
-            <span class="ODRFileSpacer ODRFileSpacer_nonpublic">&nbsp;</span>
+                {# Only want to save the render_plugin_instance if it's render-able #}
+                {% if can_execute_plugin %}
+                    {% set render_plugin_instance = rpi %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
 
-            <span class="ODRTruncateFilename">
-                <span class="ODRFileInfoDiv">
-                    <i class="fa fa-lg fa-info-circle"></i>
-                    <span class="ODRFileInfo">
-                        <div>
-                            <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
-                        </div>
-                        <div>
-                            <i class="fa fa-calendar"></i>&nbsp;
-                            Uploaded Unknown Date by Unknown
-                        </div>
-                        <div>
-                            <i class="fa fa-file-o"></i>&nbsp;
-                            0 bytes
-                        </div>
-                    </span>
+        {% set content = '' %}
+        {% if can_execute_plugin %}
+            {% set content = datafield|datafield_plugin(null, render_plugin_instance, rendering_options) %}
+        {% endif %}
+
+        {% if can_execute_plugin and content|length > 0 %}
+            {# TODO - ...require the render plugin to also handle the <form> element? #}
+            {{ content|raw }}
+
+        {% elseif field_typename == "Boolean" %}
+        <fieldset>
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
+                <input type="checkbox" name="" disabled>
+                {{ datafield_meta.fieldName }}
+            </label>
+        </fieldset>
+
+        {% elseif field_typename == "File" %}
+        <div class="ODRFileDatafield">
+            <div class="ODRFileDatafield_header pure-u-1">
+                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+
+                <span id="ODRDataField_{{ datafield.id }}" title="{{ datafield_meta.description }}">
+                    <span id="ODRDatafield_{{ datafield.id }}_name" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</span>
                 </span>
-                <a class="ODRFileDownload" title="File Name Here" rel="-1">File Name Here</a>
+            </div>
+            <div class="ODRFileDatafield_file pure-u-1">
+                <span class="ODRFileSpacer ODRFileSpacer_nonpublic">&nbsp;</span>
+
+                <span class="ODRTruncateFilename">
+                    <span class="ODRFileInfoDiv">
+                        <i class="fa fa-lg fa-info-circle"></i>
+                        <span class="ODRFileInfo">
+                            <div>
+                                <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
+                            </div>
+                            <div>
+                                <i class="fa fa-calendar"></i>&nbsp;
+                                Uploaded Unknown Date by Unknown
+                            </div>
+                            <div>
+                                <i class="fa fa-file-o"></i>&nbsp;
+                                0 bytes
+                            </div>
+                        </span>
+                    </span>
+                    <a class="ODRFileDownload" title="File Name Here" rel="-1">File Name Here</a>
+                </span>
+            </div>
+        </div>
+
+        {% elseif field_typename == "Image" %}
+        <fieldset>
+            <span class="pure-u-1">
+                <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
+                    <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield_meta.fieldName }}</span>
+                </h3>
             </span>
-        </div>
-    </div>
+            <div class="pure-u-1">
+                <img class="pure-img" src="{{ site_baseurl }}/img/blank.jpg" />
+            </div>
+        </fieldset>
 
-    {% elseif field_typename == "Image" %}
-    <fieldset>
-        <span class="pure-u-1">
-            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
-                <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield_meta.fieldName }}</span>
-            </h3>
-        </span>
-        <div class="pure-u-1">
-            <img class="pure-img" src="{{ site_baseurl }}/img/blank.jpg" />
-        </div>
-    </fieldset>
-
-    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
-    <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
-            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
-        </label>
-        <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
-    </fieldset>
-
-    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
-    <fieldset>
-        <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+        {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+        <fieldset>
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
                 <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
             </label>
-        </span>
+            <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
+        </fieldset>
 
-        {% if datafield.radioOptions is defined %}
-            {% for radio_option in datafield.radioOptions %}
-                <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
+        {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
+        <fieldset>
+            <span class="pure-u-1">
+                <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+                    <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+                </label>
+            </span>
 
-                {% if field_typename == "Single Radio" %}
-                    <input id="Option_object_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="SingleRadioGroup" disabled />
-                {% else %}
-                    <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
+            {% if datafield.radioOptions is defined %}
+                {% for radio_option in datafield.radioOptions %}
+                    <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
+
+                    {% if field_typename == "Single Radio" %}
+                        <input id="Option_object_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="SingleRadioGroup" disabled />
+                    {% else %}
+                        <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
+                    {% endif %}
+
+                        <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
+                    </label>
+                {% endfor %}
+            {% endif %}
+            {# TODO - need something to take up space on the page when no radio options are defined? #}
+        </fieldset>
+
+        {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
+        <fieldset>
+            <span class="pure-u-1">
+                <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+                    <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+                </label>
+            </span>
+
+            <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
+
+            {% if datafield.radioOptions is defined %}
+                {% if field_typename == "Single Select" %}
+                    <option id="Option_0" value="0">Select an Option</option>
                 {% endif %}
 
-                    <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
-                </label>
-            {% endfor %}
-        {% endif %}
-        {# TODO - need something to take up space on the page when no radio options are defined? #}
-    </fieldset>
-
-    {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
-    <fieldset>
-        <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
-                <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
-            </label>
-        </span>
-
-        <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
-
-        {% if datafield.radioOptions is defined %}
-            {% if field_typename == "Single Select" %}
-                <option id="Option_0" value="0">Select an Option</option>
+                {% for radio_option in datafield.radioOptions %}
+                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+                {% endfor %}
             {% endif %}
+            </select>
+        </fieldset>
 
-            {% for radio_option in datafield.radioOptions %}
-                <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
-            {% endfor %}
-        {% endif %}
-        </select>
-    </fieldset>
+        {% elseif field_typename == "Tags" %}
+        <fieldset>
+            <span class="pure-u-1">
+                <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+                    <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+                </label>
+            </span>
 
-    {% elseif field_typename == "Tags" %}
-    <fieldset>
-        <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+            {% if datafield.tags is defined %}
+                {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                    'stacked_tags': datafield.tags,
+                } %}
+            {% endif %}
+            {# TODO - need something to take up space on the page when no tags are defined? #}
+        </fieldset>
+
+        {% elseif field_typename == "DateTime" %}
+        <fieldset>
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
                 <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
             </label>
-        </span>
+            <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
+                <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly />
+            </div>
+            <div style="margin-bottom:5px;"><label class="ODRDatePicker_clear"><u>Clear Date</u></label></div>
+        </fieldset>
 
-        {% if datafield.tags is defined %}
-            {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
-                'stacked_tags': datafield.tags,
-            } %}
+        {% elseif field_typename == "Markdown" %}
+            {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
         {% endif %}
-        {# TODO - need something to take up space on the page when no tags are defined? #}
-    </fieldset>
-
-    {% elseif field_typename == "DateTime" %}
-    <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
-            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
-        </label>
-        <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
-            <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly />
-        </div>
-        <div style="margin-bottom:5px;"><label class="ODRDatePicker_clear"><u>Clear Date</u></label></div>
-    </fieldset>
-
-    {% elseif field_typename == "Markdown" %}
-        {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
-    {% endif %}
     </form>
 
 </div><!-- End of #Field_{{ datafield.id}} -->

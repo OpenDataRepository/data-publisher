@@ -151,7 +151,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -176,7 +176,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      * Executes the FileRenamer Plugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *

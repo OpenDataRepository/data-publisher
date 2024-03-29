@@ -8,6 +8,9 @@ odr_plugins.base.filter_graph:
     override_field_reload: false
     override_child: true
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: true    # The fields for this plugin are done with custom options
     description: The Filter Graph Plugin is a variant of the Graph Plugin that is intended to display more (and not as related) files at once.  To assist with this, the plugin compiles values from the related non-file fields, and provides an interface to "filter" which files are displayed on the graph based on the selected values.
     registered_events:

@@ -4029,6 +4029,13 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     opacity: 0.4;
 }
 
+.ODRUnselectedCSVExportField {
+    background-color: #ff8888;
+}
+.ODRSelectedCSVExportField {
+    background-color: #88ff88;
+}
+
 
 #ODRGroupListHeader {
     margin-left: 20px;
@@ -5160,7 +5167,6 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     text-align: right;
 }
 
-
 .ODRFileQuality_wrapper {
     position: absolute;
     right: 5px;
@@ -5173,6 +5179,27 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRFileQuality_label {
     position: relative !important;
     top: 0px !important;
+}
+
+.ODRRenderPlugin_UnitConversion_header {
+    text-align: left;
+    text-indent: 15px;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+.ODRRenderPlugin_UnitConversion_body {
+    text-align: left;
+    text-indent: 15px;
+
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+.ODRRenderPlugin_UnitConversion_info {
+    text-indent: 0px;
+    font-size: 0.8em;
+
+    margin-top: 5px;
 }
 
 .ODRRRUFFReferencePlugin_select {
@@ -5189,3 +5216,4 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     /* add border after every option */
     border-bottom: 1px solid #DDD;
 }
+

@@ -8,6 +8,9 @@ odr_plugins.rruff.cell_parameters:
     override_field_reload: true
     override_child: false
     override_table_fields: true
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: This plugin provides a framework for entering crystallographic symmetry data.  In Edit mode, it restricts the available Crystal System, Point Group, Space Group, and Lattice data to ensure none of them conflict with each other.  In Display mode, it also tweaks the Point/Space groups so they're displayed nicer, and calculates volume when a value hasn't been entered by a user.
     registered_events:

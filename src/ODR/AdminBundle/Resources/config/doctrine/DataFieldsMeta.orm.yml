@@ -95,6 +95,12 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: false
             column: is_unique
 
+        force_numeric_sort:
+            type: boolean
+            nullable: false
+            default: false
+            column: force_numeric_sort
+
         # This only applies to boolean, integer, decimal, datetime, and varchar fields
         prevent_user_edits:
             type: boolean

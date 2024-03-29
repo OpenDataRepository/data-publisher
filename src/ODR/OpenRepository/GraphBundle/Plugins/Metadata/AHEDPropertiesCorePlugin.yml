@@ -8,6 +8,9 @@ odr_plugins.metadata.ahed_properties_core:
     override_field_reload: false
     override_child: true
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: TODO
     registered_events:
