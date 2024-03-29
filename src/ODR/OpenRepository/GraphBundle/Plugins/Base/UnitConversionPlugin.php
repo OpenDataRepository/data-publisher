@@ -93,7 +93,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var SearchService
@@ -141,7 +141,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         $this->em = $entity_manager;
         $this->event_dispatcher = $event_dispatcher;
         $this->cache_service = $cache_service;
-        $this->dbi_service = $database_info_service;
+        $this->database_info_service = $database_info_service;
         $this->search_service = $search_service;
         $this->search_query_service = $search_query_service;
         $this->templating = $templating;
@@ -167,8 +167,8 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             if ( $context === 'display'
                 || $context === 'edit'
                 || $context === 'mass_edit'
-                || $context === 'csv_export'    // TODO - need nate to be done first...
-                || $context === 'api_export'    // TODO - implement this
+//                || $context === 'csv_export'    // TODO - need nate to be done first...
+//                || $context === 'api_export'    // TODO - implement this
             ) {
                 // Execute the render plugin when called from these contexts
                 return true;
@@ -503,7 +503,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         // Events don't have access to the renderPluginInstance, so might as well just always get
         //  the data from the cached datatype array
         $datatype = $datafield->getDataType();
-        $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
+        $datatype_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
         $dt = $datatype_array[$datatype->getId()];
 
         // The datafield entry in this array is guaranteed to exist...
