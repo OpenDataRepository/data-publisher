@@ -1,6 +1,8 @@
 {% spaceless %}
 
+{% set datatype_id = datatype.id %}
 {% set datafield_id = datafield.id %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set fieldname = datafield_meta['fieldName'] %}
 {% set description = datafield_meta['description'] %}
@@ -19,7 +21,7 @@
 
 {% for rpi_num,rpi in datafield.renderPluginInstances %}
     {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-        {% set can_execute_plugin = rpi|can_execute_search_plugin(datafield, rendering_options) %}
+        {% set can_execute_plugin = rpi|can_execute_search_plugin(datatype, datafield, rendering_options) %}
 
         {# Only want to save the render_plugin_instance if it's render-able #}
         {% if can_execute_plugin %}
@@ -30,7 +32,7 @@
 
 {% set content = '' %}
 {% if can_execute_plugin %}
-    {% set content = datafield|search_plugin(render_plugin_instance, datatype_id, preset_value, rendering_options) %}
+    {% set content = render_plugin_instance|search_plugin(datatype, datafield, preset_value, rendering_options) %}
 {% endif %}
 
 {% if can_execute_plugin and content|length > 0 %}

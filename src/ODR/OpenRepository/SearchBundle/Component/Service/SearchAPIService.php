@@ -578,7 +578,7 @@ class SearchAPIService
                         $rpo = $tmp['renderPluginOptions'];
 
                         // The plugin will return the same format that the regular searches do
-                        $dr_list = $rp->searchPluginField($entity, $search_term, $rpo);
+                        $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpo);
                     }
                     else {
                         // Datafield search depends on the typeclass of the field
@@ -966,62 +966,124 @@ class SearchAPIService
                 'override_search' => true
             );
 
-            // Due to search_override plugins only being allowed on datafields, the query below does
-            //  not have to use the renderPluginMap table
+            // Because both datafield and datatype plugins can use search_override, it's easier if
+            //  two dql queries are used. The first determines whether the datafields being searched
+            //  on belong to a plugin that (possibly) wants to override searching...
             $query = $this->em->createQuery(
-               'SELECT df.id AS df_id, rp.pluginClassName AS plugin_classname,
-                    rpom.value AS rpom_value, rpod.name AS rpod_name
+               'SELECT df.id AS df_id, rp.id AS rp_id, rpi.id AS rpi_id, rp.pluginClassName AS plugin_classname, rpf.fieldName
                 FROM ODRAdminBundle:RenderPlugin AS rp
                 JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
-                JOIN ODRAdminBundle:DataFields AS df WITH rpi.dataField = df
-                LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
-                LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                JOIN ODRAdminBundle:DataFields AS df WITH rpm.dataField = df
                 WHERE rp.overrideSearch = :override_search AND rp.active = 1 AND df.id IN (:datafield_ids)
-                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
-                AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
-                AND df.deletedAt IS NULL'
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
+                AND rpf.deletedAt IS NULL AND df.deletedAt IS NULL'
             )->setParameters($params);
             $results = $query->getArrayResult();
 
             // Only want to load each render plugin once...
             $render_plugins_cache = array();
-            $render_plugin_options = array();
+            $render_plugins_fields = array();
             foreach ($results as $result) {
+                $rp_id = $result['rp_id'];
                 $plugin_classname = $result['plugin_classname'];
+                $rpi_id = $result['rpi_id'];
 
                 if ( !isset($render_plugins_cache[$plugin_classname]) ) {
                     /** @var SearchOverrideInterface $plugin */
                     $plugin = $this->container->get($plugin_classname);
-                    $render_plugins_cache[$plugin_classname] = $plugin;
+                    $render_plugins_cache[$plugin_classname] = array('id' => $rp_id, 'plugin' => $plugin);
                 }
 
-                $option_name = $result['rpod_name'];
-                $option_value = $result['rpom_value'];
+                // Also need to organize these datafields by the render plugin instance that they're
+                //  attached to
+                if ( !isset($render_plugins_fields[$plugin_classname]) )
+                    $render_plugins_fields[$plugin_classname] = array();
+                if ( !isset($render_plugins_fields[$plugin_classname][$rpi_id]) )
+                    $render_plugins_fields[$plugin_classname][$rpi_id] = array();
 
-                if ( !is_null($option_name) ) {
-                    if ( !isset($render_plugin_options[$plugin_classname]) )
-                        $render_plugin_options[$plugin_classname] = array();
-                    $render_plugin_options[$plugin_classname][$option_name] = $option_value;
+                $rpf_name = $result['fieldName'];
+                $df_id = $result['df_id'];
+                $render_plugins_fields[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
+            }
+
+            // Now that the fields have been grouped, determine whether the render plugin wants to
+            //  override the search routine for each set of fields
+            foreach ($render_plugins_cache as $plugin_classname => $plugin_data) {
+                $plugin = $plugin_data['plugin'];
+
+                // ...I don't think it's strictly necessary to check each render plugin instance, but
+                //  maybe it will be in the future.  Dunno.
+                foreach ($render_plugins_fields[$plugin_classname] as $rpi_id => $df_list) {
+                    $ret = $plugin->getSearchOverrideFields($df_list);
+
+                    if ( !empty($ret) ) {
+                        // ...the plugin wants to override at least one field
+                        foreach ($ret as $rpf_name => $df_id) {
+                            // It's easier on SearchAPIService if each datafield gets a reference to the
+                            //  plugin (and eventually to the plugin's options)
+                            $render_plugins[$df_id] = array(
+                                'renderPlugin' => $plugin_data,
+                            );
+                        }
+                    }
+                    else {
+                        // ...the plugin doesn't want to override any fields
+                        unset( $render_plugins_fields[$plugin_classname][$rpi_id] );
+                    }
                 }
             }
 
-            // Need to arrange the plugins by the id of the datafield that is using them, though
-            foreach ($results as $result) {
-                $df_id = $result['df_id'];
-                $plugin_classname = $result['plugin_classname'];
+            // If a plugin wants to override searching for a field...
+            $render_plugin_instance_ids = array();
+            foreach ($render_plugins_fields as $plugin_classname => $rpi_list) {
+                // ...then we need to also load the related set of options for each render plugin
+                //  instance
+                foreach ($rpi_list as $rpi_id => $df_list)
+                    $render_plugin_instance_ids[] = $rpi_id;
+            }
 
-                $render_plugins[$df_id] = array(
-                    'renderPlugin' => $render_plugins_cache[$plugin_classname],
-                );
+            $render_plugin_options = array();
+            if ( !empty($render_plugin_instance_ids) ) {
+                $query = $this->em->createQuery(
+                   'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
+                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                    WHERE rpi.id IN (:render_plugin_instance_ids)
+                    AND rpi.deletedAt IS NULL AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL'
+                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
+                $results = $query->getArrayResult();
 
-                // The render plugin may not have had any options...
-                if ( isset($render_plugin_options[$plugin_classname]) ) {
-                    // ...but if it does, then save them to return
-                    $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$plugin_classname];
+                foreach ($results as $result) {
+                    $rpi_id = $result['rpi_id'];
+                    $option_name = $result['rpod_name'];
+                    $option_value = $result['rpom_value'];
+
+                    if ( !is_null($option_name) ) {
+                        if ( !isset($render_plugin_options[$rpi_id]) )
+                            $render_plugin_options[$rpi_id] = array();
+                        $render_plugin_options[$rpi_id][$option_name] = $option_value;
+                    }
                 }
-                else {
-                    // If it didn't have any options, then just provide an empty array
-                    $render_plugins[$df_id]['renderPluginOptions'] = array();
+            }
+
+            // Need to map any existing render plugin options to each datafield they're related to
+            foreach ($render_plugins_fields as $plugin_classname => $rpi_list) {
+                $plugin = $render_plugins_cache[$plugin_classname]['plugin'];
+
+                foreach ($rpi_list as $rpi_id => $df_list) {
+                    foreach ($df_list as $rpf_name => $df_id) {
+                        // Easier to replace the existing array entry for this datafield...
+                        $render_plugins[$df_id] = array(
+                            'renderPlugin' => $plugin,
+                            'renderPluginOptions' => array()
+                        );
+                        // ...and attach any render plugin options if they exist
+                        if ( isset($render_plugin_options[$rpi_id]) )
+                            $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$rpi_id];
+                    }
                 }
             }
         }

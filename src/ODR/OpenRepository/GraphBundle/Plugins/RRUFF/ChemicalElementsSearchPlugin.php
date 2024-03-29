@@ -145,6 +145,22 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
 
     /**
+     * Given an array of datafields mapped by this plugin, returns which datafields SearchAPIService
+     * should call {@link SearchOverrideInterface::searchOverriddenField()} on instead of running
+     * the default searches.
+     *
+     * @param array $df_list
+     * @return array An array where the values are datafield ids
+     */
+    public function getSearchOverrideFields($df_list)
+    {
+        // Since this is a datafield plugin, $df_list will only have one field...always want to
+        //  override how it's searched
+        return $df_list;
+    }
+
+
+    /**
      * Searches the specified datafield for the specified value, returning an array of datarecord
      * ids that match the search.
      *
@@ -154,7 +170,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
      *
      * @return array
      */
-    public function searchPluginField($datafield, $search_term, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_options)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -538,15 +554,16 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
 
     /**
-     * Returns whether the plugin wants to override its entry in the search sidebar.
+     * Returns which of its entries the plugin wants to override in the search sidebar.
      *
      * @param array $render_plugin_instance
+     * @param array $datatype
      * @param array $datafield
      * @param array $rendering_options
      *
-     * @return bool
+     * @return array|bool returns true/false if a datafield plugin, or an array of datafield ids if a datatype plugin
      */
-    public function canExecuteSearchPlugin($render_plugin_instance, $datafield, $rendering_options)
+    public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
     {
         // Don't need any of the provided parameters to make a decision
         return true;
@@ -554,22 +571,22 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
 
     /**
-     * Executes the plugin on the given datafield.
+     * Returns HTML to override a datafield's entry in the search sidebar.
      *
-     * @param array $datafield
      * @param array $render_plugin_instance
-     * @param int $datatype_id
+     * @param array $datatype
+     * @param array $datafield
      * @param string|array $preset_value
      * @param array $rendering_options
      *
      * @return string
      */
-    public function executeSearchPlugin($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options)
+    public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
     {
         $output = $this->templating->render(
             'ODROpenRepositoryGraphBundle:RRUFF:ChemicalElementsSearch/chemical_elements_search_datafield.html.twig',
             array(
-                'datatype_id' => $datatype_id,
+                'datatype' => $datatype,
                 'datafield' => $datafield,
 
                 'preset_value' => $preset_value,

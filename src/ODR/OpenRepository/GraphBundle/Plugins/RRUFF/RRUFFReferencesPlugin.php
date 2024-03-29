@@ -24,9 +24,11 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\LockService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use ODR\AdminBundle\Component\Service\SortService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -35,7 +37,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class RRUFFReferencesPlugin implements DatatypePluginInterface
+class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideInterface
 {
 
     /**
@@ -52,6 +54,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      * @var LockService
      */
     private $lock_service;
+
+    /**
+     * @var SearchService
+     */
+    private $search_service;
 
     /**
      * @var SortService
@@ -88,6 +95,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      * @param EntityManager $entity_manager
      * @param EntityCreationService $entity_create_service
      * @param LockService $lock_service
+     * @param SearchService $search_service
      * @param SortService $sort_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -98,6 +106,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         EntityManager $entity_manager,
         EntityCreationService $entity_create_service,
         LockService $lock_service,
+        SearchService $search_service,
         SortService $sort_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -107,6 +116,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         $this->em = $entity_manager;
         $this->entity_create_service = $entity_create_service;
         $this->lock_service = $lock_service;
+        $this->search_service = $search_service;
         $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -165,7 +175,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
-
         try {
             // ----------------------------------------
             // If no rendering context set, then return nothing so ODR's default templating will
@@ -420,7 +429,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                 //  input errors...
                 $journal_df_id = 0;
                 if ( !isset($fields['Journal']['id']) ) {
-                    // I the Journal field doesn't exist, then the plugin can't continue executing
+                    // If the Journal field doesn't exist, then the plugin can't continue executing
                     if ( !$is_datatype_admin )
                         // ...regardless of what actually caused the issue, the plugin shouldn't execute
                         return '';
@@ -469,6 +478,98 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Returns which of its entries the plugin wants to override in the search sidebar.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $datafield
+     * @param array $rendering_options
+     *
+     * @return array|bool returns true/false if a datafield plugin, or an array of datafield ids if a datatype plugin
+     */
+    public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
+    {
+        // Only want to override the Journal field
+        if ( isset($render_plugin_instance['renderPluginMap']['Journal']['id']) ) {
+            $journal_df_id = $render_plugin_instance['renderPluginMap']['Journal']['id'];
+            return array('Journal' => $journal_df_id);
+        }
+
+        // If the journal field isn't mapped for some reason, return nothing
+        return array();
+    }
+
+
+    /**
+     * Returns HTML to override a datafield's entry in the search sidebar.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $datafield
+     * @param string|array $preset_value
+     * @param array $rendering_options
+     *
+     * @return string
+     */
+    public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
+    {
+        // This will only be called on the Journal field...want to provide a dropdown of all journals
+        //  currently listed in the field
+        $sort_data = $this->sort_service->sortDatarecordsByDatafield( $datafield['id'] );
+
+        $journal_list = array();
+        foreach ($sort_data as $dr_id => $sort_value)
+            $journal_list[$sort_value] = 1;
+
+        $output = $this->templating->render(
+            'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_search_journal_datafield.html.twig',
+            array(
+                'datatype' => $datatype,
+                'datafield' => $datafield,
+
+                'journal_list' => $journal_list,
+
+                'preset_value' => $preset_value,
+            )
+        );
+
+        return $output;
+    }
+
+
+    /**
+     * Given an array of datafields mapped by this plugin, returns which datafields SearchAPIService
+     * should call {@link SearchOverrideInterface::searchOverriddenField()} on instead of running
+     * the default searches.
+     *
+     * @param array $df_list
+     * @return array An array where the values are datafield ids
+     */
+    public function getSearchOverrideFields($df_list)
+    {
+        // Don't want to override SearchAPIService
+        return array();
+    }
+
+
+    /**
+     * Searches the specified datafield for the specified value, returning an array of datarecord
+     * ids that match the search.
+     *
+     * @param DataFields $datafield
+     * @param array $search_term
+     * @param array $render_plugin_options
+     *
+     * @return array
+     */
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_options)
+    {
+        // This won't be called
+        return null;
     }
 
 

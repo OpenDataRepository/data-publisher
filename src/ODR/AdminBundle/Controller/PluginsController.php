@@ -350,13 +350,17 @@ class PluginsController extends ODRCustomController
         else if ( $plugin_config['override_sort'] === false && ($plugin_service instanceof SortOverrideInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must not implement SortOverrideInterface');
 
-        // For the moment, Datafield plugins are the only ones allowed to implement Export/Search/Sort overriding
+        // For the moment, Datafield plugins are the only ones allowed to implement Export/Sort overriding
         if ( $plugin_config['override_export'] === true
-            || $plugin_config['override_search'] === true
             || $plugin_config['override_sort'] === true
         ) {
             if ( !$is_datafield_plugin )
                 throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is not a Datafield plugin and therefore is not allowed to override Exporting, Searching, or Sorting');
+        }
+        // ...had to implement Search overriding for Datatype plugins though
+        if ( $plugin_config['override_search'] === true ) {
+            if ( $is_array_plugin || $is_theme_element_plugin )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is not a Datafield or Datatype plugin and therefore is not allowed to override Searching');
         }
 
 

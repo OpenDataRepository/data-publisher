@@ -723,7 +723,9 @@ class DatabaseInfoService
         // Need to modify the resulting array somewhat to make it easier for other parts of ODR
         //  to use
         foreach ($render_plugin_instances as $rpi_id => $rpi) {
-            // All plugins will have an entry for required fields, although it might be empty
+            // The renderPluginInstance should always have a renderPlugin entry...
+            if ( is_null($rpi['renderPlugin']) )
+                throw new ODRException('Unable to rebuild the cached_datatype_'.$grandparent_datatype_id.' array because of a database error for rpi '.$rpi_id);
 
             // For renderPluginEvents, only care about the event name
             $tmp_rpe = array();

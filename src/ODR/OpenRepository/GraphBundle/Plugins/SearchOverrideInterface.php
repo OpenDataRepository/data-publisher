@@ -20,6 +20,44 @@ interface SearchOverrideInterface
 {
 
     /**
+     * Returns which entries of its entries the plugin wants to override in the search sidebar.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $datafield
+     * @param array $rendering_options
+     *
+     * @return array|bool returns true/false if a datafield plugin, or an array if a datatype plugin
+     */
+    public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options);
+
+
+    /**
+     * Returns HTML to override a datafield's entry in the search sidebar.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $datafield
+     * @param string|array $preset_value
+     * @param array $rendering_options
+     *
+     * @return string
+     */
+    public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options);
+
+
+    /**
+     * Given an array of datafields mapped by this plugin, returns which datafields SearchAPIService
+     * should call {@link SearchOverrideInterface::searchOverriddenField()} on instead of running
+     * the default searches.
+     *
+     * @param array $df_list
+     * @return array An array where the values are datafield ids
+     */
+    public function getSearchOverrideFields($df_list);
+
+
+    /**
      * Searches the specified datafield for the specified value, returning an array of datarecord
      * ids that match the search.
      *
@@ -29,31 +67,5 @@ interface SearchOverrideInterface
      *
      * @return array
      */
-    public function searchPluginField($datafield, $search_term, $render_plugin_options);
-
-
-    /**
-     * Returns whether the plugin wants to override its entry in the search sidebar.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array $rendering_options
-     *
-     * @return bool
-     */
-    public function canExecuteSearchPlugin($render_plugin_instance, $datafield, $rendering_options);
-
-
-    /**
-     * Executes the plugin on the given datafield.
-     *
-     * @param array $datafield
-     * @param array $render_plugin_instance
-     * @param int $datatype_id
-     * @param string|array $preset_value
-     * @param array $rendering_options
-     *
-     * @return string
-     */
-    public function executeSearchPlugin($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options);
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_options);
 }

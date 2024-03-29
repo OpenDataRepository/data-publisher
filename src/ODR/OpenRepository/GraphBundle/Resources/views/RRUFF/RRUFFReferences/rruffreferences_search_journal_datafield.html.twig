@@ -1,0 +1,38 @@
+{% spaceless %}
+
+{% set datatype_id = datatype.id %}
+{% set datafield_id = datafield.id %}
+{% set fieldname = datafield['dataFieldMeta']['fieldName'] %}
+{% set description = datafield['dataFieldMeta']['description'] %}
+
+{# want to select the journal in the dropdown if possible... #}
+{% set journal_preset_value = preset_value %}
+{% if journal_preset_value|first == '"' and journal_preset_value|last == '"' %}
+    {# ...which could mean cutting the doublequotes out of the string #}
+    {% set journal_preset_value = journal_preset_value|slice(1, journal_preset_value|length-2) %}
+{% endif %}
+
+    <span class="pure-u-1">
+        <label for="datafield_{{ datafield_id }}" class="pure-u-1">
+            <span title="{{ description }}">{{ fieldname }}:</span>
+        </label>
+    </span>
+
+    <select id="datafield_{{ datafield_id }}_select" class="pure-u-1">
+    {% for journal_name,num in journal_list %}
+        <option class="ODRRRUFFReferencePlugin_option" {% if journal_name == journal_preset_value %}selected{% endif %}>{{ journal_name }}</option>
+    {% endfor %}
+    </select>
+    <input type="text" class="ODRInput pure-u-1" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}" {% if preset_value != '' %}value="{{ preset_value }}"{% endif %}/>
+
+<script>
+    $(function() {
+        $("#datafield_{{ datafield_id }}_select").unbind('change').change(function() {
+            var selected_option_text = $(this).find(':selected').text();
+            if ( selected_option_text.length > 0 )
+                $("#datafield_{{ datafield_id }}").val('"' + selected_option_text + '"');
+        });
+    });
+</script>
+
+{% endspaceless %}
