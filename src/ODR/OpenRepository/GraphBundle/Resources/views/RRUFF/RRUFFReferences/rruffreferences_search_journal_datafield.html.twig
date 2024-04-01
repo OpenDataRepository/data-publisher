@@ -27,6 +27,8 @@
 
 <script>
     $(function() {
+        $("#datafield_{{ datafield_id }}_select > option:first").text('<< Select a Journal >>');
+
         $("#datafield_{{ datafield_id }}_select").unbind('change').change(function() {
             var selected_option_text = $(this).find(':selected').text();
             if ( selected_option_text.length > 0 )

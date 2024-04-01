@@ -14,6 +14,7 @@
     <div class="pure-u-1">
         &nbsp;&nbsp;&nbsp;&nbsp;For reference, the current value in the field is displayed below.
         <input id="{{ input_id }}_hidden" type="hidden" style="display: none;"/>
+
         {% if field_typename == "Paragraph Text" %}
         <textarea id="{{ input_id }}_original" class="ODRPseudoField ODRChemistryPlugin_textarea pure-u-1" title="The field's current unmodified value." readonly></textarea>
         {% else %}
@@ -66,6 +67,8 @@
                 <button class="ODRChemistryPlugin_insert" title="Box">◻</button>
                 <button class="ODRChemistryPlugin_insert" title="Sum">Σ</button>
                 <button class="ODRChemistryPlugin_insert" title="Almost Equal To">≈</button>
+                <button class="ODRChemistryPlugin_insert" title="Less Than or Equal To">≤</button>
+                <button class="ODRChemistryPlugin_insert" title="Greater Than or Equal To">≥</button>
             </div>
         </div>
     </div>
@@ -81,12 +84,13 @@
     </div>
 
     <div class="pure-u-1">
-        <button id="{{ input_id }}_manual_save" class="ODRChemistryPlugin_button pure-button pure-button-primary pure-u-3-24">
+        <button id="{{ input_id }}_manual_save" class="ODRChemistryPlugin_button pure-button pure-button-primary pure-u-5-24">
             <i id="{{ input_id }}_warning" class="fa fa-exclamation-triangle ODRInputError" style="display: none;"></i>
             <i class="fa fa-save"></i>
             Save
         </button>
-        <button id="{{ input_id }}_cancel_save" class="ODRChemistryPlugin_button pure-button pure-button-primary pure-u-3-24" title="Close the dialog without saving changes">
+        <div class="pure-u-12-24"></div>
+        <button id="{{ input_id }}_cancel_save" class="ODRChemistryPlugin_button pure-button pure-button-primary pure-u-5-24" title="Close the dialog without saving changes">
             <i class="fa fa-close ODRInputError"></i>
             Cancel
         </button>
@@ -95,6 +99,9 @@
 
 <script>
     $(function() {
+        // Ensure no random key pushes make it back to the base input element
+        $("#{{ input_id }}").blur();
+
         // Attempt to intelligently determine whether the "remove whitespace" box should be checked
         let input = $("#{{ input_id }}").val().replaceAll(/\s|&nbsp;/g, ' ');
         let chars = [];
