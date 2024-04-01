@@ -56,11 +56,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
     private $lock_service;
 
     /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
      * @var SortService
      */
     private $sort_service;
@@ -95,7 +90,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
      * @param EntityManager $entity_manager
      * @param EntityCreationService $entity_create_service
      * @param LockService $lock_service
-     * @param SearchService $search_service
      * @param SortService $sort_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -106,7 +100,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
         EntityManager $entity_manager,
         EntityCreationService $entity_create_service,
         LockService $lock_service,
-        SearchService $search_service,
         SortService $sort_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -116,7 +109,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
         $this->em = $entity_manager;
         $this->entity_create_service = $entity_create_service;
         $this->lock_service = $lock_service;
-        $this->search_service = $search_service;
         $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -136,14 +128,14 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
-        // TODO - make changes so the plugin can continue to run in Edit mode?
         if ( isset($rendering_options['context']) ) {
             if ($rendering_options['context'] === 'display'
                 || $rendering_options['context'] === 'fake_edit'
                 || $rendering_options['context'] === 'edit'
+                || $rendering_options['context'] === 'mass_edit'
             ) {
-                // Needs to be executed in display, fake_edit (for autogeneration), and
-                //  edit modes (for journal selection)
+                // Needs to be executed in display, fake_edit (for autogeneration), mass_edit (for
+                //  easier switching to a specific journal) and edit modes (for journal selection)
                 return true;
             }
 
@@ -207,8 +199,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
             // ----------------------------------------
             // Output depends on which context the plugin is being executed from
+            $context = $rendering_options['context'];
             $output = '';
-            if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'text' ) {
+            if ( $context === 'display' || $context === 'text' ) {
 
                 // Want to locate the values for most of the mapped datafields
                 $optional_fields = array(
@@ -366,7 +359,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
                 if ( $rendering_options['context'] === 'text' )
                     $output = preg_replace('/(\s+)/', ' ', $output);
             }
-            else if ( $rendering_options['context'] === 'fake_edit') {
+            else if ( $context === 'fake_edit') {
                 // Retrieve mapping between datafields and render plugin fields
                 $autogenerate_df_id = null;
                 $plugin_fields = array();
@@ -398,6 +391,28 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
                 $token = $this->token_manager->getToken($token_id)->getValue();
                 $special_tokens[$autogenerate_df_id] = $token;
 
+
+                // Also want to provide a sorted list of the existing journals to the user to reduce
+                //  input errors...
+                $journal_df_id = 0;
+                if ( !isset($fields['Journal']['id']) ) {
+                    // If the Journal field doesn't exist, then the plugin can't continue executing
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "Journal"...check plugin config.');
+                }
+
+                $journal_df_id = $fields['Journal']['id'];
+                $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
+
+                $journal_list = array();
+                foreach ($sort_data as $dr_id => $sort_value)
+                    $journal_list[$sort_value] = 1;
+
+
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_fakeedit_fieldarea.html.twig',
                     array(
@@ -421,10 +436,13 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
                         'special_tokens' => $special_tokens,
 
                         'plugin_fields' => $plugin_fields,
+
+                        'journal_df_id' => $journal_df_id,
+                        'journal_list' => $journal_list,
                     )
                 );
             }
-            else if ( $rendering_options['context'] === 'edit') {
+            else if ( $context === 'edit' || $context === 'mass_edit' ) {
                 // Want to provide a sorted list of the existing journals to the user to reduce
                 //  input errors...
                 $journal_df_id = 0;
@@ -445,31 +463,56 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
                 foreach ($sort_data as $dr_id => $sort_value)
                     $journal_list[$sort_value] = 1;
 
-                $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
-                        'theme_array' => $theme_array,
+                if ( $context === 'edit' ) {
+                    $output = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
+                        array(
+                            'datatype_array' => array($initial_datatype_id => $datatype),
+                            'datarecord_array' => array($datarecord['id'] => $datarecord),
+                            'theme_array' => $theme_array,
 
-                        'target_datatype_id' => $initial_datatype_id,
-                        'parent_datarecord' => $parent_datarecord,
-                        'target_datarecord_id' => $datarecord['id'],
-                        'target_theme_id' => $initial_theme_id,
+                            'target_datatype_id' => $initial_datatype_id,
+                            'parent_datarecord' => $parent_datarecord,
+                            'target_datarecord_id' => $datarecord['id'],
+                            'target_theme_id' => $initial_theme_id,
 
-                        'datatype_permissions' => $datatype_permissions,
-                        'datafield_permissions' => $datafield_permissions,
+                            'datatype_permissions' => $datatype_permissions,
+                            'datafield_permissions' => $datafield_permissions,
 
-                        'is_top_level' => $rendering_options['is_top_level'],
-                        'is_link' => $rendering_options['is_link'],
-                        'display_type' => $rendering_options['display_type'],
+                            'is_top_level' => $rendering_options['is_top_level'],
+                            'is_link' => $rendering_options['is_link'],
+                            'display_type' => $rendering_options['display_type'],
 
-                        'token_list' => $token_list,
+                            'token_list' => $token_list,
 
-                        'journal_df_id' => $journal_df_id,
-                        'journal_list' => $journal_list,
-                    )
-                );
+                            'journal_df_id' => $journal_df_id,
+                            'journal_list' => $journal_list,
+                        )
+                    );
+                }
+                else if ( $context === 'mass_edit' ) {
+                    $output = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_massedit_fieldarea.html.twig',
+                        array(
+                            'datatype_array' => array($initial_datatype_id => $datatype),
+                            'theme_array' => $theme_array,
+
+                            'target_datatype_id' => $initial_datatype_id,
+                            'target_theme_id' => $initial_theme_id,
+
+                            'is_datatype_admin' => $is_datatype_admin,
+                            'datatype_permissions' => $datatype_permissions,
+                            'datafield_permissions' => $datafield_permissions,
+
+                            'is_top_level' => $rendering_options['is_top_level'],
+
+                            'mass_edit_trigger_datafields' => $rendering_options['mass_edit_trigger_datafields'],
+
+                            'journal_df_id' => $journal_df_id,
+                            'journal_list' => $journal_list,
+                        )
+                    );
+                }
             }
 
             return $output;

@@ -166,7 +166,6 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
             if ( $context === 'display'
                 || $context === 'edit'
-                || $context === 'mass_edit'
 //                || $context === 'csv_export'    // TODO - need nate to be done first...
 //                || $context === 'api_export'    // TODO - implement this
             ) {
@@ -1137,11 +1136,13 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         $df = $destination_storage_entity->getDataField();
 
         try {
-            $destination_storage_entity->setConvertedValue('');
-            $this->em->persist($destination_storage_entity);
-            $this->em->flush();
+            if ( $df->getFieldType()->getTypeClass() === 'ShortVarchar' ) {
+                $destination_storage_entity->setConvertedValue('');
+                $this->em->persist($destination_storage_entity);
+                $this->em->flush();
 
-            $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the converted_value ""...', array(self::class, 'saveOnError()'));
+                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the converted_value ""...', array(self::class, 'saveOnError()'));
+            }
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it

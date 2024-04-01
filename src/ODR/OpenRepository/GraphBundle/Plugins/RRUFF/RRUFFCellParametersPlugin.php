@@ -202,7 +202,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             if ( $context === 'fake_edit'
                 || $context === 'display'
                 || $context === 'edit'
-                || $context === 'mass_edit'
             ) {
                 return true;
             }

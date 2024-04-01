@@ -182,7 +182,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( $context === 'display'
                 || $context === 'edit'
                 || $context === 'fake_edit'
-//                || $context === 'mass_edit'    // TODO - ...do I want to allow users to trigger this via MassEdit?
             ) {
                 // ...so execute the render plugin if being called from these contexts
                 return true;

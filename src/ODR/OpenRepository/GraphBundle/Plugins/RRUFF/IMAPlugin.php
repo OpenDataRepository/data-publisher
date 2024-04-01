@@ -210,7 +210,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             if ( $context === 'display'
                 || $context === 'edit'
                 || $context === 'fake_edit'
-                || $context === 'mass_edit'
             ) {
                 // ...so execute the render plugin when called from these contexts
                 return true;

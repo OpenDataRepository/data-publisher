@@ -1912,6 +1912,8 @@ class EntityMetaModifyService
      * Modifies a given storage entity by copying the old value into a new storage entity, then
      * deleting the old entity.
      *
+     * NOTE: intentionally does NOT handle the 'convertedValue' property
+     *
      * @param ODRUser $user
      * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $entity
      * @param array $properties
@@ -1999,9 +2001,10 @@ class EntityMetaModifyService
             $new_entity->setFieldType( $entity->getFieldType() );
 
             $new_entity->setValue( $entity->getValue() );
-            if ($typeclass == 'DecimalValue')
+            if ( $typeclass === 'DecimalValue' )
                 $new_entity->setOriginalValue( $entity->getOriginalValue() );
-            $new_entity->setConvertedValue( $entity->getConvertedValue() );
+            if ( $typeclass === 'ShortVarchar' )
+                $new_entity->setConvertedValue( $entity->getConvertedValue() );
 
             $new_entity->setCreated($created);
             $new_entity->setCreatedBy($user);
@@ -2013,6 +2016,8 @@ class EntityMetaModifyService
         // Set any new properties...not checking isset() because it couldn't reach this point
         //  without being isset()...also,  isset( array[key] ) == false  when  array(key => null)
         $new_entity->setValue( $properties['value'] );
+
+        // NOTE: intentionally does NOT handle the 'convertedValue' property
 
         $new_entity->setUpdated($created);
         $new_entity->setUpdatedBy($user);

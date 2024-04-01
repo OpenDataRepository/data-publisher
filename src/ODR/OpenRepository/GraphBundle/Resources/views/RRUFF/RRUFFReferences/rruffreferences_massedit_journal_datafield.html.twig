@@ -1,0 +1,75 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% if datafield_meta.is_unique or datafield_meta.prevent_user_edits %}
+    <input id="Field_{{ datafield.id }}_block" class="ODRMassEdit_block {% if datafield_meta.is_unique %}ODRUniqueField{% elseif datafield_meta.prevent_user_edits %}ODRBlockedField{% endif %}" type="hidden" />
+{% endif %}
+
+{% set max_length = '' %}
+{% if field_typename == "Long Text" %}
+    {% set max_length = 255 %}
+{% elseif field_typename == "Medium Text" %}
+    {% set max_length = 64 %}
+{% elseif field_typename == "Short Text" %}
+    {% set max_length = 32 %}
+{% endif %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
+
+<form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
+
+    {# Journal datafield is paragraph text #}
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
+        <span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
+        {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+            {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <label class="Pointer">
+                    <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                </label>
+            </span>
+            {% endfor %}
+        {% endif %}
+
+        <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
+            <select id="Input_{{ datafield.id }}_select" class="pure-u-1">
+            {% for journal_name,num in journal_list %}
+                <option class="ODRRRUFFReferencePlugin_option">{{ journal_name }}</option>
+            {% endfor %}
+            </select>
+            <textarea class="ODRParagraphField pure-u-1" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}></textarea>
+        </div>
+    </fieldset>
+
+</form>
+
+    <script>
+        $(function() {
+            $("#Input_{{ datafield.id }}_select > option:first").text('<< Select a Journal >>');
+        });
+
+        $("#Input_{{ datafield.id }}_select").unbind('change').change(function() {
+            var selected_option_text = $(this).find(':selected').text();
+            if ( selected_option_text.length > 0 )
+                $(this).next().val(selected_option_text).trigger('paste');
+        });
+
+        var {{ field_typeclass }}Interval_{{ datafield.id }} = null;
+        $("#Form_DataField_{{ datafield.id }}").find("#Form_{{ datafield.id }}").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            clearTimeout( {{ field_typeclass }}Interval_{{ datafield.id }} );
+            {{ field_typeclass }}Interval_{{ datafield.id }} = setTimeout( "$('#Form_DataField_{{ datafield.id }}').submit()", SaveTimeout );
+        });
+
+        $("#Form_DataField_{{ datafield.id }}").validate({
+            submitHandler: function(form) {
+                // Not actually going to submit this form...just clear the timeout
+                clearTimeout( {{ field_typeclass }}Interval_{{ datafield.id }} );
+            }
+            // focusInvalid: false
+        });
+    </script>
+
+{% endspaceless %}

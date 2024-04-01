@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
@@ -8,74 +10,85 @@
     {% set can_change_public_status = true %}
 {% endif %}
 
+{% set rendering_options = {'is_top_level': is_top_level, 'context': 'mass_edit', 'is_datatype_admin': is_datatype_admin, 'mass_edit_trigger_datafields': mass_edit_trigger_datafields} %}
+
+{# Determine whether a datatype render plugin needs to be run #}
+{% set render_plugin_instance = null %}
+{% set can_execute_plugin = false %}
+{% for rpi_num,rpi in datatype.renderPluginInstances %}
+    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+        {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
+
+        {% if can_execute_plugin %}
+            {# Only want to save the render_plugin_instance if it's render-able #}
+            {% set render_plugin_instance = rpi %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+{% set content = '' %}
+{# Render Plugins shouldn't override the entire childtype in the MassEdit context...for now... #}
+{#
+{% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideChild %}
+    {# MassEdit mode does have datatype_permissions and datafield_permissions, but no datarecord list and no token_list
+    {% set datarecord_array = [] %}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, [], datatype_permissions, datafield_permissions) %}
+    {% if content|length > 0 %}
+        <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
+        {{ content|raw }}
+        <!-- End {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
+    {% endif %}
+{% endif %}
+#}
+
+{% if not can_execute_plugin or content|length == 0 %}
 <div class="ODRDataType pure-u-1 ODRAccordionWrapper ODRFormAccordion" id="DataType_{{ datatype.id }}">
 
-    {% if is_top_level == 0 %}
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span class="ui-icon ui-icon-triangle-1-s"></span>
+        <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
+        {% if can_change_public_status %}
+        <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
+            <option value="-1">Make all Datarecords non-public</option>
+            <option value="0" selected>Don't change public status</option>
+            <option value="1">Make all Datarecords public</option>
+        </select>
+        {% endif %}
+    </h3>
 
-        {# current datatype is a child datatype #}
-        <h3 class="11 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <span class="ui-icon ui-icon-triangle-1-s"></span>
-            <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
-            {% if can_change_public_status %}
-            <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
-                <option value="-1">Make all Datarecords non-public</option>
-                <option value="0" selected>Don't change public status</option>
-                <option value="1">Make all Datarecords public</option>
-            </select>
-            {% endif %}
-        </h3>
-
-        <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
-            {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
-                'datatype_array': datatype_array,
-                'theme_array': theme_array,
-
-                'target_datatype_id': target_datatype_id,
-                'target_theme_id': target_theme_id,
-
-                'datatype_permissions': datatype_permissions,
-                'datafield_permissions': datafield_permissions,
-
-                'is_top_level': is_top_level,
-
-                'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
-            } %}
-        </div><!-- End of #FieldArea_{{ datatype.id }} -->
-
-    {% else %}
-
-        {# current datatype is top-level #}
-        <h3 class="22 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <span class="ui-icon ui-icon-triangle-1-s"></span>
-            <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
-            {% if can_change_public_status %}
-                <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
-                    <option value="-1">Make all Datarecords non-public</option>
-                    <option value="0" selected>Don't change public status</option>
-                    <option value="1">Make all Datarecords public</option>
-                </select>
-            {% endif %}
-        </h3>
-
-        <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
-            {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
-                'datatype_array': datatype_array,
-                'theme_array': theme_array,
-
-                'target_datatype_id': target_datatype_id,
-                'target_theme_id': target_theme_id,
-
-                'datatype_permissions': datatype_permissions,
-                'datafield_permissions': datafield_permissions,
-
-                'is_top_level': is_top_level,
-
-                'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
-            } %}
-        </div><!-- End of #FieldArea_{{ datatype.id }} -->
-
+    <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
+    {% set content = '' %}
+    {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
+        {# MassEdit has no datarecords to work with #}
+        {% set content = []|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, [], datatype_permissions, datafield_permissions) %}
+        {% if content|length > 0 %}
+            <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
+            {{ content|raw }}
+        {% endif %}
     {% endif %}
 
+    {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
+        {# If using render plugin and it overrides datafield display, do nothing here #}
+    {% else %}
+        {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
+
+            'target_datatype_id': target_datatype_id,
+            'target_theme_id': target_theme_id,
+
+            'is_datatype_admin': is_datatype_admin,
+            'datatype_permissions': datatype_permissions,
+            'datafield_permissions': datafield_permissions,
+
+            'is_top_level': is_top_level,
+
+            'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
+        } %}
+    {% endif %}
+    </div><!-- End of #FieldArea_{{ datatype.id }} -->
+
 </div><!-- End of #DataType_{{ datatype.id }} -->
+{% endif %}
 
 {% endspaceless %}
