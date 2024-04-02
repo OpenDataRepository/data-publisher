@@ -3392,6 +3392,10 @@ a.ui-button:active,
     cursor: default;
     left: 0px;
     box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+
+    color: #555;
+    line-height: 1.6em;
+    font-weight: normal;
 }
 .ODRFileInfoDiv:hover .ODRFileInfo {
     visibility: visible;

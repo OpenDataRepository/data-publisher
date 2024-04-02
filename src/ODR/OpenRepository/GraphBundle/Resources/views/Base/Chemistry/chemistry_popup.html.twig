@@ -7,9 +7,14 @@
     {% set superscript_delimiter = '^' %}
 {% endif %}
 
-<div id="{{ input_id }}_control" style="float:right">
+<span id="{{ input_id }}_control" class="FRight">
     <span id="{{ input_id }}_chemistry_trigger" class="ODRChemistryPlugin_button" title="Open the Chemistry Plugin parsing tool"><i class="fa fa-subscript"></i></span>
-</div>
+    <span id="{{ input_id }}_chemistry_preview_trigger" class="ODRFileInfoDiv" title="Preview formatted value">
+        <i class="fa fa-eye"></i>
+        <span class="ODRFileInfo">{{ formatted_value|raw }}</span>
+    </span>
+</span>
+
 <div id="{{ input_id }}_popup" class="ODRChemistryPlugin_popup" title="">    {# NOTE: blank title so the datafield's description doesn't show up throughout the popup #}
     <div class="pure-u-1">
         &nbsp;&nbsp;&nbsp;&nbsp;For reference, the current value in the field is displayed below.
@@ -163,6 +168,8 @@
                     // .width( prettified_div_width - 5 );
                 $("#{{ input_id }}_prettified")
                     .width( prettified_div_width - 7 );
+
+                $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
             }
         });
 
@@ -193,6 +200,8 @@
                     $("#{{ input_id }}_remove_whitespace").prop('checked', true);
 #}
                 ODR_runChemistryDialog( $("#{{ input_id }}"), $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+
+                $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
             }
         });
         $("#{{ input_id }}_trigger_limited").unbind('change').change(function(event) {
@@ -227,6 +236,8 @@
                 let parsed_value = $("#{{ input_id }}_parsed").val();
                 // ...splice the modified back between the before/after pieces
                 $("#{{ input_id }}_parsed").val(before + parsed_value + after).trigger('paste');
+
+                $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
             }
         });
 
@@ -253,11 +264,6 @@
             $("#{{ input_id }}_parsed").trigger('keyup');
         });
 
-        $("#{{ input_id }}_parsed").unbind('click').click(function() {
-            // If this element is clicked, then assume the user is manually editing the value
-            //  ...therefore, the selection in the original doesn't matter
-            $("#{{ input_id }}_original").blur();
-        });
         $("#{{ input_id }}_insert_buttons").find(".ODRChemistryPlugin_insert").each(function(index,elem) {
             $(elem).unbind('click').click(function(event) {
                 // Don't submit the datafield's form
@@ -302,8 +308,17 @@
             $("#{{ input_id }}_popup").hide();
             // Delete this element's style attribute so it is guaranteed to resize
             $("#{{ input_id }}_prettified").removeAttr('style');
+
+            // Revert the preview so it's based off what's currently in the field
+            let prettified = ODR_prettifyChemicalFormula( $("#{{ input_id }}").val(), {% if field_typename == "Paragraph Text" %}true{% else %}false{% endif %}, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+            $("#{{ input_id }}_chemistry_preview_trigger > span").html( prettified );
         });
 
+        $("#{{ input_id }}_parsed").unbind('click').click(function() {
+            // If this element is clicked, then assume the user is manually editing the value
+            //  ...therefore, the selection in the original doesn't matter
+            $("#{{ input_id }}_original").blur();
+        });
         $("#{{ input_id }}_parsed").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
             // Warn about duplicate delimiters
             ODR_hasDuplicatedDelimiters('{{ input_id }}', '{{ subscript_delimiter }}', '{{ superscript_delimiter }}');
@@ -314,6 +329,8 @@
                 $("#{{ input_id }}_prettified").text(prettified);
             else
                 $("#{{ input_id }}_prettified").html(prettified);
+
+            $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
         });
     });
 </script>
