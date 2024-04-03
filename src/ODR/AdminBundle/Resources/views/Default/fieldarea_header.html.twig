@@ -116,7 +116,7 @@
             {% endif %}
 
             {% if not datarecord_is_fake %}
-                <button class="pure-button ODRTabButton ODRRecordName" rel="{{ datarecord.id }}">
+                <button class="pure-button ODRTabButton ODRRecordName" rel="{{ datarecord.id }}" data-parent-name="{{ datatype.dataTypeMeta.shortName }}">
                     {{ datarecord.nameField_value }}
                 </button>
             {% else %}
@@ -169,7 +169,7 @@
 
             {% if datarecord_list|length > 0 %}
             <span class="ODRSelectWrap AccordionSelect">
-                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect ODRRecordName">
+                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect ODRRecordName" data-parent-name="{{ datatype.dataTypeMeta.shortName }}">
                 {% for num, datarecord in datarecord_list %}
                     {% set datarecord_is_fake = false %}
                     {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
