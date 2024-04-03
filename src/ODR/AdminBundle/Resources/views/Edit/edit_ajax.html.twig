@@ -1836,9 +1836,13 @@ function DeleteLinkedRecord(datarecord_id) {
  *
  * @param {string} form_id
  * @param {number} interval
- * @param {number[]} datafields_to_reload
+ * @param {function} [callback]
  */
-function SaveRecordData(form_id, interval, datafields_to_reload = []) {
+function SaveRecordData(form_id, interval, callback) {
+    // Callback is optional
+    if (callback === undefined)
+        callback = function() {}
+
     // Clear the save timeout for this specific datafield
     clearTimeout(interval);
 
@@ -1882,11 +1886,7 @@ function SaveRecordData(form_id, interval, datafields_to_reload = []) {
                 //  finished successfully, remove all warning labels
                 $(input_div).children('label').remove();
 
-                // Only reload the datafields when a change was made
-                $.each(datafields_to_reload, function(index, df_id) {
-                    // TODO - should this be a generic callback instead?
-                    ReloadEditDatafield(datarecord_id, df_id);
-                });
+                callback();
             }
         },
         error: function(jqXHR, textStatus, errorThrown) {

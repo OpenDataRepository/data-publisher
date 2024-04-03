@@ -181,7 +181,6 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-                        'value' => $str,
 
                         'subscript_delimiter' => $sub,
                         'superscript_delimiter' => $super,

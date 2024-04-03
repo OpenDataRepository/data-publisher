@@ -102,7 +102,10 @@
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }},
-                    [{{ datafield.id }}]    {# want to reload this field after saving, so the warning is updated if needed #}
+                    function() {
+                        {# want to reload this field after saving, so the warning is updated if needed #}
+                        ReloadEditDatafield( {{ datarecord.id }}, {{ datafield.id }} );
+                    }
                 );
 
                 {# TODO - this is not the correct way of saving changes to these properties... #}
