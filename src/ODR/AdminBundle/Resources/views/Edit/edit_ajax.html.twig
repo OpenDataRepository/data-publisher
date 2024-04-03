@@ -1113,6 +1113,8 @@ function initPage() {
     });
 
     $(".ODRAncestorBlurb").each(function(index,elem) {
+        return false;
+
         var is_link = false;
         if ( $(elem).attr('rel') === 'link' )
             is_link = true;
@@ -1121,7 +1123,7 @@ function initPage() {
         var dt = $(elem).parents('.ODRDataType').first();
         var parent_dr = $(dt).parents('.ODRFieldArea').first();
         var parent_dr_id = $(parent_dr).attr('id').split(/_/)[1];
-        // console.log( $(elem), $(dt).attr('id'), $(parent_dr).attr('id') );
+        // console.log( $(elem), $(dt), $(parent_dr) );
 
         // Accordion/List headers have the record name in an <h3> element, before the $(parent_dr) div
         // Tabbed headers have a single .ODRTabButtonHeader div immediately after the <h3> element
@@ -1143,6 +1145,7 @@ function initPage() {
             // The parent is the top-level record
             ancestor_elem = $(parent_dr).parents('#ODRSearchContent').first().children('h1').first().find('.ODRRecordName');
         }
+        // console.log( $(ancestor_elem) );
 
         var ancestor_name = '';
         if ( $(ancestor_elem).is('select') ) {
