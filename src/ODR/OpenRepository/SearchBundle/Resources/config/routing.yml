@@ -132,7 +132,7 @@ odr_search_seed_elastic:
 
 odr_search_seed_elastic_record:
     path: /elastic/record/{record_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElasticRecord, version: 'v4' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElasticRecord, version: 'v5' }
     methods: [ GET ]
     requirements:
         record_uuid: '^[a-z0-9]+$'

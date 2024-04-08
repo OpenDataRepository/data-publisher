@@ -740,6 +740,7 @@ class FacadeController extends Controller
         $ch = curl_init($url);
         # Setup request to send json via POST.
         $payload = $data;
+        // $log .= 'Payload: <br />' . $payload . "<br />";
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
         # Return response instead of printing.
@@ -772,7 +773,7 @@ class FacadeController extends Controller
 
     /**
      *
-     *  https://beta.rruff.net/odr/rruff_samples#/odr/search/list/fb6f69c3bd16119659b4d058967a
+     *  https://beta.rruff.net/odr_rruff/elastic
      *
      * @param $version
      * @param Request $request
@@ -782,7 +783,9 @@ class FacadeController extends Controller
     public function seedElasticAction($version, Request $request) {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        $log = "";
 
+        // Array of dataset UUIDs from parameters.yml
         $dataset_uuids = $this->container->getParameter('elastic_dataset_uuids');
 
         // Initialize the output array
@@ -800,7 +803,8 @@ class FacadeController extends Controller
                 throw new ODRNotFoundException('Datatype');
 
             // Ensure all index exists for the datatype
-            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId();
+            $log .= "Creating Index: " . $this->container->getParameter('elastic_server_baseurl') . "/" . $datatype->getUniqueId() . '<br />';
+            $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId();
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -809,29 +813,29 @@ class FacadeController extends Controller
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             # Send request.
             $result = curl_exec($ch);
-            $log .= $result;
+            $log .= "Result: " . $result . "<br />";
             curl_close($ch);
 
             // Ensure all index has total_field limit set properly
             $log .= "Setting index total_field limit: " . $datatype->getUniqueId() . '<br />';
-            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_settings';
+            $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_settings';
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-            curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 4000}');
+            curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 6000}');
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
             # Return response instead of printing.
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             # Send request.
             $result = curl_exec($ch);
-            $log .= $result;
+            $log .= "Result: " . $result . "<br />";
             curl_close($ch);
 
             // Also build index for cross template search
             if($datatype->getMasterDataType()) {
-                $log .= "Creating Index: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
+                $log .= "Creating Index: " . $this->container->getParameter('elastic_server_baseurl') . "/" . $datatype->getMasterDataType()->getUniqueId() . '<br />';
                 // Ensure all index exists
-                $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId();
+                $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId();
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -840,22 +844,22 @@ class FacadeController extends Controller
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 # Send request.
                 $result = curl_exec($ch);
-                $log .= $result . '<br />';
+                $log .= "Result: " . $result . "<br />";
                 curl_close($ch);
 
                 $log .= "Setting index total_field limit: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
                 // Ensure all index has total_field limit set properly
-                $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
+                $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-                curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 4000}');
+                curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 6000}');
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
                 # Return response instead of printing.
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 # Send request.
                 $result = curl_exec($ch);
-                $log .= $result . '<br />';
+                $log .= "Result: " . $result . "<br />";
                 curl_close($ch);
             }
 
@@ -899,6 +903,7 @@ class FacadeController extends Controller
             );
         }
 
+        return new Response($log);
         // print_r($output);exit();
         return new JsonResponse($output);
 
