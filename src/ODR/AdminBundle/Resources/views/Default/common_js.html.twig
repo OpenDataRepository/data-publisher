@@ -152,14 +152,15 @@
         var url_data = current_url.split('#');
 
         {# The config variable to use depends on whether it's wordpress integrated or not #}
-{% if odr_wordpress_integrated %}
+        {% if odr_wordpress_integrated %}
         var site_baseurl = '{{ wordpress_site_baseurl }}';
-{% else %}
+        {% else %}
         var site_baseurl = '{{ site_baseurl }}';
-{% endif %}
+        {% endif %}
         // console.log(site_baseurl);
 
         // Cut out the baseurl...
+        /*
         var pos = url_data[0].indexOf(site_baseurl);
         var length = site_baseurl.length;
         var reduced_url = url_data[0].substring(pos + length + 1);    // the length earlier doesn't include the trailing slash
@@ -172,6 +173,12 @@
         var url_pieces = reduced_url.split('/');
         var relevant_str = url_pieces[0];
         // console.log(relevant_str);
+
+         */
+        // Really dislke the name relevant_str
+        // However, it will always be the last portion after the last slash
+        var url_pieces = url_data[0].split('/');
+        var relevant_str = url_pieces[(url_pieces.length - 1)]
 
         if (relevant_str === 'admin') {
             // There won't be anything to find in this case
