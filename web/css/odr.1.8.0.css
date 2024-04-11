@@ -2405,6 +2405,13 @@ h3 .DatatypeTools,
     color: #dddddd;
 }
 
+.fa-public {
+    color: #11bb11 !important;
+}
+.fa-not-public {
+    color: #FF3333; !important
+}
+
 #dialog_add_datafield .row label {
     width: 100px;
 }

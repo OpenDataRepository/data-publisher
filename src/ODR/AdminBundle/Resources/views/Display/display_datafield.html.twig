@@ -112,7 +112,11 @@
                             {% endif %}
 
                             <span class="ODRFileInfoDiv">
-                                <i class="fa fa-lg fa-info-circle"></i>
+                                {% if not file_meta.publicDate|is_public %}
+                                    <i class="fa fa-lg fa-info-circle fa-not-public"></i>
+                                {% else %}
+                                    <i class="fa fa-lg fa-info-circle fa-public"></i>
+                                {% endif %}</span>
                                 <span class="ODRFileInfo">
                                     <div>
                                         <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
