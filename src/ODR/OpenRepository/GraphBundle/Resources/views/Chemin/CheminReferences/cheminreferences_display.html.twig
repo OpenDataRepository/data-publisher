@@ -1,6 +1,6 @@
 {% spaceless %}
 
-{% if is_top_level == 1 and original_context != 'text' %}
+{% if is_top_level == 1 and original_context == 'display' %}
 <div class="ODRContentWrapper">
     <div class="ODRThemeElement">
         <div class="ODRInnerBox">
@@ -8,7 +8,7 @@
 
 {% set rendering_options = {'context': 'text'} %}
 
-{% if original_context != 'text' %}
+{% if original_context == 'display' %}
     <div class="ODRRenderPluginContent{% if is_top_level == 1 %} ODRReferenceSingle{% else %} ODRReference{% endif %}">
 {% endif %}
 
@@ -16,7 +16,7 @@
     {% set author = '' %}
     {% if mapping.authors is defined %}
         {% if mapping.authors is iterable and mapping.authors|length > 0 %}
-            {# NOTE - these datafield_plugin calls work because ReferencesPlugin.php finds the renderPluginInstance that actually renders something...it's not the original cached datafield array #}
+            {# NOTE - these datafield_plugin calls work because CheminReferencesPlugin.php finds the renderPluginInstance that actually renders something...it's not the original cached datafield array #}
             {% set author = mapping.authors.datafield|datafield_plugin(datarecord, mapping.authors.render_plugin_instance, rendering_options)|raw %}
         {% else %}
             {% set author = mapping.authors %}
@@ -117,7 +117,7 @@
         'pages': pages,
     } %}
 
-    {% if mapping.url is defined and mapping.url != '' and original_context != 'text' %}
+    {% if mapping.url is defined and mapping.url != '' and (original_context == 'display' or original_context == 'html') %}
         {% if 'doi.org' in mapping.url %}
             ;&nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">{{ mapping.url }}</a>
         {% else %}
@@ -125,9 +125,33 @@
         {% endif %}
     {% endif %}
 
-    {% if mapping.file|length > 0 and original_context != 'text' %}
+    {% if mapping.file|length > 0 and (original_context == 'display' or original_context == 'html') %}
         {% for file in mapping.file.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
-            &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" rel="{{ file.id }}">[view file]</a>
+            &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"
+                class="ODRFileDownload" rel="{{ file.id }}"
+                title="{{ file.fileMeta.originalFileName }}"
+            >
+                [view file]
+            </a>
+
+            {# these spans are needed so the file downloading javascript doesn't crash...commenting out the classnames renders them invisible #}
+            <span id="ODRFileDecrypt_{{ file.id }}_overlay" {#class="ODRFakeProgressBar_overlay"#} style="visibility:hidden;">
+                <span id="ODRFileDecrypt_{{ file.id }}_progress" {#class="ODRFakeProgressBar"#}></span>
+            </span>
+        {% endfor %}
+    {% endif %}
+
+    {% if mapping.supporting_files|length > 0 and (original_context == 'display' or original_context == 'html') %}
+        {% set file_num = 1 %}
+        {% for file in mapping.supporting_files.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
+            &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"
+                class="ODRFileDownload"
+                rel="{{ file.id }}"
+                title="{{ file.fileMeta.originalFileName }}"
+            >
+                [supporting file {{ file_num }}]
+            </a>
+            {% set file_num = file_num + 1 %}
 
             {# these spans are needed so the file downloading javascript doesn't crash...commenting out the classnames renders them invisible #}
             <span id="ODRFileDecrypt_{{ file.id }}_overlay" {#class="ODRFakeProgressBar_overlay"#} style="visibility:hidden;">
@@ -137,11 +161,11 @@
     {% endif %}
 {% endif %}
 
-{% if original_context != 'text' %}
+{% if original_context == 'display' %}
     </div>
 {% endif %}
 
-{% if is_top_level == 1 and original_context != 'text' %}
+{% if is_top_level == 1 and original_context == 'display' %}
         </div>
     </div>
 </div>

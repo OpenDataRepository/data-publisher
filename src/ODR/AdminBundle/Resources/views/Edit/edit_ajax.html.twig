@@ -2325,8 +2325,8 @@ function ReloadEditDatafield(datarecord_id, datafield_id) {
 /**
  * Triggers a reload of the uploaded files in the given datarecord/datafield pair.
  *
- * @param {number} datarecord_id
- * @param {number} datafield_id
+ * @param {number|string} datarecord_id
+ * @param {number|string} datafield_id
  */
 function ReloadFileDatafield(datarecord_id, datafield_id) {
     var url = '{{ path('odr_record_reload_file_datafield', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';

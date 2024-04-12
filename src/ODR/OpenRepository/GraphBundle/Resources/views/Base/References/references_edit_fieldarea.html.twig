@@ -133,7 +133,7 @@
                             } %}
                         {% elseif reference_field_list[datafield_id] is defined %}
                             {# user is allowed to edit datafield #}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_datafield.html.twig' with {
+                            {% include 'ODROpenRepositoryGraphBundle:Base:References/references_edit_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
 
@@ -144,9 +144,7 @@
                                 'parent_datarecord': parent_datarecord,
                                 'is_top_level': is_top_level,
 
-                                'reference_field_list': reference_field_list,
                                 'chemistry_plugin_fields': chemistry_plugin_fields,
-                                'journal_list': journal_list,
                             } %}
                         {% else %}
                             {# user is allowed to edit datafield #}

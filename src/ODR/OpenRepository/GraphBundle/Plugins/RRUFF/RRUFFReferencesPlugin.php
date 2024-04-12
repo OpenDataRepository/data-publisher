@@ -24,7 +24,6 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\LockService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use ODR\AdminBundle\Component\Service\SortService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
@@ -129,18 +128,18 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         if ( isset($rendering_options['context']) ) {
-            if ($rendering_options['context'] === 'display'
-                || $rendering_options['context'] === 'fake_edit'
-                || $rendering_options['context'] === 'edit'
-                || $rendering_options['context'] === 'mass_edit'
+            $context = $rendering_options['context'];
+
+            if ($context === 'display' || $context === 'edit'
+                || $context === 'fake_edit' || $context === 'mass_edit'
             ) {
-                // Needs to be executed in display, fake_edit (for autogeneration), mass_edit (for
-                //  easier switching to a specific journal) and edit modes (for journal selection)
+                // Needs to be executed in display, edit (for journal selection and previews),
+                //  fake_edit (for autogeneration), and mass_edit (for switching to a specific journal)
                 return true;
             }
 
             // Also need a "text" mode
-            if ( $rendering_options['context'] === 'text' )
+            if ( $context === 'text' || $context === 'html' )
                 return true;
         }
 
@@ -201,7 +200,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
             // Output depends on which context the plugin is being executed from
             $context = $rendering_options['context'];
             $output = '';
-            if ( $context === 'display' || $context === 'text' ) {
+            if ( $context === 'display' || $context === 'text' || $context === 'html' ) {
 
                 // Want to locate the values for most of the mapped datafields
                 $optional_fields = array(
@@ -464,6 +463,45 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
                     $journal_list[$sort_value] = 1;
 
                 if ( $context === 'edit' ) {
+                    // Most of the fields need slightly modified saving javascript...
+                    $reference_field_list = array();
+                    foreach ($fields as $rpf_name => $rpf) {
+                        switch ($rpf_name) {
+                            case 'Authors':
+                            case 'Article Title':
+                            case 'Journal':
+                            case 'Year':
+                            case 'Month':
+                            case 'Volume':
+                            case 'Issue':
+                            case 'Book Title':
+                            case 'Publisher':
+                            case 'Publisher Location':
+                            case 'Pages':
+                            case 'File':
+                            case 'URL':
+                                $reference_field_list[ $rpf['id'] ] = $rpf_name;
+                                break;
+                        }
+                    }
+
+                    // Also need a list of which datafields are using the chemistry plugin
+                    // TODO - figure out some way to make plugins play nicer with each other?
+                    $chemistry_plugin_fields = array();
+                    foreach ($datatype['dataFields'] as $df_id => $df) {
+                        foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.chemistry' ) {
+                                $subscript_delimiter = $rpi['renderPluginOptionsMap']['subscript_delimiter'];
+                                $superscript_delimiter = $rpi['renderPluginOptionsMap']['superscript_delimiter'];
+
+                                $chemistry_plugin_fields[$df_id] = array(
+                                    'subscript_delimiter' => $subscript_delimiter,
+                                    'superscript_delimiter' => $superscript_delimiter,
+                                );
+                            }
+                        }
+                    }
+
                     $output = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
                         array(
@@ -485,7 +523,8 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
                             'token_list' => $token_list,
 
-                            'journal_df_id' => $journal_df_id,
+                            'reference_field_list' => $reference_field_list,
+                            'chemistry_plugin_fields' => $chemistry_plugin_fields,
                             'journal_list' => $journal_list,
                         )
                     );
