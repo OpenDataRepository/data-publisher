@@ -61,7 +61,7 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -84,7 +84,7 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
      * Executes the URL Plugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *

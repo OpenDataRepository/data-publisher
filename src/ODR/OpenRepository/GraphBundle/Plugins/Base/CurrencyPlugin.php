@@ -57,7 +57,7 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -80,7 +80,7 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
      * Executes the Currency Plugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *

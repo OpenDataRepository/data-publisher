@@ -59,7 +59,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -82,7 +82,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
      * Executes the Chemistry Plugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *
@@ -181,7 +181,6 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-                        'value' => $str,
 
                         'subscript_delimiter' => $sub,
                         'superscript_delimiter' => $super,
@@ -210,6 +209,9 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
      */
     private function applyChemistryFormatting($superscript_delimiter, $subscript_delimiter, $str)
     {
+        // Ensure any less/greater than signs don't confuse the browser
+        $str = str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
+
         // Apply the subscripts...
         $sub = preg_quote($subscript_delimiter);
         $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);

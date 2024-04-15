@@ -22,7 +22,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 
 class PlugExtension extends \Twig_Extension
@@ -53,7 +53,6 @@ class PlugExtension extends \Twig_Extension
             RenderPlugin::THEME_ELEMENT_PLUGIN => 'themeElement',
             RenderPlugin::DATAFIELD_PLUGIN => 'datafield',
             RenderPlugin::ARRAY_PLUGIN => 'array',
-            RenderPlugin::SEARCH_PLUGIN => 'search',
         );
     }
 
@@ -331,7 +330,7 @@ class PlugExtension extends \Twig_Extension
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool|string
@@ -352,6 +351,8 @@ class PlugExtension extends \Twig_Extension
         catch (\Exception $e) {
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 throw $e;
+            else if ( !is_null($datarecord) )
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
             else
                 return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
         }
@@ -362,29 +363,30 @@ class PlugExtension extends \Twig_Extension
      * Returns whether the Search RenderPlugin should be run in the current context.
      *
      * @param array $render_plugin_instance
+     * @param array $datatype
      * @param array $datafield
      * @param array $rendering_options
      *
-     * @return bool|string
+     * @return array|bool|string
      * @throws \Exception
      */
-    public function canExecuteSearchPluginFilter($render_plugin_instance, $datafield, $rendering_options)
+    public function canExecuteSearchPluginFilter($render_plugin_instance, $datatype, $datafield, $rendering_options)
     {
         try {
             // Determine whether the render plugin should be run
             $render_plugin = $render_plugin_instance['renderPlugin'];
-            if ( $render_plugin['plugin_type'] !== RenderPlugin::SEARCH_PLUGIN )
-                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Search Plugin</div>';
+            if ( $render_plugin['overrideSearch'] !== true )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].', Datafield '.$datafield['id'].' as a Search Plugin</div>';
 
-            /** @var SearchPluginInterface $svc */
+            /** @var SearchOverrideInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->canExecutePlugin($render_plugin_instance, $datafield, $rendering_options);
+            return $svc->canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options);
         }
         catch (\Exception $e) {
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 throw $e;
             else
-                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].', Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -533,7 +535,7 @@ class PlugExtension extends \Twig_Extension
      * Loads and executes a RenderPlugin for a datafield.
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *
@@ -548,10 +550,12 @@ class PlugExtension extends \Twig_Extension
             if ( $render_plugin['plugin_type'] !== RenderPlugin::DATAFIELD_PLUGIN )
                 return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
 
-            // Prune $datarecord so the render plugin service can't get values of other datafields
-            foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
-                if ( $datafield['id'] !== $df_id )
-                    unset( $datarecord['dataRecordFields'][$df_id] );
+            if ( !is_null($datarecord) ) {
+                // Prune $datarecord so the render plugin service can't get values of other datafields
+                foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
+                    if ( $datafield['id'] !== $df_id )
+                        unset( $datarecord['dataRecordFields'][$df_id] );
+                }
             }
 
             // Load and execute the render plugin
@@ -562,8 +566,10 @@ class PlugExtension extends \Twig_Extension
         catch (\Exception $e) {
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 throw $e;
-            else
+            else if ( !is_null($datarecord) )
                 return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -571,33 +577,33 @@ class PlugExtension extends \Twig_Extension
     /**
      * Loads and executes a RenderPlugin for a datafield in the search sidebar.
      *
-     * @param array $datafield
      * @param array $render_plugin_instance
-     * @param int $datatype_id
+     * @param array $datatype
+     * @param array $datafield
      * @param string|array $preset_value
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function searchPluginFilter($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options)
+    public function searchPluginFilter($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
     {
         try {
             // Ensure this only is run on a render plugin for a search sidebar datafield
             $render_plugin = $render_plugin_instance['renderPlugin'];
-            if ( $render_plugin['plugin_type'] !== RenderPlugin::SEARCH_PLUGIN )
-                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
+            if ( $render_plugin['overrideSearch'] !== true )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].', Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
 
             // Load and execute the render plugin
-            /** @var SearchPluginInterface $svc */
+            /** @var SearchOverrideInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->execute($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options);
+            return $svc->executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options);
         }
         catch (\Exception $e) {
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 throw $e;
             else
-                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].', Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
         }
     }
 

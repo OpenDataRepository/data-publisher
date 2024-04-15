@@ -1,0 +1,142 @@
+{% spaceless %}
+
+{% set datarecord_is_fake = false %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set max_length = '' %}
+{% if field_typename == "Short Text" %}
+    {% set max_length = 32 %}
+{% endif %}
+
+{% set derivation_error = false %}
+{% if original_value != '' and converted_value == '' %}
+    {% set derivation_error = true %}
+{% endif %}
+
+{% set conversion_msg = 'Converted to "' ~ converted_value ~'"' %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
+
+    <fieldset>
+        <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+        {% if is_datatype_admin %}
+            <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+        {% endif %}
+            {{ datafield_meta.fieldName }}
+
+            {% if original_value != '' %}
+            <i class="fa fa-info-circle" title="{{ conversion_msg }}"></i>
+            {% endif %}
+        </label>
+
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+            <input
+                {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                type="text"
+                id="{{ input_id }}"
+                class="pure-u-1"
+                name="{{ input_name }}"
+                value="{{ original_value }}"
+                data-error-type="inline"
+            />
+            <i class="fa fa-save ODRSaveIndicator"></i>
+        </div>
+
+        {% if derivation_error %}
+        <div class="pure-u-1">
+            <label id="{{ input_id }}-error" {#class="ODRInputError"#} for="{{ input_id }}" style="color: red">It appears as if the value in this field did not get converted properly.</label>
+            {# NOTE: ODRInputError is commented out, because otherwise the validate plugin removes it on any keyup #}
+        </div>
+        {% endif %}
+    </fieldset>
+
+    <script>
+        var {{ field_typeclass }}Interval_{{ unique_id }} = null;
+        $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
+        });
+
+        $("#EditForm_{{ unique_id }}").validate({
+            rules: {
+                "{{ input_name }}": {
+                {% if field_typename == "Integer" %}
+                    ODRInteger: {},  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
+                {% elseif field_typename == "Decimal" %}
+                    ODRDecimal: {},  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
+                {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+                    maxlength: {{ max_length }},
+                {% endif %}
+
+                {% if datafield_meta.is_unique %}
+                    required: true,
+                {% endif %}
+
+                {% if datafield_meta.is_unique %}
+                    {# need to query ODR to see whether the contents of this field are unique or not #}
+                    remote: {
+                        url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id, 'datarecord_id': datarecord.id }) }}",
+                        type: "post",
+                        data: {
+                            {# The form's value is automatically inserted by jQuery validate #}
+                            "{{ field_typeclass }}Form[_token]": function () {
+                                return $("#EditForm_{{ unique_id }}").find("input[type=hidden]").val();
+                            },
+                            "{{ field_typeclass }}Form[error_type]": "json",
+                        }
+                    }
+                {% endif %}
+                }
+            },
+
+            {% if datafield_meta.is_unique %}
+            onkeyup: false,    // If the datafield fires off a remote event to check uniqueness, then don't trigger validation on every keyup event
+            {% endif %}
+
+            submitHandler: function(form) {
+                SaveRecordData(
+                    '#EditForm_{{ unique_id }}',
+                    {{ field_typeclass }}Interval_{{ unique_id }},
+                    function() {
+                        {# want to reload this field after saving, so the warning is updated if needed #}
+                        ReloadEditDatafield( {{ datarecord.id }}, {{ datafield.id }} );
+                    }
+                );
+
+                {# TODO - this is not the correct way of saving changes to these properties... #}
+                {# TODO - the server needs to automatically run these so loss of network won't leave the database out of sync with its metadata #}
+                // Need to check if this is a datatype properties value
+                var field_reference = jQuery('#Input_{{ unique_id }}').children(':first-child').attr('rel');
+                switch(field_reference) {
+                    case 'database_name':
+                        // Update datatype meta with this value for short and long name
+                        if(typeof saveDatatypeMeta === "function") {
+                            saveDatatypeMeta(
+                                field_reference,
+                                jQuery('#Input_{{ unique_id }}').children(':first-child').val()
+                            )
+                        }
+                        break;
+
+                    case 'database_description':
+                        // Update datatype meta with this value for description
+                        if(typeof saveDatatypeMeta === "function") {
+                            saveDatatypeMeta(
+                                field_reference,
+                                jQuery('#Input_{{ unique_id }}').children(':first-child').val()
+                            )
+                        }
+                        break;
+
+                }
+            }
+            // focusInvalid: false
+        });
+    </script>
+
+{% endspaceless %}

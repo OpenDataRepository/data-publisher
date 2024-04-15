@@ -24,3 +24,9 @@ odr_plugin_cellparam_save:
     path:  /edit/plugins/cellparams/save
     defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFCellparams:save }
     methods: [POST]
+
+odr_plugin_reference_render:
+    path:  /edit/plugins/references/render/{request_datarecord_id}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Reference:render }
+    requirements:
+        request_datarecord_id: \d+

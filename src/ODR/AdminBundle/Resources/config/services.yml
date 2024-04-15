@@ -114,6 +114,7 @@ services:
     odr.sort_service:
         class: ODR\AdminBundle\Component\Service\SortService
         arguments:
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"

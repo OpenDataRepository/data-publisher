@@ -88,22 +88,22 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatarecordInfoService
      */
-    private $dri_service;
+    private $datarecord_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var EntityMetaModifyService
      */
-    private $emm_service;
+    private $entity_modify_service;
 
     /**
      * @var EngineInterface
@@ -137,10 +137,10 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatree_info_service;
-        $this->emm_service = $entity_meta_modify_service;
+        $this->database_info_service = $database_info_service;
+        $this->datarecord_info_service = $datarecord_info_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->entity_modify_service = $entity_meta_modify_service;
         $this->templating = $templating;
         $this->logger = $logger;
     }
@@ -151,7 +151,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -161,8 +161,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            // The FileRenamer Plugin should work in the 'edit' and 'mass_edit' contexts
-            if ( $context === 'edit' || $context === 'mass_edit' )
+            // The FileRenamer Plugin should work in the 'edit' context
+            if ( $context === 'edit' )
                 return true;
 
             // TODO - also work in the 'display' context?  but finding errors to display is expensive...
@@ -176,7 +176,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      * Executes the FileRenamer Plugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *
@@ -253,7 +253,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
 
         $dt = $dt_array[$datatype->getId()];
         if ( !isset($dt['dataFields']) || !isset($dt['dataFields'][$datafield->getId()]) )
@@ -309,7 +309,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // Neither Event has direct access to the renderPluginInstance, so might as well just always
         //  get the data from the cached datatype array
         $datatype = $datafield->getDataType();
-        $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
+        $datatype_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
         $dt = $datatype_array[$datatype->getId()];
 
         // The datafield entry in this array is guaranteed to exist...
@@ -757,7 +757,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             // This means that the query to find said "ultimate ancestor" might need to keep switching
             //  between locating the parent with the dataRecord table, and locating the ancestor via
             //  the linkedDataTree table...
-            $cached_datatree_array = $this->dti_service->getDatatreeArray();
+            $cached_datatree_array = $this->datatree_info_service->getDatatreeArray();
 
             // Due to doctrine being a pain, just going to manually emulate the querybuilder
             $select_array = array('dr_0.id AS dr_0_id');
@@ -881,7 +881,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         $results = $query->getArrayResult();
         $grandparent_dr_id = $results[0]['id'];
 
-        $dr_array = $this->dri_service->getDatarecordArray($grandparent_dr_id);
+        $dr_array = $this->datarecord_info_service->getDatarecordArray($grandparent_dr_id);
         // Don't want to stack this array, because that would force the use of recursion later on
 
 
@@ -1217,9 +1217,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                             // ...save the new filename in the database...
                             $props = array('original_filename' => $new_filename);
                             if ($typeclass === 'File')
-                                $this->emm_service->updateFileMeta($user, $entity, $props, true);
+                                $this->entity_modify_service->updateFileMeta($user, $entity, $props, true);
                             else
-                                $this->emm_service->updateImageMeta($user, $entity, $props, true);
+                                $this->entity_modify_service->updateImageMeta($user, $entity, $props, true);
                         }
                         else {
                             $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));

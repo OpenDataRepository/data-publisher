@@ -71,7 +71,7 @@
                     'field_typename': field_typename,
                     'unique_id': unique_id,
                     'input_id': input_id,
-                } %}
+                } %}    {# TODO - different subscript/superscript delimiters? #}
             {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
@@ -100,7 +100,7 @@
                     'field_typename': field_typename,
                     'unique_id': unique_id,
                     'input_id': input_id,
-                } %}
+                } %}    {# TODO - different subscript/superscript delimiters? #}
             {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
@@ -174,8 +174,11 @@
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }},
-                    [{{ derived_datafield_id }}]
-                );  {# TODO - should SaveRecordData() take a callback instead of an array for the 3rd param? #}
+                    function() {
+                        {# want to reload whichever datafield depends on this field's value #}
+                        ReloadEditDatafield( {{ datarecord.id }}, {{ derived_datafield_id }} );
+                    }
+                );
             {% else %}
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',

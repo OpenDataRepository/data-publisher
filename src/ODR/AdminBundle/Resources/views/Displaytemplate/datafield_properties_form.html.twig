@@ -161,6 +161,28 @@
         </div>
     {% endif %}
 
+    {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar'
+        or typeclass == 'LongVarchar' or typeclass == 'LongText'
+    %}
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.force_numeric_sort) }}
+
+            <span
+                title="If checked, then the contents of this field are sorted as if they are numbers instead of strings"
+            >
+                <label for="{{ datafield_form.force_numeric_sort.vars.id }}">
+                    {{ form_widget(datafield_form.force_numeric_sort, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox'
+                        }
+                    }) }}
+
+                    {{ datafield_form.force_numeric_sort.vars.label }}
+                </label>
+            </span>
+        </div>
+    {% endif %}
+
     {% if typeclass == 'Boolean' or typeclass == 'DatetimeValue'
         or typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar'
         or typeclass == 'LongVarchar' or typeclass == 'LongText'

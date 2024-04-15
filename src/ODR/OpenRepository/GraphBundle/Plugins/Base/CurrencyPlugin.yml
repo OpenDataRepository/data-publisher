@@ -8,14 +8,19 @@ odr_plugins.base.currency:
     override_field_reload: false
     override_child: false
     override_table_fields: true
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: Renders a datafield containing a currency value.  Currently only handles US currency.
     registered_events:
         PluginAttachEvent: onPluginAttach
         PluginPreRemoveEvent: onPluginPreRemove
+
     required_fields:
         currency_field:
             name: Currency Field
             description: A datafield containing a numerical value, to be displayed as currency.
             type: DecimalValue|IntegerValue
+
     config_options:

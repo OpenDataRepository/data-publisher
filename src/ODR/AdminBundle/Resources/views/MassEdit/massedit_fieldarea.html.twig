@@ -30,6 +30,8 @@
                 {% else %}
                     {% include 'ODRAdminBundle:MassEdit:massedit_datafield.html.twig' with {
                         'datafield': datafield,
+
+                        'is_datatype_admin': is_datatype_admin,
                         'can_edit_datafield': can_edit_datafield,
 
                         'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
@@ -59,6 +61,7 @@
                     'target_datatype_id': child_datatype_id,
                     'target_theme_id': child_theme_id,
 
+                    'is_datatype_admin': is_datatype_admin,
                     'datatype_permissions': datatype_permissions,
                     'datafield_permissions': datafield_permissions,
 

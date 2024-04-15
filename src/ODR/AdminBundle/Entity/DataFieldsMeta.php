@@ -90,6 +90,11 @@ class DataFieldsMeta
     /**
      * @var bool
      */
+    private $force_numeric_sort;
+
+    /**
+     * @var bool
+     */
     private $prevent_user_edits;
 
     /**
@@ -471,6 +476,30 @@ class DataFieldsMeta
     public function getIsUnique()
     {
         return $this->is_unique;
+    }
+
+    /**
+     * Set forceNumericSort.
+     *
+     * @param bool $forceNumericSort
+     *
+     * @return DataFieldsMeta
+     */
+    public function setForceNumericSort($forceNumericSort)
+    {
+        $this->force_numeric_sort = $forceNumericSort;
+
+        return $this;
+    }
+
+    /**
+     * Get forceNumericSort.
+     *
+     * @return bool
+     */
+    public function getForceNumericSort()
+    {
+        return $this->force_numeric_sort;
     }
 
     /**

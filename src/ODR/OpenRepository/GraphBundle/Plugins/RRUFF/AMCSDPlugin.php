@@ -71,22 +71,22 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatarecordInfoService
      */
-    private $dri_service;
+    private $datarecord_info_service;
 
     /**
      * @var EntityCreationService
      */
-    private $ec_service;
+    private $entity_create_service;
 
     /**
      * @var EntityMetaModifyService
      */
-    private $emm_service;
+    private $entity_modify_service;
 
     /**
      * @var LockService
@@ -97,6 +97,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var CsrfTokenManager
@@ -121,8 +124,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
-     * @param EntityCreationService $entity_creation_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityCreationService $entity_create_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -134,8 +137,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         CryptoService $crypto_service,
         DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
-        EntityCreationService $entity_creation_service,
-        EntityMetaModifyService $entity_meta_modify_service,
+        EntityCreationService $entity_create_service,
+        EntityMetaModifyService $entity_modify_service,
         LockService $lock_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -144,10 +147,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     ) {
         $this->em = $entity_manager;
         $this->crypto_service = $crypto_service;
-        $this->dbi_service = $database_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->ec_service = $entity_creation_service;
-        $this->emm_service = $entity_meta_modify_service;
+        $this->database_info_service = $database_info_service;
+        $this->datarecord_info_service = $datarecord_info_service;
+        $this->entity_create_service = $entity_create_service;
+        $this->entity_modify_service = $entity_modify_service;
         $this->lock_service = $lock_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -179,7 +182,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( $context === 'display'
                 || $context === 'edit'
                 || $context === 'fake_edit'
-//                || $context === 'mass_edit'    // TODO - ...do I want to allow users to trigger this via MassEdit?
             ) {
                 // ...so execute the render plugin if being called from these contexts
                 return true;
@@ -231,7 +233,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $rpf_df_id = $rpf_df['id'];
 
                 $df = null;
-                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                if ( isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null) {
@@ -708,7 +710,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
 
                     // ...which is saved in the storage entity for the datafield
-                    $this->emm_service->updateStorageEntity(
+                    $this->entity_modify_service->updateStorageEntity(
                         $user,
                         $entity,
                         array('value' => $value),
@@ -801,7 +803,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $rpf_name = array_search($df_id, $datafield_mapping);
 
                     /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
-                    $this->emm_service->updateStorageEntity(
+                    $this->entity_modify_service->updateStorageEntity(
                         $user,
                         $entity,
                         array('value' => ''),
@@ -948,7 +950,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
 
                         // ...which is saved in the storage entity for the datafield
-                        $this->emm_service->updateStorageEntity(
+                        $this->entity_modify_service->updateStorageEntity(
                             $user,
                             $entity,
                             array('value' => $value),
@@ -997,7 +999,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
         if ( !isset($dt_array[$datatype->getId()]['renderPluginInstances']) )
             return false;
 
@@ -1036,7 +1038,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private function getRenderPluginFieldsMapping($datatype)
     {
         // Going to use the cached datatype array for this
-        $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
+        $datatype_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
         $dt = $datatype_array[$datatype->getId()];
 
         // The datatype could be using multiple render plugins, so need to find the mapping specifically
@@ -1132,11 +1134,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
 
         // Need to sure that a storage entity exists for each of these datafields...it's highly
-        //  likely they don't, and $emm_service->updateStorageEntity() requires one
+        //  likely they don't, and $entity_modify_service->updateStorageEntity() requires one
         $storage_entities = array();
         foreach ($datafield_mapping as $rpf_name => $df_id) {
             $df = $hydrated_datafields[$df_id];
-            $entity = $this->ec_service->createStorageEntity($user, $datarecord, $df);
+            $entity = $this->entity_create_service->createStorageEntity($user, $datarecord, $df);
 
             // Store they (likely newly created) storage entity for the next step
             $storage_entities[$df_id] = $entity;
@@ -1421,7 +1423,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         try {
             foreach ($storage_entities as $df_id => $entity) {
                 /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
-                $this->emm_service->updateStorageEntity(
+                $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $entity,
                     array('value' => ''),
@@ -1536,7 +1538,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Convert it back into the expected format so the storage entity can get created
         $new_value = str_pad($val, 5, '0', STR_PAD_LEFT);
-        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
         $this->logger->debug('Setting df '.$datafield->getId().' "fileno" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
@@ -1546,8 +1548,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // ----------------------------------------
         // Fire off an event notifying that the modification of the datafield is done
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }

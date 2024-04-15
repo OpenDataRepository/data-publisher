@@ -8,12 +8,17 @@ odr_plugins.base.csvtable:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: CSV files can be displayed in the page in a spreadsheet format using this plugin.
     registered_events:
+
     required_fields:
         csv_file:
             name: CSV File
             description: A file field containing CSV-formatted data.
             type: File
+
     config_options:

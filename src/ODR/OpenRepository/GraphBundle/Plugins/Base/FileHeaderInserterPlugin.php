@@ -100,17 +100,17 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatarecordInfoService
      */
-    private $dri_service;
+    private $datarecord_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var ODRUploadService
@@ -159,9 +159,9 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
     ) {
         $this->em = $entity_manager;
         $this->crypto_service = $crypto_service;
-        $this->dbi_service = $database_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatree_info_service;
+        $this->database_info_service = $database_info_service;
+        $this->datarecord_info_service = $datarecord_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->upload_service = $upload_service;
         $this->odr_tmp_directory = $odr_tmp_directory;
         $this->templating = $templating;
@@ -174,7 +174,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -184,8 +184,8 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            // The FileRenamer Plugin should work in the 'edit' and 'mass_edit' contexts
-            if ( $context === 'edit' || $context === 'mass_edit' )
+            // The FileRenamer Plugin should work in the 'edit' context
+            if ( $context === 'edit' )
                 return true;
 
             // TODO - also work in the 'display' context?  but finding errors to display is expensive...
@@ -199,7 +199,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * Executes the FileRenamer Plugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *
@@ -276,7 +276,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
 
         $dt = $dt_array[$datatype->getId()];
         if ( !isset($dt['dataFields']) || !isset($dt['dataFields'][$datafield->getId()]) )
@@ -348,7 +348,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         // Events don't have access to the renderPluginInstance, so might as well just always get
         //  the data from the cached datatype array
         $datatype = $datafield->getDataType();
-        $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
+        $datatype_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
         $dt = $datatype_array[$datatype->getId()];
 
         // The datafield entry in this array is guaranteed to exist...
@@ -864,7 +864,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             // This means that the query to find said "ultimate ancestor" might need to keep switching
             //  between locating the parent with the dataRecord table, and locating the ancestor via
             //  the linkedDataTree table...
-            $cached_datatree_array = $this->dti_service->getDatatreeArray();
+            $cached_datatree_array = $this->datatree_info_service->getDatatreeArray();
 
             // Due to doctrine's querybuilder being a pain, I'm going to duplicate it's work instead
             $select_array = array('dr_0.id AS dr_0_id');
@@ -987,7 +987,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         $results = $query->getArrayResult();
         $grandparent_dr_id = $results[0]['id'];
 
-        $dr_array = $this->dri_service->getDatarecordArray($grandparent_dr_id);
+        $dr_array = $this->datarecord_info_service->getDatarecordArray($grandparent_dr_id);
         // Don't want to stack this array, because that would force the use of recursion later on
 
         // This renderPlugin dialog has no way to ensure the datafields entered by the user are valid,
@@ -1352,6 +1352,8 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
     /**
      * Replaces whatever header exists in $tmp_filepath with $new_header.
+     *
+     * TODO - ...should this entire plugin be overhauled to dynamically intercept download requests and splice a header into the request?
      *
      * @param string $tmp_filepath
      * @param string $new_header

@@ -51,7 +51,7 @@ class QanalyzePlugin implements DatafieldPluginInterface
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -77,7 +77,7 @@ class QanalyzePlugin implements DatafieldPluginInterface
      * Executes the Qanalyze Plugin.
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *

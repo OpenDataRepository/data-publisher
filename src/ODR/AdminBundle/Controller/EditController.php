@@ -2311,6 +2311,13 @@ class EditController extends ODRCustomController
 //                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                                throw $e;
                         }
+
+                        // Notify that a change was made
+                        $return['d'] = array('change_made' => true);
+                    }
+                    else {
+                        // Notify that no change was made
+                        $return['d'] = array('change_made' => false);
                     }
                 }
                 else {

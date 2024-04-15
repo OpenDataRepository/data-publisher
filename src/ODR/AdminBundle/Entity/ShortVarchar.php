@@ -31,6 +31,11 @@ class ShortVarchar
     private $value;
 
     /**
+     * @var string
+     */
+    private $converted_value;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -107,6 +112,30 @@ class ShortVarchar
     public function getValue()
     {
         return $this->value;
+    }
+
+    /**
+     * Set convertedValue.
+     *
+     * @param string $convertedValue
+     *
+     * @return ShortVarchar
+     */
+    public function setConvertedValue($convertedValue)
+    {
+        $this->converted_value = $convertedValue;
+
+        return $this;
+    }
+
+    /**
+     * Get convertedValue.
+     *
+     * @return string
+     */
+    public function getConvertedValue()
+    {
+        return $this->converted_value;
     }
 
     /**

@@ -131,6 +131,22 @@
                 {# render target datatype first #}
                 <fieldset>
                     {% set datatype = datatype_array[target_datatype.id] %}
+
+                    {# check whether the datatype should execute a search plugin... #}
+                    {% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
+                    {% set render_plugin_instance = null %}
+                    {% set render_plugin_override_df_list = [] %}
+                    {% for rpi_num,rpi in datatype.renderPluginInstances %}
+                        {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+                            {% set render_plugin_override_df_list = rpi|can_execute_search_plugin(datatype, [], rendering_options) %}
+
+                            {# Only want to save the render_plugin_instance if it's render-able #}
+                            {% if render_plugin_override_df_list is iterable and render_plugin_override_df_list|length > 0 %}
+                                {% set render_plugin_instance = rpi %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
                     <div class="ODRAdvSearch_header">
                         <span>{{ datatype['dataTypeMeta']['shortName'] }}</span>
                         <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
@@ -140,12 +156,25 @@
                             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                             {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                                 <div class="ODRAdvSearch_datafield pure-u-1">
-                                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                        'search_params': search_params,
+                                    {% set content = '' %}
+                                    {% if datafield.id in render_plugin_override_df_list %}
+                                        {% set preset_value = '' %}
+                                        {% if search_params[datafield.id] is defined %}
+                                            {% set preset_value = search_params[datafield.id] %}
+                                        {% endif %}
+                                        {% set content = render_plugin_instance|search_plugin(datatype, datafield, preset_value, rendering_options) %}
+                                    {% endif %}
 
-                                        'datatype_id': datatype['id'],
-                                        'datafield': datafield
-                                    } %}
+                                    {% if content|length > 0 %}
+                                        {{ content|raw }}
+                                    {% else %}
+                                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                                            'search_params': search_params,
+
+                                            'datatype': datatype,
+                                            'datafield': datafield
+                                        } %}
+                                    {% endif %}
                                 </div>
                             {% endif %}
                         {% endfor %}
@@ -177,6 +206,22 @@
                     {% endfor %}
 
                     {% if can_search_child_datatype %}
+
+                        {# check whether the child datatype should execute a search plugin... #}
+                        {% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
+                        {% set render_plugin_instance = null %}
+                        {% set render_plugin_override_df_list = [] %}
+                        {% for rpi_num,rpi in child_datatype.renderPluginInstances %}
+                            {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+                                {% set render_plugin_override_df_list = rpi|can_execute_search_plugin(child_datatype, [], rendering_options) %}
+
+                                {# Only want to save the render_plugin_instance if it's render-able #}
+                                {% if render_plugin_override_df_list is iterable and render_plugin_override_df_list|length > 0 %}
+                                    {% set render_plugin_instance = rpi %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
                         <fieldset>
                             <div class="ODRAdvSearch_header">
                                 <span>{{ child_datatype['dataTypeMeta']['shortName'] }}</span>
@@ -187,12 +232,25 @@
                                     {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                     {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                                         <div class="ODRAdvSearch_datafield pure-u-1">
-                                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                                'search_params': search_params,
+                                            {% set content = '' %}
+                                            {% if datafield.id in render_plugin_override_df_list %}
+                                                {% set preset_value = '' %}
+                                                {% if search_params[datafield.id] is defined %}
+                                                    {% set preset_value = search_params[datafield.id] %}
+                                                {% endif %}
+                                                {% set content = render_plugin_instance|search_plugin(child_datatype, datafield, preset_value, rendering_options) %}
+                                            {% endif %}
 
-                                                'datatype_id': child_datatype['id'],
-                                                'datafield': datafield
-                                            } %}
+                                            {% if content|length > 0 %}
+                                                {{ content|raw }}
+                                            {% else %}
+                                                {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                                                    'search_params': search_params,
+
+                                                    'datatype': child_datatype,
+                                                    'datafield': datafield
+                                                } %}
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                 {% endfor %}
@@ -226,6 +284,22 @@
                     {% endfor %}
 
                     {% if can_search_linked_datatype %}
+
+                        {# check whether the linked datatype should execute a search plugin... #}
+                        {% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
+                        {% set render_plugin_instance = null %}
+                        {% set render_plugin_override_df_list = [] %}
+                        {% for rpi_num,rpi in linked_datatype.renderPluginInstances %}
+                            {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+                                {% set render_plugin_override_df_list = rpi|can_execute_search_plugin(linked_datatype, [], rendering_options) %}
+
+                                {# Only want to save the render_plugin_instance if it's render-able #}
+                                {% if render_plugin_override_df_list is iterable and render_plugin_override_df_list|length > 0 %}
+                                    {% set render_plugin_instance = rpi %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
                         <fieldset>
                             <div class="ODRAdvSearch_header">
                                 <span>{{ linked_datatype['dataTypeMeta']['shortName'] }}</span>
@@ -236,12 +310,25 @@
                                     {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                     {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                                         <div class="ODRAdvSearch_datafield pure-u-1">
-                                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                                'search_params': search_params,
+                                            {% set content = '' %}
+                                            {% if datafield.id in render_plugin_override_df_list %}
+                                                {% set preset_value = '' %}
+                                                {% if search_params[datafield.id] is defined %}
+                                                    {% set preset_value = search_params[datafield.id] %}
+                                                {% endif %}
+                                                {% set content = render_plugin_instance|search_plugin(linked_datatype, datafield, preset_value, rendering_options) %}
+                                            {% endif %}
 
-                                                'datatype_id': linked_datatype['id'],
-                                                'datafield': datafield
-                                            } %}
+                                            {% if content|length > 0 %}
+                                                {{ content|raw }}
+                                            {% else %}
+                                                {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                                                    'search_params': search_params,
+
+                                                    'datatype': linked_datatype,
+                                                    'datafield': datafield
+                                                } %}
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                 {% endfor %}

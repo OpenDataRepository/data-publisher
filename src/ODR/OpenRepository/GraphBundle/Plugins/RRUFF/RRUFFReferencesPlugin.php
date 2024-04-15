@@ -24,8 +24,10 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\LockService;
+use ODR\AdminBundle\Component\Service\SortService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -34,7 +36,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class RRUFFReferencesPlugin implements DatatypePluginInterface
+class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideInterface
 {
 
     /**
@@ -45,7 +47,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
     /**
      * @var EntityCreationService
      */
-    private $ec_service;
+    private $entity_create_service;
 
     /**
      * @var LockService
@@ -53,9 +55,17 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
     private $lock_service;
 
     /**
+     * @var SortService
+     */
+    private $sort_service;
+
+    /**
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var CsrfTokenManager
@@ -77,8 +87,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      * RRUFF References constructor
      *
      * @param EntityManager $entity_manager
-     * @param EntityCreationService $entity_creation_service
+     * @param EntityCreationService $entity_create_service
      * @param LockService $lock_service
+     * @param SortService $sort_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
@@ -86,16 +97,18 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      */
     public function __construct(
         EntityManager $entity_manager,
-        EntityCreationService $entity_creation_service,
+        EntityCreationService $entity_create_service,
         LockService $lock_service,
+        SortService $sort_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->ec_service = $entity_creation_service;
+        $this->entity_create_service = $entity_create_service;
         $this->lock_service = $lock_service;
+        $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
@@ -114,17 +127,19 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
-        // TODO - make changes so the plugin can continue to run in Edit mode?
         if ( isset($rendering_options['context']) ) {
-            if ($rendering_options['context'] === 'display'
-                || $rendering_options['context'] === 'fake_edit'
+            $context = $rendering_options['context'];
+
+            if ($context === 'display' || $context === 'edit'
+                || $context === 'fake_edit' || $context === 'mass_edit'
             ) {
-                // Needs to be executed in both fake_edit (for autogeneration) and display modes
+                // Needs to be executed in display, edit (for journal selection and previews),
+                //  fake_edit (for autogeneration), and mass_edit (for switching to a specific journal)
                 return true;
             }
 
             // Also need a "text" mode
-            if ( $rendering_options['context'] === 'text' )
+            if ( $context === 'text' || $context === 'html' )
                 return true;
         }
 
@@ -151,7 +166,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
-
         try {
             // ----------------------------------------
             // If no rendering context set, then return nothing so ODR's default templating will
@@ -184,8 +198,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
 
             // ----------------------------------------
             // Output depends on which context the plugin is being executed from
+            $context = $rendering_options['context'];
             $output = '';
-            if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'text' ) {
+            if ( $context === 'display' || $context === 'text' || $context === 'html' ) {
 
                 // Want to locate the values for most of the mapped datafields
                 $optional_fields = array(
@@ -198,7 +213,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                     $rpf_df_id = $rpf_df['id'];
 
                     $df = null;
-                    if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                    if ( isset($datatype['dataFields'][$rpf_df_id]) )
                         $df = $datatype['dataFields'][$rpf_df_id];
 
                     if ($df == null) {
@@ -343,7 +358,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                 if ( $rendering_options['context'] === 'text' )
                     $output = preg_replace('/(\s+)/', ' ', $output);
             }
-            else if ( $rendering_options['context'] === 'fake_edit') {
+            else if ( $context === 'fake_edit') {
                 // Retrieve mapping between datafields and render plugin fields
                 $autogenerate_df_id = null;
                 $plugin_fields = array();
@@ -375,6 +390,28 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                 $token = $this->token_manager->getToken($token_id)->getValue();
                 $special_tokens[$autogenerate_df_id] = $token;
 
+
+                // Also want to provide a sorted list of the existing journals to the user to reduce
+                //  input errors...
+                $journal_df_id = 0;
+                if ( !isset($fields['Journal']['id']) ) {
+                    // If the Journal field doesn't exist, then the plugin can't continue executing
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "Journal"...check plugin config.');
+                }
+
+                $journal_df_id = $fields['Journal']['id'];
+                $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
+
+                $journal_list = array();
+                foreach ($sort_data as $dr_id => $sort_value)
+                    $journal_list[$sort_value] = 1;
+
+
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_fakeedit_fieldarea.html.twig',
                     array(
@@ -398,8 +435,123 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                         'special_tokens' => $special_tokens,
 
                         'plugin_fields' => $plugin_fields,
+
+                        'journal_df_id' => $journal_df_id,
+                        'journal_list' => $journal_list,
                     )
                 );
+            }
+            else if ( $context === 'edit' || $context === 'mass_edit' ) {
+                // Want to provide a sorted list of the existing journals to the user to reduce
+                //  input errors...
+                $journal_df_id = 0;
+                if ( !isset($fields['Journal']['id']) ) {
+                    // If the Journal field doesn't exist, then the plugin can't continue executing
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "Journal"...check plugin config.');
+                }
+
+                $journal_df_id = $fields['Journal']['id'];
+                $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
+
+                $journal_list = array();
+                foreach ($sort_data as $dr_id => $sort_value)
+                    $journal_list[$sort_value] = 1;
+
+                if ( $context === 'edit' ) {
+                    // Most of the fields need slightly modified saving javascript...
+                    $reference_field_list = array();
+                    foreach ($fields as $rpf_name => $rpf) {
+                        switch ($rpf_name) {
+                            case 'Authors':
+                            case 'Article Title':
+                            case 'Journal':
+                            case 'Year':
+                            case 'Month':
+                            case 'Volume':
+                            case 'Issue':
+                            case 'Book Title':
+                            case 'Publisher':
+                            case 'Publisher Location':
+                            case 'Pages':
+                            case 'File':
+                            case 'URL':
+                                $reference_field_list[ $rpf['id'] ] = $rpf_name;
+                                break;
+                        }
+                    }
+
+                    // Also need a list of which datafields are using the chemistry plugin
+                    // TODO - figure out some way to make plugins play nicer with each other?
+                    $chemistry_plugin_fields = array();
+                    foreach ($datatype['dataFields'] as $df_id => $df) {
+                        foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.chemistry' ) {
+                                $subscript_delimiter = $rpi['renderPluginOptionsMap']['subscript_delimiter'];
+                                $superscript_delimiter = $rpi['renderPluginOptionsMap']['superscript_delimiter'];
+
+                                $chemistry_plugin_fields[$df_id] = array(
+                                    'subscript_delimiter' => $subscript_delimiter,
+                                    'superscript_delimiter' => $superscript_delimiter,
+                                );
+                            }
+                        }
+                    }
+
+                    $output = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
+                        array(
+                            'datatype_array' => array($initial_datatype_id => $datatype),
+                            'datarecord_array' => array($datarecord['id'] => $datarecord),
+                            'theme_array' => $theme_array,
+
+                            'target_datatype_id' => $initial_datatype_id,
+                            'parent_datarecord' => $parent_datarecord,
+                            'target_datarecord_id' => $datarecord['id'],
+                            'target_theme_id' => $initial_theme_id,
+
+                            'datatype_permissions' => $datatype_permissions,
+                            'datafield_permissions' => $datafield_permissions,
+
+                            'is_top_level' => $rendering_options['is_top_level'],
+                            'is_link' => $rendering_options['is_link'],
+                            'display_type' => $rendering_options['display_type'],
+
+                            'token_list' => $token_list,
+
+                            'reference_field_list' => $reference_field_list,
+                            'chemistry_plugin_fields' => $chemistry_plugin_fields,
+                            'journal_list' => $journal_list,
+                        )
+                    );
+                }
+                else if ( $context === 'mass_edit' ) {
+                    $output = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_massedit_fieldarea.html.twig',
+                        array(
+                            'datatype_array' => array($initial_datatype_id => $datatype),
+                            'theme_array' => $theme_array,
+
+                            'target_datatype_id' => $initial_datatype_id,
+                            'target_theme_id' => $initial_theme_id,
+
+                            'is_datatype_admin' => $is_datatype_admin,
+                            'datatype_permissions' => $datatype_permissions,
+                            'datafield_permissions' => $datafield_permissions,
+
+                            'is_top_level' => $rendering_options['is_top_level'],
+
+                            'mass_edit_trigger_datafields' => $rendering_options['mass_edit_trigger_datafields'],
+
+                            'journal_df_id' => $journal_df_id,
+                            'journal_list' => $journal_list,
+                        )
+                    );
+                }
             }
 
             return $output;
@@ -408,6 +560,98 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Returns which of its entries the plugin wants to override in the search sidebar.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $datafield
+     * @param array $rendering_options
+     *
+     * @return array|bool returns true/false if a datafield plugin, or an array of datafield ids if a datatype plugin
+     */
+    public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
+    {
+        // Only want to override the Journal field
+        if ( isset($render_plugin_instance['renderPluginMap']['Journal']['id']) ) {
+            $journal_df_id = $render_plugin_instance['renderPluginMap']['Journal']['id'];
+            return array('Journal' => $journal_df_id);
+        }
+
+        // If the journal field isn't mapped for some reason, return nothing
+        return array();
+    }
+
+
+    /**
+     * Returns HTML to override a datafield's entry in the search sidebar.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $datafield
+     * @param string|array $preset_value
+     * @param array $rendering_options
+     *
+     * @return string
+     */
+    public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
+    {
+        // This will only be called on the Journal field...want to provide a dropdown of all journals
+        //  currently listed in the field
+        $sort_data = $this->sort_service->sortDatarecordsByDatafield( $datafield['id'] );
+
+        $journal_list = array();
+        foreach ($sort_data as $dr_id => $sort_value)
+            $journal_list[$sort_value] = 1;
+
+        $output = $this->templating->render(
+            'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_search_journal_datafield.html.twig',
+            array(
+                'datatype' => $datatype,
+                'datafield' => $datafield,
+
+                'journal_list' => $journal_list,
+
+                'preset_value' => $preset_value,
+            )
+        );
+
+        return $output;
+    }
+
+
+    /**
+     * Given an array of datafields mapped by this plugin, returns which datafields SearchAPIService
+     * should call {@link SearchOverrideInterface::searchOverriddenField()} on instead of running
+     * the default searches.
+     *
+     * @param array $df_list
+     * @return array An array where the values are datafield ids
+     */
+    public function getSearchOverrideFields($df_list)
+    {
+        // Don't want to override SearchAPIService
+        return array();
+    }
+
+
+    /**
+     * Searches the specified datafield for the specified value, returning an array of datarecord
+     * ids that match the search.
+     *
+     * @param DataFields $datafield
+     * @param array $search_term
+     * @param array $render_plugin_options
+     *
+     * @return array
+     */
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_options)
+    {
+        // This won't be called
+        return null;
     }
 
 
@@ -467,7 +711,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         $new_value = $old_value + 1;
 
         // Create a new storage entity with the new value
-        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
         $this->logger->debug('Setting df '.$datafield->getId().' "Reference ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
@@ -477,8 +721,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         // ----------------------------------------
         // Fire off an event notifying that the modification of the datafield is done
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }

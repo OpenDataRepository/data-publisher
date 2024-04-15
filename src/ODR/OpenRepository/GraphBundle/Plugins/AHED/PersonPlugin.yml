@@ -8,6 +8,9 @@ odr_plugins.ahed.person:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     suppress_no_fields_note: false
     description: The Person plugin provides the basic framework for storing metadata about a person.
     registered_events:

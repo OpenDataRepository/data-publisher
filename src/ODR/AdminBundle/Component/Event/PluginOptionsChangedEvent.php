@@ -35,19 +35,35 @@ class PluginOptionsChangedEvent extends Event implements ODREventInterface
      */
     private $user;
 
+    /**
+     * @var array
+     */
+    private $changed_fields;
+
+    /**
+     * @var array
+     */
+    private $changed_options;
+
 
     /**
      * PluginOptionsChangedEvent constructor.
      *
      * @param RenderPluginInstance $render_plugin_instance
      * @param ODRUser $user
+     * @param array $changed_fields
+     * @param array $changed_options
      */
     public function __construct(
         RenderPluginInstance $render_plugin_instance,
-        ODRUser $user
+        ODRUser $user,
+        $changed_fields,
+        $changed_options
     ) {
         $this->render_plugin_instance = $render_plugin_instance;
         $this->user = $user;
+        $this->changed_fields = $changed_fields;
+        $this->changed_options = $changed_options;
     }
 
 
@@ -71,6 +87,25 @@ class PluginOptionsChangedEvent extends Event implements ODREventInterface
         return $this->user;
     }
 
+    /**
+     * Returns the names of the renderPluginField entries that got changed or added.
+     *
+     * @return array
+     */
+    public function getChangedFields()
+    {
+        return $this->changed_fields;
+    }
+
+    /**
+     * Returns the names of the renderPluginOptionDef entries that got changed.
+     *
+     * @return array
+     */
+    public function getChangedOptions()
+    {
+        return $this->changed_options;
+    }
 
     /**
      * {@inheritDoc}

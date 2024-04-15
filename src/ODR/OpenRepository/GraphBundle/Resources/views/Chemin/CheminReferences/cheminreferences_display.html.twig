@@ -1,6 +1,6 @@
 {% spaceless %}
 
-{% if is_top_level == 1 and original_context != 'text' %}
+{% if is_top_level == 1 and original_context == 'display' %}
 <div class="ODRContentWrapper">
     <div class="ODRThemeElement">
         <div class="ODRInnerBox">
@@ -8,7 +8,7 @@
 
 {% set rendering_options = {'context': 'text'} %}
 
-{% if original_context != 'text' %}
+{% if original_context == 'display' %}
     <div class="ODRRenderPluginContent{% if is_top_level == 1 %} ODRReferenceSingle{% else %} ODRReference{% endif %}">
 {% endif %}
 
@@ -117,7 +117,15 @@
         'pages': pages,
     } %}
 
-    {% if mapping.file|length > 0 and original_context != 'text' %}
+    {% if mapping.url is defined and mapping.url != '' and (original_context == 'display' or original_context == 'html') %}
+        {% if 'doi.org' in mapping.url %}
+            ;&nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">{{ mapping.url }}</a>
+        {% else %}
+            &nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">[<i class="fa fa-external-link"></i> source]</a>
+        {% endif %}
+    {% endif %}
+
+    {% if mapping.file|length > 0 and (original_context == 'display' or original_context == 'html') %}
         {% for file in mapping.file.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
             &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"
                 class="ODRFileDownload" rel="{{ file.id }}"
@@ -133,7 +141,7 @@
         {% endfor %}
     {% endif %}
 
-    {% if mapping.supporting_files|length > 0 and original_context != 'text' %}
+    {% if mapping.supporting_files|length > 0 and (original_context == 'display' or original_context == 'html') %}
         {% set file_num = 1 %}
         {% for file in mapping.supporting_files.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
             &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"
@@ -151,17 +159,13 @@
             </span>
         {% endfor %}
     {% endif %}
-
-    {% if mapping.url is defined and mapping.url != '' and original_context != 'text' %}
-        &nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">[<i class="fa fa-external-link"></i> source]</a>
-    {% endif %}
 {% endif %}
 
-{% if original_context != 'text' %}
+{% if original_context == 'display' %}
     </div>
 {% endif %}
 
-{% if is_top_level == 1 and original_context != 'text' %}
+{% if is_top_level == 1 and original_context == 'display' %}
         </div>
     </div>
 </div>

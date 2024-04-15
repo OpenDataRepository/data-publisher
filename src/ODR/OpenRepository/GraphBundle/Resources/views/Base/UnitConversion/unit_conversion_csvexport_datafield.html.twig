@@ -1,0 +1,66 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </label>
+
+        {# NOTE - intentionally not setting a default checked attribute here...the custom selectAll.ODRCSVExport javascript event will trigger it #}
+        <label for="Input_{{ datafield.id }}_original" class="Pointer">
+            <input id="Input_{{ datafield.id }}_original" class="Input_{{ datafield.id }}_inputs" type="checkbox" name="export_original" value="1" />&nbsp;Export original values
+        </label>
+        &nbsp;&nbsp;&nbsp;
+        <label for="Input_{{ datafield.id }}_converted" class="Pointer">
+            <input id="Input_{{ datafield.id }}_converted" class="Input_{{ datafield.id }}_inputs" type="checkbox" name="export_converted" value="1" />&nbsp;Export converted values
+        </label>
+    </fieldset>
+
+<script>
+    $(function() {
+        // Attempt to ensure the main field does not have a click handler attached, and is also
+        //  selected by default
+        $("#Field_{{ datafield.id }}").unbind('click').addClass('ODRExportPluginField').addClass('ODRSelectedCSVExportField');
+
+        // Instead, listen to the custom select/deselect all events?
+        $("#Field_{{ datafield.id }}").on('selectAll.ODRCSVExport', function() {
+            var original_selected = $("#Input_{{ datafield.id }}_original").prop('checked');
+            var converted_selected = $("#Input_{{ datafield.id }}_converted").prop('checked');
+
+            // If both checkboxs are unselected, then select the default export option
+            if ( !original_selected && !converted_selected ) {
+            {% if plugin_options['export_converted'] == 'yes' %}
+                $("#Input_{{ datafield.id }}_converted").trigger('click');
+            {% else %}
+                $("#Input_{{ datafield.id }}_original").trigger('click');
+            {% endif %}
+            }
+        });
+        $("#Field_{{ datafield.id }}").on('deselectAll.ODRCSVExport', function() {
+            var original_selected = $("#Input_{{ datafield.id }}_original").prop('checked');
+            var converted_selected = $("#Input_{{ datafield.id }}_converted").prop('checked');
+
+            // If either checkbox is selected, then deselect it
+            if ( original_selected )
+                $("#Input_{{ datafield.id }}_original").trigger('click');
+            if ( converted_selected )
+                $("#Input_{{ datafield.id }}_converted").trigger('click');
+        });
+
+        $(".Input_{{ datafield.id }}_inputs").unbind('click').click(function(event) {
+            var original_selected = $("#Input_{{ datafield.id }}_original").prop('checked');
+            var converted_selected = $("#Input_{{ datafield.id }}_converted").prop('checked');
+
+            if ( original_selected || converted_selected ) {
+                // If at least one checkbox is selected, then mark the field itself as selected
+                $("#Field_{{ datafield.id }}").removeClass("ODRUnselectedCSVExportField").addClass("ODRSelectedCSVExportField");
+            }
+            else {
+                // If neither is selected, then mark the field itself as unselected
+                $("#Field_{{ datafield.id }}").removeClass("ODRSelectedCSVExportField").addClass("ODRUnselectedCSVExportField");
+            }
+        });
+    });
+</script>
+{% endspaceless %}

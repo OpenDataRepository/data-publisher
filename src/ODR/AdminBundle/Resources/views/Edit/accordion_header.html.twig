@@ -50,7 +50,7 @@
     ></i>
     {% endif %}
 
-    <a class="ODRRecordName">
+    <a class="ODRRecordName" data-parent-name="{{ datatype.dataTypeMeta.shortName }}">
     {% if datarecord.nameField_value != datarecord.id %}
         {{ datarecord.nameField_value }}
     {% else %}
