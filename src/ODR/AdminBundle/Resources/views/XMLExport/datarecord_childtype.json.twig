@@ -73,13 +73,13 @@
             {% endif %}
             {# Fields #}
             {% if
-                version == "v4"
+                version == "v5"
                 and datarecord.dataType.masterDataType
                 and datarecord.dataType.masterDataType.unique_id
                 and datarecord.dataType.masterDataType.unique_id is not empty
              %}
                 "fields_{{ datarecord.dataType.masterDataType.unique_id }}": [
-            {% elseif version == "v4" %}
+            {% elseif version == "v5" %}
                 "fields_{{ datarecord.dataType.unique_id }}": [
             {% else %}
                 "fields": [
@@ -125,9 +125,9 @@
                 {% endset %}
                 {{ field_block|comma|raw }}
             ],
-            {% if version == "v4" and datarecord.dataType.masterDataType %}
+            {% if version == "v5" and datarecord.dataType.masterDataType %}
                 "records_{{ datarecord.dataType.masterDataType.unique_id }}": [
-            {% elseif version == "v4" %}
+            {% elseif version == "v5" %}
                 "records_{{ datarecord.dataType.unique_id }}": [
             {% else %}
                 "records": [
