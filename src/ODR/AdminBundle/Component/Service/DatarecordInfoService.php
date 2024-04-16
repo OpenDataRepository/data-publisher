@@ -20,12 +20,12 @@ use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-// Other
-use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
 // Utility
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
+// Other
+use Doctrine\ORM\EntityManager;
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -234,7 +234,7 @@ class DatarecordInfoService
      * contains data of all datarecords with the requested datarecord as their grandparent, as
      * well as any datarecords that are linked to by the requested datarecord or its children.
      *
-     * Use self::stackDatarecordArray() to get an array structure where child/linked datarecords
+     * Use {@link self::stackDatarecordArray()} to get an array structure where child/linked datarecords
      * are stored "underneath" their parent datarecords.
      *
      * @param integer $grandparent_datarecord_id
@@ -271,7 +271,7 @@ class DatarecordInfoService
 
 
     /**
-     * Runs a single database query to get all non-layout data for a given grandparent datarecord.
+     * Runs database queries to get all non-layout data for a given grandparent datarecord.
      *
      * @param integer $grandparent_datarecord_id
      *
@@ -287,7 +287,7 @@ class DatarecordInfoService
         $tag_selections = self::getTagSelections($grandparent_datarecord_id);
 
         // Unlike datatype hydration, it seems that separating out the sort/name fields has no benefit
-        //  ...but separating out query to find the child/linked datarecords has a massive benefit
+        //  ...but separating out the query to find the child/linked datarecords has a massive benefit
         $descendants = self::getDescendants($grandparent_datarecord_id);
 
         // Otherwise...get all non-layout data for the requested grandparent datarecord
@@ -705,9 +705,9 @@ class DatarecordInfoService
 
 
     /**
-     * Because of the complexity/depth of the main query in buildDatarecordData(), it's a lot harder
-     * for mysql if the database also has hundreds of radio options...so it's better to get radio
-     * options in a separate query.
+     * Because of the complexity/depth of the main query in {@link self::buildDatarecordData()},
+     * it's a lot harder for mysql if the database also has hundreds of radio options...so it's
+     * better to get radio options in a separate query.
      *
      * @param int $grandparent_datarecord_id
      *
@@ -752,9 +752,9 @@ class DatarecordInfoService
 
 
     /**
-     * Because of the complexity/depth of the main query in buildDatarecordData(), it's a lot harder
-     * for mysql if the database also has hundreds of tags...so it's better to get all the tags in
-     * in a separate query.
+     * Because of the complexity/depth of the main query in {@link self::buildDatarecordData()},
+     * it's a lot harder for mysql if the database also has hundreds of tags...so it's better to
+     * get the tags in a separate query.
      *
      * @param int $grandparent_datarecord_id
      *
@@ -799,8 +799,9 @@ class DatarecordInfoService
 
 
     /**
-     * Apparently, mysql REALLY doesn't like getting the child/linked descendant records with the
-     * rest of the data that self::buildDatarecordData() loads.
+     * Apparently, mysql REALLY doesn't like digging through the odr_data_tree table to figure out
+     * the ids of the child/linked descendant records at the same time as the primary query in
+     * {@link self::buildDatarecordData()}.
      *
      * @param int $grandparent_datarecord_id
      * @return array
@@ -834,7 +835,10 @@ class DatarecordInfoService
 
 
     /**
-     * Multiple places in ODR need to have quick/easy access to the name/sort values for a datarecord.
+     * Multiple places in ODR need to have quick/easy access to the name/sort values for a datarecord,
+     * but this isn't exactly trivial because a datatype could require them to be combined from the
+     * values of more than one field...
+     *
      * This function does the work of locating the values, combining them together if there's more
      * than one of them, and then saving the values back in the cached datarecord array.
      *
@@ -1064,10 +1068,8 @@ class DatarecordInfoService
 
 
     /**
-     * Recursively "inflates" a flattened $datarecord_array so that child/linked datarecords are
-     * stored "underneath" their parents/grandparents.
-     *
-     * @see self::getDatarecordArray()
+     * Recursively "inflates" a $datarecord_array from {@link self::getDatarecordArray()} so that
+     * child/linked datarecords are stored "underneath" their parents/grandparents.
      *
      * @param array $datarecord_array
      * @param integer $initial_datarecord_id
@@ -1132,8 +1134,8 @@ class DatarecordInfoService
     /**
      * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
      *
-     * @param array $datatype_array    @see DatabaseInfoService::buildDatatypeData()
-     * @param array $datarecord_array  @see DatarecordInfoService::buildDatarecordData()
+     * @param array $datatype_array {@link DatabaseInfoService::buildDatatypeData()}
+     * @param array $datarecord_array {@link DatarecordInfoService::buildDatarecordData()}
      *
      * @return array
      */
@@ -1168,11 +1170,12 @@ class DatarecordInfoService
      * Uses the given cached datatype array to generate a cache entry for a barebones "fake" record
      * of the given datatype id.
      *
-     * This function assumes it's creating a fake top-level datarecord.  The caller will need to
-     * splice this fake datarecord's ids into the cached array of a parent datarecord, if needed.
-     * The caller will also need to deal with setting the parent/grandparent attributes in this case.
+     * This function assumes it's creating a fake top-level datarecord.  If the caller instead needs
+     * a fake child datarecord, then it's their responsibility to splice the array this function
+     * returns with the array of its parent.  The caller will also need to deal with setting the
+     * parent/grandparent attributes in that case.
      *
-     * @param array $datatype_array @see DatabaseInfoService::getDatatypeArray()
+     * @param array $datatype_array {@link DatabaseInfoService::getDatatypeArray()}
      * @param int $target_datatype_id
      * @param array $datafield_values An optional array of df_id => value pairs, if the "fake" record isn't supposed to be completely blank
      *

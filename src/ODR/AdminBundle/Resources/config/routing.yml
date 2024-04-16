@@ -981,6 +981,12 @@ odr_design_quicklink_datatype:
         theme_element_id:  \d+
 
 
+odr_record_get_linked_datarecords:
+    path:  /edit/getlinkedrecords/{local_datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Link:getlinkeddatarecords }
+    requirements:
+        local_datarecord_id: \d+
+
 odr_record_get_linkable_datarecords:
     path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_theme_id}/{search_key}
     defaults: { _controller: ODRAdminBundle:Link:getlinkabledatarecords, search_theme_id: '', search_key: '' }

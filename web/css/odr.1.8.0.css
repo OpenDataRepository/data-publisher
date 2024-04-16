@@ -5228,3 +5228,13 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     border-bottom: 1px solid #DDD;
 }
 
+#ODRRecordLinkInfoWrapperDiv {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+.ODRRecordLinkInfoDiv {
+    padding-left: 5px;
+}
+.ODRRecordLinkInfoList {
+    padding-left: 10px;
+}

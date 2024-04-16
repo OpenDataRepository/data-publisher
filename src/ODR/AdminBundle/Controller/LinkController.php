@@ -53,6 +53,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Router;
 use Symfony\Component\Templating\EngineInterface;
 
 
@@ -1549,8 +1550,294 @@ class LinkController extends ODRCustomController
 
 
     /**
-     * Builds and returns a list of available 'descendant' datarecords to link to from this
-     * 'ancestor' datarecord.
+     * Builds and returns data to provide more info about what the the given datarecord links to,
+     * and what links to the given datarecord.
+     *
+     * @param integer $local_datarecord_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getlinkeddatarecordsAction($local_datarecord_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var Router $router */
+            $router = $this->get('router');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            /** @var DataRecord $local_datarecord */
+            $local_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($local_datarecord_id);
+            if ($local_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $local_datatype = $local_datarecord->getDataType();
+            if ($local_datatype->getDeletedAt() !== null)
+                throw new ODRNotFoundException('Datatype');
+            $local_datatype_id = $local_datatype->getId();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
+
+            if ( !$permissions_service->canEditDatarecord($user, $local_datarecord) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Need a list of remote datarecords that "link to" or are "linked from" the local datarecord
+            // Don't want to have to hydrate a bunch of datarecords to check permissions, so need to
+            //  locate the info to do it "manually"...
+            $data = array();
+            $linked_record_data = array();
+            $has_name_field = array();
+
+            // Because of mysql, it's better to run a couple queries...need to first have info on all
+            //  datatypes the local datarecord could link to
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+            $linked_ancestors = $datatree_info_service->getLinkedAncestors(array($local_datatype_id), $datatree_array);
+            $linked_descendants = $datatree_info_service->getLinkedDescendants(array($local_datatype_id), $datatree_array);
+
+            $datatype_ids = array();
+            foreach ($linked_ancestors as $num => $dt_id)
+                $datatype_ids[] = $dt_id;
+            foreach ($linked_descendants as $num => $dt_id)
+                $datatype_ids[] = $dt_id;
+
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.publicDate, dtm.shortName, dtsf.id AS dtsf_id, dtsf.field_purpose
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataType = dt
+                WHERE dt IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND dtsf.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dt_public_date = $result['publicDate'];
+                $dt_name = $result['shortName'];
+                $dtsf_id = $result['dtsf_id'];
+                $dtsf_purpose = $result['field_purpose'];
+
+                // Store basic info about the datatype...
+                if ( !isset($data[$dt_id]) ) {
+                    $data[$dt_id] = array(
+                        'dt_name' => $dt_name,
+                        'dt_public_date' => $dt_public_date,
+                        'records' => array()
+                    );
+                }
+
+                // Store if it has a name field set...no sense displaying datarecord ids to users
+                if ( !is_null($dtsf_id) && $dtsf_purpose === DataTypeSpecialFields::NAME_FIELD )
+                    $has_name_field[$dt_id] = 1;
+            }
+
+            // Need to splice in the "direction"
+            foreach ($linked_ancestors as $num => $dt_id)
+                $data[$dt_id]['direction'] = 'linked to by';   // local record linked to by remote record
+            foreach ($linked_descendants as $num => $dt_id)
+                $data[$dt_id]['direction'] = 'links to';    // local record links to remote record
+
+
+            // Next, need a query to get which records the local datarecord links to...
+            $query = $em->createQuery(
+               'SELECT ddr.id AS ddr_id, ddt.id AS ddt_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                LEFT JOIN ODRAdminBundle:DataRecord AS ddr WITH ldt.descendant = ddr
+                LEFT JOIN ODRAdminBundle:DataType AS ddt WITH ddr.dataType = ddt
+                WHERE ldt.ancestor = :datarecord_id
+                AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL'
+            )->setParameters( array('datarecord_id' => $local_datarecord_id) );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dr_id = $result['ddr_id'];
+                $dt_id = $result['ddt_id'];
+                $data[$dt_id]['records'][$dr_id] = $dr_id;
+            }
+
+            // ...and another to get the records that link to the local datarecord.  Need grandparent
+            //   info for this one though, because the local record could be linked to by a child record...
+            $query = $em->createQuery(
+               'SELECT adr.id AS adr_id, gdr.id AS gdr_id, gdt.id AS gdt_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                LEFT JOIN ODRAdminBundle:DataRecord AS adr WITH ldt.ancestor = adr
+                LEFT JOIN ODRAdminBundle:DataRecord AS gdr WITH adr.grandparent = gdr
+                LEFT JOIN ODRAdminBundle:DataType AS gdt WITH gdr.dataType = gdt
+                WHERE ldt.descendant = :datarecord_id
+                AND ldt.deletedAt IS NULL AND adr.deletedAt IS NULL
+                AND gdr.deletedAt IS NULL AND gdt.deletedAt IS NULL'
+            )->setParameters( array('datarecord_id' => $local_datarecord_id) );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dr_id = $result['adr_id'];
+                $gdr_id = $result['gdr_id'];
+                $dt_id = $result['gdt_id'];
+
+                $data[$dt_id]['records'][$dr_id] = $gdr_id;
+            }
+
+
+            // ----------------------------------------
+            // Now that the data has been loaded, need to filter out the datatypes/datarecords the
+            //  user isn't allowed to view
+            $linked_record_data = array();
+            foreach ($data as $dt_id => $dt_data) {
+                // "Manually" verify whether the user can view this datatype...
+                $dt_public_date = $dt_data['dt_public_date'];
+                $can_view_datatype = isset( $datatype_permissions[$dt_id]['dt_view'] );
+                $can_view_datarecords = isset( $datatype_permissions[$dt_id]['dr_view'] );
+
+                if ( $dt_public_date !== '2200-01-01 00:00:00' || $can_view_datatype || $is_super_admin ) {
+                    // User can view the datatype...save an entry for it
+                    if ( !isset($linked_record_data[$dt_id]) ) {
+                        $linked_record_data[$dt_id] = array(
+                            'direction' => $dt_data['direction'],
+                            'dt_name' => $dt_data['dt_name'],
+                            'records' => array()
+                        );
+                    }
+
+                    // Need to also check permissions for all linked records of this datatype...
+                    foreach ($dt_data['records'] as $dr_id => $gdr_id) {
+                        // Unfortunately, due to the possibility of a child record linking to the
+                        //  local datarecord...the cache entry of the remote record always needs
+                        //  to be loaded.  The grandparent datarecord id needs to be used here
+                        $dr_array = $datarecord_info_service->getDatarecordArray($gdr_id, false);    // don't want links
+
+                        // Starting from the record that actually links to the local record...
+                        do {
+                            $dr = $dr_array[$dr_id];
+                            $dr_public_date = ($dr['dataRecordMeta']['publicDate'])->format('Y-m-d H:i:s');
+                            if ( !($dr_public_date !== '2200-01-01 00:00:00' || $can_view_datarecords || $is_super_admin) ) {
+                                // User can't view the datarecord...skip ahead to the next record
+                                continue 2;
+                            }
+                            else {
+                                // User can view the record...check the public date of its parent
+                                $dr_id = $dr['parent']['id'];
+                            }
+                        }
+                        while ($dr_id !== $gdr_id);
+
+                        // If this point is reached, then the user can view the remote datarecord
+                        $dr_name = '';
+                        if ( isset($has_name_field[$dt_id]) ) {
+                            // If the datatype has a name field, then extract the name for the
+                            //  remote datarecord
+                            $dr_name = $dr_array[$dr_id]['nameField_value'];
+                        }
+
+                        // Save an entry for this record
+                        $linked_record_data[$dt_id]['records'][$gdr_id] = $dr_name;
+                    }
+                }
+            }
+
+            // Slightly easier to read if the datatypes are sorted
+            uasort($linked_record_data, function($a, $b) {
+                return strcmp($a['dt_name'], $b['dt_name']);
+            });
+
+            // Easier if PHP creates the extra info string
+            $site_baseurl = $this->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                $site_baseurl .= 'app_dev.php/';
+            $site_baseurl .= 'admin';
+
+            foreach ($linked_record_data as $dt_id => $dt_data) {
+                $names = array();
+                $unnamed = 0;
+                foreach ($dt_data['records'] as $gdr_id => $dr_name) {
+                    if ( $dr_name !== '' ) {
+                        // Want to display the datarecord name, and it seems useful to link to the
+                        //  datarecord itself...
+                        $url = $router->generate(
+                            'odr_display_view',
+                            array(
+                                'datarecord_id' => $gdr_id
+                            )
+                        );
+
+                        $names[] = '<a target="_blank" href="'.$site_baseurl.'#'.$url.'">'.$dr_name.'</a>';
+                    }
+                    else {
+                        // Not going to display the datarecord id
+                        $unnamed++;
+                    }
+                }
+
+                if ( count($names) > 0 ) {
+                    $named = implode(', ', $names);
+                    if ( $unnamed === 0 )
+                        $linked_record_data[$dt_id]['record_str'] = $named;    // TODO - truncate?
+                    else
+                        $linked_record_data[$dt_id]['record_str'] = $named.', and '.$unnamed.' other unnamed records';
+                }
+                else {
+                    $linked_record_data[$dt_id]['record_str'] = '';
+                }
+            }
+
+
+            // ----------------------------------------
+            // Get Templating Object
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Link:datarecord_link_info_popup.html.twig',
+                    array(
+                        'local_datarecord' => $local_datarecord,
+                        'linked_record_data' => $linked_record_data,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0xf73a02c2;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * For a given "local" datarecord, renders an interface to display which remote records it has
+     * a link to.  The "local" datarecord can be either the ancestor (links to remote) or the
+     * descendant (linked to by remote).
+     *
+     * The interface also (haphazardly) splices in a search sidebar to allow the user to search for
+     * records to create new links with.  This is rather painful to pull off, and to deal with.
+     *
      *
      * @param integer $ancestor_datatype_id   The DataType that is being linked from
      * @param integer $descendant_datatype_id The DataType that is being linked to

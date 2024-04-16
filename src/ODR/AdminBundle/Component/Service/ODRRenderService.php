@@ -377,6 +377,9 @@ class ODRRenderService
      */
     public function getEditHTML($user, $datarecord, $search_key = '', $search_theme_id = 0, $theme = null)
     {
+        $datatype = $datarecord->getDataType();
+        $datatype_id = $datatype->getId();
+
         $template_name = 'ODRAdminBundle:Edit:edit_ajax.html.twig';
         $extra_parameters = array(
             'is_top_level' => 1,    // TODO - get rid of this requirement
@@ -386,29 +389,17 @@ class ODRRenderService
 
             'search_theme_id' => $search_theme_id,    // TODO - refactor to get rid of this?
 
-            'linked_datatype_ancestors' => array(),
+            'has_linked_datatypes' => 0,
         );
 
-        $datatype = $datarecord->getDataType();
+        // Determine whether to display the "View Linked Records..." button
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
+        $linked_ancestors = $this->datatree_info_service->getLinkedAncestors(array($datatype_id), $datatree_array);
+        $linked_descendants = $this->datatree_info_service->getLinkedDescendants(array($datatype_id), $datatree_array);
 
-        $cached_datatree_array = $this->datatree_info_service->getDatatreeArray();
-        if ( isset($cached_datatree_array['linked_from'][$datatype->getId()]) ) {
-            $ancestor_ids = $cached_datatree_array['linked_from'][$datatype->getId()];
-            $query = $this->em->createQuery(
-               'SELECT dt, dtm
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN dt.dataTypeMeta AS dtm
-                WHERE dt IN (:datatype_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $ancestor_ids) );
-            $results = $query->getArrayResult();
+        if ( count($linked_ancestors) > 0 || count($linked_descendants) > 0 )
+            $extra_parameters['has_linked_datatypes'] = 1;
 
-            foreach ($results as $num => $dt) {
-                $dt_id = $dt['id'];
-                $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
-                $extra_parameters['linked_datatype_ancestors'][$dt_id] = $dt;
-            }
-        }
 
         if ( !is_null($theme) ) {
             if ( $theme->getDataType()->getId() !== $datatype->getId() )
