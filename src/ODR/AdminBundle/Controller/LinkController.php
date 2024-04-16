@@ -1807,7 +1807,7 @@ class LinkController extends ODRCustomController
             // Get Templating Object
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Link:datarecord_link_info_popup.html.twig',
+                    'ODRAdminBundle:Link:datarecord_link_info.html.twig',
                     array(
                         'local_datarecord' => $local_datarecord,
                         'linked_record_data' => $linked_record_data,
