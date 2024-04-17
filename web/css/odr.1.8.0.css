@@ -5193,6 +5193,7 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     top: 5px;
 }
 .ODRImageQuality_wrapper {
+    display: none;
     float:right;
     margin-right: 5px;
 }
