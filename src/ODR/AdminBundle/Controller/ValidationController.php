@@ -29,6 +29,7 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
+use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -2055,6 +2056,93 @@ class ValidationController extends ODRCustomController
 
 
     /**
+     * Locates entries in the renderPluginInstance table that have invalid datatype/datafield combos.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function fixrenderplugininstancesAction(Request $request)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            $query =
+               'SELECT rpi.id AS rpi_id, rp.plugin_type, rpi.data_type_id AS rpi_dt_id, rpi.data_field_id AS rpi_df_id, rpi_df.data_type_id AS rpi_df_dt_id
+                FROM odr_render_plugin_instance rpi
+                LEFT JOIN odr_render_plugin rp ON rpi.render_plugin_id = rp.id
+                LEFT JOIN odr_data_fields rpi_df ON rpi.data_field_id = rpi_df.id';
+            // Don't really care that this gets deleted entries
+
+            $results = $conn->fetchAll($query);
+//            exit('<pre>'.print_r($results, true).'</pre>');
+
+            $invalid_datatype_plugins = array();
+            $invalid_theme_element_plugins = array();
+            $invalid_datafield_plugins = array();
+            $invalid_array_plugins = array();
+
+            foreach ($results as $result) {
+                $rpi_id = (is_null($result['rpi_id'])) ? null : intval($result['rpi_id']);
+                $plugin_type = (is_null($result['plugin_type'])) ? null : intval($result['plugin_type']);
+                $dt_id = (is_null($result['rpi_dt_id'])) ? null : intval($result['rpi_dt_id']);
+                $df_id = (is_null($result['rpi_df_id'])) ? null : intval($result['rpi_df_id']);
+                $df_dt_id = (is_null($result['rpi_df_dt_id'])) ? null : intval($result['rpi_df_dt_id']);
+
+                if ( $plugin_type === RenderPlugin::DATATYPE_PLUGIN ) {
+                    // Datatype/Array/ThemeElement plugins should only have a datatype id
+                    if ( is_null($dt_id) )
+                        $invalid_datatype_plugins[] = $result;
+                    else if ( !is_null($df_id) )
+                        $invalid_datatype_plugins[] = $result;
+                }
+                else if ( $plugin_type === RenderPlugin::THEME_ELEMENT_PLUGIN ) {
+                    // Datatype/Array/ThemeElement plugins should only have a datatype id
+                    if ( is_null($dt_id) )
+                        $invalid_theme_element_plugins[] = $result;
+                    else if ( !is_null($df_id) )
+                        $invalid_theme_element_plugins[] = $result;
+                }
+                else if ( $plugin_type === RenderPlugin::DATAFIELD_PLUGIN ) {
+                    // Datafield plugins should only have a datafield id
+                    if ( is_null($df_id) )
+                        $invalid_datafield_plugins[] = $result;
+                }
+                else if ( $plugin_type === RenderPlugin::ARRAY_PLUGIN ) {
+                    // Datatype/Array/ThemeElement plugins should only have a datatype id
+                    if ( is_null($dt_id) )
+                        $invalid_array_plugins[] = $result;
+                    else if ( !is_null($df_id) )
+                        $invalid_array_plugins[] = $result;
+                }
+            }
+
+            print '<pre>Invalid datatype plugins: '.print_r($invalid_datatype_plugins, true).'</pre>';
+            print '<pre>Invalid themeelement plugins: '.print_r($invalid_theme_element_plugins, true).'</pre>';
+            print '<pre>Invalid datafield plugins: '.print_r($invalid_datafield_plugins, true).'</pre>';
+            print '<pre>Invalid array plugins: '.print_r($invalid_array_plugins, true).'</pre>';
+
+        }
+        catch (\Exception $e) {
+            // Don't want any changes made being saved to the database
+            $em->clear();
+
+            $source = 0xe7c63775;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
      * Ensures that all themes with the same "parent theme" are all eventually accessible via the
      * child_theme_id property of theme_datatype entries within the "parent theme".
      *
@@ -2168,7 +2256,8 @@ class ValidationController extends ODRCustomController
 
                 $query =
                    'SELECT e.id AS id, e.'.$field_name.' AS uuid
-                    FROM '.$table_name.' e';
+                    FROM '.$table_name.' e
+                    WHERE e.deletedAt IS NULL';
                 // Do NOT want to exclude deleted rows
                 $results = $conn->fetchAll($query);
 
@@ -2694,7 +2783,7 @@ class ValidationController extends ODRCustomController
 //                'Image' => 'Image',
                 'Integer' => 'IntegerValue',
                 'Decimal' => 'DecimalValue',
-//                'Paragraph Text' => 'LongText',
+                'Paragraph Text' => 'LongText',
                 'Long Text' => 'LongVarchar',
                 'Medium Text' => 'MediumVarchar',
                 'Short Text' => 'ShortVarchar',

@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
@@ -1342,18 +1343,24 @@ class CloneMasterDatatypeService
                 /** @var RenderPluginInstance $master_rpi */
                 $this->logger->info('CloneMasterDatatypeService: attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datatype '.$master_datatype->getId());
 
-                // Clone the renderPluginInstance
-                $new_rpi = clone $master_rpi;
-                $new_rpi->setDataType($derived_datatype);
-                $new_rpi->setDataField(null);
+                $plugin_type = $master_rpi->getRenderPlugin()->getPluginType();
+                if ( $plugin_type === RenderPlugin::DATATYPE_PLUGIN || $plugin_type === RenderPlugin::THEME_ELEMENT_PLUGIN || $plugin_type === RenderPlugin::ARRAY_PLUGIN ) {
+                    // Clone the renderPluginInstance
+                    $new_rpi = clone $master_rpi;
+                    $new_rpi->setDataType($derived_datatype);
+                    $new_rpi->setDataField(null);
 
-                self::persistObject($new_rpi, true);    // don't flush immediately...
-                $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datatype "'.$derived_datatype->getShortName().'"');
+                    self::persistObject($new_rpi, true);    // don't flush immediately...
+                    $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datatype "'.$derived_datatype->getShortName().'"');
 
-                $this->rpi_mapping[ $master_rpi->getId() ] = $new_rpi;
+                    $this->rpi_mapping[ $master_rpi->getId() ] = $new_rpi;
 
-                // Clone the renderPluginFields and renderPluginOptions mappings
-                self::cloneRenderPluginSettings($master_rpi, $new_rpi, $derived_datatype, null);
+                    // Clone the renderPluginFields and renderPluginOptions mappings
+                    self::cloneRenderPluginSettings($master_rpi, $new_rpi, $derived_datatype, null);
+                }
+                else {
+                    $this->logger->debug('CloneMasterDatatypeService: ** skipped render_plugin_instance '.$master_rpi->getId().' because it is a datafield plugin');
+                }
             }
         }
         else {
@@ -1364,18 +1371,24 @@ class CloneMasterDatatypeService
                 /** @var RenderPluginInstance $master_rpi */
                 $this->logger->info('CloneMasterDatatypeService: -- attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datafield '.$master_datafield->getId());
 
-                // Clone the renderPluginInstance
-                $new_rpi = clone $master_rpi;
-                $new_rpi->setDataType(null);
-                $new_rpi->setDataField($derived_datafield);
+                $plugin_type = $master_rpi->getRenderPlugin()->getPluginType();
+                if ( $plugin_type === RenderPlugin::DATATYPE_PLUGIN || $plugin_type === RenderPlugin::THEME_ELEMENT_PLUGIN || $plugin_type === RenderPlugin::ARRAY_PLUGIN ) {
+                    $this->logger->debug('CloneMasterDatatypeService: ** skipped render_plugin_instance '.$master_rpi->getId().' because it is not a datafield plugin');
+                }
+                else {
+                    // Clone the renderPluginInstance
+                    $new_rpi = clone $master_rpi;
+                    $new_rpi->setDataType(null);
+                    $new_rpi->setDataField($derived_datafield);
 
-                self::persistObject($new_rpi, true);    // don't flush immediately...
-                $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datafield "'.$derived_datafield->getFieldName().'"');
+                    self::persistObject($new_rpi, true);    // don't flush immediately...
+                    $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datafield "'.$derived_datafield->getFieldName().'"');
 
-                $this->rpi_mapping[ $master_rpi->getId() ] = $new_rpi;
+                    $this->rpi_mapping[ $master_rpi->getId() ] = $new_rpi;
 
-                // Clone the renderPluginFields and renderPluginOptions mappings
-                self::cloneRenderPluginSettings($master_rpi, $new_rpi, null, $derived_datafield);
+                    // Clone the renderPluginFields and renderPluginOptions mappings
+                    self::cloneRenderPluginSettings($master_rpi, $new_rpi, null, $derived_datafield);
+                }
             }
         }
     }

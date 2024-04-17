@@ -1580,6 +1580,10 @@ odr_find_datatypes_without_master_themes:
     requirements:
         check_top_level: 0|1
 
+odr_fix_render_plugin_instances:
+    path: /admin/fix_render_plugin_instances
+    defaults: { _controller: ODRAdminBundle:Validation:fixrenderplugininstances }
+
 # Locate themes that have the same parent_theme_id, but there's no theme_datatype trail to reach them
 # Unsure what to do about this one...the problems it finds can't be easily fixed
 odr_trace_theme_ancestory:
