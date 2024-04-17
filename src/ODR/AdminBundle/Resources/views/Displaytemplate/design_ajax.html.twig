@@ -2932,6 +2932,9 @@
         url = url.substring(0, (url.length - 1));
         url += datafield_id;
 
+        $("#loading-overlay").show();
+        $("#loading").show();
+
         $.ajax({
             cache: false,
             type: 'GET',
@@ -2955,6 +2958,9 @@
 
                 // Update the sidebar so it no longer references the now-deleted datafield
                 ResetToolSet();
+
+                $("#loading-overlay").hide();
+                $("#loading").hide();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
