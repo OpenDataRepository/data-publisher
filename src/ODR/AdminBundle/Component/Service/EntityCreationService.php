@@ -2036,10 +2036,10 @@ class EntityCreationService
             throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datafield');
 
         // Ensure a RenderPlugin for a Datatype doesn't mention a Datafield, and vice versa
-        if ( $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN )
-            $datafield = null;
-        else if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN )
+        if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN )
             $datatype = null;
+        else    // Datatype, Array, and ThemeElement plugins
+            $datafield = null;
 
         if ( is_null($created) )
             $created = new \DateTime();
