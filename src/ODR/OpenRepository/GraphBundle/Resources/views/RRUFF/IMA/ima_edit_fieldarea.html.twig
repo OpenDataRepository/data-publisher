@@ -47,11 +47,7 @@
                     {% set derived_datafield_name = null %}
                     {% set is_chemistry_field = false %}
                     {% if plugin_fields[ datafield.id ] is defined %}
-                        {% if plugin_fields[ datafield.id ]['rpf_name'] == "Mineral Display Name" %}
-                            {% set derived_datafield_name = "Mineral Name" %}
-                        {% elseif plugin_fields[ datafield.id ]['rpf_name'] == "Mineral Display Abbreviation" %}
-                            {% set derived_datafield_name = "Mineral Abbreviation" %}
-                        {% elseif plugin_fields[ datafield.id ]['rpf_name'] == "IMA Formula" %}
+                        {% if plugin_fields[ datafield.id ]['rpf_name'] == "IMA Formula" %}
                             {% set derived_datafield_name = "Chemistry Elements" %}
                             {% set is_chemistry_field = true %}
                         {% elseif plugin_fields[ datafield.id ]['rpf_name'] == "RRUFF Formula" %}

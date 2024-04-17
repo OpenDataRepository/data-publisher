@@ -5197,6 +5197,9 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     float:right;
     margin-right: 5px;
 }
+.ODRRecord .ODRImageQuality_wrapper {
+    display: block;
+}
 .ODRFileQuality_label {
     position: relative !important;
     top: 0px !important;

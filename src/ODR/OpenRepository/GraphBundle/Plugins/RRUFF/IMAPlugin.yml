@@ -33,35 +33,20 @@ odr_plugins.rruff.ima:
                 - autogenerate_values
                 - must_be_unique
 
-        mineral_name:
-            name: Mineral Name
-            description:
-            type: MediumVarchar
-            properties:
-                - must_be_unique
-                - no_user_edits
-                - is_derived
+        # The IMA Plugin used to derive a "display" name/abbreviation into an ascii-only version
+        # Once people realized ODR's mysql database collation didn't care about (certain) unicode/ascii differences, the ascii-only fields got removed
         mineral_display_name:
             name: Mineral Display Name
             description:
             type: MediumVarchar
             properties:
                 - must_be_unique
-
-        mineral_abbrev:
-            name: Mineral Abbreviation
-            description:
-            type: ShortVarchar
-            properties:
-#                - must_be_unique    # NOTE - This can't be unique...Sørensenite (display abbrev "Sør") and Sorosite (display abbrev "Sor") both derive to "Sor".  Those aren't the only ones.
-                - no_user_edits
-                - is_derived
         mineral_display_abbrev:
             name: Mineral Display Abbreviation
             description:
             type: ShortVarchar
             properties:
-                - must_be_unique
+#                - must_be_unique    # should theoretically be unique, but a lot of blank values
 
         chemistry_elements:
             name: Chemistry Elements
