@@ -253,7 +253,7 @@
                         "_tracking_master_version": "{{ datafield_meta.tracking_master_revision }}",
              #}
         },
-        "value": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
+        "value": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% elseif version == 'v5' %}1900-01-01{% endif %}"
         {% else %}
         "_field_metadata": {
             "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",

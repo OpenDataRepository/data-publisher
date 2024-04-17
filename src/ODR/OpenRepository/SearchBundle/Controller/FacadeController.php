@@ -877,6 +877,8 @@ class FacadeController extends Controller
             $baseurl = $this->container->getParameter('site_baseurl');
 
             $counter = 0;
+            // for($i=0; $i<10; $i++) {
+                // $record = $records[$i];
             foreach($records as $record) {
                 $url = $this->generateUrl('odr_search_seed_elastic_record', array('record_uuid' => $record->getUniqueId()));
                 $url = $baseurl . $url;
