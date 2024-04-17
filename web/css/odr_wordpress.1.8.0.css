@@ -3529,6 +3529,8 @@ a.ui-button:active,
     overflow: visible;
     text-align: center;
     width: 100%;
+
+    z-index: 9999;
 }
 .ODRRemodalButtons {
     /* display: block; */
@@ -4584,6 +4586,9 @@ i {
 .ODRChemistryPlugin_input {
     /*margin: 5px !important;*/
     font-size: 100% !important;
+
+    color: #555;
+    resize: vertical;
 }
 .ODRChemistryPlugin_textarea {
     margin: 5px 0 0 0 !important;
@@ -4591,12 +4596,16 @@ i {
     overflow: auto;
 
     background: white !important;
+    color: #555;
+    resize: vertical;
 }
 .ODRChemistryPlugin_SaveIndicator {
     top: 8px !important;
 }
 .ODRChemistryPlugin_div {
     margin-top: 5px;
+
+    color: #7777EE;
 }
 .ODRChemistryPlugin_checkbox {
     font-size: 100% !important;

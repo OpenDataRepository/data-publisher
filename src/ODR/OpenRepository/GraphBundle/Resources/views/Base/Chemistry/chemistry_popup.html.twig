@@ -16,8 +16,8 @@
 </span>
 
 <div id="{{ input_id }}_popup" class="ODRChemistryPlugin_popup" title="">    {# NOTE: blank title so the datafield's description doesn't show up throughout the popup #}
-    <div class="pure-u-1">
-        &nbsp;&nbsp;&nbsp;&nbsp;For reference, the current value in the field is displayed below.
+    <div class="pure-u-1 ODRChemistryPlugin_div">
+        &nbsp;&nbsp;&nbsp;&nbsp;Make a selection from the field below to run the Chemistry Plugin.
         <input id="{{ input_id }}_hidden" type="hidden" style="display: none;"/>
 
         {% if field_typename == "Paragraph Text" %}
@@ -25,38 +25,28 @@
         {% else %}
         <input id="{{ input_id }}_original" class="ODRPseudoField ODRChemistryPlugin_textarea pure-u-1" title="The field's current unmodified value." readonly />
         {% endif %}
+    </div>
 
-        <div class="pure-u-1">
-            <label for="{{ input_id }}_trigger_all">
-                <input type="radio" id="{{ input_id }}_trigger_all" name="{{ input_id }}_group" />
-                Format Entire Field
-            </label>
-            <label for="{{ input_id }}_trigger_limited">
-                <input type="radio" id="{{ input_id }}_trigger_limited" name="{{ input_id }}_group" />
-                Only Format Selection
-            </label>
-        </div>
+    <div class="pure-u-1 ODRChemistryPlugin_div">
+        <button id="{{ input_id }}_reset" class="pure-button-primary ODRChemistryPlugin_button" title="Will reset any changes!">Reset Everything</button>
+        <button id="{{ input_id }}_select_all" class="pure-button-primary ODRChemistryPlugin_button" title="Will reset any changes!">Select Everything</button>
+
+        <label for="{{ input_id }}_remove_whitespace" class="ODRChemistryPlugin_checkbox" title="Will reset any changes!">
+            <input type="checkbox" id="{{ input_id }}_remove_whitespace" />&nbsp;Remove Whitespace from Selection
+        </label>
     </div>
 
 
     <div class="pure-u-1 ODRChemistryPlugin_div">
-        <div class="pure-u-1">
-            &nbsp;&nbsp;&nbsp;&nbsp;The input below displays the Chemistry Plugin's best guess for how the field's value should be formatted.  If needed, you can make more changes to this value before clicking the save button.
-        </div>
-        <div id="{{ input_id }}_text_warning" style="display:none;">
-            <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;The field already appears to be formatted.  If you intend to click the save button, please verify no unexpected changes have been made.
-        </div>
-        <div id="{{ input_id }}_subscript_warning" style="display: none;">
-            <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;The field has at least one instance of a duplicated subscript.
-        </div>
-        <div id="{{ input_id }}_superscript_warning" style="display: none;">
-            <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;The field has at least one instance of a duplicated superscript.
-        </div>
-
         <div class="pure-u-21-24">
-            <label for="{{ input_id }}_remove_whitespace" class="pure-u-1 ODRChemistryPlugin_checkbox" title="Will reset any changes!">
-                <input type="checkbox" id="{{ input_id }}_remove_whitespace" />&nbsp;Chemistry Plugin removes whitespace?
-            </label>
+            &nbsp;&nbsp;&nbsp;&nbsp;The field below can be modified, and clicking the buttons on the right will insert special characters into this field.  Changes must be manually saved with the Save button.
+
+            <div id="{{ input_id }}_subscript_warning" style="display: none;">
+                <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;There is at least one duplicated subscript character ("{{ subscript_delimiter }}").
+            </div>
+            <div id="{{ input_id }}_superscript_warning" style="display: none;">
+                <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;There is at least one duplicated superscript character ("{{ superscript_delimiter }}").
+            </div>
 
         {% if field_typename == "Paragraph Text" %}
             <textarea id="{{ input_id }}_parsed" class="ODRChemistryPlugin_input pure-u-1" title="The field's value with the suggested changes applied.  You can make more changes if needed."></textarea>
@@ -80,7 +70,7 @@
 
     <div class="pure-u-1 ODRChemistryPlugin_div">
         <div class="pure-u-1">
-            &nbsp;&nbsp;&nbsp;&nbsp;Below is a preview of what the value will look like outside of Edit mode.
+            &nbsp;&nbsp;&nbsp;&nbsp;The field below shows what the value will look like outside of Edit mode.
         </div>
         <label for="{{ input_id }}_prettify_toggle" class="pure-u-1 ODRChemistryPlugin_checkbox">
             <input type="checkbox" id="{{ input_id }}_prettify_toggle" />&nbsp;Display as raw HTML
@@ -88,7 +78,7 @@
         <div id="{{ input_id }}_prettified" class="ODRPseudoField ODRChemistryPlugin_textarea pure-u-23-24" title="A preview of the field's value."></div>
     </div>
 
-    <div class="pure-u-1">
+    <div class="pure-u-1 ODRChemistryPlugin_div">
         <button id="{{ input_id }}_manual_save" class="ODRChemistryPlugin_button pure-button pure-button-primary pure-u-5-24">
             <i id="{{ input_id }}_warning" class="fa fa-exclamation-triangle ODRInputError" style="display: none;"></i>
             <i class="fa fa-save"></i>
@@ -107,21 +97,7 @@
         // Ensure no random key pushes make it back to the base input element
         $("#{{ input_id }}").blur();
 
-        let prettified = ODR_prettifyChemicalFormula($("#{{ input_id }}").val(), {% if field_typename == "Paragraph Text" %}true{% else %}false{% endif %}, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
-        $("#{{ input_id }}_chemistry_preview_trigger > span").html( prettified );
-
-        // Attempt to intelligently determine whether the "remove whitespace" box should be checked
-        let input = $("#{{ input_id }}").val().replaceAll(/\s|&nbsp;/g, ' ');
-        let chars = [];
-        let num_spaces = 0;
-        let len = input.length;
-        for (let i = 0; i < len; i++) {
-            chars[i] = input.charAt(i);
-            if ( chars[i] === ' ' )
-                num_spaces++;
-        }
-        if ( num_spaces <= 4 )
-            $("#{{ input_id }}_remove_whitespace").prop('checked', true);
+        $("#{{ input_id }}_remove_whitespace").prop('checked', true);
 
         $("#{{ input_id }}_chemistry_trigger").unbind('click').click(function(event) {
             // Don't submit the datafield's form
@@ -142,24 +118,10 @@
                 let current_value = $("#{{ input_id }}").val();
                 $("#{{ input_id }}_hidden").text(current_value);
                 $("#{{ input_id }}_original").text(current_value);
+                $("#{{ input_id }}_parsed").val(current_value);
 
-                $("#{{ input_id }}_trigger_all").prop('checked', true);
-
-                // Then parse the chemistry...
-                if ( ODR_isFormulaFormatted( $("#{{ input_id }}"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' ) ) {
-                    // Formula appears to be formatted already
-                    $("#{{ input_id }}_manual_save").prop('title', 'The formula already appears to be formatted, but clicking here will still save the suggested changes.');
-                    $("#{{ input_id }}_warning").show();
-                    $("#{{ input_id }}_text_warning").show();
-                }
-                else {
-                    // Formula does not appear to be formatted
-                    $("#{{ input_id }}_manual_save").prop('title', 'Save the suggested changes.');
-                    $("#{{ input_id }}_warning").hide();
-                    $("#{{ input_id }}_text_warning").hide();
-                }
-                // Regardless of whether it appears to be formatted, parse the formula
-                ODR_runChemistryDialog( $("#{{ input_id }}"), $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+                let prettified = ODR_prettifyChemicalFormula($("#{{ input_id }}").val(), {% if field_typename == "Paragraph Text" %}true{% else %}false{% endif %}, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+                $("#{{ input_id }}_prettified").html( prettified );
 
                 // ...and show the popup
                 $("#{{ input_id }}_popup").show()
@@ -171,100 +133,78 @@
                     // .width( prettified_div_width - 5 );
                 $("#{{ input_id }}_prettified")
                     .width( prettified_div_width - 7 );
-
-                $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
             }
         });
 
-        $("#{{ input_id }}_original").unbind('select').select(function() {
-            if ( $("#{{ input_id }}_trigger_limited").is(':checked') ) {
-                $("#{{ input_id }}_trigger_limited").trigger('change');
-            }
-        });
-        $("#{{ input_id }}_trigger_all").unbind('change').change(function(event) {
+        $("#{{ input_id }}_original").unbind('select').select(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
 
             // Keep any selection in the original field visible
             $("#{{ input_id }}_original").focus();
 
-            if ( $(this).is(':checked') ) {
-{#
-                let input = $("#{{ input_id }}").val().replaceAll(/\s|&nbsp;/g, ' ');
-                let chars = [];
-                let num_spaces = 0;
-                let len = input.length;
-                for (let i = 0; i < len; i++) {
-                    chars[i] = input.charAt(i);
-                    if ( chars[i] === ' ' )
-                        num_spaces++;
-                }
-                if ( num_spaces <= 4 )
-                    $("#{{ input_id }}_remove_whitespace").prop('checked', true);
-#}
-                ODR_runChemistryDialog( $("#{{ input_id }}"), $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
 
-                $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
-            }
+            // Copy the current selection to the hidden element
+            let textarea = $("#{{ input_id }}_original");
+            let hidden_element = $("#{{ input_id }}_hidden");
+
+            let start_position = $(textarea).prop('selectionStart');
+            let end_position = $(textarea).prop('selectionEnd');
+            // console.log('start', start_position);  console.log('end', end_position);
+
+            // Extract the pieces before and after the selection...
+            let before = $(textarea).val().substring(0, start_position);
+            let after = $(textarea).val().substring(end_position);
+            // console.log('before', before);  console.log('after', after);
+
+            // ...but only run the chemistry plugin js on the selection itself
+            let str = $(textarea).val().substring(start_position, end_position);
+            // console.log('str', str);
+            $(hidden_element).val(str);
+
+            ODR_runChemistryDialog( hidden_element, $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+
+            // Once the chemsitry plugin js finishes...
+            let parsed_value = $("#{{ input_id }}_parsed").val();
+            // ...splice the modified back between the before/after pieces
+            $("#{{ input_id }}_parsed").val(before + parsed_value + after).trigger('paste');
+
+            $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
         });
-        $("#{{ input_id }}_trigger_limited").unbind('change').change(function(event) {
+
+        $("#{{ input_id }}_reset").unbind('click').click(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
 
-            // Keep any selection in the original field visible
-            $("#{{ input_id }}_original").focus();
+            // Deselect everything in the original field...
+            $("#{{ input_id }}_original").blur();
 
-            if ( $(this).is(':checked') ) {
-                // Copy the current selection to the hidden element
-                let textarea = $("#{{ input_id }}_original");
-                let hidden_element = $("#{{ input_id }}_hidden");
-
-                let start_position = $(textarea).prop('selectionStart');
-                let end_position = $(textarea).prop('selectionEnd');
-                // console.log('start', start_position);  console.log('end', end_position);
-
-                // Extract the pieces before and after the selection...
-                let before = $(textarea).val().substring(0, start_position);
-                let after = $(textarea).val().substring(end_position);
-                // console.log('before', before);  console.log('after', after);
-
-                // ...but only run the chemistry plugin js on the selection itself
-                let str = $(textarea).val().substring(start_position, end_position);
-                // console.log('str', str);
-                $(hidden_element).val(str);
-
-                ODR_runChemistryDialog( hidden_element, $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
-
-                // Once the chemsitry plugin js finishes...
-                let parsed_value = $("#{{ input_id }}_parsed").val();
-                // ...splice the modified back between the before/after pieces
-                $("#{{ input_id }}_parsed").val(before + parsed_value + after).trigger('paste');
-
-                $("#{{ input_id }}_chemistry_preview_trigger > span").html( $("#{{ input_id }}_prettified").html() );
-            }
+            // ...and reset the other two fields back to the original value
+            let current_value = $("#{{ input_id }}").val();
+            $("#{{ input_id }}_parsed").val(current_value);
+            let prettified = ODR_prettifyChemicalFormula($("#{{ input_id }}").val(), {% if field_typename == "Paragraph Text" %}true{% else %}false{% endif %}, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+            $("#{{ input_id }}_prettified").html( prettified );
         });
+        $("#{{ input_id }}_select_all").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
 
+            // Select everything in the original field...
+            let textarea = $("#{{ input_id }}_original");
+            let len = $(textarea).text().length;
+            $(textarea)[0].setSelectionRange(0, len);
+
+            // ...then trigger the Chemistry Plugin again
+            $("#{{ input_id }}_original").trigger('select');
+        });
         $("#{{ input_id }}_remove_whitespace").unbind('change').change(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
 
             // Keep any selection in the original field visible
             $("#{{ input_id }}_original").focus();
-
-            if ( $("#{{ input_id }}_trigger_all").is(':checked') )
-                $("#{{ input_id }}_trigger_all").trigger('change');
-            else
-                $("#{{ input_id }}_trigger_limited").trigger('change');
-
-        });
-        $("#{{ input_id }}_prettify_toggle").unbind('change').change(function(event) {
-            // Don't submit the datafield's form
-            event.preventDefault();
-
-            // Keep any selection in the original field visible
-            $("#{{ input_id }}_original").focus();
-
-            $("#{{ input_id }}_parsed").trigger('keyup');
+            // Re-run the Chemistry Plugin on the selected text
+            $("#{{ input_id }}_original").trigger('select');
         });
 
         $("#{{ input_id }}_insert_buttons").find(".ODRChemistryPlugin_insert").each(function(index,elem) {
@@ -293,6 +233,16 @@
                 $(textarea).focus().prop('selectionStart', position+char.length).prop('selectionEnd', position+char.length);
                 $(textarea).trigger('paste');
             });
+        });
+
+        $("#{{ input_id }}_prettify_toggle").unbind('change').change(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+
+            // Keep any selection in the original field visible
+            $("#{{ input_id }}_original").focus();
+            // Redo the "prettified" formula to match the current state of the checkbox
+            $("#{{ input_id }}_parsed").trigger('keyup');
         });
 
         $("#{{ input_id }}_manual_save").unbind('click').click(function(event) {
