@@ -26,13 +26,13 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
             num_spaces++;
     }
     // console.log(chars);  return;
-
+/*
     // Should disable the ' ' for '[box]' substitutions if there are too many spaces in the formula
     // e.g. when the plugin is called on a Journal Title or Notes field
     let too_many_spaces = false;
     if ( num_spaces > 4 )
         too_many_spaces = true;
-
+*/
     for (let i = 0; i < len; i++) {
         let char = chars[i];
         let is_numeric = false;
@@ -78,7 +78,7 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                 // Done with this sequence, append to the output
                 output += sequence;
             }
-            else if ( !(too_many_spaces && prev_char === ' ') && (next_char === '+' || next_char === '-') && next_next_char !== 'x' ) {
+            else if ( /*!(too_many_spaces && prev_char === ' ') &&*/ (next_char === '+' || next_char === '-') && next_next_char !== 'x' ) {
                 // ...due to a '+' or '-' character that's not followed by an 'x', it's most
                 //  likely a valence state  e.g.  Abelsonite: "Ni2+C31H32N4" => "Ni^2+^..."
                 // The condition  !(too_many_spaces && prev_char === ' ')  is an attempt to prevent
@@ -135,12 +135,14 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                     output += sequence + ']';
                     i++;
                 }
+/*
                 else if ( too_many_spaces && prev_char === ' ' ) {
                     // If the string to parse looks more like a reference than a chemical formula,
                     //  then attempt to ignore numbers that don't appear to be "attached" to
                     //  anything, like page numbers
                     output += sequence;
                 }
+*/
                 else {
                     // Wrap the sequence in delimiters
                     output += subscript_delimiter + sequence + subscript_delimiter;
@@ -201,12 +203,15 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
             // Isn't unicode the best thing ever?
         }
         else if ( char === ' ' ) {
+/*
             // Chemical formulas aren't supposed to have a lot of "[box]" sequences, but this can
             //  be run on data that contains a lot of spaces...need a way to disable this
             if ( too_many_spaces ) {
                 output += ' ';
             }
             else {
+
+ */
                 // Attempting to detect spaces to insert the "[box]" sequence causes some impressive
                 //  failures in a couple formulas, but works well enough on the rest of them...
                 let next_char = '';
@@ -239,7 +244,9 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                     }
                     while (i < len);
                 }
+/*
             }
+ */
         }
         else {
             // Otherwise, just echo the character
@@ -314,7 +321,7 @@ function ODR_runChemistryDialog(input_element, remove_whitespace_element, parsed
     let input_value = $(input_element).val();
     if ( $(remove_whitespace_element).is(':checked') )
         input_value = input_value.replaceAll(/\s|&nbsp;/g, '');
-    let output = ODR_parseChemicalFormula( input_value, subscript_delimiter,superscript_delimiter );
+    let output = ODR_parseChemicalFormula(input_value, subscript_delimiter, superscript_delimiter);
 
     // Display the parsed formula
     $(parsed_element).val(output);

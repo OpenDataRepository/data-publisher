@@ -1,0 +1,20 @@
+{% spaceless %}
+
+<div class="ODRContentWrapper">
+    <div class="ODRThemeElement">
+        <div class="ODRInnerBox">
+        {% for dt_id,dt_data in linked_record_data %}
+            <div class="ODRRecordLinkInfoDiv">
+                <span>{{ dt_data['direction'] }} {{ dt_data['records']|length }} {{ dt_data['dt_name'] }} {% if dt_data['records']|length == 1 %}record{% else %}records{% endif %}</span>
+                <button class="pure-button-primary"
+                        onclick="{% if dt_data['direction'] == 'links to' %}OpenLinkSearchPage({{ local_datarecord.datatype.id }},{{ dt_id }},{{ local_datarecord.id }});{% else %}OpenLinkSearchPage({{ dt_id }},{{ local_datarecord.datatype.id }},{{ local_datarecord.id }});{% endif %}"
+                        title="Click to search for Records to link to"
+                ><i class="fa fa-search-plus"></i>Modify</button>
+            </div>
+            {% if dt_data['record_str'] != '' %}<div class="ODRRecordLinkInfoList">{{ dt_data['record_str']|raw }}</div>{% endif %}
+        {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endspaceless %}
