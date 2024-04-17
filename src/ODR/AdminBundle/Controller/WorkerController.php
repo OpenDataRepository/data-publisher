@@ -50,6 +50,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class WorkerController extends ODRCustomController
@@ -1150,7 +1151,7 @@ $ret .= '  Set current to '.$count."\n";
      * @param Request $request
      * @return Response
      */
-    public function asdfAction(Request $request)
+    public function asdfAction($fileno, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1161,169 +1162,26 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-                throw new ODRForbiddenException();
-            // --------------------
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, dtm.shortName, t.id AS t_id, t.themeType, tm.templateName, tm.isDefault
-                FROM ODRAdminBundle:Theme t
-                JOIN ODRAdminBundle:ThemeMeta tm with tm.theme = t
-                JOIN ODRAdminBundle:DataType dt WITH t.dataType = dt
-                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
-                WHERE t = t.parentTheme
-                AND t.deletedAt IS NULL AND tm.deletedAt IS NULL
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
-                ORDER BY dt.id, t.themeType'
+//            // --------------------
+//            // Determine user privileges
+//            /** @var ODRUser $user */
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+//                throw new ODRForbiddenException();
+//            // --------------------
+
+
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Default:test.html.twig',
+                    array(
+                        'fileno' => $fileno,
+                    )
+                )
             );
-            $results = $query->getArrayResult();
-
-            $new_custom_view_defaults = array();
-            $new_search_results_defaults = array();
-
-            $theme_renames_to_blank = array();
-            $theme_renames_to_search_results = array();
-            $theme_renames_to_table = array();
-
-            $previous_dt_id = 0;
-            $tmp = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $datatype_name = $result['shortName'];
-                $theme_id = $result['t_id'];
-                $theme_type = $result['themeType'];
-                $template_name = $result['templateName'];
-                $is_default = $result['isDefault'];
-
-                if ( $dt_id !== $previous_dt_id ) {
-                    // Determine what to change
-                    foreach ($tmp as $t_id => $t_data) {
-                        // Want to preserve defaults...
-                        if ( $t_data['default'] ) {
-                            if ( $t_data['type'] === 'table' || $t_data['type'] === 'search_results' )
-                                $new_search_results_defaults[$t_id] = 1;
-                            else if ( $t_data === 'custom_view' )
-                                $new_custom_view_defaults[$t_id] = 1;
-                        }
-
-                        // Want to fix the endless "copy of" names...
-                        $reduced_template_name = str_replace('copy of', '', $t_data['name']);
-                        if ( trim($reduced_template_name) === '' ) {
-                            if ( $t_data['type'] === 'search_results' )
-                                $theme_renames_to_search_results[$t_id] = 1;
-                            else if ( $t_data['type'] === 'table' )
-                                $theme_renames_to_table[$t_id] = 1;
-                            else if ( $t_data['name'] !== '' )
-                                $theme_renames_to_blank[$t_id] = 1;
-                        }
-                    }
-
-                    // Reset for next set of themes
-                    $tmp = array();
-                    $previous_dt_id = $dt_id;
-                }
-
-                $tmp[$theme_id] = array(
-                    'type' => $theme_type,
-                    'name' => strtolower($template_name),
-                    'default' => $is_default
-                );
-            }
-
-            // Determine what to change
-            foreach ($tmp as $t_id => $t_data) {
-                // Want to preserve defaults...
-                if ( $t_data['default'] ) {
-                    if ( $t_data['type'] === 'table' || $t_data['type'] === 'search_results' )
-                        $new_search_results_defaults[$t_id] = 1;
-                    else if ( $t_data === 'custom_view' )
-                        $new_custom_view_defaults[$t_id] = 1;
-                }
-
-                // Want to fix the endless "copy of" names...
-                $reduced_template_name = str_replace('copy of', '', $t_data['name']);
-                if ( trim($reduced_template_name) === '' ) {
-                    if ( $t_data['type'] === 'search_results' )
-                        $theme_renames_to_search_results[$t_id] = 1;
-                    else if ( $t_data['type'] === 'table' )
-                        $theme_renames_to_table[$t_id] = 1;
-                    else if ( $t_data['name'] !== '' )
-                        $theme_renames_to_blank[$t_id] = 1;
-                }
-            }
-
-
-            $ret = '<table border="1">';
-            $ret .= '<thead><tr>';
-            $ret .= '<th>Datatype Name</th>';
-            $ret .= '<th>Theme ID</th>';
-            $ret .= '<th>is Default?</th>';
-            $ret .= '<th>New is Default?</th>';
-            $ret .= '<th>Theme Type</th>';
-            $ret .= '<th>New Theme Type</th>';
-            $ret .= '<th>Theme Name</th>';
-            $ret .= '<th>New Theme Name</th>';
-            $ret .= '</tr></thead>';
-
-            $ret .= '<tbody>';
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $datatype_name = $result['shortName'];
-                $theme_id = $result['t_id'];
-                $theme_type = $result['themeType'];
-                $template_name = $result['templateName'];
-                $is_default = $result['isDefault'];
-
-                $new_theme_type = '';
-                if ( $theme_type !== 'master' )
-                    $new_theme_type = 'custom';
-
-                $new_template_name = '';
-                if ( isset($theme_renames_to_blank[$theme_id]) )
-                    $new_template_name = '*blank*';
-                else if ( isset($theme_renames_to_search_results[$theme_id]) )
-                    $new_template_name = 'Search Results View';
-                else if ( isset($theme_renames_to_table[$theme_id]) )
-                    $new_template_name = 'Table View';
-
-                $is_new_default = '';
-                if ( isset($new_search_results_defaults[$theme_id]) || isset($new_custom_view_defaults[$theme_id]) )
-                    $is_new_default = '1';
-
-                $ret .= '<tr>';
-                $ret .= '<td>'.$datatype_name.'</td>';
-                $ret .= '<td>'.$theme_id.'</td>';
-                $ret .= '<td>'.$is_default.'</td>';
-                $ret .= '<td><b>'.$is_new_default.'</b></td>';
-                $ret .= '<td>'.$theme_type.'</td>';
-                $ret .= '<td><b>'.$new_theme_type.'</b></td>';
-                $ret .= '<td>'.$template_name.'</td>';
-                $ret .= '<td><b>'.$new_template_name.'</b></td>';
-                $ret .= '</tr>';
-            }
-
-            $ret .= '</tbody>';
-            $ret .= '</table>';
-
-            print '<pre>'.$ret.'</pre>';
-
-            print 'UPDATE odr_theme_meta tm SET tm.default_for = 1 WHERE tm.theme_id IN ('.implode(',', array_keys($new_search_results_defaults)).') AND tm.deletedAt IS NULL;';
-            print '<br><br>';
-            if ( !empty($new_custom_view_defaults) ) {
-                print 'UPDATE odr_theme_meta tm SET tm.default_for = 1 WHERE tm.theme_id IN ('.implode(',', array_keys($new_custom_view_defaults)).') AND tm.deletedAt IS NULL;';
-                print '<br><br>';
-            }
-
-            print 'UPDATE odr_theme_meta tm SET tm.template_name = "Search Results View" WHERE tm.theme_id IN ('.implode(',', array_keys($theme_renames_to_search_results)).') AND tm.deletedAt IS NULL;';
-            print '<br><br>';
-            print 'UPDATE odr_theme_meta tm SET tm.template_name = "Table View" WHERE tm.theme_id IN ('.implode(',', array_keys($theme_renames_to_table)).') AND tm.deletedAt IS NULL;';
-            print '<br><br>';
-            print 'UPDATE odr_theme_meta tm SET tm.template_name = "" WHERE tm.theme_id IN ('.implode(',', array_keys($theme_renames_to_blank)).') AND tm.deletedAt IS NULL;';
-            print '<br><br>';
 
         }
         catch (\Exception $e) {

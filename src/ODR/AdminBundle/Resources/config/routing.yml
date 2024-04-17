@@ -1699,5 +1699,11 @@ odr_track_get_user_selector:
 #-----------------------------------------
 
 
+odr_asdf:
+    path: /view/asdf/{fileno}
+    defaults: { _controller: ODRAdminBundle:Worker:asdf }
+    requirements:
+        fileno: '\d{0,5}'
+
 imports:
     resource: api.yml

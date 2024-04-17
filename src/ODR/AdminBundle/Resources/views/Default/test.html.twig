@@ -1,0 +1,25 @@
+{% spaceless %}
+
+    <div id="foo"></div>
+
+<script>
+    // $(function() {
+        var Info = {
+            color: "#FFFFFF",
+            height: 500,
+            width: 500,
+            script: "load =ams/{{ fileno }} {1 1 1}",
+            // debug: true,
+            use: "HTML5",
+            j2sPath: "//theta.odr.io/js/mylibs/jmol-16.2.1/j2s",
+            serverURL: "//theta.odr.io/js/mylibs/jmol-16.2.1/php/jsmol.php",
+
+            disableJ2SLoadMonitor: true,
+        };
+
+        var applet = Jmol.getAppletHtml("myJmol", Info);
+        $("#foo").html(applet);
+    // });
+</script>
+
+{% endspaceless %}
