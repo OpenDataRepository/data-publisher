@@ -77,8 +77,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var EngineInterface $templating */
@@ -93,7 +93,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
             // Not attempting to verify $page_type...
@@ -161,8 +161,8 @@ class ThemeController extends ODRCustomController
      */
     private function canModifyTheme($user, $theme, $datafield = null)
     {
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var PermissionsManagementService $permissions_service */
+        $permissions_service = $this->container->get('odr.permissions_management_service');
 
         // ----------------------------------------
         // ODR supports linking of databases in order to reduce duplication of data.
@@ -215,20 +215,20 @@ class ThemeController extends ODRCustomController
             throw new ODRForbiddenException();
 
         // ...and also have to be able to at least view the datatype being modified
-        if ( !$pm_service->canViewDatatype($user, $datatype) )
+        if ( !$permissions_service->canViewDatatype($user, $datatype) )
             throw new ODRForbiddenException();
 
         // If this theme is a "local copy" of a remote datatype, then also need to be able to view
         //  the local datatype to be able to make changes to this theme
-        if ( !$pm_service->canViewDatatype($user, $local_parent_datatype) )
+        if ( !$permissions_service->canViewDatatype($user, $local_parent_datatype) )
             throw new ODRForbiddenException();
 
         // If the action is modifying a themeDatafield, then they need to be able to view the datafield too
-        if ( !is_null($datafield) && !$pm_service->canViewDatafield($user, $datafield) )
+        if ( !is_null($datafield) && !$permissions_service->canViewDatafield($user, $datafield) )
             throw new ODRForbiddenException();
 
         // Master themes can only be modified by admins of the local datatype
-        if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) )
+        if ( $theme->getThemeType() === 'master' && !$permissions_service->isDatatypeAdmin($user, $local_parent_datatype) )
             throw new ODRForbiddenException();
         // Datatype admins of remote datatypes shouldn't necessarily be able to modify "local copies"
         //  made by other datatypes linking to said remote datatypes
@@ -236,7 +236,7 @@ class ThemeController extends ODRCustomController
         // If the user didn't create this theme...
         if ( $theme->getCreatedBy()->getId() !== $user->getId() ) {
             // ...then they're only allowed to modify it if they're an admin of the local datatype
-            if ( !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $local_parent_datatype) )
                 throw new ODRForbiddenException();
         }
 
@@ -341,8 +341,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -392,7 +392,7 @@ class ThemeController extends ODRCustomController
                         'isTableTheme' => $submitted_data->getIsTableTheme(),
                         'displaysAllResults' => $submitted_data->getDisplaysAllResults(),
                     );
-                    $emm_service->updateThemeMeta($user, $theme, $properties);
+                    $entity_modify_service->updateThemeMeta($user, $theme, $properties);
 
                     // Update the cached version of this theme
                     $theme_info_service->updateThemeCacheEntry($theme, $user);
@@ -438,8 +438,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -484,7 +484,7 @@ class ThemeController extends ODRCustomController
                 $properties = array(
                     'shared' => false,
                 );
-                $emm_service->updateThemeMeta($user, $theme, $properties);
+                $entity_modify_service->updateThemeMeta($user, $theme, $properties);
 
                 $return['d']['public'] = false;
             }
@@ -493,7 +493,7 @@ class ThemeController extends ODRCustomController
                 $properties = array(
                     'shared' => true,
                 );
-                $emm_service->updateThemeMeta($user, $theme, $properties);
+                $entity_modify_service->updateThemeMeta($user, $theme, $properties);
 
                 $return['d']['public'] = true;
             }
@@ -536,10 +536,10 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -566,7 +566,7 @@ class ThemeController extends ODRCustomController
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -603,7 +603,7 @@ class ThemeController extends ODRCustomController
                         'defaultFor' => $new_defaults
                     );
 
-                    $emm_service->updateThemeMeta($user, $t, $properties, true);    // Don't flush immediately...
+                    $entity_modify_service->updateThemeMeta($user, $t, $properties, true);    // Don't flush immediately...
                     // Update cached versions of these themes
                     $theme_info_service->updateThemeCacheEntry($t, $user);
                 }
@@ -615,7 +615,7 @@ class ThemeController extends ODRCustomController
                 'shared' => true,
                 'defaultFor' => $new_defaults
             );
-            $emm_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
+            $entity_modify_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
 
             // Updated cached version of this theme
             $theme_info_service->updateThemeCacheEntry($theme, $user);
@@ -657,10 +657,10 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -687,7 +687,7 @@ class ThemeController extends ODRCustomController
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -705,7 +705,7 @@ class ThemeController extends ODRCustomController
                     'shared' => true,
                     'defaultFor' => $new_defaults
                 );
-                $emm_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
+                $entity_modify_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
 
                 // Updated cached version of this theme
                 $theme_info_service->updateThemeCacheEntry($theme, $user);
@@ -753,8 +753,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var Theme $theme */
@@ -779,7 +779,7 @@ class ThemeController extends ODRCustomController
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -857,8 +857,8 @@ class ThemeController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var Theme $theme */
@@ -879,7 +879,7 @@ class ThemeController extends ODRCustomController
             // Require users to be logged in and able to view the datatype before doing this...
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // Themes are only allowed to be deleted by the users who created them...
@@ -978,8 +978,8 @@ class ThemeController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneThemeService $clone_theme_service */
             $clone_theme_service = $this->container->get('odr.clone_theme_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var Theme $theme */
@@ -1004,7 +1004,7 @@ class ThemeController extends ODRCustomController
             // Require users to be logged in and able to view the datatype before doing this...
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // The user must be able to see the theme in order for them to be able to clone it
@@ -1058,8 +1058,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var ThemeInfoService $theme_info_service */
@@ -1087,7 +1087,7 @@ class ThemeController extends ODRCustomController
 
 
             // Create a new theme element entity
-            $theme_element = $ec_service->createThemeElement($user, $theme);
+            $theme_element = $entity_create_service->createThemeElement($user, $theme);
 
             // Update cached version of theme
             $theme_info_service->updateThemeCacheEntry($theme, $user);
@@ -1240,8 +1240,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var EngineInterface $templating */
@@ -1297,7 +1297,7 @@ class ThemeController extends ODRCustomController
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
                     );
-                    $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+                    $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
 
                     // Update the cached version of this theme
                     $theme_info_service->updateThemeCacheEntry($theme, $user);
@@ -1370,8 +1370,8 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -1415,7 +1415,7 @@ class ThemeController extends ODRCustomController
                     $properties = array(
                         'displayOrder' => $index
                     );
-                    $emm_service->updateThemeElementMeta($user, $theme_element, $properties, true);    // don't flush immediately
+                    $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties, true);    // don't flush immediately
                     $changes_made = true;
                 }
             }
@@ -1461,8 +1461,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -1502,13 +1502,13 @@ class ThemeController extends ODRCustomController
                 $properties = array(
                     'hidden' => false,
                 );
-                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
             else {
                 $properties = array(
                     'hidden' => true,
                 );
-                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
 
             // Update cached version of theme
@@ -1551,8 +1551,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -1592,13 +1592,13 @@ class ThemeController extends ODRCustomController
                 $properties = array(
                     'hideBorder' => false,
                 );
-                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
             else {
                 $properties = array(
                     'hideBorder' => true,
                 );
-                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
 
             // Update cached version of theme
@@ -1710,8 +1710,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -1762,7 +1762,7 @@ class ThemeController extends ODRCustomController
             self::canModifyTheme($user, $theme);
 
             // Also ensure users can view the child datatype
-            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $child_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1829,10 +1829,10 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -1874,7 +1874,7 @@ class ThemeController extends ODRCustomController
             self::canModifyTheme($user, $theme);
 
             // Also ensure users can view the child datatype
-            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $child_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1911,7 +1911,7 @@ class ThemeController extends ODRCustomController
                     $properties = array(
                         'display_type' => $submitted_data->getDisplayType(),
                     );
-                    $emm_service->updateThemeDatatype($user, $theme_datatype, $properties);
+                    $entity_modify_service->updateThemeDatatype($user, $theme_datatype, $properties);
 
                     // Update cached version of theme
                     $theme_info_service->updateThemeCacheEntry($theme, $user);
@@ -2069,8 +2069,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -2143,7 +2143,7 @@ class ThemeController extends ODRCustomController
 //                        'hidden' => $submitted_data->getHidden(),    // Not allowed to change this value through this controller action
 //                        'hideHeader' => $submitted_data->getHideHeader(),    // Not allowed to change this value through this controller action
                     );
-                    $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+                    $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
 
                     // Update the cached version of the theme
                     $theme_info_service->updateThemeCacheEntry($theme, $user);
@@ -2191,8 +2191,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -2247,13 +2247,13 @@ class ThemeController extends ODRCustomController
                 $properties = array(
                     'hidden' => false,
                 );
-                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+                $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
             else {
                 $properties = array(
                     'hidden' => true,
                 );
-                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+                $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
 
             // Update cached version of theme
@@ -2293,8 +2293,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -2354,13 +2354,13 @@ class ThemeController extends ODRCustomController
                 $properties = array(
                     'hideHeader' => false,
                 );
-                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+                $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
             else {
                 $properties = array(
                     'hideHeader' => true,
                 );
-                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+                $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
 
             // Update cached version of theme
@@ -2406,8 +2406,8 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -2498,7 +2498,7 @@ class ThemeController extends ODRCustomController
                         $properties = array(
                             'displayOrder' => $index
                         );
-                        $emm_service->updateThemeDatafield($user, $tdf, $properties, true);    // don't flush immediately...
+                        $entity_modify_service->updateThemeDatafield($user, $tdf, $properties, true);    // don't flush immediately...
                     }
                 }
                 else {
@@ -2524,7 +2524,7 @@ class ThemeController extends ODRCustomController
                             'displayOrder' => $index,
                             'themeElement' => $ending_theme_element,
                         );
-                        $emm_service->updateThemeDatafield($user, $old_tdf_entry, $properties, true);    // don't flush immediately
+                        $entity_modify_service->updateThemeDatafield($user, $old_tdf_entry, $properties, true);    // don't flush immediately
 
                         // Don't need to redo display_order of the other theme_datafield entries in
                         //  the initial theme_element...the values don't need to be contiguous

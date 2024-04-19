@@ -45,6 +45,9 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\SidebarLayout;
+use ODR\AdminBundle\Entity\SidebarLayoutMap;
+use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
@@ -1905,6 +1908,175 @@ class EntityMetaModifyService
         // Return the new entry
 //        return $new_rpom;
         return true;
+    }
+
+
+    /**
+     *  TODO - test this
+     * Copies the contents of the given SidebarLayout entity into a new SidebarLayout entity if
+     * something was changed.
+     *
+     * @param ODRUser $user
+     * @param SidebarLayout $sidebar_layout
+     * @param array $properties
+     * @param boolean|null $delay_flush
+     * @param \Datetime|null $created
+     *
+     * @return SidebarLayoutMeta
+     */
+    public function updateSidebarLayoutMeta($user, $sidebar_layout, $properties, $delay_flush = false, $created = null)
+    {
+        // Load the old meta entry
+        /** @var SidebarLayoutMeta $old_meta_entry */
+        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:SidebarLayoutMeta')->findOneBy(
+            array(
+                'sidebarLayout' => $sidebar_layout->getId()
+            )
+        );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'layoutName' => $old_meta_entry->getLayoutName(),
+            'layoutDescription' => $old_meta_entry->getLayoutDescription(),
+            'shared' => $old_meta_entry->getShared(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $remove_old_entry = false;
+        $new_sidebar_layout_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
+            // Clone the old SidebarLayoutMeta entry
+            $remove_old_entry = true;
+
+            $new_sidebar_layout_meta = clone $old_meta_entry;
+
+            // These properties need to be specified in order to be saved properly...
+            $new_sidebar_layout_meta->setCreated($created);
+            $new_sidebar_layout_meta->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_sidebar_layout_meta = $old_meta_entry;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['layoutName']) )
+            $new_sidebar_layout_meta->setLayoutName( $properties['layoutName'] );
+        if ( isset($properties['layoutDescription']) )
+            $new_sidebar_layout_meta->setLayoutDescription( $properties['layoutDescription'] );
+        if ( isset($properties['shared']) )
+            $new_sidebar_layout_meta->setShared( $properties['shared'] );
+
+        $new_sidebar_layout_meta->setUpdated($created);
+        $new_sidebar_layout_meta->setUpdatedBy($user);
+
+        // Delete the old meta entry if it's getting replaced
+        if ($remove_old_entry) {
+            $sidebar_layout->removeSidebarLayoutMetum($old_meta_entry);
+            $this->em->remove($old_meta_entry);
+
+            // Ensure the theme knows about its new meta entry
+            $sidebar_layout->addSidebarLayoutMetum($new_sidebar_layout_meta);
+        }
+
+        // Save the new meta entry
+        $this->em->persist($new_sidebar_layout_meta);
+        if (!$delay_flush) {
+            $this->em->flush();
+            $this->em->refresh($sidebar_layout);
+        }
+
+        // Return the new entry
+        return $new_sidebar_layout_meta;
+    }
+
+
+    /**
+     *  TODO - test this
+     * Copies the contents of the given SidebarLayoutMap entity into a new SidebarLayoutMap entity
+     * if something was changed.
+     *
+     * @param ODRUser $user
+     * @param SidebarLayoutMap $sidebar_layout_map
+     * @param array $properties
+     * @param boolean|null $delay_flush
+     * @param \DateTime|null $created
+     *
+     * @return SidebarLayoutMap
+     */
+    public function updateSidebarLayoutMap($user, $sidebar_layout_map, $properties, $delay_flush = false, $created = null)
+    {
+        // ----------------------------------------
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'category' => $sidebar_layout_map->getCategory(),
+            'displayOrder' => $sidebar_layout_map->getDisplayOrder(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $sidebar_layout_map;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $remove_old_entry = false;
+        $new_sidebar_layout_map = null;
+        if ( self::createNewMetaEntry($user, $sidebar_layout_map, $created) ) {
+            // Clone the old ThemeDatafield entry
+            $remove_old_entry = true;
+
+            $new_sidebar_layout_map = clone $sidebar_layout_map;
+
+            // These properties need to be specified in order to be saved properly...
+            $new_sidebar_layout_map->setCreated($created);
+            $new_sidebar_layout_map->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_sidebar_layout_map = $sidebar_layout_map;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['cssWidthMed']) )
+            $new_sidebar_layout_map->setCategory( $properties['category'] );
+        if ( isset($properties['displayOrder']) )
+            $new_sidebar_layout_map->setDisplayOrder( $properties['displayOrder'] );
+
+        $new_sidebar_layout_map->setUpdated($created);
+        $new_sidebar_layout_map->setUpdatedBy($user);
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($sidebar_layout_map);
+
+        // Save the new meta entry
+        $this->em->persist($new_sidebar_layout_map);
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        // Return the new entry
+        return $new_sidebar_layout_map;
     }
 
 

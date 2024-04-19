@@ -55,6 +55,9 @@ use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\SidebarLayout;
+use ODR\AdminBundle\Entity\SidebarLayoutMap;
+use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
@@ -2140,6 +2143,93 @@ class EntityCreationService
             $this->em->flush();
 
         return $rpom;
+    }
+
+
+    /**
+     * TODO - test this
+     * Creates and returns a new SidebarLayout entity.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     * @param boolean $delay_flush
+     * @param \DateTime|null $created
+     *
+     * @return SidebarLayout
+     */
+    public function createSidebarLayout($user, $datatype, $delay_flush = false, $created = null)
+    {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $sidebar_layout = new SidebarLayout();
+        $sidebar_layout->setDataType($datatype);
+
+        $sidebar_layout->setCreated($created);
+        $sidebar_layout->setUpdated($created);
+        $sidebar_layout->setCreatedBy($user);
+        $sidebar_layout->setUpdatedBy($user);
+
+        $this->em->persist($sidebar_layout);
+
+        $sidebar_layout_meta = new SidebarLayoutMeta();
+        $sidebar_layout_meta->setSidebarLayout($sidebar_layout);
+        $sidebar_layout_meta->setLayoutName('');
+        $sidebar_layout_meta->setLayoutDescription('');
+        $sidebar_layout_meta->setShared(false);
+
+        $sidebar_layout_meta->setCreated($created);
+        $sidebar_layout_meta->setUpdated($created);
+        $sidebar_layout_meta->setCreatedBy($user);
+        $sidebar_layout_meta->setUpdatedBy($user);
+
+        $this->em->persist($sidebar_layout_meta);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $sidebar_layout;
+    }
+
+
+    /**
+     * TODO - test this
+     * Creates and returns an entity tying a datafield to one of a datatype's sidebar layouts
+     *
+     * @param ODRUser $user
+     * @param SidebarLayout $sidebar_layout
+     * @param DataType $datatype
+     * @param DataFields|null $datafield A value of null is used as a placeholder for "general" search
+     * @param integer $category
+     * @param boolean $delay_flush
+     * @param \DateTime|null $created
+     *
+     * @return SidebarLayoutMap
+     */
+    public function createSidebarLayoutMap($user, $sidebar_layout, $datatype, $datafield, $category, $delay_flush = false, $created = null)
+    {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $sidebar_layout_map = new SidebarLayoutMap();
+        $sidebar_layout_map->setSidebarLayout($sidebar_layout);
+        $sidebar_layout_map->setDataType($datatype);
+        $sidebar_layout_map->setDataField($datafield);
+
+        $sidebar_layout_map->setCategory($category);
+        $sidebar_layout_map->setDisplayOrder(999);
+
+        $sidebar_layout_map->setCreated($created);
+        $sidebar_layout_map->setUpdated($created);
+        $sidebar_layout_map->setCreatedBy($user);
+        $sidebar_layout_map->setUpdatedBy($user);
+
+        $this->em->persist($sidebar_layout_map);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $sidebar_layout_map;
     }
 
 

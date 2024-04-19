@@ -162,6 +162,7 @@ class SessionController extends ODRCustomController
         return $response;
     }
 
+    // TODO - apply sidebar layout here too?
 
     /**
      * Allows a user to set their session or default theme.

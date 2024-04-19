@@ -496,14 +496,14 @@
                     }
 
                     // Need to this to execute after the sidebar gets initialized
-                    console.log('SEARCH TOGGLE 1')
+                    console.log('SEARCH TOGGLE 1');    {# TODO - this sidebar appearing code executes in too many places, and also doesn't execute in a few others...fix it #}
                     searchToggle(force_visible);
                 }
             });
         }
         else {
             // Don't need to initialize the sidebar, so execute this instead
-            console.log('SEARCH TOGGLE 2')
+            console.log('SEARCH TOGGLE 2');
             // searchToggle(force_visible);
         }
     }

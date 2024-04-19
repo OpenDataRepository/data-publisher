@@ -36,17 +36,17 @@ class SearchSidebarService
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var PermissionsManagementService
      */
-    private $pm_service;
+    private $permissions_service;
 
     /**
      * @var UserManager
@@ -78,9 +78,9 @@ class SearchSidebarService
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->dti_service = $datatree_info_service;
-        $this->pm_service = $permissions_service;
+        $this->database_info_service = $database_info_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->permissions_service = $permissions_service;
         $this->user_manager = $user_manager;
 
         $this->logger = $logger;
@@ -97,12 +97,12 @@ class SearchSidebarService
      */
     public function getSidebarDatatypeArray($user, $target_datatype_id) {
         // Need to load the cached version of this datatype, along with any linked datatypes it has
-        $datatype_array = $this->dbi_service->getDatatypeArray($target_datatype_id, true);
+        $datatype_array = $this->database_info_service->getDatatypeArray($target_datatype_id, true);
 
         // ...then filter the array to just what the user can see
         $datarecord_array = array();
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
-        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
+        $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // ...then sort the datafields of each datatype by name in the interest of making them easier
         //  to find
@@ -129,7 +129,7 @@ class SearchSidebarService
      * @return array
      */
     public function getSidebarDatatypeRelations($datatype_array, $target_datatype_id) {
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
         $datatype_list = array(
             'child_datatypes' => array(),
             'linked_datatypes' => array(),
@@ -140,7 +140,7 @@ class SearchSidebarService
                 continue;
 
             // Locate this particular datatype's grandparent id...
-            $gp_dt_id = $this->dti_service->getGrandparentDatatypeId($dt_id, $datatree_array);
+            $gp_dt_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id, $datatree_array);
 
             if ($gp_dt_id === $target_datatype_id) {
                 // If it's the same as the target datatype being searched on, then it's a child
@@ -176,7 +176,7 @@ class SearchSidebarService
 
         // Otherwise, the user needs to be able to edit/add/delete datarecords from at least one of
         //  the datatypes in the array...
-        $datatype_permissions = $this->pm_service->getDatatypePermissions($user);
+        $datatype_permissions = $this->permissions_service->getDatatypePermissions($user);
 
         $editable_datatypes = array();
         foreach ($datatype_array as $dt_id => $dt_data) {

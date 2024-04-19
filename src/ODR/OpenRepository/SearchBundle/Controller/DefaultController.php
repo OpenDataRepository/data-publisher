@@ -62,10 +62,10 @@ class DefaultController extends Controller
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchSidebarService $ssb_service */
-            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -87,7 +87,7 @@ class DefaultController extends Controller
                 }
             }
 
-            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -179,7 +179,7 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
-            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
+            if ( !$permissions_service->canViewDatatype($admin_user, $target_datatype) ) {
                 if (!$logged_in) {
                     // Can't just throw a 401 error here...Symfony would redirect the user to the
                     //  list of datatypes, instead of back to this search page.
@@ -205,58 +205,15 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // Need to build everything used by the sidebar...
-            $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
-            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
+            $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
+            $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
+            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $datatype_array);
 
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
             $background_image_id = null;
-            /* TODO - current search page doesn't have a good place to put a background image...
-
-                        if ( !is_null($target_datatype) && !is_null($target_datatype->getBackgroundImageField()) ) {
-
-                            // Determine whether the user is allowed to view the background image datafield
-                            $df = $target_datatype->getBackgroundImageField();
-                            if ( $pm_service->canViewDatafield($admin_user, $df) ) {
-                                $query = null;
-                                if ( $pm_service->canViewNonPublicDatarecords($admin_user, $target_datatype) ) {
-                                    // Users with the $can_view_datarecord permission can view all images in all datarecords of this datatype
-                                    $query = $em->createQuery(
-                                       'SELECT i.id AS image_id
-                                        FROM ODRAdminBundle:Image as i
-                                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
-                                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                                        WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
-                                        AND i.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                                    )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '') );
-                                }
-                                else {
-                                    // Users without the $can_view_datarecord permission can only view public images in public datarecords of this datatype
-                                    $query = $em->createQuery(
-                                       'SELECT i.id AS image_id
-                                        FROM ODRAdminBundle:Image as i
-                                        JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
-                                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
-                                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                                        JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                                        WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
-                                        AND im.publicDate NOT LIKE :public_date AND drm.publicDate NOT LIKE :public_date
-                                        AND i.deletedAt IS NULL AND im.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
-                                    )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '', 'public_date' => '2200-01-01 00:00:00') );
-                                }
-                                $results = $query->getArrayResult();
-
-                                // Pick a random image from the list of available images
-                                if (count($results) > 0) {
-                                    $index = rand(0, count($results) - 1);
-                                    $background_image_id = $results[$index]['image_id'];
-                                }
-                            }
-                        }
-            */
-
+            // TODO - current search page doesn't have a good place to put a background image...
 
             // ----------------------------------------
             // Generate a random key to identify this tab
@@ -348,12 +305,12 @@ class DefaultController extends Controller
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var SearchSidebarService $ssb_service */
-            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -365,7 +322,7 @@ class DefaultController extends Controller
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -457,7 +414,7 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
-            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
+            if ( !$permissions_service->canViewDatatype($admin_user, $target_datatype) ) {
                 if (!$logged_in) {
                     // Can't just throw a 401 error here...Symfony would redirect the user to the
                     //  list of datatypes, instead of back to this search page.
@@ -483,9 +440,9 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // Need to build everything used by the sidebar...
-            $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
-            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
+            $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
+            $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
+            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $datatype_array);
 
             // If this datatype has a default search key...
             $search_key = '';
@@ -499,7 +456,7 @@ class DefaultController extends Controller
                 // Convert the search key into a parameter list so that the sidebar can start out
                 //  with the right stuff
                 $search_params = $search_key_service->decodeSearchKey($search_key);
-                $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
+                $search_sidebar_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
 
                 // Don't need to worry if the search key refers to an invalid/deleted datafield
                 //  ...the user will end up being redirected to the "empty" search key for the datatype
@@ -516,9 +473,9 @@ class DefaultController extends Controller
 
                 // Determine whether the user is allowed to view the background image datafield
                 $df = $target_datatype->getBackgroundImageField();
-                if ( $pm_service->canViewDatafield($admin_user, $df) ) {
+                if ( $permissions_service->canViewDatafield($admin_user, $df) ) {
                     $query = null;
-                    if ( $pm_service->canViewNonPublicDatarecords($admin_user, $target_datatype) ) {
+                    if ( $permissions_service->canViewNonPublicDatarecords($admin_user, $target_datatype) ) {
                         // Users with the $can_view_datarecord permission can view all images in all datarecords of this datatype
                         $query = $em->createQuery(
                            'SELECT i.id AS image_id
@@ -752,8 +709,8 @@ class DefaultController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -767,7 +724,7 @@ class DefaultController extends Controller
                 throw new ODRNotFoundException('Datatype');
 
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
 
@@ -783,7 +740,7 @@ class DefaultController extends Controller
             $search_key_service->validateSearchKey($search_key);
 
             // Filter out the stuff from the given search key that the user isn't allowed to see
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
 
             // No sense actually running the search here...whatever calls this needs to use the
@@ -884,8 +841,8 @@ class DefaultController extends Controller
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -921,8 +878,8 @@ class DefaultController extends Controller
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
 
@@ -1189,12 +1146,12 @@ class DefaultController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -1227,13 +1184,13 @@ class DefaultController extends Controller
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            $can_view_datarecords = $pm_service->canViewNonPublicDatarecords($user, $datatype);
-            $can_add_datarecord = $pm_service->canAddDatarecord($user, $datatype);
+            $can_view_datarecords = $permissions_service->canViewNonPublicDatarecords($user, $datatype);
+            $can_add_datarecord = $permissions_service->canAddDatarecord($user, $datatype);
             // ----------------------------------------
 
 
@@ -1251,7 +1208,7 @@ class DefaultController extends Controller
             $dr_array = array();
             $output = array();
             foreach ($grandparent_datarecord_list as $num => $dr_id) {
-                $dr = $dri_service->getDatarecordArray($dr_id, false);
+                $dr = $datarecord_info_service->getDatarecordArray($dr_id, false);
 
                 // Only store the cached datarecord if the user can view it
                 $public_date = $dr[$dr_id]['dataRecordMeta']['publicDate'];
@@ -1269,8 +1226,8 @@ class DefaultController extends Controller
 
             // Filter out all datafields from the datarecord arrays that the user isn't allowed to see
             // Need to have the actual cached datatype array, otherwise it won't work properly
-            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);
-            $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+            $dt_array = $database_info_service->getDatatypeArray($datatype_id, false);
+            $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
 
             // ----------------------------------------
@@ -1379,10 +1336,10 @@ class DefaultController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1398,9 +1355,9 @@ class DefaultController extends Controller
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatafield($user, $datafield) )
+            if ( !$permissions_service->canViewDatafield($user, $datafield) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1417,7 +1374,7 @@ class DefaultController extends Controller
             else {
                 // Datafield is in advanced search, so it has an HTML element on the sidebar
                 // Need the datafield's array entry in order to re-render it
-                $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+                $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
                 $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 $templating = $this->get('templating');
@@ -1468,12 +1425,12 @@ class DefaultController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var SearchSidebarService $ssb_service */
-            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -1494,11 +1451,11 @@ class DefaultController extends Controller
             // --------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            if ( !$pm_service->canViewDatatype($user, $target_datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $target_datatype) )
                 throw new ODRForbiddenException();
 
             $logged_in = true;
@@ -1512,16 +1469,16 @@ class DefaultController extends Controller
             // Only rebuild the search sidebar when it's not a default search
             if ( count($search_params) > 1 || $force_rebuild == 1 ) {
                 // Need to build everything used by the sidebar...
-                $datatype_array = $ssb_service->getSidebarDatatypeArray($user, $target_datatype->getId());
-                $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
-                $user_list = $ssb_service->getSidebarUserList($user, $datatype_array);
+                $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId());
+                $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
+                $user_list = $search_sidebar_service->getSidebarUserList($user, $datatype_array);
 
                 $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
 
                 // Twig can technically figure out which radio options/tags are selected or
                 //  unselected from the search key, but it's irritating to do so...it's easier to
                 //  use php instead.
-                $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
+                $search_sidebar_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
 
                 $templating = $this->get('templating');
                 $return['d'] = array(

@@ -1,0 +1,91 @@
+ODR\AdminBundle\Entity\SidebarLayoutMeta:
+    type: entity
+    table: odr_sidebar_layout_meta
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        layoutName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: layout_name
+
+        layoutDescription:
+            type: text
+            nullable: true
+            column: layout_description
+
+#        defaultFor:
+#            type: integer
+#            unsigned: false
+#            nullable: false
+#            default: 0
+#            column: default_for
+
+#        displayOrder:
+#            type: integer
+#            unsigned: false
+#            nullable: true
+#            column: display_order
+
+        shared:
+            type: boolean
+            nullable: false
+            default: false
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        sidebarLayout:
+            targetEntity: SidebarLayout
+            cascade: ["persist"]
+            mappedBy: null
+            inversedBy: sidebarLayoutMeta
+            joinColumns:
+                sidebar_layout_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

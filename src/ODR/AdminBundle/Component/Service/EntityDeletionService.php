@@ -61,27 +61,27 @@ class EntityDeletionService
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatafieldInfoService
      */
-    private $dfi_service;
+    private $datafield_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var EntityMetaModifyService
      */
-    private $emm_service;
+    private $entity_modify_service;
 
     /**
      * @var PermissionsManagementService
      */
-    private $pm_service;
+    private $permissions_service;
 
     /**
      * @var TrackedJobService
@@ -144,11 +144,11 @@ class EntityDeletionService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dbi_service = $database_info_service;
-        $this->dfi_service = $datafield_info_service;
-        $this->dti_service = $datatree_info_service;
-        $this->emm_service = $entity_meta_modify_service;
-        $this->pm_service = $permissions_management_service;
+        $this->database_info_service = $database_info_service;
+        $this->datafield_info_service = $datafield_info_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->entity_modify_service = $entity_meta_modify_service;
+        $this->permissions_service = $permissions_management_service;
         $this->tracked_job_service = $tracked_job_service;
         $this->theme_info_service = $theme_info_service;
         $this->event_dispatcher = $event_dispatcher;
@@ -158,6 +158,7 @@ class EntityDeletionService
 
 
     /**
+     *  TODO - test this with a sidebar layout
      * Deletes a datafield.
      *
      * @param DataFields $datafield
@@ -180,14 +181,14 @@ class EntityDeletionService
 
             // --------------------
             // Ensure user has permissions to be doing this
-            if (!$this->pm_service->isDatatypeAdmin($user, $datatype))
+            if (!$this->permissions_service->isDatatypeAdmin($user, $datatype))
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // Check that the datafield isn't being used for something else before deleting it
-            $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
-            $props = $this->dfi_service->canDeleteDatafield($datatype_array, $datatype->getId(), $datafield->getId());
+            $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $props = $this->datafield_info_service->canDeleteDatafield($datatype_array, $datatype->getId(), $datafield->getId());
             if ( !$props['can_delete'] )
                 throw new ODRBadRequestException( $props['delete_message'] );
 
@@ -367,6 +368,19 @@ class EntityDeletionService
             );
             $rows = $query->execute();
 
+            // ...sidebar layout maps
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:SidebarLayoutMap AS slm
+                SET slm.deletedAt = :now
+                WHERE slm.dataField = :datafield AND slm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'datafield' => $datafield->getId()
+                )
+            );
+            $rows = $query->execute();
+
 
             // ----------------------------------------
             // Need to locate all other datatypes that are using this soon-to-be-deleted datafield
@@ -449,7 +463,7 @@ class EntityDeletionService
             // Save any required changes
             if ( count($properties) > 0 ) {
                 $need_flush = true;
-                $this->emm_service->updateDatatypeMeta($user, $datatype, $properties, true);    // don't flush
+                $this->entity_modify_service->updateDatatypeMeta($user, $datatype, $properties, true);    // don't flush
             }
 
 
@@ -493,7 +507,7 @@ class EntityDeletionService
             // ----------------------------------------
             // Deleting a datafield needs to update the master_revision property of its datatype
             if ( $datatype->getIsMasterType() )
-                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype);
+                $this->entity_modify_service->incrementDatatypeMasterRevision($user, $datatype);
 
             if ( $typeclass === 'Radio' ) {
                 // Faster to just delete the cached list of default radio options, rather than try to
@@ -806,6 +820,7 @@ class EntityDeletionService
 
 
     /**
+     *  TODO - test this with a sidebar layout
      * Deletes a Datatype.
      *
      * @param DataType $datatype
@@ -838,7 +853,7 @@ class EntityDeletionService
 
             // --------------------
             // Ensure user has permissions to be doing this
-            if (!$this->pm_service->isDatatypeAdmin($user, $datatype))
+            if (!$this->permissions_service->isDatatypeAdmin($user, $datatype))
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -870,13 +885,13 @@ class EntityDeletionService
             // Easier to handle updates to the "master_revision" and others before anything gets
             //  deleted...
             if ( $datatype->getIsMasterType() )
-                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype);
+                $this->entity_modify_service->incrementDatatypeMasterRevision($user, $datatype);
 
 
             // ----------------------------------------
             // Locate ids of all datatypes that need deletion...can't just use grandparent datatype id
             //  since this could be a child datatype
-            $datatree_array = $this->dti_service->getDatatreeArray();
+            $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
             $tmp = array($datatype->getId() => 0);
             $datatypes_to_delete = array($datatype->getId() => 0);
@@ -1266,6 +1281,38 @@ class EntityDeletionService
                 AND rpm.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            // Delete all SidebarLayoutMap entries
+            $query_str =
+               'UPDATE odr_sidebar_layout_map AS slm
+                SET slm.deletedAt = NOW()
+                WHERE slm.data_type_id IN (?) OR slm.data_field_id IN (?)
+                AND slm.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            // Delete all SidebarLayoutPreferences entries
+            $query_str =
+               'UPDATE odr_sidebar_layout_preferences AS slp
+                SET slp.deletedAt = NOW()
+                WHERE slp.data_type_id IN (?)
+                AND slp.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            // Delete all SidebarLayout and SidebarLayoutMeta entries
+            $query_str =
+               'UPDATE odr_sidebar_layout AS sl, odr_sidebar_layout_meta AS slm
+                SET sl.deletedAt = NOW(), slm.deletedAt = NOW(), sl.deletedBy = '.$user->getId().'
+                WHERE slm.sidebar_layout_id = sl.id AND sl.data_type_id IN (?)
+                AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 

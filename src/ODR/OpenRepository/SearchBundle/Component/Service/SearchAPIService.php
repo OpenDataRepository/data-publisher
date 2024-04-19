@@ -97,7 +97,7 @@ class SearchAPIService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var SearchService
@@ -149,7 +149,7 @@ class SearchAPIService
     ) {
         $this->container = $container;
         $this->em = $entity_manager;
-        $this->dti_service = $datatree_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->search_key_service = $search_key_service;
         $this->sort_service = $sort_service;
@@ -1648,7 +1648,7 @@ class SearchAPIService
         // ----------------------------------------
         // In order to properly build the search arrays, all child/linked datatypes with some
         //  connection to this datatype need to be located first
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
         // Base setup for both arrays...
         $flattened_list = array();
@@ -1923,7 +1923,7 @@ class SearchAPIService
         $template_dt_id = $results[0]['id'];
 
         // @see self::buildSearchDatatree()
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
         $search_datatree = self::buildSearchDatatree($datatree_array, array($template_dt_id => 1));
 
 
