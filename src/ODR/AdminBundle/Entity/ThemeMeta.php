@@ -68,6 +68,11 @@ class ThemeMeta
     private $displaysAllResults;
 
     /**
+     * @var bool
+     */
+    private $disableSearchSidebar;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -296,6 +301,30 @@ class ThemeMeta
     public function getDisplaysAllResults()
     {
         return $this->displaysAllResults;
+    }
+
+    /**
+     * Set disableSearchSidebar.
+     *
+     * @param bool $disableSearchSidebar
+     *
+     * @return ThemeMeta
+     */
+    public function setDisableSearchSidebar($disableSearchSidebar)
+    {
+        $this->disableSearchSidebar = $disableSearchSidebar;
+
+        return $this;
+    }
+
+    /**
+     * Get disableSearchSidebar.
+     *
+     * @return bool
+     */
+    public function getDisableSearchSidebar()
+    {
+        return $this->disableSearchSidebar;
     }
 
     /**

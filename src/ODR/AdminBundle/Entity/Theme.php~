@@ -602,4 +602,14 @@ class Theme
     {
         return $this->getThemeMeta()->getDisplaysAllResults();
     }
+
+    /**
+     * Get disableSearchSidebar
+     *
+     * @return bool
+     */
+    public function getDisableSearchSidebar()
+    {
+        return $this->getThemeMeta()->getDisableSearchSidebar();
+    }
 }

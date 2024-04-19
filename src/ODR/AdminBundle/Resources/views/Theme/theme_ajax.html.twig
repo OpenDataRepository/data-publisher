@@ -208,6 +208,11 @@
             theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
         });
 
+        $("#{{ theme_form.disableSearchSidebar.vars.id }}").unbind('change').change(function() {
+            clearTimeout(theme_properties_change);
+            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+        });
+
         // Ensure multiple-allowed child/linked datatypes never appear for a table theme
         updateChildtypeVisibility();
 
