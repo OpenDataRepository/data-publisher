@@ -1042,6 +1042,12 @@ odr_display_view:
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
+odr_view_random:
+    path:  /view/random/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Display:viewrandom }
+    requirements:
+        datatype_id:  \d+
+
 #
 # Support for old routes and GET routes
 #
