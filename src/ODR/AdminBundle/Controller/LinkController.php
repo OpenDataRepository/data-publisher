@@ -38,6 +38,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
@@ -1863,6 +1864,10 @@ class LinkController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TableThemeHelperService $table_theme_helper_service */
@@ -2076,6 +2081,17 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
+            // The page is slightly easier to use if the "local" record is available to look at...
+            $dt_array = $database_info_service->getDatatypeArray($local_datatype->getId(), false);    // don't want links...
+            $dr_array = $datarecord_info_service->getDatarecordArray($local_datarecord->getId(), false);
+            $master_theme = $theme_info_service->getDatatypeMasterTheme($local_datatype->getId());
+            $theme_array = $theme_info_service->getThemeArray($master_theme->getId());
+
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+            $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+
+
+            // ----------------------------------------
             // Convert the list of linked datarecords into a slightly different format so the datatables plugin can use it
             $datarecord_list = array();
             foreach ($linked_datarecords as $dr_id => $value)
@@ -2111,6 +2127,22 @@ class LinkController extends ODRCustomController
                         'table_html' => $table_html,
                         'column_names' => $column_names,
                         'num_columns' => $num_columns,
+
+                        // Needed for the call to display_ajax.html.twig...
+                        'datatype_array' => $dt_array,
+                        'datarecord_array' => $dr_array,
+                        'theme_array' => $theme_array,
+
+                        'initial_datatype_id' => $local_datatype->getId(),
+                        'initial_datarecord_id' => $local_datarecord->getId(),
+                        'initial_theme_id' => $master_theme->getId(),
+
+                        'is_datatype_admin' => $permissions_service->isDatatypeAdmin($user, $local_datatype),
+
+                        'is_top_level' => 1,
+//                        'search_key' => '',
+
+                        'record_display_view' => 'multiple',    // disable the display javascript
                     )
                 )
             );

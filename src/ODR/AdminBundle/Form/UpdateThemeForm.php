@@ -88,6 +88,15 @@ class UpdateThemeForm extends AbstractType
                 'label' => 'Render up to 10,000 records (Table render only, potentially slow)'
             )
         );
+
+        $builder->add(
+            'disableSearchSidebar',
+            CheckboxType::class,
+            array(
+                'required' => true,
+                'label' => 'Disable the search sidebar when in use'
+            )
+        );
     }
 
 

@@ -91,6 +91,19 @@
         {% endif %}
         </div>
 
+        {# link to view random record from this datatype #}
+        <div>
+            {% if datarecord_count == 0 %}
+                {# don't display link, nothing to view #}
+            {% else %}
+                <a id="ODRDatarecordList_{{ datatype.id }}_random"
+                   class="address"
+                >
+                    <i class="fa fa-lg fa-random"></i>&nbsp;View Random Record
+                </a>
+            {% endif %}
+        </div>
+
         {# add record link for this datatype...only makes sense for a metadata datatype if it doesn't already have a record #}
         <div>
         {% if can_add_datarecord %}
@@ -252,6 +265,11 @@
 <script>
     $(function () {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        $("#ODRDatarecordList_{{ datatype.id }}_random").unbind('click').click(function() {
+            var url = "{{ path('odr_view_random', { 'datatype_id': datatype.id }) }}";
+            LoadContentFullAjax(url);
+        });
 
         // Get the sparkline plugin to work on the smaller graphs
         $(".sparkline").sparkline('html', {type: 'bar', barWidth: '8', height: '50', stackedBarColor: ['#04710a', '#9f1915']});

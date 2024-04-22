@@ -222,6 +222,7 @@ class DefaultController extends Controller
             // TODO - modify search page to allow users to select from available themes
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
+            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -260,7 +261,7 @@ class DefaultController extends Controller
 
                     // theme selection
 //                    'available_themes' => $available_themes,
-                    'preferred_theme_id' => $preferred_theme_id,
+                    'preferred_theme' => $preferred_theme,
                 )
             );
 
@@ -519,6 +520,7 @@ class DefaultController extends Controller
             // TODO - modify search page to allow users to select from available themes
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
+            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -567,7 +569,7 @@ class DefaultController extends Controller
 
                         // theme selection
 //                        'available_themes' => $available_themes,
-                        'preferred_theme_id' => $preferred_theme_id,
+                        'preferred_theme' => $preferred_theme,
                     )
                 );
                 // Prepend/append the wordpress header and footer
@@ -608,7 +610,7 @@ class DefaultController extends Controller
 
                         // theme selection
 //                    'available_themes' => $available_themes,
-                        'preferred_theme_id' => $preferred_theme_id,
+                        'preferred_theme' => $preferred_theme,
                     )
                 );
             }
@@ -1474,6 +1476,7 @@ class DefaultController extends Controller
                 $user_list = $search_sidebar_service->getSidebarUserList($user, $datatype_array);
 
                 $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
+                $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
                 // Twig can technically figure out which radio options/tags are selected or
                 //  unselected from the search key, but it's irritating to do so...it's easier to
@@ -1505,7 +1508,7 @@ class DefaultController extends Controller
                             'datatype_relations' => $datatype_relations,
 
                             // theme selection
-                            'preferred_theme_id' => $preferred_theme_id,
+                            'preferred_theme' => $preferred_theme,
                         )
                     )
                 );

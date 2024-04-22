@@ -2090,4 +2090,87 @@ class DisplayController extends ODRCustomController
         }
     }
 
+
+    /**
+     * Redirects to a random datarecord the user can view from the given datatype.
+     *
+     * @param string $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function viewrandomAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var Router $router */
+            $router = $this->get('router');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
+            // Locate a random datarecord of this datatype that the user can view...
+            $query = null;
+            if ( $permissions_service->canViewNonPublicDatarecords($user, $datatype) ) {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord dr
+                    WHERE dr.dataType = :datatype_id
+                    AND dr.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $datatype->getId()) );
+            }
+            else {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord dr
+                    LEFT JOIN ODRAdminBundle:DataRecordMeta drm WITH drm.dataRecord = dr
+                    WHERE dr.dataType = :datatype_id AND drm.publicDate != :non_public_date
+                    AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $datatype->getId(), 'non_public_date' => '2200-01-01 00:00:00') );
+            }
+
+            $results = $query->getArrayResult();
+            $num = rand(0, count($results));
+
+            // ...and return a url to it
+            $url = $router->generate(
+                'odr_display_view',
+                array(
+                    'datarecord_id' => $results[$num]['dr_id'],
+                )
+            );
+
+            $return['d'] = array('url' => $url);
+            $return['r'] = 2;
+        }
+        catch (\Exception $e) {
+            $source = 0x06d6cbeb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        return $response;
+    }
 }

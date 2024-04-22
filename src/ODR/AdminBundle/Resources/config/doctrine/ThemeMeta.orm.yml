@@ -59,6 +59,12 @@ ODR\AdminBundle\Entity\ThemeMeta:
             nullable: false
             default: false
 
+        disableSearchSidebar:
+            type: boolean
+            nullable: false
+            default: false
+            column: disable_search_sidebar
+
         created:
             type: datetime
             gedmo:

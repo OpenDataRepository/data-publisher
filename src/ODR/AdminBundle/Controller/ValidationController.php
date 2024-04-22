@@ -825,6 +825,7 @@ class ValidationController extends ODRCustomController
                     $tm->setSourceSyncVersion(0);
                     $tm->setIsTableTheme(false);
                     $tm->setDisplaysAllResults(false);
+                    $tm->setDisableSearchSidebar(false);
 
                     $tm->setCreatedBy($user);
                     $tm->setUpdatedBy($user);

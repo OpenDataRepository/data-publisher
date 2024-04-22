@@ -149,8 +149,8 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
             // This plugin is interested in two of the fields from the IMA Plugin...
             $mineral_name_df_id = null;
-            if ( isset($rpm['Mineral Name']) )
-                $mineral_name_df_id = $rpm['Mineral Name']['id'];
+            if ( isset($rpm['Mineral Display Name']) )
+                $mineral_name_df_id = $rpm['Mineral Display Name']['id'];
 
             $tags_df_id = null;
             if ( isset($rpm['Tags']) )

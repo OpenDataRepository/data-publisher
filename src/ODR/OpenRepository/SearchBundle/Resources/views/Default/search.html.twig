@@ -16,6 +16,7 @@
 
 <script>
     $(function () {
+        {% if preferred_theme.disableSearchSidebar == false %}
         if ( window.location.href.indexOf('#') === -1 ) {
             // Ensure the sidebar is visible when on the default search page
             enableSearchSidebar('', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
@@ -24,6 +25,9 @@
             // Everywhere else, just ensure it's up to date
             enableSearchSidebar();    {# TODO - defer this? #}
         }
+        {% else %}
+        disableSearchSidebar();
+        {% endif %}
 
         InitSearchSidebar();
 

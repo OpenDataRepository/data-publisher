@@ -2785,6 +2785,7 @@ class EntityMetaModifyService
             'sourceSyncVersion' => $old_meta_entry->getSourceSyncVersion(),
             'isTableTheme' => $old_meta_entry->getIsTableTheme(),
             'displaysAllResults' => $old_meta_entry->getDisplaysAllResults(),
+            'disableSearchSidebar' => $old_meta_entry->getDisableSearchSidebar(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2834,6 +2835,8 @@ class EntityMetaModifyService
             $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
         if ( isset($properties['displaysAllResults']) )
             $new_theme_meta->setDisplaysAllResults( $properties['displaysAllResults'] );
+        if ( isset($properties['disableSearchSidebar']) )
+            $new_theme_meta->setDisableSearchSidebar( $properties['disableSearchSidebar'] );
 
         // Earlier versions of ODR used a combination of theme_type and page_type to control
         //  when and where they were used...in late 2023 this was changed so that any theme
