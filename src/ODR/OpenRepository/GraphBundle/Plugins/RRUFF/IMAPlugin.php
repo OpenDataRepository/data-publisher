@@ -1302,15 +1302,17 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         if ( isset($datatype_array['descendants']) ) {
             foreach ($datatype_array['descendants'] as $dt_id => $tmp) {
-                $dt = $tmp['datatype'][$dt_id];
-                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
-                    $rp = $rpi['renderPlugin'];
-                    if ( $rp['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
-                        // ...it does, so save some useful pieces of data
-                        $rruff_reference_dt = $dt;
-                        $rruff_reference_dt_id = $dt['id'];
-                        $rruff_reference_rpi = $rpi;
-                        $rruff_reference_id_field = $rruff_reference_rpi['renderPluginMap']['Reference ID']['id'];
+                if ( isset($tmp['datatype'][$dt_id]) ) {
+                    $dt = $tmp['datatype'][$dt_id];
+                    foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
+                        $rp = $rpi['renderPlugin'];
+                        if ( $rp['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
+                            // ...it does, so save some useful pieces of data
+                            $rruff_reference_dt = $dt;
+                            $rruff_reference_dt_id = $dt['id'];
+                            $rruff_reference_rpi = $rpi;
+                            $rruff_reference_id_field = $rruff_reference_rpi['renderPluginMap']['Reference ID']['id'];
+                        }
                     }
                 }
             }
@@ -1483,11 +1485,13 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             $key = 'original_children';
 
         // The IMA record may not link to any RRUFF References...
-        $rruff_reference_dt_id = $related_reference_info['datatype']['id'];
-        if ( !isset($ima_datarecord[$key][$rruff_reference_dt_id]) ) {
+        if ( !isset($related_reference_info['datatype']['id']) ) {
             // ...if it doesn't, then there's nothing to pre-render
             return;
         }
+        $rruff_reference_dt_id = $related_reference_info['datatype']['id'];
+        if ( !isset($ima_datarecord[$key][$rruff_reference_dt_id]) )
+            return;
 
         // ...but if it does, then going to attempt to pre-render the references
         $can_view_references = $related_reference_info['can_view_references'];

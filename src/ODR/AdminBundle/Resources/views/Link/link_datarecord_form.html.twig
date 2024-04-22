@@ -4,8 +4,10 @@
    ODRCustomController::renderList() renders ODRAdminBundle:TextResults:textresultslist.html.twig
    when intent == 'searching' #}
 
+{% set local_datatype = ancestor_datatype %}
 {% set remote_datatype = descendant_datatype %}
 {% if local_datarecord.datatype.id == descendant_datatype.id %}
+    {% set local_datatype = descendant_datatype %}
     {% set remote_datatype = ancestor_datatype %}
 {% endif %}
 
@@ -28,6 +30,34 @@
     {% if not allow_multiple_links and local_datarecord_is_ancestor and linked_datarecords|length > 0 %}
         <button class="pure-button" type="button" onclick="unlinkCurrentDatarecord();">Unlink current Datarecord</button>
     {% endif %}
+    </div>
+
+    <div class="ODRLinkHeaderWrapper">
+        <div class="ODRLinkHeader ODRAccordionWrapper pure-u-1">
+            <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                <i class="ODRLinkHeader_caret fa fa-caret-right"></i>
+                <a>View Current {{ local_datatype.shortname }} Datarecord</a>
+            </h3>
+        </div>
+
+        <div style="display: none;">
+        {% include 'ODRAdminBundle:Display:display_ajax.html.twig' with {
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+            'theme_array': theme_array,
+
+            'initial_datatype_id': initial_datatype_id,
+            'initial_datarecord_id': initial_datarecord_id,
+            'initial_theme_id': initial_theme_id,
+
+            'is_datatype_admin': is_datatype_admin,
+
+            'is_top_level': 1,
+            'search_key': '',
+
+            'record_display_view': 'multiple'
+        } %}
+        </div>
     </div>
 
     <div class="ODRLinkHeaderWrapper">
@@ -110,13 +140,13 @@
         $(".ODRLinkHeader").unbind('click').click(function() {
             if ( $(this).hasClass('ODRAccordionSelected') ) {
                 $(this).removeClass('ODRAccordionSelected');
-                $("#TextResults_wrapper").hide();
-                $(".ODRLinkHeader_caret").removeClass('fa-caret-down').addClass('fa-caret-right');
+                $(this).next().hide();
+                $(this).find(".ODRLinkHeader_caret").removeClass('fa-caret-down').addClass('fa-caret-right');
             }
             else {
                 $(this).addClass('ODRAccordionSelected');
-                $("#TextResults_wrapper").show();
-                $(".ODRLinkHeader_caret").removeClass('fa-caret-right').addClass('fa-caret-down');
+                $(this).next().show();
+                $(this).find(".ODRLinkHeader_caret").removeClass('fa-caret-right').addClass('fa-caret-down');
             }
         });
     });
