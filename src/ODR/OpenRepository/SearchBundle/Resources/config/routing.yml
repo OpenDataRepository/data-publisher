@@ -2,7 +2,7 @@
 # SearchSidebarController routes
 odr_get_available_layouts:
     path:  /view/getlayouts/{datatype_id}/{page_type}/{search_key}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:getavailablesidebarlayouts, search_key: '' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:getavailablesidebarlayouts, search_key: '' }
     requirements:
         datatype_id:  \d+
         page_type:  '|search_results|display|edit'
@@ -10,13 +10,13 @@ odr_get_available_layouts:
 
 odr_create_layout:
     path: /design/create_layout/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:createsidebarlayout }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:createsidebarlayout }
     requirements:
         datatype_id: \d+
 
 odr_modify_layout:
     path:  /design/modify_layout/{datatype_id}/{sidebar_layout_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:modifysidebarlayout, search_key: '' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:modifysidebarlayout, search_key: '' }
     requirements:
         datatype_id:  \d+
         sidebar_layout_id:  \d+
@@ -24,51 +24,51 @@ odr_modify_layout:
 
 odr_save_sidebar_layout_properties:
     path:  /view/layout_properties/{sidebar_layout_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:savesidebarlayoutproperties }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:savesidebarlayoutproperties }
     requirements:
         sidebar_layout_id: \d+
 
 odr_toggle_sidebar_layout_shared:
     path:  /design/togglelayoutshared/{sidebar_layout_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:sidebarlayoutshared }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:sidebarlayoutshared }
     requirements:
         sidebar_layout_id:  \d+
 
 odr_make_default_sidebar_layout:
     path:  /design/makedefaultlayout/{page_type}/{sidebar_layout_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:setdatabasedefaultlayout }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:setdatabasedefaultlayout }
     requirements:
         page_type:  '|searching|linking'
         sidebar_layout_id:  \d+
 
 odr_unset_default_sidebar_layout:
     path:  /design/unsetdefaultlayout/{page_type}/{search_layout_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:unsetdatabasedefaultlayout }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:unsetdatabasedefaultlayout }
     requirements:
         page_type:  '|searching|linking'
         sidebar_layout_id:  \d+
 odr_unset_personal_sidebar_layout:
     path:  /design/unsetpersonallayout/{page_type}/{sidebar_layout_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:unsetpersonaldefaultlayout }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:unsetpersonaldefaultlayout }
     requirements:
         page_type:  '|searching|linking'
         sidebar_layout_id:  \d+
 
 odr_delete_sidebar_layout:
     path:  /design/delete_layout/{sidebar_layout_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:deletesidebarlayout }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:deletesidebarlayout }
     requirements:
         sidebar_layout_id:  \d+
 
 odr_clone_layout:
     path:  /design/copy_layout/{sidebar_layout_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:clonelayout }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:clonelayout }
     requirements:
         sidebar_layout_id:  \d+
 
 odr_design_save_datafield_order_layout:
     path:  /design/layout/datafieldorder/{initial_layout_element_id}/{ending_layout_element_id}
-    defaults: { _controller: ODRAdminBundle:SearchSidebar:datafieldorder }
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldorder }
     methods: [ POST ]
     requirements:
         initial_layout_element_id: \d+

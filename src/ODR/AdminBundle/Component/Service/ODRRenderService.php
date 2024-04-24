@@ -347,7 +347,7 @@ class ODRRenderService
         );
 
         // ----------------------------------------
-        $template_name = 'ODRAdminBundle:SidebarLayuot:sidebarlayout_ajax.html.twig';
+        $template_name = 'ODRAdminBundle:SidebarLayout:sidebarlayout_ajax.html.twig';
         $extra_parameters = array(
             'site_baseurl' => $this->site_baseurl,
             'search_key' => $search_key,
