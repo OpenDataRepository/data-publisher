@@ -71,7 +71,7 @@
             <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
                 <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
                 {% if intent != 'stored_search_keys' %}
-                <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}"/>
+                <input type="hidden" id="selected_theme_id" value="{{ preferred_theme.id }}"/>
                 {% endif %}
 
                 {% if intent != 'stored_search_keys' %}

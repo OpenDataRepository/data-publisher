@@ -46,7 +46,11 @@
 
 <script>
     $(function() {
+        {% if theme.themeMeta.disableSearchSidebar == false %}
         enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        {% else %}
+        disableSearchSidebar();
+        {% endif %}
 
         $(".MenuDesignArea").remove();
 

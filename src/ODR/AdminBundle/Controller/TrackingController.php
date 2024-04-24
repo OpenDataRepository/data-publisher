@@ -127,9 +127,11 @@ class TrackingController extends ODRCustomController
             // As such, displaying when datarecords were created/deleted/etc is useful
             $display_datarecord_metadata = true;
 
-            // Default to displaying a month of changes
+            // Need a couple reference time ranges...
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
+            $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
+            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
@@ -168,8 +170,11 @@ class TrackingController extends ODRCustomController
                         'target_datarecord_name' => $datarecord_name,
                         'datatype_id_restriction' => $grandparent_datatype->getId(),
 
-                        'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'week_ago' => $week_ago->format("Y-m-d"),
+                        'day_ago' => $day_ago->format("Y-m-d"),
+                        'today' => $today->format("Y-m-d"),
+
                         'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )
@@ -273,9 +278,11 @@ class TrackingController extends ODRCustomController
             // As such, displaying when datarecords were created/deleted/etc is useful
             $display_datarecord_metadata = true;
 
-            // Default to displaying a month of changes
+            // Need a couple reference time ranges...
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
+            $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
+            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
@@ -322,8 +329,11 @@ class TrackingController extends ODRCustomController
 
                         'datatype_id_restriction' => $grandparent_datatype->getId(),
 
-                        'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'week_ago' => $week_ago->format("Y-m-d"),
+                        'day_ago' => $day_ago->format("Y-m-d"),
+                        'today' => $today->format("Y-m-d"),
+
                         'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )
@@ -395,9 +405,11 @@ class TrackingController extends ODRCustomController
             // As such, displaying when datarecords were created/deleted/etc is useful
             $display_datarecord_metadata = true;
 
-            // Default to displaying a month of changes
+            // Need a couple reference time ranges...
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
+            $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
+            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
@@ -429,8 +441,11 @@ class TrackingController extends ODRCustomController
                         'target_datatype_name' => $target_datatype_name,
                         'target_datafield_ids' => $datafield_ids,
 
-                        'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'week_ago' => $week_ago->format("Y-m-d"),
+                        'day_ago' => $day_ago->format("Y-m-d"),
+                        'today' => $today->format("Y-m-d"),
+
                         'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )
@@ -536,9 +551,11 @@ class TrackingController extends ODRCustomController
             // As such, displaying when datarecords were created/deleted/etc is useful
             $display_datarecord_metadata = true;
 
-            // Default to displaying a month of changes
+            // Need a couple reference time ranges...
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
+            $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
+            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Generate the HTML required for a header
             $return['d'] = array(
@@ -548,8 +565,11 @@ class TrackingController extends ODRCustomController
                         'target_user_id' => $target_user->getId(),
                         'target_user_name' => $target_user->getUserString(),
 
-                        'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'week_ago' => $week_ago->format("Y-m-d"),
+                        'day_ago' => $day_ago->format("Y-m-d"),
+                        'today' => $today->format("Y-m-d"),
+
                         'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )

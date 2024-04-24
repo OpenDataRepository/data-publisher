@@ -391,6 +391,7 @@ class ThemeController extends ODRCustomController
                         'templateDescription' => $submitted_data->getTemplateDescription(),
                         'isTableTheme' => $submitted_data->getIsTableTheme(),
                         'displaysAllResults' => $submitted_data->getDisplaysAllResults(),
+                        'disableSearchSidebar' => $submitted_data->getDisableSearchSidebar(),
                     );
                     $emm_service->updateThemeMeta($user, $theme, $properties);
 

@@ -19,11 +19,15 @@
 
                 <fieldset>
                     <label for="start_date">Date Range:</label>
-                    <input id="start_date" class="ODRInput ODRDatePicker Pointer" type="text" name="start_date" value="{{ month_ago }}"/>
+                    <input id="start_date" class="ODRInput ODRDatePicker Pointer" type="text" name="start_date" value="{{ day_ago }}"/>
                     <label for="end_date">&nbsp;--&nbsp;</label>
                     <input id="end_date" class="ODRInput ODRDatePicker Pointer" type="text" name="end_date" value="{{ today }}"/>
-                    <button id="ODRTrackingForm_month_changes" type="button" class="pure-button pure-button-secondary">Display changes in the last month</button>
-                    <button id="ODRTrackingForm_all_changes" type="button" class="pure-button pure-button-secondary">Display changes from all time</button>
+
+                    Display changes from:
+                    <button id="ODRTrackingForm_day_changes" type="button" class="pure-button pure-button-secondary">...the previous day</button>
+                    <button id="ODRTrackingForm_week_changes" type="button" class="pure-button pure-button-secondary">...the previous week</button>
+                    <button id="ODRTrackingForm_month_changes" type="button" class="pure-button pure-button-secondary">...the previous month</button>
+                    <button id="ODRTrackingForm_all_changes" type="button" class="pure-button pure-button-secondary">...all time</button>
                 </fieldset>
 
                 <fieldset>
@@ -187,6 +191,16 @@
         });
         $("#ODRTrackingForm_month_changes").unbind('click').click(function() {
             $("#start_date").val("{{ month_ago }}");
+            $("#end_date").val("{{ today }}");
+            reloadTrackingData();
+        });
+        $("#ODRTrackingForm_week_changes").unbind('click').click(function() {
+            $("#start_date").val("{{ week_ago }}");
+            $("#end_date").val("{{ today }}");
+            reloadTrackingData();
+        });
+        $("#ODRTrackingForm_day_changes").unbind('click').click(function() {
+            $("#start_date").val("{{ day_ago }}");
             $("#end_date").val("{{ today }}");
             reloadTrackingData();
         });

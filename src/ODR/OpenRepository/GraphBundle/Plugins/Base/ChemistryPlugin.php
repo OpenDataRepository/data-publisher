@@ -210,7 +210,8 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
     private function applyChemistryFormatting($superscript_delimiter, $subscript_delimiter, $str)
     {
         // Ensure any less/greater than signs don't confuse the browser
-        $str = str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
+        $str = preg_replace('/<(?!i|u|b|s|\/)/', '&lt;', $str); // negative lookahead...don't match '<' when it's a part of html tags like '<i>', '<b>', '<u>', '<sub>', '<sup>'
+        $str = preg_replace('/(?<!i|u|b|p)>/', '&gt;', $str);   // negative lookbehind...don't match '>' when it's a part of html tags like '<i>', '<b>', '<u>', '<sub>', '<sup>'
 
         // Apply the subscripts...
         $sub = preg_quote($subscript_delimiter);
