@@ -20,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\SidebarLayout;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -31,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
@@ -162,7 +164,6 @@ class SessionController extends ODRCustomController
         return $response;
     }
 
-    // TODO - apply sidebar layout here too?
 
     /**
      * Allows a user to set their session or default theme.
@@ -188,8 +189,8 @@ class SessionController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -214,7 +215,7 @@ class SessionController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // If the user can't view the datatype, then they shouldn't be setting themes for it
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
             if ($user === 'anon.') {
@@ -243,6 +244,97 @@ class SessionController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x1aeac909;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Allows a user to set their session or default sidebar layout.
+     *
+     * NOTE: the corresponding unset is in SearchSidebarController::unsetpersonaldefaultlayoutAction()
+     *
+     * @param integer $datatype_id
+     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param integer $search_layout_id
+     * @param integer $persist If 1, then save this choice to the database
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function applylayoutAction($datatype_id, $page_type, $search_layout_id, $persist, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var SidebarLayout $search_layout */
+            $search_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($search_layout_id);
+            if ($search_layout == null)
+                throw new ODRNotFoundException('Sidebar Layout');
+
+            if ($search_layout->getDataType()->getId() !== $datatype->getId())
+                throw new ODRBadRequestException('Sidebar Layout does not match Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // If the user can't view the datatype, then they shouldn't be setting layouts for it
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            if ($user === 'anon.') {
+                // If the layout isn't shared, an anon user can't use it
+                if ( !$search_layout->getShared() )
+                    throw new ODRForbiddenException();
+
+                // Otherwise, set it as the session layout
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $page_type, $search_layout->getId());
+
+                // Silently ignore attempts to save this preference to the database
+            }
+            else {
+                // If the layout isn't shared, or the user doesn't own the layout, then they can't use it
+                if ( !$search_layout->getShared() && $search_layout->getCreatedBy()->getId() !== $user->getId() )
+                    throw new ODRForbiddenException();
+
+                // Otherwise, set it as the session layout
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $page_type, $search_layout->getId());
+
+                // If the user indicated they wanted to save this as their default, do so
+                if ($persist == 1)
+                    $search_sidebar_service->setUserSidebarLayoutPreference($user, $search_layout, $page_type);
+            }
+
+        }
+        catch (\Exception $e) {
+            $source = 0xda22f5ec;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

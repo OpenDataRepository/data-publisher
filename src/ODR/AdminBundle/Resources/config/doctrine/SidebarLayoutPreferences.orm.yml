@@ -14,12 +14,12 @@ ODR\AdminBundle\Entity\SidebarLayoutPreferences:
             generator:
                 strategy: IDENTITY
 
-#        defaultFor:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            default: 0
-#            column: default_for
+        defaultFor:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+            column: default_for
 
         created:
             type: datetime

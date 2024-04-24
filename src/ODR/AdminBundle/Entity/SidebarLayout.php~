@@ -381,10 +381,30 @@ class SidebarLayout
     /**
      * Get shared
      *
-     * @return string
+     * @return bool
      */
     public function getShared()
     {
         return $this->getSidebarLayoutMeta()->getShared();
+    }
+
+    /**
+     * Get layoutDescription
+     *
+     * @return int
+     */
+    public function getDefaultFor()
+    {
+        return $this->getSidebarLayoutMeta()->getDefaultFor();
+    }
+
+    /**
+     * Get shared
+     *
+     * @return int
+     */
+    public function getDisplayOrder()
+    {
+        return $this->getSidebarLayoutMeta()->getDisplayOrder();
     }
 }

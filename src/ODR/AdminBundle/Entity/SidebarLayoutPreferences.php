@@ -13,6 +13,11 @@ class SidebarLayoutPreferences
     private $id;
 
     /**
+     * @var int
+     */
+    private $defaultFor;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -51,6 +56,30 @@ class SidebarLayoutPreferences
     public function getId()
     {
         return $this->id;
+    }
+
+    /**
+     * Set defaultFor.
+     *
+     * @param int $defaultFor
+     *
+     * @return SidebarLayoutPreferences
+     */
+    public function setDefaultFor($defaultFor)
+    {
+        $this->defaultFor = $defaultFor;
+
+        return $this;
+    }
+
+    /**
+     * Get defaultFor.
+     *
+     * @return int
+     */
+    public function getDefaultFor()
+    {
+        return $this->defaultFor;
     }
 
     /**

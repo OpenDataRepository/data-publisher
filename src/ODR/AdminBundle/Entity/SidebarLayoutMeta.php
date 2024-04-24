@@ -28,6 +28,16 @@ class SidebarLayoutMeta
     private $shared;
 
     /**
+     * @var int
+     */
+    private $defaultFor;
+
+    /**
+     * @var int|null
+     */
+    private $displayOrder;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -152,6 +162,54 @@ class SidebarLayoutMeta
         $this->created = $created;
 
         return $this;
+    }
+
+    /**
+     * Set defaultFor.
+     *
+     * @param int $defaultFor
+     *
+     * @return SidebarLayoutMeta
+     */
+    public function setDefaultFor($defaultFor)
+    {
+        $this->defaultFor = $defaultFor;
+
+        return $this;
+    }
+
+    /**
+     * Get defaultFor.
+     *
+     * @return int
+     */
+    public function getDefaultFor()
+    {
+        return $this->defaultFor;
+    }
+
+    /**
+     * Set displayOrder.
+     *
+     * @param int|null $displayOrder
+     *
+     * @return SidebarLayoutMeta
+     */
+    public function setDisplayOrder($displayOrder = null)
+    {
+        $this->displayOrder = $displayOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayOrder.
+     *
+     * @return int|null
+     */
+    public function getDisplayOrder()
+    {
+        return $this->displayOrder;
     }
 
     /**

@@ -1940,6 +1940,9 @@ class EntityMetaModifyService
             'layoutName' => $old_meta_entry->getLayoutName(),
             'layoutDescription' => $old_meta_entry->getLayoutDescription(),
             'shared' => $old_meta_entry->getShared(),
+
+            'defaultFor' => $old_meta_entry->getDefaultFor(),
+            'displayOrder' => $old_meta_entry->getDisplayOrder(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -1979,6 +1982,11 @@ class EntityMetaModifyService
             $new_sidebar_layout_meta->setLayoutDescription( $properties['layoutDescription'] );
         if ( isset($properties['shared']) )
             $new_sidebar_layout_meta->setShared( $properties['shared'] );
+
+        if ( isset($properties['defaultFor']) )
+            $new_sidebar_layout_meta->setDefaultFor( $properties['defaultFor'] );
+        if ( isset($properties['displayOrder']) )
+            $new_sidebar_layout_meta->setDisplayOrder( $properties['displayOrder'] );
 
         $new_sidebar_layout_meta->setUpdated($created);
         $new_sidebar_layout_meta->setUpdatedBy($user);

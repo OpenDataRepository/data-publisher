@@ -2178,6 +2178,10 @@ class EntityCreationService
         $sidebar_layout_meta->setLayoutDescription('');
         $sidebar_layout_meta->setShared(false);
 
+        // Currently unused...
+        $sidebar_layout_meta->setDefaultFor(0);
+        $sidebar_layout_meta->setDisplayOrder(0);
+
         $sidebar_layout_meta->setCreated($created);
         $sidebar_layout_meta->setUpdated($created);
         $sidebar_layout_meta->setCreatedBy($user);

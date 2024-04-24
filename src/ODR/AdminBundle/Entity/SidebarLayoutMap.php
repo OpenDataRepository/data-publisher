@@ -8,15 +8,27 @@ namespace ODR\AdminBundle\Entity;
 class SidebarLayoutMap
 {
 
-    // Entries with this value never show up in a layout
+    // Entries in this category never show up in a layout
     public const NEVER_DISPLAY = 0;
-    // Entries with this value will always show up in a layout
+    // Entries in this category will always show up in a layout, even when it's collapsed
+    // This is the category that the "general search" field shows up in by default
     public const ALWAYS_DISPLAY = 1;
-    // Entries with this value
+    // Entries in this category will show up when expanded
+    // This is the category that all the "searchable" fields and the "metadata" stuff shows up in
+    //  by default
     public const EXTENDED_DISPLAY = 2;
 
     // Not all datafields of a datatype are guaranteed to have a SidebarLayoutMap entry...if they
     //  don't, then it's assumed that they'll only show up when TODO
+
+    // TODO - think i decided to keep "searchable", so...
+    // TODO - ...whatever gets used for the "source" needs to be able to set "searchable"
+
+    // TODO - but "searchable" and NEVER_DISPLAY don't really make sense when combined
+    // TODO - ...probably just get rid of NEVER_DISPLAY?  when a datafield is removed from this, then delete its map entry?
+
+    // TODO - what about the metadata stuff?  search by created/modified/public status?
+    // TODO - ...would need to have a string in here to go with the null datafield to be able to identify those
 
     /**
      * @var int

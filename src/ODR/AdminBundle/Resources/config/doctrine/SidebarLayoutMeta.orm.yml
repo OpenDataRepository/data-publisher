@@ -26,18 +26,18 @@ ODR\AdminBundle\Entity\SidebarLayoutMeta:
             nullable: true
             column: layout_description
 
-#        defaultFor:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            default: 0
-#            column: default_for
+        defaultFor:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+            column: default_for
 
-#        displayOrder:
-#            type: integer
-#            unsigned: false
-#            nullable: true
-#            column: display_order
+        displayOrder:
+            type: integer
+            unsigned: false
+            nullable: true
+            column: display_order
 
         shared:
             type: boolean

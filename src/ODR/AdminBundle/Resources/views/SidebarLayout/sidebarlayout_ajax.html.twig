@@ -1,0 +1,410 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[initial_datatype_id] %}
+
+<h1 class="no-margin-top-phone">
+    <span>Sidebar Layout Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+</h1>
+
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Edit View</h3>
+            <div class="ODRBodyContent pure-u-1">
+                <p>
+                    Edit the layout and then click the "return to previous page" button below to see
+                    the edited view in action.  TODO
+                </p>
+                <p>
+                    Click a field to bring up its configurable properties.  To view hidden fields, toggle the "show hidden elements" checkbox below.  TODO
+                </p>
+                <p>Edit the name and description of the layout below:</p>
+                {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_properties_form.html.twig' with {
+                    'sidebar_layout': sidebar_layout,
+                    'sidebar_layout_form': sidebar_layout_form,
+                } %}
+                <div>
+                    <button type="button" class="pure-button pure-button-primary ODRReturn">Return to previous page</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="ThemeDesignWrapperMessage">
+    <div class="ODRContentWrapper">
+        <div class="ODRThemeElement">
+            <div class="ODRInnerBox">
+                <h3 class="ODRHeader">Larger Browser Recommended</h3>
+                <div class="ODRBodyContent">
+                    <p>To successfully use the design interface, a browser with a
+                        width of at least 1500 pixels is recommended.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <div id="ThemeDesignWrapper">
+{#
+        <div id="ThemeLeftColumn" class="ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <h3 class="ODRHeader">Theme Styling</h3>
+                    <div class="ODRThemeDesignSettings">
+                        <div>
+                            <label for="ODRThemeShowHidden">
+                                Show Hidden Elements:
+                            </label>
+                            <input type="checkbox" value="0" id="ODRThemeShowHidden" name="ODRThemeShowHidden">
+                        </div>
+                    </div>
+                    <h3 class="ODRHeader">Manage Design</h3>
+                    <div class="ODRThemeDesignSettings">
+                        <p>Click on an element of your design to manage its settings below.</p>
+                        <div id="ODRDatatypeToolsBlock">
+                            <p>
+                                <a id="ODRDatatype_addTE">
+                                    <i class="tooltip fa fa-edit ODRAddThemeElement"></i>
+                                    <span class="link-text">Add Group Box</span>
+                                </a>
+                            </p>
+                            <p>
+                                <a id="ODRDatatype_visibleTE">
+                                    <i class="tooltip fa fa-eye fa-inverse ODRVisibleThemeElement"></i>
+                                    <span class="link-text"> Group Box is Visible</span>
+                                </a>
+                            </p>
+                            <p>
+                                <a id="ODRDatatype_visibleTEBorder">
+                                    <i class="tooltip fa fa-eye ODRVisibleThemeElementBorder"></i>
+                                    <span class="link-text"> Show Group Box Border</span>
+                                </a>
+                            </p>
+                            <p></p>
+                            <p>
+                                <a id="ODRDatatype_deleteTE">
+                                    <i class="tooltip fa fa-trash ODRDeleteThemeElement"></i>
+                                    <span class="link-text"> Delete Group Box</span>
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="pure-u-1"></div>
+                    <div class="pure-u-24-24"><h3 class="ODRHeader">Element Settings</h3></div>
+                    <div id="ThemeDesignForm"></div>
+                    <div id="ThemeDatafieldDesignForm" class="ODRHidden"></div>
+                </div>
+            </div>
+        </div>
+#}
+        {# TODO - need sidebar #}
+
+        <div id="ThemeDesignArea">
+            {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_area.html.twig' with {
+                'datatype_array': datatype_array,
+                'theme_array': theme_array,
+                'site_baseurl': site_baseurl,
+
+                'initial_datatype_id': initial_datatype_id,
+                'initial_theme_id': theme.id,
+
+                'datatype_permissions': datatype_permissions,
+                'is_datatype_admin': is_datatype_admin,
+            } %}
+        </div>
+    </div>
+
+
+<script>
+    var SaveTimeout = 1500;
+    $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        // Initialize the help button
+        $("#ODRHelpButton").unbind('click').click(function() {
+            ODRSidebarLayout_startIntroJS();
+        });
+
+        // Attach handlers to the elements used to change the theme name/description
+        $("#SidebarLayoutPropertiesForm input:text").unbind('keyup').keyup(function() {
+            // Only want to execute this save once
+            clearTimeout(sidebar_layout_properties_change);
+            sidebar_layout_properties_change = setTimeout("SaveSidebarLayoutProperties()", SaveTimeout);
+        });
+        $("#SidebarLayoutPropertiesForm textarea").unbind('keyup').keyup(function() {
+            // Only want to execute this save once
+            clearTimeout(sidebar_layout_properties_change);
+            sidebar_layout_properties_change = setTimeout("SaveSidebarLayoutProperties()", SaveTimeout);
+        });
+
+        $(".ODRReturn").unbind('click').click(function() {
+            {# TODO - need to figure out layout switching #}
+{#{% if search_key == '' %}#}
+            // Typically want to return to the previous page...
+            window.history.back();
+{#
+{% else %}
+            // Want to render the search results list with the theme that was just being modified
+            var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '' }) }}';
+            url = url.substr(0, url.length-2);
+            url += {{ theme.id }} + '/' + '{{ search_key }}' + '/1';
+
+            UpdateURL(url);
+{% endif %}
+#}
+        });
+
+        initPage();
+    });
+
+    /**
+     * Performs basic setup of the page.
+     */
+    function initPage() {
+        // Setup Data Fields
+        SetupDataFields();
+
+        // Attach click handlers to tags
+        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        // Don't want to be able to highlight everything...
+        $("#odr_content").find(".ODRInnerBox").disableSelection();
+
+        // Should only deal with introJS after everything else is initialized...
+        ODRSidebarLayout_setupIntroJS();
+    }
+
+    /**
+     * Attaches a click handler to every Datafield element on the page, so that a properties form
+     * can be loaded.
+     */
+    function SetupDataFields() {
+        {# TODO - need draggable here, not click #}
+        // There are several elements on the page that aren't datafields but have the "ODRDataField"
+        //  class...so ensure the event only fires on the ones in the layout designer
+        $("#ODRDatatypeDesign").find(".ODRDataField").unbind('click').click(function() {
+            // Grab datafield id
+            var id_data = $(this).attr('id').split(/_/);
+            var datafield_id = id_data[1];
+
+            id_data = $(this).parents(".ODRThemeElement").first().attr('id').split(/_/);
+            var theme_element_id = id_data[1];
+
+            // Setup Resizeable
+            // console.log('.ODRDatafield clicked', datafield_id, theme_element_id);
+            setupElement(this, 'datafield');
+
+            // Render Tool Set
+            RenderToolSet(datafield_id, 'datafield', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datafield
+        });
+    }
+
+    var sidebar_layout_properties_change = null;
+
+    /**
+     * Saves the name/description properties for the currently loaded Sidebar Layout.
+     */
+    function SaveSidebarLayoutProperties() {
+        // Clear the save timeout for this action
+        window.clearInterval(sidebar_layout_properties_change);
+
+        var prop_form = $("#SidebarLayoutPropertiesForm");
+        jQuery.ajax({
+            type: "POST",
+            url: prop_form.attr('action'),
+            data: prop_form.serialize(),
+            dataType: 'json',
+            success: function(data) {
+                notifySaved();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Saves the results of moving a datafield inside a theme_element, or to a different theme_element.
+     *
+     * @param {HTMLElement} container - The .ODRInnerBox element that is the direct parent of the datafields in the destination theme_element
+     * @param {number} datafield_id - The id of the datafield that triggered this function by being moved
+     * @param {number} source_theme_element_id - The id of the theme_element that the moved datafield started in
+     * @param {number} dest_theme_element_id - The id of the theme_element that the moved datafield ended in
+     */
+    function SaveDatafieldOrder(container, datafield_id, source_theme_element_id, dest_theme_element_id) {
+        {# TODO - fix this #}
+
+        var i = 0;
+        var datafield_ids = {};
+        $(container).children(".ODRDataField").each(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            datafield_ids[i] = id_data[1];
+            i++;
+        });
+
+        // console.log('SaveDatafieldOrder(), datafield_id: ' + datafield_id + ' source theme_element: ' + source_theme_element_id + ' dest theme_element: ' + dest_theme_element_id);
+
+        // Get the id numbers of the passed-in theme elements
+        var theme_element = source_theme_element_id.split(/_/);
+        var initial_theme_element_id = theme_element[1];
+        theme_element = dest_theme_element_id.split(/_/);
+        var ending_theme_element_id = theme_element[1];
+
+        var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
+        url = url.substring(0, url.length-3);
+        url += initial_theme_element_id + '/' + ending_theme_element_id;
+
+        // If the datafield got moved to a new theme element...
+        if ( initial_theme_element_id !== ending_theme_element_id ) {
+            // ...then any attempt to load the datafield's themeDatafield entry needs to wait until
+            //  this ajax function finishes
+            var key = datafield_id + '_' + ending_theme_element_id;
+            load_themeDatafield_delay[key] = 1;
+            // console.log('need themeDatafield delay', load_themeDatafield_delay);
+
+            // Also throw up an overlay so the user can't attempt to resize a datafield until the
+            //  themeDatafield entry exists
+            insertLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
+        }
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            data: datafield_ids,
+            url: url,
+            dataType: "json",
+            success: function() {
+                notifySaved();
+
+                // Ensure the properties of both the source and the destination theme elements are
+                //  kept up to date
+                var initial_te_length = $("#ThemeElement_" + initial_theme_element_id).children(".ODRDataField").length;
+                if ( initial_te_length > 0 )
+                    theme_element_properties[initial_theme_element_id].has_datafields = 1;
+                else
+                    theme_element_properties[initial_theme_element_id].has_datafields = 0;
+
+                var ending_te_length = $("#ThemeElement_" + ending_theme_element_id).children(".ODRDataField").length;
+                if (ending_te_length > 0)
+                    theme_element_properties[ending_theme_element_id].has_datafields = 1;
+                else
+                    theme_element_properties[ending_theme_element_id].has_datafields = 0;
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // If this ajax request was for a datafield being moved into a different themeElement...
+                var key = datafield_id + '_' + ending_theme_element_id;
+                if ( load_themeDatafield_delay[key] !== undefined && load_themeDatafield_delay[key] !== null ) {
+                    // ...then delete the delay entry because the themeDatafield entry exists now
+                    delete load_themeDatafield_delay[key];
+                    // console.log('SaveDatafieldOrder() complete', load_themeDatafield_delay);
+
+                    // Also get rid of the overlay div
+                    removeLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
+                }
+
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Not strictly necessary to have this off in its own function, but it makes more sense this way.
+     */
+    function ODRSidebarLayout_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        $('#SidebarLayoutPropertiesForm')
+            .attr('data-step', '2')
+            .attr('data-intro', 'You can change the name and description of a layout here, to make it easier to find later on.');
+        $(".ODRReturn")
+            .attr('data-step', '3')
+            .attr('data-intro', "When you're finished making changes, click here to return to the previous page.");
+
+        {# TODO - fix this #}
+
+        // Find the first visible datafield in the first visible theme element
+        var theme_datafield = $(theme_element_handle).parent().find('.ODRDataField').first();
+        $(theme_datafield)
+            .attr('data-step', '7')
+            .attr('data-position', 'top')
+            .attr('data-intro', 'Clicking anywhere inside a field selects it, allowing you to resize it in the same manner as if you had selected a group box.<br><br>You can move the field by clicking and dragging the green bars in the center of the field.');
+{# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
+        $(theme_datafield).find('.ODRDragHandle').first()
+            .attr('data-step', '8')
+            .attr('data-intro', 'Fields are resized the same way as group boxes....click here and drag to the left or right.');
+#}
+    }
+
+    /**
+     * Begins the introJS tour for ODR's derivative theme designer page.
+     */
+    function ODRSidebarLayout_startIntroJS() {
+        {# TODO - fix this #}
+        introJs().setOption("disableInteraction", true)
+            .onbeforechange(function(elem) {
+                if ( $(elem).hasClass('ODRDatatypeProperties')
+                    || $(elem).hasClass('ODRThemeElementHandle')
+                    || $(elem).hasClass('ODRDataField')
+                ) {
+                    // Since introJS was set up after these elements were initialized, we can click
+                    //  them when reaching those points
+                    $(elem).trigger('click');
+                }
+
+                if ( $(elem).attr('id') === 'ODRThemeShowHidden' && !$('#ODRThemeShowHidden').is(':checked') ) {
+                    // Want to show any hidden themeElements/fields when reaching the point where
+                    //  introJS mentions it
+                    $(elem).trigger('click');
+                }
+                else if ( $(elem).attr('id') === 'ThemeDesignForm' ) {
+                    // Attempt to trigger a load of a child/linked datatype so something shows up
+                    //  in this element, if possible
+                    $(".ODRDataType.ODRChildDatatype").first().children('.ODRDatatypeProperties').first().trigger('click');
+                }
+            })
+            .onbeforeexit(function() {
+                // If the checkbox to show hidden theme elements and fields is checked, then uncheck
+                //  it when introJS exits
+                if ( $('#ODRThemeShowHidden').is(':checked') )
+                    $("#ODRThemeShowHidden").trigger('click');
+
+                // Also ensure #ThemeDesignForm is empty by selecting the top-level datatype again
+                $(".ODRDataType").not('.ODRChildDataType').first().children('.ODRDatatypeProperties').first().trigger('click');
+            })
+            .start();
+    }
+</script>
+
+{% endspaceless %}
