@@ -3488,6 +3488,13 @@ class PluginsController extends ODRCustomController
             if ( isset($post['plugin_options']) )
                 $plugin_options = $post['plugin_options'];
 
+            // Need to unescape these values if they're coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated ) {
+                foreach ($plugin_options as $rpo_id => $value)
+                    $plugin_options[$rpo_id] = stripslashes($value);
+            }
+
 
             // ----------------------------------------
             // Grab necessary objects

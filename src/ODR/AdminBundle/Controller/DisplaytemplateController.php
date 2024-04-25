@@ -1556,6 +1556,13 @@ class DisplaytemplateController extends ODRCustomController
                 if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
 
+                // Need to unescape these values if they're coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated ) {
+                    $submitted_data->setShortName( stripslashes($submitted_data->getShortName()) );  // ignoring that short name should be equivalent to long name here
+                    $submitted_data->setLongName( stripslashes($submitted_data->getLongName()) );
+                    $submitted_data->setDescription( stripslashes($submitted_data->getDescription()) );
+                }
 
                 // Verify that the submitted data makes sense
 
@@ -2314,6 +2321,16 @@ class DisplaytemplateController extends ODRCustomController
                 $em->refresh($datafield);
                 $em->refresh($datafield->getDataFieldMeta());
 
+                // Need to unescape these values if they're coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated ) {
+                    $submitted_data->setFieldName( stripslashes($submitted_data->getFieldName()) );
+                    $submitted_data->setDescription( stripslashes($submitted_data->getDescription()) );
+                    $submitted_data->setMarkdownText( stripslashes($submitted_data->getMarkdownText()) );
+                    $submitted_data->setQualityStr( stripslashes($submitted_data->getQualityStr()) );
+                    $submitted_data->setInternalReferenceName( stripslashes($submitted_data->getInternalReferenceName()) );
+                }
+
                 // The original fieldtype will always exist...
                 $old_fieldtype = $datafield->getFieldType();
                 $old_fieldtype_id = $old_fieldtype->getId();
@@ -2425,6 +2442,11 @@ class DisplaytemplateController extends ODRCustomController
                 }
 
                 // ----------------------------------------
+                // Datafield names can't be blank
+                $submitted_data->setFieldName( trim($submitted_data->getFieldName()) );
+                if ( $submitted_data->getFieldName() === '' )
+                    $datafield_form->addError( new FormError("The datafield's name can't be blank") );
+
                 // Ensure the datafield is marked as unique if it needs to be
                 if ( $must_be_unique )
                     $submitted_data->setIsUnique(true);
@@ -3515,6 +3537,19 @@ if ($debug)
         try {
             $post = $request->request->all();
 
+            if ( !isset($post['upper_value']) || !isset($post['lower_value']) )
+                throw new ODRBadRequestException('Invalid Form');
+
+            $upper_value = $post['upper_value'];
+            $lower_value = $post['lower_value'];
+
+            // Need to unescape the values if they're coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated ) {
+                $upper_value = stripslashes($upper_value);
+                $lower_value = stripslashes($lower_value);
+            }
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -3545,14 +3580,11 @@ if ($debug)
                 throw new ODRForbiddenException();
             // --------------------
 
-            if ( !isset($post['upper_value']) || !isset($post['lower_value']) )
-                throw new ODRBadRequestException('Invalid Form');
 
-
-            // Set the properties array correctly and save to the database
+            // Save any changes to the database
             $properties = array(
-                'searchNotesUpper' => $post['upper_value'],
-                'searchNotesLower' => $post['lower_value'],
+                'searchNotesUpper' => $upper_value,
+                'searchNotesLower' => $lower_value,
             );
             $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
 
@@ -4886,7 +4918,8 @@ if ($debug)
 
             // ----------------------------------------
             // Convert the POST request into a search key and validate it
-            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params);
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
             $search_key_service->validateSearchKey($search_key);
 
             $search_params = $search_key_service->decodeSearchKey($search_key);

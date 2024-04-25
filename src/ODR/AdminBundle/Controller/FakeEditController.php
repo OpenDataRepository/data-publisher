@@ -178,6 +178,13 @@ class FakeEditController extends ODRCustomController
             if ( isset($post['datafields']) )
                 $datafields = $post['datafields'];
 
+            // Need to unescape the values if they're coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated ) {
+                foreach ($datafields as $id => $val)
+                    $datafields[$id] = stripslashes($val);
+            }
+
             $csrf_tokens = array();
             if ( isset($post['tokens']) )
                 $csrf_tokens = $post['tokens'];
@@ -714,6 +721,10 @@ class FakeEditController extends ODRCustomController
                     $error_type = $form_data['error_type'];
             }
 
+            // Need to unescape the value if it's coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated )
+                $value = stripslashes($value);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -859,6 +870,13 @@ class FakeEditController extends ODRCustomController
                 || !is_array($csrf_tokens)
             ) {
                 throw new ODRBadRequestException();
+            }
+
+            // Need to unescape the values if they're coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated ) {
+                foreach ($datafields as $id => $val)
+                    $datafields[$id] = stripslashes($val);
             }
 
 

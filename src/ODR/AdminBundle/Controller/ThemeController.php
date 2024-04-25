@@ -384,6 +384,17 @@ class ThemeController extends ODRCustomController
             if ($theme_form->isSubmitted()) {
 //                $theme_form->addError( new FormError('DO NOT SAVE') );
 
+                // Need to unescape these values if they're coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated ) {
+                    $submitted_data->setTemplateName( stripslashes($submitted_data->getTemplateName()) );
+                    $submitted_data->setTemplateDescription( stripslashes($submitted_data->getTemplateDescription()) );
+                }
+
+                $submitted_data->setTemplateName( trim($submitted_data->getTemplateName()) );
+                if ( $submitted_data->getTemplateName() === '' )
+                    $theme_form->addError( new FormError("The Layout name can't be blank") );
+
                 if ($theme_form->isValid()) {
                     // Save any changes made in the form
                     $properties = array(
@@ -1365,7 +1376,7 @@ class ThemeController extends ODRCustomController
 
         try {
             // Grab necessary objects
-            $post = $_POST;
+            $post = $request->request->all();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -2400,7 +2411,7 @@ class ThemeController extends ODRCustomController
 
         try {
             // Grab necessary objects
-            $post = $_POST;
+            $post = $request->request->all();
 //print_r($post);  return;
 
             /** @var \Doctrine\ORM\EntityManager $em */

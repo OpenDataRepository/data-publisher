@@ -215,6 +215,7 @@ class DefaultController extends Controller
             $background_image_id = null;
             // TODO - current search page doesn't have a good place to put a background image...
 
+
             // ----------------------------------------
             // Generate a random key to identify this tab
             $odr_tab_id = $odr_tab_service->createTabId();
@@ -738,7 +739,8 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // Convert the POST request into a search key and validate it
-            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params);
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
             $search_key_service->validateSearchKey($search_key);
 
             // Filter out the stuff from the given search key that the user isn't allowed to see
@@ -1176,6 +1178,13 @@ class DefaultController extends Controller
 
                 // TODO - modify so the search can handle radio options and tags?
                 $search_params[ intval($key) ] = trim($value);
+            }
+
+            // Need to unescape these values if they're coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated ) {
+                foreach ($search_params as $key => $value)
+                    $search_params[$key] = stripslashes($value);
             }
 
             // Verify the posted search request
