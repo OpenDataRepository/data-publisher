@@ -110,6 +110,7 @@
 <script>
     $(function() {
         $("#ODRHistoryTable").DataTable({
+            "order": [[0, 'desc']],
             "pageLength": 100,
             "language": {
                 {% if no_criteria %}

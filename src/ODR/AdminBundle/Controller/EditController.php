@@ -553,6 +553,12 @@ class EditController extends ODRCustomController
             if ( !isset($post['filename']) )
                 throw new ODRBadRequestException();
 
+            // Need to unescape the value if it's coming from a wordpress install...
+            $filename = $post['filename'];
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated )
+                $filename = stripslashes($filename);
+
 
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -604,7 +610,7 @@ class EditController extends ODRCustomController
 
             // Update the filename
             $props = array(
-                'original_filename' => $post['filename']
+                'original_filename' => $filename
             );
             $entity_modify_service->updateFileMeta($user, $file, $props);
 
@@ -670,6 +676,12 @@ class EditController extends ODRCustomController
             if ( !isset($post['filename']) )
                 throw new ODRBadRequestException();
 
+            // Need to unescape the value if it's coming from a wordpress install...
+            $filename = $post['filename'];
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated )
+                $filename = stripslashes($filename);
+
 
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -725,7 +737,7 @@ class EditController extends ODRCustomController
 
             // Update the filename
             $props = array(
-                'original_filename' => $post['filename']
+                'original_filename' => $filename
             );
             $entity_modify_service->updateImageMeta($user, $image, $props);
 
@@ -2186,6 +2198,11 @@ class EditController extends ODRCustomController
             $form->handleRequest($request);
 
             if ($form->isSubmitted()) {
+
+                // Need to unescape the value if it's coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated )
+                    $form_object->setValue( stripslashes($form_object->getValue()) );
 
                 if ($form->isValid()) {
                     $new_value = $form_object->getValue();

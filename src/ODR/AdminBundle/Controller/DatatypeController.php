@@ -1469,6 +1469,17 @@ class DatatypeController extends ODRCustomController
                     $form->addError( new FormError('Form is empty?') );
 
                 $short_name = trim($submitted_data->getShortName());
+                $description = '';
+                if ( !is_null($submitted_data->getDescription()) )
+                    $description = $submitted_data->getDescription();
+
+                // Need to unescape this value if it's coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated ) {
+                    $short_name = stripslashes($short_name);
+                    $description = stripslashes($description);
+                }
+
                 // Set Long Name equal to Short Name
                 // DEPRECATED => Long Name
                 $long_name = $short_name;
@@ -1529,10 +1540,9 @@ class DatatypeController extends ODRCustomController
 
                     // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
                     $submitted_data->setDataType($datatype);
+                    $submitted_data->setShortName($short_name);
                     $submitted_data->setLongName($short_name);
-
-                    if ($submitted_data->getDescription() == null)
-                        $submitted_data->setDescription('');
+                    $submitted_data->setDescription($description);
 
                     // Default search slug to Dataset ID
                     $submitted_data->setSearchSlug($datatype->getUniqueId());
