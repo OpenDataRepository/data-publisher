@@ -71,10 +71,10 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -110,14 +110,14 @@ class RadioOptionsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // If this is a derived field...
             $can_modify_template = false;
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
-                if ( $pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                if ( $permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                     $can_modify_template = true;
 
                 // Not throwing exceptions here, because want to open the dialog in read-only mode
@@ -142,7 +142,7 @@ class RadioOptionsController extends ODRCustomController
 
             // ----------------------------------------
             // Locate cached array entries
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
             $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
             // Render the template
@@ -194,12 +194,12 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -240,13 +240,13 @@ class RadioOptionsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // If this is a derived field...
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                     throw new ODRForbiddenException();
             }
             // --------------------
@@ -268,7 +268,7 @@ class RadioOptionsController extends ODRCustomController
                 //  two of them need to get created
 
                 // Create the master radio option first...
-                $master_radio_option = $ec_service->createRadioOption(
+                $master_radio_option = $entity_create_service->createRadioOption(
                     $user,
                     $datafield->getMasterDataField(),
                     true,    // always create a new radio option
@@ -276,7 +276,7 @@ class RadioOptionsController extends ODRCustomController
                 );
 
                 // ...then create the derived radio option
-                $radio_option = $ec_service->createRadioOption(
+                $radio_option = $entity_create_service->createRadioOption(
                     $user,
                     $datafield,
                     true,    // always create a new radio option
@@ -291,7 +291,7 @@ class RadioOptionsController extends ODRCustomController
             else {
                 // Otherwise, this is a request to create a radio option for a field which is not
                 //  derived, or a request to create a radio option directly from a template
-                $radio_option = $ec_service->createRadioOption(
+                $radio_option = $entity_create_service->createRadioOption(
                     $user,
                     $datafield,
                     true,    // always create a new radio option
@@ -312,9 +312,9 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
@@ -401,10 +401,10 @@ class RadioOptionsController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
@@ -448,13 +448,13 @@ class RadioOptionsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // If this is a derived field...
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                     throw new ODRForbiddenException();
             }
             // --------------------
@@ -543,9 +543,9 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Faster to just delete the cached list of default radio options, rather than try to
             //  figure out specifics
@@ -636,16 +636,21 @@ class RadioOptionsController extends ODRCustomController
             if ($option_name === '')
                 throw new ODRBadRequestException("Radio Option Names can't be blank");
 
+            // Need to unescape this value if it's coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated )
+                $option_name = stripslashes($option_name);
+
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TrackedJobService $tracked_job_service */
@@ -691,13 +696,13 @@ class RadioOptionsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // If this is a derived field...
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                     throw new ODRForbiddenException();
             }
             // --------------------
@@ -725,7 +730,7 @@ class RadioOptionsController extends ODRCustomController
             // Could have to rename more than one radio option...
             $master_radio_option = null;
             $properties = array(
-                'optionName' => trim($post['option_name'])
+                'optionName' => $option_name
             );
 
             // The request to rename this radio option can come from one of three places...
@@ -739,11 +744,11 @@ class RadioOptionsController extends ODRCustomController
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
                     )
                 );
-                $emm_service->updateRadioOptionsMeta($user, $master_radio_option, $properties, true);    // don't flush immediately
+                $entity_modify_service->updateRadioOptionsMeta($user, $master_radio_option, $properties, true);    // don't flush immediately
             }
 
             // The radio option this controller action was called with should always be updated
-            $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties);
+            $entity_modify_service->updateRadioOptionsMeta($user, $radio_option, $properties);
             // Flushing here is intentional
 
             // If the datafield is being sorted by name, then also update the displayOrder
@@ -757,9 +762,9 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
@@ -845,10 +850,10 @@ class RadioOptionsController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -890,13 +895,13 @@ class RadioOptionsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // If this is a derived field...
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                     throw new ODRForbiddenException();
             }
             // --------------------
@@ -919,11 +924,11 @@ class RadioOptionsController extends ODRCustomController
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
                     )
                 );
-                self::updateDefaultStatus($em, $emm_service, $user, $master_radio_option);
+                self::updateDefaultStatus($em, $entity_modify_service, $user, $master_radio_option);
             }
 
             // The radio option this controller action was called with should always be updated
-            self::updateDefaultStatus($em, $emm_service, $user, $radio_option);
+            self::updateDefaultStatus($em, $entity_modify_service, $user, $radio_option);
 
             // Now that changes are made, flush the database
             $em->flush();
@@ -936,9 +941,9 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Don't need to fire off an event for the datafields here
 
@@ -980,11 +985,11 @@ class RadioOptionsController extends ODRCustomController
      * off in its own function so updating a derived datafield isn't as messy
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param EntityMetaModifyService $emm_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param ODRUser $user
      * @param RadioOptions $radio_option
      */
-    private function updateDefaultStatus($em, $emm_service, $user, $radio_option)
+    private function updateDefaultStatus($em, $entity_modify_service, $user, $radio_option)
     {
         // Save whether the given radio option is currently "default" or not
         $originally_was_default = $radio_option->getIsDefault();
@@ -1009,7 +1014,7 @@ class RadioOptionsController extends ODRCustomController
                 $properties = array(
                     'isDefault' => false
                 );
-                $emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
+                $entity_modify_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
             }
 
             if ( $originally_was_default ) {
@@ -1021,7 +1026,7 @@ class RadioOptionsController extends ODRCustomController
                 $properties = array(
                     'isDefault' => true
                 );
-                $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
+                $entity_modify_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
             }
         }
         else {
@@ -1030,7 +1035,7 @@ class RadioOptionsController extends ODRCustomController
             $properties = array(
                 'isDefault' => !$originally_was_default
             );
-            $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
+            $entity_modify_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
         }
     }
 
@@ -1056,10 +1061,10 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -1100,7 +1105,7 @@ class RadioOptionsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // Not updating the master datafield also means not having to check permissions for the
@@ -1154,7 +1159,7 @@ class RadioOptionsController extends ODRCustomController
                         $properties = array(
                             'displayOrder' => $index,
                         );
-                        $emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
+                        $entity_modify_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
                         $changes_made = true;
                     }
                 }
@@ -1224,12 +1229,12 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -1269,13 +1274,13 @@ class RadioOptionsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             // If this is a derived field...
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                     throw new ODRForbiddenException();
             }
             // --------------------
@@ -1307,17 +1312,21 @@ class RadioOptionsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $radio_option_list = array();
-            if ( strlen($post['radio_option_list']) > 0 )
-                $radio_option_list = explode("\n", $post['radio_option_list']);
+            $radio_option_list = $post['radio_option_list'];
+            if ( strlen($radio_option_list) > 0 ) {
+                // Need to unescape this value if it's coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated )
+                    $radio_option_list = stripslashes($radio_option_list);
+
+                $radio_option_list = explode("\n", $radio_option_list);
+            }
 
             // Parse and process radio options
             foreach ($radio_option_list as $option_name) {
                 // Remove whitespace
                 $option_name = trim($option_name);
-
-                // ensure length > 0
-                if (strlen($option_name) < 1)
+                if ( strlen($option_name) < 1 )
                     continue;
 
                 // Add option to datafield
@@ -1328,7 +1337,7 @@ class RadioOptionsController extends ODRCustomController
                         //  two of them need to get created
 
                         // Create the master radio option first...
-                        $master_radio_option = $ec_service->createRadioOption(
+                        $master_radio_option = $entity_create_service->createRadioOption(
                             $user,
                             $datafield->getMasterDataField(),
                             true,    // always create a new radio option
@@ -1336,7 +1345,7 @@ class RadioOptionsController extends ODRCustomController
                         );
 
                         // ...then create the derived radio option
-                        $radio_option = $ec_service->createRadioOption(
+                        $radio_option = $entity_create_service->createRadioOption(
                             $user,
                             $datafield,
                             true,    // always create a new radio option
@@ -1351,7 +1360,7 @@ class RadioOptionsController extends ODRCustomController
                     else {
                         // Otherwise, this is a request to create a radio option for a field which is not
                         //  derived, or a request to create a radio option directly from a template
-                        $ec_service->createRadioOption(
+                        $entity_create_service->createRadioOption(
                             $user,
                             $datafield,
                             true,    // always create a new radio option
@@ -1377,9 +1386,9 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
@@ -1459,12 +1468,12 @@ class RadioOptionsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataFields $datafield */
@@ -1504,14 +1513,14 @@ class RadioOptionsController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // ----------------------------------------
             // Locate the existing datarecordfield entry, or create one if it doesn't exist
-            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+            $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
             // Course of action differs based on whether multiple selections are allowed
             $typename = $datafield->getFieldType()->getTypeName();
@@ -1519,7 +1528,7 @@ class RadioOptionsController extends ODRCustomController
             // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
             if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
                 // Don't care about selected status of other RadioSelection entities...
-                $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+                $radio_selection = $entity_create_service->createRadioSelection($user, $radio_option, $drf);
 
                 // Default to a value of 'selected' if an older RadioSelection entity does not exist
                 $new_value = 1;
@@ -1531,7 +1540,7 @@ class RadioOptionsController extends ODRCustomController
 
                 // Update the RadioSelection entity to match $new_value
                 $properties = array('selected' => $new_value);
-                $emm_service->updateRadioSelection($user, $radio_selection, $properties);
+                $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties);
             }
             else if ($typename == 'Single Radio' || $typename == 'Single Select') {
                 // Probably need to change selected status of at least one other RadioSelection entity...
@@ -1548,7 +1557,7 @@ class RadioOptionsController extends ODRCustomController
                             // Deselect all RadioOptions that are selected, and are not the one the
                             //  user wants to be selected
                             $properties = array('selected' => 0);
-                            $emm_service->updateRadioSelection($user, $rs, $properties, true);    // should only be one, technically...
+                            $entity_modify_service->updateRadioSelection($user, $rs, $properties, true);    // should only be one, technically...
                         }
                     }
                 }
@@ -1556,11 +1565,11 @@ class RadioOptionsController extends ODRCustomController
                 // If the user selected something other than "<no option selected>"...
                 if ($radio_option_id != 0) {
                     // ...locate the RadioSelection entity the user wanted to set to selected
-                    $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+                    $radio_selection = $entity_create_service->createRadioSelection($user, $radio_option, $drf);
 
                     // ...ensure it's selected
                     $properties = array('selected' => 1);
-                    $emm_service->updateRadioSelection($user, $radio_selection, $properties, true);    // flushing doesn't help...
+                    $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties, true);    // flushing doesn't help...
                 }
 
                 // Flush now that all the changes have been made

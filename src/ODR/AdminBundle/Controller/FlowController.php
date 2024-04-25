@@ -309,6 +309,8 @@ class FlowController extends ODRCustomController
                 $identifier = $post->get('flowIdentifier');
                 $original_filename = trim( $post->get('flowFilename') );
 
+                // TODO - unescape the filename if coming from a wordpress install?
+
                 if ( $expected_size === 0 ) {
                     // The chunk being uploaded is empty...in case this was a network problem,
                     //  instruct flow.js to re-attempt upload.  If the user is actually trying to

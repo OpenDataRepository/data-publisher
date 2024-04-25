@@ -1886,6 +1886,8 @@
                 }
             },
             error: function() {
+                ReloadDatafield(datafield_id);
+
                 // Forcibly reload object properties panel
                 $("#ThemeDesignForm").html("");
                 $("#Field_" + datafield_id).trigger('click');
@@ -2418,7 +2420,8 @@
             SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
 
         // Set Short Name equal to Long Name for Datatype Properties
-        $('#UpdateDataTypeForm_short_name').val($('#UpdateDataTypeForm_long_name').val());
+        $('#UpdateDataTypeForm_short_name').val( $('#UpdateDataTypeForm_long_name').val() );
+        var datatype_name = $("#UpdateDataTypeForm_short_name").val();
 
         // Load the saved form data for this datatype
         if ( SaveDatatypeProperty_Data[datatype_id] === undefined || SaveDatatypeProperty_Data[datatype_id] === null )
@@ -2437,6 +2440,9 @@
             data: post_data,
             dataType: "json",
             success: function(data) {
+                // Update the datatype name on successful save
+                $("#Datatype_" + datatype_id + "_ShortName").html(datatype_name);
+
                 // TODO - ...would be nice to not have to reload when the search slug changes, but
                 //  it seems unavoidable
                 if ( data.d.new_url !== undefined )
@@ -2820,16 +2826,6 @@
             else {
                 $(elem).unbind('keyup').unbind('paste');
                 $(elem).on('keyup paste', function() {
-                    // If the textfield being changed is for the datatype's name...
-                    if ( $(this).hasClass("ODRDatasetName") ) {
-                        // ...then immediately update it on the page without having to wait for a
-                        //  datatype reload
-                        var short_name = $(this).val();
-                        $("#Datatype_" + datatype_id + "_ShortName").html(short_name);
-
-                        // TODO - error handling?
-                    }
-
                     // Trigger a delayed save of the properties form for this datatype
                     // console.log('input changed, triggering delayed save for datatype', datatype_id);
                     SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);

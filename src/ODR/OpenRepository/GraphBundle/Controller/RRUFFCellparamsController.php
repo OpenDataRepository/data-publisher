@@ -37,7 +37,7 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\OpenRepository\GraphBundle\Plugins\RRUFF\RRUFFCellParametersPlugin;
+use ODR\OpenRepository\GraphBundle\Plugins\CrystallographyDef;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -80,14 +80,19 @@ class RRUFFCellparamsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -107,7 +112,7 @@ class RRUFFCellparamsController extends ODRCustomController
             $found_plugin = false;
             $relevant_fields = array();
 
-            $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+            $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
 
             $dt = $dt_array[$datatype->getId()];
             foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
@@ -137,6 +142,14 @@ class RRUFFCellparamsController extends ODRCustomController
             $submitted_crystal_system = trim( $values[ $relevant_fields['Crystal System'] ] );
             $submitted_point_group = trim( $values[ $relevant_fields['Point Group'] ] );
             $submitted_space_group = trim( $values[ $relevant_fields['Space Group'] ] );
+
+            // Need to unescape these values if they're coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated ) {
+                $submitted_crystal_system = stripslashes($submitted_crystal_system);
+                $submitted_point_group = stripslashes($submitted_point_group);
+                $submitted_space_group = stripslashes($submitted_space_group);
+            }
 
             if ( $submitted_space_group !== '' && $submitted_point_group === '' )
                 throw new ODRBadRequestException('Not allowed to have a space group without a point group');
@@ -175,20 +188,17 @@ class RRUFFCellparamsController extends ODRCustomController
 
             // Ensure the user is allowed to edit each of the datafields
             foreach ($df_lookup as $df) {
-                if ( !$pm_service->canEditDatafield($user, $df) )
+                if ( !$permissions_service->canEditDatafield($user, $df) )
                     throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
 
             // ----------------------------------------
-            // Loading the service makes sense now that all of the prerequisite data is verified
-            /** @var RRUFFCellParametersPlugin $plugin_service */
-            $plugin_service = $this->container->get('odr_plugins.rruff.cell_parameters');
-
-            $all_point_groups = $plugin_service->point_groups;
-            $space_group_mapping = $plugin_service->space_group_mapping;
-            $space_groups = $plugin_service->space_groups;
+            // Need to do some additional verification...
+            $all_point_groups = CrystallographyDef::$point_groups;
+            $space_group_mapping = CrystallographyDef::$space_group_mapping;
+            $space_groups = CrystallographyDef::$space_groups;
 
             // Verify that the submitted data follows crystallography rules...
             if ( $submitted_crystal_system !== '' ) {
@@ -226,26 +236,22 @@ class RRUFFCellparamsController extends ODRCustomController
             // ----------------------------------------
             // If this point is reached, then all three of the submitted fields can get saved
             $crystal_system_datafield = $df_lookup[ $relevant_fields['Crystal System'] ];
-            $crystal_system_storage_entity = $ec_service->createStorageEntity($user, $datarecord, $crystal_system_datafield);
-            $emm_service->updateStorageEntity($user, $crystal_system_storage_entity, array('value' => $submitted_crystal_system));
+            $crystal_system_storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $crystal_system_datafield);
+            $entity_modify_service->updateStorageEntity($user, $crystal_system_storage_entity, array('value' => $submitted_crystal_system));
 
             $point_group_datafield = $df_lookup[ $relevant_fields['Point Group'] ];
-            $point_group_storage_entity = $ec_service->createStorageEntity($user, $datarecord, $point_group_datafield);
-            $emm_service->updateStorageEntity($user, $point_group_storage_entity, array('value' => $submitted_point_group));
+            $point_group_storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $point_group_datafield);
+            $entity_modify_service->updateStorageEntity($user, $point_group_storage_entity, array('value' => $submitted_point_group));
 
             $space_group_datafield = $df_lookup[ $relevant_fields['Space Group'] ];
-            $space_group_storage_entity = $ec_service->createStorageEntity($user, $datarecord, $space_group_datafield);
-            $emm_service->updateStorageEntity($user, $space_group_storage_entity, array('value' => $submitted_space_group));
+            $space_group_storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $space_group_datafield);
+            $entity_modify_service->updateStorageEntity($user, $space_group_storage_entity, array('value' => $submitted_space_group));
             // Saving the space group should also trigger an update to the Lattice field
 
 
             // ----------------------------------------
             // Need to mark this datarecord as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -268,10 +274,6 @@ class RRUFFCellparamsController extends ODRCustomController
             foreach ($dfs_for_events as $df) {
                 // Fire off an event notifying that the modification of the datafield is done
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatafieldModifiedEvent($df, $user);
                     $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                 }

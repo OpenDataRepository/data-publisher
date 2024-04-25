@@ -173,10 +173,11 @@ class SearchKeyService
      * TODO - modify the default search page to send JSON?
      *
      * @param array $post
+     * @param bool $is_wordpress_integrated
      *
      * @return string
      */
-    public function convertPOSTtoSearchKey($post)
+    public function convertPOSTtoSearchKey($post, $is_wordpress_integrated)
     {
         $search_params = array();
         foreach ($post as $key => $value) {
@@ -184,6 +185,10 @@ class SearchKeyService
             $value = trim($value);
             if ($value === '')
                 continue;
+
+            // Need to unescape the value if it's coming from a wordpress install...
+            if ( $is_wordpress_integrated )
+                $value = stripslashes($value);
 
             // Technically don't care whether the contents of the POST are valid or not here
             $search_params[$key] = self::clean($value);

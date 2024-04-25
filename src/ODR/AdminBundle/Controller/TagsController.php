@@ -74,10 +74,10 @@ class TagsController extends ODRCustomController
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -110,12 +110,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
 
@@ -124,11 +124,11 @@ class TagsController extends ODRCustomController
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
                 if ( $datafield->getMasterDataField()->getTagsAllowNonAdminEdit() ) {
-                    if ( $pm_service->canEditDatafield($user, $datafield->getMasterDataField()) )
+                    if ( $permissions_service->canEditDatafield($user, $datafield->getMasterDataField()) )
                         $can_modify_template = true;
                 }
                 else {
-                    if ( $pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    if ( $permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                         $can_modify_template = true;
                 }
 
@@ -156,7 +156,7 @@ class TagsController extends ODRCustomController
             // Since tag design can be modified from the edit page, and by people without the
             //  "is_datatype_admin" permission, it makes more sense for tag design to be in a modal
             // This also reduces the chances that jQuery Sortable will mess something up
-            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links here
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links here
             if ( !isset($datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()]) )
                 throw new ODRException('unable to locate the cached entry for this datafield');
 
@@ -216,12 +216,12 @@ class TagsController extends ODRCustomController
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -259,12 +259,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
 
@@ -272,11 +272,11 @@ class TagsController extends ODRCustomController
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
                 if ( $datafield->getMasterDataField()->getTagsAllowNonAdminEdit() ) {
-                    if ( !$pm_service->canEditDatafield($user, $datafield->getMasterDataField()) )
+                    if ( !$permissions_service->canEditDatafield($user, $datafield->getMasterDataField()) )
                         throw new ODRForbiddenException();
                 }
                 else {
-                    if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                         throw new ODRForbiddenException();
                 }
 
@@ -300,7 +300,7 @@ class TagsController extends ODRCustomController
                 //  need to get created
 
                 // Create the master tag first...
-                $master_tag = $ec_service->createTag(
+                $master_tag = $entity_create_service->createTag(
                     $user,
                     $datafield->getMasterDataField(),
                     true,    // always create a new tag
@@ -308,7 +308,7 @@ class TagsController extends ODRCustomController
                 );
 
                 // ...then create the derived tag
-                $tag = $ec_service->createTag(
+                $tag = $entity_create_service->createTag(
                     $user,
                     $datafield,
                     true,    // always create a new tag
@@ -323,7 +323,7 @@ class TagsController extends ODRCustomController
             else {
                 // Otherwise, this is a request to create a tag for a field which is not derived,
                 //  or a request to create a tag directly from a template
-                $tag = $ec_service->createTag(
+                $tag = $entity_create_service->createTag(
                     $user,
                     $datafield,
                     true,    // always create a new tag
@@ -349,9 +349,9 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Fire off events related to datafields
             try {
@@ -440,10 +440,10 @@ class TagsController extends ODRCustomController
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ODRTabHelperService $tab_helper_service */
             $tab_helper_service = $this->container->get('odr.tab_helper_service');
             /** @var TagHelperService $tag_helper_service */
@@ -480,12 +480,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
 
@@ -493,11 +493,11 @@ class TagsController extends ODRCustomController
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
                 if ( $datafield->getMasterDataField()->getTagsAllowNonAdminEdit() ) {
-                    if ( !$pm_service->canEditDatafield($user, $datafield->getMasterDataField()) )
+                    if ( !$permissions_service->canEditDatafield($user, $datafield->getMasterDataField()) )
                         throw new ODRForbiddenException();
                 }
                 else {
-                    if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                         throw new ODRForbiddenException();
                 }
 
@@ -519,12 +519,19 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Verify that the tag data passed in is reasonable
+            $lines = array();
             $errors = array();
             $posted_tags = array();
 
-            $lines = array();
-            if ( strlen($post['tag_list']) > 0 )
-                $lines = explode("\n", $post['tag_list']);
+            $tag_list = $post['tag_list'];
+            if ( strlen($tag_list) > 0 ) {
+                // Need to unescape this value if it's coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated )
+                    $tag_list = stripslashes($tag_list);
+
+                $lines = explode("\n", $tag_list);
+            }
 
             $line_num = 0;
             foreach ($lines as $line) {
@@ -562,7 +569,7 @@ class TagsController extends ODRCustomController
             // Only proceed with rendering the new tag list if there were no errors...
             if ( count($errors) === 0 ) {
                 // ...going to need the datafield array entry for later
-                $cached_dt = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                $cached_dt = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
                 $cached_df = $cached_dt[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 // Convert any existing tags into a slightly different format
@@ -659,14 +666,14 @@ class TagsController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TagHelperService $tag_helper_service */
@@ -709,12 +716,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
 
@@ -722,11 +729,11 @@ class TagsController extends ODRCustomController
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
                 if ( $datafield->getMasterDataField()->getTagsAllowNonAdminEdit() ) {
-                    if ( !$pm_service->canEditDatafield($user, $datafield->getMasterDataField()) )
+                    if ( !$permissions_service->canEditDatafield($user, $datafield->getMasterDataField()) )
                         throw new ODRForbiddenException();
                 }
                 else {
-                    if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                         throw new ODRForbiddenException();
                 }
 
@@ -760,7 +767,7 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Going to need a stacked array version of the tags to combine with the posted data
-            $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+            $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
             $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
             $stacked_tag_array = $tag_helper_service->convertTagsForListImport($df_array['tags']);
 
@@ -777,7 +784,7 @@ class TagsController extends ODRCustomController
             foreach ($posted_tags as $num => $new_tags) {
                 $stacked_tag_array = self::createTagsForListImport(
                     $em,
-                    $ec_service,
+                    $entity_create_service,
                     $uuid_service,
                     $user,
                     $datafield,
@@ -804,9 +811,9 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
@@ -870,7 +877,7 @@ class TagsController extends ODRCustomController
      * Updates the existing tags for a datafield so it has everything listed in $posted_tags
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param EntityCreationService $ec_service
+     * @param EntityCreationService $entity_create_service
      * @param UUIDService $uuid_service
      * @param ODRUser $user
      * @param DataFields $datafield
@@ -884,7 +891,7 @@ class TagsController extends ODRCustomController
      *
      * @return array
      */
-    private function createTagsForListImport($em, $ec_service, $uuid_service, $user, $datafield, $master_datafield, &$hydrated_tag_array, &$stacked_tag_array, $posted_tags, $parent_tag_uuid)
+    private function createTagsForListImport($em, $entity_create_service, $uuid_service, $user, $datafield, $master_datafield, &$hydrated_tag_array, &$stacked_tag_array, $posted_tags, $parent_tag_uuid)
     {
         // Going to need this in case the tag has children
         $current_tag_uuid = null;
@@ -905,7 +912,7 @@ class TagsController extends ODRCustomController
                 //  for that datafield...
                 $master_datafield_id = $master_datafield->getId();
 
-                $new_master_tag = $ec_service->createTag(
+                $new_master_tag = $entity_create_service->createTag(
                     $user,
                     $datafield->getMasterDataField(),
                     true,    // always create a new tag
@@ -913,7 +920,7 @@ class TagsController extends ODRCustomController
                 );
 
                 // ...then create the derived tag
-                $new_tag = $ec_service->createTag(
+                $new_tag = $entity_create_service->createTag(
                     $user,
                     $datafield,
                     true,    // always create a new tag
@@ -933,7 +940,7 @@ class TagsController extends ODRCustomController
             else {
                 // Otherwise, this is a request to create a tag for a field which is not derived,
                 //  or a request to create a tag directly from a template
-                $new_tag = $ec_service->createTag(
+                $new_tag = $entity_create_service->createTag(
                     $user,
                     $datafield,
                     true,    // always create a new tag
@@ -949,7 +956,7 @@ class TagsController extends ODRCustomController
             //  insert it at the correct spot in the tag hierarchy
             if ( !is_null($parent_tag_uuid) ) {
                 // NOTE - ...unable to use createTagTree() here, because it needs a flush in order to lock properly
-//                $ec_service->createTagTree($user, $parent_tag, $new_tag);
+//                $entity_create_service->createTagTree($user, $parent_tag, $new_tag);
 
                 // Hopefully the parent tag has already been hydrated...
                 $parent_tag = null;
@@ -1032,7 +1039,7 @@ class TagsController extends ODRCustomController
             // ...then continue working recursively
             $stacked_tag_array[$tag_name]['children'] = self::createTagsForListImport(
                 $em,
-                $ec_service,
+                $entity_create_service,
                 $uuid_service,
                 $user,
                 $datafield,
@@ -1074,10 +1081,10 @@ class TagsController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
@@ -1125,12 +1132,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
 
@@ -1138,11 +1145,11 @@ class TagsController extends ODRCustomController
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
                 if ( $datafield->getMasterDataField()->getTagsAllowNonAdminEdit() ) {
-                    if ( !$pm_service->canEditDatafield($user, $datafield->getMasterDataField()) )
+                    if ( !$permissions_service->canEditDatafield($user, $datafield->getMasterDataField()) )
                         throw new ODRForbiddenException();
                 }
                 else {
-                    if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                         throw new ODRForbiddenException();
                 }
 
@@ -1268,9 +1275,9 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
@@ -1431,12 +1438,12 @@ class TagsController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -1545,12 +1552,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
 
@@ -1558,11 +1565,11 @@ class TagsController extends ODRCustomController
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
                 if ( $datafield->getMasterDataField()->getTagsAllowNonAdminEdit() ) {
-                    if ( !$pm_service->canEditDatafield($user, $datafield->getMasterDataField()) )
+                    if ( !$permissions_service->canEditDatafield($user, $datafield->getMasterDataField()) )
                         throw new ODRForbiddenException();
                 }
                 else {
-                    if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                         throw new ODRForbiddenException();
                 }
 
@@ -1604,12 +1611,12 @@ class TagsController extends ODRCustomController
                 if ( $is_derived_field ) {
                     // ...this is a request to move a tag for a derived field, which means the master
                     //  tag also needs to get moved
-                    self::updateTagTrees($em, $ec_service, $user, $datafield->getMasterDataField(), $child_tag_uuid, $parent_tag_uuid);
+                    self::updateTagTrees($em, $entity_create_service, $user, $datafield->getMasterDataField(), $child_tag_uuid, $parent_tag_uuid);
                     // NOTE - ignoring $changes_made here, since it'll be identical to the following call
                 }
 
                 // The requested tag should always get moved
-                $changes_made = self::updateTagTrees($em, $ec_service, $user, $datafield, $child_tag_uuid, $parent_tag_uuid);
+                $changes_made = self::updateTagTrees($em, $entity_create_service, $user, $datafield, $child_tag_uuid, $parent_tag_uuid);
             }
 
             $create_new_entry = $delete_old_entry = $tag_hierarchy_changed = false;
@@ -1664,7 +1671,7 @@ class TagsController extends ODRCustomController
                         $properties = array(
                             'displayOrder' => $display_order
                         );
-                        $emm_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
+                        $entity_modify_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
                         $tag_sort_order_changed = true;
 
                         if ( $is_derived_field ) {
@@ -1678,7 +1685,7 @@ class TagsController extends ODRCustomController
                             );
 
                             // Can just reuse the properties array for the derived tag
-                            $emm_service->updateTagMeta($user, $master_tag, $properties, true);    // don't flush immediately...
+                            $entity_modify_service->updateTagMeta($user, $master_tag, $properties, true);    // don't flush immediately...
                         }
                     }
                 }
@@ -1721,9 +1728,9 @@ class TagsController extends ODRCustomController
                 if ($create_new_entry || $delete_old_entry) {
                     // Master Template Data Fields must increment Master Revision on all change requests.
                     if ( $datafield->getIsMasterField() )
-                        $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                        $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
                     else if ( $is_derived_field )
-                        $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                        $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
                     try {
                         if ( $is_derived_field ) {
@@ -1781,7 +1788,7 @@ class TagsController extends ODRCustomController
      * tag hierarchy.
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param EntityCreationService $ec_service
+     * @param EntityCreationService $entity_create_service
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param string $child_tag_uuid The UUID of the tag being moved
@@ -1790,7 +1797,7 @@ class TagsController extends ODRCustomController
      *
      * @return array
      */
-    private function updateTagTrees($em, $ec_service, $user, $datafield, $child_tag_uuid, $parent_tag_uuid)
+    private function updateTagTrees($em, $entity_create_service, $user, $datafield, $child_tag_uuid, $parent_tag_uuid)
     {
         /** @var Tags $child_tag */
         $child_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
@@ -1869,7 +1876,7 @@ class TagsController extends ODRCustomController
 
         // Create a new TagTree if needed...
         if ($create_new_entry)
-            $ec_service->createTagTree($user, $parent_tag, $child_tag);
+            $entity_create_service->createTagTree($user, $parent_tag, $child_tag);
 
         return array(
             'create_new_entry' => $create_new_entry,
@@ -1898,9 +1905,14 @@ class TagsController extends ODRCustomController
             $post = $request->request->all();
             if ( !isset($post['tag_name']) )
                 throw new ODRBadRequestException();
-            $option_name = trim( $post['tag_name'] );
-            if ($option_name === '')
+            $tag_name = trim( $post['tag_name'] );
+            if ($tag_name === '')
                 throw new ODRBadRequestException("Tag Names can't be blank");
+
+            // Need to unescape this value if it's coming from a wordpress install...
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated )
+                $tag_name = stripslashes($tag_name);
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1908,10 +1920,10 @@ class TagsController extends ODRCustomController
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TrackedJobService $tracked_job_service */
@@ -1955,12 +1967,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
 
@@ -1968,11 +1980,11 @@ class TagsController extends ODRCustomController
             if ( $is_derived_field ) {
                 // ...then the same permissions checks need to be run on the template field
                 if ( $datafield->getMasterDataField()->getTagsAllowNonAdminEdit() ) {
-                    if ( !$pm_service->canEditDatafield($user, $datafield->getMasterDataField()) )
+                    if ( !$permissions_service->canEditDatafield($user, $datafield->getMasterDataField()) )
                         throw new ODRForbiddenException();
                 }
                 else {
-                    if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    if ( !$permissions_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
                         throw new ODRForbiddenException();
                 }
 
@@ -2003,7 +2015,7 @@ class TagsController extends ODRCustomController
             // Could have to rename more than one tag...
             $master_tag = null;
             $properties = array(
-                'tagName' => trim($post['tag_name'])
+                'tagName' => $tag_name
             );
 
             // The request to rename this tag can come from one of three places...
@@ -2017,11 +2029,11 @@ class TagsController extends ODRCustomController
                         'tagUuid' => $tag->getTagUuid(),
                     )
                 );
-                $emm_service->updateTagMeta($user, $master_tag, $properties, true);    // don't flush immediately
+                $entity_modify_service->updateTagMeta($user, $master_tag, $properties, true);    // don't flush immediately
             }
 
             // The tag this controller action was called with should always be updated
-            $emm_service->updateTagMeta($user, $tag, $properties);
+            $entity_modify_service->updateTagMeta($user, $tag, $properties);
             // Flushing here is intentional
 
             // If the datafield is being sorted by name, then also update the displayOrder
@@ -2035,9 +2047,9 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield);
             else if ( $is_derived_field )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+                $entity_modify_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
@@ -2121,12 +2133,12 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var Tags $tag */
@@ -2172,12 +2184,12 @@ class TagsController extends ODRCustomController
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
                 // ...but they need to at least have edit permissions for the datafield
-                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                if ( !$permissions_service->canEditDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
             }
             else {
                 // ...but if not configured for that, then the user does need to be an admin
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
             }
             // --------------------
@@ -2210,10 +2222,10 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Locate the existing datarecordfield entry, or create one if it doesn't exist
-            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+            $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
             // Locate the existing TagSelection entry, or create one if it doesn't exist
-            $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+            $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
 
             // Default to a value of 'selected' if an older TagSelection entity does not exist
             $new_value = 1;
@@ -2225,7 +2237,7 @@ class TagsController extends ODRCustomController
 
             // Update the TagSelection entity to match $new_value
             $properties = array('selected' => $new_value);
-            $emm_service->updateTagSelection($user, $tag_selection, $properties);
+            $entity_modify_service->updateTagSelection($user, $tag_selection, $properties);
 
 
             // ----------------------------------------
