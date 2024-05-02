@@ -8,15 +8,24 @@ namespace ODR\AdminBundle\Entity;
 class SidebarLayoutMap
 {
 
-    // Entries with this value never show up in a layout
+    // Entries in this category never show up in a layout...can't think of a reason to have this in
+    //  the database at the moment, but reserving the value in case something comes up in the future
     public const NEVER_DISPLAY = 0;
-    // Entries with this value will always show up in a layout
+
+    // Entries in this category will always show up in a layout, even when it's collapsed
+    // This is effectively the category that the "general search" field shows up in by default
     public const ALWAYS_DISPLAY = 1;
-    // Entries with this value
+
+    // Entries in this category will show up when expanded
+    // This is effectively the category that all the individual "searchable" fields and the "metadata"
+    //  stuff shows up in by default
     public const EXTENDED_DISPLAY = 2;
 
-    // Not all datafields of a datatype are guaranteed to have a SidebarLayoutMap entry...if they
-    //  don't, then it's assumed that they'll only show up when TODO
+    // NOTE: Not all datafields of a datatype are guaranteed to have a SidebarLayoutMap entry
+
+
+    // TODO - what about having the metadata stuff in a layout?  search by created/modified/public status?
+    // TODO - ...would need to have a string in here to go with the null datafield to be able to identify those
 
     /**
      * @var int

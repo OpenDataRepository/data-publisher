@@ -70,25 +70,25 @@
 
         {% if theme_data.id != selected_theme_id %}
             {# all users and visitors can select a shared theme #}
-            <li class="ODRMakeCurrentView">apply view (current session)</li>
+            <li class="ODRMakeCurrentView ODRChooseViewLink">apply view (current session)</li>
             {% set need_spacer = true %}
         {% endif %}
 
         {% if user != "anon." and formatted_page_type not in theme_data.user_preference_for %}
             {# users can select any theme they can view to be their personal default #}
-            <li class="ODRDefaultPersonal">make personal default</li>
+            <li class="ODRDefaultPersonal ODRChooseViewLink">make personal default</li>
             {% set need_spacer = true %}
         {% endif %}
 
         {% if user != "anon." and theme_data.created_by == user.id and not theme_data.is_shared %}
             {# users can always share one of their own themes #}
-            <li class="ODRMakeViewShared">make view usable by others</li>
+            <li class="ODRMakeViewShared ODRChooseViewLink">make view usable by others</li>
             {# datatype admins are not allowed to share other users' themes #}
             {% set need_spacer = true %}
 
         {% elseif user != "anon." and theme_data.created_by == user.id and theme_data.is_shared and theme_data.default_for|length == 0 and theme_data.theme_type != "master" %}
             {# users can only unshare one of their own themes if it's not a default or master theme #}
-            <li class="ODRMakeViewShared">make view private</li>
+            <li class="ODRMakeViewShared ODRChooseViewLink">make view private</li>
             {% set need_spacer = true %}
         {% endif %}
 
@@ -98,26 +98,26 @@
 
         {% if is_datatype_admin and theme_data.is_shared and formatted_page_type not in theme_data.default_for %}
             {# datatype admins can set any shared theme as the default for a database #}
-            <li class="ODRDefaultDatabase">make database default</li>
+            <li class="ODRDefaultDatabase ODRChooseViewLink">make database default</li>
         {% endif %}
 
             <li>
             {% if user != "anon." and theme_data.created_by == user.id and theme_data.theme_type != "master" %}
                 {# users can edit non-master themes they created #}
-                <span class="ODRModifyTheme">edit view</span> |
+                <span class="ODRModifyTheme ODRChooseViewLink">edit view</span> |
             {% elseif is_datatype_admin %}
                 {# datatype admins are also allowed to edit any theme for this datatype #}
-                <span class="ODRModifyTheme">edit view</span> |
+                <span class="ODRModifyTheme ODRChooseViewLink">edit view</span> |
             {% endif %}
 
             {% if user != "anon." %}
                 {# users are allowed to make their own copy of any theme #}
-                <span class="ODRCopyModifyTheme">copy view</span>
+                <span class="ODRCopyModifyTheme ODRChooseViewLink">copy view</span>
             {% endif %}
 
             {% if user != "anon." and theme.created_by == user.id and theme_data.default_for|length == 0 and theme_data.theme_type != "master" %}
                 {# users can delete themes, but only if they created it, and it's not a default theme, and it's not a master theme #}
-                | <span class="ODRDeleteTheme">delete view</span>
+                | <span class="ODRDeleteTheme ODRChooseViewLink">delete view</span>
                 {# datatype admins are not allowed to delete other users' themes #}
             {% endif %}
             </li>

@@ -1,0 +1,46 @@
+{% spaceless %}
+
+<li data-sidebar-layout-id="0">
+    <div class="pure-u-1 pure-u-md-6-24">
+        <h4>
+        Default View
+        </h4>
+    </div>
+
+    <div class="pure-u-1 pure-u-md-11-24 ODRChooseViewDescription">
+        This sidebar layout contains all searchable fields in this database.
+
+    {% if selected_layout_id == 0 %}
+        <div class="ODRViewNote">[ Currently selected layout. ]</div>
+    {% endif %}
+    </div>
+
+    <div class="pure-u-1 pure-u-md-6-24">
+        <ul class="ODRViewOptions">
+        {% set need_spacer = false %}
+
+        {% if selected_layout_id != 0 %}
+            {# all users and visitors can select the "master" sidebar layout #}
+            <li class="ODRSidebarLayout_UseSession ODRChooseViewLink">apply layout (current session)</li>
+            {% set need_spacer = true %}
+        {% endif %}
+
+        {% if need_spacer %}
+            <li>&nbsp;</li>
+        {% endif %}
+
+            <li>
+            {% if user != "anon." %}
+                {# users are allowed to make their own copy of any sidebar layout #}
+                <span class="ODRSidebarLayout_Create ODRChooseViewLink">create new layout</span>
+            {% endif %}
+            </li>
+
+        {# Users are not allowed to set the "master" sidebar layout as a default #}
+        {# Users are not allowed to change the public status of the "master" sidebar layout #}
+        {# Users are not allowed to edit, copy, or delete the "master" sidebar layout #}
+        </ul>
+    </div>
+</li>
+
+{% endspaceless %}

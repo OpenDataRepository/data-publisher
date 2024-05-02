@@ -3,6 +3,18 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set theme = theme_array[initial_theme_id] %}
 
+{% set layout_has_general_search = false %}
+{% for df_id,df in sidebar_array['always_display'] %}
+    {% if df_id == 0 %}
+        {% set layout_has_general_search = true %}
+    {% endif %}
+{% endfor %}
+{% for df_id,df in sidebar_array['extended_display'] %}
+    {% if df_id == 0 %}
+        {% set layout_has_general_search = true %}
+    {% endif %}
+{% endfor %}
+
 <h1 class="no-margin-top-phone">
     <span>Sidebar Layout Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
@@ -14,16 +26,20 @@
             <div class="ODRBodyContent pure-u-1">
                 <p>
                     Edit the layout and then click the "return to previous page" button below to see
-                    the edited view in action.  TODO
+                    the edited view in action.
                 </p>
-                <p>
-                    Click a field to bring up its configurable properties.  To view hidden fields, toggle the "show hidden elements" checkbox below.  TODO
-                </p>
+
                 <p>Edit the name and description of the layout below:</p>
                 {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_properties_form.html.twig' with {
                     'sidebar_layout': sidebar_layout,
                     'sidebar_layout_form': sidebar_layout_form,
                 } %}
+
+                <label for="ODRSidebarLayout_includeGeneralSearch" title="If checked, then the layout will also include a 'Search all fields' input">
+                    <input type="checkbox" id="ODRSidebarLayout_includeGeneralSearch" {% if layout_has_general_search %}checked{% endif %} />
+                    Layout includes an input to "Search all Fields"
+                </label>
+
                 <div>
                     <button type="button" class="pure-button pure-button-primary ODRReturn">Return to previous page</button>
                 </div>
@@ -47,167 +63,456 @@
 </div>
 
 
-    <div id="ThemeDesignWrapper">
-{#
-        <div id="ThemeLeftColumn" class="ODRContentWrapper">
-            <div class="ODRThemeElement">
-                <div class="ODRInnerBox">
-                    <h3 class="ODRHeader">Theme Styling</h3>
-                    <div class="ODRThemeDesignSettings">
-                        <div>
-                            <label for="ODRThemeShowHidden">
-                                Show Hidden Elements:
-                            </label>
-                            <input type="checkbox" value="0" id="ODRThemeShowHidden" name="ODRThemeShowHidden">
-                        </div>
-                    </div>
-                    <h3 class="ODRHeader">Manage Design</h3>
-                    <div class="ODRThemeDesignSettings">
-                        <p>Click on an element of your design to manage its settings below.</p>
-                        <div id="ODRDatatypeToolsBlock">
-                            <p>
-                                <a id="ODRDatatype_addTE">
-                                    <i class="tooltip fa fa-edit ODRAddThemeElement"></i>
-                                    <span class="link-text">Add Group Box</span>
-                                </a>
-                            </p>
-                            <p>
-                                <a id="ODRDatatype_visibleTE">
-                                    <i class="tooltip fa fa-eye fa-inverse ODRVisibleThemeElement"></i>
-                                    <span class="link-text"> Group Box is Visible</span>
-                                </a>
-                            </p>
-                            <p>
-                                <a id="ODRDatatype_visibleTEBorder">
-                                    <i class="tooltip fa fa-eye ODRVisibleThemeElementBorder"></i>
-                                    <span class="link-text"> Show Group Box Border</span>
-                                </a>
-                            </p>
-                            <p></p>
-                            <p>
-                                <a id="ODRDatatype_deleteTE">
-                                    <i class="tooltip fa fa-trash ODRDeleteThemeElement"></i>
-                                    <span class="link-text"> Delete Group Box</span>
-                                </a>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="pure-u-1"></div>
-                    <div class="pure-u-24-24"><h3 class="ODRHeader">Element Settings</h3></div>
-                    <div id="ThemeDesignForm"></div>
-                    <div id="ThemeDatafieldDesignForm" class="ODRHidden"></div>
-                </div>
-            </div>
+<div id="ThemeDesignWrapper" class="pure-u-1">
+    <div class="pure-u-1-4">
+        <div class="pure-u-23-24">
+            <span id="ODRSidebarLayout_noFieldsWarning" class="ODRInputError" style="display: none;">
+                <i class="fa fa-2x fa-exclamation-triangle"></i>&nbsp;Layouts must have at least one field that is always visible.
+            </span>
         </div>
-#}
-        {# TODO - need sidebar #}
-
-        <div id="ThemeDesignArea">
-            {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_area.html.twig' with {
-                'datatype_array': datatype_array,
-                'theme_array': theme_array,
-                'site_baseurl': site_baseurl,
-
-                'initial_datatype_id': initial_datatype_id,
-                'initial_theme_id': theme.id,
-
-                'datatype_permissions': datatype_permissions,
-                'is_datatype_admin': is_datatype_admin,
+        <div id=ODRSidebarLayout_fakeSidebar class="pure-u-23-24">
+            {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_design_element.html.twig' with {
+                'datatype': datatype,
+                'sidebar_array': sidebar_array,
             } %}
         </div>
     </div>
 
+    <div id="SidebarLayoutDesignArea" class="pure-u-3-4">
+        {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_area.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
+            'site_baseurl': site_baseurl,
+
+            'initial_datatype_id': initial_datatype_id,
+            'initial_theme_id': theme.id,
+
+            'datatype_permissions': datatype_permissions,
+            'is_datatype_admin': is_datatype_admin,
+
+            'sidebar_array': sidebar_array,
+        } %}
+    </div>
+</div>
+
+<form id="sidebarlayout_form" style="display:none;">
+    <input type="hidden" id="form_sidebar_layout_id" name="sidebar_layout_id" value="{{ sidebar_layout.id }}" />
+    <input type="hidden" id="form_datafield_id" name="datafield_id" />
+    <input type="hidden" id="form_state" name="state" />
+</form>
 
 <script>
     var SaveTimeout = 1500;
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-        // Initialize the help button
-        $("#ODRHelpButton").unbind('click').click(function() {
-            ODRSidebarLayout_startIntroJS();
+        {% if sidebar_array['always_display'] is not defined or sidebar_array['always_display']|length == 0 %}
+        $("#ODRSidebarLayout_noFieldsWarning").show();
+        {% endif %}
+
+        // Initialize the name/description elements for the current Sidebar Layout
+        ODRSidebarLayout_initLayoutPropertiesForm();
+        // Initialize sortable on any datafields in the left side of the page
+        ODRSidebarLayout_initSortable();
+
+        // Hide all theme elements without datafields
+        $(".ODRThemeElement").each(function() {
+            // Only hide empty theme elements in the design area
+            if ( $(this).parents(".ODRFieldArea").length === 0 )
+                return;
+
+            var found = false;
+            $(this).find(".ODRFieldArea").each(function() {
+                found = true;
+            });
+
+            $(this).find(".ODRDataField").each(function() {
+                found = true;
+            });
+
+            if (!found)
+                $(this).hide();
         });
-
-        // Attach handlers to the elements used to change the theme name/description
-        $("#SidebarLayoutPropertiesForm input:text").unbind('keyup').keyup(function() {
-            // Only want to execute this save once
-            clearTimeout(sidebar_layout_properties_change);
-            sidebar_layout_properties_change = setTimeout("SaveSidebarLayoutProperties()", SaveTimeout);
-        });
-        $("#SidebarLayoutPropertiesForm textarea").unbind('keyup').keyup(function() {
-            // Only want to execute this save once
-            clearTimeout(sidebar_layout_properties_change);
-            sidebar_layout_properties_change = setTimeout("SaveSidebarLayoutProperties()", SaveTimeout);
-        });
-
-        $(".ODRReturn").unbind('click').click(function() {
-            {# TODO - need to figure out layout switching #}
-{#{% if search_key == '' %}#}
-            // Typically want to return to the previous page...
-            window.history.back();
-{#
-{% else %}
-            // Want to render the search results list with the theme that was just being modified
-            var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '' }) }}';
-            url = url.substr(0, url.length-2);
-            url += {{ theme.id }} + '/' + '{{ search_key }}' + '/1';
-
-            UpdateURL(url);
-{% endif %}
-#}
-        });
-
-        initPage();
-    });
-
-    /**
-     * Performs basic setup of the page.
-     */
-    function initPage() {
-        // Setup Data Fields
-        SetupDataFields();
 
         // Attach click handlers to tags
         setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // Resize overlay divs
+        ODRSidebarLayout_resizeOverlayDivs();
+
+        $("#ODRSidebarLayout_includeGeneralSearch").unbind('click').click(function(event) {
+            event.stopPropagation();
+
+            var desired_state = 'ODRUnusedDatafield';
+            if ( $(this).is(':checked') )
+                desired_state = 'ODRUsedDatafield';
+
+            ODRSidebarLayout_updateDatafieldCategory(null, desired_state);
+        });
+
+{% if is_datatype_admin %}
+        $(".ODRSearchableToggle").unbind('click').click(function(event) {
+            event.stopPropagation();
+            ODRSidebarLayout_toggleSearchable(this);
+        });
+{% endif %}
+
+        $(".ODRReturn").unbind('click').click(function() {
+            window.history.back();
+        });
+
+        $(".ODROverlayDiv").unbind('click').click(function(event) {
+            event.stopPropagation();
+            if ( $(this).hasClass('ODRBlockedDatafield') )
+                return;
+
+            if ( $(this).hasClass('ODRUsedDatafield') ) {
+                // Datafield is currently used...remove it from the sidebar
+                ODRSidebarLayout_updateDatafieldCategory(this, 'ODRUnusedDatafield');
+            }
+            else if ( $(this).hasClass('ODRUnusedDatafield') ) {
+                // Datafield is currently unused...add it to the sidebar
+                ODRSidebarLayout_updateDatafieldCategory(this, 'ODRUsedDatafield');
+            }
+        });
 
         // Don't want to be able to highlight everything...
         $("#odr_content").find(".ODRInnerBox").disableSelection();
 
         // Should only deal with introJS after everything else is initialized...
         ODRSidebarLayout_setupIntroJS();
+    });
+
+    var WindowResizeInterval = "";
+
+    /**
+     * Resizes the overlay divs for the fields on the right side of the page.
+     */
+    function ODRSidebarLayout_resizeOverlayDivs() {
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+
+        // Attach an overlay div of sorts over each datafield
+        $(".ODROverlayDiv").each(function() {
+            // Need dimensions of parent div...
+            var height = $(this).parent().css('height');
+            var width = $(this).parent().css('width');
+
+            // Apply dimensions of parent div to loading div
+            $(this).css({"height": height, "line-height": height, "width": width});
+        });
     }
 
     /**
-     * Attaches a click handler to every Datafield element on the page, so that a properties form
-     * can be loaded.
+     * Saves changes when one of the datafields on the right side of the page is clicked, or when
+     * the checkbox to add/remove the "search all fields" input is clicked.
+     *
+     * @param {HTMLElement} elem
+     * @param {string} desired_state
      */
-    function SetupDataFields() {
-        {# TODO - need draggable here, not click #}
-        // There are several elements on the page that aren't datafields but have the "ODRDataField"
-        //  class...so ensure the event only fires on the ones in the layout designer
-        $("#ODRDatatypeDesign").find(".ODRDataField").unbind('click').click(function() {
-            // Grab datafield id
-            var id_data = $(this).attr('id').split(/_/);
-            var datafield_id = id_data[1];
+    function ODRSidebarLayout_updateDatafieldCategory(elem, desired_state) {
+        // console.log("ODRSidebarLayout_updateDatafieldCategory()", elem, desired_state);
 
-            id_data = $(this).parents(".ODRThemeElement").first().attr('id').split(/_/);
-            var theme_element_id = id_data[1];
+        // Grab datafield_id
+        var datafield_id = null;
+        if ( elem !== null )
+            datafield_id = $(elem).attr('rel');
 
-            // Setup Resizeable
-            // console.log('.ODRDatafield clicked', datafield_id, theme_element_id);
-            setupElement(this, 'datafield');
+        // Don't save if the datafield already has the desired state...
+        if ( elem !== null && $(elem).hasClass(desired_state) ) {
+            // ...but might as well ensure the overlay is current
+            ODRSidebarLayout_updateOverlayProperties(elem, desired_state);
+            return;
+        }
 
-            // Render Tool Set
-            RenderToolSet(datafield_id, 'datafield', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datafield
+        // Determined desired permission
+        var state;
+        if (desired_state == 'ODRUsedDatafield')
+            state = 1;
+        else if (desired_state == 'ODRUnusedDatafield')
+            state = 0;
+
+        var url  = '{{ path('odr_design_toggle_datafield_layout_status') }}';
+
+        if (datafield_id === null)
+            $("#form_datafield_id").prop('disabled', true);
+        else
+            $("#form_datafield_id").prop('disabled', false).val(datafield_id);
+
+        $("#form_state").val(state);
+        var data = $("#sidebarlayout_form").serialize();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            data: data,
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                if ( desired_state == 'ODRUsedDatafield' ) {
+                    // Ensure the datafield exists in the "fake" sidebar
+                    $("#ODRSidebarLayout_fakeSidebar").html( data.d.html );
+                    ODRSidebarLayout_initSortable();
+                }
+                else {
+                    if ( datafield_id != null ) {
+                        // Ensure the datafield does not exist in the "fake" sidebar
+                        var parent = $("#ODRSidebarLayout_fakeSidebar").find("#datafield_" + datafield_id).parent();
+                        // console.log('parent', parent);
+                        $(parent).remove();
+                    }
+                    else {
+                        // Ensure the "general search" input does not exist in the "fake" sidebar
+                        var parent = $("#ODRSidebarLayout_fakeSidebar").find("#textbox_general").parent().parent();
+                        // console.log('parent', parent);
+                        $(parent).remove();
+                    }
+                }
+
+                // Warn when there are no datafields in the "always display" section...
+                if ( $(".ODRSidebarLayout_dragTarget").first().find('.ODRSidebarLayout_sidebarDatafield').length == 0 )
+                    $("#ODRSidebarLayout_noFieldsWarning").show();
+                else
+                    $("#ODRSidebarLayout_noFieldsWarning").hide();
+
+                // Update the datafield's overlay
+                ODRSidebarLayout_updateOverlayProperties(elem, desired_state);
+                notifySaved();
+
+                // The "real" search sidebar is hidden, but it can still be updated
+                // Has to be done here, unfortunately, or going back via browser arrow won't update
+                updateSearchSidebar('{{ search_key }}', '{{ page_type }}', true);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Changes the datafield's overlay so it matches the given state from the backend.
+     * @param {HTMLElement} elem
+     * @param {string} desired_state
+     */
+    function ODRSidebarLayout_updateOverlayProperties(elem, desired_state) {
+        // console.log("ODRSidebarLayout_updateOverlayProperties()", elem, desired_state);
+
+        // Change overlay to the desired state
+        $(elem).removeClass('ODRUnusedDatafield ODRUsedDatafield ODRBlockedDatafield').addClass(desired_state);
+
+        if (desired_state == 'ODRUnusedDatafield')
+            $(elem).attr('title', 'This datafield can be added to the sidebar');
+        else if (desired_state == 'ODRUsedDatafield')
+            $(elem).attr('title', 'This datafield is currently being used by the sidebar');
+        else if (desired_state == 'ODRBlockedDatafield')
+            $(elem).attr('title', 'This datafield is not searchable, and therefore can not be used in the sidebar');
+    }
+
+{% if is_datatype_admin %}
+    /**
+     * Toggles the searchable status of the given datafield
+     * @param {HTMLElement} elem
+     */
+    function ODRSidebarLayout_toggleSearchable(elem) {
+        var pieces = $(elem).parents('.ODRDataField').attr('id').split(/_/);
+        var datafield_id = pieces[1];
+
+        var overlay_div = $(elem).parents('.ODRDataField').children('.ODROverlayDiv').first();
+
+        var url = '{{ path('odr_sidebar_layout_searchable_toggle', { 'datafield_id': 0 }) }}';
+        url = url.substring(0, url.length-1);
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data) {
+                if ( $(elem).hasClass('fa-not-public') ) {
+                    // Need to change the icon to indicate the datafield is now searchable...
+                    $(elem).removeClass('fa-not-public').addClass('fa-public');
+
+                    // ...and update the overlay so the field can be used
+                    ODRSidebarLayout_updateOverlayProperties(overlay_div, 'ODRUnusedDatafield');
+                }
+                else {
+                    // Need to change the icon to indicate the datafield is no longer searchable...
+                    $(elem).removeClass('fa-public').addClass('fa-not-public');
+
+                    // ...and update the overlay so the field can't be used
+                    ODRSidebarLayout_updateOverlayProperties(overlay_div, 'ODRBlockedDatafield');
+
+                    // ...and remove any matching datafield from the sidebar area
+                    var parent = $("#ODRSidebarLayout_fakeSidebar").find("#datafield_" + datafield_id).parent();
+                    // console.log('parent', parent);
+                    $(parent).remove();
+
+                    // Warn when there are no datafields in the "always display" section...
+                    if ( $(".ODRSidebarLayout_dragTarget").first().find('.ODRSidebarLayout_sidebarDatafield').length == 0 )
+                        $("#ODRSidebarLayout_noFieldsWarning").show();
+                    else
+                        $("#ODRSidebarLayout_noFieldsWarning").hide();
+
+                    // The "real" search sidebar is hidden, but it can still be updated
+                    // Has to be done here, unfortunately, or going back via browser arrow won't update
+                    updateSearchSidebar('{{ search_key }}', '{{ page_type }}', true);
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+{% endif %}
+
+    /**
+     * Creates/updates JQuery sortable instances for all datafields in the left side of the page
+     */
+    function ODRSidebarLayout_initSortable() {
+        // Delete all current sortable instances first
+        $('.ODRSidebarLayout_dragTarget').each(function(elem) {
+            if ( $(elem).sortable('instance') !== undefined )
+                $(elem).sortable('destroy');
+        });
+
+        $("#ODRSidebarLayout_fakeSidebar").children(".ODRSidebarLayout_dragTarget").each(function () {
+            $(this).sortable({
+                // handle: ".ODRSortHandle",
+                items: "> .ODRSidebarLayout_sidebarDatafield",   // Only attach the event to datafields within the ODRInnerBox
+                helper: "clone",
+                placeholder: "ui-state-highlight",
+                connectWith: ".ODRSidebarLayout_dragTarget",
+                dropOnEmpty: true,
+                start: function (event, ui) {
+                    // Style the placeholder to more closely match the datafield being drug around
+                    jQuery(ui.placeholder).addClass( jQuery(ui.helper).attr('class') );
+                    jQuery(ui.placeholder).css('height', jQuery(ui.helper).height());
+                    jQuery(ui.placeholder).css('width', jQuery(ui.helper).width() * 0.95);
+                },
+                stop: function (event, ui) {
+                    // Unhide the object that was being dragged around
+                    jQuery(ui.item).show();
+
+                    // jQuery Sortable attaches a display: block style to these elements...get rid of it
+                    jQuery(ui.item).removeAttr('style');
+
+                    // Save any changes made
+                    ODRSidebarLayout_updateDatafieldOrder();
+                }
+            });
+        });
+    }
+
+    /**
+     * Saves the new order of the datafields after jquery sortable executes.
+     */
+    function ODRSidebarLayout_updateDatafieldOrder() {
+        // Not sure why serialize() refuses to work on javascript objects, so do it manually
+        var data = [];
+        data.push('sidebar_layout_id={{ sidebar_layout.id }}');
+        $(".ODRSidebarLayout_dragTarget").each(function(index, elem) {
+            var category = $(elem).attr('rel');
+
+            var i = 0;
+            $(elem).children(".ODRSidebarLayout_sidebarDatafield").each(function(index2,df) {
+                var df_id = $(df).attr('rel');
+                data.push(category + '%5B' + i + '%5D=' + df_id);
+                i++;
+            });
+        });
+        data = data.join('&');
+        // console.log('ODRSidebarLayout_updateDatafieldOrder() data', data);
+
+        var url = '{{ path('odr_design_save_datafield_order_layout') }}';
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            data: data,
+            url: url,
+            dataType: "json",
+            success: function() {
+                notifySaved();
+
+                // Warn when there are no datafields in the "always display" section...
+                if ( $(".ODRSidebarLayout_dragTarget").first().find('.ODRSidebarLayout_sidebarDatafield').length == 0 )
+                    $("#ODRSidebarLayout_noFieldsWarning").show();
+                else
+                    $("#ODRSidebarLayout_noFieldsWarning").hide();
+
+                // The "real" search sidebar is hidden, but it can still be updated
+                // Has to be done here, unfortunately, or going back via browser arrow won't update
+                updateSearchSidebar('{{ search_key }}', '{{ page_type }}', true);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
         });
     }
 
     var sidebar_layout_properties_change = null;
 
     /**
+     * Initializes the name/description properties for the currently loaded Sidebar Layout
+     */
+    function ODRSidebarLayout_initLayoutPropertiesForm() {
+        // Attach handlers to the elements used to change the theme name/description
+        $("#SidebarLayoutPropertiesForm input:text").unbind('keyup').keyup(function() {
+            // Only want to execute this save once
+            clearTimeout(sidebar_layout_properties_change);
+            sidebar_layout_properties_change = setTimeout("ODRSidebarLayout_saveLayoutPropertiesForm()", SaveTimeout);
+        });
+        $("#SidebarLayoutPropertiesForm textarea").unbind('keyup').keyup(function() {
+            // Only want to execute this save once
+            clearTimeout(sidebar_layout_properties_change);
+            sidebar_layout_properties_change = setTimeout("ODRSidebarLayout_saveLayoutPropertiesForm()", SaveTimeout);
+        });
+    }
+
+    /**
      * Saves the name/description properties for the currently loaded Sidebar Layout.
      */
-    function SaveSidebarLayoutProperties() {
+    function ODRSidebarLayout_saveLayoutPropertiesForm() {
         // Clear the save timeout for this action
         window.clearInterval(sidebar_layout_properties_change);
 
@@ -240,107 +545,14 @@
     }
 
     /**
-     * Saves the results of moving a datafield inside a theme_element, or to a different theme_element.
-     *
-     * @param {HTMLElement} container - The .ODRInnerBox element that is the direct parent of the datafields in the destination theme_element
-     * @param {number} datafield_id - The id of the datafield that triggered this function by being moved
-     * @param {number} source_theme_element_id - The id of the theme_element that the moved datafield started in
-     * @param {number} dest_theme_element_id - The id of the theme_element that the moved datafield ended in
-     */
-    function SaveDatafieldOrder(container, datafield_id, source_theme_element_id, dest_theme_element_id) {
-        {# TODO - fix this #}
-
-        var i = 0;
-        var datafield_ids = {};
-        $(container).children(".ODRDataField").each(function() {
-            var id_data = $(this).attr('id').split(/_/);
-            datafield_ids[i] = id_data[1];
-            i++;
-        });
-
-        // console.log('SaveDatafieldOrder(), datafield_id: ' + datafield_id + ' source theme_element: ' + source_theme_element_id + ' dest theme_element: ' + dest_theme_element_id);
-
-        // Get the id numbers of the passed-in theme elements
-        var theme_element = source_theme_element_id.split(/_/);
-        var initial_theme_element_id = theme_element[1];
-        theme_element = dest_theme_element_id.split(/_/);
-        var ending_theme_element_id = theme_element[1];
-
-        var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
-        url = url.substring(0, url.length-3);
-        url += initial_theme_element_id + '/' + ending_theme_element_id;
-
-        // If the datafield got moved to a new theme element...
-        if ( initial_theme_element_id !== ending_theme_element_id ) {
-            // ...then any attempt to load the datafield's themeDatafield entry needs to wait until
-            //  this ajax function finishes
-            var key = datafield_id + '_' + ending_theme_element_id;
-            load_themeDatafield_delay[key] = 1;
-            // console.log('need themeDatafield delay', load_themeDatafield_delay);
-
-            // Also throw up an overlay so the user can't attempt to resize a datafield until the
-            //  themeDatafield entry exists
-            insertLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
-        }
-
-        $.ajax({
-            cache: false,
-            type: 'POST',
-            data: datafield_ids,
-            url: url,
-            dataType: "json",
-            success: function() {
-                notifySaved();
-
-                // Ensure the properties of both the source and the destination theme elements are
-                //  kept up to date
-                var initial_te_length = $("#ThemeElement_" + initial_theme_element_id).children(".ODRDataField").length;
-                if ( initial_te_length > 0 )
-                    theme_element_properties[initial_theme_element_id].has_datafields = 1;
-                else
-                    theme_element_properties[initial_theme_element_id].has_datafields = 0;
-
-                var ending_te_length = $("#ThemeElement_" + ending_theme_element_id).children(".ODRDataField").length;
-                if (ending_te_length > 0)
-                    theme_element_properties[ending_theme_element_id].has_datafields = 1;
-                else
-                    theme_element_properties[ending_theme_element_id].has_datafields = 0;
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
-            },
-            complete: function(jqXHR) {
-                // If this ajax request was for a datafield being moved into a different themeElement...
-                var key = datafield_id + '_' + ending_theme_element_id;
-                if ( load_themeDatafield_delay[key] !== undefined && load_themeDatafield_delay[key] !== null ) {
-                    // ...then delete the delay entry because the themeDatafield entry exists now
-                    delete load_themeDatafield_delay[key];
-                    // console.log('SaveDatafieldOrder() complete', load_themeDatafield_delay);
-
-                    // Also get rid of the overlay div
-                    removeLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
-                }
-
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    }
-
-    /**
      * Not strictly necessary to have this off in its own function, but it makes more sense this way.
      */
     function ODRSidebarLayout_setupIntroJS() {
+        // Initialize the help button
+        $("#ODRHelpButton").unbind('click').click(function() {
+            ODRSidebarLayout_startIntroJS();
+        });
+
         // Setup IntroJS Walkthrough
         $('#ODRHelpButton')
             .attr('data-step', '1')
@@ -348,24 +560,35 @@
 
         $('#SidebarLayoutPropertiesForm')
             .attr('data-step', '2')
-            .attr('data-intro', 'You can change the name and description of a layout here, to make it easier to find later on.');
-        $(".ODRReturn")
+            .attr('data-intro', "You can change the name and description of a layout here, to make it easier to find later on.");
+        $('#ODRSidebarLayout_includeGeneralSearch').parent()
             .attr('data-step', '3')
-            .attr('data-intro', "When you're finished making changes, click here to return to the previous page.");
+            .attr('data-intro', "If checked, then the layout will include an input to search all fields in the database");
 
-        {# TODO - fix this #}
-
-        // Find the first visible datafield in the first visible theme element
-        var theme_datafield = $(theme_element_handle).parent().find('.ODRDataField').first();
-        $(theme_datafield)
-            .attr('data-step', '7')
+        $(".ODRDatatypeProperties").first().parent().parent()
+            .attr('data-step', '4')
             .attr('data-position', 'top')
-            .attr('data-intro', 'Clicking anywhere inside a field selects it, allowing you to resize it in the same manner as if you had selected a group box.<br><br>You can move the field by clicking and dragging the green bars in the center of the field.');
-{# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
-        $(theme_datafield).find('.ODRDragHandle').first()
+            .attr('data-intro', "Click on any of the fields on the right side of the screen to add or remove them from the layout");
+        $(".ODRUsedDatafield").first()
+            .attr('data-step', '5')
+            .attr('data-intro', "A field will be highlighted when it is already part of the layout");
+        $(".ODRSearchableToggle").first()
+            .attr('data-step', '6')
+            .attr('data-intro', "Database admins can also toggle the searchable status of the field from here");
+
+        $(".ODRSidebarLayout_dragTarget").first()
+            .attr('data-step', '7')
+            .attr('data-intro', "Fields in this section will always be visible in the sidebar");
+        $(".ODRSidebarLayout_dragTarget").last()
             .attr('data-step', '8')
-            .attr('data-intro', 'Fields are resized the same way as group boxes....click here and drag to the left or right.');
-#}
+            .attr('data-intro', "Fields in this section will only be visible when the sidebar is expanded");
+        $(".ODRSidebarLayout_sidebarDatafield ").first()
+            .attr('data-step', '9')
+            .attr('data-intro', "Fields can be reordered or moved between sections by clicking and dragging");
+
+        $(".ODRReturn")
+            .attr('data-step', '10')
+            .attr('data-intro', "When you're finished making changes, click here to return to the previous page.");
     }
 
     /**

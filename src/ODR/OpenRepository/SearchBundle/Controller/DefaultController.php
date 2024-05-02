@@ -21,7 +21,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\StoredSearchKey;
@@ -55,6 +54,7 @@ class DefaultController extends Controller
     public function homeAction($search_slug, $search_string, Request $request)
     {
         $html = '';
+        $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -205,9 +205,9 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // Need to build everything used by the sidebar...
-            $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
-            $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $datatype_array);
+            $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $sidebar_layout_id);
+            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
 
 
             // ----------------------------------------
@@ -228,7 +228,6 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
@@ -257,8 +256,7 @@ class DefaultController extends Controller
                     // datatype/datafields to search
                     'search_params' => array(),
                     'target_datatype' => $target_datatype,
-                    'datatype_array' => $datatype_array,
-                    'datatype_relations' => $datatype_relations,
+                    'sidebar_array' => $sidebar_array,
 
                     // theme selection
 //                    'available_themes' => $available_themes,
@@ -275,7 +273,10 @@ class DefaultController extends Controller
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
-            print $e; exit();
+            if ( $is_wordpress_integrated ) {
+                print $e; exit();
+            }
+
             $source = 0xd75fa46d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
@@ -300,6 +301,7 @@ class DefaultController extends Controller
     public function searchpageAction($search_slug, $search_string, Request $request)
     {
         $html = '';
+        $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -442,9 +444,9 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // Need to build everything used by the sidebar...
-            $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
-            $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $datatype_array);
+            $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $sidebar_layout_id);
+            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
 
             // If this datatype has a default search key...
             $search_key = '';
@@ -458,7 +460,7 @@ class DefaultController extends Controller
                 // Convert the search key into a parameter list so that the sidebar can start out
                 //  with the right stuff
                 $search_params = $search_key_service->decodeSearchKey($search_key);
-                $search_sidebar_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
+                $search_sidebar_service->fixSearchParamsOptionsAndTags($sidebar_array, $search_params);
 
                 // Don't need to worry if the search key refers to an invalid/deleted datafield
                 //  ...the user will end up being redirected to the "empty" search key for the datatype
@@ -469,49 +471,7 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
             $background_image_id = null;
-            /* TODO - current search page doesn't have a good place to put a background image...
-
-            if ( !is_null($target_datatype) && !is_null($target_datatype->getBackgroundImageField()) ) {
-
-                // Determine whether the user is allowed to view the background image datafield
-                $df = $target_datatype->getBackgroundImageField();
-                if ( $permissions_service->canViewDatafield($admin_user, $df) ) {
-                    $query = null;
-                    if ( $permissions_service->canViewNonPublicDatarecords($admin_user, $target_datatype) ) {
-                        // Users with the $can_view_datarecord permission can view all images in all datarecords of this datatype
-                        $query = $em->createQuery(
-                           'SELECT i.id AS image_id
-                            FROM ODRAdminBundle:Image as i
-                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
-                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                            WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
-                            AND i.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '') );
-                    }
-                    else {
-                        // Users without the $can_view_datarecord permission can only view public images in public datarecords of this datatype
-                        $query = $em->createQuery(
-                           'SELECT i.id AS image_id
-                            FROM ODRAdminBundle:Image as i
-                            JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
-                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
-                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                            JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                            WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
-                            AND im.publicDate NOT LIKE :public_date AND drm.publicDate NOT LIKE :public_date
-                            AND i.deletedAt IS NULL AND im.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '', 'public_date' => '2200-01-01 00:00:00') );
-                    }
-                    $results = $query->getArrayResult();
-
-                    // Pick a random image from the list of available images
-                    if (count($results) > 0) {
-                        $index = rand(0, count($results) - 1);
-                        $background_image_id = $results[$index]['image_id'];
-                    }
-                }
-            }
-*/
+            // TODO - current search page doesn't have a good place to put a background image...
 
 
             // ----------------------------------------
@@ -527,7 +487,6 @@ class DefaultController extends Controller
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             // Wordpress Integrated - use full & body
             $site_baseurl = $this->container->getParameter('site_baseurl');
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
             // print "WP Header: " . $request->wordpress_header; exit();
 
@@ -561,8 +520,7 @@ class DefaultController extends Controller
 
                         // datatype/datafields to search
                         'target_datatype' => $target_datatype,
-                        'datatype_array' => $datatype_array,
-                        'datatype_relations' => $datatype_relations,
+                        'sidebar_array' => $sidebar_array,
 
                         // defaults if needed
                         'search_key' => $search_key,
@@ -602,8 +560,7 @@ class DefaultController extends Controller
 
                         // datatype/datafields to search
                         'target_datatype' => $target_datatype,
-                        'datatype_array' => $datatype_array,
-                        'datatype_relations' => $datatype_relations,
+                        'sidebar_array' => $sidebar_array,
 
                         // defaults if needed
                         'search_key' => $search_key,
@@ -622,7 +579,10 @@ class DefaultController extends Controller
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
-            print $e; exit();
+            if ( $is_wordpress_integrated ) {
+                print $e; exit();
+            }
+
             $source = 0xd75fa46d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
@@ -1316,215 +1276,6 @@ class DefaultController extends Controller
         }
         catch (\Exception $e) {
             $source = 0x76b670c0;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Re-renders and returns the HTML to search a datafield in the search slideout.
-     *
-     * @param int $datafield_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function reloadsearchdatafieldAction($datafield_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
-
-            /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ($datafield == null)
-                throw new ODRNotFoundException('Datafield');
-
-            $datatype = $datafield->getDataType();
-            if ( $datatype->getDeletedAt() !== null )
-                throw new ODRNotFoundException('Datatype');
-
-
-            // --------------------
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if ( !$permissions_service->canViewDatatype($user, $datatype) )
-                throw new ODRForbiddenException();
-            if ( !$permissions_service->canViewDatafield($user, $datafield) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-
-            $searchable = $datafield->getSearchable();
-            if ( $searchable === DataFields::NOT_SEARCHED || $searchable === DataFields::GENERAL_SEARCH ) {
-                // Don't attempt to re-render the datafield if it's either "not searchable" or
-                //  "general search only"
-                $return['d'] = array(
-                    'needs_update' => false,
-                    'html' => ''
-                );
-            }
-            else {
-                // Datafield is in advanced search, so it has an HTML element on the sidebar
-                // Need the datafield's array entry in order to re-render it
-                $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-                $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
-
-                $templating = $this->get('templating');
-                $return['d'] = array(
-                    'needs_update' => true,
-                    'html' => $templating->render(
-                        'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig',
-                        array(
-                            'datatype_id' => $datatype->getId(),
-                            'datafield' => $df_array,
-                        )
-                    )
-                );
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0x9d85646e;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Renders and returns the HTML for a reload of the search sidebar.
-     *
-     * @param string $search_key
-     * @param int $force_rebuild
-     * @param string $intent
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function reloadsearchsidebarAction($search_key, $force_rebuild, $intent, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
-            /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
-
-
-            // Ensure it's a valid search key first...
-            $search_key_service->validateSearchKey($search_key);
-
-            // Need to get the datatype id out of the search key service
-            $search_params = $search_key_service->decodeSearchKey($search_key);
-            $dt_id = intval( $search_params['dt_id'] );
-
-            /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
-            if ( $target_datatype->getDeletedAt() !== null )
-                throw new ODRNotFoundException('Datatype');
-
-
-            // --------------------
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $permissions_service->getUserPermissionsArray($user);
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            if ( !$permissions_service->canViewDatatype($user, $target_datatype) )
-                throw new ODRForbiddenException();
-
-            $logged_in = true;
-            if ($user === 'anon.')
-                $logged_in = false;
-            // --------------------
-
-            // Default to not making any changes
-            $return['d'] = array('html' => '');
-
-            // Only rebuild the search sidebar when it's not a default search
-            if ( count($search_params) > 1 || $force_rebuild == 1 ) {
-                // Need to build everything used by the sidebar...
-                $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId());
-                $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
-                $user_list = $search_sidebar_service->getSidebarUserList($user, $datatype_array);
-
-                $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
-                $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
-
-                // Twig can technically figure out which radio options/tags are selected or
-                //  unselected from the search key, but it's irritating to do so...it's easier to
-                //  use php instead.
-                $search_sidebar_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
-
-                $templating = $this->get('templating');
-                $return['d'] = array(
-                    'num_params' => count($search_params),
-                    'html' => $templating->render(
-                        'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
-                        array(
-                            'search_key' => $search_key,
-                            'search_params' => $search_params,
-
-                            // required twig/javascript parameters
-                            'user' => $user,
-                            'datatype_permissions' => $datatype_permissions,
-                            'datafield_permissions' => $datafield_permissions,
-
-                            'user_list' => $user_list,
-                            'logged_in' => $logged_in,
-                            'intent' => $intent,
-                            'sidebar_reload' => true,
-
-                            // datatype/datafields to search
-                            'target_datatype' => $target_datatype,
-                            'datatype_array' => $datatype_array,
-                            'datatype_relations' => $datatype_relations,
-
-                            // theme selection
-                            'preferred_theme' => $preferred_theme,
-                        )
-                    )
-                );
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0xaf1f4a0f;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

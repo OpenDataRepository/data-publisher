@@ -87,7 +87,7 @@
 
     $(function() {
         $("#ODRLinkSelection").hide();
-        enableSearchSidebar('{{ remote_datatype_search_key }}', true, 'linking');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        enableSearchSidebar('{{ remote_datatype_search_key }}', 'expanded', 'linking');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
         var dataset = {{ table_html | raw }};
 

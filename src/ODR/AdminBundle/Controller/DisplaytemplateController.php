@@ -4737,11 +4737,12 @@ if ($debug)
             // --------------------
 
 
-            // Going to attempt to render the regular search sidebar here, which would allow the
-            //  use of the SearchSidebarService...
-            $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId());
-            $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $datatype->getId());
-            $datafields = $datafield_info_service->getDatafieldProperties($datatype_array);
+            // Going to attempt to render the default search sidebar here
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId());
+            // Because this is the "default" layout, an unmodified version of the cached datatype
+            //  array exists in this key...
+            $dt_array = $sidebar_array['extended_display'];
+            $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
             // Don't want the user list or the preferred theme id
 
 
@@ -4808,7 +4809,7 @@ if ($debug)
                     // Should only be one stored search key, for the moment
                     $default_search_key = $ssk['search_key'];
                     $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
-                    $search_sidebar_service->fixSearchParamsOptionsAndTags($datatype_array, $default_search_params);
+                    $search_sidebar_service->fixSearchParamsOptionsAndTags($sidebar_array, $default_search_params);
                     break;
                 }
             }
@@ -4839,8 +4840,7 @@ if ($debug)
 
                         // datatype/datafields to search
                         'target_datatype' => $datatype,
-                        'datatype_array' => $datatype_array,
-                        'datatype_relations' => $datatype_relations,
+                        'sidebar_array' => $sidebar_array,
 
                         // theme selection
 //                        'preferred_theme_id' => $preferred_theme_id,

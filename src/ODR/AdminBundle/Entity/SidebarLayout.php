@@ -379,11 +379,11 @@ class SidebarLayout
     }
 
     /**
-     * Get shared
+     * Is shared
      *
      * @return bool
      */
-    public function getShared()
+    public function isShared()
     {
         return $this->getSidebarLayoutMeta()->getShared();
     }

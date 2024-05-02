@@ -1635,6 +1635,15 @@ odr_session_toggle_show_editable:
     defaults: { _controller: ODRAdminBundle:Session:toggleshoweditable }
     methods: [ POST ]
 
+odr_apply_sidebar_layout:
+    path:  /session/apply_sidebar_layout/{datatype_id}/{page_type}/{sidebar_layout_id}/{persist}
+    defaults: { _controller: ODRAdminBundle:Session:applysidebarlayout }
+    requirements:
+        datatype_id:  \d+
+        page_type:  '|searching|linking'
+        sidebar_layout_id:  \d+
+        persist: 0|1
+
 odr_apply_theme:
     path:  /session/apply_theme/apply/{datatype_id}/{page_type}/{theme_id}/{persist}
     defaults: { _controller: ODRAdminBundle:Session:applytheme }

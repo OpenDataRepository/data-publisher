@@ -2875,6 +2875,9 @@ form .row {
     vertical-align: middle;
     z-index: 100;
 }
+.ODRSearchableToggle {
+    z-index: 101;
+}
 
 .fa-globe {
     /* color: #aaf; */
@@ -3756,17 +3759,20 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 /* End Loading CSS Widget */
 
 
-#ODRChooseView {
+#ODRChooseView,
+#ODRChooseLayout {
     list-style-type: none;
     -webkit-margin-before: 0;
     -webkit-margin-after: 0;
     -webkit-margin-start: 0;
     -webkit-margin-end: 0;
     -webkit-padding-start: 0;
-    padding-bottom: 100px;
+    /*padding-bottom: 100px;*/
+    padding-left: 0px;
 }
 
-#ODRChooseView > li {
+#ODRChooseView > li,
+#ODRChooseLayout > li {
     background-color: rgba(184, 232, 250, 0.25);
     border-radius: 8px;
     padding-bottom: 0.6em;
@@ -3775,11 +3781,13 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-right: 0.4em;
     border: 1px solid #ddd;
 }
-#ODRChooseView:first-child {
+#ODRChooseView:first-child,
+#ODRChooseLayout:first-child {
     padding-bottom: 0.6em;
     margin-top: 0.6em;
 }
-#ODRChooseView h4 {
+#ODRChooseView h4,
+#ODRChooseLayout h4 {
     -webkit-margin-before: 0;
     -webkit-margin-after: 0;
     -webkit-margin-start: 0;
@@ -3828,36 +3836,31 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     width: auto;
     position: relative;
 }
-.ODRDefaultPersonal,
-.ODRUnsetDefaultPersonal,
-.ODRDefaultDatabase,
-.ODRUnsetDefaultDatabase,
-.ODRMakeCurrentView,
-.ODRMakeViewShared,
-.ODREditThemeName,
-.ODRModifyTheme,
-.ODRCopyModifyTheme,
-.ODRDeleteTheme {
+
+.ODRChooseViewLink {
     cursor: pointer;
 }
-
-.ODRDefaultPersonal:hover,
-.ODRUnsetDefaultPersonal:hover,
-.ODRDefaultDatabase:hover,
-.ODRUnsetDefaultDatabase:hover,
-.ODRMakeCurrentView:hover,
-.ODRMakeViewShared:hover,
-.ODREditThemeName:hover,
-.ODRModifyTheme:hover,
-.ODRCopyModifyTheme:hover,
-.ODRDeleteTheme:hover {
+.ODRChooseViewLink:hover {
     color: #2ca02c;
+}
+
+.ODRViewNote {
+    cursor: default;
+}
+.ODRViewNote > i {
+    cursor: pointer;
 }
 
 
 .ODRSearchBoxWrapper {
     padding-top: 8px !important;
-    padding-bottom: 10px !important;
+    /*padding-bottom: 10px !important;*/
+}
+.ODRSearchHelp,
+.ODRChooseSidebarLayout,
+.ODREditSearchNotes {
+    padding-left: 5px;
+    cursor: pointer;
 }
 
 #ODRReturnToSearchResults {
@@ -4069,11 +4072,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     background-color: #000000;
     opacity: 0.3;
 }
-.ODRVisibleDatafield {
+.ODRVisibleDatafield,
+.ODRUsedDatafield {
     background-color: #00ffff;
     opacity: 0.2;
 }
-/* .ODREditableDatafield {} */
+/*
+.ODREditableDatafield,
+.ODRUnusedDatafield {
+
+}
+*/
 
 #ODRTagForm {
     /*max-height: 700px;*/
@@ -5250,4 +5259,25 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 .ODRRecordLinkInfoList {
     padding-left: 10px;
+}
+
+.ODRSidebarLayout_dragTarget {
+    min-height: 200px;
+    border: #0d5aa7 1px solid;
+    margin-top: 10px;
+}
+.ODRSidebarLayout_dragTargetBlurb {
+    text-indent: 5px;
+    color: #7777EE;
+    padding: 5px;
+}
+.ODRSidebarLayout_sidebarDatafield,
+.ODRSidebarLayout_sidebarDatafield > input {
+    cursor: default;
+}
+.ODRSidebarLayout_sidebarDatafield {
+    padding: 10px;
+}
+#ODRSidebarLayout_includeGeneralSearch {
+    margin-left: 10px;
 }

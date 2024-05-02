@@ -22,13 +22,14 @@
 
     <div id="ODRSearchSidebar" class="ODRStoredSearchKeySelection_sidebar pure-u-1-4">
     {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' with {
-        'datatype_array': datatype_array,
-        'datatype_relations': datatype_relations,
+        'sidebar_array': sidebar_array,
         'datatype_permissions': datatype_permissions,
 
         'target_datatype': target_datatype,
 
-        'intent': 'stored_search_keys'
+        'intent': 'stored_search_keys',
+        'search_string': '',
+        'user_list': []
     } %}
     </div>
 

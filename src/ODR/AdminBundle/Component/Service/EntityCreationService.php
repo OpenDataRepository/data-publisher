@@ -2203,7 +2203,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param SidebarLayout $sidebar_layout
      * @param DataType $datatype
-     * @param DataFields|null $datafield A value of null is used as a placeholder for "general" search
+     * @param DataFields|null $datafield A value of null is used as a placeholder for the "general search" input
      * @param integer $category
      * @param boolean $delay_flush
      * @param \DateTime|null $created
@@ -2221,7 +2221,7 @@ class EntityCreationService
         $sidebar_layout_map->setDataField($datafield);
 
         $sidebar_layout_map->setCategory($category);
-        $sidebar_layout_map->setDisplayOrder(999);
+        $sidebar_layout_map->setDisplayOrder(0);
 
         $sidebar_layout_map->setCreated($created);
         $sidebar_layout_map->setUpdated($created);

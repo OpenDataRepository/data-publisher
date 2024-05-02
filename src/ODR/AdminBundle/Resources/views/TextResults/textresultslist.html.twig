@@ -46,11 +46,11 @@
 
 <script>
     $(function() {
-        {% if theme.themeMeta.disableSearchSidebar == false %}
-        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-        {% else %}
+{% if theme.themeMeta.disableSearchSidebar == false %}
+        enableSearchSidebar('{{ search_key }}', 'expanded');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+{% else %}
         disableSearchSidebar();
-        {% endif %}
+{% endif %}
 
         $(".MenuDesignArea").remove();
 
@@ -301,7 +301,7 @@
 
     // Datatable's little "processing" blurb isn't sufficient, need to use ODR's search overlay
     $("#TextResults").on('preXhr.dt', function(e, settings, data) {
-        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
+        showSearchOverlay();    {# defined in Default::common_js.html.twig #}
     });
 
     // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...

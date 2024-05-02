@@ -216,7 +216,7 @@
         if (page > {{ num_pages }})
             page = {{ num_pages }};
 
-        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
+        showSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
         var url = "{{ path_str }}" + '/' + page;
         UpdateURL(url);

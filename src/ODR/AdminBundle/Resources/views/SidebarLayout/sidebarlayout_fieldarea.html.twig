@@ -32,6 +32,8 @@
                         'site_baseurl': site_baseurl,
                         'theme_datafield': theme_datafield,
                         'datafield': datafield,
+
+                        'sidebar_array': sidebar_array,
                     } %}
                 {% endif %}
             {% endfor %}
@@ -94,6 +96,8 @@
 
                         'datatype_permissions': datatype_permissions,
                         'is_datatype_admin': child_is_datatype_admin,
+
+                        'sidebar_array': sidebar_array,
 
                         'is_top_level': 0,
                         'is_link': theme_datatype.is_link,

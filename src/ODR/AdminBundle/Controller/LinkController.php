@@ -829,6 +829,9 @@ class LinkController extends ODRCustomController
             if ($remote_datatype_id == $previous_remote_datatype_id)
                 throw new ODRBadRequestException("Already linked to this Datatype");
 
+            // NOTE: local_datatype is a synonym for the ancestor datatype
+            // NOTE: remote_datatype is a synonym for the descendant datatype
+
 
             // --------------------
             // Determine user privileges
@@ -947,7 +950,8 @@ class LinkController extends ODRCustomController
                 // Mark all Datarecords that used to link to the remote datatype as updated
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update, $previous_remote_datatype);
 
-                // Determine whether one of the local datatype's sortfields belongs a remote datatype...
+                // ----------------------------------------
+                // Determine whether one of the local datatype's sortfields belongs to a remote datatype...
                 $query = $em->createQuery(
                    'SELECT dtsf.id
                     FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
@@ -964,8 +968,8 @@ class LinkController extends ODRCustomController
                 );
                 $dtsf_ids = $query->getArrayResult();
 
+                // ...if so, then those entries need to get deleted
                 if ( !empty($dtsf_ids) ) {
-                    // ...if so, then delete that entry
                     $query = $em->createQuery(
                        'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
                         SET dtsf.deletedAt = :now, dtsf.deletedBy = :deleted_by
@@ -991,6 +995,7 @@ class LinkController extends ODRCustomController
                     $needs_flush = true;
                 }
 
+                // ----------------------------------------
                 // Done making mass updates, commit everything
                 $conn->commit();
 

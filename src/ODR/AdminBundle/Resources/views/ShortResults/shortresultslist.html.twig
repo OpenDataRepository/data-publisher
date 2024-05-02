@@ -60,11 +60,11 @@
 
 <script>
     $(function() {
-        {% if theme.themeMeta.disableSearchSidebar == false %}
-        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-        {% else %}
+{% if theme.themeMeta.disableSearchSidebar == false %}
+        enableSearchSidebar('{{ search_key }}', 'expanded');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+{% else %}
         disableSearchSidebar();
-        {% endif %}
+{% endif %}
 
         $(".MenuDesignArea").remove();
 

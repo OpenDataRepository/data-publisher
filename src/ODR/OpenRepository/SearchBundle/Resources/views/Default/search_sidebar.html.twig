@@ -1,377 +1,176 @@
 {% spaceless %}
 
-{% set GENERAL_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::GENERAL_SEARCH') %}
-{% set ADVANCED_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH') %}
-{% set ADVANCED_SEARCH_ONLY = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH_ONLY') %}
-
 {% set is_datatype_admin = false %}
 {% if datatype_permissions[target_datatype.id] is defined and datatype_permissions[target_datatype.id]['dt_admin'] is defined %}
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% set datatype = datatype_array[target_datatype.id] %}
+{% set using_sidebar_layout = false %}
+{% if sidebar_array['layout_array']|length > 0 %}
+    {% set using_sidebar_layout = true %}
+{% endif %}
 
-{% set can_use_general_search = false %}
-{% for df_id, datafield in datatype['dataFields'] %}
-    {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-    {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
-        {% set can_use_general_search = true %}
-    {% endif %}
+{% set datatype_array = sidebar_array['datatype_array'] %}
+
+{# Due to the possibility of fields being "out of order", might as well determine whether any datatype plugins want to interfere with search rendering here #}
+{% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
+{% set rpi_lookup = [] %}
+{% for dt_id,dt in datatype_array %}
+    {% for rpi_num,rpi in dt.renderPluginInstances %}
+        {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+            {% set render_plugin_override_df_list = rpi|can_execute_search_plugin(dt, [], rendering_options) %}
+
+            {# Only want to save the render_plugin_instance if it's render-able #}
+            {% if render_plugin_override_df_list is iterable and render_plugin_override_df_list|length > 0 %}
+                {% set render_plugin_instance = rpi %}
+                {% for rpf_name,df_id in render_plugin_override_df_list %}
+                    {% set hash_key = 'df_' ~ df_id %}
+                    {% set rpi_lookup = rpi_lookup|merge({ (hash_key): (rpi) }) %}
+                {% endfor %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
 {% endfor %}
 
-{% if not can_use_general_search %}
-    {# If the top-level datatype doesn't have any searchable datafields, then try the child datatypes #}
-    {% for child_datatype_id in datatype_relations['child_datatypes'] %}
-        {% set child_datatype = datatype_array[child_datatype_id] %}
+<div class="ODRThemeElement">
+    <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
+    <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
 
-        {% for df_id, datafield in child_datatype['dataFields'] %}
-            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
-                {% set can_use_general_search = true %}
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
-{% endif %}
+    <div class="ODRInnerBox">
+        {% if intent != 'stored_search_keys' %}
+        <span class="ODRSearchToggle">
+            <i class="fa fa-lg fa-arrow-circle-left ODRHidden"></i>
+            <i class="fa fa-lg fa-arrow-circle-right"></i>
+        </span>
+        {% endif %}
 
-{% if not can_use_general_search %}
-    {# ...if neither the top-level nor the child datatypes have any searchable datafields, then try the linked datatypes #}
-    {% for linked_datatype_id in datatype_relations['linked_datatypes'] %}
-        {% set linked_datatype = datatype_array[linked_datatype_id] %}
+        {% if intent == 'searching' %}
+            {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
+                'datatype': target_datatype,
+                'position': 'upper',
+                'is_datatype_admin': is_datatype_admin,
+            } %}
+        {% endif %}
 
-        {% for df_id, datafield in linked_datatype['dataFields'] %}
-            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
-                {% set can_use_general_search = true %}
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
-{% endif %}
-
-
-    <div class="ODRThemeElement">
-        <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
-        <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
-
-        <div class="ODRInnerBox">
+        <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
+            <input type="hidden" id="search_type" value="simple" />
+            <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
             {% if intent != 'stored_search_keys' %}
-            <span class="ODRSearchToggle">
-                <i class="fa fa-lg fa-arrow-circle-left hidden"></i>
-                <i class="fa fa-lg fa-arrow-circle-right"></i>
-            </span>
+            <input type="hidden" id="selected_theme_id" value="{{ preferred_theme.id }}"/>
             {% endif %}
 
-            {% if intent == 'searching' %}
-                {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
-                    'datatype': target_datatype,
-                    'position': 'upper',
-                    'is_datatype_admin': is_datatype_admin,
-                } %}
-            {% endif %}
-
-            <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
-                <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
-                {% if intent != 'stored_search_keys' %}
-                <input type="hidden" id="selected_theme_id" value="{{ preferred_theme.id }}"/>
-                {% endif %}
-
-                {% if intent != 'stored_search_keys' %}
-                <fieldset id="search_top">
-                    <div>
-                        <div class="pure-u-1">
-                            <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">
-                                Open Advanced Search
-                            </a>
-                        </div>
-                        <div class="pure-u-1">
-                            <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
-                            <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search{% if intent == 'linking' %} for records to Link{% endif %}</button>
-                        </div>
-                    </div>
-                </fieldset>
-                {% endif %}
-
-                <fieldset class="ODRSearchBoxWrapper">
+            {# Only have a reset/search block if there are fields in 'expanded' display #}
+            {% if intent != 'stored_search_keys' and (sidebar_array['extended_display']|length > 0 or not using_sidebar_layout) %}
+            <fieldset id="ODRSearchControls_top" style="display: none;">    {# want it hidden by default, though #}
+                <div>
                     <div class="pure-u-1">
-                        <label for="textbox_general" class="pure-u-1 ODRPrimarySearchLabel">
-                            Search for:
-                            {% if intent != 'stored_search_keys' %}
-                            <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp"
-                               style="padding-left:5px;" title="Search Help"></i>
-                            <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList"
-                               style="padding-left:5px;" title="Fields searched when using general search:"></i>
-                            {% endif %}
-                            {% if is_datatype_admin and intent != 'stored_search_keys' %}
-                                <i class="fa fa-lg fa-edit Pointer ODREditSearchNotes"
-                                   style="padding-left:5px;" title="Edit the search page notes."></i>
-                            {% endif %}
-                        </label>
-                        <input id="textbox_general" class="pure-u-1" type="text" name="gen"
-                            {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
-                            {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
-                            {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %}
-                        />
-                        <input type="hidden" id="search_type" value="basic" />
-                    </div>
-
-                    {% if intent != 'stored_search_keys' %}
-                    <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
-                        {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
-                    </div>
-                    <div class="pure-u-1" id="ODRGeneralSearchList_div" class="ODRTableWrap" style="display:none;">
-                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield_list.html.twig' with {
-                            'target_datatype': target_datatype,
-                            'datatype_array': datatype_array,
-                            'datatype_relations': datatype_relations,
-                            'logged_in': logged_in,
-                        } %}
-                    </div>
-                    {% endif %}
-                </fieldset>
-
-                {# render target datatype first #}
-                <fieldset>
-                    {% set datatype = datatype_array[target_datatype.id] %}
-
-                    {# check whether the datatype should execute a search plugin... #}
-                    {% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
-                    {% set render_plugin_instance = null %}
-                    {% set render_plugin_override_df_list = [] %}
-                    {% for rpi_num,rpi in datatype.renderPluginInstances %}
-                        {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-                            {% set render_plugin_override_df_list = rpi|can_execute_search_plugin(datatype, [], rendering_options) %}
-
-                            {# Only want to save the render_plugin_instance if it's render-able #}
-                            {% if render_plugin_override_df_list is iterable and render_plugin_override_df_list|length > 0 %}
-                                {% set render_plugin_instance = rpi %}
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-
-                    <div class="ODRAdvSearch_header">
-                        <span>{{ datatype['dataTypeMeta']['shortName'] }}</span>
-                        <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
-                    </div>
-                    <div class="ODRAdvSearch_default">
-                        {% for datafield in datatype['dataFields'] %}
-                            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                            {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
-                                <div class="ODRAdvSearch_datafield pure-u-1">
-                                    {% set content = '' %}
-                                    {% if datafield.id in render_plugin_override_df_list %}
-                                        {% set preset_value = '' %}
-                                        {% if search_params[datafield.id] is defined %}
-                                            {% set preset_value = search_params[datafield.id] %}
-                                        {% endif %}
-                                        {% set content = render_plugin_instance|search_plugin(datatype, datafield, preset_value, rendering_options) %}
-                                    {% endif %}
-
-                                    {% if content|length > 0 %}
-                                        {{ content|raw }}
-                                    {% else %}
-                                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                            'search_params': search_params,
-
-                                            'datatype': datatype,
-                                            'datafield': datafield
-                                        } %}
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-
-                        {% if intent != 'stored_search_keys' %}
-                            {# created/modified by, created/modified date, public status of child datarecord #}
-                            {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                                'search_params': search_params,
-
-                                'datatype_id': datatype.id,
-                                'user_list': user_list,
-                                'datatype_permissions': datatype_permissions,
-                                'is_top_level': 1
-                            } %}
-                        {% endif %}
-                    </div>
-                </fieldset>
-
-                {# render children of target datatype next #}
-                {% for child_datatype_id in datatype_relations['child_datatypes'] %}
-                    {% set child_datatype = datatype_array[child_datatype_id] %}
-
-                    {% set can_search_child_datatype = false %}
-                    {% for datafield in child_datatype['dataFields'] %}
-                        {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                        {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
-                            {% set can_search_child_datatype = true %}
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if can_search_child_datatype %}
-
-                        {# check whether the child datatype should execute a search plugin... #}
-                        {% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
-                        {% set render_plugin_instance = null %}
-                        {% set render_plugin_override_df_list = [] %}
-                        {% for rpi_num,rpi in child_datatype.renderPluginInstances %}
-                            {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-                                {% set render_plugin_override_df_list = rpi|can_execute_search_plugin(child_datatype, [], rendering_options) %}
-
-                                {# Only want to save the render_plugin_instance if it's render-able #}
-                                {% if render_plugin_override_df_list is iterable and render_plugin_override_df_list|length > 0 %}
-                                    {% set render_plugin_instance = rpi %}
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-
-                        <fieldset>
-                            <div class="ODRAdvSearch_header">
-                                <span>{{ child_datatype['dataTypeMeta']['shortName'] }}</span>
-                                <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
-                            </div>
-                            <div class="ODRAdvSearch_content pure-u-1">
-                                {% for datafield in child_datatype['dataFields'] %}
-                                    {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                                    {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
-                                        <div class="ODRAdvSearch_datafield pure-u-1">
-                                            {% set content = '' %}
-                                            {% if datafield.id in render_plugin_override_df_list %}
-                                                {% set preset_value = '' %}
-                                                {% if search_params[datafield.id] is defined %}
-                                                    {% set preset_value = search_params[datafield.id] %}
-                                                {% endif %}
-                                                {% set content = render_plugin_instance|search_plugin(child_datatype, datafield, preset_value, rendering_options) %}
-                                            {% endif %}
-
-                                            {% if content|length > 0 %}
-                                                {{ content|raw }}
-                                            {% else %}
-                                                {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                                    'search_params': search_params,
-
-                                                    'datatype': child_datatype,
-                                                    'datafield': datafield
-                                                } %}
-                                            {% endif %}
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
-
-                                {% if intent != 'stored_search_keys' %}
-                                    {# created/modified by, created/modified date, public status of child datarecord #}
-                                    {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                                        'search_params': search_params,
-
-                                        'datatype_id': child_datatype.id,
-                                        'user_list': user_list,
-                                        'datatype_permissions': datatype_permissions,
-                                        'is_top_level': 0
-                                    } %}
-                                {% endif %}
-                            </div>
-                        </fieldset>
-                    {% endif %}
-                {% endfor %}
-
-                {# render linked datatypes last #}
-                {% for linked_datatype_id in datatype_relations['linked_datatypes'] %}
-                    {% set linked_datatype = datatype_array[linked_datatype_id] %}
-
-                    {% set can_search_linked_datatype = false %}
-                    {% for datafield in linked_datatype['dataFields'] %}
-                        {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                        {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
-                            {% set can_search_linked_datatype = true %}
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if can_search_linked_datatype %}
-
-                        {# check whether the linked datatype should execute a search plugin... #}
-                        {% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
-                        {% set render_plugin_instance = null %}
-                        {% set render_plugin_override_df_list = [] %}
-                        {% for rpi_num,rpi in linked_datatype.renderPluginInstances %}
-                            {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-                                {% set render_plugin_override_df_list = rpi|can_execute_search_plugin(linked_datatype, [], rendering_options) %}
-
-                                {# Only want to save the render_plugin_instance if it's render-able #}
-                                {% if render_plugin_override_df_list is iterable and render_plugin_override_df_list|length > 0 %}
-                                    {% set render_plugin_instance = rpi %}
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-
-                        <fieldset>
-                            <div class="ODRAdvSearch_header">
-                                <span>{{ linked_datatype['dataTypeMeta']['shortName'] }}</span>
-                                <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
-                            </div>
-                            <div class="ODRAdvSearch_content pure-u-1">
-                                {% for datafield in linked_datatype['dataFields'] %}
-                                    {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                                    {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
-                                        <div class="ODRAdvSearch_datafield pure-u-1">
-                                            {% set content = '' %}
-                                            {% if datafield.id in render_plugin_override_df_list %}
-                                                {% set preset_value = '' %}
-                                                {% if search_params[datafield.id] is defined %}
-                                                    {% set preset_value = search_params[datafield.id] %}
-                                                {% endif %}
-                                                {% set content = render_plugin_instance|search_plugin(linked_datatype, datafield, preset_value, rendering_options) %}
-                                            {% endif %}
-
-                                            {% if content|length > 0 %}
-                                                {{ content|raw }}
-                                            {% else %}
-                                                {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                                    'search_params': search_params,
-
-                                                    'datatype': linked_datatype,
-                                                    'datafield': datafield
-                                                } %}
-                                            {% endif %}
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
-
-                                {% if intent != 'stored_search_keys' %}
-                                    {# created/modified by, created/modified date, public status of datarecord #}
-                                    {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                                        'search_params': search_params,
-
-                                        'datatype_id': linked_datatype.id,
-                                        'user_list': user_list,
-                                        'datatype_permissions': datatype_permissions,
-                                        'is_top_level': 0
-                                    } %}
-                                {% endif %}
-                            </div>
-                        </fieldset>
-                    {% endif %}
-                {% endfor %}
-
-                {% if intent != 'stored_search_keys' %}
-                <fieldset>
-                    <div class="pure-u-1">
-                        <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced
-                            Search</a>
+                        <a class="ODRSearchFieldsToggle Pointer pure-u-1" onclick="changeSearch();">
+                            Open Expanded Search
+                        </a>
                     </div>
                     <div class="pure-u-1">
                         <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
                         <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search{% if intent == 'linking' %} for records to Link{% endif %}</button>
                     </div>
-                </fieldset>
-                {% endif %}
-            </form>
+                </div>
+            </fieldset>
+            {% endif %}
 
-            {% if intent == 'searching' %}
-                {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
-                    'datatype': target_datatype,
-                    'position': 'lower',
-                    'is_datatype_admin': is_datatype_admin,
+            <fieldset class="ODRSearchBoxWrapper">
+                <div class="pure-u-1">
+                    <label for="textbox_general" class="pure-u-1 ODRPrimarySearchLabel">
+                        Search:
+                        {% if intent != 'stored_search_keys' %}
+                            <i class="fa fa-lg fa-question-circle ODRSearchHelp" title="Search Help"></i>
+                            <i class="fa fa-lg fa-cog ODRChooseSidebarLayout" title="Choose Sidebar Layout"></i>
+                            {% if is_datatype_admin %}
+                            <i class="fa fa-lg fa-edit ODREditSearchNotes" title="Edit the search page notes."></i>
+                            {% endif %}
+                        {% endif %}
+                    </label>
+                </div>
+
+                {% if intent != 'stored_search_keys' %}
+                <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
+                    {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+                </div>
+                {% endif %}
+            </fieldset>
+
+            {# render ALWAYS_SHOW first #}
+            {% if using_sidebar_layout %}
+                {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_layout_fields.html.twig' with {
+                    'sidebar_array': sidebar_array,
+                    'field_list_name': 'always_display',
+                    'datatype_array': datatype_array,
+                    'rpi_lookup': rpi_lookup,
+
+                    'search_string': search_string,
+                    'search_params': search_params,
+                } %}
+            {% else %}
+                {# Default sidebar layouts only have the "general search" input as 'always_show' #}
+                <fieldset>
+                    <label for="textbox_general">
+                        All Fields:
+                        <input id="textbox_general" class="pure-u-1" type="text" name="gen"
+                            {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
+                            {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
+                        />
+                    </label>
+                </fieldset>
+            {% endif %}
+
+            {# render EXTENDED_DISPLAY after #}
+            {% if using_sidebar_layout %}
+                {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_layout_fields.html.twig' with {
+                    'sidebar_array': sidebar_array,
+                    'field_list_name': 'extended_display',
+                    'datatype_array': datatype_array,
+                    'rpi_lookup': rpi_lookup,
+
+                    'search_string': search_string,
+                    'search_params': search_params,
+                } %}
+            {% else %}
+                {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_default_fields.html.twig' with {
+                    'sidebar_array': sidebar_array,
+                    'datatype_array': datatype_array,
+                    'target_datatype_id': target_datatype.id,
+                    'rpi_lookup': rpi_lookup,
+
+                    'search_string': search_string,
+                    'search_params': search_params,
+
+                    'user_list': user_list,
+                    'datatype_permissions': datatype_permissions,
                 } %}
             {% endif %}
-        </div>
+
+            {% if intent != 'stored_search_keys' %}
+            <fieldset id="ODRSearchControls_bottom">
+                {% if sidebar_array['extended_display']|length > 0 or not using_sidebar_layout %}    {# only want this when there are fields in 'expanded' display #}
+                <div class="pure-u-1">
+                    <a class="ODRSearchFieldsToggle Pointer pure-u-1" onclick="changeSearch();">Open Expanded Search</a>
+                </div>
+                {% endif %}
+                <div class="pure-u-1">
+                    <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
+                    <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search{% if intent == 'linking' %} for records to Link{% endif %}</button>
+                </div>
+            </fieldset>
+            {% endif %}
+        </form>
+
+        {% if intent == 'searching' %}
+            {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
+                'datatype': target_datatype,
+                'position': 'lower',
+                'is_datatype_admin': is_datatype_admin,
+            } %}
+        {% endif %}
     </div>
+</div>
 
 <script>
     /**
@@ -383,8 +182,7 @@
         if (context == undefined )
             context = $("#odr_content").children("#ODRSearchSidebar").first();
 
-        $(context).find("#search_top").hide();
-        $(context).find(".ODRInput").prop("disabled", true);
+        // $(context).find(".ODRInput").prop("disabled", true);    {# TODO - don't remember if this was needed #}
 
         // Prevent normal form behavior
         $(context).find("#search_form").unbind('submit').submit(function (event) {
@@ -711,6 +509,12 @@
             $(context).find("#ODRGeneralSearchList_div").slideToggle();
         });
 
+{% if intent != 'stored_search_keys' %}
+        $(context).find(".ODRChooseSidebarLayout").unbind('click').click(function() {
+            openChooseSidebarLayoutRemodal({{ target_datatype.id }}, '{{ intent }}', '{{ search_key }}');
+        });
+{% endif %}
+
 {% if is_datatype_admin and intent != 'stored_search_keys' %}
         $(context).find(".ODRMarkdownHelp_open").unbind('click').click(function(event) {
             event.preventDefault();
@@ -780,7 +584,25 @@
         });
 {% endif %}
 
-        $(context).find("#textbox_general").focus();
+        // $(context).find("#textbox_general").focus();
+
+        // Close all accordions...
+        $(context).find(".ODRAdvSearch_header").trigger('click');
+        {% if search_params|length <= 1 %}
+        // ... then re-open the first one (target datatype)
+        $(".ODRAdvSearch_default").prev().trigger('click');
+        {% endif %}
+
+        // Expanded search fieldsets are hidden by default...
+        {% if intent == 'stored_search_keys' %}
+        // ...but need them visible when dealing with stored search keys
+        $(".ODRSearchSidebar_extended").show();
+        {% endif %}
+
+        {% if search_params|length > 1 %}
+        // ...then switch back to expanded search if there's more than 1 search param
+        // changeSearch();
+        {% endif %}
     }
 
 {% if is_datatype_admin and intent != 'stored_search_keys' %}
@@ -821,68 +643,5 @@
         }
     }
 {% endif %}
-
-    /**
-     * Filters the displayed options/tags for a field in the search sidebar.
-     *
-     * @param {HTMLElement} context
-     * @param {number} df_id
-     */
-    function filterSearchSidebarField(context, df_id) {
-        var filter_element = $(context).find("#df_" + df_id + "_filter").first();
-        var fieldtype = $(filter_element).attr('rel');
-        var filter_text = $(filter_element).val().trim().toLowerCase();
-
-        if ( fieldtype == 'Radio' ) {
-            // Radio fields are simpler to filter...
-            var radio_options = $(context).find("#Input_" + df_id).children(".ODRRadioLabel");
-
-            if ( filter_text == '' ) {
-                // If no text in the filter, ensure all radio options are visible
-                $(radio_options).each(function(index,elem) {
-                    $(elem).removeAttr('style');
-                });
-            }
-            else {
-                $(radio_options).each(function(index,elem) {
-                    // Otherwise, need to convert each radio option to lower case...
-                    var option_name = $(elem).text().toLowerCase();
-
-                    // ...so it can get compared against the provided filter text
-                    if ( option_name.indexOf(filter_text) === -1 )
-                        $(elem).hide();
-                    else
-                        $(elem).removeAttr('style');
-                });
-            }
-        }
-        else if ( fieldtype == 'Tag' ) {
-            // Tag fields could have a hierarchy...
-            var tags = $(context).find("#Input_" + df_id).find(".ODRTagItem");
-
-            if ( filter_text == '' ) {
-                // If no text in the filter, ensure all tags are visible
-                $(tags).each(function(index,elem) {
-                    $(elem).removeAttr('style');
-                });
-            }
-            else {
-                $(tags).each(function(index,elem) {
-                    // Otherwise, need to convert each tag to lower case...
-                    var tag_name = $(elem).children('label').text().toLowerCase();
-
-                    // ...so it can get compared against the provided filter text
-                    if ( tag_name.indexOf(filter_text) === -1 )
-                        $(elem).hide();
-                    else {
-                        $(elem).removeAttr('style');
-
-                        // Also need to ensure that all parents of this tag are visible
-                        $(elem).parents('.ODRTagItem').removeAttr('style');
-                    }
-                });
-            }
-        }
-    }
 </script>
 {% endspaceless %}

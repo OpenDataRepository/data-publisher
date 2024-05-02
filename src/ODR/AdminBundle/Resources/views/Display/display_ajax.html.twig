@@ -57,11 +57,11 @@
         // Attach click handlers to tags
         setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-    {% if theme.themeMeta.disableSearchSidebar == true or search_key == '' %}
+{% if theme.themeMeta.disableSearchSidebar == true or search_key == '' %}
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-    {% else %}
-        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-    {% endif %}
+{% else %}
+        enableSearchSidebar('{{ search_key }}', 'collapsed');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+{% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }

@@ -1,25 +1,38 @@
 # ----------------------------------------
 # SearchSidebarController routes
-odr_get_available_layouts:
+odr_reload_search_overlay_datafield:
+    path:  /search/reload/datafield/{datafield_id}
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadsearchdatafield }
+    requirements:
+        datafield_id:  \d+
+odr_reload_search_sidebar:
+    path:  /search/reload_sidebar/{search_key}/{intent}
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadsearchsidebar }
+    requirements:
+        search_key: '[a-zA-Z0-9\-\_]*'
+        intent: 'searching|linking|stored_search_keys|'
+
+odr_get_available_sidebar_layouts:
     path:  /view/getlayouts/{datatype_id}/{page_type}/{search_key}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:getavailablesidebarlayouts, search_key: '' }
     requirements:
         datatype_id:  \d+
-        page_type:  '|search_results|display|edit'
+        page_type:  '|searching|linking'
         search_key: '[a-zA-Z0-9\-\_]*'
 
-odr_create_layout:
+odr_create_sidebar_layout:
     path: /design/create_layout/{datatype_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:createsidebarlayout }
     requirements:
         datatype_id: \d+
 
-odr_modify_layout:
-    path:  /design/modify_layout/{datatype_id}/{sidebar_layout_id}/{search_key}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:modifysidebarlayout, search_key: '' }
+odr_modify_sidebar_layout:
+    path:  /design/modify_layout/{datatype_id}/{sidebar_layout_id}/{page_type}/{search_key}
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:modifysidebarlayout, page_type: '', search_key: '' }
     requirements:
         datatype_id:  \d+
         sidebar_layout_id:  \d+
+        page_type:  '|searching|linking'
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_save_sidebar_layout_properties:
@@ -27,6 +40,12 @@ odr_save_sidebar_layout_properties:
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:savesidebarlayoutproperties }
     requirements:
         sidebar_layout_id: \d+
+
+odr_sidebar_layout_searchable_toggle:
+    path:  /design/togglesearchable/{datafield_id}
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:sidebarsearchabletoggle }
+    requirements:
+        datafield_id: \d+
 
 odr_toggle_sidebar_layout_shared:
     path:  /design/togglelayoutshared/{sidebar_layout_id}
@@ -42,7 +61,7 @@ odr_make_default_sidebar_layout:
         sidebar_layout_id:  \d+
 
 odr_unset_default_sidebar_layout:
-    path:  /design/unsetdefaultlayout/{page_type}/{search_layout_id}
+    path:  /design/unsetdefaultlayout/{page_type}/{sidebar_layout_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:unsetdatabasedefaultlayout }
     requirements:
         page_type:  '|searching|linking'
@@ -60,19 +79,21 @@ odr_delete_sidebar_layout:
     requirements:
         sidebar_layout_id:  \d+
 
-odr_clone_layout:
+odr_clone_sidebar_layout:
     path:  /design/copy_layout/{sidebar_layout_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:clonelayout }
     requirements:
         sidebar_layout_id:  \d+
 
+odr_design_toggle_datafield_layout_status:
+    path: /design/layout/datafieldstatus
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldlayoutstatus }
+    methods: [ POST ]
 odr_design_save_datafield_order_layout:
-    path:  /design/layout/datafieldorder/{initial_layout_element_id}/{ending_layout_element_id}
+    path:  /design/layout/datafieldorder
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldorder }
     methods: [ POST ]
-    requirements:
-        initial_layout_element_id: \d+
-        ending_layout_element_id: \d+
+
 
 # ----------------------------------------
 # ODRRemoteSearch routes
@@ -157,21 +178,6 @@ odr_default_search_render:
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:defaultrender }
     requirements:
         datatype_id: \d+
-
-odr_reload_search_overlay_datafield:
-    path:  /search/reload/datafield/{datafield_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:reloadsearchdatafield }
-    requirements:
-        datafield_id:  \d+
-
-odr_reload_search_sidebar:
-    path:  /search/reload_sidebar/{force_rebuild}/{search_key}/{intent}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:reloadsearchsidebar }
-    requirements:
-        force_rebuild: 0|1
-        search_key: '[a-zA-Z0-9\-\_]*'
-        intent: 'searching|linking|stored_search_keys|'
-
 
 #
 #

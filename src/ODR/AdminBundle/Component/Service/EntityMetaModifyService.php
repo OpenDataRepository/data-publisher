@@ -349,6 +349,12 @@ class EntityMetaModifyService
         $old_fieldtype_typename = $datafield->getFieldType()->getTypeName();
         $new_fieldtype_typename = $relevant_fieldtype->getTypeName();    // NOTE - may not actually be different from old typename
 
+        // ...also need to update SidebarLayouts if the searchable property changed
+        $old_searchable = $datafield->getSearchable();
+        $new_searchable = $old_searchable;
+        if ( isset($properties['searchable']) )
+            $new_searchable = $properties['searchable'];
+
         // Ensure that the searchable property isn't set to something invalid for this fieldtype
         switch ($relevant_typeclass) {
             case 'DecimalValue':
@@ -582,6 +588,16 @@ class EntityMetaModifyService
             $this->cache_service->delete('default_radio_options');
         }
 
+        // If the datafield is no longer searchable...
+        if ( $old_searchable !== $new_searchable && $new_searchable === DataFields::NOT_SEARCHED ) {
+            // ...then need to forcibly remove it from all SidebarLayouts
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:SidebarLayoutMap slm
+                SET slm.deletedAt = :now
+                WHERE slm.dataField = :datafield_id AND slm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datafield_id' => $datafield->getId()) );
+            $rows = $query->execute();
+        }
 
         // Changes to the properties of a template datafield need to also update its datatype's
         //  master_revision property
@@ -2066,7 +2082,7 @@ class EntityMetaModifyService
 
 
         // Set any new properties
-        if ( isset($properties['cssWidthMed']) )
+        if ( isset($properties['category']) )
             $new_sidebar_layout_map->setCategory( $properties['category'] );
         if ( isset($properties['displayOrder']) )
             $new_sidebar_layout_map->setDisplayOrder( $properties['displayOrder'] );

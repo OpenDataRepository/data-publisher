@@ -18,18 +18,11 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\SidebarLayout;
+use ODR\AdminBundle\Entity\SidebarLayoutMap;
 use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\SidebarLayoutPreferences;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeMeta;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemePreferences;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -40,14 +33,17 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Form\UpdateSidebarLayoutForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\CloneThemeService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 // Symfony
+use Doctrine\ORM\EntityRepository;
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,6 +52,209 @@ use Symfony\Component\Templating\EngineInterface;
 
 class SearchSidebarController extends ODRCustomController
 {
+
+    /**
+     * Re-renders and returns the HTML to search a datafield in the search sidebar.
+     *
+     * @param int $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadsearchdatafieldAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$permissions_service->canViewDatafield($user, $datafield) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            $searchable = $datafield->getSearchable();
+            if ( $searchable === DataFields::NOT_SEARCHED || $searchable === DataFields::GENERAL_SEARCH ) {
+                // Don't attempt to re-render the datafield if it's either "not searchable" or
+                //  "general search only"
+                $return['d'] = array(
+                    'needs_update' => false,
+                    'html' => ''
+                );
+            }
+            else {
+                // Datafield is in advanced search, so it has an HTML element on the sidebar
+                // Need the datafield's array entry in order to re-render it
+                $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+                $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
+
+                $templating = $this->get('templating');
+                $return['d'] = array(
+                    'needs_update' => true,
+                    'html' => $templating->render(
+                        'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig',
+                        array(
+                            'datatype_id' => $datatype->getId(),
+                            'datafield' => $df_array,
+                        )
+                    )
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x9d85646e;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders and returns the HTML for a reload of the search sidebar.
+     *
+     * @param string $search_key
+     * @param string $intent
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadsearchsidebarAction($search_key, $intent, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            // Ensure it's a valid search key first...
+            $search_key_service->validateSearchKey($search_key);
+
+            // Need to get the datatype id out of the search key service
+            $search_params = $search_key_service->decodeSearchKey($search_key);
+            $dt_id = intval( $search_params['dt_id'] );
+
+            /** @var DataType $target_datatype */
+            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+            if ( $target_datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            if ( !$permissions_service->canViewDatatype($user, $target_datatype) )
+                throw new ODRForbiddenException();
+
+            $logged_in = true;
+            if ($user === 'anon.')
+                $logged_in = false;
+            // --------------------
+
+
+            // Need to build everything used by the sidebar...
+            $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($user, $target_datatype->getId(), $intent);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $sidebar_layout_id);
+            $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
+
+            $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
+            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+
+            // Twig can technically figure out which radio options/tags are selected or
+            //  unselected from the search key, but it's irritating to do so...it's easier to
+            //  use php instead.
+            $search_sidebar_service->fixSearchParamsOptionsAndTags($sidebar_array, $search_params);
+
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'num_params' => count($search_params),
+                'html' => $templating->render(
+                    'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
+                    array(
+                        'search_key' => $search_key,
+                        'search_params' => $search_params,
+                        'search_string' => '',
+
+                        // required twig/javascript parameters
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
+                        'user_list' => $user_list,
+                        'logged_in' => $logged_in,
+                        'intent' => $intent,
+                        'sidebar_reload' => true,
+
+                        // datatype/datafields to search
+                        'target_datatype' => $target_datatype,
+                        'sidebar_array' => $sidebar_array,
+
+                        // theme selection
+                        'preferred_theme' => $preferred_theme,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xaf1f4a0f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 
     /**
      * Returns a list of sidebar layouts the current user can use in the current context for the given
@@ -120,10 +319,10 @@ class SearchSidebarController extends ODRCustomController
                 $available_page_types[$str] = ucfirst( str_replace('_', ' ', $str) );
 
 
-            // TODO - don't really want another dialog just for selecting a different sidebar layout...
-            // Render and return the layout chooser dialog
+            // Would prefer if this didn't use yet another dialog, but there's just too much
+            //  useful information that needs displaying...
             $return['d'] = $templating->render(
-                'ODRAdminBundle:Default:choose_view.html.twig',
+                'ODROpenRepositorySearchBundle:Default:choose_layout.html.twig',
                 array(
                     'user' => $user,
                     'is_datatype_admin' => $is_datatype_admin,
@@ -200,7 +399,7 @@ class SearchSidebarController extends ODRCustomController
 
 
     /**
-     * Creates a new Sidebar Layout, then opens its edit page.
+     * Creates a new Sidebar Layout, then returns its ID
      *
      * @param int $datatype_id
      * @param Request $request
@@ -218,6 +417,8 @@ class SearchSidebarController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $permissions_service */
@@ -248,6 +449,8 @@ class SearchSidebarController extends ODRCustomController
                 'sidebar_layout_id' => $sidebar_layout->getId(),
             );
 
+            // Delete the cached list of sidebar layouts
+            $cache_service->delete('sidebar_layout_ids');
         }
         catch (\Exception $e) {
             $source = 0x9eb6132a;
@@ -273,7 +476,7 @@ class SearchSidebarController extends ODRCustomController
      *
      * @return Response
      */
-    public function modifysidebarlayoutAction($datatype_id, $sidebar_layout_id, $search_key, Request $request)
+    public function modifysidebarlayoutAction($datatype_id, $sidebar_layout_id, $page_type, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -286,6 +489,8 @@ class SearchSidebarController extends ODRCustomController
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
 
 
             /** @var DataType $datatype */
@@ -301,6 +506,11 @@ class SearchSidebarController extends ODRCustomController
             if ( $sidebar_layout->getDataType()->getId() !== $datatype->getId() )
                 throw new ODRBadRequestException();
 
+            // Ensure the provided page_type is valid
+            $page_type_id = array_search($page_type, SearchSidebarService::PAGE_TYPES);
+            if ( $page_type_id === false )
+                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
+
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
@@ -310,9 +520,14 @@ class SearchSidebarController extends ODRCustomController
             self::canModifySidebarLayout($user, $sidebar_layout);
             // --------------------
 
+            // Easier on twig if the sidebar array is passed in...do not fallback to the "master"
+            //  sidebar layout if the requested sidebar layout is empty
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $sidebar_layout->getId(), false);    // do not fallback
+
+            // Render and return the page
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => $odr_render_service->getSidebarDesignHTML($user, $sidebar_layout, $search_key),
+                'html' => $odr_render_service->getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $page_type, $search_key),
             );
 
         }
@@ -388,6 +603,17 @@ class SearchSidebarController extends ODRCustomController
             if ($sidebar_layout_form->isSubmitted()) {
 //                $sidebar_layout_form->addError( new FormError('DO NOT SAVE') );
 
+                // Need to unescape these values if they're coming from a wordpress install...
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                if ( $is_wordpress_integrated ) {
+                    $submitted_data->setLayoutName( stripslashes($submitted_data->getLayoutName()) );
+                    $submitted_data->setLayoutDescription( stripslashes($submitted_data->getLayoutDescription()) );
+                }
+
+                $submitted_data->setLayoutName( trim($submitted_data->getLayoutName()) );
+                if ( $submitted_data->getLayoutName() === '' )
+                    $sidebar_layout_form->addError( new FormError("The Layout name can't be blank") );
+
                 if ($sidebar_layout_form->isValid()) {
                     // Save any changes made in the form
                     $properties = array(
@@ -405,6 +631,84 @@ class SearchSidebarController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x6f2b6cb7;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * For convenience, datatype admins are able to toggle a field's searchable status from a
+     * sidebar layout design page.
+     *
+     * @param int $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function sidebarsearchabletoggleAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            throw new ODRException('do not continue');
+
+            // Toggle the datafield's current searchable status
+            if ( $datafield->getSearchable() === DataFields::NOT_SEARCHED ) {
+                $properties = array(
+                    'searchable' => DataFields::GENERAL_SEARCH
+                );
+                $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
+            }
+            else {
+                $properties = array(
+                    'searchable' => DataFields::NOT_SEARCHED
+                );
+                $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
+            }
+
+            // TODO - return?
+
+        }
+        catch (\Exception $e) {
+            $source = 0x68103277;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -463,12 +767,12 @@ class SearchSidebarController extends ODRCustomController
 
             // If the layout is currently a "default" for the datatype, then it needs to always
             //  remain "shared"
-            if ($sidebar_layout->getDefaultFor() > 0 && $sidebar_layout->getShared())
+            if ($sidebar_layout->getDefaultFor() > 0 && $sidebar_layout->isShared())
                 throw new ODRBadRequestException("A 'default' layout must always be shared");
 
 
             // Toggle the shared status of the specified layout...
-            if ( $sidebar_layout->getShared() ) {
+            if ( $sidebar_layout->isShared() ) {
                 // Layout is currently shared...
                 $properties = array(
                     'shared' => false,
@@ -887,16 +1191,30 @@ class SearchSidebarController extends ODRCustomController
             );
             $rows = $query->execute();
 
-            // Delete this SidebarLayout
+            // Delete the SidebarLayout's meta entry...
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:SidebarLayout AS sl, ODRAdminBundle:SidebarLayoutMeta AS slm
-                SET sl.deletedAt = :now, sl.deletedBy = :user, slm.deletedAt = :now
-                WHERE sl.id = :sidebar_layout_id
-                AND slm.sidebarLayout = sl
-                AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL'
+               'UPDATE ODRAdminBundle:SidebarLayoutMeta AS slm
+                SET slm.deletedAt = :now
+                WHERE slm.sidebarLayout = :sidebar_layout_id
+                AND slm.deletedAt IS NULL'
             )->setParameters(
                 array(
                     'now' => new \DateTime(),
+                    'sidebar_layout_id' => $sidebar_layout->getId(),
+                )
+            );
+            $rows = $query->execute();
+
+            // ...and finally delete the SidebarLayout itself
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:SidebarLayout AS sl
+                SET sl.deletedAt = :now, sl.deletedBy = :user
+                WHERE sl.id = :sidebar_layout_id
+                AND sl.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'user' => $user->getId(),
                     'sidebar_layout_id' => $sidebar_layout->getId(),
                 )
             );
@@ -922,14 +1240,14 @@ class SearchSidebarController extends ODRCustomController
 
 
     /**
-     * Clones the given theme, setting the requesting user as its owner.
+     * Clones the given SidebarLayout, setting the requesting user as its owner.
      *
-     * @param int $theme_id
+     * @param int $sidebar_layout_id
      * @param Request $request
      *
      * @return Response
      */
-    public function clonelayoutAction($theme_id, Request $request)
+    public function clonelayoutAction($sidebar_layout_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -943,24 +1261,20 @@ class SearchSidebarController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var CloneThemeService $clone_theme_service */
-            $clone_theme_service = $this->container->get('odr.clone_theme_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
 
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($theme_id);
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
+            /** @var SidebarLayout $sidebar_layout */
+            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            if ($sidebar_layout == null)
+                throw new ODRNotFoundException('Sidebar Layout');
 
-            $datatype = $theme->getDataType();
+            $datatype = $sidebar_layout->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-
-            // Don't run this on themes for child datatypes
-            if ($theme->getId() !== $theme->getParentTheme()->getId())
-                throw new ODRBadRequestException('Not allowed to clone a Theme for a child Datatype');
 
 
             // --------------------
@@ -974,22 +1288,71 @@ class SearchSidebarController extends ODRCustomController
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            // The user must be able to see the theme in order for them to be able to clone it
-            if ( !$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId() )
+            // The user must be able to see the layout in order for them to be able to clone it
+            if ( !$sidebar_layout->isShared() && $sidebar_layout->getCreatedBy()->getId() !== $user->getId() )
                 throw new ODRForbiddenException();
             // --------------------
 
 
-            // This actually seems to be fast enough that it doesn't need the TrackedJobService...
-            $new_theme = $clone_theme_service->cloneSourceTheme($user, $theme, 'custom');    // this controller action should never create a "master" theme
+            // TODO - use a TrackedJob?  This is even faster than CloneThemeService, which is fast enough to not use TrackedJobs either...
+            $logger->info('----------------------------------------');
+            $logger->info('SearchSidebarController: attempting to make a clone of sidebar_layout '.$sidebar_layout->getId().', belonging to datatype '.$sidebar_layout->getDataType()->getId().' "'.$sidebar_layout->getDataType()->getShortName().'"...');
+
+            $sidebar_layout_meta = $sidebar_layout->getSidebarLayoutMeta();
+            $sidebar_layout_maps = $sidebar_layout->getSidebarLayoutMap();
+
+            // Clone the sidebar layout...
+            $new_sidebar_layout = clone $sidebar_layout;
+
+            $new_sidebar_layout->setCreatedBy($user);
+            $new_sidebar_layout->setUpdatedBy($user);
+            $new_sidebar_layout->setCreated(new \DateTime());
+            $new_sidebar_layout->setUpdated(new \DateTime());
+            $em->persist($new_sidebar_layout);
+
+            // Clone the sidebar layout's meta entry...
+            $new_sidebar_layout_meta = clone $sidebar_layout_meta;
+            $new_sidebar_layout_meta->setSidebarLayout($new_sidebar_layout);
+            $new_sidebar_layout_meta->setLayoutName('Copy of '.$sidebar_layout_meta->getLayoutName());
+            $new_sidebar_layout_meta->setLayoutDescription('Copy of '.$sidebar_layout_meta->getLayoutDescription());
+            $new_sidebar_layout_meta->setShared(false);
+
+            $new_sidebar_layout_meta->setCreatedBy($user);
+            $new_sidebar_layout_meta->setUpdatedBy($user);
+            $new_sidebar_layout_meta->setCreated(new \DateTime());
+            $new_sidebar_layout_meta->setupdated(new \DateTime());
+            $em->persist($new_sidebar_layout_meta);
+
+            $logger->debug('SearchSidebarController: -- cloned the original sidebar_layout and its meta entry');
+
+            // Clone each of the sidebar layout's mapping entries
+            foreach ($sidebar_layout_maps as $sl_dfm) {
+                /** @var SidebarLayoutMap $sl_dfm */
+                $new_sl_dfm = clone $sl_dfm;
+                $new_sl_dfm->setSidebarLayout($new_sidebar_layout);
+
+                $new_sl_dfm->setCreatedBy($user);
+                $new_sl_dfm->setUpdatedBy($user);
+                $new_sl_dfm->setCreated(new \DateTime());
+                $new_sl_dfm->setUpdated(new \DateTime());
+                $em->persist($new_sl_dfm);
+
+                if ( !is_null($sl_dfm->getDataField()) )
+                    $logger->debug('SearchSidebarController: -- cloned sidebar_layout_map '.$sl_dfm->getId().' (df '.$sl_dfm->getDataField()->getId().' "'.$sl_dfm->getDataField()->getFieldName().'", dt '.$sl_dfm->getDataType()->getId().' "'.$sl_dfm->getDataType()->getShortName().'") from sidebar_layout '.$sidebar_layout->getId() );
+                else
+                    $logger->debug('SearchSidebarController: -- cloned sidebar_layout_map '.$sl_dfm->getId().' ("general search", dt '.$sl_dfm->getDataType()->getId().' "'.$sl_dfm->getDataType()->getShortName().'") from sidebar_layout '.$sidebar_layout->getId() );
+            }
+
+            // Save all changes and return the id of the new entity
+            $em->flush();
+            $em->refresh($new_sidebar_layout);
 
             $return['d'] = array(
-                'new_theme_id' => $new_theme->getId()
+                'new_sidebar_layout_id' => $new_sidebar_layout->getId()
             );
 
-
-            // Delete the cached list of top-level themes
-            $cache_service->delete('top_level_themes');
+            // Delete the cached list of sidebar layouts
+            $cache_service->delete('sidebar_layout_ids');
         }
         catch (\Exception $e) {
             $source = 0x4391891a;
@@ -1006,16 +1369,168 @@ class SearchSidebarController extends ODRCustomController
 
 
     /**
-     * Updates the display order of DataFields inside a ThemeElement, and/or moves the DataField to
-     * a new ThemeElement.
+     * Attaches a datafield (or the "general search" input) to a layout.
      *
-     * @param integer $initial_theme_element_id
-     * @param integer $ending_theme_element_id
      * @param Request $request
      *
      * @return Response
      */
-    public function datafieldorderAction($initial_theme_element_id, $ending_theme_element_id, Request $request)
+    public function datafieldlayoutstatusAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            // Get post data
+            $post = $request->request->all();
+            if ( !isset($post['sidebar_layout_id']) /*|| !isset($post['datafield_id'])*/ || !isset($post['state']) )
+                throw new ODRBadRequestException('Invalid Form');
+
+            $sidebar_layout_id = intval( $post['sidebar_layout_id'] );
+            $state = intval( $post['state'] );
+            if ( !($state === SidebarLayoutMap::NEVER_DISPLAY || $state === SidebarLayoutMap::ALWAYS_DISPLAY /*|| $state === SidebarLayoutMap::EXTENDED_DISPLAY*/) )
+                throw new ODRBadRequestException('Invalid Form');
+
+            // Datafield id is optional
+            $datafield_id = null;
+            if ( isset($post['datafield_id']) )
+                $datafield_id = intval( $post['datafield_id'] );
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+
+
+            /** @var SidebarLayout $sidebar_layout */
+            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            if ($sidebar_layout == null)
+                throw new ODRNotFoundException('Sidebar Layout');
+
+            $datatype = $sidebar_layout->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // The Datafield is optional...if not set, then it refers to the "general search" input
+            $datafield = null;
+            if ( !is_null($datafield_id) ) {
+                /** @var DataFields $datafield */
+                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+                if ($datafield == null)
+                    throw new ODRNotFoundException('Datafield');
+            }
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifySidebarLayout($user, $sidebar_layout, $datafield);
+            // --------------------
+
+            if ( !is_null($datafield) ) {
+                // Verify that the datafield is valid for this sidebar layout
+                $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), true);    // do need links here
+                $dr_array = array();
+                $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+
+                $found = false;
+                foreach ($dt_array as $dt_id => $dt) {
+                    if ( isset($dt['dataFields'][$datafield_id]) ) {
+                        $found = true;
+                        break;
+                    }
+                }
+
+                if ( !$found )
+                    throw new ODRBadRequestException('Invalid Datafield');
+            }
+
+
+            // What to do depends on what state is desired...
+            /** @var SidebarLayoutMap $sidebar_layout_map */
+            $sidebar_layout_map = $em->getRepository('ODRAdminBundle:SidebarLayoutMap')->findOneBy(
+                array(
+                    'sidebarLayout' => $sidebar_layout,
+                    'dataField' => $datafield,    // NOTE: could be null
+                )
+            );
+
+            $html = '';
+            if ( $state === SidebarLayoutMap::NEVER_DISPLAY ) {
+                // ...want to remove this datafield from this SidebarLayout
+
+                if ($sidebar_layout_map != null) {
+                    // If there's an entry tying this SidebarLayout to this datafield, then delete it
+                    $sidebar_layout_map->setDeletedAt(new \DateTime());
+
+                    // Mark the SidebarLayout itself as updated
+                    $sidebar_layout->setUpdated(new \DateTime());
+                    $sidebar_layout->setUpdatedBy($user);
+
+                    $em->persist($sidebar_layout_map);
+                    $em->persist($sidebar_layout);
+                    $em->flush();
+                }
+            }
+            else {
+                // ...want to add this datafield to this SidebarLayout
+                if ($sidebar_layout_map != null) {
+                    // There's already an entry tying this SidebarLayout to this datafield...do nothing
+                }
+                else {
+                    // Create an entry tying this datafield to the layout
+                    // NOTE: datafield could be null, in which case this is a request to create an
+                    //  entry for the "general search" input
+                    $entity_create_service->createSidebarLayoutMap($user, $sidebar_layout, $datatype, $datafield, SidebarLayoutMap::ALWAYS_DISPLAY);
+
+                    // Since an entry was created,
+                    $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $sidebar_layout->getId());
+                    $html = $odr_render_service->reloadSidebarDesignArea($datatype->getId(), $sidebar_array);
+
+                    // Return the new sidebar array
+                    $return['d']['html'] = $html;
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x05d38949;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Updates the display order of DataFields inside a Sidebar Layout.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datafieldorderAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1024,33 +1539,55 @@ class SearchSidebarController extends ODRCustomController
 
         try {
             // Grab necessary objects
-            $post = $_POST;
+            $post = $request->request->all();
 //print_r($post);  return;
+
+            if ( !isset($post['sidebar_layout_id']) /*|| !isset($post['always_display']) || !isset($post['extended_display'])*/ )
+                throw new ODRBadRequestException('Invalid Form');
+
+            $sidebar_layout_id = $post['sidebar_layout_id'];
+
+            $always_display = array();
+            if ( isset($post['always_display']) ) {
+                foreach ($post['always_display'] as $display_order => $df_id)
+                    $always_display[$display_order] = intval($df_id);
+            }
+
+            $extended_display = array();
+            if ( isset($post['extended_display']) ) {
+                foreach ($post['extended_display'] as $display_order => $df_id)
+                    $extended_display[$display_order] = intval($df_id);
+            }
+
+            // Verify that each datafield only shows up once across the entire post
+            $df_ids = array();
+            foreach ($always_display as $num => $df_id) {
+                if ( isset($df_ids[$df_id]) )
+                    throw new ODRBadRequestException('Invalid Form');
+                $df_ids[$df_id] = 0;
+            }
+            foreach ($extended_display as $num => $df_id) {
+                if ( isset($df_ids[$df_id]) )
+                    throw new ODRBadRequestException('Invalid Form');
+                $df_ids[$df_id] = 0;
+            }
+
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:SidebarLayoutElement');
 
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
-            /** @var ThemeElement $initial_theme_element */
-            /** @var ThemeElement $ending_theme_element */
-            $initial_theme_element = $repo_theme_element->find($initial_theme_element_id);
-            $ending_theme_element = $repo_theme_element->find($ending_theme_element_id);
-            if ($initial_theme_element == null || $ending_theme_element == null)
-                throw new ODRNotFoundException('ThemeElement');
+            /** @var SidebarLayout $sidebar_layout */
+            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            if ($sidebar_layout == null)
+                throw new ODRNotFoundException('Sidebar Layout');
 
-            if ($initial_theme_element->getTheme()->getDeletedAt() != null || $ending_theme_element->getTheme()->getDeletedAt() != null)
-                throw new ODRNotFoundException('Theme');
-            if ( $initial_theme_element->getTheme()->getId() !== $ending_theme_element->getTheme()->getId() )
-                throw new ODRBadRequestException('Unable to move a datafield between Themes');
-
-            $theme = $initial_theme_element->getTheme();
-            $datatype = $theme->getDataType();
+            $datatype = $sidebar_layout->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1060,106 +1597,35 @@ class SearchSidebarController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Throw an exception if the user isn't allowed to do this
-            self::canModifySidebarLayout($user, $theme);
+            // Complain if the user isn't allowed to modify this sidebar layout
+            self::canModifySidebarLayout($user, $sidebar_layout);
             // --------------------
 
 
-            // ----------------------------------------
-            // Ensure this datafield isn't trying to move into an illegal theme element
-            if ( $ending_theme_element->getThemeDataType()->count() > 0 )
-                throw new \Exception('Unable to move a Datafield into a ThemeElement that already has a child/linked Datatype');
-            if ( $ending_theme_element->getThemeRenderPluginInstance()->count() > 0 )
-                throw new \Exception('Unable to move a Datafield into a ThemeElement that is already being used by a RenderPlugin');
-
-            // NOTE - could technically check for deleted datafields, but it *shouldn't* matter if
-            //  any exist...don't think displayOrder can get messed up, and it's not really a
-            //  problem even if it does
-
-
-            // ----------------------------------------
-            // Ensure all the datafields in the $post belong to a single datatype
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                WHERE df.id IN (:datafields)
-                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
-                GROUP BY dt.id'
-            )->setParameters( array('datafields' => $post) );
-            $results = $query->getArrayResult();
-
-            if ( count($results) > 1 )
-                throw new \Exception('Invalid Datafield list');
-
-
-            // When changing datafield order, there aren't any appreciable differences between
-            //  'master', 'search_results', and 'table' themes
-
-            // Load all theme_datafield entries currently in the destination theme element
-            $query = $em->createQuery(
-               'SELECT tdf
-                FROM ODRAdminBundle:SidebarLayoutDataField tdf
-                WHERE tdf.themeElement = :theme_element_id
-                AND tdf.deletedAt IS NULL'
-            )->setParameters( array('theme_element_id' => $ending_theme_element->getId()) );
-            $results = $query->getResult();
-            /** @var ThemeDataField[] $results */
-
-            $tdf_list = array();
-            foreach ($results as $num => $tdf)
-                $tdf_list[ $tdf->getDataField()->getId() ] = $tdf;
-
-
-            // ----------------------------------------
-            // Update the order of the datafields in the destination theme element
-            foreach ($post as $index => $df_id) {
-
-                if ( isset($tdf_list[$df_id]) ) {
-                    // Ensure each datafield within the ending theme_element has the correct
-                    //  display_order
-                    $tdf = $tdf_list[$df_id];
-                    if ( $tdf->getDisplayOrder() !== $index ) {
-                        $properties = array(
-                            'displayOrder' => $index
-                        );
-                        $entity_modify_service->updateThemeDatafield($user, $tdf, $properties, true);    // don't flush immediately...
-                    }
-                }
-                else {
-                    // If the datafield is not currently listed within the ending theme_element, then
-                    //  it got moved into the ending theme_element from somewhere else
-
-                    /** @var ThemeDataField $old_tdf_entry */
-                    $old_tdf_entry = $em->getRepository('ODRAdminBundle:SidebarLayoutDataField')->findOneBy(
-                        array(
-                            'dataField' => $df_id,
-                            'themeElement' => $initial_theme_element->getId()
-                        )
-                    );
-
-                    if ($old_tdf_entry == null) {
-                        // If this previous tdf entry doesn't exist, then something is wrong
-                        throw new \Exception('Previous theme_datafield entry for Datafield '.$df_id.' themeElement '.$initial_theme_element_id.' does not exist');
-                    }
-                    else {
-                        // Otherwise, update the previous tdf entry so it's in the desired position
-                        //  in the ending theme_element
-                        $properties = array(
-                            'displayOrder' => $index,
-                            'themeElement' => $ending_theme_element,
-                        );
-                        $entity_modify_service->updateThemeDatafield($user, $old_tdf_entry, $properties, true);    // don't flush immediately
-
-                        // Don't need to redo display_order of the other theme_datafield entries in
-                        //  the initial theme_element...the values don't need to be contiguous
+            // Need to verify that the datafields make sense for this sidebar layout...
+            $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), true);    // do need links here
+            foreach ($dt_array as $dt_id => $dt) {
+                if ( isset($dt['dataFields']) ) {
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        if ( isset($df_ids[$df_id]) )
+                            $df_ids[$df_id] = 1;
                     }
                 }
             }
-            $em->flush();
+            // ...if any of the datafields weren't found, then complain
+            foreach ($df_ids as $df_id => $num) {
+                if ( $num === 0 && $df_id !== 0 )
+                    throw new ODRBadRequestException('Invalid Form');
+            }
 
-            // Update the cached version of the theme
-            $theme_info_service->updateThemeCacheEntry($theme, $user);
+
+            // ----------------------------------------
+            // Now that everything is valid, save any changes to the mapping
+            $repo_sidebar_layout_map = $em->getRepository('ODRAdminBundle:SidebarLayoutMap');
+
+            self::updateSidebarLayoutMap($repo_sidebar_layout_map, $entity_modify_service, $user, $sidebar_layout, $always_display, SidebarLayoutMap::ALWAYS_DISPLAY);
+            self::updateSidebarLayoutMap($repo_sidebar_layout_map, $entity_modify_service, $user, $sidebar_layout, $extended_display, SidebarLayoutMap::EXTENDED_DISPLAY);
+
         }
         catch (\Exception $e) {
             $source = 0x7d6d495b;
@@ -1172,5 +1638,57 @@ class SearchSidebarController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * @param EntityRepository $repo_sidebar_layout_map
+     * @param EntityMetaModifyService $entity_modify_service
+     * @param ODRUser $user
+     * @param SidebarLayout $sidebar_layout
+     * @param array $array An array of display_order -> datafield_ids
+     * @param integer $category {@link SidebarLayoutMap::$category}
+     */
+    private function updateSidebarLayoutMap($repo_sidebar_layout_map, $entity_modify_service, $user, $sidebar_layout, $array, $category)
+    {
+        if ( empty($array) )
+            return;
+
+        foreach ($array as $display_order => $df_id) {
+            // Attempt to locate the SidebarLayoutMap entry that refers to this datafield
+            $sl_dfm = null;
+            if ( $df_id !== 0 ) {
+                // This should reference an existing datafield...
+                $sl_dfm = $repo_sidebar_layout_map->findOneBy(
+                    array(
+                        'sidebarLayout' => $sidebar_layout,
+                        'dataField' => $df_id,
+                    )
+                );
+            }
+            else {
+                // This should reference the "general search" input...
+                $sl_dfm = $repo_sidebar_layout_map->findOneBy(
+                    array(
+                        'sidebarLayout' => $sidebar_layout,
+                        'dataField' => null,
+                    )
+                );
+            }
+            /** @var SidebarLayoutMap $sl_dfm */
+
+            // The SidebarLayoutMap entry shouldn't be null at this point
+            if ( !is_null($sl_dfm) ) {
+                $properties = array(
+                    'category' => $category,
+                    'displayOrder' => $display_order
+                );
+                $entity_modify_service->updateSidebarLayoutMap($user, $sl_dfm, $properties);
+            }
+            else {
+                // ...but throw an exception if it is for some reason
+                throw new ODRException('Unable to locate SidebarLayoutMap entry for SidebarLayout '.$sidebar_layout->getId().', Datafield '.$df_id);
+            }
+        }
     }
 }
