@@ -1496,11 +1496,18 @@ class SearchSidebarController extends ODRCustomController
                 }
                 else {
                     // Create an entry tying this datafield to the layout
-                    // NOTE: datafield could be null, in which case this is a request to create an
-                    //  entry for the "general search" input
-                    $entity_create_service->createSidebarLayoutMap($user, $sidebar_layout, $datatype, $datafield, SidebarLayoutMap::ALWAYS_DISPLAY);
+                    if ( is_null($datafield) ) {
+                        // Since datafield is null, this is a request to create a placeholder entry
+                        //  for the "general search" input
+                        $entity_create_service->createSidebarLayoutMap($user, $sidebar_layout, null, $datatype, SidebarLayoutMap::ALWAYS_DISPLAY);
+                    }
+                    else {
+                        // Since datafield is not null, $datatype should refer to the field...doing
+                        //  so eases dealing with datatype deletion or unlinking
+                        $entity_create_service->createSidebarLayoutMap($user, $sidebar_layout, $datafield, $datafield->getDataType(), SidebarLayoutMap::ALWAYS_DISPLAY);
+                    }
 
-                    // Since an entry was created,
+                    // It's easier if PHP renders and returns the HTML for the fake sidebar for the UI
                     $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $sidebar_layout->getId());
                     $html = $odr_render_service->reloadSidebarDesignArea($datatype->getId(), $sidebar_array);
 

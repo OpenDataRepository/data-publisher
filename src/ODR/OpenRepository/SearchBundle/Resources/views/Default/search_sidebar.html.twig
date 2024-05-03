@@ -511,7 +511,7 @@
 
 {% if intent != 'stored_search_keys' %}
         $(context).find(".ODRChooseSidebarLayout").unbind('click').click(function() {
-            openChooseSidebarLayoutRemodal({{ target_datatype.id }}, '{{ intent }}', '{{ search_key }}');
+            openChooseSidebarLayoutRemodal({{ target_datatype.id }}, '{{ intent }}');
         });
 {% endif %}
 

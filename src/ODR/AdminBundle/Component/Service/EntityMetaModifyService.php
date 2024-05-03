@@ -1928,7 +1928,6 @@ class EntityMetaModifyService
 
 
     /**
-     *  TODO - test this
      * Copies the contents of the given SidebarLayout entity into a new SidebarLayout entity if
      * something was changed.
      *
@@ -1936,7 +1935,7 @@ class EntityMetaModifyService
      * @param SidebarLayout $sidebar_layout
      * @param array $properties
      * @param boolean|null $delay_flush
-     * @param \Datetime|null $created
+     * @param \Datetime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayoutMeta
      */
@@ -2029,7 +2028,6 @@ class EntityMetaModifyService
 
 
     /**
-     *  TODO - test this
      * Copies the contents of the given SidebarLayoutMap entity into a new SidebarLayoutMap entity
      * if something was changed.
      *
@@ -2037,7 +2035,7 @@ class EntityMetaModifyService
      * @param SidebarLayoutMap $sidebar_layout_map
      * @param array $properties
      * @param boolean|null $delay_flush
-     * @param \DateTime|null $created
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayoutMap
      */
@@ -2259,10 +2257,11 @@ class EntityMetaModifyService
      * @param StoredSearchKey $ssk
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime $created If provided, then the created/updated dates are set to this
      *
      * @return StoredSearchKey
      */
-    public function updateStoredSearchKey($user, $ssk, $properties, $delay_flush = false)
+    public function updateStoredSearchKey($user, $ssk, $properties, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
@@ -2284,6 +2283,9 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_ssk = null;
         if ( self::createNewMetaEntry($user, $ssk) ) {
@@ -2293,8 +2295,8 @@ class EntityMetaModifyService
             $new_ssk = clone $ssk;
 
             // These properties aren't automatically updated when persisting the cloned entity...
-            $new_ssk->setCreated(new \DateTime());
-            $new_ssk->setUpdated(new \DateTime());
+            $new_ssk->setCreated($created);
+            $new_ssk->setUpdated($created);
             $new_ssk->setCreatedBy($user);
             $new_ssk->setUpdatedBy($user);
         }

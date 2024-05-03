@@ -158,7 +158,6 @@ class EntityDeletionService
 
 
     /**
-     *  TODO - test this with a sidebar layout
      * Deletes a datafield.
      *
      * @param DataFields $datafield
@@ -278,6 +277,24 @@ class EntityDeletionService
                 $datatypes_to_reset_order[] = $dt_id;
             }
 
+            // Need to also delete the cache entries of all datatypes that have a field derived
+            //  from the soon-to-be-deleted datafield
+            $query = $this->em->createQuery(
+               'SELECT ddt.id AS dt_id
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataFields AS ddf WITH ddf.masterDataField = df
+                JOIN ODRAdminBundle:DataType AS ddt WITH ddf.dataType = ddt
+                WHERE df.id = :datafield_to_delete
+                AND df.deletedAt IS NULL AND ddf.deletedAt IS NULL AND ddt.deletedAt IS NULL'
+            )->setParameters( array('datafield_to_delete' => $datafield->getId()) );
+            $results = $query->getArrayResult();
+
+            $datatypes_to_clear_cached_data = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatypes_to_clear_cached_data[] = $dt_id;
+            }
+
 
             // ----------------------------------------
             // Since this needs to make updates to multiple tables, use a transaction
@@ -359,7 +376,7 @@ class EntityDeletionService
             // ...derived datafields
             $query = $this->em->createQuery(
                'UPDATE ODRAdminBundle:DataFields AS df
-                SET df.templateFieldUuid = NULL
+                SET df.templateFieldUuid = NULL, df.masterDataField = NULL
                 WHERE df.templateFieldUuid = :field_uuid'
             )->setParameters(
                 array(
@@ -547,6 +564,10 @@ class EntityDeletionService
             // Reset sort order for the datatypes found earlier
             foreach ($datatypes_to_reset_order as $num => $dt_id)
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+            // Delete derived datatype cache entries if needed
+            foreach ($datatypes_to_clear_cached_data as $num => $dt_id)
+                $this->cache_service->delete('cached_datatype_'.$dt_id);
 
             // Rebuild all cached theme entries the datafield belonged to
             foreach ($all_datafield_themes as $t)
@@ -820,7 +841,6 @@ class EntityDeletionService
 
 
     /**
-     *  TODO - test this with a sidebar layout
      * Deletes a Datatype.
      *
      * @param DataType $datatype
@@ -1297,10 +1317,11 @@ class EntityDeletionService
 
             // Delete all SidebarLayoutPreferences entries
             $query_str =
-               'UPDATE odr_sidebar_layout_preferences AS slp
+               'UPDATE odr_sidebar_layout_preferences AS slp, odr_sidebar_layout AS sl
                 SET slp.deletedAt = NOW()
-                WHERE slp.data_type_id IN (?)
-                AND slp.deletedAt IS NULL';
+                WHERE sl.data_type_id IN (?)
+                AND slp.sidebar_layout_id = sl.id
+                AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);

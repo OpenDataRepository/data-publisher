@@ -1609,8 +1609,8 @@ class ODRRenderService
 
 
     /**
-     * Rebuilds the fake sidebar used by the sidebar design UI when fields are added.  Field removal
-     * and re-ordering doesn't need to call this.
+     * Rebuilds the fake sidebar used by the sidebar design UI when fields are added.  Re-ordering
+     * or removing fields from the sidebar layout doesn't need to interact with this.
      *
      * @param int $target_datatype_id
      * @param array $sidebar_array {@link SearchSidebarService::getSidebarDatatypeArray()}

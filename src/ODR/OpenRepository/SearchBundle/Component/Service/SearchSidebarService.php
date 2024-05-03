@@ -152,16 +152,16 @@ class SearchSidebarService
             // If a sidebar layout is specified, then verify whether the user can actually use
             //  the requested layout...
             $is_datatype_admin = isset( $datatype_permissions[$target_datatype_id]['dt_admin'] );
-
             $sidebar_layout_array = self::canUseLayout($user, $sidebar_layout_id, $is_datatype_admin);
-            if ( empty($sidebar_layout_array[$sidebar_layout_id]['sidebarLayoutMap']) && $fallback ) {
-                // If the sidebar layout has no datafields attached to it and falling back to the
-                //  "master" layout makes sense...then do nothing here
-            }
-            else {
-                // If the sidebar layout has datafields, but check whether any of them are in the
-                //  "always_display" category...
-                $has_always_display_fields = false;
+
+            // The sidebar layout may not have datafields in it...
+            $has_datafields = false;
+            $has_always_display_fields = false;
+            if ( !empty($sidebar_layout_array[$sidebar_layout_id]['sidebarLayoutMap']) ) {
+                $has_datafields = true;
+
+                // ...if it does have datafields, then check whether there's at least one field in
+                //  the 'always display' category
                 $sidebar_layout_map = $sidebar_layout_array[$sidebar_layout_id]['sidebarLayoutMap'];
                 foreach ($sidebar_layout_map as $df_id => $df) {
                     if ( $df['category'] === SidebarLayoutMap::ALWAYS_DISPLAY ) {
@@ -169,16 +169,16 @@ class SearchSidebarService
                         break;
                     }
                 }
+            }
 
-                if ( !$has_always_display_fields && $fallback ) {
-                    // ...if the layout does not have fields in that category and falling back to
-                    //  the "master" sidebar layout makes sense...then do nothing here
-                }
-                else {
-                    // Otherwise, build an array from the returned data
-                    $sidebar_array = self::constructSidebarLayoutArray($datatype_array, $sidebar_layout_array);
-                    return $sidebar_array;
-                }
+            if ( (!$has_datafields || !$has_always_display_fields) && $fallback ) {
+                // If the sidebar layout has no datafields attached to it and falling back to the
+                //  "master" layout makes sense...then do nothing here
+            }
+            else {
+                // In every other situation, build an array from the returned data
+                $sidebar_array = self::constructSidebarLayoutArray($datatype_array, $sidebar_layout_array);
+                return $sidebar_array;
             }
         }
 

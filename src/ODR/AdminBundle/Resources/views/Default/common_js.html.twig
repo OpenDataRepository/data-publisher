@@ -497,7 +497,7 @@
      * given search key.
      *
      * @param {string} search_key
-     * @param {string} when_disabled
+     * @param {string} when_disabled whether to put the sidebar into a 'collapsed' or 'expanded' state if it's disabled when this function is called
      * @param {string} [intent]
      */
     function enableSearchSidebar(search_key, when_disabled, intent) {
@@ -599,8 +599,8 @@
     /**
      * Displays an overlay on the page so the user can't click anything while searches are running.
      *
-     * @param {string} [text]
-     * @param {string} [intent]
+     * @param {string} [text] Optional text to use for the loading spinner
+     * @param {string} [intent] If 'searching', then the page's content is cleared to prepare for new search results
      */
     function showSearchOverlay(text, intent) {
         // console.log('showSearchOverlay()', 'text', text, 'intent', intent);
@@ -701,9 +701,8 @@
      *
      * @param {number} datatype_id
      * @param {string} page_type
-     * @param {string} search_key
      */
-    function openChooseSidebarLayoutRemodal(datatype_id, page_type, search_key) {
+    function openChooseSidebarLayoutRemodal(datatype_id, page_type) {
         var page_type_title = "Choose from available sidebar layouts:";
         if ( page_type != '' ) {
             var pieces = page_type.split(/_/);
@@ -711,6 +710,10 @@
                 pieces[key] = pieces[key][0].toUpperCase() + pieces[key].slice(1);
             page_type_title = "Choose from available sidebar layouts for " + pieces.join(' ') + " mode:";
         }
+
+        // Need to pull the search key from the sidebar instead of having it passed in...twig isn't
+        //  guaranteed to have it when certain parts of the page are built
+        var search_key = $("#ODRSidebarSearchKey").val();
 
         modal_options = {
             title: page_type_title,

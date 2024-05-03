@@ -730,7 +730,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param DataFields $datafield
-     * @param int $field_purpose
+     * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}
      * @param int $display_order
      * @param bool $delay_flush
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
@@ -2147,13 +2147,12 @@ class EntityCreationService
 
 
     /**
-     * TODO - test this
      * Creates and returns a new SidebarLayout entity.
      *
      * @param ODRUser $user
      * @param DataType $datatype
      * @param boolean $delay_flush
-     * @param \DateTime|null $created
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayout
      */
@@ -2197,20 +2196,19 @@ class EntityCreationService
 
 
     /**
-     * TODO - test this
      * Creates and returns an entity tying a datafield to one of a datatype's sidebar layouts
      *
      * @param ODRUser $user
      * @param SidebarLayout $sidebar_layout
-     * @param DataType $datatype
-     * @param DataFields|null $datafield A value of null is used as a placeholder for the "general search" input
-     * @param integer $category
+     * @param DataFields|null $datafield If null, then this will be the placeholder for the "general search" input
+     * @param DataType $datatype The datatype of $datafield (which isn't necessarily the datatype of $sidebar_layout)
+     * @param integer $category {@link SidebarLayoutMap::ALWAYS_DISPLAY}, {@link SidebarLayoutMap::EXTENDED_DISPLAY}
      * @param boolean $delay_flush
-     * @param \DateTime|null $created
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayoutMap
      */
-    public function createSidebarLayoutMap($user, $sidebar_layout, $datatype, $datafield, $category, $delay_flush = false, $created = null)
+    public function createSidebarLayoutMap($user, $sidebar_layout, $datafield, $datatype, $category, $delay_flush = false, $created = null)
     {
         if ( is_null($created) )
             $created = new \DateTime();
@@ -2388,7 +2386,7 @@ class EntityCreationService
      * @param DataType $datatype
      * @param string $search_key
      * @param string $label
-     * @param boolean $delay_flush
+     * @param boolean $delay_flush If provided, then the created/updated dates are set to this
      *
      * @return StoredSearchKey
      */

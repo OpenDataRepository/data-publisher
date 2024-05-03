@@ -988,6 +988,42 @@ class LinkController extends ODRCustomController
                     $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
                 }
 
+                // ----------------------------------------
+                // Determine whether the ancestor datatype uses a field from the descendant datatype
+                //  in one of its sidebar layouts...
+                $query = $em->createQuery(
+                   'SELECT sl_dfm.id AS sl_dfm_id
+                    FROM ODRAdminBundle:SidebarLayout AS sl
+                    JOIN ODRAdminBundle:SidebarLayoutMap AS sl_dfm WITH sl_dfm.sidebarLayout = sl
+                    WHERE sl.dataType = :ancestor_datatype_id
+                    AND sl_dfm.dataType = :descendant_datatype_id
+                    AND sl.deletedAt IS NULL AND sl_dfm.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'ancestor_datatype_id' => $local_datatype_id,
+                        'descendant_datatype_id' => $previous_remote_datatype_id
+                    )
+                );
+                $sl_dfm_ids = $query->getArrayResult();
+
+                if ( !empty($sl_dfm_ids) ) {
+                    $query = $em->createQuery(
+                       'UPDATE ODRAdminBundle:SidebarLayoutMap AS sl_dfm
+                        SET sl_dfm.deletedAt = :now
+                        WHERE sl_dfm.id IN (:sl_dfm_ids)
+                        AND sl_dfm.deletedAt IS NULL'
+                    )->setParameters(
+                        array(
+                            'now' => new \DateTime(),
+                            'sl_dfm_ids' => $sl_dfm_ids,
+                        )
+                    );
+
+                    $result = $query->execute();
+                }
+
+
+                // ----------------------------------------
                 // Ensure that the "master_revision" property gets updated if required
                 $needs_flush = false;
                 if ( $local_datatype->getIsMasterType() ) {
