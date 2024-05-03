@@ -212,7 +212,7 @@ class EntityCreationService
         $datafield_meta->setForceNumericSort(false);
         $datafield_meta->setRequired(false);
         $datafield_meta->setPreventUserEdits(false);
-        $datafield_meta->setSearchable(DataFields::NOT_SEARCHED);
+        $datafield_meta->setSearchable(DataFields::NOT_SEARCHABLE);
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);

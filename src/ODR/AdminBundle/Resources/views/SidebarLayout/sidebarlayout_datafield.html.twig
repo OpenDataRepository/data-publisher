@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set NOT_SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHABLE') %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 
@@ -10,7 +12,7 @@
     {% set field_is_used = true %}
 {% endif %}
 
-{% if datafield_meta.searchable == 0 or field_typename == "Markdown" %}
+{% if datafield_meta.searchable == NOT_SEARCHABLE or field_typename == "Markdown" %}
     {# Field is not searchable, so the user can't add this field to a layout #}
     <div id="Field_{{ datafield.id }}_overlay" class="ODROverlayDiv ODRBlockedDatafield" rel="{{ datafield.id }}" title="This datafield is not searchable, and therefore can not be used in the sidebar"></div>
 {% elseif field_is_used %}
@@ -29,7 +31,7 @@
             <input type="checkbox" name="">&nbsp;
             <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">
                 {% if is_datatype_admin %}
-                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
                 {% endif %}
                 {{ datafield_meta.fieldName }}
             </span>
@@ -44,7 +46,7 @@
                 <span id="ODRDataField_{{ datafield.id }}" title="{{ datafield_meta.description }}">
                     <span id="ODRDatafield_{{ datafield.id }}_name" class="ODRFieldLabel">
                         {% if is_datatype_admin %}
-                            <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                            <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
                         {% endif %}
                         {{ datafield_meta.fieldName }}
                     </span>
@@ -81,7 +83,7 @@
         <div class="ODRFileDatafield_header ODRFileImageHeader pure-u-1 {% if theme_datafield.hideHeader %}ODRFileImageHeader_hidden_design{% endif %}">
             <span title="{{ datafield_meta.description }}">
                 {% if is_datatype_admin %}
-                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
                 {% endif %}
                 {{ datafield_meta.fieldName }}
             </span>
@@ -96,7 +98,7 @@
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
             <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">
                 {% if is_datatype_admin %}
-                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
                 {% endif %}
                 {{ datafield_meta.fieldName }}
             </span>
@@ -110,7 +112,7 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
                 <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">
                     {% if is_datatype_admin %}
-                        <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                        <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
                     {% endif %}
                     {{ datafield_meta.fieldName }}
                 </span>
@@ -138,7 +140,7 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel ">
                 <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">
                     {% if is_datatype_admin %}
-                        <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                        <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
                     {% endif %}
                     {{ datafield_meta.fieldName }}
                 </span>
@@ -162,7 +164,7 @@
     <fieldset>
         <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
             {% if is_datatype_admin %}
-                <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
             {% endif %}
             {{ datafield_meta.fieldName }}
         </label>
@@ -179,7 +181,7 @@
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
             <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">
                 {% if is_datatype_admin %}
-                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable > 0 %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable > 0 %}un{% endif %}searchable"></i>
+                    <i class="ODRSearchableToggle fa fa-search {% if datafield_meta.searchable != NOT_SEARCHABLE %}fa-public{% else %}fa-not-public{% endif %}" title="Click to make the datafield {% if datafield_meta.searchable != NOT_SEARCHABLE %}un{% endif %}searchable"></i>
                 {% endif %}
                 {{ datafield_meta.fieldName }}
             </span>

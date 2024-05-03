@@ -192,7 +192,7 @@ class SearchAPIService
                 $can_view_dt = false;
                 if ($search_as_super_admin)
                     $can_view_dt = true;
-                else if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
+                else if ( isset($datatype_permissions[$dt_id]['dt_view']) )
                     $can_view_dt = true;
 
                 if (!$is_public && !$can_view_dt) {
@@ -206,7 +206,7 @@ class SearchAPIService
                         $can_view_df = false;
                         if ($search_as_super_admin)
                             $can_view_df = true;
-                        else if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
+                        else if ( isset($datafield_permissions[$df_id]['view']) )
                             $can_view_df = true;
 
                         // If user can view datafield, move it out of the non_public section
@@ -295,11 +295,8 @@ class SearchAPIService
                     $dt_is_public = false;
 
                 $can_view_datatype = false;
-                if ($search_as_super_admin || $dt_is_public ||
-                    ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
-                ) {
+                if ( $search_as_super_admin || $dt_is_public || isset($datatype_permissions[$dt_id]['dt_view']) )
                     $can_view_datatype = true;
-                }
 
                 $dt_lookup[$dt_id] = $can_view_datatype;
             }
@@ -316,11 +313,8 @@ class SearchAPIService
                     $df_is_public = false;
 
                 $can_view_datafield = false;
-                if ($search_as_super_admin || $df_is_public ||
-                    ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
-                ) {
+                if ( $search_as_super_admin || $df_is_public || isset($datafield_permissions[$df_id]['view']) )
                     $can_view_datafield = true;
-                }
 
                 // If the user can view the datafield, then store its id
                 if ( $can_view_datafield )
@@ -355,7 +349,7 @@ class SearchAPIService
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
 
         // Prior to inline searching, $searchable_datafields only had datafields that the user could
-        //  view and weren't marked as DataFields::NOT_SEARCHED...but because of inline search's
+        //  view and weren't marked as DataFields::NOT_SEARCHABLE...but because of inline search's
         //  requirements, it now contains every single datafield related to this datatype that the
         //  user is allowed to view
 
@@ -389,7 +383,7 @@ class SearchAPIService
 
                 // Determine if the user can view the datafield...
                 foreach ($searchable_datafields as $dt_id => $datafields) {
-                    if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] > DataFields::NOT_SEARCHED ) {
+                    if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
                         // User can both view and search this datafield
                         $filtered_search_params[$key] = $value;
                         break;
@@ -405,7 +399,7 @@ class SearchAPIService
 
                     $is_valid_field = false;
                     foreach ($searchable_datafields as $dt_id => $datafields) {
-                        if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] > DataFields::NOT_SEARCHED ) {
+                        if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
                             // User can both view and search this datafield...
                             $is_valid_field = true;
                             break;
@@ -1565,7 +1559,7 @@ class SearchAPIService
             $can_view_datatype = false;
             if ($search_as_super_admin)
                 $can_view_datatype = true;
-            else if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
+            else if ( isset($datatype_permissions[$dt_id]['dt_view']) )
                 $can_view_datatype = true;
             else if ($dt->isPublic())
                 $can_view_datatype = true;
@@ -1584,7 +1578,7 @@ class SearchAPIService
                 $can_view_datarecord = false;
                 if ($search_as_super_admin)
                     $can_view_datarecord = true;
-                else if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) )
+                else if ( isset($datatype_permissions[$dt_id]['dr_view']) )
                     $can_view_datarecord = true;
 
 
@@ -1955,11 +1949,8 @@ class SearchAPIService
                 $is_public = false;
 
             $can_view_datatype = false;
-            if ( $search_as_super_admin || $is_public ||
-                ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
-            ) {
+            if ( $search_as_super_admin || $is_public || isset($datatype_permissions[$dt_id]['dt_view']) )
                 $can_view_datatype = true;
-            }
 
             // If the user can view this derived datatype...
             if ( $can_view_datatype ) {
@@ -2006,11 +1997,8 @@ class SearchAPIService
                     $is_public = false;
 
                 $can_view_datatype = false;
-                if ( $search_as_super_admin || $is_public ||
-                    ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
-                ) {
+                if ( $search_as_super_admin || $is_public || isset($datatype_permissions[$dt_id]['dt_view']) )
                     $can_view_datatype = true;
-                }
 
                 // If the user can view this datatype...
                 if ( $can_view_datatype ) {
@@ -2116,7 +2104,7 @@ class SearchAPIService
             $can_view_datarecords = false;
             if ( $search_as_super_admin )
                 $can_view_datarecords = true;
-            else if ( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['dr_view']) )
+            else if ( isset($user_permissions[$dt_id]['dr_view']) )
                 $can_view_datarecords = true;
 
             // Each datarecord in the flattened list needs to start out with one of three values...

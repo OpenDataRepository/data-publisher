@@ -647,10 +647,6 @@ class SearchKeyService
             }
             else if ( is_numeric($key) ) {
                 // Ensure the datafield is valid to search on
-                // 0 - not searchable
-                // 1 - searchable only through general search
-                // 2 - searchable in both general and advanced search
-                // 3 - searchable only in advanced search
                 $df_id = intval($key);
                 $typeclass = null;
                 $found = false;
@@ -916,10 +912,6 @@ class SearchKeyService
                 // For each token in the search string...
                 foreach ($tokens as $token_num => $token) {
                     // Need to find each datafield that qualifies for general search...
-                    // 0 - not searchable
-                    // 1 - searchable only through general search
-                    // 2 - searchable in both general and advanced search
-                    // 3 - searchable only in advanced search
                     foreach ($searchable_datafields as $dt_id => $df_list) {
                         // Each token in the general search string gets its own facet
                         if ( !isset($criteria['general'][$token_num]) ) {
@@ -935,7 +927,13 @@ class SearchKeyService
                             $searchable = $df_data['searchable'];
                             $typeclass = $df_data['typeclass'];
 
-                            if ( $searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH ) {
+                            // In early May 2024, the 'searchable' property got changed from allowing four values
+                            //  (NOT_SEARCHED, GENERAL_SEARCH, ADVANCED_SEARCH, and ADVANCED_SEARCH_ONLY) to only
+                            //  allowing two values (NOT_SEARCHABLE, SEARCHABLE)
+
+                            // ...because three of the old values map to a single new value, equality
+                            //  should only be checked against NOT_SEARCHABLE
+                            if ( $searchable !== DataFields::NOT_SEARCHABLE ) {
                                 switch ($typeclass) {
                                     case 'Boolean':
                                         // Excluding because a Boolean's value has a different
@@ -1640,10 +1638,6 @@ class SearchKeyService
                 // For each token in the search string...
                 foreach ($tokens as $token_num => $token) {
                     // Need to find each datafield that qualifies for general search...
-                    // 0 - not searchable
-                    // 1 - searchable only through general search
-                    // 2 - searchable in both general and advanced search
-                    // 3 - searchable only in advanced search
                     foreach ($searchable_datafields as $dt_uuid => $df_list) {
                         // Each token in the general search string gets its own facet
                         if ( !isset($criteria['general'][$token_num]) ) {
@@ -1661,7 +1655,13 @@ class SearchKeyService
                             $searchable = $df_data['searchable'];
                             $typeclass = $df_data['typeclass'];
 
-                            if ( $searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH ) {
+                            // In early May 2024, the 'searchable' property got changed from allowing four values
+                            //  (NOT_SEARCHED, GENERAL_SEARCH, ADVANCED_SEARCH, and ADVANCED_SEARCH_ONLY) to only
+                            //  allowing two values (NOT_SEARCHABLE, SEARCHABLE)
+
+                            // ...because three of the old values map to a single new value, equality
+                            //  should only be checked against NOT_SEARCHABLE
+                            if ( $searchable !== DataFields::NOT_SEARCHABLE ) {
                                 switch ($typeclass) {
                                     case 'Boolean':
                                         // Excluding because a Boolean's value has a different

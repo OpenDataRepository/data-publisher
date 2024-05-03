@@ -456,7 +456,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setForceNumericSort(false);
                     $dfm->setRequired(false);
                     $dfm->setPreventUserEdits(false);
-                    $dfm->setSearchable(DataFields::NOT_SEARCHED);
+                    $dfm->setSearchable(DataFields::NOT_SEARCHABLE);
                     $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
                     $dfm->setChildrenPerRow(1);

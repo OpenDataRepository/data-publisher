@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set NOT_SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHABLE') %}
+
 <fieldset {% if field_list_name == 'extended_display' %}class="ODRSearchSidebar_extended" style="display: none;"{% endif %}>
 {% for df_id,df in sidebar_array[field_list_name] %}
     {% if df_id == 0 %}
@@ -16,7 +18,7 @@
         {% set dt_id = df['dataType']['id'] %}
         {% set dt = datatype_array[dt_id] %}
 
-        {% if df['dataFieldMeta']['searchable'] != 0 %}
+        {% if df['dataFieldMeta']['searchable'] != NOT_SEARCHABLE %}
         <div class="ODRAdvSearch_datafield pure-u-1">
             {% set content = '' %}
             {% set rpi_df_lookup_id = 'df_' ~ df_id %}

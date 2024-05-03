@@ -372,24 +372,21 @@ class EntityMetaModifyService
             case 'File':
             case 'Boolean':
             case 'DatetimeValue':
-                // Use the value from $properties if it exists, otherwise fall back to the datafield's
-                //  current value
-                $relevant_searchable = $datafield->getSearchable();
-                if ( isset($properties['searchable']) )
-                    $relevant_searchable = $properties['searchable'];
+                // In early May 2024, the 'searchable' property got changed from allowing four values
+                //  (NOT_SEARCHED, GENERAL_SEARCH, ADVANCED_SEARCH, and ADVANCED_SEARCH_ONLY) to only
+                //  allowing two values (NOT_SEARCHABLE, SEARCHABLE)
 
-                // General search is meaningless for these fieldtypes, so they can only
-                //  be searched via advanced search
-                if ($relevant_searchable == DataFields::GENERAL_SEARCH
-                    || $relevant_searchable == DataFields::ADVANCED_SEARCH
-                ) {
-                    $properties['searchable'] = DataFields::ADVANCED_SEARCH_ONLY;
-                }
+                // Previously, these four fieldtypes were only allowed to have NOT_SEARCHED or
+                //  ADVANCED_SEARCH_ONLY, because they can't be properly searched by the simple string
+                //  that the "general search" input provides.
+
+                // The search system is now 100% responsible for enforcing this, so these fieldtypes
+                //  are allowed to have the SEARCHABLE value
                 break;
 
             default:
                 // No other fieldtypes can be searched
-                $properties['searchable'] = DataFields::NOT_SEARCHED;
+                $properties['searchable'] = DataFields::NOT_SEARCHABLE;
                 break;
         }
 
@@ -589,7 +586,7 @@ class EntityMetaModifyService
         }
 
         // If the datafield is no longer searchable...
-        if ( $old_searchable !== $new_searchable && $new_searchable === DataFields::NOT_SEARCHED ) {
+        if ( $old_searchable !== $new_searchable && $new_searchable === DataFields::NOT_SEARCHABLE ) {
             // ...then need to forcibly remove it from all SidebarLayouts
             $query = $this->em->createQuery(
                'UPDATE ODRAdminBundle:SidebarLayoutMap slm

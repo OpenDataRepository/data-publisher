@@ -4103,8 +4103,8 @@ if ($debug)
 
                 if ( isset($post['searchable'][$df_id]) ) {
                     $searchable = $post['searchable'][$df_id];
-                    if ($searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY)
-                        throw new ODRBadRequestException('Form submitted with illegal search status for datafield '.$df_id);
+                    if ( !($searchable === DataFields::NOT_SEARCHABLE || $searchable === DataFields::SEARCHABLE) )
+                        throw new ODRBadRequestException('Form submitted with illegal searchable status for datafield '.$df_id);
                 }
 
                 // Don't want to force a searchable value right this second, since it depends on

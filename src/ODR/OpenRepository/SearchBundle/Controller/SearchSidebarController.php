@@ -99,16 +99,15 @@ class SearchSidebarController extends ODRCustomController
 
 
             $searchable = $datafield->getSearchable();
-            if ( $searchable === DataFields::NOT_SEARCHED || $searchable === DataFields::GENERAL_SEARCH ) {
-                // Don't attempt to re-render the datafield if it's either "not searchable" or
-                //  "general search only"
+            if ( $searchable === DataFields::NOT_SEARCHABLE ) {
+                // Don't attempt to re-render the datafield if it's "not searchable"
                 $return['d'] = array(
                     'needs_update' => false,
                     'html' => ''
                 );
             }
             else {
-                // Datafield is in advanced search, so it has an HTML element on the sidebar
+                // Datafield is searchable, so it has an HTML element on the sidebar
                 // Need the datafield's array entry in order to re-render it
                 $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
                 $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
@@ -688,23 +687,20 @@ class SearchSidebarController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            throw new ODRException('do not continue');
 
             // Toggle the datafield's current searchable status
-            if ( $datafield->getSearchable() === DataFields::NOT_SEARCHED ) {
+            if ( $datafield->getSearchable() === DataFields::NOT_SEARCHABLE ) {
                 $properties = array(
-                    'searchable' => DataFields::GENERAL_SEARCH
+                    'searchable' => DataFields::SEARCHABLE
                 );
                 $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
             else {
                 $properties = array(
-                    'searchable' => DataFields::NOT_SEARCHED
+                    'searchable' => DataFields::NOT_SEARCHABLE
                 );
                 $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
-
-            // TODO - return?
 
         }
         catch (\Exception $e) {

@@ -1,9 +1,7 @@
 {% spaceless %}
 
-{% set NOT_SEARCHED = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHED') %}
-{% set GENERAL_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::GENERAL_SEARCH') %}
-{% set ADVANCED_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH') %}
-{% set ADVANCED_SEARCH_ONLY = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH_ONLY') %}
+{% set NOT_SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHABLE') %}
+{% set SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::SEARCHABLE') %}
 
 <div class="pure-u-1 ODRContentWrapper" style="margin-left:20px;">
     <div class="pure-u-1">
@@ -56,13 +54,8 @@
                         </td>
                         <td>
                             <select id="df_{{ df_id }}_searchable" class="ODRMultiDatafield_searchable" name="searchable[{{ df_id }}]" {% if typeclass == "Markdown" %}disabled title="Markdown fields can't be searched"{% endif %}>
-                                <option value="{{ NOT_SEARCHED }}" {% if searchable == NOT_SEARCHED %}selected{% endif %}>No</option>
-                                {% if typeclass != 'Image' and typeclass != 'File' and typeclass != 'Boolean' and typeclass != 'DatetimeValue' %}
-                                    {# These typeclasses don't have a meaningful "general" search #}
-                                <option value="{{ GENERAL_SEARCH }}" {% if searchable == GENERAL_SEARCH %}selected{% endif %}>General Only</option>
-                                {% endif %}
-                                <option value="{{ ADVANCED_SEARCH }}" {% if searchable == ADVANCED_SEARCH %}selected{% endif %}>Advanced</option>
-                                <option value="{{ ADVANCED_SEARCH_ONLY }}" {% if searchable == ADVANCED_SEARCH_ONLY %}selected{% endif %}>Advanced Only</option>
+                                <option value="{{ NOT_SEARCHABLE }}" {% if searchable == NOT_SEARCHABLE %}selected{% endif %}>No</option>
+                                <option value="{{ SEARCHABLE }}" {% if searchable != NOT_SEARCHABLE %}selected{% endif %}>Yes</option>
                             </select>
                         </td>
                         <td>
