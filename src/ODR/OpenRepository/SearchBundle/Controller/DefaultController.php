@@ -64,6 +64,8 @@ class DefaultController extends Controller
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchSidebarService $search_sidebar_service */
             $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var ThemeInfoService $theme_info_service */
@@ -204,9 +206,28 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
+            // If this datatype has a default search key...
+            $default_search_key = '';
+            $default_search_params = array();
+            if ($target_datatype->getStoredSearchKeys() && $target_datatype->getStoredSearchKeys()->count() > 0) {
+                // ...then extract it so the sidebar can load with said search key
+                /** @var StoredSearchKey $ssk */
+                $ssk = $target_datatype->getStoredSearchKeys()->first();
+                $default_search_key = $ssk->getSearchKey();
+
+                // Convert the search key into a parameter list so that the sidebar can start out
+                //  with the right stuff
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
+
+                // Don't need to worry if the search key refers to an invalid/deleted datafield
+                //  ...the user will end up being redirected to the "empty" search key for the datatype
+
+                // The same thing will happen when it refers to a datafield the user can't view
+            }
+
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $sidebar_layout_id);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
 
 
@@ -254,9 +275,13 @@ class DefaultController extends Controller
                     'background_image_id' => $background_image_id,
 
                     // datatype/datafields to search
-                    'search_params' => array(),
+//                    'search_params' => array(),
                     'target_datatype' => $target_datatype,
                     'sidebar_array' => $sidebar_array,
+
+                    // defaults if needed
+                    'search_key' => $default_search_key,
+                    'search_params' => $default_search_params,
 
                     // theme selection
 //                    'available_themes' => $available_themes,
@@ -443,30 +468,31 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
-            // Need to build everything used by the sidebar...
-            $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $sidebar_layout_id);
-            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
-
             // If this datatype has a default search key...
-            $search_key = '';
-            $search_params = array();
+            $default_search_key = '';
+            $default_search_params = array();
             if ($target_datatype->getStoredSearchKeys() && $target_datatype->getStoredSearchKeys()->count() > 0) {
                 // ...then extract it so the sidebar can load with said search key
                 /** @var StoredSearchKey $ssk */
                 $ssk = $target_datatype->getStoredSearchKeys()->first();
-                $search_key = $ssk->getSearchKey();
+                $default_search_key = $ssk->getSearchKey();
 
                 // Convert the search key into a parameter list so that the sidebar can start out
                 //  with the right stuff
-                $search_params = $search_key_service->decodeSearchKey($search_key);
-                $search_sidebar_service->fixSearchParamsOptionsAndTags($sidebar_array, $search_params);
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
                 // Don't need to worry if the search key refers to an invalid/deleted datafield
                 //  ...the user will end up being redirected to the "empty" search key for the datatype
 
                 // The same thing will happen when it refers to a datafield the user can't view
             }
+
+            // Need to build everything used by the sidebar...
+            $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
+            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
+
+
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
@@ -523,8 +549,8 @@ class DefaultController extends Controller
                         'sidebar_array' => $sidebar_array,
 
                         // defaults if needed
-                        'search_key' => $search_key,
-                        'search_params' => $search_params,
+                        'search_key' => $default_search_key,
+                        'search_params' => $default_search_params,
 
                         // theme selection
 //                        'available_themes' => $available_themes,
@@ -563,8 +589,8 @@ class DefaultController extends Controller
                         'sidebar_array' => $sidebar_array,
 
                         // defaults if needed
-                        'search_key' => $search_key,
-                        'search_params' => $search_params,
+                        'search_key' => $default_search_key,
+                        'search_params' => $default_search_params,
 
                         // theme selection
 //                    'available_themes' => $available_themes,

@@ -4737,9 +4737,10 @@ if ($debug)
             // --------------------
 
 
-            // Going to attempt to render the default search sidebar here
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId());
-            // Because this is the "default" layout, an unmodified version of the cached datatype
+            // Need to start from a clean "master" search sidebar...
+            $search_params = array();
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params);
+            // Because this is the "master" layout, an unmodified version of the cached datatype
             //  array exists in this key...
             $dt_array = $sidebar_array['extended_display'];
             $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
@@ -4800,8 +4801,7 @@ if ($debug)
                 array('dt_id' => $datatype->getId())
             );
 
-            // If a search key exists, decode it into search parameters so that the sidebar will
-            //  show them by default
+            // If a stored search key exists, ensure the "fake" sidebar will show it by default
             $default_search_key = '';
             $default_search_params = array();
             if ( !empty($stored_search_keys) ) {

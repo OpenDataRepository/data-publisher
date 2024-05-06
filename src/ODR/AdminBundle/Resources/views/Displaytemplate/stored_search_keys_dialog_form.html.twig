@@ -164,7 +164,7 @@
         });
 
         $(".ODRStoredSearchKey_reset").unbind('click').click(function() {
-            var url = '{{ path('odr_reload_search_sidebar', {'force_rebuild': 1, 'search_key': '', 'intent': ''}) }}';
+            var url = '{{ path('odr_reload_search_sidebar', {'search_key': '', 'intent': ''}) }}';
             url = url.substring(0, url.length-1);
             url += '{{ empty_search_key }}' + '/' + 'stored_search_keys';
 

@@ -17,14 +17,13 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\SidebarLayout;
 use ODR\AdminBundle\Entity\SidebarLayoutMap;
 use ODR\AdminBundle\Entity\SidebarLayoutPreferences;
-use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -63,11 +62,6 @@ class SearchSidebarService
     private $database_info_service;
 
     /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
      * @var PermissionsManagementService
      */
     private $permissions_service;
@@ -94,7 +88,6 @@ class SearchSidebarService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
-     * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param UserManager $user_manager
      * @param Session $session
@@ -104,7 +97,6 @@ class SearchSidebarService
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatabaseInfoService $database_info_service,
-        DatatreeInfoService $datatree_info_service,
         PermissionsManagementService $permissions_service,
         UserManager $user_manager,
         Session $session,
@@ -113,7 +105,6 @@ class SearchSidebarService
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->database_info_service = $database_info_service;
-        $this->datatree_info_service = $datatree_info_service;
         $this->permissions_service = $permissions_service;
         $this->user_manager = $user_manager;
         $this->session = $session;
@@ -129,15 +120,20 @@ class SearchSidebarService
      *
      * @param ODRUser $user
      * @param int $target_datatype_id
+     * @param array $search_params Can be empty, but should be provided when the sidebar is going to
+     *                             be rendered with a search.  If provided and $sidebar_layout_id is
+     *                             set, then also ensures any referenced datafields exist in the
+     *                             array this function returns
      * @param int|null $sidebar_layout_id If set, then only include the fields from the given layout
-     * @param boolean $fallback If true, then return the "master" sidebar layout when the requested sidebar layout is unusable
+     * @param boolean $fallback If true, then return the "master" sidebar layout when the requested
+     *                          sidebar layout is unusable
      *
      * @return array
      */
-    public function getSidebarDatatypeArray($user, $target_datatype_id, $sidebar_layout_id = null, $fallback = true)
+    public function getSidebarDatatypeArray($user, $target_datatype_id, &$search_params, $sidebar_layout_id = null, $fallback = true)
     {
         // Need to load the cached version of this datatype, along with any linked datatypes it has
-        $datatype_array = $this->database_info_service->getDatatypeArray($target_datatype_id, true);
+        $datatype_array = $this->database_info_service->getDatatypeArray($target_datatype_id, true);    // do need links
 
         // ...then filter the array to just what the user can see
         $datarecord_array = array();
@@ -176,15 +172,23 @@ class SearchSidebarService
                 //  "master" layout makes sense...then do nothing here
             }
             else {
-                // In every other situation, build an array from the returned data
-                $sidebar_array = self::constructSidebarLayoutArray($datatype_array, $sidebar_layout_array);
-                return $sidebar_array;
+                // In every other situation, build an array to use for the sidebar
+                $sidebar_array = self::constructSidebarLayoutArray($datatype_array, $sidebar_layout_array, $search_params);
             }
         }
 
-        // If a sidebar layout was not specified, or the user was unable to use the requested layout,
-        //  then fall back to the default for the datatype
-        $sidebar_array = self::constructDefaultSidebarArray($datatype_array);
+        if ( empty($sidebar_array) ) {
+            // If a sidebar layout was not specified, or the user was unable to use the requested
+            //  layout, then fall back to the default for the datatype
+            $sidebar_array = self::constructDefaultSidebarArray($datatype_array);
+        }
+
+        if ( !empty($search_params) ) {
+            // If a set of initial search params was provided, then ensure the correct radio options
+            //  and tags get selected
+            self::fixSearchParamsOptionsAndTags($sidebar_array, $search_params);
+        }
+
         return $sidebar_array;
     }
 
@@ -286,9 +290,10 @@ class SearchSidebarService
      *
      * @param array $datatype_array
      * @param array $sidebar_layout_array
+     * @param array $search_params {@link self::getSidebarDatatypeArray()}
      * @return array
      */
-    private function constructSidebarLayoutArray($datatype_array, $sidebar_layout_array)
+    private function constructSidebarLayoutArray($datatype_array, $sidebar_layout_array, $search_params)
     {
         // Should only be one entry in the array...
         $sl_array = array();
@@ -326,23 +331,74 @@ class SearchSidebarService
                 // Otherwise, need to shuffle around some arrays
                 $dt_id = $sl_map['dataField']['dataType']['id'];
 
-//                if ( !isset($sidebar_array['datatype_array'][$dt_id]) )
-//                    $sidebar_array['datatype_array'][$dt_id] = $datatype_array[$dt_id];
-
                 if ( $category !== 'never_display' ) {
                     $sidebar_array[$category][$df_id] = $datatype_array[$dt_id]['dataFields'][$df_id];
                     $sidebar_array[$category][$df_id]['displayOrder'] = $sl_map['displayOrder'];
                     $sidebar_array[$category][$df_id]['dataType'] = $sl_map['dataField']['dataType'];
                 }
             }
+        }
 
-            // Sort the datafields in each category by their display order
+        // If a set of search params is provided, then need to ensure the datafield exists in the
+        //  sidebar layout
+        if ( !empty($search_params) ) {
+            foreach ($search_params as $key => $value) {
+                if ( $key === 'gen' ) {
+                    // Search params have a "general search" term...
+                    if ( !(isset($sidebar_array['always_display'][0]) || isset($sidebar_array['extended_display'][0])) ) {
+                        // ...the "general search" input isn't already in the sidebar layout, add it
+                        $sidebar_array['extended_display'][0] = array(
+                            'id' => 0,
+                            'displayOrder' => 999
+                        );
+                    }
+                }
+                else {
+                    // Search params have a datafield in there...
+                    $df_id = null;
+                    if ( is_numeric($key) ) {
+                        // Search terms for most datafields are denoted by a single numeric key...
+                        $df_id = intval($key);
+                    }
+                    else {
+                        $pieces = explode('_', $key);
+                        if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
+                            // ...search terms for DatetimeValues or the public_status/quality for
+                            //  a File/Image field are "<df_id>_<something>"
+                            $df_id = intval($pieces[0]);
+                        }
+
+                        // There are other potential keys for a search param, but ignoring them
+                        //  for the moment...
+                    }
+
+                    if ( !is_null($df_id) && !(isset($sidebar_array['always_display'][$df_id]) || isset($sidebar_array['extended_display'][$df_id])) ) {
+                        // The datafield from the search param isn't already in the sidebar layout
+                        foreach ($datatype_array as $dt_id => $dt) {
+                            // Need to find the datatype this datafield belongs to...
+                            if ( isset($dt['dataFields'][$df_id]) ) {
+                                // ...so it can receive an entry for in the sidebar array
+                                $sidebar_array['extended_display'][$df_id] = $dt['dataFields'][$df_id];
+                                $sidebar_array['extended_display'][$df_id]['displayOrder'] = 999;
+                                $sidebar_array['extended_display'][$df_id]['dataType'] = array('id' => $dt_id);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sort the datafields in each category by their display order
+        if ( !empty($sidebar_array['always_display']) && count($sidebar_array['always_display']) > 1 ) {
             uasort($sidebar_array['always_display'], function ($a, $b) {
                 $a_display_order = $a['displayOrder'];
                 $b_display_order = $b['displayOrder'];
 
                 return $a_display_order <=> $b_display_order;
             });
+        }
+        if ( !empty($sidebar_array['extended_display']) && count($sidebar_array['extended_display']) > 1  ) {
             uasort($sidebar_array['extended_display'], function ($a, $b) {
                 $a_display_order = $a['displayOrder'];
                 $b_display_order = $b['displayOrder'];
@@ -542,7 +598,7 @@ class SearchSidebarService
      */
     public function fixSearchParamsOptionsAndTags($sidebar_array, &$search_params)
     {
-        // This function needs to operate on the radioOption/tag lists, so need the datatype array
+        // This function operates on the radioOption/tag lists, so need the datatype array
         $dt_list = $sidebar_array['datatype_array'];
         foreach ($dt_list as $num => $dt) {
             foreach ($dt['dataFields'] as $df_id => $df) {

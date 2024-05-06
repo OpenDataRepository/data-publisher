@@ -20,6 +20,7 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\LinkedDataTree;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -2010,12 +2011,25 @@ class LinkController extends ODRCustomController
             // Since the above statement didn't throw an exception, the one below shouldn't either...
             $theme_id = $theme_info_service->getPreferredThemeId($user, $remote_datatype->getId(), 'search_results');    // TODO - do I actually want a separate page type for linking purposes?
 
-            // Create a base search key for the remote datatype, so the search sidebar can be used
-            $remote_datatype_search_key = $search_key_service->encodeSearchKey(
-                array(
-                    'dt_id' => $remote_datatype->getId()
-                )
-            );
+            // Create a base search key for the search sidebar, so it believes that it's working
+            //  with the remote datatype
+            $remote_datatype_search_key = '';
+            if ($remote_datatype->getStoredSearchKeys() && $remote_datatype->getStoredSearchKeys()->count() > 0) {
+                // If the remote datatype has a stored search key, then might as well use it
+                /** @var StoredSearchKey $ssk */
+                $ssk = $remote_datatype->getStoredSearchKeys()->first();
+                $remote_datatype_search_key = $ssk->getSearchKey();
+
+                // NOTE: the linking page doesn't directly render the sidebar, so there's no reason
+                //  to decode the search key here...it'll be handled as part of the sidebar refresh
+            }
+            else {
+                $remote_datatype_search_key = $search_key_service->encodeSearchKey(
+                    array(
+                        'dt_id' => $remote_datatype->getId()
+                    )
+                );
+            }
 
 
             // ----------------------------------------

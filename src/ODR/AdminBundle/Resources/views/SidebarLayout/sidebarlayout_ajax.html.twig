@@ -255,7 +255,7 @@
                 else {
                     if ( datafield_id != null ) {
                         // Ensure the datafield does not exist in the "fake" sidebar
-                        var parent = $("#ODRSidebarLayout_fakeSidebar").find("#datafield_" + datafield_id).parent();
+                        var parent = $("#ODRSidebarLayout_fakeSidebar").find("#datafield_" + datafield_id).parents('.ODRSidebarLayout_sidebarDatafield').first();
                         // console.log('parent', parent);
                         $(parent).remove();
                     }

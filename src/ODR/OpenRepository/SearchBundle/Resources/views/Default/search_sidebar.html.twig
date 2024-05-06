@@ -584,8 +584,6 @@
         });
 {% endif %}
 
-        // $(context).find("#textbox_general").focus();
-
         // Close all accordions...
         $(context).find(".ODRAdvSearch_header").trigger('click');
         {% if search_params|length <= 1 %}
@@ -599,9 +597,9 @@
         $(".ODRSearchSidebar_extended").show();
         {% endif %}
 
-        {% if search_params|length > 1 %}
-        // ...then switch back to expanded search if there's more than 1 search param
-        // changeSearch();
+        {% if not using_sidebar_layout and search_params|length > 1 %}
+        // ...and enable "expanded" search if there's more than 1 search param
+        changeSearch();
         {% endif %}
     }
 

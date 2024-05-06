@@ -198,18 +198,23 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
 
 
+            // ----------------------------------------
             // Need to build everything used by the sidebar...
-            $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($user, $target_datatype->getId(), $intent);
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $sidebar_layout_id);
+            $sidebar_array = array();
+            if ( $intent !== 'stored_search_keys' ) {
+                // Typically want the reload the preferred sidebar layout...
+                $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($user, $target_datatype->getId(), $intent);
+                $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $sidebar_layout_id);
+            }
+            else {
+                // ...but the StoredSearchKey UI expects the "master" sidebar layout at all times
+                $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params);
+            }
             $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
+
 
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
-
-            // Twig can technically figure out which radio options/tags are selected or
-            //  unselected from the search key, but it's irritating to do so...it's easier to
-            //  use php instead.
-            $search_sidebar_service->fixSearchParamsOptionsAndTags($sidebar_array, $search_params);
 
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -519,9 +524,11 @@ class SearchSidebarController extends ODRCustomController
             self::canModifySidebarLayout($user, $sidebar_layout);
             // --------------------
 
-            // Easier on twig if the sidebar array is passed in...do not fallback to the "master"
-            //  sidebar layout if the requested sidebar layout is empty
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $sidebar_layout->getId(), false);    // do not fallback
+            // Easier on twig if the sidebar array is passed in...do not render with any search params,
+            //  and do not fallback to the "master" sidebar layout if the requested sidebar layout
+            //  is empty
+            $search_params = array();
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, $sidebar_layout->getId(), false);
 
             // Render and return the page
             $return['d'] = array(
@@ -1503,8 +1510,10 @@ class SearchSidebarController extends ODRCustomController
                         $entity_create_service->createSidebarLayoutMap($user, $sidebar_layout, $datafield, $datafield->getDataType(), SidebarLayoutMap::ALWAYS_DISPLAY);
                     }
 
-                    // It's easier if PHP renders and returns the HTML for the fake sidebar for the UI
-                    $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $sidebar_layout->getId());
+                    // It's easier if PHP renders and returns the HTML for the fake sidebar for the
+                    //  UI...don't use any search params and do not fallback to the "master" layout
+                    $search_params = array();
+                    $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, $sidebar_layout->getId(), false);
                     $html = $odr_render_service->reloadSidebarDesignArea($datatype->getId(), $sidebar_array);
 
                     // Return the new sidebar array
