@@ -123,16 +123,54 @@
                 let prettified = ODR_prettifyChemicalFormula($("#{{ input_id }}").val(), {% if field_typename == "Paragraph Text" %}true{% else %}false{% endif %}, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
                 $("#{{ input_id }}_prettified").html( prettified );
 
-                // ...and show the popup
-                $("#{{ input_id }}_popup").show()
-                    .offset( $("#{{ input_id }}").offset() )
-                    .width( $("#{{ input_id }}").width() + 15 );
-                let prettified_div_width = $("#{{ input_id }}_prettified").width();
-                $("#{{ input_id }}_parsed")
-                    .height( $("#{{ input_id }}").height() );
-                    // .width( prettified_div_width - 5 );
-                $("#{{ input_id }}_prettified")
-                    .width( prettified_div_width - 7 );
+                // The popup should display in the general area of the input...
+                var popup_left, popup_top, popup_width;
+                var input_left, input_top, input_width;
+
+                var input_offset = $("#{{ input_id }}").offset();
+                input_top = input_offset.top;
+                input_left = input_offset.left;
+                input_width = $("#{{ input_id }}").width();
+                // console.log('input_top', input_top, 'input_left', input_left, 'input_width', input_width);
+
+                // Popup should always completely cover the input
+                popup_top = input_top;
+                // Popup should be at least 550px wide
+                if (input_width <= 550)
+                    popup_width = 550;
+                else
+                    popup_width = input_width;
+                // console.log('popup_width', popup_width);
+
+                // Center the popup over the input if the former is wider than the latter
+                popup_left = input_left;
+                if (popup_width > (input_width+10)) {
+                    var diff = (popup_width - input_width) / 2;
+                    popup_left = input_left - diff;
+                    // console.log('attempting centering, popup_left set to ', popup_left);
+                }
+                // Adjust the popup when it would go off the right side of the screen
+                // console.log('window.innerWidth', window.innerWidth);
+                if ( (popup_left + popup_width) > window.innerWidth ) {
+                    popup_left = window.innerWidth - popup_width - 40;
+                    // console.log('off the right side of the screen, popup_left set to ', popup_left);
+                }
+                // Adjust the popup when it would go off the left side of the screen
+                if ( popup_left < 0 ) {
+                    popup_left = input_left;
+                    // console.log('off the left side of the screen, popup_left set to ', popup_left);
+                }
+
+                // The 'parsed' element should be at least as big as the input element
+                $("#{{ input_id }}_parsed").height( $("#{{ input_id }}").height() );
+                // The 'prettified' element should be slightly less wide than the popup
+                $("#{{ input_id }}_prettified").width( popup_width - 15 );
+                // Set the popup dimensions and show it
+                $("#{{ input_id }}_popup")
+                    .show().width(popup_width)    // needs to be shown prior to setting offset apparently
+                    .offset({top: popup_top, left: popup_left});
+
+                {#console.log('final offset', $("#{{ input_id }}_popup").offset() );#}
             }
         });
 
