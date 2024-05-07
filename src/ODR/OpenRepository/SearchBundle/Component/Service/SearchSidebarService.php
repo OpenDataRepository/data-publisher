@@ -140,9 +140,6 @@ class SearchSidebarService
         $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
         $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-        // NOTE: letting twig handle the "searchable" flag attached to the datafields for now
-        // ...this would be the place to do it in PHP though
-
         $sidebar_array = array();
         if ( !is_null($sidebar_layout_id) ) {
             // If a sidebar layout is specified, then verify whether the user can actually use
@@ -256,9 +253,9 @@ class SearchSidebarService
                     // Organize the sidebarLayoutMap entries by the datafield id instead of a random number
                     $sidebar_array[$sidebar_layout_id]['sidebarLayoutMap'][$df_id] = $sl_map;
 
-                    // NOTE: no point getting more than the datafield/datafieldMeta ids here...need
-                    //  the renderPluginInstance info too, and that's already been built elsewhere for
-                    //  the cached datatype array
+                    // NOTE: no point getting more than the datafield/datafieldMeta ids here...still
+                    //  need the renderPluginInstance info too, but that is complicated to get and
+                    //  it's already been dealt with in the cached datatype array...
                 }
             }
         }
@@ -269,8 +266,7 @@ class SearchSidebarService
 
     /**
      * Creates an array of data to render the search sidebar with, based off the given sidebar
-     * layout array.  The cached_datatype_array only has the datatypes of the datafields in the
-     * 'always_display' and 'extended_display' arrays.
+     * layout array.
      *
      * The array looks like this:
      * <pre>

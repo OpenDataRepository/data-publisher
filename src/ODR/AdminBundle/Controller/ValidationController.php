@@ -3141,7 +3141,6 @@ class ValidationController extends ODRCustomController
 
 
     /**
-     *  TODO - test this with a sidebar layout
      * Returns a sequence of SQL statements that will delete every single entity from the backend
      * database that are related to the given datatype ids.
      *

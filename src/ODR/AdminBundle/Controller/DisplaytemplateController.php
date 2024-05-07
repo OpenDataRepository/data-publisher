@@ -4742,7 +4742,7 @@ if ($debug)
             $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params);
             // Because this is the "master" layout, an unmodified version of the cached datatype
             //  array exists in this key...
-            $dt_array = $sidebar_array['extended_display'];
+            $dt_array = $sidebar_array['datatype_array'];
             $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
             // Don't want the user list or the preferred theme id
 

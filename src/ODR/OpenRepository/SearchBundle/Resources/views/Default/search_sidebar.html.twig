@@ -182,8 +182,6 @@
         if (context == undefined )
             context = $("#odr_content").children("#ODRSearchSidebar").first();
 
-        // $(context).find(".ODRInput").prop("disabled", true);    {# TODO - don't remember if this was needed #}
-
         // Prevent normal form behavior
         $(context).find("#search_form").unbind('submit').submit(function (event) {
             event.preventDefault();

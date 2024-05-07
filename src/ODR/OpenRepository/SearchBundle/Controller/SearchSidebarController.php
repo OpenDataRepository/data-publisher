@@ -381,11 +381,6 @@ class SearchSidebarController extends ODRCustomController
         // ...and also have to be able to at least view the datatype being modified
         if ( !$permissions_service->canViewDatatype($user, $datatype) )
             throw new ODRForbiddenException();
-//
-//        // If this theme is a "local copy" of a remote datatype, then also need to be able to view
-//        //  the local datatype to be able to make changes to this theme
-//        if ( !$permissions_service->canViewDatatype($user, $local_parent_datatype) )
-//            throw new ODRForbiddenException();
 
         // If the action is modifying a datafield, then they need to be able to view it too
         if ( !is_null($datafield) && !$permissions_service->canViewDatafield($user, $datafield) )
@@ -510,6 +505,10 @@ class SearchSidebarController extends ODRCustomController
             if ( $sidebar_layout->getDataType()->getId() !== $datatype->getId() )
                 throw new ODRBadRequestException();
 
+            // If $page_type is the empty string, then this is likely being called from the datatype
+            //  landing page...so it's probably safe to assume 'searching'
+            if ( $page_type === '' )
+                $page_type = 'searching';
             // Ensure the provided page_type is valid
             $page_type_id = array_search($page_type, SearchSidebarService::PAGE_TYPES);
             if ( $page_type_id === false )
