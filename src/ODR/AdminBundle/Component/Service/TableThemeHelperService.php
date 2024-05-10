@@ -248,12 +248,13 @@ class TableThemeHelperService
      * @param int[] $datarecord_ids
      * @param int $datatype_id
      * @param int $theme_id
+     * @param boolean $on_link_search_page If true, then prepends a third column to the returned data
      *
      * @throws ODRException
      *
      * @return array
      */
-    public function getRowData($user, $datarecord_ids, $datatype_id, $theme_id)
+    public function getRowData($user, $datarecord_ids, $datatype_id, $theme_id, $on_link_search_page = false)
     {
         // ----------------------------------------
         // Get the array versions of the datafields being viewed by the user
@@ -381,15 +382,22 @@ class TableThemeHelperService
 
             // If something was stored...
             if ( count($dr_data) > 0 ) {
-                // Prepend the datarecord's id and sortfield value
+                // ...then need to prepend several values
                 $row = array();
+
+                // If rendering the table of currently linked datarecords for the search link page,
+                //  then prepend an empty space to hold the checkbox/radio option required by that page
+                if ( $on_link_search_page )
+                    $row[] = '';
+
+                // Always want the datarecord id...
                 $row[] = strval($dr_id);
 
-                // IMPORTANT: doing it this way only (mostly) worked BEFORE multi-datafield sorting
+                // ...and also always want an empty space for the datarecord's default sort value
+                // NOTE: filling in the value only (kinda) worked BEFORE multi-datafield sorting
 //                $row[] = strval($dr['sortField_value']);
-                // The better way of doing it now is to leave a placeholder space here, so that the
-                //  calling function can fill it in later with the sort order determined by the
-                //  search system
+                // ...the only way to handle it now is to leave a placeholder space here and have
+                //  the calling function fill in the sort value
                 $row[] = '';
 
                 // Convert all the datafield values into strings, and store them

@@ -420,6 +420,7 @@
      */
     function disableSearchSidebar() {
         // console.log('disableSearchSidebar()');
+        // console.trace();
 
         var sidebar = $("#ODRSearchSidebar");
         // var searchToggle = $(".ODRSearchToggle");
@@ -500,7 +501,7 @@
      * @param {string} when_disabled whether to put the sidebar into a 'collapsed' or 'expanded' state if it's disabled when this function is called
      * @param {string} [intent]
      */
-    function enableSearchSidebar(search_key, when_disabled, intent) {
+    function enableSearchSidebar(search_key, when_disabled, intent = '') {
         // console.log('enableSearchSicebar()', 'search_key', search_key, 'when_disabled', when_disabled, 'intent', intent);
 
         // If the sidebar is currently disabled...
@@ -513,7 +514,7 @@
         }
 
         // Default intent is for a search page
-        if (intent === undefined || intent === null)
+        if (intent === undefined || intent === null || intent === '')
             intent = 'searching';
 
         // Don't update the sidebar if it's already current
@@ -639,9 +640,9 @@
      *
      * @param {number} datatype_id
      * @param {string} page_type
-     * @param {string} search_key
+     * @param {string} [search_key]
      */
-    function openChooseViewRemodal(datatype_id, page_type, search_key) {
+    function openChooseViewRemodal(datatype_id, page_type, search_key = '') {
         var page_type_title = "Choose from available layouts:";
         if ( page_type != '' ) {
             var pieces = page_type.split(/_/);
@@ -700,15 +701,15 @@
      * for this datatype.
      *
      * @param {number} datatype_id
-     * @param {string} page_type
+     * @param {string} intent
      */
-    function openChooseSidebarLayoutRemodal(datatype_id, page_type) {
-        var page_type_title = "Choose from available sidebar layouts:";
-        if ( page_type != '' ) {
-            var pieces = page_type.split(/_/);
+    function openChooseSidebarLayoutRemodal(datatype_id, intent) {
+        var intent_title = "Choose from available sidebar layouts:";
+        if ( intent != '' ) {
+            var pieces = intent.split(/_/);
             for (var key in pieces)
                 pieces[key] = pieces[key][0].toUpperCase() + pieces[key].slice(1);
-            page_type_title = "Choose from available sidebar layouts for " + pieces.join(' ') + " mode:";
+            intent_title = "Choose from available sidebar layouts for " + pieces.join(' ') + " mode:";
         }
 
         // Need to pull the search key from the sidebar instead of having it passed in...twig isn't
@@ -716,15 +717,15 @@
         var search_key = $("#ODRSidebarSearchKey").val();
 
         modal_options = {
-            title: page_type_title,
+            title: intent_title,
             // body: "<div>Loading will not display if body is set.</div>",
             // loading: true,  // Force loading to display
         };
         openODRRemodal(modal_options);
 
-        var url = '{{ path('odr_get_available_sidebar_layouts', { 'datatype_id': 0, 'page_type': '', 'search_key': '' }) }}';
+        var url = '{{ path('odr_get_available_sidebar_layouts', { 'datatype_id': 0, 'intent': '', 'search_key': '' }) }}';
         url = url.substring(0, url.length - 2);
-        url += datatype_id + '/' + page_type + '/' + search_key;
+        url += datatype_id + '/' + intent + '/' + search_key;
         // alert(url);  return;
 
         $.ajax({

@@ -265,13 +265,13 @@ class SearchSidebarController extends ODRCustomController
      * datatype.
      *
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      * @param string $search_key
      * @param Request $request
      *
      * @return Response $response
      */
-    public function getavailablesidebarlayoutsAction($datatype_id, $page_type, $search_key, Request $request)
+    public function getavailablesidebarlayoutsAction($datatype_id, $intent, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -302,11 +302,11 @@ class SearchSidebarController extends ODRCustomController
             $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
-            // Not attempting to verify $page_type...
+            // Not attempting to verify intent...
             $selected_layout_id = 0;
-            if ( $page_type !== '' ) {
+            if ( $intent !== '' ) {
                 // ...SearchSidebarService will verify if being called from a location where it matters
-                $selected_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($user, $datatype_id, $page_type);
+                $selected_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($user, $datatype_id, $intent);
             }
 
             // Get all available sidebar layouts for this datatype that the user can view
@@ -316,11 +316,11 @@ class SearchSidebarController extends ODRCustomController
             // ----------------------------------------
             // Need to provide a formatted version of what getAvailableSidebarLayouts() returned
             //  as part of the "default_for" entry
-            $formatted_page_type = ucfirst( str_replace('_', ' ', $page_type) );
+            $formatted_intent = ucfirst( str_replace('_', ' ', $intent) );
 
-            $available_page_types = array();
-            foreach (SearchSidebarService::PAGE_TYPES as $num => $str)
-                $available_page_types[$str] = ucfirst( str_replace('_', ' ', $str) );
+            $available_intents = array();
+            foreach (SearchSidebarService::PAGE_INTENT as $num => $str)
+                $available_intents[$str] = ucfirst( str_replace('_', ' ', $str) );
 
 
             // Would prefer if this didn't use yet another dialog, but there's just too much
@@ -337,9 +337,9 @@ class SearchSidebarController extends ODRCustomController
                     'available_layouts' => $available_layouts,
                     'selected_layout_id' => $selected_layout_id,
 
-                    'page_type' => $page_type,
-                    'formatted_page_type' => $formatted_page_type,
-                    'available_page_types' => $available_page_types,
+                    'intent' => $intent,
+                    'formatted_intent' => $formatted_intent,
+                    'available_intents' => $available_intents,
                 )
             );
         }
@@ -470,12 +470,13 @@ class SearchSidebarController extends ODRCustomController
      *
      * @param int $datatype_id
      * @param int $sidebar_layout_id
+     * @param string $intent
      * @param string $search_key
      * @param Request $request
      *
      * @return Response
      */
-    public function modifysidebarlayoutAction($datatype_id, $sidebar_layout_id, $page_type, $search_key, Request $request)
+    public function modifysidebarlayoutAction($datatype_id, $sidebar_layout_id, $intent, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -505,14 +506,14 @@ class SearchSidebarController extends ODRCustomController
             if ( $sidebar_layout->getDataType()->getId() !== $datatype->getId() )
                 throw new ODRBadRequestException();
 
-            // If $page_type is the empty string, then this is likely being called from the datatype
+            // If $intent is the empty string, then this is likely being called from the datatype
             //  landing page...so it's probably safe to assume 'searching'
-            if ( $page_type === '' )
-                $page_type = 'searching';
-            // Ensure the provided page_type is valid
-            $page_type_id = array_search($page_type, SearchSidebarService::PAGE_TYPES);
-            if ( $page_type_id === false )
-                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
+            if ( $intent === '' )
+                $intent = 'searching';
+            // Ensure the provided intent is valid
+            $intent_id = array_search($intent, SearchSidebarService::PAGE_INTENT);
+            if ( $intent_id === false )
+                throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent');
 
             // --------------------
             // Determine user privileges
@@ -532,7 +533,7 @@ class SearchSidebarController extends ODRCustomController
             // Render and return the page
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => $odr_render_service->getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $page_type, $search_key),
+                'html' => $odr_render_service->getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $intent, $search_key),
             );
 
         }
@@ -811,13 +812,13 @@ class SearchSidebarController extends ODRCustomController
      * Datatype admins have the ability to set any shared sidebar layout as "default" for a given
      * datatype.
      *
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      * @param integer $sidebar_layout_id
      * @param Request $request
      *
      * @return Response
      */
-    public function setdatabasedefaultlayoutAction($page_type, $sidebar_layout_id, Request $request)
+    public function setdatabasedefaultlayoutAction($intent, $sidebar_layout_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -857,22 +858,22 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
 
 
-            // Ensure the provided page_type is valid
-            $page_type_id = array_search($page_type, SearchSidebarService::PAGE_TYPES);
-            if ( $page_type_id === false )
-                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
+            // Ensure the provided intent is valid
+            $intent_id = array_search($intent, SearchSidebarService::PAGE_INTENT);
+            if ( $intent_id === false )
+                throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent');
 
-            // Query the database for the default top-level layout for this datatype/page_type combo
+            // Query the database for the default top-level layout for this datatype/intent combo
             // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
             $query =
                'SELECT sl.id
                 FROM odr_sidebar_layout AS sl
                 JOIN odr_sidebar_layout_meta AS slm ON slm.sidebar_layout_id = sl.id
-                WHERE sl.data_type_id = :datatype_id AND (slm.default_for & :page_type_id)
+                WHERE sl.data_type_id = :datatype_id AND (slm.default_for & :intent_id)
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
             $params = array(
                 'datatype_id' => $datatype->getId(),
-                'page_type_id' => $page_type_id,
+                'intent_id' => $intent_id,
             );
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query, $params);
@@ -883,7 +884,7 @@ class SearchSidebarController extends ODRCustomController
                 if ( $sidebar_layout->getId() !== $sl_id ) {
                     /** @var SidebarLayout $sl */
                     $sl = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sl_id);
-                    $new_defaults = $sl->getDefaultFor() - $page_type_id;
+                    $new_defaults = $sl->getDefaultFor() - $intent_id;
                     $properties = array(
                         'defaultFor' => $new_defaults
                     );
@@ -893,7 +894,7 @@ class SearchSidebarController extends ODRCustomController
             }
 
             // ...afterward, specify this layout as the default (and shared, if it isn't already)
-            $new_defaults = $sidebar_layout->getDefaultFor() + $page_type_id;
+            $new_defaults = $sidebar_layout->getDefaultFor() + $intent_id;
             $properties = array(
                 'shared' => true,
                 'defaultFor' => $new_defaults
@@ -917,16 +918,16 @@ class SearchSidebarController extends ODRCustomController
 
 
     /**
-     * Because a sidebar layout can be a default for multiple page_types, it's handy to have a way
+     * Because a sidebar layout can be a default for multiple intents, it's handy to have a way
      * to remove a default without requiring another layout to take its place.
      *
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      * @param integer $sidebar_layout_id
      * @param Request $request
      *
      * @return Response
      */
-    public function unsetdatabasedefaultlayoutAction($page_type, $sidebar_layout_id, Request $request)
+    public function unsetdatabasedefaultlayoutAction($intent, $sidebar_layout_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -966,15 +967,15 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
 
 
-            // Ensure the provided page_type is valid
-            $page_type_id = array_search($page_type, SearchSidebarService::PAGE_TYPES);
-            if ( $page_type_id === false )
-                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
+            // Ensure the provided intent is valid
+            $intent_id = array_search($intent, SearchSidebarService::PAGE_INTENT);
+            if ( $intent_id === false )
+                throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent');
 
 
             // Only do stuff if the layout is currently the default for this page type...
-            if ( ($sidebar_layout->getDefaultFor() & $page_type_id) ) {
-                $new_defaults = $sidebar_layout->getDefaultFor() - $page_type_id;
+            if ( ($sidebar_layout->getDefaultFor() & $intent_id) ) {
+                $new_defaults = $sidebar_layout->getDefaultFor() - $intent_id;
                 $properties = array(
                     'shared' => true,
                     'defaultFor' => $new_defaults
@@ -1002,18 +1003,18 @@ class SearchSidebarController extends ODRCustomController
 
 
     /**
-     * Because a sidebar layout can be a default for multiple page_types, it's handy to have a way
+     * Because a sidebar layout can be a default for multiple intents, it's handy to have a way
      * to remove a default without requiring another layout to take its place.
      *
      * NOTE: the corresponding set is in SessionController::applyLayoutAction()
      *
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      * @param integer $sidebar_layout_id
      * @param Request $request
      *
      * @return Response
      */
-    public function unsetpersonaldefaultlayoutAction($page_type, $sidebar_layout_id, Request $request)
+    public function unsetpersonaldefaultlayoutAction($intent, $sidebar_layout_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1051,10 +1052,10 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
 
 
-            // Ensure the provided page_type is valid
-            $page_type_id = array_search($page_type, SearchSidebarService::PAGE_TYPES);
-            if ( $page_type_id === false )
-                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type');
+            // Ensure the provided intent is valid
+            $intent_id = array_search($intent, SearchSidebarService::PAGE_INTENT);
+            if ( $intent_id === false )
+                throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent');
 
 
             // Only do stuff if the user has a relevant sidebarLayoutPreferences entry...
@@ -1070,10 +1071,10 @@ class SearchSidebarController extends ODRCustomController
                 // Nothing to do when the user doesn't have a sidebarLayoutPreferences entry
             }
             else {
-                if ( ($slp->getDefaultFor() & $page_type_id) ) {
-                    // Set the user's sidebarLayoutPreferences entry so it no longer refers to this page_type
+                if ( ($slp->getDefaultFor() & $intent_id) ) {
+                    // Set the user's sidebarLayoutPreferences entry so it no longer refers to this intent
                     $bitfield_value = $slp->getDefaultFor();
-                    $bitfield_value -= $page_type_id;
+                    $bitfield_value -= $intent_id;
                     $slp->setDefaultFor($bitfield_value);
                     $slp->setUpdatedBy($user);
 

@@ -150,7 +150,7 @@
      * @param {number} theme_id The theme to use
      * @param {boolean} redirect If true, reloads the page to immediately use the selected theme
      * @param {boolean} persist If true, then the database is updated to indicate the user prefers to use the selected theme
-     * @param {string} selected_page_type
+     * @param {string} [selected_page_type]
      */
     function applyView(theme_id, redirect, persist, selected_page_type = '') {
         if (persist)
@@ -163,12 +163,11 @@
             // If a page type isn't provided, then set it based on where this is being called from
             selected_page_type = '{{ page_type }}';
 {% else %}
-            // If a page type isn't provided and this is being called from the datatype landing page,
-            //  then there's nothing to store the theme under...return without saving anything
+            // If a page type isn't provided, then this is being called from the datatype landing page
+            //  and there's nothing to store the theme under...return without saving anything
             return;
 {% endif %}
         }
-
 
         var url = '{{ path('odr_apply_theme', { 'datatype_id': datatype.id, 'page_type': '', 'theme_id': 0, 'persist': 0 }) }}';
         url = url.substr(0, (url.length - 4)) + selected_page_type + "/" + theme_id + "/" + persist;
@@ -182,30 +181,14 @@
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 if (redirect) {
-{% if page_type == '' %}
-                    // Just close the modal when running on the landing page
-{% elseif page_type == 'display' or page_type == 'edit' %}
-                    // If viewing a single datarecord, reload the search content...the correct theme
-                    //  will be pulled from the user's session
-                    reloadPage();
-{% else %}
-                    // Need to extract the offset, then redirect to a URL with the desired theme id
-                    var hash = window.location.hash;
-                    var offset = hash.substr(hash.lastIndexOf('/') + 1);
-                    if ( isNaN(offset) )
-                        offset = '1';
+                    // What to do after selecting a theme depends on which page the user is on...
+                    //  ...due to an ajax call and symfony being between the page and the rendering,
+                    //  the pages have to set a global variable for this function to use
+                    if ( window.ODRChooseView_applyredirectcallback )
+                        ODRChooseView_applyredirectcallback(theme_id);
+                    else
+                        alert('missing redirect callback');
 
-                    // Ensure the search sidebar doesn't revert back to the previous theme if the
-                    //  Search button is clicked
-                    $("#selected_theme_id").val(theme_id);
-
-                    // Reload the search results list with the newly selected theme
-                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
-                    url = url.substr(0, url.length-4);
-                    url += theme_id + '/' + '{{ search_key }}' + '/' + offset;
-
-                    UpdateURL(url);
-{% endif %}
                     closeODRRemodal();
                 }
 

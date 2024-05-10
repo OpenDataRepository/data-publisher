@@ -326,7 +326,7 @@ odr_get_available_themes:
     defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes, search_key: '' }
     requirements:
         datatype_id:  \d+
-        page_type:  '|search_results|display|edit'
+        page_type:  '|search_results|display|edit|linking'
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_save_theme_properties:
@@ -370,20 +370,20 @@ odr_make_default_theme:
     path:  /design/makedefault/{page_type}/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:setdatabasedefaulttheme }
     requirements:
-        page_type:  '|search_results|display|edit'
+        page_type:  '|search_results|display|edit|linking'
         theme_id:  \d+
 
 odr_unset_default_theme:
     path:  /design/unsetdefault/{page_type}/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:unsetdatabasedefaulttheme }
     requirements:
-        page_type:  '|search_results|display|edit'
+        page_type:  '|search_results|display|edit|linking'
         theme_id:  \d+
 odr_unset_personal_theme:
     path:  /design/unsetpersonal/{page_type}/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:unsetpersonaldefaulttheme }
     requirements:
-        page_type:  '|search_results|display|edit'
+        page_type:  '|search_results|display|edit|linking'
         theme_id:  \d+
 
 odr_delete_custom_theme:
@@ -1129,33 +1129,28 @@ odr_download_zip_archive:
 
 #-----------------------------------------
 # TextResults Controller
-odr_textresults_field_order:
-    path:  /design/textresults/fieldorder/{unused_field_ids}/{used_field_ids}
-    defaults: { _controller: ODRAdminBundle:TextResults:fieldorder }
-    requirements:
-        unused_field_ids: '[\d\,]*'
-        used_field_ids: '[\d\,]*'
-
 odr_datatables_row_request:
     path:  /beanstalk/datatables/rows
     defaults: { _controller: ODRAdminBundle:TextResults:datatablesrowrequest }
     methods: [ POST ]
-
 odr_datatables_state_save:
     path:  /beanstalk/datatables/state_save
     defaults: { _controller: ODRAdminBundle:TextResults:datatablesstatesave }
     methods: [ POST ]
-
 odr_datatables_state_load:
     path:  /beanstalk/datatables/state_load
     defaults: { _controller: ODRAdminBundle:TextResults:datatablesstateload }
     methods: [ POST ]
-
 odr_datatables_state_destroy:
     path:  /beanstalk/datatables/state_destroy/{odr_tab_id}
     defaults: { _controller: ODRAdminBundle:TextResults:datatablesstatedestroy }
     requirements:
         odr_tab_id: '[a-zA-Z0-9\-\_]{15}|'
+
+odr_textresults_load_linked_datarecords:
+    path:  /edit/load_linked_datarecords_table
+    defaults: { _controller: ODRAdminBundle:TextResults:loadlinkeddatarecordstable }
+    methods: [ POST ]
 
 #-----------------------------------------
 
@@ -1636,11 +1631,11 @@ odr_session_toggle_show_editable:
     methods: [ POST ]
 
 odr_apply_sidebar_layout:
-    path:  /session/apply_sidebar_layout/{datatype_id}/{page_type}/{sidebar_layout_id}/{persist}
+    path:  /session/apply_sidebar_layout/{datatype_id}/{intent}/{sidebar_layout_id}/{persist}
     defaults: { _controller: ODRAdminBundle:Session:applysidebarlayout }
     requirements:
         datatype_id:  \d+
-        page_type:  '|searching|linking'
+        intent:  '|searching|linking'
         sidebar_layout_id:  \d+
         persist: 0|1
 
@@ -1649,7 +1644,7 @@ odr_apply_theme:
     defaults: { _controller: ODRAdminBundle:Session:applytheme }
     requirements:
         datatype_id:  \d+
-        page_type:  '|search_results|display|edit'
+        page_type:  '|search_results|display|edit|linking'
         theme_id:  \d+
         persist: 0|1
 

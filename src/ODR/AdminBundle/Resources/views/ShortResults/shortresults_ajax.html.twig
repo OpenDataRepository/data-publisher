@@ -87,12 +87,12 @@
             var dr_id = id_data[1];
 
             if (allow_multiple_links === "1" || local_datarecord_is_ancestor === "0")
-                $(this).append('<input type="checkbox" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="LinkRecord(' + dr_id + ');" /> Link to this record');
+                $(this).append('<input type="checkbox" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" /> Link to this record');
             else
-                $(this).append('<input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="LinkRecord(' + dr_id + ');" /> Link to this record');
+                $(this).append('<input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" /> Link to this record');
         });
 
-        initCheckboxes(".ODRShortResultWrapper", false);
+        ODRLinkDatarecords_initCheckboxes(".ODRShortResultWrapper", false);
     });
 {% endif %}
 </script>

@@ -39,15 +39,15 @@
     });
 
     /**
-     * Toggles the search sidebar between "simple" and "extended" modes.  By default, the sidebar
-     * starts out in "simple" mode.
+     * Toggles the search sidebar between "collapsed" and "extended" modes.  By default, the sidebar
+     * starts out in "collapsed" mode.
      */
     function changeSearch() {
         // If this element doesn't exist, then there's nothing to do
         if ( $("#ODRSearchControls_top") === undefined )
             return;
 
-        if ($("#search_type").val() === 'simple') {
+        if ($("#search_type").val() === 'collapsed') {
             // Show all expanded search datafields
             $("#search_type").val('extended');
             $(".ODRSearchFieldsToggle").each(function () {
@@ -60,7 +60,7 @@
         }
         else {
             // Hide all expanded search datafields
-            $("#search_type").val('simple');
+            $("#search_type").val('collapsed');
             $(".ODRSearchFieldsToggle").each(function () {
                 $(this).html('Open Expanded Search');
             });
@@ -75,8 +75,16 @@
      * Reloads the page so the default search is guaranteed to display.
      */
     function doReset() {
-        {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
-        window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
+        var context = $("#odr_content").find("#ODRSearchSidebar").first();
+        var intent = $(context).find("#ODRSearchIntent").val();
+
+        if ( intent === 'searching' ) {
+            {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
+            window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
+        }
+        else {
+            window.location.reload();
+        }
     }
 
     /**

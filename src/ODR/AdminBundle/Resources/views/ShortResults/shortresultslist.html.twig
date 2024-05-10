@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{# NOTE: The "intent" variable passed in could be either "searching" or "linking" for this file #}
+
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set theme = theme_array[initial_theme_id] %}
 
@@ -68,9 +70,11 @@
 
         $(".MenuDesignArea").remove();
 
-        // TODO - this is never called with prevent_scroll == true
-        var prevent_scroll = false;
-        ShortResults_initPage(prevent_scroll);
+        // Resize all elements dependent on window size
+        $(window).unbind('resize').resize(function() {
+            WindowResizeInterval = window.clearInterval(WindowResizeInterval);    // variable WindowResizeInterval defined in common.js
+            WindowResizeInterval = window.setInterval("onWindowResize()", 500);
+        });
 
         // Need a tab id in html5 sessionStorage if one doesn't exist
         if ( !window.sessionStorage.getItem('odr_tab_id') )
@@ -91,28 +95,6 @@
             });
         }
 {% endif %}
-
-{% if notify_of_sync is defined and notify_of_sync == true %}
-        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
-            'datatype_id': datatype.id,
-            'theme_id': theme.id,
-            'page_type': 'search_results',
-            'search_key': search_key,
-        }%}
-{% endif %}
-
-        {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {
-            'page_type': 'search'
-        } %}
-    });
-
-
-    function ShortResults_initPage(prevent_scroll) {
-        // Resize all elements dependent on window size
-        $(window).unbind('resize').resize(function() {
-            WindowResizeInterval = window.clearInterval(WindowResizeInterval);    // variable WindowResizeInterval defined in common.js
-            WindowResizeInterval = window.setInterval("onWindowResize()", 500);
-        });
 
         // Resize everything prior to divs being hidden
         onWindowResize();
@@ -136,12 +118,41 @@
         });
 
         $("#ChooseView").unbind('click').click(function(event) {
+            window.ODRChooseView_applyredirectcallback = function(theme_id) {
+                {% if intent == 'searching' %}
+                // When a new 'search_results' theme is selected...need to redirect to a new URL
+                //  with the desired theme_id
+
+                // Need to extract the offset...
+                var hash = window.location.hash;
+                var offset = hash.substr(hash.lastIndexOf('/') + 1);
+                if ( isNaN(offset) )
+                    offset = '1';
+                // ...and ensure the search sidebar doesn't revert back to the previous theme when
+                //  the Search button is clicked
+                $("#selected_theme_id").val(theme_id);
+
+                // Reload the search results list with the newly selected theme
+                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
+                url = url.substr(0, url.length-4);
+                url += theme_id + '/' + '{{ search_key }}' + '/' + offset;
+
+                UpdateURL(url);
+                {% elseif intent == 'linking' %}
+                // When a new theme is selected for this usage, the result needs to be surgically
+                //  spliced into a specific div on the page...
+                $("#selected_theme_id").val(theme_id);
+                doSearch( '{{ path('odr_search_results') }}' );
+                {% else %}
+                alert('invalid intent "{{ intent }}" passed to ODRAdminBundle::ShortResults::shortresultslist.html.twig');
+                {% endif %}
+            }
             openChooseViewRemodal({{ datatype.id }}, 'search_results', '{{ search_key }}');
         });
 
-{% if not can_edit_datatype %}
+        {% if not can_edit_datatype %}
         $(".ODRDownloadAllFiles").remove();
-{% else %}
+        {% else %}
         $(".ODRDownloadAllFiles").unbind('click').click(function() {
 
             if ( $(this).hasClass('fa-muted') )
@@ -155,29 +166,40 @@
             {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
             openMassDownloadDialog("{{ search_key }}", datafield_id);
         });
-{% endif %}
+        {% endif %}
 
-        if (!prevent_scroll) {
-            {% if scroll_target != '' %}
-            // Scroll to a specific record in the search results
-            var target = '#ShortResults_' + {{ scroll_target }};
-            if ( $(target) !== undefined && $(target).offset() !== undefined ) {
-                $('html, body').animate({
-                    scrollTop: $(target).offset().top-75
-                }, 500);
-            }
-            else {
-                // The record isn't displayed on this page, so reset to the top
-                window.scrollTo(0, 0);
-            }
-            {% else %}
-            // Don't have a specific record to scroll to, so reset to the top of the page
-            window.scrollTo(0, 0);
-            {% endif %}
+        {% if scroll_target != '' %}
+        // Scroll to a specific record in the search results
+        var target = '#ShortResults_' + {{ scroll_target }};
+        if ( $(target) !== undefined && $(target).offset() !== undefined ) {
+            $('html, body').animate({
+                scrollTop: $(target).offset().top-75
+            }, 500);
         }
+        else {
+            // The record isn't displayed on this page, so reset to the top
+            window.scrollTo(0, 0);
+        }
+        {% else %}
+        // Don't have a specific record to scroll to, so reset to the top of the page
+        window.scrollTo(0, 0);
+        {% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
-    }
+
+{% if notify_of_sync is defined and notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'page_type': 'search_results',
+            'search_key': search_key,
+        }%}
+{% endif %}
+
+        {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {
+            'page_type': 'search'
+        } %}
+    });
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

@@ -13,11 +13,11 @@ odr_reload_search_sidebar:
         intent: 'searching|linking|stored_search_keys|'
 
 odr_get_available_sidebar_layouts:
-    path:  /view/getlayouts/{datatype_id}/{page_type}/{search_key}
+    path:  /view/getlayouts/{datatype_id}/{intent}/{search_key}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:getavailablesidebarlayouts, search_key: '' }
     requirements:
         datatype_id:  \d+
-        page_type:  '|searching|linking'
+        intent:  '|searching|linking'
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_create_sidebar_layout:
@@ -27,12 +27,12 @@ odr_create_sidebar_layout:
         datatype_id: \d+
 
 odr_modify_sidebar_layout:
-    path:  /design/modify_layout/{datatype_id}/{sidebar_layout_id}/{page_type}/{search_key}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:modifysidebarlayout, page_type: '', search_key: '' }
+    path:  /design/modify_layout/{datatype_id}/{sidebar_layout_id}/{intent}/{search_key}
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:modifysidebarlayout, intent: '', search_key: '' }
     requirements:
         datatype_id:  \d+
         sidebar_layout_id:  \d+
-        page_type:  '|searching|linking'
+        intent:  '|searching|linking'
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_save_sidebar_layout_properties:
@@ -54,23 +54,23 @@ odr_toggle_sidebar_layout_shared:
         sidebar_layout_id:  \d+
 
 odr_make_default_sidebar_layout:
-    path:  /design/makedefaultlayout/{page_type}/{sidebar_layout_id}
+    path:  /design/makedefaultlayout/{intent}/{sidebar_layout_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:setdatabasedefaultlayout }
     requirements:
-        page_type:  '|searching|linking'
+        intent:  '|searching|linking'
         sidebar_layout_id:  \d+
 
 odr_unset_default_sidebar_layout:
-    path:  /design/unsetdefaultlayout/{page_type}/{sidebar_layout_id}
+    path:  /design/unsetdefaultlayout/{intent}/{sidebar_layout_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:unsetdatabasedefaultlayout }
     requirements:
-        page_type:  '|searching|linking'
+        intent:  '|searching|linking'
         sidebar_layout_id:  \d+
 odr_unset_personal_sidebar_layout:
-    path:  /design/unsetpersonallayout/{page_type}/{sidebar_layout_id}
+    path:  /design/unsetpersonallayout/{intent}/{sidebar_layout_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:unsetpersonaldefaultlayout }
     requirements:
-        page_type:  '|searching|linking'
+        intent:  '|searching|linking'
         sidebar_layout_id:  \d+
 
 odr_delete_sidebar_layout:

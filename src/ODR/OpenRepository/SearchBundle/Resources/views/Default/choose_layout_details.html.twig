@@ -10,7 +10,7 @@
         {% endif %}
         </h4>
         <div>Created By: {{ sidebar_layout.created_by_name }}</div>
-{#        <div>sidebar_layout id: {{ sidebar_layout.id }}&nbsp;&nbsp;page type: {{ formatted_page_type }}</div>#}
+{#        <div>sidebar_layout id: {{ sidebar_layout.id }}&nbsp;&nbsp;page type: {{ formatted_intent }}</div>#}
     </div>
 
     <div class="pure-u-1 pure-u-md-11-24 ODRChooseViewDescription">
@@ -63,7 +63,7 @@
 
         {% if sidebar_layout.is_empty %}
             {# empty sidebar layouts can't be used as a personal default #}
-        {% elseif user != "anon." and formatted_page_type not in sidebar_layout.user_preference_for %}
+        {% elseif user != "anon." and formatted_intent not in sidebar_layout.user_preference_for %}
             {# users can select any sidebar layout they can view to be their personal default #}
             <li class="ODRSidebarLayout_SetPersonalDefault ODRChooseViewLink">make personal default</li>
             {% set need_spacer = true %}
@@ -88,7 +88,7 @@
 
         {% if sidebar_layout.is_empty %}
             {# empty sidebar layouts can't be used as a database default #}
-        {% elseif is_datatype_admin and sidebar_layout.is_shared and formatted_page_type not in sidebar_layout.default_for %}
+        {% elseif is_datatype_admin and sidebar_layout.is_shared and formatted_intent not in sidebar_layout.default_for %}
             {# datatype admins can set any shared sidebar layout as the default for a database #}
             <li class="ODRSidebarLayout_SetDatabaseDefault ODRChooseViewLink">make database default</li>
         {% endif %}

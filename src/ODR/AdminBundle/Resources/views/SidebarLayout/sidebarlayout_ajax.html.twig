@@ -279,7 +279,7 @@
 
                 // The "real" search sidebar is hidden, but it can still be updated
                 // Has to be done here, unfortunately, or going back via browser arrow won't update
-                updateSearchSidebar('{{ search_key }}', '{{ page_type }}', true);
+                updateSearchSidebar('{{ search_key }}', '{{ intent }}', true);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -368,7 +368,7 @@
 
                     // The "real" search sidebar is hidden, but it can still be updated
                     // Has to be done here, unfortunately, or going back via browser arrow won't update
-                    updateSearchSidebar('{{ search_key }}', '{{ page_type }}', true);
+                    updateSearchSidebar('{{ search_key }}', '{{ intent }}', true);
                 }
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -468,7 +468,7 @@
 
                 // The "real" search sidebar is hidden, but it can still be updated
                 // Has to be done here, unfortunately, or going back via browser arrow won't update
-                updateSearchSidebar('{{ search_key }}', '{{ page_type }}', true);
+                updateSearchSidebar('{{ search_key }}', '{{ intent }}', true);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

@@ -295,7 +295,7 @@ class DatatreeInfoService
      */
     public function getLinkedAncestors($datatype_ids, $datatree_array = null, $deep = false)
     {
-        // Need the cached datatype array...
+        // Need the cached datatree array...
         if ( is_null($datatree_array) )
             $datatree_array = self::getDatatreeArray();
 
@@ -343,7 +343,7 @@ class DatatreeInfoService
      */
     public function getLinkedDescendants($datatype_ids, $datatree_array = null, $deep = false)
     {
-        // Need the cached datatype array...
+        // Need the cached datatree array...
         if ( is_null($datatree_array) )
             $datatree_array = self::getDatatreeArray();
 
@@ -533,5 +533,31 @@ class DatatreeInfoService
         }
 
         return $datarecords_to_return;
+    }
+
+
+    /**
+     * Convenience function to return whether the link allows multiple records or not.
+     *
+     * @param integer $ancestor_datatype_id
+     * @param integer $descendant_datatype_id
+     * @return boolean
+     */
+    public function allowsMultipleLinkedDatarecords($ancestor_datatype_id, $descendant_datatype_id, $datatree_array = null)
+    {
+        // Need the cached datatree array...
+        if ( is_null($datatree_array) )
+            $datatree_array = self::getDatatreeArray();
+
+        if ( !empty($datatree_array['multiple_allowed'][$descendant_datatype_id] )
+            && in_array(
+                $ancestor_datatype_id,
+                $datatree_array['multiple_allowed'][$descendant_datatype_id]
+            )
+        ) {
+            return true;
+        }
+
+        return false;
     }
 }

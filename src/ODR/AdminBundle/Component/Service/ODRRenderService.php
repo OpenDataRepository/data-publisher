@@ -332,12 +332,12 @@ class ODRRenderService
      * @param ODRUser $user
      * @param SidebarLayout $sidebar_layout
      * @param array $sidebar_array {@link SearchSidebarService::getSidebarDatatypeArray()}
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      * @param string $search_key
      *
      * @return string
      */
-    public function getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $page_type, $search_key = '')
+    public function getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $intent, $search_key = '')
     {
         $datatype = $sidebar_layout->getDataType();
         $datarecord = null;
@@ -364,7 +364,7 @@ class ODRRenderService
             'sidebar_layout' => $sidebar_layout,    // Needed for ODRAdminBundle:SidebarLayout:sidebarlayout_properties_form.html.twig
             'sidebar_array' => $sidebar_array,
 
-            'page_type' => $page_type,
+            'intent' => $intent,
         );
 
         // TODO - eventually replace with $this->theme_service->getPreferredTheme()?

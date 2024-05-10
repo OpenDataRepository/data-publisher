@@ -41,7 +41,7 @@ class SearchSidebarService
      *
      * @var string[]
      */
-    const PAGE_TYPES = array(
+    const PAGE_INTENT = array(
         1 => 'searching',
         2 => 'linking',
     );
@@ -722,20 +722,20 @@ class SearchSidebarService
                 || $user_id == $created_by['id']
                 || $is_datatype_admin
             ) {
-                // layouts can be defaults for multiple page_types...
+                // layouts can be defaults for multiple sidebar intents...
                 $default_for_labels = array();
                 $default_for = $sidebar_layout_meta['defaultFor'];
-                foreach (self::PAGE_TYPES as $bit => $label) {
+                foreach (self::PAGE_INTENT as $bit => $label) {
                     if ( $default_for & $bit )
                         $default_for_labels[] = ucfirst( str_replace('_', ' ', $label) );
                 }
 
                 // Users' preferred layouts are independent of whether the layout is default for a
-                //  given page_type...
+                //  given sidebar intent...
                 $user_preference_labels = array();
                 if ( !is_null($sidebar_layout_preferences) ) {
                     $user_default_for = $sidebar_layout_preferences['defaultFor'];
-                    foreach (self::PAGE_TYPES as $bit => $label) {
+                    foreach (self::PAGE_INTENT as $bit => $label) {
                         if ( $user_default_for & $bit )
                             $user_preference_labels[] = ucfirst( str_replace('_', ' ', $label) );
                     }
@@ -778,14 +778,14 @@ class SearchSidebarService
      *
      * @param string|ODRUser $user  Either 'anon.' or an ODRUser object
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      *
      * @return int|null null when the user doesn't have a sidebar layout preference
      */
-    public function getPreferredSidebarLayoutId($user, $datatype_id, $page_type)
+    public function getPreferredSidebarLayoutId($user, $datatype_id, $intent)
     {
         // Look in the user's session first...
-        $sidebar_layout_id = self::getSessionSidebarLayoutId($datatype_id, $page_type);
+        $sidebar_layout_id = self::getSessionSidebarLayoutId($datatype_id, $intent);
         if ( !is_null($sidebar_layout_id) ) {
             // If the $sidebar_layout_id equals zero...
             if ( $sidebar_layout_id === 0 ) {
@@ -801,20 +801,20 @@ class SearchSidebarService
             }
             else {
                 // Otherwise, user shouldn't be using it
-                self::resetSessionSidebarLayoutId($datatype_id, $page_type);
+                self::resetSessionSidebarLayoutId($datatype_id, $intent);
 
                 // Continue looking for the next-best layout to use
             }
         }
 
         // If nothing was found in the user's session, then see if they have a preference already
-        //  stored in the database for this page_type...
+        //  stored in the database for this intent...
         if ($user !== 'anon.') {
-            $sidebar_layout_preference = self::getUserSidebarLayoutPreference($user, $datatype_id, $page_type);
+            $sidebar_layout_preference = self::getUserSidebarLayoutPreference($user, $datatype_id, $intent);
             if ( !is_null($sidebar_layout_preference) ) {
                 // ...set it as their current session layout to avoid database lookups
                 $sidebar_layout = $sidebar_layout_preference->getSidebarLayout();
-                self::setSessionSidebarLayoutId($datatype_id, $page_type, $sidebar_layout->getId());
+                self::setSessionSidebarLayoutId($datatype_id, $intent, $sidebar_layout->getId());
 
                 // ...return the id of the layout
                 return $sidebar_layout->getId();
@@ -822,11 +822,11 @@ class SearchSidebarService
         }
 
         // If the user doesn't have a preference in the database, then see if the datatype has a
-        //  default layout for this page_type...
-        $sidebar_layout = self::getDefaultSidebarLayout($datatype_id, $page_type);
+        //  default layout for this intent...
+        $sidebar_layout = self::getDefaultSidebarLayout($datatype_id, $intent);
         if ( !is_null($sidebar_layout) ) {
             // ...set it as their current session layout to avoid database lookups
-            self::setSessionSidebarLayoutId($datatype_id, $page_type, $sidebar_layout->getId());
+            self::setSessionSidebarLayoutId($datatype_id, $intent, $sidebar_layout->getId());
 
             // ...return the id of the layout
             return $sidebar_layout->getId();
@@ -839,19 +839,19 @@ class SearchSidebarService
 
 
     /**
-     * Return a datatype's default sidebar layout for this page_type, as set by a datatype admin.
+     * Return a datatype's default sidebar layout for this intent, as set by a datatype admin.
      *
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      *
      * @return SidebarLayout|null null when the datatype isn't using a custom sidebar layout as its default
      */
-    public function getDefaultSidebarLayout($datatype_id, $page_type)
+    public function getDefaultSidebarLayout($datatype_id, $intent)
     {
-        // Ensure the provided page_type is valid
-        $page_type_id = array_search($page_type, self::PAGE_TYPES);
-        if ( $page_type_id === false )
-            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x259eb569);
+        // Ensure the provided intent is valid
+        $intent_id = array_search($intent, self::PAGE_INTENT);
+        if ( $intent_id === false )
+            throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent', 0x259eb569);
 
 
         // ----------------------------------------
@@ -861,11 +861,11 @@ class SearchSidebarService
            'SELECT sl.id
             FROM odr_sidebar_layout AS sl
             JOIN odr_sidebar_layout_meta AS slm ON slm.sidebar_layout_id = sl.id
-            WHERE sl.data_type_id = :datatype_id AND (slm.default_for & :page_type_id)
+            WHERE sl.data_type_id = :datatype_id AND (slm.default_for & :intent_id)
             AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
         $params = array(
             'datatype_id' => $datatype_id,
-            'page_type_id' => $page_type_id,
+            'intent_id' => $intent_id,
         );
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
@@ -885,28 +885,28 @@ class SearchSidebarService
 
 
     /**
-     * Returns the id of the sidebar layout the user has selected for this current datatype/page_type
+     * Returns the id of the sidebar layout the user has selected for this current datatype/intent
      * combo for their current session.
      *
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      *
      * @return int|null null when the user doesn't have a sidebar layout preference set
      */
-    public function getSessionSidebarLayoutId($datatype_id, $page_type)
+    public function getSessionSidebarLayoutId($datatype_id, $intent)
     {
-        // Ensure the provided page_type is valid
-        if ( !in_array($page_type, self::PAGE_TYPES) )
-            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0xd802ad96);
+        // Ensure the provided intent is valid
+        if ( !in_array($intent, self::PAGE_INTENT) )
+            throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent', 0xd802ad96);
 
 
         // If the user has changed any layout for their current session...
         if ( $this->session->has('session_sidebar_layouts') ) {
             $session_layouts = $this->session->get('session_sidebar_layouts');
 
-            // ...see if they have a layout for this datatype/page_type combo
-            if ( isset($session_layouts[$datatype_id][$page_type]) )
-                return $session_layouts[$datatype_id][$page_type];
+            // ...see if they have a layout for this datatype/intent combo
+            if ( isset($session_layouts[$datatype_id][$intent]) )
+                return $session_layouts[$datatype_id][$intent];
         }
 
         // Otherwise, no session layout...return null
@@ -915,18 +915,18 @@ class SearchSidebarService
 
 
     /**
-     * Stores a specific layout id as the user's preferred sidebar layout for this datatype/page_type
+     * Stores a specific layout id as the user's preferred sidebar layout for this datatype/intent
      * combo for this session.
      *
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      * @param integer $sidebar_layout_id If zero, then use the datatype's "master" sidebar layout
      */
-    public function setSessionSidebarLayoutId($datatype_id, $page_type, $sidebar_layout_id)
+    public function setSessionSidebarLayoutId($datatype_id, $intent, $sidebar_layout_id)
     {
-        // Ensure the provided page_type is valid
-        if ( !in_array($page_type, self::PAGE_TYPES) )
-            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x54638516);
+        // Ensure the provided intent is valid
+        if ( !in_array($intent, self::PAGE_INTENT) )
+            throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent', 0x54638516);
 
 
         // Load any existing session layouts
@@ -938,24 +938,24 @@ class SearchSidebarService
             $session_layouts[$datatype_id] = array();
 
         // Save the layout choice in the session
-        $session_layouts[$datatype_id][$page_type] = $sidebar_layout_id;
+        $session_layouts[$datatype_id][$intent] = $sidebar_layout_id;
         $this->session->set('session_sidebar_layouts', $session_layouts);
     }
 
 
     /**
-     * Clears the user's preferred sidebar layouts for this datatype for this session.  If a page_type
-     * is specified, then only the preference for that page_type is cleared.
+     * Clears the user's preferred sidebar layouts for this datatype for this session.  If an intent
+     * is specified, then only the preference for that intent is cleared.
      *
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      */
-    public function resetSessionSidebarLayoutId($datatype_id, $page_type = '')
+    public function resetSessionSidebarLayoutId($datatype_id, $intent = '')
     {
-        if ( $page_type !== '' ) {
-            // Ensure the provided page_type is valid
-            if ( !in_array($page_type, self::PAGE_TYPES) )
-                throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x8f6f393f);
+        if ( $intent !== '' ) {
+            // Ensure the provided intent is valid
+            if ( !in_array($intent, self::PAGE_INTENT) )
+                throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent', 0x8f6f393f);
         }
 
         // Load any existing session layouts
@@ -964,10 +964,10 @@ class SearchSidebarService
             $session_layouts = $this->session->get('session_sidebar_layouts');
 
         // If the page type was not set, then just unset anything stored for this datatype
-        if ( $page_type === '' )
+        if ( $intent === '' )
             unset( $session_layouts[$datatype_id] );
         else
-            unset( $session_layouts[$datatype_id][$page_type] );
+            unset( $session_layouts[$datatype_id][$intent] );
 
         // Save back to session
         $this->session->set("session_sidebar_layouts", $session_layouts);
@@ -980,24 +980,24 @@ class SearchSidebarService
      *
      * @param ODRUser $user
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      *
      * @return SidebarLayoutPreferences|null null when the user doesn't have a sidebar layout preference set
      */
-    public function getUserSidebarLayoutPreference($user, $datatype_id, $page_type)
+    public function getUserSidebarLayoutPreference($user, $datatype_id, $intent)
     {
         // Anonymous users don't have sidebar layout preferences
         if ($user === 'anon.')
             return null;
 
-        // Ensure the provided page_type is valid
-        $page_type_id = array_search($page_type, self::PAGE_TYPES);
-        if ( $page_type_id === false )
-            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0xd8089f6b);
+        // Ensure the provided intent is valid
+        $intent_id = array_search($intent, self::PAGE_INTENT);
+        if ( $intent_id === false )
+            throw new ODRBadRequestException('"'.$intent.'" is not a supported page type', 0xd8089f6b);
 
 
         // ----------------------------------------
-        // Determine whether the user already has a preferred layout for this page_type
+        // Determine whether the user already has a preferred layout for this intent
         // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
         $query =
            'SELECT slp.id
@@ -1005,12 +1005,12 @@ class SearchSidebarService
             JOIN odr_sidebar_layout AS sl ON slp.sidebar_layout_id = sl.id
             JOIN odr_data_type AS dt ON sl.data_type_id = dt.id
             WHERE dt.id = :datatype_id
-            AND slp.createdBy = :user_id AND (slp.default_for & :page_type_id)
+            AND slp.createdBy = :user_id AND (slp.default_for & :intent_id)
             AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL AND dt.deletedAt IS NULL';
         $params = array(
             'datatype_id' => $datatype_id,
             'user_id' => $user->getId(),
-            'page_type_id' => $page_type_id,
+            'intent_id' => $intent_id,
         );
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
@@ -1035,22 +1035,22 @@ class SearchSidebarService
      *
      * @param ODRUser $user
      * @param SidebarLayout $sidebar_layout
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      *
      * @return SidebarLayoutPreferences
      */
-    public function setUserSidebarLayoutPreference($user, $sidebar_layout, $page_type)
+    public function setUserSidebarLayoutPreference($user, $sidebar_layout, $intent)
     {
         // Ensure this is called with an actual sidebar layout...users aren't allowed to set the
         //  "master" sidebar layout as their default
         if ( is_null($sidebar_layout) )
             throw new ODRBadRequestException('Preferring a null SidebarLayout is not allowed', 0x3848883c);
-        // Ensure the provided page_type is valid
-        $page_type_id = array_search($page_type, self::PAGE_TYPES);
-        if ( $page_type_id === false )
-            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x3848883c);
+        // Ensure the provided id is valid
+        $intent_id = array_search($intent, self::PAGE_INTENT);
+        if ( $intent_id === false )
+            throw new ODRBadRequestException('"'.$intent.'" is not a supported sidebar intent', 0x3848883c);
 
-        // Determine whether the user already has a preferred layout for this page_type...
+        // Determine whether the user already has a preferred layout for this intent...
         // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
         $query =
            'SELECT slp.id
@@ -1058,12 +1058,12 @@ class SearchSidebarService
             JOIN odr_sidebar_layout AS sl ON slp.sidebar_layout_id = sl.id
             JOIN odr_data_type AS dt ON sl.data_type_id = dt.id
             WHERE dt.id = :datatype_id
-            AND slp.createdBy = :user_id AND (slp.default_for & :page_type_id)
+            AND slp.createdBy = :user_id AND (slp.default_for & :intent_id)
             AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL AND dt.deletedAt IS NULL';
         $params = array(
             'datatype_id' => $sidebar_layout->getDataType()->getId(),
             'user_id' => $user->getId(),
-            'page_type_id' => $page_type_id,
+            'intent_id' => $intent_id,
         );
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
@@ -1075,9 +1075,9 @@ class SearchSidebarService
             /** @var SidebarLayoutPreferences $slp */
             $slp = $this->em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->find($slp_id);
 
-            // Unset the bit for this page_type and save it back into the field
+            // Unset the bit for this intent and save it back into the field
             $bitfield_value = $slp->getDefaultFor();
-            $bitfield_value -= $page_type_id;
+            $bitfield_value -= $intent_id;
             $slp->setDefaultFor($bitfield_value);
 
             $this->em->persist($slp);
@@ -1103,7 +1103,7 @@ class SearchSidebarService
 
         // Mark this sidebarLayoutPreference entry as the one the user wants to use
         $bitfield_value = $slp->getDefaultFor();
-        $bitfield_value += $page_type_id;
+        $bitfield_value += $intent_id;
         $slp->setDefaultFor($bitfield_value);
         $slp->setUpdatedBy($user);
 
@@ -1121,16 +1121,16 @@ class SearchSidebarService
      *
      * @param int $datatype_id
      * @param ODRUser $user
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      */
-    public function resetUserSidebarLayoutPreference($datatype_id, $user, $page_type)
+    public function resetUserSidebarLayoutPreference($datatype_id, $user, $intent)
     {
-        // Ensure the provided page_type is valid
-        $page_type_id = array_search($page_type, self::PAGE_TYPES);
-        if ( $page_type_id === false )
-            throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x3848883c);
+        // Ensure the provided intent is valid
+        $intent_id = array_search($intent, self::PAGE_INTENT);
+        if ( $intent_id === false )
+            throw new ODRBadRequestException('"'.$intent.'" is not a supported page type', 0x3848883c);
 
-        // Determine whether the user already has a preferred layout for this page_type...
+        // Determine whether the user already has a preferred layout for this intent...
         // NOTE: using native SQL, because Doctrine apparently hates the '&' operator
         $query =
            'SELECT slp.id
@@ -1138,12 +1138,12 @@ class SearchSidebarService
             JOIN odr_sidebar_layout AS sl ON slp.sidebar_layout_id = sl.id
             JOIN odr_data_type AS dt ON sl.data_type_id = dt.id
             WHERE dt.id = :datatype_id
-            AND slp.createdBy = :user_id AND (slp.default_for & :page_type_id)
+            AND slp.createdBy = :user_id AND (slp.default_for & :intent_id)
             AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL AND dt.deletedAt IS NULL';
         $params = array(
             'datatype_id' => $datatype_id,
             'user_id' => $user->getId(),
-            'page_type_id' => $page_type_id,
+            'intent_id' => $intent,
         );
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
@@ -1155,9 +1155,9 @@ class SearchSidebarService
             /** @var SidebarLayoutPreferences $slp */
             $slp = $this->em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->find($slp_id);
 
-            // Unset the bit for this page_type and save it back into the field
+            // Unset the bit for this intent and save it back into the field
             $bitfield_value = $slp->getDefaultFor();
-            $bitfield_value -= $page_type_id;
+            $bitfield_value -= $intent_id;
             $slp->setDefaultFor($bitfield_value);
 
             $this->em->persist($slp);

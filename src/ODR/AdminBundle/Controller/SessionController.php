@@ -262,14 +262,14 @@ class SessionController extends ODRCustomController
      * NOTE: the corresponding unset is in SearchSidebarController::unsetpersonaldefaultlayoutAction()
      *
      * @param integer $datatype_id
-     * @param string $page_type {@link SearchSidebarService::PAGE_TYPES}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
      * @param integer $sidebar_layout_id
      * @param integer $persist If 1, then save this choice to the database
      * @param Request $request
      *
      * @return Response
      */
-    public function applysidebarlayoutAction($datatype_id, $page_type, $sidebar_layout_id, $persist, Request $request)
+    public function applysidebarlayoutAction($datatype_id, $intent, $sidebar_layout_id, $persist, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -316,19 +316,19 @@ class SessionController extends ODRCustomController
             if ( is_null($sidebar_layout) ) {
                 // If a sidebar layout wasn't specified, then just set the user's session to use
                 //  the "master" sidebar layout
-                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $page_type, 0);    // passing zero to use the datatype's "master" sidebar layout
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $intent, 0);    // passing zero to use the datatype's "master" sidebar layout
 
                 // If a logged-in user requested this to be their default sidebar layout, then
                 //  unset any existing preference they have
                 if ( $user !== 'anon.' && $persist == 1 )
-                    $search_sidebar_service->resetUserSidebarLayoutPreference($datatype->getId(), $user, $page_type);
+                    $search_sidebar_service->resetUserSidebarLayoutPreference($datatype->getId(), $user, $intent);
             }
             else if ($user === 'anon.') {
                 // The sidebar layout must be public for an anonymous user to be able to use it
                 if ( !$sidebar_layout->isShared() )
                     throw new ODRForbiddenException();
 
-                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $page_type, $sidebar_layout->getId());
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $intent, $sidebar_layout->getId());
 
                 // Silently ignore attempts to save this preference to the database
             }
@@ -337,11 +337,11 @@ class SessionController extends ODRCustomController
                 if ( !$sidebar_layout->isShared() && $sidebar_layout->getCreatedBy()->getId() !== $user->getId() )
                     throw new ODRForbiddenException();
 
-                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $page_type, $sidebar_layout->getId());
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $intent, $sidebar_layout->getId());
 
                 // Save this sidebar layout as their default if they wanted
                 if ($persist == 1)
-                    $search_sidebar_service->setUserSidebarLayoutPreference($user, $sidebar_layout, $page_type);
+                    $search_sidebar_service->setUserSidebarLayoutPreference($user, $sidebar_layout, $intent);
             }
 
         }

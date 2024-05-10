@@ -20,7 +20,7 @@
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
-        'page_type': 'search_results',
+        'page_type': 'table',
         'search_key': search_key,
 
         'has_datarecords': has_datarecords,
@@ -59,6 +59,26 @@
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         $("#ChooseView").unbind('click').click(function(event) {
+            window.ODRChooseView_applyredirectcallback = function(theme_id) {
+                // When a new 'search_results' theme is selected...need to redirect to a new URL
+                //  with the desired theme_id
+
+                // Need to extract the offset...
+                var hash = window.location.hash;
+                var offset = hash.substr(hash.lastIndexOf('/') + 1);
+                if ( isNaN(offset) )
+                    offset = '1';
+                // ...and ensure the search sidebar doesn't revert back to the previous theme when
+                //  the Search button is clicked
+                $("#selected_theme_id").val(theme_id);
+
+                // Reload the search results list with the newly selected theme
+                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
+                url = url.substr(0, url.length-4);
+                url += theme_id + '/' + '{{ search_key }}' + '/' + offset;
+
+                UpdateURL(url);
+            }
             openChooseViewRemodal({{ datatype.id }}, 'search_results', '{{ search_key }}');
         });
 
@@ -71,20 +91,20 @@
             {# https://datatables.net/reference/option/dom
                 "dom" parameter results in:
                 <div class="wrapper">
-                    <div class="FLeft">
+                    <div class="ODRDTInfo">
                         {information}
                         {length}
                     </div>
-                    <div class="FRight">
+                    <div class="ODRDTPager">
                         {pagination}
                     </div>
                     {processing}
                     {table}
-                    <div class="FLeft">
+                    <div class="ODRDTInfoFoot">
                         {information}
                         {length}
                     </div>
-                    <div class="FRight">
+                    <div class="ODRDTPagerFoot">
                         {pagination}
                     </div>
                </div>

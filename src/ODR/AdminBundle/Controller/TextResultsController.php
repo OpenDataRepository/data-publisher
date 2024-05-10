@@ -20,6 +20,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -29,6 +30,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
@@ -38,6 +40,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class TextResultsController extends ODRCustomController
@@ -617,4 +620,244 @@ class TextResultsController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Loads a list of the remote records for a specific datatype that currently link to a given local
+     * datarecord...the local datarecord could be on either the ancestor side or the descendant side
+     * of this link.
+     *
+     * Intentionally split from LinkController::getlinkabledatarecordsAction()...changing the theme
+     * used by this table could change the columns...and since datatables.js (understandably) can't
+     * handle a change in the number of columns, it's better to just completely replace the table.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function loadlinkeddatarecordstableAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+            if ( !isset($post['local_datarecord_id'])
+                || !isset($post['ancestor_datatype_id'])
+                || !isset($post['descendant_datatype_id'])
+                || !isset($post['remote_theme_id'])
+            ) {
+                throw new ODRBadRequestException('Invalid Form');
+            }
+
+            $local_datarecord_id = $post['local_datarecord_id'];
+            $ancestor_datatype_id = $post['ancestor_datatype_id'];
+            $descendant_datatype_id = $post['descendant_datatype_id'];
+            $theme_id = $post['remote_theme_id'];
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var TableThemeHelperService $table_theme_helper_service */
+            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            // Grab the datatypes from the database
+            /** @var DataRecord $local_datarecord */
+            $local_datarecord = $repo_datarecord->find($local_datarecord_id);
+            if ($local_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $local_datatype = $local_datarecord->getDataType();
+            if ($local_datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Local Datatype');
+
+
+            /** @var DataType $ancestor_datatype */
+            $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
+            if ($ancestor_datatype == null)
+                throw new ODRNotFoundException('Ancestor Datatype');
+
+            /** @var DataType $descendant_datatype */
+            $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
+            if ($descendant_datatype == null)
+                throw new ODRNotFoundException('Descendant Datatype');
+
+            // Ensure a link exists from ancestor to descendant datatype
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array(
+                    'ancestor' => $ancestor_datatype->getId(),
+                    'descendant' => $descendant_datatype->getId()
+                )
+            );
+            if ($datatree == null)
+                throw new ODRNotFoundException('DataTree');
+
+
+            /** @var Theme $remote_theme */
+            $remote_theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($remote_theme == null)
+                throw new ODRNotFoundException('Theme');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canViewDatatype($user, $ancestor_datatype) )
+                throw new ODRForbiddenException();
+
+            // TODO - create a new permission specifically for linking/unlinking datarecords?
+            if ( !$permissions_service->canEditDatarecord($user, $local_datarecord) )
+                throw new ODRForbiddenException();
+
+            if ( !$permissions_service->canViewDatatype($user, $descendant_datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Determine which datatype we're trying to create a link with
+            $local_datarecord_is_ancestor = false;
+            $local_datatype = $local_datarecord->getDataType();
+            $remote_datatype = null;
+            if ($local_datatype->getId() == $ancestor_datatype_id) {
+                $remote_datatype = $repo_datatype->find($descendant_datatype_id);   // Linking to a remote datarecord from this datarecord
+                $local_datarecord_is_ancestor = true;
+            }
+            else {
+                $remote_datatype = $repo_datatype->find($ancestor_datatype_id);     // Getting a remote datarecord to link to this datarecord
+                $local_datarecord_is_ancestor = false;
+            }
+            /** @var DataType $remote_datatype */
+
+            // Ensure the remote datatype has a suitable theme...
+            if ( $remote_datatype->getSetupStep() != DataType::STATE_OPERATIONAL )
+                throw new ODRBadRequestException('Unable to link to Remote Datatype');
+
+            if ( $remote_theme->getDataType()->getId() !== $remote_datatype->getId() )
+                throw new ODRBadRequestException('Invalid Theme');
+
+
+            // ----------------------------------------
+            // Store whether the link allows multiple records or not
+            $allow_multiple_links = $datatree_info_service->allowsMultipleLinkedDatarecords($ancestor_datatype->getid(), $descendant_datatype->getId());
+
+            // Grab all datarecords currently linked to the local_datarecord
+            $linked_datarecords = array();
+            if ($local_datarecord_is_ancestor) {
+                // local_datarecord is on the ancestor side of the link
+                $query = $em->createQuery(
+                   'SELECT descendant.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS ancestor
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor = :local_datarecord AND descendant.dataType = :remote_datatype
+                    AND descendant.provisioned = false
+                    AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'local_datarecord' => $local_datarecord->getId(),
+                        'remote_datatype' => $remote_datatype->getId()
+                    )
+                );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $num => $data) {
+                    $descendant_id = $data['descendant_id'];
+                    if ( $descendant_id == null || trim($descendant_id) == '' )
+                        continue;
+
+                    $linked_datarecords[ $descendant_id ] = 1;
+                }
+            }
+            else {
+                // local_datarecord is on the descendant side of the link
+                $query = $em->createQuery(
+                   'SELECT ancestor.id AS ancestor_id
+                    FROM ODRAdminBundle:DataRecord AS descendant
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = descendant
+                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    WHERE descendant = :local_datarecord AND ancestor.dataType = :remote_datatype
+                    AND ancestor.provisioned = false
+                    AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'local_datarecord' => $local_datarecord->getId(),
+                        'remote_datatype' => $remote_datatype->getId()
+                    )
+                );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $num => $data) {
+                    $ancestor_id = $data['ancestor_id'];
+                    if ( $ancestor_id == null || trim($ancestor_id) == '' )
+                        continue;
+
+                    $linked_datarecords[ $ancestor_id ] = 1;
+                }
+            }
+
+
+            // ----------------------------------------
+            // Convert the list of linked datarecords into a slightly different format so the datatables plugin can use it
+            $datarecord_list = array();
+            foreach ($linked_datarecords as $dr_id => $value)
+                $datarecord_list[] = $dr_id;
+
+            // Load the table data for each of the datarecords that need to get displayed
+            $data = $table_theme_helper_service->getRowData($user, $datarecord_list, $remote_datatype->getId(), $remote_theme->getId(), true);    // prepend a third column of data
+
+            // Determine the column names for the datatables plugin
+            $column_data = $table_theme_helper_service->getColumnNames($user, $remote_datatype->getId(), $remote_theme->getId());
+            // Prepend a third column to the list to make datatables' life easier
+            $column_str = '{"title":"Link to this record","visible":true,"searchable":false},'.$column_data['column_names'];
+
+            $tmp = json_decode('['.substr($column_str, 0, -1).']', true);
+            $column_names = array();
+            foreach ($tmp as $num => $col)
+                $column_names[] = $col['title'];
+
+            // Return the data for this request
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Link:link_datarecord_form_table.html.twig',
+                    array(
+                        'data' => $data,
+                        'column_str' => $column_str,
+                        'column_names' => $column_names,
+
+                        'theme_id' => $remote_theme->getId(),
+                        'linked_datarecords' => $linked_datarecords,
+                        'allow_multiple_links' => $allow_multiple_links,
+                        'local_datarecord_is_ancestor' => $local_datarecord_is_ancestor,
+
+                        'local_datatype' => $local_datatype,
+                        'remote_datatype' => $remote_datatype,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x549b133f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

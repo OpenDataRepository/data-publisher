@@ -1,12 +1,12 @@
 {% spaceless %}
 
-{% if page_type == '' %}
+{% if intent == '' %}
 <div>
     <label for="ODRChooseLayout_PageType">
         Mode Selection:
     </label>
     <select id="ODRChooseLayout_PageType">
-    {% for key,label in available_page_types %}
+    {% for key,label in available_intents %}
         <option value="{{ key }}">{{ label }}</option>
     {% endfor %}
     </select>
@@ -23,8 +23,8 @@
                 'selected_layout_id': selected_layout_id,
 
                 'is_datatype_admin': is_datatype_admin,
-                'formatted_page_type': formatted_page_type,
-                'available_page_types': available_page_types,
+                'formatted_intent': formatted_intent,
+                'available_intents': available_intents,
             } %}
         {% endif %}
     {% endfor %}
@@ -43,8 +43,8 @@
                 'selected_layout_id': selected_layout_id,
 
                 'is_datatype_admin': is_datatype_admin,
-                'formatted_page_type': formatted_page_type,
-                'available_page_types': available_page_types,
+                'formatted_intent': formatted_intent,
+                'available_intents': available_intents,
             } %}
         {% endif %}
     {% endfor %}
@@ -54,10 +54,10 @@
     $(function() {
         $(".ODRSidebarLayout_UseSession").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-{% if page_type == '' %}
-            var selected_page_type = $("#ODRChooseLayout_PageType").children(":selected").val();
+{% if intent == '' %}
+            var selected_intent = $("#ODRChooseLayout_PageType").children(":selected").val();
 {% else %}
-            var selected_page_type = '';
+            var selected_intent = '';
 {% endif %}
             var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
 
@@ -65,15 +65,15 @@
 
             var reload = true;
             var persist = false;
-            ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_page_type);
+            ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
         });
 
         $(".ODRSidebarLayout_SetPersonalDefault").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-{% if page_type == '' %}
-            var selected_page_type = $("#ODRChooseLayout_PageType").children(":selected").val();
+{% if intent == '' %}
+            var selected_intent = $("#ODRChooseLayout_PageType").children(":selected").val();
 {% else %}
-            var selected_page_type = '';
+            var selected_intent = '';
 {% endif %}
             var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
 
@@ -81,7 +81,7 @@
 
             var reload = true;
             var persist = true;
-            ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_page_type);
+            ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
         });
 
         $(".ODRSidebarLayout_ToggleShared").unbind('click').click(function() {
@@ -96,16 +96,16 @@
 
         $(".ODRSidebarLayout_SetDatabaseDefault").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-{% if page_type == '' %}
-            var selected_page_type = $("#ODRChooseLayout_PageType").children(":selected").val();
+{% if intent == '' %}
+            var selected_intent = $("#ODRChooseLayout_PageType").children(":selected").val();
 {% else %}
-            var selected_page_type = '';
+            var selected_intent = '';
 {% endif %}
             var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
 
             setModalMessage("Setting view as database default.");
 
-            ODRSidebarLayout_setDatabaseDefaultLayout(sidebar_layout_id, selected_page_type);
+            ODRSidebarLayout_setDatabaseDefaultLayout(sidebar_layout_id, selected_intent);
         });
 
 
@@ -142,16 +142,16 @@
 
         $(".ODRSidebarLayout_UnsetPersonalDefault").unbind('click').click(function() {
             var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
-            var selected_page_type = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
+            var selected_intent = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
-            ODRSidebarLayout_unsetPersonalDefaultLayout(sidebar_layout_id, selected_page_type);
+            ODRSidebarLayout_unsetPersonalDefaultLayout(sidebar_layout_id, selected_intent);
         });
 
         $(".ODRSidebarLayout_UnsetDatabaseDefault").unbind('click').click(function() {
             var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
-            var selected_page_type = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
+            var selected_intent = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
-            ODRSidebarLayout_unsetDatabaseDefaultLayout(sidebar_layout_id, selected_page_type);
+            ODRSidebarLayout_unsetDatabaseDefaultLayout(sidebar_layout_id, selected_intent);
         });
     });
 
@@ -161,18 +161,18 @@
      * @param {number} sidebar_layout_id The sidebar layout to use
      * @param {boolean} reload If true, reloads the sidebar to use the requested layout
      * @param {boolean} persist If true, then the database is updated to indicate the user prefers to use the selected sidebar layout
-     * @param {string} selected_page_type
+     * @param {string} selected_intent
      */
-    function ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_page_type = '') {
+    function ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent = '') {
         if (persist)
             persist = 1;
         else
             persist = 0;
 
-        if ( selected_page_type == '' ) {
-{% if page_type != '' %}
+        if ( selected_intent == '' ) {
+{% if intent != '' %}
             // If a page type isn't provided, then set it based on where this is being called from
-            selected_page_type = '{{ page_type }}';
+            selected_intent = '{{ intent }}';
 {% else %}
             // If a page type isn't provided and this is being called from the datatype landing page,
             //  then there's nothing to store the sidebar layout under...return without saving anything
@@ -180,10 +180,10 @@
 {% endif %}
         }
 
-        // console.log('ODRSidebarLayout_useLayout()', 'sidebar_layout_id', sidebar_layout_id, 'reload', reload, 'persist', persist, 'selected_page_type', selected_page_type);
+        // console.log('ODRSidebarLayout_useLayout()', 'sidebar_layout_id', sidebar_layout_id, 'reload', reload, 'persist', persist, 'selected_intent', selected_intent);
 
-        var url = '{{ path('odr_apply_sidebar_layout', { 'datatype_id': datatype.id, 'page_type': '', 'sidebar_layout_id': 0, 'persist': 0 }) }}';
-        url = url.substr(0, (url.length - 4)) + selected_page_type + "/" + sidebar_layout_id + "/" + persist;
+        var url = '{{ path('odr_apply_sidebar_layout', { 'datatype_id': datatype.id, 'intent': '', 'sidebar_layout_id': 0, 'persist': 0 }) }}';
+        url = url.substr(0, (url.length - 4)) + selected_intent + "/" + sidebar_layout_id + "/" + persist;
         // alert(url);  return;
 
         $.ajax({
@@ -194,7 +194,7 @@
             success: function (data, textStatus, jqXHR) {
                 if (reload) {
                     // Guarantee the sidebar is current
-                    updateSearchSidebar('{{ search_key }}', selected_page_type, true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                    updateSearchSidebar('{{ search_key }}', selected_intent, true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
                     closeODRRemodal();
                 }
 
@@ -263,19 +263,19 @@
     }
 
     /**
-     * Sets the given sidebar layout as its datatype's default sidebar layout for the current page_type
+     * Sets the given sidebar layout as its datatype's default sidebar layout for the current intent
      * (searching, linking, etc)
      *
      * @param {number} sidebar_layout_id
-     * @param {string} selected_page_type
+     * @param {string} selected_intent
      */
-    function ODRSidebarLayout_setDatabaseDefaultLayout(sidebar_layout_id, selected_page_type) {
+    function ODRSidebarLayout_setDatabaseDefaultLayout(sidebar_layout_id, selected_intent) {
 
-        if ( selected_page_type == '' )
-            selected_page_type = '{{ page_type }}';
+        if ( selected_intent == '' )
+            selected_intent = '{{ intent }}';
 
-        var url = '{{ path('odr_make_default_sidebar_layout', { 'page_type': '', 'sidebar_layout_id': 0 }) }}';
-        url = url.substr(0, (url.length - 2)) + selected_page_type + "/" + sidebar_layout_id;
+        var url = '{{ path('odr_make_default_sidebar_layout', { 'intent': '', 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_intent + "/" + sidebar_layout_id;
 
         // alert(url);  return;
 
@@ -288,7 +288,7 @@
                 // Apply view for session and reload
                 var reload = true;
                 var persist = true;
-                ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_page_type);
+                ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
@@ -400,12 +400,12 @@
     function ODRSidebarLayout_modifyLayout(sidebar_layout_id, persist = false) {
         // Set view for session
         var reload = false;
-        ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist);    // Don't necessarily have a page_type available here...could be coming from the landing page
+        ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist);    // Don't necessarily have a intent available here...could be coming from the landing page
 
         // Open View Editor
         var url = '{{ path('odr_modify_sidebar_layout', { 'datatype_id': datatype.id, 'sidebar_layout_id': 0 }) }}';
         url = url.substr(0, url.length-1);
-        url += sidebar_layout_id + '/' + '{{ page_type }}' + '/' + '{{ search_key }}';
+        url += sidebar_layout_id + '/' + '{{ intent }}' + '/' + '{{ search_key }}';
 
         // alert(url);  return;
 
@@ -434,7 +434,7 @@
             success: function (data, textStatus, jqXHR) {
                 // Ensure the sidebar didn't break if the user deleted their currently selected
                 //  layout
-                updateSearchSidebar('{{ search_key }}', '{{ page_type }}', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                updateSearchSidebar('{{ search_key }}', '{{ intent }}', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
                 closeODRRemodal();
             },
             error: function (jqXHR, textStatus, errorThrown) {
@@ -462,12 +462,12 @@
      * Updates the given sidebar layout so it's no longer considered the default for a user.
      *
      * @param {number} sidebar_layout_id
-     * @param {string} selected_page_type
+     * @param {string} selected_intent
      */
-    function ODRSidebarLayout_unsetPersonalDefaultLayout(sidebar_layout_id, selected_page_type) {
+    function ODRSidebarLayout_unsetPersonalDefaultLayout(sidebar_layout_id, selected_intent) {
 
-        var url = '{{ path('odr_unset_personal_sidebar_layout', { 'page_type': '', 'sidebar_layout_id': 0 }) }}';
-        url = url.substr(0, (url.length - 2)) + selected_page_type + '/' + sidebar_layout_id;
+        var url = '{{ path('odr_unset_personal_sidebar_layout', { 'intent': '', 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_intent + '/' + sidebar_layout_id;
 
         // alert(url);  return;
 
@@ -505,15 +505,15 @@
      * Updates the given sidebar layout so it's no longer considered the default for a database.
      *
      * @param {number} sidebar_layout_id
-     * @param {string} selected_page_type
+     * @param {string} selected_intent
      */
-    function ODRSidebarLayout_unsetDatabaseDefaultLayout(sidebar_layout_id, selected_page_type) {
+    function ODRSidebarLayout_unsetDatabaseDefaultLayout(sidebar_layout_id, selected_intent) {
 
-        if ( selected_page_type == '' )
-            selected_page_type = '{{ page_type }}';
+        if ( selected_intent == '' )
+            selected_intent = '{{ intent }}';
 
-        var url = '{{ path('odr_unset_default_sidebar_layout', { 'page_type': '', 'sidebar_layout_id': 0 }) }}';
-        url = url.substr(0, (url.length - 2)) + selected_page_type + '/' + sidebar_layout_id;
+        var url = '{{ path('odr_unset_default_sidebar_layout', { 'intent': '', 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_intent + '/' + sidebar_layout_id;
 
         // alert(url);  return;
 
