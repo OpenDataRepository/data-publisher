@@ -54,9 +54,9 @@
                 $(this).html('Close Expanded Search');
             });
 
-            $(".ODRSearchSidebar_extended").removeAttr('style'); // show() uses display:block..don't want that
+            $(".ODRSearchSidebar_extended").removeClass('ODRHidden');
 
-            $("#ODRSearchControls_top").show();
+            $("#ODRSearchControls_top").removeClass('ODRHidden');
         }
         else {
             // Hide all expanded search datafields
@@ -65,9 +65,9 @@
                 $(this).html('Open Expanded Search');
             });
 
-            $(".ODRSearchSidebar_extended").hide();
+            $(".ODRSearchSidebar_extended").addClass('ODRHidden');
 
-            $("#ODRSearchControls_top").hide();
+            $("#ODRSearchControls_top").addClass('ODRHidden');
         }
     }
 
@@ -409,7 +409,7 @@
             if ( filter_text == '' ) {
                 // If no text in the filter, ensure all radio options are visible
                 $(radio_options).each(function(index,elem) {
-                    $(elem).removeAttr('style');
+                    $(elem).removeClass('ODRHidden');
                 });
             }
             else {
@@ -419,9 +419,9 @@
 
                     // ...so it can get compared against the provided filter text
                     if ( option_name.indexOf(filter_text) === -1 )
-                        $(elem).hide();
+                        $(elem).addClass('ODRHidden');
                     else
-                        $(elem).removeAttr('style');
+                        $(elem).removeClass('ODRHidden');
                 });
             }
         }
@@ -432,7 +432,7 @@
             if ( filter_text == '' ) {
                 // If no text in the filter, ensure all tags are visible
                 $(tags).each(function(index,elem) {
-                    $(elem).removeAttr('style');
+                    $(elem).removeClass('ODRHidden');
                 });
             }
             else {
@@ -442,12 +442,12 @@
 
                     // ...so it can get compared against the provided filter text
                     if ( tag_name.indexOf(filter_text) === -1 )
-                        $(elem).hide();
+                        $(elem).addClass('ODRHidden');
                     else {
-                        $(elem).removeAttr('style');
+                        $(elem).removeClass('ODRHidden');
 
                         // Also need to ensure that all parents of this tag are visible
-                        $(elem).parents('.ODRTagItem').removeAttr('style');
+                        $(elem).parents('.ODRTagItem').removeClass('ODRHidden');
                     }
                 });
             }

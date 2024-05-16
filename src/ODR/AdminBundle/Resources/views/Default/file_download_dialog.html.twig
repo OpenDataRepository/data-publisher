@@ -1,18 +1,6 @@
 {% spaceless %}
 
-<!-- File Download Dialog -->
 <script>
-    var file_download_body = '<div id="ODRFileDownloadFormWrapper" class="ODRHidden"> ' +
-            '<form id="ODRFileDownloadForm" method="POST"></form> ' +
-        '</div> ' +
-        '<div id="ODRFileDownloadForm_progress" class="ODRHidden"> ' +
-            '<div>Creating archive:</div> ' +
-            '<div> ' +
-                '<span id="ODRFileDownloadForm_current"></span> / ' +
-                '<span id="ODRFileDownloadForm_total"></span> files added. ' +
-            '</div> ' +
-        '</div>';
-
     /**
      * Opens an ODR modal to allow users to pick which files/images they want to download as a zip
      * archive.
@@ -22,11 +10,9 @@
      * @param {number} target_datafield_id
      */
     function openFileDownloadDialog(grandparent_datarecord_id, target_datarecord_id, target_datafield_id) {
-        // open dialog
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: "Select files to download:",
-            loading: true,
-            body: file_download_body,
             buttons: [
                 {
                     id: 'ODRFileDownloadFormSubmit',
@@ -34,7 +20,7 @@
                     // secondary: true,
                     disabled: true,
                     title: 'You must select one or more files before this button becomes active.',
-                    click: function() {
+                    click_handler: function() {
                         // Create/send a POST request of file ids
                         submitFileDownloadForm( "#ODRFileDownloadForm" );
                     }
@@ -46,7 +32,6 @@
         var group_by_datafield = 0;    // don't group_by_datafield by default
         loadFileData(grandparent_datarecord_id, group_by_datafield, target_datarecord_id, target_datafield_id);
     }
-
 
     /**
      * Requests the tree structure of all files/images uploaded to the given grandparent_datarecord
@@ -68,23 +53,9 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $("#ODRFileDownloadForm").html( data.d );
-                initFileDownloadDialogForm(target_datarecord_id, target_datafield_id);
-                // remove loading
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRFileDownloadFormWrapper").show();
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
+                updateODRRemodalBody(data.d);
 
-                    // Setup submit handler
-                    $('#ODRFileDownloadFormSubmit').unbind('click').click(function() {
-                        var $el = $(this).parent().parent();
-                        // Create/send a POST request of file ids
-                        submitFileDownloadForm( $el.attr('id') );
-                    });
-                });
+                initFileDownloadDialogForm(target_datarecord_id, target_datafield_id);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -105,7 +76,6 @@
             }
         });
     }
-
 
     /**
      * Attaches click handlers and selects all files belonging to the given datarecord/datafield if
@@ -148,7 +118,7 @@
             }
 
             // Update classes for parent elements
-            applyToParents( $(this) );
+            FileDownloadDialog_applyToParents( $(this) );
 
             // If no files/images selected for download, disable the submit button
             if ( $("#ODRFileDownloadForm").find('.fa.fa-check').length > 0 )
@@ -162,13 +132,12 @@
         }
     }
 
-
     /**
      * Updates the state of the tri-state checkboxes going up the tree.
      *
      * @param {HTMLElement} source_element
      */
-    function applyToParents(source_element) {
+    function FileDownloadDialog_applyToParents(source_element) {
         var parent_list_element = $(source_element).parent().parent().parent().not('form');
         if (parent_list_element.length == 0)
             return;
@@ -191,9 +160,8 @@
             $(parent_checkbox_element).children('i').addClass('fa-check partial');
         }
 
-        applyToParents(parent_checkbox_element);
+        FileDownloadDialog_applyToParents(parent_checkbox_element);
     }
-
 
     /**
      * Submits which files the user wants to download to the server.
@@ -224,10 +192,8 @@
         // $('#ODRFileDownloadForm_total').html(file_count);    // don't know how many files, yet
 
         // Hide before ajax stuff
-        $('#ODRFileDownloadFormWrapper').hide();
-        $("#ODRFileDownloadForm").html("");
-        $('#ODRFileDownloadForm_progress').show();
-        // Resize ODRFileDownloadModal to take up full height
+        $('#ODRFileDownloadFormWrapper').addClass('ODRHidden');
+        $('#ODRFileDownloadForm_progress').removeClass('ODRHidden');
         resetRemodalInnerHeight();
 
         $.ajax({
@@ -264,4 +230,5 @@
         });
     }
 </script>
+
 {% endspaceless %}

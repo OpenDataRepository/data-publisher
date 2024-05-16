@@ -116,8 +116,6 @@ function initPage() {
         openTagEditDialog(datafield_id);
     });
 
-    $(".ODRFileDownloadProgress").hide();
-
     $("a.ODRFileDownload").unbind('click').click(function(event) {
         // Grab necessary attributes
         var file_id = $(this).attr('rel');
@@ -159,26 +157,26 @@ function initPage() {
         var rename_save_button = $(this).next().next();
         var download_div = $(this).next().next().next();
 
-        if ( $(input_div).is(":visible") ) {
+        if ( $(input_div).hasClass('ODRHidden') ) {
+            // If the input for renaming the file is currently hidden, then show it
+            $(icon_div).attr('title', "Stop renaming File");
+            $(input_div).removeClass('ODRHidden');
+            $(rename_save_button).removeClass('ODRHidden');
+
+            // Hide the html that lets the user download the file
+            $(download_div).addClass('ODRHidden');
+        }
+        else {
             // If the input for renaming the file is currently visible, then hide it
             $(icon_div).attr('title', "Rename File");
-            $(input_div).hide();
-            $(rename_save_button).hide();
+            $(input_div).addClass('ODRHidden');
+            $(rename_save_button).addClass('ODRHidden');
 
             // Reset the contents of the input back to the file's current name
             $(input_div).val( $(download_div).text() );
 
             // Re-show the html that lets the user download the file
-            $(download_div).show();
-        }
-        else {
-            // If the input for renaming the file is currently hidden, then show it
-            $(icon_div).attr('title', "Stop renaming File");
-            $(input_div).show();
-            $(rename_save_button).show();
-
-            // Hide the html that lets the user download the file
-            $(download_div).hide();
+            $(download_div).removeClass('ODRHidden');
         }
     });
 
@@ -215,9 +213,9 @@ function initPage() {
                 $(input_div).val(filename);
 
                 // Reset visibility
-                $(input_div).hide();
-                $(rename_save_button).hide();
-                $(download_div).show();
+                $(input_div).addClass('ODRHidden');
+                $(rename_save_button).addClass('ODRHidden');
+                $(download_div).removeClass('ODRHidden');
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Stop checking decrypt progress when an error occurs
@@ -245,11 +243,10 @@ function initPage() {
 
     $(".ODRPublicFile").parent().unbind('click').click(function(event) {
         // Grab necessary attributes
-        var icon_div = $(this).children(".ODRPublicFile");
-        var file_id = $(icon_div).attr('rel');
-        var href = $(icon_div).closest('.ODRTruncateFilename').children('a.ODRFileDownload').first().attr('href');
+        var popup_icon_div = $(this).children(".ODRPublicFile");
+        var file_id = $(popup_icon_div).attr('rel');
 
-        var public_div = $(icon_div).closest('.ODRFileDatafield_file').children('.ODRFileSpacer').first();
+        var info_icon_div = $(this).parent().prev();
 
         // Don't change public status of file if it's currently being decrypted
         if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {
@@ -259,7 +256,7 @@ function initPage() {
         var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
         var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
-        if ( $(public_div).hasClass('ODRFileSpacer_nonpublic') ) {
+        if ( $(info_icon_div).hasClass('fa-not-public') ) {
             // Show div for decryption progress
             $(download_div).css('visibility', 'visible');
             $(decrypt_progress).css('width', '100%');
@@ -279,13 +276,17 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if ( data.d.is_public ) {
                     // File is now public
-                    $(public_div).removeClass('ODRFileSpacer_nonpublic').addClass('ODRFileSpacer_public');
-                    $(icon_div).parent().children('span').first().html('File was made public on ' + data.d.public_date);
+                    $(info_icon_div).removeClass('fa-not-public').addClass('fa-public');
+                    $(popup_icon_div).removeClass('fa-not-public').addClass('fa-public');
+
+                    $(popup_icon_div).next().html('File was made public on ' + data.d.public_date);
                 }
                 else {
                     // File is now non-public
-                    $(public_div).removeClass('ODRFileSpacer_public').addClass('ODRFileSpacer_nonpublic');
-                    $(icon_div).parent().children('span').first().html('File is not public');
+                    $(info_icon_div).removeClass('fa-public').addClass('fa-not-public');
+                    $(popup_icon_div).removeClass('fa-public').addClass('fa-not-public');
+
+                    $(popup_icon_div).next().html('File is not public');
                 }
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -361,7 +362,7 @@ function initPage() {
     $(".ODRPublicImage").unbind('click').click(function() {
         var image_id = $(this).attr('rel');
 
-        var public_div = $(this);
+        var icon_div = $(this);
 
         var url  = '{{ path('odr_record_public_image', {'image_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
@@ -375,13 +376,13 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if ( data.d.is_public ) {
                     // Image is now public
-                    $(public_div).addClass('ODRActiveIcon');
-                    $(public_div).attr('title', 'Public since ' + data.d.public_date);
+                    $(icon_div).addClass('fa-public').removeClass('fa-not-public');
+                    $(icon_div).attr('title', 'Public since ' + data.d.public_date);
                 }
                 else {
                     // Image is now non-public
-                    $(public_div).removeClass('ODRActiveIcon');
-                    $(public_div).parent().next().attr('title', 'Image is not public');
+                    $(icon_div).addClass('fa-not-public').removeClass('fa-public');
+                    $(icon_div).parent().next().attr('title', 'Image is not public');
                 }
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -460,18 +461,18 @@ function initPage() {
         var input_elem = $(input_div).find('input.ODRImageRenameInput');
         var img_elem = $(this).parent().parent().find('img.pure-img');
 
-        if ( $(input_div).is(":visible") ) {
+        if ( $(input_div).hasClass('ODRHidden') ) {
+            // If the input for renaming the file is currently hidden, then show it
+            $(icon_div).attr('title', "Stop renaming Image");
+            $(input_div).removeClass('ODRHidden');
+        }
+        else {
             // If the input for renaming the file is currently visible, then hide it
             $(icon_div).attr('title', "Rename Image");
-            $(input_div).hide();
+            $(input_div).addClass('ODRHidden');
 
             // Reset the contents of the input back to the image's current name
             $(input_elem).val( $(img_elem).attr('title') );
-        }
-        else {
-            // If the input for renaming the file is currently hidden, then show it
-            $(icon_div).attr('title', "Stop renaming Image");
-            $(input_div).show();
         }
     });
 
@@ -508,7 +509,7 @@ function initPage() {
                 $(img_elem).attr('title', filename);
 
                 // Reset visibility
-                $(input_div).hide();
+                $(input_div).addClass('ODRHidden');
                 $(icon_div).attr('title', "Rename Image");
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1053,8 +1054,6 @@ function initPage() {
             // Store which datafield the image belongs to
             starting_datafield = $(ui.item).parent().parent().parent().parent().attr('id');
 
-            // Hide the image that is being dragged around
-//            $(ui.helper).hide();
             // Style the placeholder to more closely match the image being drug around
             $(ui.placeholder).addClass( $(ui.helper).attr('class') );
             $(ui.placeholder).css( 'height', $(ui.helper).height() );
@@ -1071,9 +1070,6 @@ function initPage() {
             else {
                 $(".ODRSortableImage").sortable('cancel');
             }
-
-            // Unhide the object that was being dragged around
-//            $(ui.item).show();
 
             // jQuery Sortable attaches a display: block style to these elements...get rid of it
             $(ui.item).removeAttr('style');
@@ -1206,12 +1202,12 @@ function filterEditTagField(context, dr_id, df_id) {
             // Tags with this class, or top-level tags, should be the only ones visible after the
             //  filter gets cleared
             if ( $(elem).hasClass('ODRTagSelected') || !$(elem).parent().parent().hasClass('ODRTagItem') ) {
-                $(elem).show();
-                $(elem).children('ul.ODRTagGroup').show();
+                $(elem).removeClass('ODRHidden');
+                $(elem).children('ul.ODRTagGroup').removeClass('ODRHidden');
             }
             else {
-                $(elem).hide();
-                $(elem).children('ul.ODRTagGroup').hide();
+                $(elem).addClass('ODRHidden');
+                $(elem).children('ul.ODRTagGroup').addClass('ODRHidden');
             }
 
             // The indicator icon should also be reset
@@ -1227,7 +1223,7 @@ function filterEditTagField(context, dr_id, df_id) {
             $(elem).children('.ODRTagParent').each(function(index,span) {
                 $(span).removeClass('ODRTagPartialCollapsed ODRTagCollapsed');
                 $(span).children('i').removeClass('fa-ellipsis-h fa-caret-right').addClass('fa-caret-down');
-                $(span).next().next().show();
+                $(span).next().next().removeClass('ODRHidden');
             });
 
             // The tag's name needs to be converted to lower case...
@@ -1235,14 +1231,14 @@ function filterEditTagField(context, dr_id, df_id) {
 
             // ...so it can get compared against the provided filter text
             if ( tag_name.indexOf(filter_text) === -1 ) {
-                $(elem).hide();
+                $(elem).addClass('ODRHidden');
             }
             else {
                 // Display the tag even if it was initially hidden
-                $(elem).removeAttr('style');
+                $(elem).removeClass('ODRHidden');
 
                 // Also need to ensure that all parents of this tag are visible
-                $(elem).parents('.ODRTagItem').removeAttr('style');
+                $(elem).parents('.ODRTagItem').removeClass('ODRHidden');
             }
         });
     }
@@ -1343,7 +1339,7 @@ function DeleteFile(file_id, callback) {
                 {# NOTE - this doesn't actually "reload" anything, just shows the upload div again #}
                 if (data.d.need_reload == true) {
                     $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id + " input").prop('disabled', false);
-                    $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();
+                    $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().removeClass('ODRHidden');
                 }
 
                 // Run the given callback
@@ -1570,8 +1566,7 @@ function OpenLinkInfoDialog(local_datarecord_id) {
     url += local_datarecord_id;
     // alert(url);  return;
 
-    $("#loading-overlay").show();
-    $("#loading").show();
+    showSearchOverlay();
 
     $.ajax({
         cache: false,
@@ -1581,8 +1576,7 @@ function OpenLinkInfoDialog(local_datarecord_id) {
         success: function(data, textStatus, jqXHR) {
             $("#ODRRecordLinkInfoWrapperDiv").html(data.d.html);
 
-            $("#loading-overlay").hide();
-            $("#loading").hide();
+            hideSearchOverlay();
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't do anything on an error

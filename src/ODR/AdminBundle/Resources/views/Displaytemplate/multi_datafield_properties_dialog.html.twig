@@ -1,10 +1,6 @@
 {% spaceless %}
 
-<!-- Multiple Datafield Properties Edit Dialog Form -->
 <script>
-
-    var multiple_datafield_properties_dialog_wrapper = '<div id="ODRMultiDatafieldPropertiesDialogWrapper" class="ODRHidden"> </div>';
-
     /**
      * Opens ODR's modal and loads a form to change searchable/public status for multiple datafields
      * at the same time.
@@ -12,41 +8,28 @@
      * @param {number} datatype_id
      */
     function openMultipleDatafieldPropertiesDialog(datatype_id) {
+        /** @type {odr_remodal_options} modal_options */
         var modal_options = {
             title: 'Multiple Datafield Properties Dialog',
-            loading: true,
-            body: multiple_datafield_properties_dialog_wrapper,
             buttons: [
                 {
                     id: 'ODRMultipleProperties_save',
-                    text: 'Save'
+                    text: 'Save',
+                    click_handler: function() {
+                        saveMultipleDatafieldPropertiesDialog(datatype_id);
+                    }
                 },
                 {
                     id: 'ODRMultipleProperties_close',
                     secondary: true,
-                    text: 'Cancel'
+                    text: 'Cancel',
+                    click_handler: function() {
+                        closeODRRemodal();
+                    }
                 }
             ]
         };
         openODRRemodal(modal_options);
-
-        loadMultipleDatafieldPropertiesDialog(datatype_id);
-
-        // Attach event handlers to the buttons
-        $("#ODRMultipleProperties_save").unbind('click').click(function() {
-            saveMultipleDatafieldPropertiesDialog(datatype_id);
-        });
-        $("#ODRMultipleProperties_close").unbind('click').click(function() {
-            closeODRRemodal();
-        });
-    }
-
-    /**
-     * loads a form to change searchable/public status for multiple datafields at the same time.
-     *
-     * @param {number} datatype_id
-     */
-    function loadMultipleDatafieldPropertiesDialog(datatype_id) {
 
         var url = '{{ path('odr_design_get_multi_datafield_properties', { 'datatype_id': 0 }) }}';
         url = url.substr(0, url.length-1);
@@ -58,19 +41,9 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRMultiDatafieldPropertiesDialogWrapper").html( data.d.html );
+                updateODRRemodalBody(data.d.html);
 
                 initMultiDatafieldPropertiesDialog();
-
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('250', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRMultiDatafieldPropertiesDialogWrapper").show();
-
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
-                });
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -165,7 +138,7 @@
             }
         });
 
-        $(".ODRMultiDatafield_warning").hide();
+        $(".ODRMultiDatafield_warning").addClass('ODRHidden');
         $(".ODRMultiDatafield_fieldtype").unbind('change').change(function() {
             var df_id = $(this).attr('rel');
 
@@ -180,11 +153,11 @@
             // If the requested fieldtype change isn't trivial, then display the warning message
             if ( $("#has_datarecords").val() === '' || str === '' ) {
                 $("#df_" + df_id + "_warning_text").html('');
-                $("#df_" + df_id + "_warning").hide();
+                $("#df_" + df_id + "_warning").addClass('ODRHidden');
             }
             else {
                 $("#df_" + df_id + "_warning_text").html(str);
-                $("#df_" + df_id + "_warning").show();
+                $("#df_" + df_id + "_warning").removeClass('ODRHidden');
             }
 
             // Enable/disable the searchable dropdown depending on the currently selected fieldtype
@@ -244,7 +217,5 @@
         });
     }
 </script>
-
-<!-- End of Multiple Datafield Properties Edit Dialog Form -->
 
 {% endspaceless %}

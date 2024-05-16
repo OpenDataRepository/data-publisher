@@ -33,7 +33,7 @@
 {% endif %}
 
 {# Tags should only be hidden by default when they're not top-level, and when they have no selected descendants #}
-<li class="ODRTagItem{% if show_under_partial_select %} ODRTagSelected{% endif %}" {% if is_top_level != 1 and not show_under_partial_select %}style="display: none;"{% endif %}>
+<li class="ODRTagItem {% if show_under_partial_select %}ODRTagSelected{% endif %} {% if is_top_level != 1 and not show_under_partial_select %}ODRHidden{% endif %}">
 {% if has_children %}
     {% if child_is_selected or grandchild_is_selected %}
         {# At least one of this tag's children/grandchild are selected...so at least one of its children will be displayed #}
@@ -58,7 +58,7 @@
     </label>
 
 {% if has_children %}
-    <ul class="ODRTagGroup" {% if not (child_is_selected or grandchild_is_selected) %}style="display: none;"{% endif %}>
+    <ul class="ODRTagGroup {% if not (child_is_selected or grandchild_is_selected) %}ODRHidden{% endif %}">
         {# Hide tags when they don't have selected descendants...but all tags need to be rendered in Edit mode #}
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:Edit:tag.html.twig' with {

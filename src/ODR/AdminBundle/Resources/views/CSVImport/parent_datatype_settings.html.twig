@@ -40,9 +40,9 @@
 
         $("#parent_external_id_column").unbind('change').change(function() {
             if ( $(this).val() === '' )
-                $("#parent_external_id_warning").show();
+                $("#parent_external_id_warning").removeClass('ODRHidden');
             else
-                $("#parent_external_id_warning").hide();
+                $("#parent_external_id_warning").addClass('ODRHidden');
 
             // This parent_external_id selection is currently the only way the import checkboxes can get disabled
             $(".import_checkbox").prop('disabled', false);
@@ -59,9 +59,9 @@
 
         $("#remote_external_id_column").unbind('change').change(function() {
             if ( $(this).val() == '' )
-                $("#remote_external_id_warning").show();
+                $("#remote_external_id_warning").removeClass('ODRHidden');
             else
-                $("#remote_external_id_warning").hide();
+                $("#remote_external_id_warning").addClass('ODRHidden');
         });
 
     {% if presets != null %}

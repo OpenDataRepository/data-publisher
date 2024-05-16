@@ -16,7 +16,7 @@
 {% endif %}
 
 <div class="pure-u-1">
-    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_option_value }}</textarea>
+    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]">{{ current_option_value }}</textarea>
 
     <div class="pure-u-1 ODRRenderPlugin_UnitConversion_header">
         <div class="pure-u-1">
@@ -55,7 +55,7 @@
                 <option value="precise" {% if current_precision_type == 'precise' %}selected{% endif %}>Precise</option>
             </select>
         </label>
-        <label for="ODRRenderPlugin_PrecisionType_num" {% if current_precision_type != 'decimal' %}style="display: none;"{% endif %}>
+        <label for="ODRRenderPlugin_PrecisionType_num" {% if current_precision_type != 'decimal' %}class="ODRHidden"{% endif %}>
             # of Decimal Places:&nbsp;
             <select id="ODRRenderPlugin_PrecisionType_num">
             {% for i in 0..4 %}
@@ -64,46 +64,46 @@
             </select>
         </label>
 
-        <div id="ODRRenderPlugin_UnitConversion_none_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_none_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will completely ignore the idea of significant figures.  As such, the result may have spurious digits.
             <br>For instance: "1 meter" will be converted to something like "3.28084 feet"
         </div>
 
-        <div id="ODRRenderPlugin_UnitConversion_decimal_0_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_decimal_0_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will round the result so it has no decimal places.  Values with explicit tolerances will use significant figures instead.
             <br>For instance: "1 meter" will be converted to "3 feet"
         </div>
-        <div id="ODRRenderPlugin_UnitConversion_decimal_1_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_decimal_1_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will round the result so it has at most 1 decimal place.  Values with explicit tolerances will use significant figures instead.
             <br>For instance: "1 meter" will be converted to "3.3 feet"
         </div>
-        <div id="ODRRenderPlugin_UnitConversion_decimal_2_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_decimal_2_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will round the result so it has at most 2 decimal places.  Values with explicit tolerances will use significant figures instead.
             <br>For instance: "1 meter" will be converted to "3.28 feet"
         </div>
-        <div id="ODRRenderPlugin_UnitConversion_decimal_3_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_decimal_3_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will round the result so it has at most 3 decimal places.  Values with explicit tolerances will use significant figures instead.
             <br>For instance: "1 meter" will be converted to "3.281 feet"
         </div>
-        <div id="ODRRenderPlugin_UnitConversion_decimal_4_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_decimal_4_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will round the result so it has at most 4 decimal places.  Values with explicit tolerances will use significant figures instead.
             <br>For instance: "1 meter" will be converted to "3.2808 feet"
         </div>
 
-        <div id="ODRRenderPlugin_UnitConversion_greedy_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_greedy_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will assume that all digits in the source value are significant, and round the converted value accordingly.
             <br>For instance: "1 meter" will be converted to "3 feet"
             <br>"10 meters" will be converted to "32 feet"
             <br>"100 meters" will be converted to "328 feet"
             <br>"100.0 meters" will be converted to "328.1 feet"
         </div>
-        <div id="ODRRenderPlugin_UnitConversion_precise_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_precise_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             With this option selected, the plugin will assume that trailing zeros are not significant, and round the converted value accordingly.
             <br>For instance: "1 meter" will be converted to "3 feet"
             <br>"100 meters" will be converted to "300 feet"
             <br>"100.0 meters" will be converted to "328.1 feet"
         </div>
-        <div id="ODRRenderPlugin_UnitConversion_temperature_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_temperature_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info ODRHidden">
             Temperature conversions work differently because addition/subtraction is involved, and will instead be rounded to the same number of decimal places.
             <br>For instance: "10 C" will be converted to "283 K"
             <br>"10.5 C" will be converted to "283.6 K"
@@ -150,22 +150,22 @@
 
         $("#plugin_option_{{ rpo_id }}").val(rpom_option_value);
 
-        $(".ODRRenderPlugin_UnitConversion_info").hide();
-        $("#ODRRenderPlugin_PrecisionType_num").parent().hide();
+        $(".ODRRenderPlugin_UnitConversion_info").addClass('ODRHidden');
+        $("#ODRRenderPlugin_PrecisionType_num").parent().addClass('ODRHidden');
 
         if ( precision_type_value !== 'decimal' ) {
             var info_id = 'ODRRenderPlugin_UnitConversion_' + precision_type_value + '_info';
-            $('#' + info_id).show();
+            $('#' + info_id).removeClass('ODRHidden');
 
             if ( precision_type_value !== 'none' )
-                $("#ODRRenderPlugin_UnitConversion_temperature_info").show();
+                $("#ODRRenderPlugin_UnitConversion_temperature_info").removeClass('ODRHidden');
         }
         else {
-            $("#ODRRenderPlugin_PrecisionType_num").parent().show();
-            $("#ODRRenderPlugin_UnitConversion_temperature_info").show();
+            $("#ODRRenderPlugin_PrecisionType_num").parent().removeClass('ODRHidden');
+            $("#ODRRenderPlugin_UnitConversion_temperature_info").removeClass('ODRHidden');
 
             var info_id = 'ODRRenderPlugin_UnitConversion_decimal_' + precision_type_num + '_info';
-            $('#' + info_id).show();
+            $('#' + info_id).removeClass('ODRHidden');
         }
     }
 

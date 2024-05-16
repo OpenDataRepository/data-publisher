@@ -103,7 +103,7 @@
                 {% for file in valuefield %}
                     {% set file_meta = file.fileMeta %}
                     <div id="File_{{ file.id }}" class="ODRFileDatafield_file pure-u-1">
-                        <span class="ODRFileSpacer {% if file_meta.publicDate|is_public %}ODRFileSpacer_public{% else %}ODRFileSpacer_nonpublic{% endif %}">&nbsp;</span>
+                        <span class="ODRFileSpacer">&nbsp;</span>
 
                         <span class="ODRTruncateFilename">
                             {% set filename = file_meta.originalFileName %}
@@ -112,15 +112,15 @@
                             {% endif %}
 
                             <span class="ODRFileInfoDiv">
-                                {% if not file_meta.publicDate|is_public %}
-                                    <i class="fa fa-lg fa-info-circle fa-not-public"></i>
-                                {% else %}
+                                {% if file_meta.publicDate|is_public %}
                                     <i class="fa fa-lg fa-info-circle fa-public"></i>
+                                {% else %}
+                                    <i class="fa fa-lg fa-info-circle fa-not-public"></i>
                                 {% endif %}
                                 <span class="ODRFileInfo">
                                     <div>
-                                        <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
-                                        {% if not file_meta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file_meta.publicDate|date('Y-m-d') }}{% endif %}
+                                        <i class="fa fa-globe ODRPublicFile {% if file_meta.publicDate|is_public %}fa-public{% else %}fa-not-public{% endif %}"></i>&nbsp;
+                                        <span>{% if not file_meta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file_meta.publicDate|date('Y-m-d') }}{% endif %}</span>
                                     </div>
                                     <div>
                                         <i class="fa fa-calendar"></i>&nbsp;
@@ -176,7 +176,7 @@
                 <i id="ODRImageRight_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryRightArrow Pointer fa fa-2x fa-chevron-right" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
                 <div class="ODRImageGalleryImage pure-u-1"></div>
             </div>
-            <div id="imagestorage_{{ datafield.id }}_{{ datarecord.id }}" style="display: none;" rel="{{ datafield_meta.children_per_row }}">
+            <div id="imagestorage_{{ datafield.id }}_{{ datarecord.id }}" class="ODRHidden" rel="{{ datafield_meta.children_per_row }}">
 
                 {% for image in valuefield %}
                     {% set oimage = image.parent %}

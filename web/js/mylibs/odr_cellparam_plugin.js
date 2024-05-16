@@ -11,12 +11,12 @@ function ODR_updatePointGroups(input_id) {
     var selected_crystal_system = $("#" + input_id + "_crystal_system").children(':selected').val();
     if ( selected_crystal_system == '' ) {
         // No crystal system selected, show all point groups
-        $(point_group_select).children().show();
+        $(point_group_select).children().removeClass('ODRHidden');
     }
     else {
         // Otherwise, only show the point groups related to the selected crystal system
-        $(point_group_select).children().not(':first-child').hide();
-        $(point_group_select).children('[rel=' + selected_crystal_system + ']').show();
+        $(point_group_select).children().not(':first-child').addClass('ODRHidden');
+        $(point_group_select).children('[rel=' + selected_crystal_system + ']').removeClass('ODRHidden');
     }
 }
 
@@ -41,21 +41,21 @@ function ODR_updateSpaceGroups(input_id) {
         var selected_crystal_system = $("#" + input_id + "_crystal_system").val();
         if ( selected_crystal_system == '' ) {
             // ...if no crystal system selected, then show all space groups
-            $(space_group_select).children().show();
+            $(space_group_select).children().removeClass('ODRHidden');
         }
         else {
             // ...otherwise, only show the space groups that are related to the point groups belonging
             //  to the selected crystal system
-            $(space_group_select).children().not(':first-child').hide();
+            $(space_group_select).children().not(':first-child').addClass('ODRHidden');
             $(point_group_select).children('[rel=' + selected_crystal_system + ']').each(function(index,elem) {
                 var pg = $(elem).val().replaceAll('/', 's');
-                $(space_group_select).children('[rel=' + pg + ']').show();
+                $(space_group_select).children('[rel=' + pg + ']').removeClass('ODRHidden');
             });
         }
     }
     else {
         // Otherwise, only show the space groups related to the selected point group
-        $(space_group_select).children().not(':first-child').hide();
-        $(space_group_select).children('[rel=' + selected_point_group + ']').show();
+        $(space_group_select).children().not(':first-child').addClass('ODRHidden');
+        $(space_group_select).children('[rel=' + selected_point_group + ']').removeClass('ODRHidden');
     }
 }

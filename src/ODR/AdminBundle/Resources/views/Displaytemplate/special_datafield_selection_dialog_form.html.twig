@@ -1,44 +1,46 @@
 {% spaceless %}
 
-<div class="pure-u-1 ODRContentWrapper" style="margin-left:20px;">
-    <div class="pure-u-1 ODRSpecialFieldSelection_header">
-        This dialog allows you to choose and reorder the fields that will be used for {% if purpose == 'name' %}naming{% else %}sorting{% endif%} the records in this database.
-        No change is saved until you click the "Save" button at the bottom of the dialog.
-    </div>
-
-    <div class="pure-u-1-2">
-    {% for dt_id,dt_data in available_datafields %}
-        <div class="pure-u-1 ODRSpecialFieldSelection_datatype">{{ dt_data['datatype_name'] }}</div>
-        {% if dt_data['datafields']|length == 0 %}
-            <div class="ODRSpecialFieldSelection_datafields">This datatype has no datafields which are suited for {% if purpose == 'name' %}naming{% else %}sorting{% endif%}.</div>
-        {% else %}
-        <div class="pure-u-1 ODRSpecialFieldSelection_datafields">
-            {% for df_id,df_name in dt_data['datafields'] %}
-            <div id="ODRSpecialFieldSelection_df_{{ df_id }}_avail" class="ODRSpecialFieldSelection_datafield" rel="{{ df_id }}">
-                <span class="ODRSpecialFieldSelection ODRTristateCheckbox binary"><i class="fa {% if current_datafields[df_id] is defined %}fa-check{% endif %}"></i></span>
-                <span class="ODRSpecialFieldSelection_datafield_name">{{ df_name }}</span>
-            </div>
-            {% endfor %}
+<div id="ODRSpecialDatafieldSelectionDialogWrapper">
+    <div class="pure-u-1 ODRContentWrapper" style="margin-left:20px;">
+        <div class="pure-u-1 ODRSpecialFieldSelection_header">
+            This dialog allows you to choose and reorder the fields that will be used for {% if purpose == 'name' %}naming{% else %}sorting{% endif%} the records in this database.
+            No change is saved until you click the "Save" button at the bottom of the dialog.
         </div>
-        {% endif %}
-    {% endfor %}
-    </div>
 
-    <div class="pure-u-1-2">
-        <form id="ODRSpecialDatafieldSelectionForm" class="pure-form">
-            <input type="hidden" name="_token" value="{{ token }}" />
-            <input type="hidden" name="purpose" value="{{ purpose }}" />
-
-            {% for df_id, df_data in current_datafields %}
-            <div id="ODRSpecialFieldSelection_df_{{ df_id }}" class="ODRSpecialFieldSelection_datafield">
-                <input type="hidden" name="datafields[]" value="{{ df_id }}" />
-                <span class="ODRSpecialFieldSelection_trash" title="Stop using this field for this purpose"><i class="fa fa-lg fa-trash-o"></i></span>
-                <span class="ODRSpecialFieldSelection_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
-                <span class="ODRSpecialFieldSelection_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
-                <span class="ODRSpecialFieldSelection_datafield_name">{{ df_data['field_name'] }}</span>
+        <div class="pure-u-1-2">
+        {% for dt_id,dt_data in available_datafields %}
+            <div class="pure-u-1 ODRSpecialFieldSelection_datatype">{{ dt_data['datatype_name'] }}</div>
+            {% if dt_data['datafields']|length == 0 %}
+                <div class="ODRSpecialFieldSelection_datafields">This datatype has no datafields which are suited for {% if purpose == 'name' %}naming{% else %}sorting{% endif%}.</div>
+            {% else %}
+            <div class="pure-u-1 ODRSpecialFieldSelection_datafields">
+                {% for df_id,df_name in dt_data['datafields'] %}
+                <div id="ODRSpecialFieldSelection_df_{{ df_id }}_avail" class="ODRSpecialFieldSelection_datafield" rel="{{ df_id }}">
+                    <span class="ODRSpecialFieldSelection ODRTristateCheckbox binary"><i class="fa {% if current_datafields[df_id] is defined %}fa-check{% endif %}"></i></span>
+                    <span class="ODRSpecialFieldSelection_datafield_name">{{ df_name }}</span>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </form>
+            {% endif %}
+        {% endfor %}
+        </div>
+
+        <div class="pure-u-1-2">
+            <form id="ODRSpecialDatafieldSelectionForm" class="pure-form">
+                <input type="hidden" name="_token" value="{{ token }}" />
+                <input type="hidden" name="purpose" value="{{ purpose }}" />
+
+                {% for df_id, df_data in current_datafields %}
+                <div id="ODRSpecialFieldSelection_df_{{ df_id }}" class="ODRSpecialFieldSelection_datafield">
+                    <input type="hidden" name="datafields[]" value="{{ df_id }}" />
+                    <span class="ODRSpecialFieldSelection_trash" title="Stop using this field for this purpose"><i class="fa fa-lg fa-trash-o"></i></span>
+                    <span class="ODRSpecialFieldSelection_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
+                    <span class="ODRSpecialFieldSelection_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
+                    <span class="ODRSpecialFieldSelection_datafield_name">{{ df_data['field_name'] }}</span>
+                </div>
+                {% endfor %}
+            </form>
+        </div>
     </div>
 </div>
 

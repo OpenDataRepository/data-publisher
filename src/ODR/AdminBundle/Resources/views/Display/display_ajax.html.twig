@@ -38,7 +38,7 @@
         $(".ODRChildDatatype").each(function(index,elem) {
             var child_theme_elements = $(elem).find('.ODRThemeElement,.ODRRenderPluginContent');
             if ( child_theme_elements.length == 0 )
-                $(elem).parent().parent().hide();
+                $(elem).parent().parent().addClass('ODRHidden');
         });
 
         // Resize everything prior to divs being hidden
@@ -67,8 +67,6 @@
     }
 
     function setupFileDownloader() {
-
-        $(".ODRFileDownloadProgress").hide();
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {
             // Grab necessary attributes

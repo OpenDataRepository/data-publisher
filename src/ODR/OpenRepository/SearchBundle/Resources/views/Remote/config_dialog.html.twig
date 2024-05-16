@@ -1,35 +1,17 @@
 {% spaceless %}
 
-<!-- ODRRemoteSearch Config Dialog Form -->
-
 <script>
-
-    var odrremotesearch_body = '<div id="ODRRemoteSearchDialogWrapper" class="ODRHidden"> </div>';
-
     /**
      * Opens ODR's modal to display a formatted javascript config for the remote search functionality.
      */
     function openODRRemoteSearchDialog() {
-        // open dialog
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: 'ODR Remote Search Setup',
-            loading: true,
-            body: odrremotesearch_body,
-            buttons: [
-                {
-                    id: 'ODRRemoteSearch_close',
-                    text: 'Close'
-                }
-            ]
         };
         openODRRemodal(modal_options);
 
         loadODRRemoteSearchDialog();
-
-        // Attach an event handler to the close button
-        $("#ODRRemoteSearch_close").unbind('click').click(function() {
-            closeODRRemodal();
-        });
     }
 
     /**
@@ -65,17 +47,7 @@
             dataType: "json",
             data: $("#ODRRemoteSearch_form").serialize(),
             success: function(data) {
-                $("#ODRRemoteSearchDialogWrapper").html( data.d.html );
-
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRRemoteSearchDialogWrapper").show();
-
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
-                });
+                updateODRRemodalBody( data.d.html );
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -97,7 +69,5 @@
         });
     }
 </script>
-
-<!-- End of ODRRemoteSearch Config Dialog Form -->
 
 {% endspaceless %}

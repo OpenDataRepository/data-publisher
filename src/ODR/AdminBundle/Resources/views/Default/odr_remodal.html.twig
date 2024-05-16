@@ -2,23 +2,20 @@
 
 <!-- ODR Modal Dialog -->
 <div class="ODRRemodal" data-remodal-id="ODRRemodal" id="ODRRemodal">
-    <button data-remodal-action="close" class="remodal-close"></button>
     <h3 class="ODRRemodalTitle"></h3>
+    <button data-remodal-action="close" class="remodal-close" onclick="closeODRRemodal();"></button>
     <div class="ODRRemodalInner form_contents pure-u-1">
         <div class="ODRRemodalInnerContent">
-            <div class="ODRRemodalLoading pure-u-1" style="display: none;">
+            <div class="ODRRemodalLoading pure-u-1 ODRHidden">
                 <div class="loading-container">
                     <div class="loading"></div>
-                    <div class="loading-text">loading</div>
+                    <div class="loading-text">Loading...</div>
                 </div>
             </div>
-            <div class="ODRRemodalBody" style="display: none;">
-            </div>
+            <div class="ODRRemodalBody ODRHidden"></div>
         </div>
     </div>
-    <div class="ODRRemodalButtons" style="display: none;">
-        <button data-remodal-action="close" class="ODRRemodalCancel remodal-close"></button>
-    </div>
+    <div class="ODRRemodalButtons ODRHidden"></div>
 </div>
 <!-- End ODR Modal Dialog -->
 
@@ -39,7 +36,7 @@
      */
     function resetODRRemodalLoadingText() {
         var loading_text = $(".ODRRemodalLoading").find(".loading-text");
-        loading_text.html("loading");
+        loading_text.html("Loading...");
     }
 
     /**
@@ -54,18 +51,18 @@
         }
         else if (state === 'opening') {
             // Apparently calling the close() function on a remodal that is still "opening" won't
-            //  actually do anything...so wait for it to fully open
+            //  actually do anything...so give it a moment to fully open
             setTimeout(closeODRRemodal, 100);
         }
     }
 
     /**
-     * Changes the modal's body to display the given message.
+     * Changes the loading message in the modal's body.
      *
      * @param {string} message
      * @param {string} [message_type]
      */
-    function setModalMessage(message, message_type) {
+    function setModalMessage(message, message_type = '') {
         var modal_body = $(".ODRRemodalBody");
         if (message_type === undefined) {
             modal_body.html(
@@ -75,16 +72,38 @@
         else if (message_type === "raw") {
             modal_body.html( message );
         }
-        modal_body.show();
+        modal_body.removeClass('ODRHidden');
         resetRemodalInnerHeight();
     }
+
+    /**
+     * @typedef {Object} odr_remodal_options
+     * @type {object}
+     * @property {string} title - The title for the remodal
+     * @property {string} [body] - The body for the remodal.  If not provided, then displays the 'loading' blurb
+     * @property {boolean} [loading] - If true, then forces the 'loading' blurb to be visible
+     * @property {string} [loading_text] - If true, then forces the 'loading' blurb to be visible
+     * @property {odr_remodal_button[]} [buttons] - An optional array of buttons to be placed at the bottom of the remodal
+     * @property {boolean} [no_resize] - If true, then does not attempt to resize the modal to fit the content
+     */
+
+    /**
+     * @typedef {Object} odr_remodal_button
+     * @type {object}
+     * @property {string} id - The new button's id
+     * @property {string} text - The new button's text
+     * @property {string} [title] - If provided, the new button's 'title' attribute
+     * @property {boolean} [secondary] - If true, then the new button has the 'pure-button-secondary' class
+     * @property {boolean} [disabled] - If true, then the new button is disabled at first
+     * @property {function} [click_handler] - If provided, then the button's click handler is set to this
+     */
 
     /**
      * Opens ODR's modal dialog with the given options.
      *
      * The second parameter should almost never have anything specified...
      *
-     * @param {Object} options
+     * @param {odr_remodal_options} options
      * @param {Object} [remodal_options]
      */
     function openODRRemodal(options, remodal_options) {
@@ -105,21 +124,37 @@
         var modal = $('[data-remodal-id=ODRRemodal]');
         var inst = modal.remodal(remodal_options);
 
-        // Reset modal
-        modal.find(".ODRRemodalLoading").hide();
-        setODRRemodalLoadingText("loading");
-        modal.find(".ODRRemodalBody").html('');
-        // Clear buttons
-        modal.find(".ODRRemodalButtons").hide();
-        modal.find(".ODRRemodalButtons button").each(function() {
-            if (!$(this).hasClass("ODRRemodalCancel")) {
-                $(this).remove();
-            }
-        });
+        var title_div = modal.find(".ODRRemodalTitle");
+        var loading_div = modal.find(".ODRRemodalLoading");
+        var body_div = modal.find(".ODRRemodalBody");
+        var buttons_div = modal.find(".ODRRemodalButtons");
 
         // Set title
-        modal.find(".ODRRemodalTitle").html(options.title);
-        // Set buttons
+        $(title_div).html(options.title);
+
+        // Set loading
+        if (options.loading_text !== undefined && options.loading_text !== '')
+            setODRRemodalLoadingText(options.loading_text)
+        else
+            resetODRRemodalLoadingText();
+
+        // Set body
+        var body_html = '';
+        if (options.body !== undefined)
+            body_html = options.body;
+        updateODRRemodalBody(body_html);
+
+        // Override body visibility if options.loading is set to true
+        if ( options.loading !== undefined && options.loading ) {
+            $(body_div).addClass('ODRHidden');
+            $(loading_div).removeClass('ODRHidden');
+        }
+
+        // Delete any existing buttons in the remodal
+        $(buttons_div).addClass('ODRHidden');
+        $(buttons_div).empty();
+
+        // Add any required buttons to the remodal
         if (!_.isEmpty(options.buttons)) {
             for (var i = (options.buttons.length - 1); i >= 0; i--) {
                 var button = options.buttons[i];
@@ -133,42 +168,108 @@
                 else
                     button_html += ' pure-button-primary"';
 
-                if (button.title)
+                if (button.title !== undefined)
                     button_html += ' title="' + button.title + '"';
 
-                if (button.disabled)
+                if (button.disabled !== undefined && button.disabled)
                     button_html += 'disabled>' + button.text + '</button>';
                 else
                     button_html += '>' + button.text + '</button>';
 
 //                console.log(button_html)
-                modal.find(".ODRRemodalButtons").prepend(button_html);
+                $(buttons_div).prepend(button_html);
 
                 // Setup click handler
-                $("#" + button.id).unbind('click').click(button.click);
+                if (button.click_handler !== undefined)
+                    $("#" + button.id).unbind('click').click(button.click_handler);
             }
+
+            $(buttons_div).removeClass('ODRHidden');
         }
 
-        if (options.body)
-            modal.find(".ODRRemodalBody").html(options.body);
-
-        // Set body
-        if (options.loading || !options.body) {
-            // Set the loading screen (if body empty)
-            modal.find(".ODRRemodalButtons").hide();
-            modal.find(".ODRRemodalLoading").show();
-        }
-        else {
-            modal.find(".ODRRemodalBody").show();
-            modal.find(".ODRRemodalButtons").show();
-        }
-
+        // Open the modal
         inst.open();
 
-        // Reset modal to display content.
-        if(options.no_reset == undefined) {
+        // Reset modal to display content
+        if (options.no_resize === undefined)
             resetRemodalInnerHeight();
+    }
+
+    /**
+     * Updates the body of the remodal with the given html.  Shows the 'loading' blurb if given the
+     * empty string, hides the 'loading' blurb otherwise.
+     *
+     * @param {string} html
+     * @param {('normal'|'full'|'none')} [resize='normal'] - If 'normal', then attempt to fit the remodal to the contents.
+     *                                                       If 'full', then attempt to take up the entire screen.
+     *                                                       if 'none', then do not attempt to resize the remodal.
+     */
+    function updateODRRemodalBody(html, resize = 'normal') {
+        var modal = $('[data-remodal-id=ODRRemodal]');
+        var loading_div = modal.find(".ODRRemodalLoading");
+        var body_div = modal.find(".ODRRemodalBody");
+
+        $(body_div).html(html);
+
+        if (html.length > 0) {
+            $(loading_div).addClass('ODRHidden');
+            $(body_div).removeClass('ODRHidden');
+
+            if (resize === 'normal')
+                resetRemodalInnerHeight();
+            else if (resize === 'full')
+                resetRemodalInnerHeight(true);
         }
+        else {
+            $(loading_div).removeClass('ODRHidden');
+            $(body_div).addClass('ODRHidden');
+        }
+    }
+
+    /**
+     * Resizes the currently open modal.
+     *
+     * @param {boolean} ignore_content_height if true, modal attempts to take up the entire window regardless of content size
+     *
+     * @returns {number}
+     */
+    function resetRemodalInnerHeight(ignore_content_height = false) {
+        var modal = $("#ODRRemodal");
+        var modal_inner = modal.find(".ODRRemodalInner");
+        var modal_inner_content = modal.find(".ODRRemodalInnerContent");
+
+        // Get Scroll height of inner, plus some extra for the scrollbars
+        var content_height = modal_inner_content.prop('scrollHeight') + 100;
+        // console.log('content_height: ' + content_height);
+
+        var modal_height =  $(window).height()
+            - modal.find(".ODRRemodalButtons").height()
+            - modal.find(".ODRRemodalTitle").height();
+
+        if ( $(window).width() >= 568 )
+            modal_height -= 30;
+        // console.log('modal_height: ' + modal_height);
+
+        // Just show content if smaller than window height
+        if (!ignore_content_height && content_height < modal_height)
+            modal_height = content_height;
+        // console.log('adjusted_height: ' + modal_height);
+
+        // Ensure it looks okay
+        modal_height -= 40;
+        if (modal_height < 200)
+            modal_height = 200;
+        // console.log('final_height: ' + modal_height);
+
+        modal_inner.animate(
+            {height: modal_height},
+            {
+                duration: 400,
+                easing: "swing"
+            }
+        );
+
+        return modal_height;
     }
 </script>
 

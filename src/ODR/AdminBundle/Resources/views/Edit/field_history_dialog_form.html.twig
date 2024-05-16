@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+<div id="ODRFieldHistoryDialogWrapper">
 
     <!-- Field History Dialog Form -->
     <form action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}" class="pure-u-1" id="DatafieldHistoryForm" method="POST">
@@ -45,6 +46,7 @@
             </tbody>
         </table>
     </div>
+</div>
 
     <script>
         $(function() {

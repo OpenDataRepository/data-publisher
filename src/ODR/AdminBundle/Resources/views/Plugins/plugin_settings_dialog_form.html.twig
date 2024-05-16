@@ -1,48 +1,50 @@
 {% spaceless %}
 
-<form action="{{ path('odr_save_render_plugin_settings') }}" method="post" class="pure-form pure-form-aligned" id="ODRRenderPluginSettingsForm">
+<div id="ODRRenderPluginFormWrapper">
+    <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" class="pure-form pure-form-aligned" id="ODRRenderPluginSettingsForm">
 
-    <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
+        <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
 {% if local_datafield == null %}
-    <input type="hidden" name="local_datafield_id" value="0" />
+        <input type="hidden" name="local_datafield_id" value="0" />
 {% else %}
-    <input type="hidden" name="local_datafield_id" value="{{ local_datafield.id }}" />
+        <input type="hidden" name="local_datafield_id" value="{{ local_datafield.id }}" />
 {% endif %}
 
-    <div class="pure-u-6-24">
-        <fieldset>
-            <label class="ODRPluginListLabel" for="selected_render_plugins">
-                Available Render Plugins
-            </label>
-            <div id="selected_render_plugins" class="pure-control-group pure-u-1">
-            {% set prev_category = '' %}
-            {% for rp in all_render_plugins %}
-                {% if rp.category != prev_category %}
-                    {# Start a new <optgroup> with the current plugin's category #}
-                    {% set prev_category = rp.category %}
-                    <div class="ODRPluginCategoryLabel pure-u-1">{{ prev_category }}</div>
-                {% endif %}
-
-                    <div id="rp_{{ rp.id }}" class="ODRPluginEntry pure-u-1">
-                        <span class="ODRPluginIcon">{% if attached_render_plugins[rp.id] is defined %}<i class="fa fa-plug"></i>{% endif %}</span>
-                        <span class="ODRPluginName" rel="{{ rp.id }}">{{ rp.pluginname }}</span>
-                    </div>
-            {% endfor %}
-
-            </div>
-        </fieldset>
-    </div>
-
-    {# plugin data div #}
-    <div class="pure-u-18-24">
-        <div id="ODRRenderPluginData" class="pure-control-group">
+        <div class="pure-u-6-24">
             <fieldset>
-                <span>The {% if local_datafield is null %}Database{% else %}Datafield{% endif %} is not using a Render Plugin.<br>Select a Render Plugin from the left side of this dialog.</span>
+                <label class="ODRPluginListLabel" for="selected_render_plugins">
+                    Available Render Plugins
+                </label>
+                <div id="selected_render_plugins" class="pure-control-group pure-u-1">
+                {% set prev_category = '' %}
+                {% for rp in all_render_plugins %}
+                    {% if rp.category != prev_category %}
+                        {# Start a new <optgroup> with the current plugin's category #}
+                        {% set prev_category = rp.category %}
+                        <div class="ODRPluginCategoryLabel pure-u-1">{{ prev_category }}</div>
+                    {% endif %}
+
+                        <div id="rp_{{ rp.id }}" class="ODRPluginEntry pure-u-1">
+                            <span class="ODRPluginIcon">{% if attached_render_plugins[rp.id] is defined %}<i class="fa fa-plug"></i>{% endif %}</span>
+                            <span class="ODRPluginName" rel="{{ rp.id }}">{{ rp.pluginname }}</span>
+                        </div>
+                {% endfor %}
+
+                </div>
             </fieldset>
         </div>
-    </div>
 
-</form>
+        {# plugin data div #}
+        <div class="pure-u-18-24">
+            <div id="ODRRenderPluginData" class="pure-control-group">
+                <fieldset>
+                    <span {% if plugin_to_load is not null %}class="ODRHidden"{% endif %}>The {% if local_datafield is null %}Database{% else %}Datafield{% endif %} is not using a Render Plugin.<br>Select a Render Plugin from the left side of this dialog.</span>
+                </fieldset>
+            </div>
+        </div>
+
+    </form>
+</div>
 
 <script>
     var current_unique_fields = [{% for num,df_id in current_unique_fields %}{{ df_id }},{% endfor %}];
@@ -78,8 +80,8 @@
         var url  = '{{ path('odr_load_plugin_data', {'datatype_id': 0, 'datafield_id': 0, 'render_plugin_id': 0 } ) }}';
         url = url.substring(0,(url.length - 5)) + datatype_id + '/' + datafield_id + '/' + render_plugin_id;
 
-        $("#ODRRenderPluginSettingsForm").hide();
-        $(".ODRRemodalLoading").show();
+        $("#ODRRenderPluginSettingsForm").addClass('ODRHidden');
+        $(".ODRRemodalLoading").removeClass('ODRHidden');
 
         $(".ODRSelectedPlugin").removeClass("ODRSelectedPlugin");
         $("#rp_" + render_plugin_id).addClass("ODRSelectedPlugin");
@@ -90,9 +92,12 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
+                // Can't use updateODRRemodalBody() here, because we want to splice the returned
+                //  HTML at a specific location
                 $("#ODRRenderPluginData").html(data.d.html);
-                $(".ODRRemodalLoading").hide();
-                $("#ODRRenderPluginSettingsForm").show();
+
+                $(".ODRRemodalLoading").addClass('ODRHidden');
+                $("#ODRRenderPluginSettingsForm").removeClass('ODRHidden');
 
                 resetRemodalInnerHeight();
             },

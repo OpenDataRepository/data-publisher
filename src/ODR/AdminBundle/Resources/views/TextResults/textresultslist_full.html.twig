@@ -37,7 +37,7 @@
             <table id="TextResults" class="display ODRDatatableInstance">
                 <thead>
                 {% for num,col in column_names %}
-                    <th {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ col['title']|raw }}</th>
+                    <th {% if loop.index <= 2 %}class="ODRHidden" {% endif %}>{{ col['title']|raw }}</th>
                 {% endfor %}
                 {% if can_edit_datatype %}
                     <th></th>
@@ -47,7 +47,7 @@
                 {% for row_num,row in row_data %}
                     <tr class="ODRTableRecord DataRecord_{{ row[0] }}" rel="{{ row[0] }}">
                     {% for col_num,data in row %}
-                        <td {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ data|raw }}</td>
+                        <td {% if loop.index <= 2 %}class="ODRHidden"{% endif %}>{{ data|raw }}</td>
                     {% endfor %}
                     {% if can_edit_datatype %}    {# TODO - datarecord restriction? #}
                         <td>

@@ -605,13 +605,13 @@
      */
     function showSearchOverlay(text, intent) {
         // console.log('showSearchOverlay()', 'text', text, 'intent', intent);
-        $("#loading-overlay").fadeIn('fast');
+        $("#loading-overlay").removeClass('ODRHidden').fadeIn('fast');
 
         if ( text === undefined || text === null || text === '' )
             $("#loading").html('<span>Loading...</span>');
         else
             $("#loading").html('<span>' + text + '</span>');
-        $("#loading").fadeIn('fast');
+        $("#loading").removeClass('ODRHidden').fadeIn('fast');
 
         if (intent === undefined || intent === null)
             intent = 'loading';
@@ -623,9 +623,8 @@
      * Hides the search overlay.
      */
     function hideSearchOverlay() {
-        $("#loading-overlay").fadeOut('fast');
-        $("#loading").html('<span>Loading...</span>');
-        $("#loading").fadeOut('fast');
+        $("#loading-overlay").fadeOut('fast').addClass('ODRHidden');
+        $("#loading").fadeOut('fast').addClass('ODRHidden');
     }
 
     function setupAccordionHighlights() {
@@ -651,10 +650,9 @@
             page_type_title = "Choose from available layouts for " + pieces.join(' ') + " mode:";
         }
 
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: page_type_title,
-            // body: "<div>Loading will not display if body is set.</div>",
-            // loading: true,  // Force loading to display
         };
         openODRRemodal(modal_options);
 
@@ -669,11 +667,7 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $(".ODRRemodalBody").html( data.d );
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    resetRemodalInnerHeight();
-                });
+                updateODRRemodalBody(data.d);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
@@ -716,10 +710,9 @@
         //  guaranteed to have it when certain parts of the page are built
         var search_key = $("#ODRSidebarSearchKey").val();
 
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: intent_title,
-            // body: "<div>Loading will not display if body is set.</div>",
-            // loading: true,  // Force loading to display
         };
         openODRRemodal(modal_options);
 
@@ -734,11 +727,7 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $(".ODRRemodalBody").html( data.d );
-                $(".ODRRemodalLoading").fadeOut('250', function() {
-                    $(".ODRRemodalBody").show();
-                    resetRemodalInnerHeight();
-                });
+                updateODRRemodalBody(data.d);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
@@ -770,8 +759,8 @@
             $(this).unbind('click').click(function() {
                 // When a header is clicked, hide each of the content divs
                 $(this).parent().children(".accordion-content").each(function() {
-                    if ( !$(this).is(":hidden") ) {
-                        $(this).hide();
+                    if ( !$(this).hasClass('ODRHidden') ) {
+                        $(this).addClass('ODRHidden');
                         // console.log( '.ODRFormAccordion: hiding', $(this) );
                     }
                     $(this).prev().removeClass('ODRAccordionSelected');
@@ -798,7 +787,7 @@
                 if ( !$(this).hasClass("ODRAccordionSelected") ) {
                     // Ensure that all child/linked records are hidden, unless user has already
                     //  selected one of them
-                    $(this).next().hide();
+                    $(this).next().addClass('ODRHidden');
                     // console.log( '.ODRChildDatatype: hiding ', $(this).next() );
                 }
                 else {
@@ -813,11 +802,11 @@
                 $(this).children().children(".ODRFormAccordion").children("h3").each(function(index,elem) {
                     if ( index === 0 ) {
                         // console.log('showing: ', $(elem).next());
-                        $(elem).next().show();
+                        $(elem).next().removeClass('ODRHidden');
                     }
                     else {
                         // console.log('hiding: ', $(elem).next());
-                        $(elem).next().hide();
+                        $(elem).next().addClass('ODRHidden');
                     }
                 });
             }
@@ -850,11 +839,11 @@
                     // Hide all the content divs except the one that was selected
                     $(wrapper_div).children(".accordion-content").each(function() {
                         if ( $(this).attr('id') !== selected_dr ) {
-                            $(this).hide();
+                            $(this).addClass('ODRHidden');
                             // console.log( '.ODRTabAccordion button: hiding ', $(this) );
                         }
                         else {
-                            $(this).show();
+                            $(this).removeClass('ODRHidden');
                             // console.log( '.ODRTabAccordion button: showing ', $(this) );
                         }
                     });
@@ -872,10 +861,10 @@
 
                 // ...and the first content div is the only one visible
                 $(wrapper_div).children(".accordion-content").each(function() {
-                    $(this).hide();
+                    $(this).addClass('ODRHidden');
                     // console.log( '.ODRTabAccordion: hiding ', $(this) );
                 });
-                $(wrapper_div).children(".accordion-content").first().show();
+                $(wrapper_div).children(".accordion-content").first().removeClass('ODRHidden');
             }
         });
 
@@ -887,11 +876,11 @@
             var wrapper_div = $(this);
             $(wrapper_div).children(".accordion-content").each(function(index,elem) {
                 if ( index > 0 ) {
-                    $(elem).hide();
+                    $(elem).addClass('ODRHidden');
                     // console.log( '.ODRDropdownAccordion: hiding child ' + index, $(elem) );
                 }
                 else {
-                    $(elem).show();
+                    $(elem).removeClass('ODRHidden');
                     // console.log( '.ODRDropdownAccordion: showing child ' + index, $(elem) );
                 }
             });
@@ -905,11 +894,11 @@
                 // Hide all the content divs except the one that was selected
                 $(wrapper_div).children(".accordion-content").each(function() {
                     if ( $(this).attr('id') !== selected_dr ) {
-                        $(this).hide();
+                        $(this).addClass('ODRHidden');
                         // console.log( '.ODRDropdownAccordion select: hiding ', $(this) );
                     }
                     else {
-                        $(this).show();
+                        $(this).removeClass('ODRHidden');
                         // console.log( '.ODRDropdownAccordion select: showing ', $(this) );
                     }
                 });
@@ -932,7 +921,7 @@
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);
 
         // Resize all textarea elements
-        $("textarea").not(":hidden").each(function() {
+        $("textarea:visible").each(function() {
             var el = $(this);
 
             // Remove any pre-existing height/width from the textarea
@@ -973,8 +962,8 @@
             });
 
             if (count <= images_per_row) {
-                $("#ODRImageLeft_" + datafield_id + "_" + datarecord_id).hide();
-                $("#ODRImageRight_" + datafield_id + "_" + datarecord_id).hide();
+                $("#ODRImageLeft_" + datafield_id + "_" + datarecord_id).addClass('ODRHidden');
+                $("#ODRImageRight_" + datafield_id + "_" + datarecord_id).addClass('ODRHidden');
 
                 if (count == 0)
                     $(this).html('<center><strong>No Images Found</strong></center>');
@@ -1038,11 +1027,11 @@
 
             if ( states === 2 ) {
                 if ( $(this).hasClass('ODRTagCollapsed') ) {
-                    $(tag_children_div).show();
+                    $(tag_children_div).removeClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
                 }
                 else {
-                    $(tag_children_div).hide();
+                    $(tag_children_div).addClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
                 }
 
@@ -1052,8 +1041,8 @@
                 if ( $(this).hasClass('ODRTagCollapsed') && $(this).parent().hasClass('ODRTagSelected') ) {
                     // This tag is currently collapsed, and has selected children...go from collapsed
                     //  to only partially collapsed
-                    $(tag_children_div).show();
-                    $(tag_children_div).children('li.ODRTagItem').not('.ODRTagSelected').hide();
+                    $(tag_children_div).removeClass('ODRHidden');
+                    $(tag_children_div).children('li.ODRTagItem').not('.ODRTagSelected').addClass('ODRHidden');
 
                     $(icon_div).removeClass("fa-caret-right").addClass("fa-ellipsis-h");
 
@@ -1063,74 +1052,28 @@
                     // This tag is currently collapsed, but has no selected children...there's no
                     //  point going to partially collapsed, since nothing will change, so instead
                     //  show everything
-                    $(tag_children_div).show();
-                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(tag_children_div).removeClass('ODRHidden');
+                    $(tag_children_div).children('li.ODRTagItem').removeClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
 
                     $(this).removeClass('ODRTagCollapsed');
                 }
                 else if ( $(this).hasClass('ODRTagPartialCollapsed') ) {
                     // This tag is partially collapsed...go to showing everything
-                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(tag_children_div).children('li.ODRTagItem').removeClass('ODRHidden');
                     $(icon_div).removeClass("fa-ellipsis-h").addClass("fa-caret-down");
 
                     $(this).removeClass('ODRTagPartialCollapsed');
                 }
                 else {
                     // This tag is showing everything...go back to completely collapsed
-                    $(tag_children_div).hide();
+                    $(tag_children_div).addClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
 
                     $(this).addClass('ODRTagCollapsed');
                 }
             }
         });
-    }
-
-    /**
-     * Resizes the currently open modal.
-     *
-     * @param {boolean} ignore_content_height if true, modal attempts to take up the entire window regardless of content size
-     *
-     * @returns {number}
-     */
-    function resetRemodalInnerHeight(ignore_content_height = false) {
-        var modal = $("#ODRRemodal");
-        var modal_inner = modal.find(".ODRRemodalInner");
-        var modal_inner_content = modal.find(".ODRRemodalInnerContent");
-
-        // Get Scroll height of inner, plus some extra for the scrollbars
-        var content_height = modal_inner_content.prop('scrollHeight') + 100;
-        // console.log('content_height: ' + content_height);
-
-        var modal_height =  $(window).height()
-            - modal.find(".ODRRemodalButtons").height()
-            - modal.find(".ODRRemodalTitle").height();
-
-        if ( $(window).width() >= 568 )
-            modal_height -= 30;
-        // console.log('modal_height: ' + modal_height);
-
-        // Just show content if smaller than window height
-        if (!ignore_content_height && content_height < modal_height)
-            modal_height = content_height;
-        // console.log('adjusted_height: ' + modal_height);
-
-        // Ensure it looks okay
-        modal_height -= 40;
-        if (modal_height < 200)
-            modal_height = 200;
-        // console.log('final_height: ' + modal_height);
-
-        modal_inner.animate(
-            {height: modal_height},
-            {
-                duration: 400,
-                easing: "swing"
-            }
-        );
-
-        return modal_height;
     }
 
     {# This is apparently only used in ODROpenRepositoryGraphBundle:Base:Graph/graph.html.twig #}
@@ -1295,6 +1238,23 @@
         $(image_elem).attr( 'src', new_src );
     }
 
+    /**
+     * Reapplies the odd/even css classes on rows in a datatables instance.
+     *
+     * @param {HTMLElement} table
+     */
+    function redoRowClasses(table) {
+        var count = 0;
+        $(table).find('tr').each(function() {
+            if ( $(this).is(':visible') ) {
+                count++;
+                if ( count % 2 === 1 )
+                    $(this).removeClass('odd').addClass('even');
+                else
+                    $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

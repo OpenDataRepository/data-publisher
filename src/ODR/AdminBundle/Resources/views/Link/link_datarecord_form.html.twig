@@ -30,7 +30,7 @@
             </h3>
         </div>
 
-        <div style="display: none;">
+        <div class="ODRHidden">
         {% include 'ODRAdminBundle:Display:display_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
@@ -61,10 +61,12 @@
         <div id="TextResults_wrapper" class="ODRTableOuterWrap"></div>
     </div>
 
+    {% if allow_multiple_links %}
     <div id="ODRLinkSelection" class="pure-u-1">
         <button class="pure-button" type="button" onclick="ODRLinkDatarecords_selectAllRecords();">Select All</button>
         <button class="pure-button" type="button" onclick="ODRLinkDatarecords_deselectAllRecords();">Deselect All</button>
     </div>
+    {% endif %}
 </div> <!-- end of .ODRFormWrap -->
 
 <div id="ODRSearchBoxContent" class="pure-u-1"></div>
@@ -75,16 +77,15 @@
     $(function() {
         enableSearchSidebar('{{ remote_datatype_search_key }}', 'expanded', 'linking');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-        $("#ODRLinkSelection").hide();
         $(".ODRLinkHeader").unbind('click').click(function() {
             if ( $(this).hasClass('ODRAccordionSelected') ) {
                 $(this).removeClass('ODRAccordionSelected');
-                $(this).next().hide();
+                $(this).next().addClass('ODRHidden');
                 $(this).find(".ODRLinkHeader_caret").removeClass('fa-caret-down').addClass('fa-caret-right');
             }
             else {
                 $(this).addClass('ODRAccordionSelected');
-                $(this).next().show();
+                $(this).next().removeClass('ODRHidden');
                 $(this).find(".ODRLinkHeader_caret").removeClass('fa-caret-right').addClass('fa-caret-down');
             }
         });
@@ -290,6 +291,7 @@
         });
     }
 
+{% if allow_multiple_links %}
     /**
      * Convenience function to select all datarecords in the returned search result, which will cause
      *  the controller to link to all remote records in the search result if the form is submitted.
@@ -325,6 +327,7 @@
         // All possible datarecords are now unlinked
         linked_datarecords = [];
     }
+{% endif %}
 </script>
 
 {% endspaceless %}

@@ -45,10 +45,6 @@
 
         var allow_multiple_links = $("#LinkDataRecordForm").children('input[name="allow_multiple_links"]').val();
         var local_datarecord_is_ancestor = $("#LinkDataRecordForm").children('input[name="local_datarecord_is_ancestor"]').val();
-        if (allow_multiple_links === 0)
-            $("#ODRLinkSelection").remove();
-        else
-            $("#ODRLinkSelection").show();
 
         // Initialize the datatables object
         var search_table = $("#TextResults_search").dataTable({

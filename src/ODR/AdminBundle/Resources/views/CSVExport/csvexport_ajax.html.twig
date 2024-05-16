@@ -8,7 +8,7 @@
 
     <div id="CSVExportForm">
 
-        <form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start_express') }}">
+        <form id="csvexport_form" style="margin:10px;" action="{{ path('odr_csv_export_start_express') }}">
             <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
             <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
 
@@ -25,19 +25,19 @@
                         </select>
                     </td>
                     <td>
-                        <input id="delimiter_field" class="ODRDelimiterField"
+                        <input id="delimiter_field" class="ODRDelimiterField ODRHidden"
                                type="text" name="delimiter"
                                maxlength="1" size="3"
                         />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRWarnWrapper">
+                        <span class="ODRInputError ODRWarnWrapper ODRHidden">
                             <i class="fa fa-warning"></i>
                             <span id="delimiter_warn"></span>
                         </span>
                     </td>
                 </tr>
-                <tr class="ODRFileImageDelimiter">
+                <tr class="ODRFileImageDelimiter ODRHidden">
                     <td>File/Image delimiter:</td>
                     <td>
                         <select class="FileImageDelimiterSelect">
@@ -54,13 +54,13 @@
                         />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRFileImageWarnWrapper">
+                        <span class="ODRInputError ODRFileImageWarnWrapper ODRHidden">
                             <i class="fa fa-warning"></i>
                             <span id="file_image_delimiter_warn"></span>
                         </span>
                     </td>
                 </tr>
-                <tr class="ODRRadioDelimiter">
+                <tr class="ODRRadioDelimiter ODRHidden">
                     <td>Multiple Radio/Select delimiter:</td>
                     <td>
                         <select class="RadioDelimiterSelect">
@@ -78,13 +78,13 @@
                         />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRRadioWarnWrapper">
+                        <span class="ODRInputError ODRRadioWarnWrapper ODRHidden">
                             <i class="fa fa-warning"></i>
                             <span id="radio_delimiter_warn"></span>
                         </span>
                     </td>
                 </tr>
-                <tr class="ODRTagDelimiter">
+                <tr class="ODRTagDelimiter ODRHidden">
                     <td>Tags delimiter:</td>
                     <td>
                         <select class="TagDelimiterSelect">
@@ -101,13 +101,13 @@
                         />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRTagWarnWrapper">
+                        <span class="ODRInputError ODRTagWarnWrapper ODRHidden">
                             <i class="fa fa-warning"></i>
                             <span id="tag_delimiter_warn"></span>
                         </span>
                     </td>
                 </tr>
-                <tr class="ODRTagHierarchyDelimiter">
+                <tr class="ODRTagHierarchyDelimiter ODRHidden">
                     <td>Tag Hierarchy delimiter:</td>
                     <td>
                         <select class="TagHierarchyDelimiterSelect">
@@ -123,7 +123,7 @@
                         />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRTagHierarchyWarnWrapper">
+                        <span class="ODRInputError ODRTagHierarchyWarnWrapper ODRHidden">
                             <i class="fa fa-warning"></i>
                             <span id="tag_hierarchy_delimiter_warn"></span>
                         </span>
@@ -227,7 +227,7 @@
             });
 
             if (!found)
-                $(this).hide();
+                $(this).addClass('ODRHidden');
         });
 
         $(".ODRCSVExportField").unbind('click').click(function() {
@@ -239,25 +239,25 @@
                 $(this).removeClass('ODRUnselectedCSVExportField').addClass('ODRSelectedCSVExportField');
 
                 if ( $(this).hasClass('ODRExportFileImageField') ) {
-                    $(".ODRFileImageDelimiter").show();
+                    $(".ODRFileImageDelimiter").removeClass('ODRHidden');
 
                     var option = $(".FileImageDelimiterSelect").children('option').first();
                     $("#file_image_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
                 }
                 if ( $(this).hasClass('ODRExportRadioField') ) {
-                    $(".ODRRadioDelimiter").show();
+                    $(".ODRRadioDelimiter").removeClass('ODRHidden');
 
                     var option = $(".RadioDelimiterSelect").children('option').first();
                     $("#radio_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
                 }
                 if ( $(this).hasClass('ODRExportTagField') ) {
-                    $(".ODRTagDelimiter").show();
+                    $(".ODRTagDelimiter").removeClass('ODRHidden');
 
                     var option = $(".TagDelimiterSelect").children('option').first();
                     $("#tag_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
                 }
                 if ( $(this).hasClass('ODRExportTagHierarchy') ) {
-                    $(".ODRTagHierarchyDelimiter").show();
+                    $(".ODRTagHierarchyDelimiter").removeClass('ODRHidden');
 
                     var option = $(".TagHierarchyDelimiterSelect").children('option').first();
                     $("#tag_hierarchy_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
@@ -271,38 +271,38 @@
                 //  still needs them
                 if ( $(this).hasClass('ODRExportFileImageField') ) {
                     if ( $(".ODRExportFileImageField.ODRSelectedCSVExportField").length === 0) {
-                        $(".ODRFileImageDelimiter").hide();
+                        $(".ODRFileImageDelimiter").addClass('ODRHidden');
 
                         var option = $(".FileImageDelimiterSelect").children('option').first();
                         $(option).prop('selected', true);
-                        $("#file_image_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                        $("#file_image_delimiter_field").val( $(option).attr('rel') ).addClass('ODRHidden').prop('disabled', true);
                     }
                 }
                 if ( $(this).hasClass('ODRExportRadioField') ) {
                     if ( $(".ODRExportRadioField.ODRSelectedCSVExportField").length === 0) {
-                        $(".ODRRadioDelimiter").hide();
+                        $(".ODRRadioDelimiter").addClass('ODRHidden');
 
                         var option = $(".RadioDelimiterSelect").children('option').first();
                         $(option).prop('selected', true);
-                        $("#radio_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                        $("#radio_delimiter_field").val( $(option).attr('rel') ).addClass('ODRHidden').prop('disabled', true);
                     }
                 }
                 if ( $(this).hasClass('ODRExportTagField') ) {
                     if ( $(".ODRExportTagField.ODRSelectedCSVExportField").length === 0) {
-                        $(".ODRTagDelimiter").hide();
+                        $(".ODRTagDelimiter").addClass('ODRHidden');
 
                         var option = $(".TagDelimiterSelect").children('option').first();
                         $(option).prop('selected', true);
-                        $("#tag_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                        $("#tag_delimiter_field").val( $(option).attr('rel') ).addClass('ODRHidden').prop('disabled', true);
                     }
                 }
                 if ( $(this).hasClass('ODRExportTagHierarchy') ) {
                     if ( $(".ODRExportTagHierarchy.ODRSelectedCSVExportField").length === 0) {
-                        $(".ODRTagHierarchyDelimiter").hide();
+                        $(".ODRTagHierarchyDelimiter").addClass('ODRHidden');
 
                         var option = $(".TagHierarchyDelimiterSelect").children('option').first();
                         $(option).prop('selected', true);
-                        $("#tag_hierarchy_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                        $("#tag_hierarchy_delimiter_field").val( $(option).attr('rel') ).addClass('ODRHidden').prop('disabled', true);
                     }
                 }
             }
@@ -315,32 +315,20 @@
         });
 
         // Hide these until a field that needs them is selected
-        $(".ODRFileImageDelimiter").hide();
-        $(".ODRRadioDelimiter").hide();
-        $(".ODRTagDelimiter").hide();
-        $(".ODRTagHierarchyDelimiter").hide();
-
-        $("#delimiter_field").hide();
         $("#delimiter_field").val(',');
-        $("#file_image_delimiter_field").hide().prop('disabled', true);
-        $("#radio_delimiter_field").hide().prop('disabled', true);
-        $("#tag_delimiter_field").hide().prop('disabled', true);
-        $("#tag_hierarchy_delimiter_field").hide().prop('disabled', true);
-
-        $(".ODRWarnWrapper").hide();
-        $(".ODRFileImageWarnWrapper").hide();
-        $(".ODRRadioWarnWrapper").hide();
-        $(".ODRTagWarnWrapper").hide();
-        $(".ODRTagHierarchyWarnWrapper").hide();
+        $("#file_image_delimiter_field").addClass('ODRHidden').prop('disabled', true);
+        $("#radio_delimiter_field").addClass('ODRHidden').prop('disabled', true);
+        $("#tag_delimiter_field").addClass('ODRHidden').prop('disabled', true);
+        $("#tag_hierarchy_delimiter_field").addClass('ODRHidden').prop('disabled', true);
 
         $(".DelimiterSelect").unbind('change').change(function() {
             var char = $(this).children(':selected').attr('rel');
             $("#delimiter_field").val(char);
 
             if (char === "")
-                $("#delimiter_field").show();
+                $("#delimiter_field").removeClass('ODRHidden');
             else
-                $("#delimiter_field").hide();
+                $("#delimiter_field").addClass('ODRHidden');
 
             updateWarnings();
         });
@@ -349,9 +337,9 @@
             $("#file_image_delimiter_field").val(char);
 
             if (char === "")
-                $("#file_image_delimiter_field").show();
+                $("#file_image_delimiter_field").removeClass('ODRHidden');
             else
-                $("#file_image_delimiter_field").hide();
+                $("#file_image_delimiter_field").addClass('ODRHidden');
 
             updateWarnings();
         });
@@ -360,9 +348,9 @@
             $("#radio_delimiter_field").val(char);
 
             if (char === "")
-                $("#radio_delimiter_field").show();
+                $("#radio_delimiter_field").removeClass('ODRHidden');
             else
-                $("#radio_delimiter_field").hide();
+                $("#radio_delimiter_field").addClass('ODRHidden');
 
             updateWarnings();
         });
@@ -371,9 +359,9 @@
             $("#tag_delimiter_field").val(char);
 
             if (char === "")
-                $("#tag_delimiter_field").show();
+                $("#tag_delimiter_field").removeClass('ODRHidden');
             else
-                $("#tag_delimiter_field").hide();
+                $("#tag_delimiter_field").addClass('ODRHidden');
 
             updateWarnings();
         });
@@ -382,9 +370,9 @@
             $("#tag_hierarchy_delimiter_field").val(char);
 
             if (char === "")
-                $("#tag_hierarchy_delimiter_field").show();
+                $("#tag_hierarchy_delimiter_field").removeClass('ODRHidden');
             else
-                $("#tag_hierarchy_delimiter_field").hide();
+                $("#tag_hierarchy_delimiter_field").addClass('ODRHidden');
 
             updateWarnings();
         });
@@ -394,23 +382,23 @@
      * Updates the delimiter selectors to match the selected fields.
      */
     function updateWarnings() {
-        $(".ODRWarnWrapper").hide();
-        $(".ODRFileImageWarnWrapper").hide();
-        $(".ODRRadioWarnWrapper").hide();
-        $(".ODRTagWarnWrapper").hide();
-        $(".ODRTagHierarchyWarnWrapper").hide();
+        $(".ODRWarnWrapper").addClass('ODRHidden');
+        $(".ODRFileImageWarnWrapper").addClass('ODRHidden');
+        $(".ODRRadioWarnWrapper").addClass('ODRHidden');
+        $(".ODRTagWarnWrapper").addClass('ODRHidden');
+        $(".ODRTagHierarchyWarnWrapper").addClass('ODRHidden');
 
         var needs_file_image_delimiter = false;
-        if ( $(".FileImageDelimiterSelect").is(':visible') )
+        if ( !$(".ODRFileImageDelimiter").hasClass('ODRHidden') )
             needs_file_image_delimiter = true;
         var needs_radio_delimiter = false;
-        if ( $(".RadioDelimiterSelect").is(':visible') )
+        if ( !$(".ODRRadioDelimiter").hasClass('ODRHidden') )
             needs_radio_delimiter = true;
         var needs_tag_delimiter = false;
-        if ( $(".TagDelimiterSelect").is(':visible') )
+        if ( !$(".ODRTagDelimiter").hasClass('ODRHidden') )
             needs_tag_delimiter = true;
         var needs_tag_hierarchy_delimiter = false;
-        if ( $(".TagHierarchyDelimiterSelect").is(':visible') )
+        if ( !$(".ODRTagHierarchyDelimiter").hasClass('ODRHidden') )
             needs_tag_hierarchy_delimiter = true;
 
         var delimiter_value = $("#delimiter_field").val().trim();
@@ -424,27 +412,27 @@
         var needs_value = false;
         if ( delimiter_value === '' ) {
             $("#delimiter_warn").html(complaint);
-            $(".ODRWarnWrapper").show();
+            $(".ODRWarnWrapper").removeClass('ODRHidden');
             needs_value = true;
         }
         if ( needs_file_image_delimiter && file_image_delimiter_value === '' ) {
             $("#file_image_delimiter_warn").html(complaint);
-            $(".ODRFileImageWarnWrapper").show();
+            $(".ODRFileImageWarnWrapper").removeClass('ODRHidden');
             needs_value = true;
         }
         if ( needs_radio_delimiter && radio_delimiter_value === '' ) {
             $("#radio_delimiter_warn").html(complaint);
-            $(".ODRRadioWarnWrapper").show();
+            $(".ODRRadioWarnWrapper").removeClass('ODRHidden');
             needs_value = true;
         }
         if ( needs_tag_delimiter && tag_delimiter_value === '' ) {
             $("#tag_delimiter_warn").html(complaint);
-            $(".ODRTagWarnWrapper").show();
+            $(".ODRTagWarnWrapper").removeClass('ODRHidden');
             needs_value = true;
         }
         if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value === '' ) {
             $("#tag_hierarchy_delimiter_warn").html(complaint);
-            $(".ODRTagHierarchyWarnWrapper").show();
+            $(".ODRTagHierarchyWarnWrapper").removeClass('ODRHidden');
             needs_value = true;
         }
         if (needs_value)
@@ -455,27 +443,27 @@
         var has_quote = false;
         if ( delimiter_value.indexOf("\"") !== -1) {
             $("#delimiter_warn").html(complaint);
-            $(".ODRWarnWrapper").show();
+            $(".ODRWarnWrapper").removeClass('ODRHidden');
             has_quote = true;
         }
         if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf("\"") !== -1) {
             $("#file_image_delimiter_warn").html(complaint);
-            $(".ODRFileImageWarnWrapper").show();
+            $(".ODRFileImageWarnWrapper").removeClass('ODRHidden');
             has_quote = true;
         }
         if ( needs_radio_delimiter && radio_delimiter_value.indexOf("\"") !== -1) {
             $("#radio_delimiter_warn").html(complaint);
-            $(".ODRRadioWarnWrapper").show();
+            $(".ODRRadioWarnWrapper").removeClass('ODRHidden');
             has_quote = true;
         }
         if ( needs_tag_delimiter && tag_delimiter_value.indexOf("\"") !== -1) {
             $("#tag_delimiter_warn").html(complaint);
-            $(".ODRTagWarnWrapper").show();
+            $(".ODRTagWarnWrapper").removeClass('ODRHidden');
             has_quote = true;
         }
         if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value.indexOf("\"") !== -1) {
             $("#tag_hierarchy_delimiter_warn").html(complaint);
-            $(".ODRTagHierarchyWarnWrapper").show();
+            $(".ODRTagHierarchyWarnWrapper").removeClass('ODRHidden');
             has_quote = true;
         }
         if (has_quote)
@@ -484,29 +472,29 @@
         // ...the other delimiter strings should not contain the primary delimiter character
         complaint = "Delimiter conflict";
         if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-            $(".ODRWarnWrapper").show();
-            $(".ODRFileImageWarnWrapper").show();
+            $(".ODRWarnWrapper").removeClass('ODRHidden');
+            $(".ODRFileImageWarnWrapper").removeClass('ODRHidden');
 
             $("#delimiter_warn").html(complaint);
             $("#file_image_delimiter_warn").html(complaint);
         }
         if ( needs_radio_delimiter && radio_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-            $(".ODRWarnWrapper").show();
-            $(".ODRRadioWarnWrapper").show();
+            $(".ODRWarnWrapper").removeClass('ODRHidden');
+            $(".ODRRadioWarnWrapper").removeClass('ODRHidden');
 
             $("#delimiter_warn").html(complaint);
             $("#radio_delimiter_warn").html(complaint);
         }
         if ( needs_tag_delimiter && tag_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-            $(".ODRWarnWrapper").show();
-            $(".ODRTagWarnWrapper").show();
+            $(".ODRWarnWrapper").removeClass('ODRHidden');
+            $(".ODRTagWarnWrapper").removeClass('ODRHidden');
 
             $("#delimiter_warn").html(complaint);
             $("#tag_delimiter_warn").html(complaint);
         }
         if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-            $(".ODRWarnWrapper").show();
-            $(".ODRTagHierarchyWarnWrapper").show();
+            $(".ODRWarnWrapper").removeClass('ODRHidden');
+            $(".ODRTagHierarchyWarnWrapper").removeClass('ODRHidden');
 
             $("#delimiter_warn").html(complaint);
             $("#tag_hierarchy_delimiter_warn").html(complaint);
@@ -518,8 +506,8 @@
             if ( tag_delimiter_value.indexOf(tag_hierarchy_delimiter_value) !== -1
                 || tag_hierarchy_delimiter_value.indexOf(tag_delimiter_value) !== -1
             ) {
-                $(".ODRTagWarnWrapper").show();
-                $(".ODRTagHierarchyWarnWrapper").show();
+                $(".ODRTagWarnWrapper").removeClass('ODRHidden');
+                $(".ODRTagHierarchyWarnWrapper").removeClass('ODRHidden');
 
                 $("#tag_delimiter_warn").html(complaint);
                 $("#tag_hierarchy_delimiter_warn").html(complaint);
@@ -542,25 +530,25 @@
             alert('Invalid column delimiter');
             return;
         }
-        if ( $(".FileImageDelimiterSelect").is(':visible')
+        if ( !$(".ODRFileImageDelimiter").hasClass('ODRHidden')
             && (file_image_delimiter_value === '' || file_image_delimiter_value.indexOf("\"") !== -1)
         ) {
             alert('Invalid file/image delimiter');
             return;
         }
-        if ( $(".RadioDelimiterSelect").is(':visible')
+        if ( !$(".ODRRadioDelimiter").hasClass('ODRHidden')
             && (radio_delimiter_value === '' || radio_delimiter_value.indexOf("\"") !== -1)
         ) {
             alert('Invalid radio delimiter');
             return;
         }
-        if ( $(".TagDelimiterSelect").is(':visible')
+        if ( !$(".ODRTagDelimiter").hasClass('ODRHidden')
             && (tag_delimiter_value === '' || tag_delimiter_value.indexOf("\"") !== -1)
         ) {
             alert('Invalid tag delimiter');
             return;
         }
-        if ( $(".TagHierarchyDelimiterSelect").is(':visible')
+        if ( !$(".ODRTagHierarchyDelimiter").hasClass('ODRHidden')
             && (tag_hierarchy_delimiter_value === '' || tag_hierarchy_delimiter_value.indexOf("\"") !== -1)
         ) {
             alert('Invalid tag hierarchy delimiter');
@@ -625,8 +613,8 @@
             success: function(data, textStatus, jqXHR) {
                 if (data.r == 0) {
                     // Replace this with loading message/checker directly
-                    $('#CSVExportForm').hide();
-                    $('#LoadingBlock').fadeIn('fast');
+                    $('#CSVExportForm').addClass('ODRHidden');
+                    $('#LoadingBlock').removeClass('ODRHidden').fadeIn('fast');
                     // Get CSV Exports from Jobs Page - add messaging
 
                     // data.d.tracked_job_id

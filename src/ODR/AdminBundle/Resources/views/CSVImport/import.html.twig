@@ -42,17 +42,17 @@
                         {%  endif %}
                     </select>
 
-                    <span id="childtype_multiple_import_warning" style="margin-left:15px;">
+                    <span id="childtype_multiple_import_warning" class="ODRHidden" style="margin-left:15px;">
                         <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                         <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...every row in the CSV file WILL become a new child Datarecord.</span>
                     </span>
 
-                    <span id="childtype_single_import_warning" style="margin-left:15px;">
+                    <span id="childtype_single_import_warning" class="ODRHidden" style="margin-left:15px;">
                         <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                         <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...if a parent Datarecord in the CSV file already has a child Datarecord, then the contents of the child Datarecord WILL be overwritten.</span>
                     </span>
 
-                    <span id="invalid_linked_datatype_warning" style="margin-left:15px;">
+                    <span id="invalid_linked_datatype_warning" class="ODRHidden" style="margin-left:15px;">
                         <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                         <span>&nbsp;This linked Datatype doesn't have an "External ID" Datafield...CSV Importing can't continue because it's impossible to determine which Datarecords to link to.</span>
                     </span>
@@ -74,12 +74,12 @@
                         <option rel="">{other}</option>
                     </select>
                     &nbsp;
-                    <input type="text" name="csv_delimiter" id="delimiter_field" class="ODRDelimiterField" maxlength="1" size="3" />
+                    <input type="text" name="csv_delimiter" id="delimiter_field" class="ODRDelimiterField ODRHidden" maxlength="1" size="3" />
                 </div>
             </fieldset>
 
         {% if upload_type == 'csv' %}
-            <div id="file_upload_div">
+            <div id="file_upload_div" class="ODRHidden">
             {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
                 'target': 'csv_import',
                 'single_file': true,
@@ -166,14 +166,14 @@
 <div id="ImportLoadingBlock" class="ODRHidden">
     <div class="ODRRemodalLoading pure-u-1">
         <div class="JobStatusWrapper">
-            <div class="JobComplete ODRHidden">Import Validation Complete</div>
+            <div class="JobComplete ODRHidden">Importing Complete</div>
             <div class="loading-container">
                 <div class="loading"></div>
-                <div class="loading-text">validating</div>
+                <div class="loading-text">importing</div>
             </div>
         </div>
         <div class="JobTracker"></div>
-        <div class="CSVExportMessage">Import validation will be ready momentarily. If you don't want
+        <div class="CSVExportMessage">Import will be completed momentarily. If you don't want
             to wait, feel free to continue to use the site and a message will inform you when your
             import is ready for the next step in the process.
         </div>
@@ -183,12 +183,6 @@
 <script>
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-
-        $("#file_upload_div").hide();
-        $("#childtype_single_import_warning").hide();
-        $("#childtype_multiple_import_warning").hide();
-        $("#invalid_linked_datatype_warning").hide();
-        $("#delimiter_field").hide();
 
     {% if presets == null %}
         $("#delimiter_select").unbind('change').change(function() {
@@ -204,9 +198,9 @@
 
         $("#target_datatype").unbind('change').change(function() {
             // Hide all warnings...they'll get shown if required
-            $("#childtype_single_import_warning").hide();
-            $("#childtype_multiple_import_warning").hide();
-            $("#invalid_linked_datatype_warning").hide();
+            $("#childtype_single_import_warning").addClass('ODRHidden');
+            $("#childtype_multiple_import_warning").addClass('ODRHidden');
+            $("#invalid_linked_datatype_warning").addClass('ODRHidden');
 
             if ( $(this).val() != "{{ datatype.id }}" ) {
                 // Ensure file upload div shows correctly
@@ -216,12 +210,12 @@
                 var option = $(this).children(':selected');
                 if ( $(option).hasClass('warn') && $(option).hasClass('child') ) {
                     if ( $(option).hasClass('single') )
-                        $("#childtype_single_import_warning").show();
+                        $("#childtype_single_import_warning").removeClass('ODRHidden');
                     else if ( $(option).hasClass('multiple') )
-                        $("#childtype_multiple_import_warning").show();
+                        $("#childtype_multiple_import_warning").removeClass('ODRHidden');
                 }
                 else if ( $(option).hasClass('invalid') && $(option).hasClass('link') ) {
-                    $("#invalid_linked_datatype_warning").show();
+                    $("#invalid_linked_datatype_warning").removeClass('ODRHidden');
                 }
             }
         });
@@ -232,12 +226,12 @@
         var option = $("#target_datatype").children(':selected');
         if ( $(option).hasClass('warn') && $(option).hasClass('child') ) {
             if ( $(option).hasClass('single') )
-                $("#childtype_single_import_warning").show();
+                $("#childtype_single_import_warning").removeClass('ODRHidden');
             else if ( $(option).hasClass('multiple') )
-                $("#childtype_multiple_import_warning").show();
+                $("#childtype_multiple_import_warning").removeClass('ODRHidden');
         }
         else if ( $(option).hasClass('invalid') && $(option).hasClass('link') ) {
-            $("#invalid_linked_datatype_warning").show();
+            $("#invalid_linked_datatype_warning").removeClass('ODRHidden');
         }
         {% endif %}
 
@@ -258,20 +252,20 @@
         }
         else {
             $("#delimiter_select").children('option').last().prop('selected', true);
-            $("#delimiter_field").show();
+            $("#delimiter_field").removeClass('ODRHidden');
         }
         $("#delimiter_field").val(delimiter);
 
 
-        $(".ODRCSVImportHeader").next().hide();
+        $(".ODRCSVImportHeader").next().addClass('ODRHidden');
         $(".ODRCSVImportHeader").unbind('click').click(function() {
-            if ( $(this).next().is(':hidden') ) {
-                $(this).next().show();
+            if ( $(this).next().hasClass('ODRHidden') ) {
+                $(this).next().removeClass('ODRHidden');
 
                 $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
             }
             else {
-                $(this).next().hide();
+                $(this).next().addClass('ODRHidden');
 
                 $(this).find('i').addClass('fa-caret-up').removeClass('fa-caret-down');
             }
@@ -319,9 +313,7 @@
             },
             complete: function(jqXHR, textStatus) {
                 // Get rid of the loading overlay regardless of status
-                $("#loading-overlay").fadeOut('fast');
-                // $("#loading").html('<span>Loading...</span>');
-                $("#loading").fadeOut('fast');
+                hideSearchOverlay();
 
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
@@ -341,14 +333,14 @@
     function delimiterChanged(delimiter) {
 
         if ( delimiter === "" || $("#target_datatype").children(':selected').attr('rel') === 'invalid link' )
-            $("#file_upload_div").hide();
+            $("#file_upload_div").addClass('ODRHidden');
         else
-            $("#file_upload_div").show();
+            $("#file_upload_div").removeClass('ODRHidden');
 
         if ( $("#delimiter_select").children(':selected').html() === '{other}' )
-            $("#delimiter_field").show();
+            $("#delimiter_field").removeClass('ODRHidden');
         else
-            $("#delimiter_field").hide();
+            $("#delimiter_field").addClass('ODRHidden');
 
         var url = '{{ path('odr_csv_import_delimiter_changed') }}';
         var data = $("#delimiter_field").serialize();
@@ -455,7 +447,6 @@
 
 {% if allow_import == true %}
     function doImport() {
-
         var url = '{{ path('odr_csv_import_start_worker', {'job_id': tracked_job_id}) }}';
 
         // Attempt to prevent the browser from starting this import twice in a row...
@@ -469,8 +460,8 @@
             dataType: 'json',
             success: function(data) {
                 // Replace this with loading message/checker directly
-                $('#FullCSVImportForm').hide();
-                $('#ImportLoadingBlock').fadeIn('fast');
+                $('#FullCSVImportForm').addClass('ODRHidden');
+                $('#ImportLoadingBlock').removeClass('ODRHidden').fadeIn('fast');
                 getJobProgress('csv_import', data.d.tracked_job_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {

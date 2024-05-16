@@ -4835,7 +4835,7 @@ if ($debug)
 
 //                        'user_list' => $user_list,
                         'logged_in' => true,
-                        'intent' => 'default_settings',
+                        'intent' => 'stored_search_keys',
 //                        'sidebar_reload' => true,
 
                         // datatype/datafields to search

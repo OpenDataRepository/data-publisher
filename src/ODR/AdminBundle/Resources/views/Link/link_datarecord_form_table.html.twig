@@ -61,7 +61,7 @@
                 {% if allow_multiple_links or not local_datarecord_is_ancestor %}
                 $(row).children('td').first().html('<input type="checkbox" class="ODRCurrentLink ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" checked />');
                 {% else %}
-                $(row).children('td').first().html('<input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" checked />');
+                $(row).children('td').first().html('<input type="radio" name="radio_group_orig" id="hidden_radio" class="ODRHidden"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" checked />');
                 {% endif %}
             },
 

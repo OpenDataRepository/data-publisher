@@ -32,24 +32,22 @@
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-        $(".ODRGroupList").hide();
-
         $("#ODRUserGroup_toggle").unbind('click').click(function() {
-            if ( $("#ODRDatatypeList").is(':visible') ) {
-                $("#ODRDatatypeList_wrapper").hide();
-                $("#ODRTemplateList_wrapper").show();
-
-                $("#ODRUserGroup_toggle").html('Switch to Databases');
-            }
-            else {
-                $("#ODRDatatypeList_wrapper").show();
-                $("#ODRTemplateList_wrapper").hide();
+            if ( $("#ODRDatatypeList_wrapper").hasClass('ODRHidden') ) {
+                $("#ODRDatatypeList_wrapper").removeClass('ODRHidden');
+                $("#ODRTemplateList_wrapper").addClass('ODRHidden');
 
                 $("#ODRUserGroup_toggle").html('Switch to Templates');
             }
+            else {
+                $("#ODRDatatypeList_wrapper").addClass('ODRHidden');
+                $("#ODRTemplateList_wrapper").removeClass('ODRHidden');
+
+                $("#ODRUserGroup_toggle").html('Switch to Databases');
+            }
 
             // Also need to hide any of the open divs on the right side of the page
-            $(".ODRGroupList").hide();
+            $(".ODRGroupList").addClass('ODRHidden');
             $(".fa-caret-right").removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
         });
 
@@ -62,7 +60,7 @@
             // Hide any open group lists and reset the caret that indicates it's open
             $(".ODRListExpand").children(".fa-caret-right").each(function() {   // should only return one
                 var row_num = $(this).attr('rel');
-                $("#datatype_groups_" + row_num).hide();
+                $("#datatype_groups_" + row_num).addClass('ODRHidden');
 
                 $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
             });
@@ -202,7 +200,7 @@
 
             // Determine height of the div displaying this datatype's groups
             var group_div = $("#datatype_groups_" + row_num);
-            $(group_div).show();
+            $(group_div).removeClass('ODRHidden');
             var group_div_height = $(group_div).height();
 
             var final_offset = offset_top;
@@ -235,16 +233,19 @@
             .attr('data-step', '3')
             .attr('data-intro', "If you know which database you're looking for, the table can be filtered by typing in this field.");
 
+        var info_icon = $('.ODRDatatypeInfoDiv').first();
+        var first_checkmark = $(info_icon).parent().next().next();
+        var second_checkmark = $(first_checkmark).next();
         // $('tr.odd:nth-child(1) td:nth-child(2)')
         //     .attr('data-step', '4')
         //     .attr('data-intro', 'All databases that you have admin permissions to are displayed in this table.');
-        $('tr.odd:nth-child(1) td:nth-child(1)')
+        $(info_icon)
             .attr('data-step', '5')
             .attr('data-intro', "Hovering over this icon brings up basic information about the database, in case you need more than just the name to identify the correct database.");
-        $('tr.odd:nth-child(1) td:nth-child(3)')
+        $(first_checkmark)
             .attr('data-step', '6')
             .attr('data-intro', 'If the user already has permissions to the database, then a checkmark is displayed in this column.');
-        $('tr.odd:nth-child(1) td:nth-child(4)')
+        $(second_checkmark)
             .attr('data-step', '7')
             .attr('data-intro', 'If the database is public, then a checkmark is displayed in this column.');
         // $('tr.odd:nth-child(1) td:nth-child(5)')
@@ -284,8 +285,12 @@
      * Begins the introJS tour for ODR's user group management page.
      */
     function ODRUserGroup_startIntroJS() {
+        // Switch back to the database list if the template list is open
+        if ( $("#ODRDatatypeList_wrapper").hasClass('ODRHidden') )
+            $("#ODRUserGroup_toggle").trigger('click');
+
         // Ensure a group list is visible before starting the tour
-        if ( !$('.ODRGroupList').first().is(':visible') )
+        if ( $('.ODRGroupList').first().hasClass('ODRHidden') )
             $('.ODRListExpand').first().trigger('click');
 
         introJs().setOption("disableInteraction", true)

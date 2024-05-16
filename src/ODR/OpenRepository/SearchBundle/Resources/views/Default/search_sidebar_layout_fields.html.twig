@@ -2,7 +2,7 @@
 
 {% set NOT_SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHABLE') %}
 
-<fieldset {% if field_list_name == 'extended_display' %}class="ODRSearchSidebar_extended" style="display: none;"{% endif %}>
+<fieldset {% if field_list_name == 'extended_display' %}class="ODRSearchSidebar_extended ODRHidden"{% endif %}>
 {% for df_id,df in sidebar_array[field_list_name] %}
     {% if df_id == 0 %}
         {# Insert the "general search" input #}

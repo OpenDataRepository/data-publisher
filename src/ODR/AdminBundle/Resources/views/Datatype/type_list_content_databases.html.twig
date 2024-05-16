@@ -184,7 +184,6 @@
                 "emptyTable": "No Databases found"
             }
         });
-
         $("#ODRDatatypeList").removeAttr('style');
 
         {% if hidden_datatype_count == 0 %}
@@ -202,11 +201,11 @@
                 });
             }
 
-            redoRowClasses();
+            redoRowClasses( $("#ODRDatatypeList") );
         });
 
         // Due to rows already being hidden, redo the row classes
-        redoRowClasses();
+        redoRowClasses( $("#ODRDatatypeList") );
         {% endif %}
 
         // Setup IntroJS Walkthrough
@@ -232,20 +231,6 @@
                 .start();
         });
     });
-
-    {% if hidden_datatype_count != 0 %}
-    function redoRowClasses() {
-        var count = 0;
-        $("#ODRDatatypeList tr").each(function () {
-            if (!$(this).hasClass('ODRHidden')) {
-                count++;
-                if (count % 2 == 0)
-                    $(this).removeClass('odd').addClass('even');
-                else
-                    $(this).removeClass('even').addClass('odd');
-            }
-        });
-    }
-    {% endif %}
 </script>
+
 {% endspaceless %}

@@ -2600,7 +2600,6 @@ form .row {
     position: absolute;
     top: 0px;
     left: 0px;
-    display: none;
     padding: 10px 13px;
     z-index: 10;
 }
@@ -3372,12 +3371,6 @@ a.ui-button:active,
     display: none;
     cursor: default;
 }
-.ODRFileSpacer_public {
-    background: green none repeat scroll 0 0;
-}
-.ODRFileSpacer_nonpublic {
-    background: red none repeat scroll 0 0;
-}
 .ODRFileSpacer_empty {
     flex: 0 0 auto;
 
@@ -3553,14 +3546,6 @@ a.ui-button:active,
     -moz-box-shadow:    0px 1px 10px 0px rgba(50, 50, 50, 0.3);
     box-shadow:         0px 1px 10px 0px rgba(50, 50, 50, 0.3);
 }
-.ODRRemodalCancel {
-    position: relative;
-    display: inline;
-    margin-top: 10px;
-    padding-top: 10px;
-    vertical-align: middle;
-    top: -5px;
-}
 .ODRRemodalLoading {
     padding-top: 100px;
     padding-bottom: 100px;
@@ -3576,6 +3561,8 @@ a.ui-button:active,
 }
 .remodal-close {
     z-index: 100;
+    left: unset;
+    right: 5px;
 }
 .ODRRemodalBody > div {
     padding-top: 20px;
@@ -3644,7 +3631,6 @@ a.ui-button:active,
 }
 
 #ODRFileDownloadFormWrapper, #ODRMassDownloadFormWrapper {
-    display: none;
     text-align: left;
     font-size: 0.96em;
     color: #444;
@@ -3964,6 +3950,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
 .ODRPluginErrorDiv {
     margin: 0.5em;
+}
+#ODRPluginProblemsWrapper {
+    padding: 12px;
+    background: white none;
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: #555;
+    line-height: 1.6;
+}
+#ODRPluginUpdateProblemsTable {
+    text-align: left;
 }
 
 
@@ -4336,11 +4333,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRPageSelectSettings {
     text-align: left;
 }
-
 #ODRPageSelectForm {
     text-align: left;
 }
-
+#ODRPageSelectButton {
+    margin: 0;
+}
 #ODRPageSelect_header {
     margin-top: 15px;
     text-align: left;
@@ -4585,7 +4583,6 @@ i {
     background: white;
     border: 2px solid black;
     border-radius: 4px;
-    display: none;
     font-weight: 400;
     padding: 5px;
 }
@@ -4639,7 +4636,6 @@ i {
     background: white;
     border: 2px solid black;
     border-radius: 4px;
-    display: none;
     font-weight: 400;
     padding: 5px;
 }
@@ -4751,7 +4747,6 @@ i {
     border-radius: 6px;
     padding: 5px;
     position: absolute;
-    display: none;
     min-width: 200px;
     z-index: 999;
     cursor: default;

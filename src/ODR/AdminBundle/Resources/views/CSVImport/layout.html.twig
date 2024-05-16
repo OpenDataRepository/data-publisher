@@ -81,7 +81,7 @@
                                name="unique_columns[{{ column_id }}]" value="1"
                                rel="{{ column_id }}"
                         />
-                        <span class="csvimport_inline_warning"
+                        <span class="csvimport_inline_warning ODRHidden"
                               title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
                             &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
                         </span>
@@ -277,8 +277,6 @@
         multilevel_tag_datafields.push({{ df_id }});
     {% endfor %}
 
-        $(".csvimport_inline_warning").hide();
-
         // Disable all the dropdowns and the secondary delimiter fields to begin with
         $(".unique_checkbox").each(function() {
             $(this).prop('disabled', true);
@@ -287,7 +285,7 @@
             $(this).prop('disabled', true);
         });
         $(".ODRDelimiterField").each(function () {
-            $(this).hide();
+            $(this).addClass('ODRHidden');
             $(this).prop('disabled', true);
         });
 
@@ -318,7 +316,7 @@
 
                 // ...the unique requirement column
                 $(unique_checkbox).prop('disabled', true);
-                $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
+                $(unique_checkbox).parent().find('.csvimport_inline_warning').addClass('ODRHidden');
                 if ( $(unique_checkbox).is(':checked') )
                     $(unique_checkbox).prop('checked', false);
 
@@ -421,9 +419,9 @@
             $(delimiter_input).val(char);
 
             if ($(this).children(':selected').html() === '{other}')
-                $(delimiter_input).show();
+                $(delimiter_input).removeClass('ODRHidden');
             else
-                $(delimiter_input).hide();
+                $(delimiter_input).addClass('ODRHidden');
 
             updateDelimiterWarnings();
         });
@@ -441,9 +439,9 @@
             $(delimiter_input).val(char);
 
             if ($(this).children(':selected').html() === '{other}')
-                $(delimiter_input).show();
+                $(delimiter_input).removeClass('ODRHidden');
             else
-                $(delimiter_input).hide();
+                $(delimiter_input).addClass('ODRHidden');
 
             updateDelimiterWarnings();
         });
@@ -482,7 +480,7 @@
             });
             if (!target_found) {
                 $("#column_{{ column_id }}_select").children().last().prop('selected', true);
-                $("#column_{{ column_id }}_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
+                $("#column_{{ column_id }}_delimiter").removeClass('ODRHidden').prop('disabled', false).val("{{ target|raw }}");
             }
         {% endfor %}
 
@@ -499,7 +497,7 @@
             });
             if (!target_found) {
                 $("#column_{{ column_id }}_hierarchy_select").children().last().prop('selected', true);
-                $("#column_{{ column_id }}_hierarchy_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
+                $("#column_{{ column_id }}_hierarchy_delimiter").removeClass('ODRHidden').prop('disabled', false).val("{{ target|raw }}");
             }
         {% endfor %}
 
@@ -765,12 +763,12 @@
                     if (!$(this).is(':selected')) {
                         // ...unless this option is the one defining column_id => datafield mapping
                         //  in the first place
-                        $(this).hide();
+                        $(this).addClass('ODRHidden');
                     }
                 }
                 else {
                     // ...otherwise, ensure the option is visible so it can be selected
-                    $(this).show();
+                    $(this).removeClass('ODRHidden');
                 }
             });
         });
@@ -820,7 +818,7 @@
             // Ensure the "require unique" checkbox is unchecked
             if (is_checked) {
                 $(unique_checkbox).prop('checked', false);
-                $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
+                $(unique_checkbox).parent().find('.csvimport_inline_warning').addClass('ODRHidden');
             }
 
             // Disable the "require unique" checkbox so it can't be checked
@@ -830,7 +828,7 @@
             // Datafield is marked as unique, ensure the "require unique" checkbox is unchecked
             if (!is_checked) {
                 $(unique_checkbox).prop('checked', true);
-                $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
+                $(unique_checkbox).parent().find('.csvimport_inline_warning').removeClass('ODRHidden');
             }
 
             // Disable the "require unique" checkbox so it can't be unchecked
@@ -844,9 +842,9 @@
             else {
                 // the "require unique" checkbox was already enabled
                 if (is_checked)
-                    $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
+                    $(unique_checkbox).parent().find('.csvimport_inline_warning').removeClass('ODRHidden');
                 else
-                    $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
+                    $(unique_checkbox).parent().find('.csvimport_inline_warning').addClass('ODRHidden');
             }
         }
     }
@@ -1022,14 +1020,14 @@
             success: function (data) {
                 // These three need to be hidden when the user changes something after a previous
                 //  validation run
-                $(".ODRCSVImportHeader").hide();
-                $("#ODRCSVImport_cancel").hide();
-                $('#csvUploadForm').hide();
+                $(".ODRCSVImportHeader").addClass('ODRHidden');
+                $("#ODRCSVImport_cancel").addClass('ODRHidden');
+                $('#csvUploadForm').addClass('ODRHidden');
 
                 // Replace this with loading message/checker directly
-                $('#CSVImportLayoutForm').hide();
-                $('.ODRValidationSystem').hide();
-                $('#LoadingBlock').fadeIn('fast');
+                $('#CSVImportLayoutForm').addClass('ODRHidden');
+                $('.ODRValidationSystem').addClass('ODRHidden');
+                $('#LoadingBlock').removeClass('ODRHidden').fadeIn('fast');
                 // Get CSV Exports from Jobs Page - add messaging
 
                 // data.d.tracked_job_id

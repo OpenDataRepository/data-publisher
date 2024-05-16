@@ -1,10 +1,6 @@
 {% spaceless %}
 
-<!-- Link DataType Dialog -->
-
 <script>
-    var link_datatype_dialog_body = '<div id="ODRLinkDatatypeFormWrapper" class="ODRHidden"> </div>';
-
     /**
      * Opens ODR's modal and loads valid datatypes/templates that can be cloned/linked to by the
      * local datatype/template.
@@ -13,33 +9,22 @@
      * @param {number} theme_element_id
      */
     function openLinkDatatypeDialog(local_datatype_id, theme_element_id) {
-        // open dialog
+        /** @type {odr_remodal_options} modal_options */
         var modal_options = {
             title: 'Manage Linked {% if datatype.is_master_type %}Templates{% else %}Databases{% endif %}',
-            loading: true,
-            body: link_datatype_dialog_body,
             buttons: [
                 {
                     id: 'ODRLinkDatatypeFormSubmit',
                     text: 'Link to Selected {% if datatype.is_master_type %}Template{% else %}Database{% endif %}',
                     // secondary: true,
-                    disabled: true
+                    disabled: true,
+                    click_handler: function() {
+                        submitLinkDatatypeForm();
+                    }
                 }
             ]
         };
         openODRRemodal(modal_options);
-
-        loadLinkData(local_datatype_id, theme_element_id);
-    }
-
-    /**
-     * loads and displays valid datatypes/templates that can be cloned/linked to by the local
-     * datatype/template.
-     *
-     * @param {number} local_datatype_id
-     * @param {number} theme_element_id
-     */
-    function loadLinkData(local_datatype_id, theme_element_id) {
 
         var url = '{{ path('odr_design_get_link_datatypes', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
         url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
@@ -51,22 +36,7 @@
             dataType: "json",
             success: function(data) {
 //                alert( data.d.html );
-                $("#ODRLinkDatatypeFormWrapper").html( data.d.html );
-
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRLinkDatatypeFormWrapper").show();
-
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
-
-                    // Setup submit handler
-                    $('#ODRLinkDatatypeFormSubmit').unbind('click').click(function() {
-                        submitLinkDatatypeForm();
-                    });
-                });
+                updateODRRemodalBody( data.d.html );
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -139,7 +109,6 @@
             }
         });
     }
-
 </script>
 
 {% endspaceless %}

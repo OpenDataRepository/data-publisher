@@ -1,7 +1,7 @@
 {% spaceless %}
 
 <div class="pure-u-1">
-    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_filter_fields|join(',') }}</textarea>
+    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]">{{ current_filter_fields|join(',') }}</textarea>
 
     <div class="pure-u-1 ODRFilterGraphPlugin_header">
         This section allows you to modify which fields are displayed by default in the filter area.

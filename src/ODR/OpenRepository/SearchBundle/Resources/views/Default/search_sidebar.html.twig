@@ -53,7 +53,7 @@
         {% endif %}
 
         <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
-            <input type="hidden" id="search_type" value="simple" />
+            <input type="hidden" id="search_type" value="collapsed" />
             <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
             {% if intent != 'stored_search_keys' %}
             <input type="hidden" id="selected_theme_id" value="{{ preferred_theme.id }}"/>
@@ -61,7 +61,7 @@
 
             {# Only have a reset/search block if there are fields in 'expanded' display #}
             {% if intent != 'stored_search_keys' and (sidebar_array['extended_display']|length > 0 or not using_sidebar_layout) %}
-            <fieldset id="ODRSearchControls_top" style="display: none;">    {# want it hidden by default, though #}
+            <fieldset id="ODRSearchControls_top" class="ODRHidden">    {# want it hidden by default, though #}
                 <div>
                     <div class="pure-u-1">
                         <a class="ODRSearchFieldsToggle Pointer pure-u-1" onclick="changeSearch();">
@@ -91,7 +91,7 @@
                 </div>
 
                 {% if intent != 'stored_search_keys' %}
-                <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
+                <div id="ODRSearchHelp_div" class="pure-u-1 ODRHidden">
                     {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
                 </div>
                 {% endif %}
@@ -589,14 +589,12 @@
         $(".ODRAdvSearch_default").prev().trigger('click');
         {% endif %}
 
-        // Expanded search fieldsets are hidden by default...
+        // "Expanded" search fieldsets are hidden by default...
         {% if intent == 'stored_search_keys' %}
         // ...but need them visible when dealing with stored search keys
-        $(".ODRSearchSidebar_extended").show();
-        {% endif %}
-
-        {% if not using_sidebar_layout and search_params|length > 1 %}
-        // ...and enable "expanded" search if there's more than 1 search param
+        $(".ODRSearchSidebar_extended").removeClass('ODRHidden');
+        {% elseif not using_sidebar_layout and search_params|length > 1 %}
+        // ...display them by default when there's more than 1 search param
         changeSearch();
         {% endif %}
     }

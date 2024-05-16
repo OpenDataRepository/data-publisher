@@ -15,10 +15,10 @@
     </span>
 </span>
 
-<div id="{{ input_id }}_popup" class="ODRChemistryPlugin_popup" title="">    {# NOTE: blank title so the datafield's description doesn't show up throughout the popup #}
+<div id="{{ input_id }}_popup" class="ODRChemistryPlugin_popup ODRHidden" title="">    {# NOTE: blank title so the datafield's description doesn't show up throughout the popup #}
     <div class="pure-u-1 ODRChemistryPlugin_div">
         &nbsp;&nbsp;&nbsp;&nbsp;Make a selection from the field below to run the Chemistry Plugin.
-        <input id="{{ input_id }}_hidden" type="hidden" style="display: none;"/>
+        <input id="{{ input_id }}_hidden" class="ODRHidden" type="hidden" />
 
         {% if field_typename == "Paragraph Text" %}
         <textarea id="{{ input_id }}_original" class="ODRPseudoField ODRChemistryPlugin_textarea pure-u-1" title="The field's current unmodified value." readonly></textarea>
@@ -41,10 +41,10 @@
         <div class="pure-u-21-24">
             &nbsp;&nbsp;&nbsp;&nbsp;The field below can be modified, and clicking the buttons on the right will insert special characters into this field.  Changes must be manually saved with the Save button.
 
-            <div id="{{ input_id }}_subscript_warning" style="display: none;">
+            <div id="{{ input_id }}_subscript_warning" class="ODRHidden">
                 <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;There is at least one duplicated subscript character ("{{ subscript_delimiter }}").
             </div>
-            <div id="{{ input_id }}_superscript_warning" style="display: none;">
+            <div id="{{ input_id }}_superscript_warning" class="ODRHidden">
                 <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;There is at least one duplicated superscript character ("{{ superscript_delimiter }}").
             </div>
 
@@ -80,7 +80,7 @@
 
     <div class="pure-u-1 ODRChemistryPlugin_div">
         <button id="{{ input_id }}_manual_save" class="ODRChemistryPlugin_button pure-button pure-button-primary pure-u-5-24">
-            <i id="{{ input_id }}_warning" class="fa fa-exclamation-triangle ODRInputError" style="display: none;"></i>
+            <i id="{{ input_id }}_warning" class="fa fa-exclamation-triangle ODRInputError ODRHidden"></i>
             <i class="fa fa-save"></i>
             Save
         </button>
@@ -97,20 +97,24 @@
         // Ensure no random key pushes make it back to the base input element
         $("#{{ input_id }}").blur();
 
+        // Need the preview span to have something in it before the popup is first opened
+        let prettified = ODR_prettifyChemicalFormula($("#{{ input_id }}").val(), {% if field_typename == "Paragraph Text" %}true{% else %}false{% endif %}, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+        $("#{{ input_id }}_chemistry_preview_trigger > span").html( prettified );
+
         $("#{{ input_id }}_remove_whitespace").prop('checked', true);
 
         $("#{{ input_id }}_chemistry_trigger").unbind('click').click(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
 
-            if ( $("#{{ input_id }}_popup").is(':visible') ) {
+            if ( !$("#{{ input_id }}_popup").hasClass('ODRHidden') ) {
                 // Popup already visible, close it
                 $("#{{ input_id }}_cancel_save").trigger('click');
             }
             else {
                 // Popup not visible...close any other open popup first
                 $(".ODRChemistryPlugin_popup").each(function(index, elem) {
-                    if ( $(elem).is(':visible') )
+                    if ( !$(elem).hasClass('ODRHidden') )
                         $(elem).find(".fa-close").parent().trigger('click');
                 });
 
@@ -166,8 +170,8 @@
                 // The 'prettified' element should be slightly less wide than the popup
                 $("#{{ input_id }}_prettified").width( popup_width - 15 );
                 // Set the popup dimensions and show it
-                $("#{{ input_id }}_popup")
-                    .show().width(popup_width)    // needs to be shown prior to setting offset apparently
+                $("#{{ input_id }}_popup").removeClass('ODRHidden')
+                    .width(popup_width)    // needs to be shown prior to setting offset apparently
                     .offset({top: popup_top, left: popup_left});
 
                 {#console.log('final offset', $("#{{ input_id }}_popup").offset() );#}
@@ -286,7 +290,7 @@
         $("#{{ input_id }}_manual_save").unbind('click').click(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
-            $("#{{ input_id }}_popup").hide();
+            $("#{{ input_id }}_popup").addClass('ODRHidden');
 
             // Copy the parsed value back into the datafield's form and trigger a save
             $("#{{ input_id }}")
@@ -296,7 +300,7 @@
         $("#{{ input_id }}_cancel_save").unbind('click').click(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
-            $("#{{ input_id }}_popup").hide();
+            $("#{{ input_id }}_popup").addClass('ODRHidden');
             // Delete this element's style attribute so it is guaranteed to resize
             $("#{{ input_id }}_prettified").removeAttr('style');
 

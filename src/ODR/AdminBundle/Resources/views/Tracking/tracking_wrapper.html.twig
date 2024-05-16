@@ -245,8 +245,8 @@
         var form_data = $("#ODRTrackingForm").serialize();
 
         $("#ODRTrackingData_rows_warning").addClass('ODRHidden');
-        $("#ODRTrackingData_loading").show();
-        $("#ODRTrackingData").parent().parent().hide();
+        $("#ODRTrackingData_loading").removeClass('ODRHidden');
+        $("#ODRTrackingData").parent().parent().addClass('ODRHidden');
         $("#ODRTrackingData").html('');
 
         $.ajax({
@@ -256,9 +256,9 @@
             dataType: "json",
             data: form_data,
             success: function (data, textStatus, jqXHR) {
-                $("#ODRTrackingData_loading").hide();
+                $("#ODRTrackingData_loading").addClass('ODRHidden');
                 $("#ODRTrackingData").html(data.d.html);
-                $("#ODRTrackingData").parent().parent().show();
+                $("#ODRTrackingData").parent().parent().removeClass('ODRHidden');
 
                 if ( data.d.rows_exceeded )
                     $("#ODRTrackingData_rows_warning").removeClass('ODRHidden');

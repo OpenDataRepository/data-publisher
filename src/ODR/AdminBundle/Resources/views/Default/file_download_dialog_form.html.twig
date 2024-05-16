@@ -1,38 +1,49 @@
 {% spaceless %}
 
-<div class="pure-u-1 ODRContentWrapper">
-    <div class="ODRThemeElement">
-        <div class="ODRInnerBox">
-            <div class="ODRMarkdownContent">
-                <p>
-                    This dialog allows you to select which files or images you want to download as a zip archive.
-                    The files are currently grouped by which{% if group_by_datafield %} datafield {% else %} datarecord {% endif %}they have been uploaded to.
-                </p>
-                <p>
-                    {# The <button> element is unusable here...can't seem to prevent it from triggering some kind of form submit #}
-                    <a class="pure-button {% if not group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="0">Group by Datarecord</a>
-                    <a class="pure-button {% if group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="1">Group by Datafield</a>
-                </p>
+<div id="ODRFileDownloadFormWrapper">
+    <form id="ODRFileDownloadForm" method="POST">
+        <div class="pure-u-1 ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <div class="ODRMarkdownContent">
+                        <p>
+                            This dialog allows you to select which files or images you want to download as a zip archive.
+                            The files are currently grouped by which{% if group_by_datafield %} datafield {% else %} datarecord {% endif %}they have been uploaded to.
+                        </p>
+                        <p>
+                            {# The <button> element is unusable here...can't seem to prevent it from triggering some kind of form submit #}
+                            <a class="pure-button {% if not group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="0">Group by Datarecord</a>
+                            <a class="pure-button {% if group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="1">Group by Datafield</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    {% if group_by_datafield %}
+                        {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datafield.html.twig' with {
+                            'file_array': file_array,
+                            'entity_names': entity_names,
+
+                            'grandparent_datarecord_id': grandparent_datarecord_id,
+                        } %}
+                    {% else %}
+                        {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datarecord.html.twig' with {
+                            'file_array': file_array,
+                            'entity_names': entity_names,
+                        } %}
+                    {% endif %}
+                </div>
             </div>
         </div>
-    </div>
+    </form>
+</div>
 
-    <div class="ODRThemeElement">
-        <div class="ODRInnerBox">
-            {% if group_by_datafield %}
-                {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datafield.html.twig' with {
-                    'file_array': file_array,
-                    'entity_names': entity_names,
-
-                    'grandparent_datarecord_id': grandparent_datarecord_id,
-                } %}
-            {% else %}
-                {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datarecord.html.twig' with {
-                    'file_array': file_array,
-                    'entity_names': entity_names,
-                } %}
-            {% endif %}
-        </div>
+<div id="ODRFileDownloadForm_progress" class="ODRHidden">
+    <div>Creating archive:</div>
+    <div>
+        <span id="ODRFileDownloadForm_current"></span> / <span id="ODRFileDownloadForm_total"></span> files added.
     </div>
 </div>
 
@@ -45,8 +56,7 @@
             var group_by_datafield = $(this).attr('rel');
 
             // Could take awhile to reload/reformat the list, so show the loading spinner
-            $(".ODRRemodalBody").hide();
-            $(".ODRRemodalLoading").show();
+            updateODRRemodalBody('');
             loadFileData(grandparent_datarecord_id, group_by_datafield);
         });
     });

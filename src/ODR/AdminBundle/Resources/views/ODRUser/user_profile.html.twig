@@ -5,7 +5,6 @@
         <div class="ODRInnerBox pure-u-1 {% if has_oauth_providers or has_oauth_clients %}pure-u-md-1-2{% endif %}" style="border:none;">
             <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
                 User Profile{% if target_user != null %} - <span id="ODRUserProfile_username">{{ target_user.getuserstring }}</span>{% endif %}
-                <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
             </h3>
 
             <div class="ODRBodyContent">
@@ -41,8 +40,6 @@
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-        $("#saved").hide();
-
         $("#submitButton").unbind('click').click(function() {
             saveProfileForm();
         });
@@ -55,11 +52,11 @@
         $(".ODRTabButton").unbind('click').click(function() {
             var rel = $(this).attr('rel');
 
-            $(".ODRTabContent").hide();
-            $("#" + rel).show();
+            $(".ODRTabContent").addClass('ODRHidden');
+            $("#" + rel).removeClass('ODRHidden');
         });
-        $("#ODROAuthProviderList").show();
-        $("#ODROwnedClientsList").hide();
+        $("#ODROAuthProviderList").removeClass('ODRHidden');
+        $("#ODROwnedClientsList").addClass('ODRHidden');
     });
 
     function saveProfileForm() {
@@ -72,7 +69,7 @@
             dataType: 'json',
             data: $("#ODRUserProfileForm_{{ target_user.id }}").serialize(),
             success: function(data, textStatus, jqXHR) {
-                $('#saved').fadeIn();
+                notifySaved();
 
                 if ( data.d.username !== undefined ) {
                     var own_username = $("#ODRProfileLink").find('a').html().trim();
@@ -87,10 +84,6 @@
                         $("#ODRProfileLink").find('a').html(data.d.username);
                     }
                 }
-
-                setTimeout(function() {
-                    $('#saved').fadeOut();
-                }, 2500);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

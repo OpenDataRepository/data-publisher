@@ -128,7 +128,7 @@
  * @param {odrChartObj} chart_obj
  */
 var clearPlotlyBars = function(chart_obj) {
-    $("#plotlybars_" + chart_obj.chart_id).hide()
+    $("#plotlybars_" + chart_obj.chart_id).addClass('ODRHidden')
 }
 
 /**
@@ -162,13 +162,13 @@ var preparePlotlyStatic = function(chart_obj) {
  */
 function ODRGraph_triggerDynamicGraph(chart_id) {
     // Don't run when the static graph is visible
-    if ( $("#" + chart_id + "_Static_GraphWrapper").is(':visible') )
+    if ( !$("#" + chart_id + "_Static_GraphWrapper").hasClass('ODRHidden') )
         return;
     // Need to manually delete any existing dynamic graph before making a new one
     $("#" + chart_id).children(".js-plotly-plot").each(function() {
         $(this).remove();
     });
-    $("#plotlybars_" + chart_id).show();
+    $("#plotlybars_" + chart_id).removeClass('ODRHidden');
 
     setTimeout("ODRGraph_reloadGraph(\"" + chart_id + "\")", 100);
 }

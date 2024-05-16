@@ -3,7 +3,7 @@
 {% set NOT_SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHABLE') %}
 
 {# Render target datatype first #}
-<fieldset class="ODRSearchSidebar_extended" style="display: none;">
+<fieldset class="ODRSearchSidebar_extended ODRHidden">
     {% set dt = datatype_array[target_datatype_id] %}
 
     <div class="ODRAdvSearch_header">
@@ -60,7 +60,7 @@
 {# Render all other datatypes afterwards #}
 {% for dt_id, dt in datatype_array %}
     {% if dt_id != target_datatype_id %}
-    <fieldset class="ODRSearchSidebar_extended" style="display: none;">
+    <fieldset class="ODRSearchSidebar_extended ODRHidden">
         <div class="ODRAdvSearch_header">
             <span>{{ dt['dataTypeMeta']['shortName'] }}</span>
             <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>

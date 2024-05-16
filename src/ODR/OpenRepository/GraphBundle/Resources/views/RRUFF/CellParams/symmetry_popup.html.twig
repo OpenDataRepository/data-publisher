@@ -3,38 +3,36 @@
 <div id="{{ input_id }}_control" style="float:right">
     <button id="{{ input_id }}_cellparam_trigger" class="ODRCellparamPlugin_button pure-button" title="Open the Cellparameter Plugin entry tool"><i class="fa fa-object-ungroup"></i></button>
 </div>
-<div id="{{ input_id }}_popup" class="ODRCellparamPlugin_popup">
+<div id="{{ input_id }}_popup" class="ODRCellparamPlugin_popup ODRHidden">
     <div class="pure-u-1">
         &nbsp;&nbsp;&nbsp;&nbsp;Because the Crystal System, Point Group, and Space Group are all related to each other, it's better to modify all three of these fields at once.  No changes are made until you click the save button.
     </div>
 
     <div class="pure-u-13-24">
-        <div class="bold pure-u-1">Current values...</div>
         <div class="pure-u-1">
             &nbsp;&nbsp;<span class="bold">Crystal System:&nbsp;</span><span id="{{ input_id }}_current_crystal_system"></span>
 
-            <span id="{{ input_id }}_crystal_system_warning" style="display:none;">
-                <i class="fa fa-exclamation-triangle" style="color:red;" title="Unrecognized crystal system.  If you believe this is an error, please contact the ODR team."></i>
+            <span id="{{ input_id }}_crystal_system_warning" class="ODRHidden">
+                <i class="fa fa-exclamation-triangle ODRInputError" title="Unrecognized crystal system.  If you believe this is an error, please contact the ODR team."></i>
             </span>
         </div>
         <div class="pure-u-1">
             &nbsp;&nbsp;<span class="bold">Point Group:&nbsp;</span><span id="{{ input_id }}_current_point_group"></span>
 
-            <span id="{{ input_id }}_point_group_warning" style="display:none;">
-                <i class="fa fa-exclamation-triangle" style="color:red;" title="Unrecognized point group.  If you believe this is an error, please contact the ODR team."></i>
+            <span id="{{ input_id }}_point_group_warning" class="ODRHidden">
+                <i class="fa fa-exclamation-triangle ODRInputError" title="Unrecognized point group.  If you believe this is an error, please contact the ODR team."></i>
             </span>
         </div>
         <div class="pure-u-1">
             &nbsp;&nbsp;<span class="bold">Space Group:&nbsp;</span><span id="{{ input_id }}_current_space_group"></span>
 
-            <span id="{{ input_id }}_space_group_warning" style="display:none;">
-                <i class="fa fa-exclamation-triangle" style="color:red;" title="Unrecognized space group.  If you believe this is an error, please contact the ODR team."></i>
+            <span id="{{ input_id }}_space_group_warning" class="ODRHidden">
+                <i class="fa fa-exclamation-triangle ODRInputError" title="Unrecognized space group.  If you believe this is an error, please contact the ODR team."></i>
             </span>
         </div>
     </div>
 
     <div class="pure-u-9-24">
-        <div class="pure-u-1">&nbsp;</div>
         <div class="pure-u-1">
             <select id="{{ input_id }}_crystal_system">
                 <option value=""></option>
@@ -81,14 +79,14 @@
             // Don't submit the datafield's form
             event.preventDefault();
 
-            if ( $("#{{ input_id }}_popup").is(':visible') ) {
+            if ( !$("#{{ input_id }}_popup").hasClass('ODRHidden') ) {
                 // Popup already visible, close it
                 $("#{{ input_id }}_cancel_save").trigger('click');
             }
             else {
                 // Popup not visible...close any other open popup first
                 $(".ODRCellparamPlugin_popup").each(function(index, elem) {
-                    if ( $(elem).is(':visible') )
+                    if ( !$(elem).hasClass('ODRHidden') )
                         $(elem).find(".fa-close").parent().trigger('click');
                 });
 
@@ -100,7 +98,7 @@
                 $("#{{ input_id }}_crystal_system").val(current_crystal_system).trigger('change');
 
                 if ( current_crystal_system != '' && $("#{{ input_id }}_crystal_system").val() == null )
-                    $("#{{ input_id }}_crystal_system_warning").show();
+                    $("#{{ input_id }}_crystal_system_warning").removeClass('ODRHidden');
 
                 var point_group_input_id = "#{{ field_identifiers['Point Group'] }}";
                 var current_point_group = $(point_group_input_id).val();
@@ -108,7 +106,7 @@
                 $("#{{ input_id }}_point_group").val(current_point_group).trigger('change');
 
                 if ( current_point_group != '' && $("#{{ input_id }}_point_group").val() == null )
-                    $("#{{ input_id }}_point_group_warning").show();
+                    $("#{{ input_id }}_point_group_warning").removeClass('ODRHidden');
 
                 var space_group_input_id = "#{{ field_identifiers['Space Group'] }}";
                 var current_space_group = $(space_group_input_id).val();
@@ -116,11 +114,11 @@
                 $("#{{ input_id }}_space_group").val(current_space_group).trigger('change');
 
                 if ( current_space_group != '' && $("#{{ input_id }}_space_group").val() == null )
-                    $("#{{ input_id }}_space_group_warning").show();
+                    $("#{{ input_id }}_space_group_warning").removeClass('ODRHidden');
 
 
                 // ...and show the popup
-                $("#{{ input_id }}_popup").show()
+                $("#{{ input_id }}_popup").removeClass('ODRHidden')
                     .offset( $("#{{ input_id }}").offset() )
                     .width( $("#{{ input_id }}").width() + 15 );
             }
@@ -136,8 +134,8 @@
 
             if ( new_crystal_system == '' ) {
                 // If no crystal system is selected, then all point/space groups should become visible
-                $("#{{ input_id }}_point_group").children().show();
-                $("#{{ input_id }}_space_group").children().show();
+                $("#{{ input_id }}_point_group").children().removeClass('ODRHidden');
+                $("#{{ input_id }}_space_group").children().removeClass('ODRHidden');
             }
             else {
                 // Hide all point groups that don't belong to the selected crystal system
@@ -160,7 +158,7 @@
                 //  whether there's a crystal system selected...
                 if ( $("#{{ input_id }}_crystal_system").val() == '' ) {
                     // ...no crystal system selected means all space groups should be visible
-                    $("#{{ input_id }}_space_group").children().show();
+                    $("#{{ input_id }}_space_group").children().removeClass('ODRHidden');
                 }
                 else {
                     // ...otherwise, only the space groups for the point groups that belong to the
@@ -208,7 +206,7 @@
         $("#{{ input_id }}_manual_save").unbind('click').click(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
-            $("#{{ input_id }}_popup").hide();
+            $("#{{ input_id }}_popup").addClass('ODRHidden');
 
             // Going to copy all three values from the popup into the correct <input> at the same time
             var crystal_system_val = $("#{{ input_id }}_crystal_system").val();
@@ -246,7 +244,7 @@
                 dataType: 'json',
                 success: function(data) {
                     notifySaved();
-                    $("#{{ input_id }}_popup").hide();
+                    $("#{{ input_id }}_popup").addClass('ODRHidden');
 
                     // Trigger reloads of all three affected datafields
                     ReloadEditDatafield({{ datarecord.id }}, crystal_system_df_id);
@@ -259,7 +257,7 @@
                 error: function (jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
                     // alert('Error encountered, no changes made');
-                    $("#{{ input_id }}_popup").hide();
+                    $("#{{ input_id }}_popup").addClass('ODRHidden');
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
@@ -287,7 +285,7 @@
         $("#{{ input_id }}_cancel_save").unbind('click').click(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
-            $("#{{ input_id }}_popup").hide();
+            $("#{{ input_id }}_popup").addClass('ODRHidden');
         });
     });
 </script>

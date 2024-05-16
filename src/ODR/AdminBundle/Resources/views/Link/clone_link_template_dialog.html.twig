@@ -1,10 +1,6 @@
 {% spaceless %}
 
-<!-- Clone/Link Template Dialog -->
-
 <script>
-    var clone_link_template_dialog_body = '<div id="ODRCloneLinkTemplateFormWrapper" class="ODRHidden"> </div>';
-
     /**
      * Opens ODR's modal and loads valid template datatypes that can be cloned/linked to by the
      * local datatype.
@@ -13,32 +9,22 @@
      * @param {number} theme_element_id
      */
     function openCloneLinkTemplateDialog(local_datatype_id, theme_element_id) {
-        // open dialog
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: 'Add Database From Template',
-            loading: true,
-            body: clone_link_template_dialog_body,
             buttons: [
                 {
                     id: 'ODRCloneLinkTemplateFormSubmit',
                     text: 'Add Database From Template',
                     // secondary: true,
-                    disabled: true
+                    disabled: true,
+                    click_handler: function() {
+                        submitLinkFromTemplateForm();
+                    }
                 }
             ]
         };
         openODRRemodal(modal_options);
-
-        loadCloneLinkTemplateData(local_datatype_id, theme_element_id);
-    }
-
-    /**
-     * Loads valid template datatypes that can be cloned/linked to by the local datatype.
-     *
-     * @param {number} local_datatype_id
-     * @param {number} theme_element_id
-     */
-    function loadCloneLinkTemplateData(local_datatype_id, theme_element_id) {
 
         var url = '{{ path('odr_design_get_clone_link_templates', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
         url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
@@ -49,22 +35,7 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRCloneLinkTemplateFormWrapper").html( data.d.html );
-
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRCloneLinkTemplateFormWrapper").show();
-
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
-
-                    // Setup submit handler
-                    $('#ODRCloneLinkTemplateFormSubmit').unbind('click').click(function() {
-                        submitLinkFromTemplateForm();
-                    });
-                });
+                updateODRRemodalBody( data.d.html );
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -102,13 +73,8 @@
             success: function(data) {
                 // console.log(data.d);
 
-                // Turn modal into a "loading..." dialog
-                $(".ODRRemodalBody").hide();
-                $(".ODRRemodalButtons").hide();
-                $(".ODRRemodalLoading").show();
-
-                // Resize ODRFileDownloadModal to take up full height
-                resetRemodalInnerHeight();
+                // Bring up the 'Loading...' blurb while waiting for the cloning to finish
+                updateODRRemodalBody('');
 
                 // Need to continually check whether the job is done...
                 checkCloneLinkJobInterval(data.d);
@@ -240,7 +206,6 @@
             }
         });
     }
-
 </script>
 
 {% endspaceless %}

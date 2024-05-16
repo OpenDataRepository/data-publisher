@@ -1,6 +1,6 @@
 {% spaceless %}
 <div class="pure-u-1">
-    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;"></textarea>
+    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]"></textarea>
 
     <div class="pure-u-1 ODRRenderPlugin_LinkedMerger_header">
         In order for this plugin to know which records to move around, you need to select two things:<br>
@@ -17,8 +17,8 @@
         <div id="" class="ODRRenderPlugin_LinkedMerger_wrapper">
             <table id="ODRRenderPlugin_LinkedMerger_table_{{ dt_id }}" class="ODRRenderPlugin_LinkedMerger_table">
                 <tr>
-                    <th>Source<i class="ODRRenderPlugin_LinkedMerger_src_warn fa fa-exclamation-triangle" title="At least two sources must be selected for the plugin to work"></i></th>
-                    <th>Destination<i class="ODRRenderPlugin_LinkedMerger_dest_warn fa fa-exclamation-triangle" title="A destination must be selected for the plugin to work"></i></th>
+                    <th>Source<i class="ODRRenderPlugin_LinkedMerger_src_warn fa fa-exclamation-triangle ODRHidden" title="At least two sources must be selected for the plugin to work"></i></th>
+                    <th>Destination<i class="ODRRenderPlugin_LinkedMerger_dest_warn fa fa-exclamation-triangle ODRHidden" title="A destination must be selected for the plugin to work"></i></th>
                     <th><span class="ODRRenderPlugin_LinkedMerger_clear">Clear all selections</span></th>
                 </tr>
 
@@ -47,10 +47,6 @@
         // Since the resizing apparently refuses to pick up the actual height of the items inside
         //  it for this particular application, force the modal to use the entire screen.
         resetRemodalInnerHeight(true);
-
-        // Want all the warnings hidden initially
-        $(".ODRRenderPlugin_LinkedMerger_src_warn").hide();
-        $(".ODRRenderPlugin_LinkedMerger_dest_warn").hide();
 
         // If the plugin has a config, then select the correct checkboxes
         {% for num,dt_group in current_config %}
@@ -141,15 +137,15 @@
 
             // Warn when only one source is selected, or when a destination is selected without a source
             if ( tmp.length === 1 || (tmp.length === 0 && dest_prefix !== '') )
-                $(elem).find('.ODRRenderPlugin_LinkedMerger_src_warn').show();
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_src_warn').removeClass('ODRHidden');
             else
-                $(elem).find('.ODRRenderPlugin_LinkedMerger_src_warn').hide();
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_src_warn').addClass('ODRHidden');
 
             // Warn when a destination isn't selected
             if ( tmp.length > 0 && dest_prefix === '' )
-                $(elem).find('.ODRRenderPlugin_LinkedMerger_dest_warn').show();
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_dest_warn').removeClass('ODRHidden');
             else
-                $(elem).find('.ODRRenderPlugin_LinkedMerger_dest_warn').hide();
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_dest_warn').addClass('ODRHidden');
 
             // Finish up the config for this group
             pieces.push( tmp.join(',') + ':' + dest_prefix );

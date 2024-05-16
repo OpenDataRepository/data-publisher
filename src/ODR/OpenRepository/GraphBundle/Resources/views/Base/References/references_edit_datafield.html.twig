@@ -92,7 +92,7 @@
             </div>
         </div>
 
-        <div class="pure-u-1" {% if datafield_meta.allow_multiple_uploads == 0 and has_file == true %}style="display: none;"{% endif %}>
+        <div class="pure-u-1 {% if datafield_meta.allow_multiple_uploads == 0 and has_file == true %}ODRHidden{% endif %}">
             {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
             {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
             {% set single_file = true %}

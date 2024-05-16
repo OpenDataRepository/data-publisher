@@ -63,7 +63,7 @@ function initPage() {
         });
 
         if (!found)
-            $(this).hide();
+            $(this).addClass('ODRHidden');
     });
 
     // Create overlay divs for each of the datafields in the master theme area
@@ -79,7 +79,7 @@ function initPage() {
         var group_id = $(this).attr('rel');
 
         var value = 1;
-        if ( $(this).children('.fa-ban').first().is(':hidden') )
+        if ( $(this).children('.fa-ban').first().hasClass('ODRHidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
@@ -98,11 +98,11 @@ function initPage() {
             success: function(data) {
                 if (value == 0) {
                     // If this permission got removed, show all the icons over each of the permissions
-                    $(element).parent().find('.fa-ban').show();
+                    $(element).parent().find('.fa-ban').removeClass('ODRHidden');
                 }
                 else {
                     // Otherwise, just hide the icon indicating this group doesn't have the permission
-                    $(element).children('.fa-ban').hide();
+                    $(element).children('.fa-ban').addClass('ODRHidden');
                 }
                 notifySaved();
             },
@@ -136,7 +136,7 @@ function initPage() {
         var element = $(this);
 
         var value = 1;
-        if ( $(element).children('.fa-ban').first().is(':hidden') )
+        if ( $(element).children('.fa-ban').first().hasClass('ODRHidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
@@ -152,9 +152,9 @@ function initPage() {
             dataType: "json",
             success: function(data) {
                 if (value == 0)
-                    $(element).children('.fa-ban').first().show();
+                    $(element).children('.fa-ban').first().removeClass('ODRHidden');
                 else
-                    $(element).children('.fa-ban').first().hide();
+                    $(element).children('.fa-ban').first().addClass('ODRHidden');
                 notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -187,7 +187,7 @@ function initPage() {
         var element = $(this);
 
         var value = 1;
-        if ( $(element).children('.fa-ban').first().is(':hidden') )
+        if ( $(element).children('.fa-ban').first().hasClass('ODRHidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
@@ -203,9 +203,9 @@ function initPage() {
             dataType: "json",
             success: function(data) {
                 if (value == 0)
-                    $(element).children('.fa-ban').first().show();
+                    $(element).children('.fa-ban').first().removeClass('ODRHidden');
                 else
-                    $(element).children('.fa-ban').first().hide();
+                    $(element).children('.fa-ban').first().addClass('ODRHidden');
                 notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -238,7 +238,7 @@ function initPage() {
         var element = $(this);
 
         var value = 1;
-        if ( $(element).children('.fa-ban').first().is(':hidden') )
+        if ( $(element).children('.fa-ban').first().hasClass('ODRHidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
@@ -254,9 +254,9 @@ function initPage() {
             dataType: "json",
             success: function(data) {
                 if (value == 0)
-                    $(element).children('.fa-ban').first().show();
+                    $(element).children('.fa-ban').first().removeClass('ODRHidden');
                 else
-                    $(element).children('.fa-ban').first().hide();
+                    $(element).children('.fa-ban').first().addClass('ODRHidden');
                 notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -289,7 +289,7 @@ function initPage() {
         var element = $(this);
 
         var value = 1;
-        if ( $(element).children('.fa-ban').first().is(':hidden') )
+        if ( $(element).children('.fa-ban').first().hasClass('ODRHidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
@@ -305,9 +305,9 @@ function initPage() {
             dataType: "json",
             success: function(data) {
                 if (value == 0)
-                    $(element).children('.fa-ban').first().show();
+                    $(element).children('.fa-ban').first().removeClass('ODRHidden');
                 else
-                    $(element).children('.fa-ban').first().hide();
+                    $(element).children('.fa-ban').first().addClass('ODRHidden');
                 notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -338,7 +338,7 @@ function initPage() {
         var group_id = $(this).attr('rel');
 
         var value = 1;
-        if ( $(this).children('.fa-ban').first().is(':hidden') )
+        if ( $(this).children('.fa-ban').first().hasClass('ODRHidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';

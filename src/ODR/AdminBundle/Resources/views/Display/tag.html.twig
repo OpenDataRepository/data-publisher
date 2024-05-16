@@ -43,7 +43,7 @@
 {% endif %}
 #}
 {% if has_children %}
-    <ul class="ODRTagGroup" {% if display_unselected %}style="display: none;"{% endif %}>    {# Have the tag tree start out collapsed #}
+    <ul class="ODRTagGroup {% if display_unselected %}ODRHidden{% endif %}">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
             {# Store whether this child tag is selected #}
             {% set child_is_selected = 0 %}

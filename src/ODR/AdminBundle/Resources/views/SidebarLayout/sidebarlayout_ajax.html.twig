@@ -66,7 +66,7 @@
 <div id="ThemeDesignWrapper" class="pure-u-1">
     <div class="pure-u-1-4">
         <div class="pure-u-23-24">
-            <span id="ODRSidebarLayout_noFieldsWarning" class="ODRInputError" style="display: none;">
+            <span id="ODRSidebarLayout_noFieldsWarning" class="ODRInputError ODRHidden">
                 <i class="fa fa-2x fa-exclamation-triangle"></i>&nbsp;Layouts must have at least one field that is always visible.
             </span>
         </div>
@@ -95,7 +95,7 @@
     </div>
 </div>
 
-<form id="sidebarlayout_form" style="display:none;">
+<form id="sidebarlayout_form" style="display: none;">
     <input type="hidden" id="form_sidebar_layout_id" name="sidebar_layout_id" value="{{ sidebar_layout.id }}" />
     <input type="hidden" id="form_datafield_id" name="datafield_id" />
     <input type="hidden" id="form_state" name="state" />
@@ -107,7 +107,7 @@
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
         {% if sidebar_array['always_display'] is not defined or sidebar_array['always_display']|length == 0 %}
-        $("#ODRSidebarLayout_noFieldsWarning").show();
+        $("#ODRSidebarLayout_noFieldsWarning").removeClass('ODRHidden');
         {% endif %}
 
         // Initialize the name/description elements for the current Sidebar Layout
@@ -131,7 +131,7 @@
             });
 
             if (!found)
-                $(this).hide();
+                $(this).addClass('ODRHidden');
         });
 
         // Attach click handlers to tags
@@ -269,9 +269,9 @@
 
                 // Warn when there are no datafields in the "always display" section...
                 if ( $(".ODRSidebarLayout_dragTarget").first().find('.ODRSidebarLayout_sidebarDatafield').length == 0 )
-                    $("#ODRSidebarLayout_noFieldsWarning").show();
+                    $("#ODRSidebarLayout_noFieldsWarning").removeClass('ODRHidden');
                 else
-                    $("#ODRSidebarLayout_noFieldsWarning").hide();
+                    $("#ODRSidebarLayout_noFieldsWarning").addClass('ODRHidden');
 
                 // Update the datafield's overlay
                 ODRSidebarLayout_updateOverlayProperties(elem, desired_state);
@@ -362,9 +362,9 @@
 
                     // Warn when there are no datafields in the "always display" section...
                     if ( $(".ODRSidebarLayout_dragTarget").first().find('.ODRSidebarLayout_sidebarDatafield').length == 0 )
-                        $("#ODRSidebarLayout_noFieldsWarning").show();
+                        $("#ODRSidebarLayout_noFieldsWarning").removeClass('ODRHidden');
                     else
-                        $("#ODRSidebarLayout_noFieldsWarning").hide();
+                        $("#ODRSidebarLayout_noFieldsWarning").addClass('ODRHidden');
 
                     // The "real" search sidebar is hidden, but it can still be updated
                     // Has to be done here, unfortunately, or going back via browser arrow won't update
@@ -462,9 +462,9 @@
 
                 // Warn when there are no datafields in the "always display" section...
                 if ( $(".ODRSidebarLayout_dragTarget").first().find('.ODRSidebarLayout_sidebarDatafield').length == 0 )
-                    $("#ODRSidebarLayout_noFieldsWarning").show();
+                    $("#ODRSidebarLayout_noFieldsWarning").removeClass('ODRHidden');
                 else
-                    $("#ODRSidebarLayout_noFieldsWarning").hide();
+                    $("#ODRSidebarLayout_noFieldsWarning").addClass('ODRHidden');
 
                 // The "real" search sidebar is hidden, but it can still be updated
                 // Has to be done here, unfortunately, or going back via browser arrow won't update
