@@ -3767,6 +3767,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-right: 0.4em;
     border: 1px solid #ddd;
 }
+#ODRChooseView > li.ODRCurrentLayout,
+#ODRChooseLayout > li.ODRCurrentLayout {
+    border: 3px solid #0d0;
+}
 #ODRChooseView:first-child,
 #ODRChooseLayout:first-child {
     padding-bottom: 0.6em;
@@ -3792,6 +3796,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRChooseViewDescription {
+    color: #888;
+    font-size: 1.0em;
+}
+.ODRChooseViewDetails {
     box-sizing: border-box; /* 1 */
     margin-top: 0.4em;
     padding-left: 0.8em;
@@ -3799,6 +3807,30 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     color: #888;
     font-size: 1.0em;
     text-align: left;
+}
+
+.ODRLayoutInfoDiv {
+    cursor: pointer;
+    position: relative;
+    /*display: inline-block;*/
+}
+.ODRLayoutInfo {
+    background-color: white;
+    border: 1px solid #EEEEFF;
+    padding: 5px;
+    position: absolute;
+    visibility: hidden;
+    max-width: 500px;
+    z-index: 999;
+    cursor: default;
+    /*left: 0px;*/
+    box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+    color: #555;
+    line-height: 1.6em;
+    font-weight: normal;
+}
+.ODRLayoutInfoDiv:hover .ODRLayoutInfo {
+    visibility: visible;
 }
 
 #ODRRenderPluginSettingsForm fieldset {

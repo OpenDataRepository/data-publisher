@@ -23,6 +23,7 @@
                 'selected_layout_id': selected_layout_id,
 
                 'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
                 'formatted_intent': formatted_intent,
                 'available_intents': available_intents,
             } %}
@@ -43,6 +44,7 @@
                 'selected_layout_id': selected_layout_id,
 
                 'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
                 'formatted_intent': formatted_intent,
                 'available_intents': available_intents,
             } %}
@@ -59,7 +61,7 @@
 {% else %}
             var selected_intent = '';
 {% endif %}
-            var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
 
             setModalMessage("Setting layout for session.");
 
@@ -75,7 +77,7 @@
 {% else %}
             var selected_intent = '';
 {% endif %}
-            var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
 
             setModalMessage("Setting view as personal default.");
 
@@ -86,7 +88,7 @@
 
         $(".ODRSidebarLayout_ToggleShared").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
 
             setModalMessage("Toggling public status of view.");
 
@@ -101,7 +103,7 @@
 {% else %}
             var selected_intent = '';
 {% endif %}
-            var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
 
             setModalMessage("Setting view as database default.");
 
@@ -116,14 +118,14 @@
         });
 
         $(".ODRSidebarLayout_Modify").unbind('click').click(function() {
-            var sidebar_layout_id = $(this).parent().parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
             // Do not set this sidebar layout as the user's default for this datatype
             ODRSidebarLayout_modifyLayout(sidebar_layout_id, false);
         });
 
         $(".ODRSidebarLayout_Copy").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var sidebar_layout_id = $(this).parent().parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
 
             setModalMessage("Copying selected layout, please wait...");
 
@@ -132,7 +134,7 @@
 
         $(".ODRSidebarLayout_Delete").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var sidebar_layout_id = $(this).parent().parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
 
             setModalMessage("Deleting view...");
 
@@ -141,14 +143,14 @@
 
 
         $(".ODRSidebarLayout_UnsetPersonalDefault").unbind('click').click(function() {
-            var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
             var selected_intent = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
             ODRSidebarLayout_unsetPersonalDefaultLayout(sidebar_layout_id, selected_intent);
         });
 
         $(".ODRSidebarLayout_UnsetDatabaseDefault").unbind('click').click(function() {
-            var sidebar_layout_id = $(this).parent().parent().parent().attr('data-sidebar-layout-id');
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
             var selected_intent = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
             ODRSidebarLayout_unsetDatabaseDefaultLayout(sidebar_layout_id, selected_intent);

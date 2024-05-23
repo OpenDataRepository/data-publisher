@@ -94,6 +94,10 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
+
+            $is_super_admin = false;
+            if ( $user instanceof ODRUser )
+                $is_super_admin = $user->isSuperAdmin();
             // --------------------
 
             // Not attempting to verify $page_type...
@@ -123,6 +127,7 @@ class ThemeController extends ODRCustomController
                 array(
                     'user' => $user,
                     'is_datatype_admin' => $is_datatype_admin,
+                    'is_super_admin' => $is_super_admin,
 
                     'datatype' => $datatype,
                     'search_key' => $search_key,

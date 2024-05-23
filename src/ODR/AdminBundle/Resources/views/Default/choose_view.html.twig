@@ -14,6 +14,7 @@
 {% endif %}
 
 <ul id="ODRChooseView" class="pure-u-1">
+    <h4>To create a new view, copy an existing view and modify it.</h4>
     {# The user's currently selected theme goes at the top of the list... #}
     {% for theme_data in available_themes %}
         {% if theme_data.id == selected_theme_id %}
@@ -23,6 +24,7 @@
                 'selected_theme_id': selected_theme_id,
 
                 'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
                 'formatted_page_type': formatted_page_type,
                 'available_page_types': available_page_types,
             } %}
@@ -38,6 +40,7 @@
                 'selected_theme_id': selected_theme_id,
 
                 'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
                 'formatted_page_type': formatted_page_type,
                 'available_page_types': available_page_types,
             } %}
@@ -54,9 +57,13 @@
 {% else %}
             var selected_page_type = '';
 {% endif %}
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Setting view for session.");
+
+            {% if formatted_page_type == '' %}
+            window.ODRChooseView_applyredirectcallback = function() {};
+            {% endif %}
 
             var redirect = true;
             var persist = false;
@@ -70,9 +77,13 @@
 {% else %}
             var selected_page_type = '';
 {% endif %}
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Setting view as personal default.");
+
+            {% if formatted_page_type == '' %}
+            window.ODRChooseView_applyredirectcallback = function() {};
+            {% endif %}
 
             var redirect = true;
             var persist = true;
@@ -81,7 +92,7 @@
 
         $(".ODRMakeViewShared").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Toggling public status of view.");
 
@@ -96,7 +107,7 @@
 {% else %}
             var selected_page_type = '';
 {% endif %}
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Setting view as database default.");
 
@@ -105,14 +116,14 @@
 
 
         $(".ODRModifyTheme").unbind('click').click(function() {
-            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
             // Do not set this theme as the user's default for this datatype
             openModifyThemeEditor(theme_id, false);
         });
 
         $(".ODRCopyModifyTheme").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Copying selected theme, please wait...");
 
@@ -121,7 +132,7 @@
 
         $(".ODRDeleteTheme").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Deleting view...");
 
@@ -130,14 +141,14 @@
 
 
         $(".ODRUnsetDefaultPersonal").unbind('click').click(function() {
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
             var selected_page_type = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
             unsetPersonalDefaultView(theme_id, selected_page_type);
         });
 
         $(".ODRUnsetDefaultDatabase").unbind('click').click(function() {
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
             var selected_page_type = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
             unsetDatabaseDefaultView(theme_id, selected_page_type);
@@ -279,6 +290,10 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
+                {% if formatted_page_type == '' %}
+                window.ODRChooseView_applyredirectcallback = function() {};
+                {% endif %}
+
                 // Apply view for session and redirect
                 var redirect = true;
                 var persist = true;
