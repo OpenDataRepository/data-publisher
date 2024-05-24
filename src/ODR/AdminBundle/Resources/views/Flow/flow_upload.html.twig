@@ -114,16 +114,16 @@
             flow_cancelled_{{ target }} = false;
 
 {% if display_loading_spinner %}
+            {# TODO - didn't do anything, and doesn't seem like it would be useful regardless?
             // Want a loading overlay once the file gets uploaded...
-            $("#loading-overlay").fadeIn('fast');
-            $("#loading").html('<span>Loading...</span>');
-            $("#loading").fadeIn('fast');
+            hideSearchOverlay();
+            #}
 {% endif %}
 
 {% if single_file == true %}
             // Block any further uploads after a single file
             $("#ODRFileUpload_{{ target }} input").prop('disabled', true);
-            $("#ODRFileUpload_{{ target }}").parent().hide();
+            $("#ODRFileUpload_{{ target }}").parent().addClass('ODRHidden');
             // TODO - other CSS?
 {% endif %}
         });
@@ -159,7 +159,7 @@
 {% if single_file == true %}
             // TODO - re-enable file upload on error?
             $("#ODRFileUpload_{{ target }} input").prop('disabled', false);
-            $("#ODRFileUpload_{{ target }}").parent().show();
+            $("#ODRFileUpload_{{ target }}").parent().removeClass('ODRHidden');
 {% endif %}
         });
 

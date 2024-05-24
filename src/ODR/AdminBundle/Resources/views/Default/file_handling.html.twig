@@ -199,7 +199,7 @@
                 var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
                 var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
-                if ( !$(download_div).is(':visible') ) {
+                if ( $(download_div).hasClass('ODRHidden') ) {
 //console.log('stopping timeout cycle for file ' + file_id);
                     /* element got hidden already, do nothing */
                     file_decrypt_timeouts[ file_id ] = null;
@@ -409,8 +409,7 @@
                 if ( archive_size == archive_filecount ) {
                     // Reset and close the file download dialog form
                     $('#ODRFileDownloadForm_progress').hide();
-                    var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                    inst.close();
+                    closeODRRemodal();
 
                     // Construct the URL to download the archive
                     var download_url = "{{ path('odr_download_zip_archive', {'archive_filename': 0}) }}";
@@ -447,8 +446,7 @@
             error: function (jqXHR, textStatus, errorThrown) {
                 zip_archive_timeouts[ archive_filename ] = null;
                 // Close modal
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                closeODRRemodal();
                 // Show growl
                 var response = $.parseJSON(jqXHR.responseText);
                 createJGrowlError(response);

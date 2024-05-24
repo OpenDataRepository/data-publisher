@@ -22,14 +22,11 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class DataFields
 {
-    // Field doesn't show up on the search page, and isn't searched through the "general" textbox
-    const NOT_SEARCHED = 0;
-    // Field doesn't show up on the search page, but is searched through the "general" textbox
-    const GENERAL_SEARCH = 1;
-    // Field shows up on the search page, and is also searched through the "general" textbox
-    const ADVANCED_SEARCH = 2;
-    // Field shows up on the search page, but isn't searched through the "general" textbox
-    const ADVANCED_SEARCH_ONLY = 3;
+    // Field is not searchable by the user, nor usable in sidebar layouts.  Note that this doesn't
+    //  actually prevent ODR from searching on a field...a couple areas will regardless
+    const NOT_SEARCHABLE = 0;
+    // Field is searchable by the user, and usable in sidebar layouts
+    const SEARCHABLE = 1;
 
     /**
      * @var integer

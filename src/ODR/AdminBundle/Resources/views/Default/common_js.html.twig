@@ -131,9 +131,6 @@
             }
         });
 
-        // Start with Search Hidden...
-        searchToggle();
-
         {% if logged_in == true %}
         updateDashboardLink();
         {% endif %}
@@ -417,56 +414,147 @@
         });
     }
 
+
     /**
      * Hides the search sidebar so that users can't see or expand it.
      */
     function disableSearchSidebar() {
-        $("#ODRSearchContent").addClass("ODRSearchResultsWide");
-        $("#ODRSearchSidebar").addClass("ODRHidden");
+        // console.log('disableSearchSidebar()');
+        // console.trace();
+
+        var sidebar = $("#ODRSearchSidebar");
+        // var searchToggle = $(".ODRSearchToggle");
+        var searchContent = $("#ODRSearchContent");
+
+        $(searchContent).addClass("ODRSearchResultsWide");
+        $(sidebar).addClass("ODRHidden");
+
+        // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
+        // Have to wait for that to finish before recalculating the width of datatables objects
+        setTimeout("recalcDatatablesWidths()", 100);
+    }
+
+    /**
+     * Puts the search sidebar into a 'collapsed' state.
+     */
+    function collapseSearchSidebar() {
+        // console.log('disableSearchSidebar()');
+
+        var sidebar = $("#ODRSearchSidebar");
+        var searchToggle = $(".ODRSearchToggle");
+        var searchContent = $("#ODRSearchContent");
+
+        $(sidebar).removeClass("ODRSearchVisible ODRHidden").addClass("ODRSearchHidden");
+        $(searchContent).addClass("ODRSearchResultsWide");
+
+        $(searchToggle).find(".fa-arrow-circle-left").addClass('ODRHidden');
+        $(searchToggle).find(".fa-arrow-circle-right").removeClass('ODRHidden');
+
+        // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
+        // Have to wait for that to finish before recalculating the width of datatables objects
+        setTimeout("recalcDatatablesWidths()", 100);
+    }
+
+    /**
+     * Puts the search sidebar into an 'expanded' state.
+     */
+    function expandSearchSidebar() {
+        // console.log('expandSearchSidebar()');
+
+        var sidebar = $("#ODRSearchSidebar");
+        var searchToggle = $(".ODRSearchToggle");
+        var searchContent = $("#ODRSearchContent");
+
+        $(sidebar).removeClass("ODRSearchHidden ODRHidden").addClass("ODRSearchVisible");
+        $(searchContent).removeClass("ODRSearchResultsWide");
+
+        $(searchToggle).find(".fa-arrow-circle-left").removeClass('ODRHidden');
+        $(searchToggle).find(".fa-arrow-circle-right").addClass('ODRHidden');
+
+        // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
+        // Have to wait for that to finish before recalculating the width of datatables objects
+        setTimeout("recalcDatatablesWidths()", 100);
+    }
+
+    /**
+     * Toggles the search sidebar between the 'collapsed' and 'expanded' states.  If it's currently
+     * in the 'disabled' state, then it is set to 'collapsed' instead.
+     */
+    function searchToggle() {
+        var is_expanded = true;
+        if ( $("#ODRSearchContent").hasClass('ODRSearchResultsWide') )
+            is_expanded = false;
+
+        // console.log('searchToggle()', 'is_expanded', is_expanded);
+
+        if (is_expanded)
+            collapseSearchSidebar();
+        else
+            expandSearchSidebar();
     }
 
     /**
      * Ensures the search sidebar is available and that it's displaying the search layout for the
      * given search key.
      *
-     * @param {string} [search_key]
-     * @param {boolean} [force_visible]
+     * @param {string} search_key
+     * @param {string} when_disabled whether to put the sidebar into a 'collapsed' or 'expanded' state if it's disabled when this function is called
      * @param {string} [intent]
      */
-    function enableSearchSidebar(search_key, force_visible, intent) {
-        if (force_visible === undefined || force_visible === null)
-            force_visible = false;
-        // Ensure the sidebar is up to date first...
-        if (intent === undefined || intent === null)
+    function enableSearchSidebar(search_key, when_disabled, intent = '') {
+        // console.log('enableSearchSicebar()', 'search_key', search_key, 'when_disabled', when_disabled, 'intent', intent);
+
+        // If the sidebar is currently disabled...
+        if ( $("#ODRSearchSidebar").hasClass('ODRHidden') ) {
+            // ...then set it to 'expanded' or 'collapsed' depending on the caller
+            if ( when_disabled === 'expanded' )
+                expandSearchSidebar();
+            else
+                collapseSearchSidebar();
+        }
+
+        // Default intent is for a search page
+        if (intent === undefined || intent === null || intent === '')
             intent = 'searching';
 
-        updateSearchSidebar(search_key, force_visible, intent);
+        // Don't update the sidebar if it's already current
+        updateSearchSidebar(search_key, intent, false);
     }
 
     /**
      * Reloads and reinitializes the content of the search sidebar.
      *
-     * @param {string} [search_key]
-     * @param {boolean} [force_visible]
-     * @param {string} [intent]
+     * @param {string} search_key
+     * @param {string} intent
+     * @param {boolean} force_reload If true, then the sidebar will always be reloaded
      */
-    function updateSearchSidebar(search_key, force_visible, intent) {
-        var force_rebuild = false;
+    function updateSearchSidebar(search_key, intent, force_reload) {
+        // console.log('updateSearchSidebar()', 'search_key', search_key, 'intent', intent, 'force_reload', force_reload);
+        // Don't want to always update the sidebar...
+        var can_reload = true;
+        var should_reload = false;
+
+        // If no search key was provided, then reloads can't happen at all
+        if ( search_key === undefined || search_key === '' )
+            can_reload = false;
+
+        // If the sidebar state doesn't match the current search key, then it should get reloaded if possible
         if ( $("#ODRSidebarSearchKey").val() !== search_key || $("#ODRSearchSidebar").html() === '' )
-            force_rebuild = true;
+            should_reload = true;
 
-        if ( search_key !== '' && search_key !== undefined && $("#ODRSidebarSearchKey").val() !== search_key ) {
-            var url = '{{ path('odr_reload_search_sidebar', {'force_rebuild': 0, 'search_key': '', 'intent': ''}) }}';
-            url = url.substr(0, url.length - 3);
+        // If the calling function demands a reload, then it should happen if possible
+        if (force_reload)
+            should_reload = true;
 
-            if ( force_rebuild ) {
-                // TODO - this doesn't solve the problem of not having the search javascript...
-                 url += '1/';
-            }
-            else {
-                url += '0/';
-            }
 
+        // If the sidebar can and should be reloaded...
+        // console.log('updateSearchSidebar()', 'can_reload', can_reload, 'should_reload', should_reload);
+        if ( can_reload && should_reload ) {
+            showSearchOverlay();
+
+            // ...then request a new set of html
+            var url = '{{ path('odr_reload_search_sidebar', {'search_key': '', 'intent': ''}) }}';
+            url = url.substr(0, url.length - 1);
             url += search_key + '/' + intent;
 
             $.ajax({
@@ -477,71 +565,16 @@
                     if ( data.d.html !== '' ) {
                         $("#ODRSearchSidebar").html(data.d.html);
                         InitSearchSidebar();
-
-                        if ( data.d.num_params <= 1 ) {
-                            // Close all accordions, then re-open the first one (target datatype)
-                            $(".ODRAdvSearch_header").trigger('click');
-                            $(".ODRAdvSearch_default").prev().trigger('click');
-                            // Default to not-advanced search
-                            $(".ODRAdvSearch_header").parent().hide();
-                        }
-                        else {
-                            // Close all accordions...those with search params will remain partially open
-                            $(".ODRAdvSearch_header").trigger('click');
-                            // Hide the advanced search div...
-                            $(".ODRAdvSearch_header").parent().hide();
-                            // ...then switch back to advanced search
-                            changeSearch();
-                        }
                     }
-
-                    // Need to this to execute after the sidebar gets initialized
-                    console.log('SEARCH TOGGLE 1')
-                    searchToggle(force_visible);
+                },
+                complete: function() {
+                    // Regardless of success or failure, hide the overlay
+                    hideSearchOverlay();
                 }
             });
         }
-        else {
-            // Don't need to initialize the sidebar, so execute this instead
-            console.log('SEARCH TOGGLE 2')
-            // searchToggle(force_visible);
-        }
     }
 
-    /**
-     * Toggles the search sidebar between "visible" and "expanded".
-     */
-    function searchToggle(force_visible) {
-        if (force_visible === undefined || force_visible === null)
-            force_visible = false;
-
-        var sidebar = $("#ODRSearchSidebar");
-        var searchToggle = $(".ODRSearchToggle");
-        var searchContent = $("#ODRSearchContent");
-
-        if (force_visible || $(sidebar).hasClass('ODRSearchHidden')) {
-            // Open the search sidebar
-            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
-            $(searchContent).removeClass("ODRSearchResultsWide");
-
-            $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
-        }
-        else {
-            // This hides the search sidebar
-            $(sidebar).removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
-            $(searchContent).addClass("ODRSearchResultsWide");
-
-            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
-            $(searchToggle).find(".fa-arrow-circle-right").removeClass('hidden');
-        }
-
-        // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
-        // Have to wait for that to finish before recalculating the width of datatables objects
-        setTimeout("recalcDatatablesWidths()", 100);
-    }
 
     /**
      * If the current page's content includes a dataTables.js instance (i.e. search result lists),
@@ -567,16 +600,21 @@
     /**
      * Displays an overlay on the page so the user can't click anything while searches are running.
      *
-     * @param {string} [intent]
+     * @param {string} [text] Optional text to use for the loading spinner
+     * @param {string} [intent] If 'searching', then the page's content is cleared to prepare for new search results
      */
-    function showSearchOverlay(intent) {
-        $("#loading-overlay").fadeIn('fast');
-        $("#loading").html('<span>Searching...</span>');
-        $("#loading").fadeIn('fast');
+    function showSearchOverlay(text, intent) {
+        // console.log('showSearchOverlay()', 'text', text, 'intent', intent);
+        $("#loading-overlay").removeClass('ODRHidden').fadeIn('fast');
+
+        if ( text === undefined || text === null || text === '' )
+            $("#loading").html('<span>Loading...</span>');
+        else
+            $("#loading").html('<span>' + text + '</span>');
+        $("#loading").removeClass('ODRHidden').fadeIn('fast');
 
         if (intent === undefined || intent === null)
-            intent = 'searching';
-
+            intent = 'loading';
         if ( intent === 'searching' )
             $("#ODRSearchContent").html('');
     }
@@ -585,9 +623,8 @@
      * Hides the search overlay.
      */
     function hideSearchOverlay() {
-        $("#loading-overlay").fadeOut('fast');
-        $("#loading").html('<span>Loading...</span>');
-        $("#loading").fadeOut('fast');
+        $("#loading-overlay").fadeOut('fast').addClass('ODRHidden');
+        $("#loading").fadeOut('fast').addClass('ODRHidden');
     }
 
     function setupAccordionHighlights() {
@@ -602,9 +639,9 @@
      *
      * @param {number} datatype_id
      * @param {string} page_type
-     * @param {string} search_key
+     * @param {string} [search_key]
      */
-    function openChooseViewRemodal(datatype_id, page_type, search_key) {
+    function openChooseViewRemodal(datatype_id, page_type, search_key = '') {
         var page_type_title = "Choose from available layouts:";
         if ( page_type != '' ) {
             var pieces = page_type.split(/_/);
@@ -613,10 +650,9 @@
             page_type_title = "Choose from available layouts for " + pieces.join(' ') + " mode:";
         }
 
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: page_type_title,
-            // body: "<div>Loading will not display if body is set.</div>",
-            // loading: true,  // Force loading to display
         };
         openODRRemodal(modal_options);
 
@@ -631,11 +667,67 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $(".ODRRemodalBody").html( data.d );
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    resetRemodalInnerHeight();
-                });
+                updateODRRemodalBody(data.d);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Opens the modal for users to view/select available sidebar layouts for the current page type
+     * for this datatype.
+     *
+     * @param {number} datatype_id
+     * @param {string} intent
+     */
+    function openChooseSidebarLayoutRemodal(datatype_id, intent) {
+        var intent_title = "Choose from available sidebar layouts:";
+        if ( intent != '' ) {
+            var pieces = intent.split(/_/);
+            for (var key in pieces)
+                pieces[key] = pieces[key][0].toUpperCase() + pieces[key].slice(1);
+            intent_title = "Choose from available sidebar layouts for " + pieces.join(' ') + " mode:";
+        }
+
+        // Need to pull the search key from the sidebar instead of having it passed in...twig isn't
+        //  guaranteed to have it when certain parts of the page are built
+        var search_key = $("#ODRSidebarSearchKey").val();
+
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
+            title: intent_title,
+        };
+        openODRRemodal(modal_options);
+
+        var url = '{{ path('odr_get_available_sidebar_layouts', { 'datatype_id': 0, 'intent': '', 'search_key': '' }) }}';
+        url = url.substring(0, url.length - 2);
+        url += datatype_id + '/' + intent + '/' + search_key;
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                updateODRRemodalBody(data.d);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
@@ -667,8 +759,8 @@
             $(this).unbind('click').click(function() {
                 // When a header is clicked, hide each of the content divs
                 $(this).parent().children(".accordion-content").each(function() {
-                    if ( !$(this).is(":hidden") ) {
-                        $(this).hide();
+                    if ( !$(this).hasClass('ODRHidden') ) {
+                        $(this).addClass('ODRHidden');
                         // console.log( '.ODRFormAccordion: hiding', $(this) );
                     }
                     $(this).prev().removeClass('ODRAccordionSelected');
@@ -695,7 +787,7 @@
                 if ( !$(this).hasClass("ODRAccordionSelected") ) {
                     // Ensure that all child/linked records are hidden, unless user has already
                     //  selected one of them
-                    $(this).next().hide();
+                    $(this).next().addClass('ODRHidden');
                     // console.log( '.ODRChildDatatype: hiding ', $(this).next() );
                 }
                 else {
@@ -710,11 +802,11 @@
                 $(this).children().children(".ODRFormAccordion").children("h3").each(function(index,elem) {
                     if ( index === 0 ) {
                         // console.log('showing: ', $(elem).next());
-                        $(elem).next().show();
+                        $(elem).next().removeClass('ODRHidden');
                     }
                     else {
                         // console.log('hiding: ', $(elem).next());
-                        $(elem).next().hide();
+                        $(elem).next().addClass('ODRHidden');
                     }
                 });
             }
@@ -747,11 +839,11 @@
                     // Hide all the content divs except the one that was selected
                     $(wrapper_div).children(".accordion-content").each(function() {
                         if ( $(this).attr('id') !== selected_dr ) {
-                            $(this).hide();
+                            $(this).addClass('ODRHidden');
                             // console.log( '.ODRTabAccordion button: hiding ', $(this) );
                         }
                         else {
-                            $(this).show();
+                            $(this).removeClass('ODRHidden');
                             // console.log( '.ODRTabAccordion button: showing ', $(this) );
                         }
                     });
@@ -769,10 +861,10 @@
 
                 // ...and the first content div is the only one visible
                 $(wrapper_div).children(".accordion-content").each(function() {
-                    $(this).hide();
+                    $(this).addClass('ODRHidden');
                     // console.log( '.ODRTabAccordion: hiding ', $(this) );
                 });
-                $(wrapper_div).children(".accordion-content").first().show();
+                $(wrapper_div).children(".accordion-content").first().removeClass('ODRHidden');
             }
         });
 
@@ -784,11 +876,11 @@
             var wrapper_div = $(this);
             $(wrapper_div).children(".accordion-content").each(function(index,elem) {
                 if ( index > 0 ) {
-                    $(elem).hide();
+                    $(elem).addClass('ODRHidden');
                     // console.log( '.ODRDropdownAccordion: hiding child ' + index, $(elem) );
                 }
                 else {
-                    $(elem).show();
+                    $(elem).removeClass('ODRHidden');
                     // console.log( '.ODRDropdownAccordion: showing child ' + index, $(elem) );
                 }
             });
@@ -802,11 +894,11 @@
                 // Hide all the content divs except the one that was selected
                 $(wrapper_div).children(".accordion-content").each(function() {
                     if ( $(this).attr('id') !== selected_dr ) {
-                        $(this).hide();
+                        $(this).addClass('ODRHidden');
                         // console.log( '.ODRDropdownAccordion select: hiding ', $(this) );
                     }
                     else {
-                        $(this).show();
+                        $(this).removeClass('ODRHidden');
                         // console.log( '.ODRDropdownAccordion select: showing ', $(this) );
                     }
                 });
@@ -829,7 +921,7 @@
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);
 
         // Resize all textarea elements
-        $("textarea").not(":hidden").each(function() {
+        $("textarea:visible").each(function() {
             var el = $(this);
 
             // Remove any pre-existing height/width from the textarea
@@ -870,8 +962,8 @@
             });
 
             if (count <= images_per_row) {
-                $("#ODRImageLeft_" + datafield_id + "_" + datarecord_id).hide();
-                $("#ODRImageRight_" + datafield_id + "_" + datarecord_id).hide();
+                $("#ODRImageLeft_" + datafield_id + "_" + datarecord_id).addClass('ODRHidden');
+                $("#ODRImageRight_" + datafield_id + "_" + datarecord_id).addClass('ODRHidden');
 
                 if (count == 0)
                     $(this).html('<center><strong>No Images Found</strong></center>');
@@ -935,11 +1027,11 @@
 
             if ( states === 2 ) {
                 if ( $(this).hasClass('ODRTagCollapsed') ) {
-                    $(tag_children_div).show();
+                    $(tag_children_div).removeClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
                 }
                 else {
-                    $(tag_children_div).hide();
+                    $(tag_children_div).addClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
                 }
 
@@ -949,8 +1041,8 @@
                 if ( $(this).hasClass('ODRTagCollapsed') && $(this).parent().hasClass('ODRTagSelected') ) {
                     // This tag is currently collapsed, and has selected children...go from collapsed
                     //  to only partially collapsed
-                    $(tag_children_div).show();
-                    $(tag_children_div).children('li.ODRTagItem').not('.ODRTagSelected').hide();
+                    $(tag_children_div).removeClass('ODRHidden');
+                    $(tag_children_div).children('li.ODRTagItem').not('.ODRTagSelected').addClass('ODRHidden');
 
                     $(icon_div).removeClass("fa-caret-right").addClass("fa-ellipsis-h");
 
@@ -960,74 +1052,28 @@
                     // This tag is currently collapsed, but has no selected children...there's no
                     //  point going to partially collapsed, since nothing will change, so instead
                     //  show everything
-                    $(tag_children_div).show();
-                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(tag_children_div).removeClass('ODRHidden');
+                    $(tag_children_div).children('li.ODRTagItem').removeClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
 
                     $(this).removeClass('ODRTagCollapsed');
                 }
                 else if ( $(this).hasClass('ODRTagPartialCollapsed') ) {
                     // This tag is partially collapsed...go to showing everything
-                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(tag_children_div).children('li.ODRTagItem').removeClass('ODRHidden');
                     $(icon_div).removeClass("fa-ellipsis-h").addClass("fa-caret-down");
 
                     $(this).removeClass('ODRTagPartialCollapsed');
                 }
                 else {
                     // This tag is showing everything...go back to completely collapsed
-                    $(tag_children_div).hide();
+                    $(tag_children_div).addClass('ODRHidden');
                     $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
 
                     $(this).addClass('ODRTagCollapsed');
                 }
             }
         });
-    }
-
-    /**
-     * Resizes the currently open modal.
-     *
-     * @param {boolean} ignore_content_height if true, modal attempts to take up the entire window regardless of content size
-     *
-     * @returns {number}
-     */
-    function resetRemodalInnerHeight(ignore_content_height = false) {
-        var modal = $("#ODRRemodal");
-        var modal_inner = modal.find(".ODRRemodalInner");
-        var modal_inner_content = modal.find(".ODRRemodalInnerContent");
-
-        // Get Scroll height of inner, plus some extra for the scrollbars
-        var content_height = modal_inner_content.prop('scrollHeight') + 50;
-        // console.log('content_height: ' + content_height);
-
-        var modal_height =  $(window).height()
-            - modal.find(".ODRRemodalButtons").height()
-            - modal.find(".ODRRemodalTitle").height();
-
-        if ( $(window).width() >= 568 )
-            modal_height -= 30;
-        // console.log('modal_height: ' + modal_height);
-
-        // Just show content if smaller than window height
-        if (!ignore_content_height && content_height < modal_height)
-            modal_height = content_height;
-        // console.log('adjusted_height: ' + modal_height);
-
-        // Ensure it looks okay
-        modal_height -= 40;
-        if (modal_height < 200)
-            modal_height = 200;
-        // console.log('final_height: ' + modal_height);
-
-        modal_inner.animate(
-            {height: modal_height},
-            {
-                duration: 400,
-                easing: "swing"
-            }
-        );
-
-        return modal_height;
     }
 
     {# This is apparently only used in ODROpenRepositoryGraphBundle:Base:Graph/graph.html.twig #}
@@ -1192,6 +1238,23 @@
         $(image_elem).attr( 'src', new_src );
     }
 
+    /**
+     * Reapplies the odd/even css classes on rows in a datatables instance.
+     *
+     * @param {HTMLElement} table
+     */
+    function redoRowClasses(table) {
+        var count = 0;
+        $(table).find('tr').each(function() {
+            if ( $(this).is(':visible') ) {
+                count++;
+                if ( count % 2 === 1 )
+                    $(this).removeClass('odd').addClass('even');
+                else
+                    $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

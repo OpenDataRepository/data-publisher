@@ -1,52 +1,32 @@
 {% spaceless %}
 
-    {% set is_datatype_admin = false %}
-    {% if datatype_permissions[target_datatype.id] is defined and datatype_permissions[target_datatype.id]['dt_admin'] is defined %}
-        {% set is_datatype_admin = true %}
-    {% endif %}
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[target_datatype.id] is defined and datatype_permissions[target_datatype.id]['dt_admin'] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
 
-    {% set datatype = datatype_array[target_datatype.id] %}
+{% set using_sidebar_layout = false %}
+{% if sidebar_array['layout_array']|length > 0 %}
+    {% set using_sidebar_layout = true %}
+{% endif %}
 
-    <div id="markdown_help_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
-    </div>
+{% set datatype_array = sidebar_array['datatype_array'] %}
+{% set datatype = datatype_array[target_datatype.id] %}
+
+<div id="markdown_help_dialog_wrapper">
+    {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
+</div>
 
     {# Search sidebar is loaded from ODROpenRepositorySearchBundle:Default:index.html.twig #}
     {#{% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' %}#}
 
 <script>
     $(function () {
-        {% if preferred_theme.disableSearchSidebar == false %}
-        if ( window.location.href.indexOf('#') === -1 ) {
-            // Ensure the sidebar is visible when on the default search page
-            enableSearchSidebar('', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-        }
-        else {
-            // Everywhere else, just ensure it's up to date
-            enableSearchSidebar();
-        }
-        {% else %}
-        disableSearchSidebar();
-        {% endif %}
-
+        // Need to ensure the sidebar is initialized properly...
         InitSearchSidebar();
-
-{% if sidebar_reload == false %}
-    {% if search_params|length <= 1 %}
-        // Close all accordions, then re-open the first one (target datatype)
-        $(".ODRAdvSearch_header").trigger('click');
-        $(".ODRAdvSearch_default").prev().trigger('click');
-        // Default to not-advanced search
-        $(".ODRAdvSearch_header").parent().hide();
-    {% else %}
-        // Close all accordions...those with search params will remain partially open
-        $(".ODRAdvSearch_header").trigger('click');
-        // Hide the advanced search div...
-        $(".ODRAdvSearch_header").parent().hide();
-        // ...then switch back to advanced search
-        changeSearch();
-    {% endif %}
-{% endif %}
+        // ...but don't need to ensure it's enabled...the display/edit/search results page will take
+        //  care of that
+        // enableSearchSidebar('{{ search_key }}', 'expanded');
 
         // If user is on the base search page for a datatype...
         if (window.location.hash.length === 0) {
@@ -59,34 +39,35 @@
     });
 
     /**
-     * Toggles the search sidebar between "basic" and "advanced" modes.  In "basic" mode, only the
-     * general search box can be modified...in "advanced" mode, all datafields and metadata can be
-     * modified.
+     * Toggles the search sidebar between "collapsed" and "extended" modes.  By default, the sidebar
+     * starts out in "collapsed" mode.
      */
     function changeSearch() {
-        if ($("#search_type").val() === 'basic') {
-            // Show all advanced search datafields
-            $("#search_type").val('advanced');
-            $(".ODRSearchHelper").each(function () {
-                $(this).html('Close Advanced Search');
+        // If this element doesn't exist, then there's nothing to do
+        if ( $("#ODRSearchControls_top") === undefined )
+            return;
+
+        if ($("#search_type").val() === 'collapsed') {
+            // Show all expanded search datafields
+            $("#search_type").val('extended');
+            $(".ODRSearchFieldsToggle").each(function () {
+                $(this).html('Close Expanded Search');
             });
 
-            $(".ODRAdvSearch_header").parent().removeAttr('style'); // show() uses display:block..don't want that
-            $(".ODRInput").prop("disabled", false);
+            $(".ODRSearchSidebar_extended").removeClass('ODRHidden');
 
-            $("#search_top").show();
+            $("#ODRSearchControls_top").removeClass('ODRHidden');
         }
         else {
-            // Hide all advanced search datafields
-            $("#search_type").val('basic');
-            $(".ODRSearchHelper").each(function () {
-                $(this).html('Open Advanced Search');
+            // Hide all expanded search datafields
+            $("#search_type").val('collapsed');
+            $(".ODRSearchFieldsToggle").each(function () {
+                $(this).html('Open Expanded Search');
             });
 
-            $(".ODRAdvSearch_header").parent().hide();
-            $(".ODRInput").prop("disabled", true);
+            $(".ODRSearchSidebar_extended").addClass('ODRHidden');
 
-            $("#search_top").hide();
+            $("#ODRSearchControls_top").addClass('ODRHidden');
         }
     }
 
@@ -94,8 +75,16 @@
      * Reloads the page so the default search is guaranteed to display.
      */
     function doReset() {
-        {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
-        window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
+        var context = $("#odr_content").find("#ODRSearchSidebar").first();
+        var intent = $(context).find("#ODRSearchIntent").val();
+
+        if ( intent === 'searching' ) {
+            {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
+            window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
+        }
+        else {
+            window.location.reload();
+        }
     }
 
     /**
@@ -232,24 +221,22 @@
         // console.log(search_form);
 
         var post_data = $(search_form).serialize();
-        // var df_values = post_data.split(/&/);
-        // var cleaned = [];
-        // $.each(df_values, function(index, elem) {
-        //     if ( elem.charAt(elem.length-1) !== '=' )
-        //         cleaned.push(elem);
-        // });
-        // console.log( cleaned.join('&') );
-
-        // NOTE: due to advanced search removing all disabled attributes, the resulting post will
-        //  typically have a bunch of blank entries...ODR automatically filters these superfluous
-        //  entries out when it returns the search key
+        var df_values = post_data.split(/&/);
+        var cleaned = [];
+        $.each(df_values, function(index, elem) {
+            if ( elem.charAt(elem.length-1) !== '=' )
+                cleaned.push(elem);
+        });
+        post_data = cleaned.join('&');
+        // console.log(post_data);
 
         // ----------------------------------------
         // TODO - need to communicate which theme to use...
 
         // Request search results
+        var intent = $(context).find("#ODRSearchIntent").val();
         if ( is_actual_search )
-            showSearchOverlay( $("#ODRSearchIntent").val() );
+            showSearchOverlay('Searching...', intent);
 
         $.ajax({
             type: 'POST',
@@ -264,8 +251,6 @@
                 }
 
                 // ----------------------------------------
-                var intent = $(context).find("#ODRSearchIntent").val();
-
                 // If this was a "regular" search request, then do required setup before redirecting
                 //  the user
                 if ( intent === 'searching' ) {
@@ -389,7 +374,6 @@
         applyToTagParents( $(parent_tag) );
     }
 
-
     /**
      * When a tag is clicked, all of its children need to have their selections cleared...
      * @param {HTMLElement} source_element
@@ -406,28 +390,69 @@
             $(this).val('');
         });
     }
-</script>
 
-<script>
+    /**
+     * Filters the displayed options/tags for a field in the search sidebar.
+     *
+     * @param {HTMLElement} context
+     * @param {number} df_id
+     */
+    function filterSearchSidebarField(context, df_id) {
+        var filter_element = $(context).find("#df_" + df_id + "_filter").first();
+        var fieldtype = $(filter_element).attr('rel');
+        var filter_text = $(filter_element).val().trim().toLowerCase();
 
-    var search_content = "";
-{#
-    $(function() {
-        setupBackgroundImage();
-    });
+        if ( fieldtype == 'Radio' ) {
+            // Radio fields are simpler to filter...
+            var radio_options = $(context).find("#Input_" + df_id).children(".ODRRadioLabel");
 
-    function setupBackgroundImage() {
-        {% if background_image_id != null %}
-        if (window.location.hash === '') {
-            // After the rest of the page is loaded, start loading the bg image
-            var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
-            url = url.substring(0, url.length - 1);
-            url += "{{ background_image_id }}";
-            $("#odr_bg").attr('src', url);
+            if ( filter_text == '' ) {
+                // If no text in the filter, ensure all radio options are visible
+                $(radio_options).each(function(index,elem) {
+                    $(elem).removeClass('ODRHidden');
+                });
+            }
+            else {
+                $(radio_options).each(function(index,elem) {
+                    // Otherwise, need to convert each radio option to lower case...
+                    var option_name = $(elem).text().toLowerCase();
+
+                    // ...so it can get compared against the provided filter text
+                    if ( option_name.indexOf(filter_text) === -1 )
+                        $(elem).addClass('ODRHidden');
+                    else
+                        $(elem).removeClass('ODRHidden');
+                });
+            }
         }
-        {% endif %}
+        else if ( fieldtype == 'Tag' ) {
+            // Tag fields could have a hierarchy...
+            var tags = $(context).find("#Input_" + df_id).find(".ODRTagItem");
+
+            if ( filter_text == '' ) {
+                // If no text in the filter, ensure all tags are visible
+                $(tags).each(function(index,elem) {
+                    $(elem).removeClass('ODRHidden');
+                });
+            }
+            else {
+                $(tags).each(function(index,elem) {
+                    // Otherwise, need to convert each tag to lower case...
+                    var tag_name = $(elem).children('label').text().toLowerCase();
+
+                    // ...so it can get compared against the provided filter text
+                    if ( tag_name.indexOf(filter_text) === -1 )
+                        $(elem).addClass('ODRHidden');
+                    else {
+                        $(elem).removeClass('ODRHidden');
+
+                        // Also need to ensure that all parents of this tag are visible
+                        $(elem).parents('.ODRTagItem').removeClass('ODRHidden');
+                    }
+                });
+            }
+        }
     }
-#}
 </script>
 
 {% endspaceless %}

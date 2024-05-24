@@ -1,30 +1,41 @@
 {% spaceless %}
 
-<input type="hidden" name="search_key" value="{{ search_key }}" />
+<div id="ODRMassDownloadFormWrapper">
+    <form id="ODRMassDownloadForm" method="POST">
+        <input type="hidden" name="search_key" value="{{ search_key }}" />
 
-<div class="pure-u-1 ODRContentWrapper">
-    <div class="ODRThemeElement">
-        <div class="ODRInnerBox">
-            <div class="ODRMarkdownContent">
-                <p>
-                    This dialog allows you to select file or image datafields belonging to the current database.
-                </p>
-                <p>
-                    After selecting at least one datafield and clicking the "Download Files" button,
-                    a zip archive will be created containing all the files that have been uploaded to
-                    those datafields.
-                </p>
+        <div class="pure-u-1 ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <div class="ODRMarkdownContent">
+                        <p>
+                            This dialog allows you to select file or image datafields belonging to the current database.
+                        </p>
+                        <p>
+                            After selecting at least one datafield and clicking the "Download Files" button,
+                            a zip archive will be created containing all the files that have been uploaded to
+                            those datafields.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    {% include 'ODRAdminBundle:Default:mass_download_dialog_form_data.html.twig' with {
+                        'entity_names': entity_names,
+                        'dt_array': dt_array
+                    } %}
+                </div>
             </div>
         </div>
-    </div>
+    </form>
+</div>
 
-    <div class="ODRThemeElement">
-        <div class="ODRInnerBox">
-            {% include 'ODRAdminBundle:Default:mass_download_dialog_form_data.html.twig' with {
-                'entity_names': entity_names,
-                'dt_array': dt_array
-            } %}
-        </div>
+<div id="ODRFileDownloadForm_progress" class="ODRHidden">
+    <div>Creating archive:</div>
+    <div>
+        <span id="ODRFileDownloadForm_current"></span> / <span id="ODRFileDownloadForm_total"></span> files added.
     </div>
 </div>
 

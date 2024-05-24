@@ -38,7 +38,7 @@
         $(".ODRChildDatatype").each(function(index,elem) {
             var child_theme_elements = $(elem).find('.ODRThemeElement,.ODRRenderPluginContent');
             if ( child_theme_elements.length == 0 )
-                $(elem).parent().parent().hide();
+                $(elem).parent().parent().addClass('ODRHidden');
         });
 
         // Resize everything prior to divs being hidden
@@ -57,18 +57,16 @@
         // Attach click handlers to tags
         setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-    {% if theme.themeMeta.disableSearchSidebar == true or search_key == '' %}
+{% if theme.themeMeta.disableSearchSidebar == true or search_key == '' %}
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-    {% else %}
-        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-    {% endif %}
+{% else %}
+        enableSearchSidebar('{{ search_key }}', 'collapsed');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+{% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }
 
     function setupFileDownloader() {
-
-        $(".ODRFileDownloadProgress").hide();
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {
             // Grab necessary attributes

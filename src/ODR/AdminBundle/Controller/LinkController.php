@@ -20,6 +20,7 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\LinkedDataTree;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -46,7 +47,6 @@ use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -829,6 +829,9 @@ class LinkController extends ODRCustomController
             if ($remote_datatype_id == $previous_remote_datatype_id)
                 throw new ODRBadRequestException("Already linked to this Datatype");
 
+            // NOTE: local_datatype is a synonym for the ancestor datatype
+            // NOTE: remote_datatype is a synonym for the descendant datatype
+
 
             // --------------------
             // Determine user privileges
@@ -947,7 +950,8 @@ class LinkController extends ODRCustomController
                 // Mark all Datarecords that used to link to the remote datatype as updated
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update, $previous_remote_datatype);
 
-                // Determine whether one of the local datatype's sortfields belongs a remote datatype...
+                // ----------------------------------------
+                // Determine whether one of the local datatype's sortfields belongs to a remote datatype...
                 $query = $em->createQuery(
                    'SELECT dtsf.id
                     FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
@@ -964,8 +968,8 @@ class LinkController extends ODRCustomController
                 );
                 $dtsf_ids = $query->getArrayResult();
 
+                // ...if so, then those entries need to get deleted
                 if ( !empty($dtsf_ids) ) {
-                    // ...if so, then delete that entry
                     $query = $em->createQuery(
                        'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
                         SET dtsf.deletedAt = :now, dtsf.deletedBy = :deleted_by
@@ -984,6 +988,42 @@ class LinkController extends ODRCustomController
                     $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
                 }
 
+                // ----------------------------------------
+                // Determine whether the ancestor datatype uses a field from the descendant datatype
+                //  in one of its sidebar layouts...
+                $query = $em->createQuery(
+                   'SELECT sl_dfm.id AS sl_dfm_id
+                    FROM ODRAdminBundle:SidebarLayout AS sl
+                    JOIN ODRAdminBundle:SidebarLayoutMap AS sl_dfm WITH sl_dfm.sidebarLayout = sl
+                    WHERE sl.dataType = :ancestor_datatype_id
+                    AND sl_dfm.dataType = :descendant_datatype_id
+                    AND sl.deletedAt IS NULL AND sl_dfm.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'ancestor_datatype_id' => $local_datatype_id,
+                        'descendant_datatype_id' => $previous_remote_datatype_id
+                    )
+                );
+                $sl_dfm_ids = $query->getArrayResult();
+
+                if ( !empty($sl_dfm_ids) ) {
+                    $query = $em->createQuery(
+                       'UPDATE ODRAdminBundle:SidebarLayoutMap AS sl_dfm
+                        SET sl_dfm.deletedAt = :now
+                        WHERE sl_dfm.id IN (:sl_dfm_ids)
+                        AND sl_dfm.deletedAt IS NULL'
+                    )->setParameters(
+                        array(
+                            'now' => new \DateTime(),
+                            'sl_dfm_ids' => $sl_dfm_ids,
+                        )
+                    );
+
+                    $result = $query->execute();
+                }
+
+
+                // ----------------------------------------
                 // Ensure that the "master_revision" property gets updated if required
                 $needs_flush = false;
                 if ( $local_datatype->getIsMasterType() ) {
@@ -991,6 +1031,7 @@ class LinkController extends ODRCustomController
                     $needs_flush = true;
                 }
 
+                // ----------------------------------------
                 // Done making mass updates, commit everything
                 $conn->commit();
 
@@ -1625,7 +1666,7 @@ class LinkController extends ODRCustomController
                 $datatype_ids[] = $dt_id;
 
             $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, dtm.publicDate, dtm.shortName, dtsf.id AS dtsf_id, dtsf.field_purpose
+               'SELECT dt.id AS dt_id, dtm.publicDate, dtm.shortName, dtm.searchSlug, dtsf.id AS dtsf_id, dtsf.field_purpose
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataType = dt
@@ -1638,6 +1679,7 @@ class LinkController extends ODRCustomController
                 $dt_id = $result['dt_id'];
                 $dt_public_date = $result['publicDate'];
                 $dt_name = $result['shortName'];
+                $dt_search_slug = $result['searchSlug'];
                 $dtsf_id = $result['dtsf_id'];
                 $dtsf_purpose = $result['field_purpose'];
 
@@ -1646,6 +1688,7 @@ class LinkController extends ODRCustomController
                     $data[$dt_id] = array(
                         'dt_name' => $dt_name,
                         'dt_public_date' => $dt_public_date,
+                        'search_slug' => $dt_search_slug,
                         'records' => array()
                     );
                 }
@@ -1718,6 +1761,7 @@ class LinkController extends ODRCustomController
                         $linked_record_data[$dt_id] = array(
                             'direction' => $dt_data['direction'],
                             'dt_name' => $dt_data['dt_name'],
+                            'search_slug' => $dt_data['search_slug'],
                             'records' => array()
                         );
                     }
@@ -1767,7 +1811,6 @@ class LinkController extends ODRCustomController
             $site_baseurl = $this->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 $site_baseurl .= 'app_dev.php/';
-            $site_baseurl .= 'admin';
 
             foreach ($linked_record_data as $dt_id => $dt_data) {
                 $names = array();
@@ -1783,7 +1826,7 @@ class LinkController extends ODRCustomController
                             )
                         );
 
-                        $names[] = '<a target="_blank" href="'.$site_baseurl.'#'.$url.'">'.$dr_name.'</a>';
+                        $names[] = '<a target="_blank" href="'.$site_baseurl.$dt_data['search_slug'].'#'.$url.'">'.$dr_name.'</a>';
                     }
                     else {
                         // Not going to display the datarecord id
@@ -1870,8 +1913,6 @@ class LinkController extends ODRCustomController
             $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var TableThemeHelperService $table_theme_helper_service */
-            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var SearchKeyService $search_key_service */
@@ -1889,8 +1930,6 @@ class LinkController extends ODRCustomController
             $local_datatype = $local_datarecord->getDataType();
             if ($local_datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Local Datatype');
-
-            // $local_datatype_id = $local_datatype->getId();
 
             /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
@@ -1966,88 +2005,31 @@ class LinkController extends ODRCustomController
             if ($remote_datatype->getSetupStep() != DataType::STATE_OPERATIONAL)
                 throw new ODRBadRequestException('Unable to link to Remote Datatype');
 
-            // Since the above statement didn't throw an exception, the one below shouldn't either...
-            $theme_id = $theme_info_service->getPreferredThemeId($user, $remote_datatype->getId(), 'search_results');    // TODO - do I actually want a separate page type for linking purposes?
+            // Create a base search key for the search sidebar, so it believes that it's working
+            //  with the remote datatype
+            $remote_datatype_search_key = '';
+            if ($remote_datatype->getStoredSearchKeys() && $remote_datatype->getStoredSearchKeys()->count() > 0) {
+                // If the remote datatype has a stored search key, then might as well use it
+                /** @var StoredSearchKey $ssk */
+                $ssk = $remote_datatype->getStoredSearchKeys()->first();
+                $remote_datatype_search_key = $ssk->getSearchKey();
 
-            // Create a base search key for the remote datatype, so the search sidebar can be used
-            $remote_datatype_search_key = $search_key_service->encodeSearchKey(
-                array(
-                    'dt_id' => $remote_datatype->getId()
-                )
-            );
-
-
-            // ----------------------------------------
-            // Grab all datarecords currently linked to the local_datarecord
-            $linked_datarecords = array();
-            if ($local_datarecord_is_ancestor) {
-                // local_datarecord is on the ancestor side of the link
-                $query = $em->createQuery(
-                   'SELECT descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                    WHERE ancestor = :local_datarecord AND descendant.dataType = :remote_datatype
-                    AND descendant.provisioned = false
-                    AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
-                )->setParameters(
-                    array(
-                        'local_datarecord' => $local_datarecord->getId(),
-                        'remote_datatype' => $remote_datatype->getId()
-                    )
-                );
-                $results = $query->getArrayResult();
-
-                foreach ($results as $num => $data) {
-                    $descendant_id = $data['descendant_id'];
-                    if ( $descendant_id == null || trim($descendant_id) == '' )
-                        continue;
-
-                    $linked_datarecords[ $descendant_id ] = 1;
-                }
+                // NOTE: the linking page doesn't directly render the sidebar, so there's no reason
+                //  to decode the search key here...it'll be handled as part of the sidebar refresh
             }
             else {
-                // local_datarecord is on the descendant side of the link
-                $query = $em->createQuery(
-                   'SELECT ancestor.id AS ancestor_id
-                    FROM ODRAdminBundle:DataRecord AS descendant
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = descendant
-                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                    WHERE descendant = :local_datarecord AND ancestor.dataType = :remote_datatype
-                    AND ancestor.provisioned = false
-                    AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters(
+                $remote_datatype_search_key = $search_key_service->encodeSearchKey(
                     array(
-                        'local_datarecord' => $local_datarecord->getId(),
-                        'remote_datatype' => $remote_datatype->getId()
+                        'dt_id' => $remote_datatype->getId()
                     )
                 );
-                $results = $query->getArrayResult();
-
-                foreach ($results as $num => $data) {
-                    $ancestor_id = $data['ancestor_id'];
-                    if ( $ancestor_id == null || trim($ancestor_id) == '' )
-                        continue;
-
-                    $linked_datarecords[ $ancestor_id ] = 1;
-                }
             }
 
-            // ----------------------------------------
-            // Store whether the link allows multiples or not
-            $datatree_array = $datatree_info_service->getDatatreeArray();
-
-            $allow_multiple_links = false;
-            if ( isset($datatree_array['multiple_allowed'][$descendant_datatype->getId()])
-                && in_array(
-                    $ancestor_datatype->getId(),
-                    $datatree_array['multiple_allowed'][$descendant_datatype->getId()]
-                )
-            ) {
-                $allow_multiple_links = true;
-            }
 
             // ----------------------------------------
+            // Store whether the link allows multiple records or not
+            $allow_multiple_links = $datatree_info_service->allowsMultipleLinkedDatarecords($ancestor_datatype->getid(), $descendant_datatype->getId());
+
             // Determine which, if any, datarecords can't be linked to because doing so would
             //  violate the "multiple_allowed" rule
             $illegal_datarecords = array();
@@ -2082,28 +2064,18 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // The page is slightly easier to use if the "local" record is available to look at...
-            $dt_array = $database_info_service->getDatatypeArray($local_datatype->getId(), false);    // don't want links...
-            $dr_array = $datarecord_info_service->getDatarecordArray($local_datarecord->getId(), false);
-            $master_theme = $theme_info_service->getDatatypeMasterTheme($local_datatype->getId());
-            $theme_array = $theme_info_service->getThemeArray($master_theme->getId());
+            $local_dt_array = $database_info_service->getDatatypeArray($local_datatype->getId(), false);    // don't want links...
+            $local_dr_array = $datarecord_info_service->getDatarecordArray($local_datarecord->getId(), false);
+            $local_dt_master_theme = $theme_info_service->getDatatypeMasterTheme($local_datatype->getId());
+            $local_dt_theme_array = $theme_info_service->getThemeArray($local_dt_master_theme->getId());
 
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
-            $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+            $permissions_service->filterByGroupPermissions($local_dt_array, $local_dr_array, $user_permissions);
 
 
             // ----------------------------------------
-            // Convert the list of linked datarecords into a slightly different format so the datatables plugin can use it
-            $datarecord_list = array();
-            foreach ($linked_datarecords as $dr_id => $value)
-                $datarecord_list[] = $dr_id;
-
-            $table_html = $table_theme_helper_service->getRowData($user, $datarecord_list, $remote_datatype->getId(), $theme_id);
-            $table_html = json_encode($table_html);
-
-            // Grab the column names for the datatables plugin
-            $column_data = $table_theme_helper_service->getColumnNames($user, $remote_datatype->getId(), $theme_id);
-            $column_names = $column_data['column_names'];
-            $num_columns = $column_data['num_columns'];
+            // Determine which theme the user prefers for this part of the linking page...
+            $remote_theme_id = $theme_info_service->getPreferredThemeId($user, $remote_datatype->getId(), 'linking');
 
             // Render the dialog box for this request
             $return['d'] = array(
@@ -2120,28 +2092,21 @@ class LinkController extends ODRCustomController
                         'descendant_datatype' => $descendant_datatype,
 
                         'allow_multiple_links' => $allow_multiple_links,
-                        'linked_datarecords' => $linked_datarecords,
                         'illegal_datarecords' => $illegal_datarecords,
-
-                        'count' => count($linked_datarecords),
-                        'table_html' => $table_html,
-                        'column_names' => $column_names,
-                        'num_columns' => $num_columns,
+                        'remote_theme_id' => $remote_theme_id,
 
                         // Needed for the call to display_ajax.html.twig...
-                        'datatype_array' => $dt_array,
-                        'datarecord_array' => $dr_array,
-                        'theme_array' => $theme_array,
+                        'datatype_array' => $local_dt_array,
+                        'datarecord_array' => $local_dr_array,
+                        'theme_array' => $local_dt_theme_array,
 
                         'initial_datatype_id' => $local_datatype->getId(),
                         'initial_datarecord_id' => $local_datarecord->getId(),
-                        'initial_theme_id' => $master_theme->getId(),
+                        'initial_theme_id' => $local_dt_master_theme->getId(),
 
                         'is_datatype_admin' => $permissions_service->isDatatypeAdmin($user, $local_datatype),
 
                         'is_top_level' => 1,
-//                        'search_key' => '',
-
                         'record_display_view' => 'multiple',    // disable the display javascript
                     )
                 )

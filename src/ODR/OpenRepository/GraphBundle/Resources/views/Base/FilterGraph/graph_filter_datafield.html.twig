@@ -9,7 +9,7 @@
     {% set is_hidden_field = true %}
 {% endif %}
 
-<div id="{{ odr_chart_id }}_field_{{ df.id }}" class="ODRDataField pure-u-1-4 {% if is_hidden_field %}ODRFilterGraphPlugin_HiddenFilterField{% endif %}" {% if is_hidden_field %}style="display:none;"{% endif %}>
+<div id="{{ odr_chart_id }}_field_{{ df.id }}" class="ODRDataField pure-u-1-4 {% if is_hidden_field %}ODRFilterGraphPlugin_HiddenFilterField ODRHidden{% endif %}">
     <form autocomplete="off" class="pure-u-1">
 
         <fieldset>

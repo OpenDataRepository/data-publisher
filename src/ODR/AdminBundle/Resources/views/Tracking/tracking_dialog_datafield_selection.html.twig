@@ -1,75 +1,78 @@
 {% spaceless %}
 
-<div class="pure-u-1">
-    <button type="button" id="ODRTracking_select_all" class="pure-button" rel="Hide">Select all fields</button>
-    <button type="button" id="ODRTracking_deselect_all" class="pure-button" rel="Hide">Deselect all fields</button>
+<div id="ODRTrackingDialogFormWrapper" class="pure-form">
+
+    <div class="pure-u-1">
+        <button type="button" id="ODRTracking_select_all" class="pure-button" rel="Hide">Select all fields</button>
+        <button type="button" id="ODRTracking_deselect_all" class="pure-button" rel="Hide">Deselect all fields</button>
+        <div class="pure-u-1-24"></div>
+        <button type="button" id="ODRTracking_show_all" class="pure-button" rel="Hide">Show all fields</button>
+        <button type="button" id="ODRTracking_hide_all" class="pure-button" rel="Hide">Hide all fields</button>
+    </div>
+
+    {% if datatype_restriction is defined and datatype_restriction is not null %}
+    <div class="ODRTrackingDatafieldList_spacer"></div>
+    <div>
+        <i class="fa fa-info-circle"></i>&nbsp;The list is only displaying Datafields of the "{{ datatype_restriction.getlongname }}" Datatype because the criteria includes a Datarecord.
+    </div>
+    {% endif %}
+
+    {% set prev_letter = '' %}
     <div class="pure-u-1-24"></div>
-    <button type="button" id="ODRTracking_show_all" class="pure-button" rel="Hide">Show all fields</button>
-    <button type="button" id="ODRTracking_hide_all" class="pure-button" rel="Hide">Hide all fields</button>
-</div>
-
-{% if datatype_restriction is defined and datatype_restriction is not null %}
-<div class="ODRTrackingDatafieldList_spacer"></div>
-<div>
-    <i class="fa fa-info-circle"></i>&nbsp;The list is only displaying Datafields of the "{{ datatype_restriction.getlongname }}" Datatype because the criteria includes a Datarecord.
-</div>
-{% endif %}
-
-{% set prev_letter = '' %}
-<div class="pure-u-1-24"></div>
-<div id="ODRTrackingDatafieldList" class="pure-u-22-24">
-{% for top_level_dt_name,dt_list in list %}
-    <ul>
-        {% if top_level_dt_name|first|lower != prev_letter %}
-            {% set prev_letter = top_level_dt_name|first|lower %}
-            <li class="ODRTrackingDatafieldList_spacer"></li>
-        {% endif %}
-        <li class="ODRTrackingDatafieldList_dt_container ODRTrackingdatafieldList_top_level">
-            <div class="ODRTrackingDatafieldList_dt_header">
-                <span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>
-                <span class="ODRTrackingDatafieldList_dt_name">{{ top_level_dt_name }}</span>
-                <span class="FRight"><i class="fa fa-caret-right"></i></span>
-            </div>
-            <ul class="ODRHidden">
-            {% for dt_name,df_list in dt_list %}
-                {% if dt_name == top_level_dt_name %}
-                    {% for df_id,df_name in df_list %}
-                    <li>
-                        <span class="ODRTristateCheckbox binary" rel="{{ df_id }}">
-                            <i class="fa"></i>
-                        </span>
-                        <span class="Cursor">{{ df_name }}</span>
-                    </li>
-                    {% endfor %}
-                {% endif %}
-            {% endfor %}
-            {% for dt_name,df_list in dt_list %}
-                {% if dt_name != top_level_dt_name %}
-                    <li class="ODRTrackingDatafieldList_dt_container">
-                        <div class="ODRTrackingDatafieldList_dt_header">
-                            <span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>
-                            {{ dt_name }}
-                            <span class="FRight"><i class="fa fa-caret-down"></i></span>
-                        </div>
-                        <ul>
+    <div id="ODRTrackingDatafieldList" class="pure-u-22-24">
+    {% for top_level_dt_name,dt_list in list %}
+        <ul>
+            {% if top_level_dt_name|first|lower != prev_letter %}
+                {% set prev_letter = top_level_dt_name|first|lower %}
+                <li class="ODRTrackingDatafieldList_spacer"></li>
+            {% endif %}
+            <li class="ODRTrackingDatafieldList_dt_container ODRTrackingdatafieldList_top_level">
+                <div class="ODRTrackingDatafieldList_dt_header">
+                    <span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>
+                    <span class="ODRTrackingDatafieldList_dt_name">{{ top_level_dt_name }}</span>
+                    <span class="FRight"><i class="fa fa-caret-right"></i></span>
+                </div>
+                <ul class="ODRHidden">
+                {% for dt_name,df_list in dt_list %}
+                    {% if dt_name == top_level_dt_name %}
                         {% for df_id,df_name in df_list %}
-                            <li>
-                                <span class="ODRTristateCheckbox binary" rel="{{ df_id }}">
-                                    <i class="fa"></i>
-                                </span>
-                                <span class="Cursor">{{ df_name }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </li>
-                {% endif %}
-            {% endfor %}
-            </ul>
-        </li>
-    </ul>
-{% endfor %}
+                        <li>
+                            <span class="ODRTristateCheckbox binary" rel="{{ df_id }}">
+                                <i class="fa"></i>
+                            </span>
+                            <span class="Cursor">{{ df_name }}</span>
+                        </li>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+                {% for dt_name,df_list in dt_list %}
+                    {% if dt_name != top_level_dt_name %}
+                        <li class="ODRTrackingDatafieldList_dt_container">
+                            <div class="ODRTrackingDatafieldList_dt_header">
+                                <span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>
+                                {{ dt_name }}
+                                <span class="FRight"><i class="fa fa-caret-down"></i></span>
+                            </div>
+                            <ul>
+                            {% for df_id,df_name in df_list %}
+                                <li>
+                                    <span class="ODRTristateCheckbox binary" rel="{{ df_id }}">
+                                        <i class="fa"></i>
+                                    </span>
+                                    <span class="Cursor">{{ df_name }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                </ul>
+            </li>
+        </ul>
+    {% endfor %}
+    </div>
+    <div class="pure-u-1-24"></div>
 </div>
-<div class="pure-u-1-24"></div>
 
 <script>
     $(function() {

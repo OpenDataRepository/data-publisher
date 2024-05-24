@@ -77,22 +77,18 @@
 
         var allow_multiple_links = $("#LinkDataRecordForm").children('input[name="allow_multiple_links"]').val();
         var local_datarecord_is_ancestor = $("#LinkDataRecordForm").children('input[name="local_datarecord_is_ancestor"]').val();
-        if (allow_multiple_links === 0)
-            $("#ODRLinkSelection").remove();
-        else
-            $("#ODRLinkSelection").show();
 
         $(".SearchResults_link_box").each(function() {
             var id_data = $(this).attr('id').split(/_/);
             var dr_id = id_data[1];
 
             if (allow_multiple_links === "1" || local_datarecord_is_ancestor === "0")
-                $(this).append('<input type="checkbox" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="LinkRecord(' + dr_id + ');" /> Link to this record');
+                $(this).append('<input type="checkbox" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" /> Link to this record');
             else
-                $(this).append('<input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="LinkRecord(' + dr_id + ');" /> Link to this record');
+                $(this).append('<input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" /> Link to this record');
         });
 
-        initCheckboxes(".ODRShortResultWrapper", false);
+        ODRLinkDatarecords_initCheckboxes(".ODRShortResultWrapper", false);
     });
 {% endif %}
 </script>

@@ -1,82 +1,82 @@
 {% spaceless %}
 
-<!-- Link DataType Dialog Form -->
-<form class="pure-form pure-form-aligned" id="ODRLinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
+<div id="ODRLinkDatatypeFormWrapper">
+    <form class="pure-form pure-form-aligned" id="ODRLinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
 
-    <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
-    <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
-    <input type="hidden" id="ODRLinkDatatypeForm_previous" name="previous_remote_datatype" value="{% if remote_datatype != null %}{{ remote_datatype.id }}{% endif %}" />
+        <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
+        <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
+        <input type="hidden" id="ODRLinkDatatypeForm_previous" name="previous_remote_datatype" value="{% if remote_datatype != null %}{{ remote_datatype.id }}{% endif %}" />
 
-{% if remote_datatype != null and has_linked_datarecords %}
-    <div id="ODRRemoteDatatypeHasLinks" class="pure-u-1">
-        <div>
-            <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
-            <span>Several Datarecords of the local Database "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Database "{{ remote_datatype.getShortName }}".</span>
+        {% if remote_datatype != null and has_linked_datarecords %}
+        <div id="ODRRemoteDatatypeHasLinks" class="pure-u-1">
+            <div>
+                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
+                <span>Several Datarecords of the local Database "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Database "{{ remote_datatype.getShortName }}".</span>
+            </div>
+            <div>
+                <i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i>&nbsp;&nbsp;
+                <span>Click the gear icon to see which connections would be deleted if the local Database is unlinked from the remote Database.</span>
+            </div>
         </div>
-        <div>
-            <i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i>&nbsp;&nbsp;
-            <span>Click the gear icon to see which connections would be deleted if the local Database is unlinked from the remote Database.</span>
-        </div>
-    </div>
-{% endif %}
+        {% endif %}
 
-    <fieldset>
-        <div class="pure-control-group">
-        {% if linkable_datatypes is empty %}
-            <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
-            <span>There are no {% if local_datatype.isMasterType %}Templates{% else %}Databases{% endif %} that can be linked to.</span>
-        {% else %}
+        <fieldset>
+            <div class="pure-control-group">
+            {% if linkable_datatypes is empty %}
+                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
+                <span>There are no {% if local_datatype.isMasterType %}Templates{% else %}Databases{% endif %} that can be linked to.</span>
+            {% else %}
 
-            <label for="selected_datatype">
-                {% if local_datatype.isMasterType %}
-                    <strong>Template Name:</strong>
-                {% else %}
-                    <strong>Database Name:</strong>
-                {% endif %}
-            </label>
-
-            <select name="selected_datatype" id="selected_datatype">
-                {% if remote_datatype == null %}
-                    <option value=""></option>
-                {% endif %}
-                {% for dt in linkable_datatypes %}
-                    {% set is_selected = false %}
-                    {% if remote_datatype != null and remote_datatype.id == dt.id %}
-                        {% set is_selected = true %}
+                <label for="selected_datatype">
+                    {% if local_datatype.isMasterType %}
+                        <strong>Template Name:</strong>
+                    {% else %}
+                        <strong>Database Name:</strong>
                     {% endif %}
+                </label>
 
-                    <option value="{{ dt.id }}" {% if is_selected %}selected{% endif %}>{{ dt.dataTypeMeta.shortName }}</option>
-                {% endfor %}
-            {% endif %}
-            </select>
-        </div>
-    </fieldset>
-</form>
+                <select name="selected_datatype" id="selected_datatype">
+                    {% if remote_datatype == null %}
+                        <option value=""></option>
+                    {% endif %}
+                    {% for dt in linkable_datatypes %}
+                        {% set is_selected = false %}
+                        {% if remote_datatype != null and remote_datatype.id == dt.id %}
+                            {% set is_selected = true %}
+                        {% endif %}
 
-<div class="pure-u-md-1-6 pure-u-2-24"></div>
-<div id="ODRLinkDetails_wrapper" class="pure-u-md-2-3 pure-u-20-24">
-{% for dt in linkable_datatypes %}
-    <div id="ODRLinkDetails_{{ dt.id }}" class="ODRLinkDetails pure-control-group">
-        <div>
-            <label class="ODRLinkDetailsHeader" for="created_by_{{ dt.id }}">Created By:</label>
-            <div class="ODRLinkDetailsContent" id="created_by_{{ dt.id }}">{{ dt.createdBy|user_string }}</div>
-        </div>
+                        <option value="{{ dt.id }}" {% if is_selected %}selected{% endif %}>{{ dt.dataTypeMeta.shortName }}</option>
+                    {% endfor %}
+                {% endif %}
+                </select>
+            </div>
+        </fieldset>
+    </form>
 
-        <div>
-            <label class="ODRLinkDetailsHeader" for="desc_{{ dt.id }}">Description:</label>
-            <div class="ODRLinkDetailsContent" id="desc_{{ dt.id }}">{{ dt.dataTypeMeta.description }}</div>
+    <div class="pure-u-md-1-6 pure-u-2-24"></div>
+    <div id="ODRLinkDetails_wrapper" class="pure-u-md-2-3 pure-u-20-24">
+    {% for dt in linkable_datatypes %}
+        <div id="ODRLinkDetails_{{ dt.id }}" class="ODRLinkDetails pure-control-group ODRHidden">
+            <div>
+                <label class="ODRLinkDetailsHeader" for="created_by_{{ dt.id }}">Created By:</label>
+                <div class="ODRLinkDetailsContent" id="created_by_{{ dt.id }}">{{ dt.createdBy|user_string }}</div>
+            </div>
+
+            <div>
+                <label class="ODRLinkDetailsHeader" for="desc_{{ dt.id }}">Description:</label>
+                <div class="ODRLinkDetailsContent" id="desc_{{ dt.id }}">{{ dt.dataTypeMeta.description }}</div>
+            </div>
         </div>
+    {% endfor %}
     </div>
-{% endfor %}
+    <div class="pure-u-md-1-6 pure-u-2-24"></div>
 </div>
-<div class="pure-u-md-1-6 pure-u-2-24"></div>
 
 <script>
     $(function() {
-        $(".ODRLinkDetails").hide();
         var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
         if ( current_remote_datatype !== '' ) {
-            $("#ODRLinkDetails_" + current_remote_datatype).show();
+            $("#ODRLinkDetails_" + current_remote_datatype).removeClass('ODRHidden');
             $("#ODRLinkDatatypeFormSubmit").html('Unlink from Selected {% if local_datatype.isMasterType %}Template{% else %}Database{% endif %}');
             $("#ODRLinkDatatypeFormSubmit").prop('disabled', false);
         }
@@ -94,8 +94,8 @@
             var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
             var selected_id = $(this).val();
 
-            $(".ODRLinkDetails").hide();
-            $("#ODRLinkDetails_" + selected_id).show();
+            $(".ODRLinkDetails").addClass('ODRHidden');
+            $("#ODRLinkDetails_" + selected_id).removeClass('ODRHidden');
 
             if ( selected_id === '' ) {
                 $("#ODRLinkDatatypeFormSubmit").prop('disabled', true);

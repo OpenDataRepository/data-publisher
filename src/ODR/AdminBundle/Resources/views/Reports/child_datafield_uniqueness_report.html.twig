@@ -37,7 +37,7 @@
 
 {% set row_num = 1 %}
 {% for grandparent_dr_id,grandparent_dr_data in duplicate_values %}
-<div id="datarecord_list_{{ row_num }}" class="ODRDatarecordList pure-u-11-24">
+<div id="datarecord_list_{{ row_num }}" class="ODRDatarecordList pure-u-11-24 ODRHidden">
     <div class="pure-u-1 ODRDatarecordListHeader">
         Duplicated values
     </div>
@@ -67,10 +67,7 @@
 
         $("#ODRReportList").removeAttr('style');
 
-        $(".ODRDatarecordList").hide();
-
-        $(".ODRListExpand").unbind('click');
-        $(".ODRListExpand").click(function() {
+        $(".ODRListExpand").unbind('click').click(function() {
             // If clicking an already open datarecord list, don't run the block that will open it again
             var self_click = false;
             if ( $(this).children("i").hasClass('fa-caret-right') )
@@ -79,7 +76,7 @@
             // Reset any open datarecord lists
             $(".ODRListExpand").children(".fa-caret-right").each(function() {   // should only return one
                 var row_num = $(this).attr('rel');
-                $("#datarecord_list_" + row_num).hide();
+                $("#datarecord_list_" + row_num).addClass('ODRHidden');
 
                 $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
             });
@@ -89,7 +86,7 @@
                 $(this).children("i").each(function() {     // should only return one
                     var row_num = $(this).attr('rel');
 
-                    $("#datarecord_list_" + row_num).show();
+                    $("#datarecord_list_" + row_num).removeClass('ODRHidden');
                     $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
                 });
             }

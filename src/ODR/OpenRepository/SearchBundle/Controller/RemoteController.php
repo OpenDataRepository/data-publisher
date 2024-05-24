@@ -222,7 +222,7 @@ class RemoteController extends Controller
                     // Datatype is public, look through its public datafields...
                     foreach ($dt_data['datafields'] as $key => $df_data ) {
                         // Ignore datafields that aren't public or can't be searched on
-                        if ( $key === 'non_public' || $df_data['searchable'] === DataFields::NOT_SEARCHED )
+                        if ( $key === 'non_public' || $df_data['searchable'] === DataFields::NOT_SEARCHABLE )
                             continue;
 
                         // Need the datafield's information from the cached datatype array...
@@ -250,21 +250,14 @@ class RemoteController extends Controller
                         // All datafields that make it to here are valid...they're public, searchable,
                         //  and are text/number fields
 
-                        // If the field is suitable for advanced search...
-                        if ( $df_data['searchable'] === DataFields::ADVANCED_SEARCH
-                            || $df_data['searchable'] === DataFields::ADVANCED_SEARCH_ONLY
-                        ) {
+                        // If the field is suitable for searching...
+                        if ( $df_data['searchable'] !== DataFields::NOT_SEARCHABLE ) {
                             // ...then it should be displayed in the interface
                             if ( !isset($permitted_datafields[$dt_id]) )
                                 $permitted_datafields[$dt_id] = array();
                             $permitted_datafields[$dt_id][$key] = $df;
-                        }
 
-                        // If the field is suitable for general search...
-                        if ( $df_data['searchable'] === DataFields::GENERAL_SEARCH
-                            || $df_data['searchable'] === DataFields::ADVANCED_SEARCH
-                        ) {
-                            // ...then need an entry to enable general search
+                            // Should also enable the "general search" input
                             $include_general_search = true;
                         }
                     }
@@ -396,11 +389,8 @@ class RemoteController extends Controller
                             $dfm = $df['dataFieldMeta'];
 
                             $is_searchable = false;
-                            if ( $dfm['searchable'] === DataFields::ADVANCED_SEARCH
-                                || $dfm['searchable'] === DataFields::ADVANCED_SEARCH_ONLY
-                            ) {
+                            if ( $dfm['searchable'] !== DataFields::NOT_SEARCHABLE )
                                 $is_searchable = true;
-                            }
 
                             $is_public = true;
                             if ( $dfm['publicDate'] === '2200-01-01 00:00:00' )

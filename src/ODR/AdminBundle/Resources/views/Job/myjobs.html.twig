@@ -136,11 +136,11 @@
         });
 
         // Hide all job list headers by default
-        $(".ODRJobList_header").next().hide();
+        $(".ODRJobList_header").next().addClass('ODRHidden');
 
         $(".ODRJobList_header").unbind('click').click(function() {
-            if ( $(this).next().is(':hidden') ) {
-                $(this).next().show();
+            if ( $(this).next().hasClass('ODRHidden') ) {
+                $(this).next().removeClass('ODRHidden');
 
                 // Need to ensure the width attribute doesn't exist, or it'll override the redraw
                 var table = $(this).next().find('table');
@@ -149,7 +149,7 @@
                 table.DataTable().columns.adjust().draw();
             }
             else {
-                $(this).next().hide();
+                $(this).next().addClass('ODRHidden');
             }
         });
 

@@ -1,51 +1,34 @@
 {% spaceless %}
 
-<!-- Stored Search Keys Edit Dialog Form -->
 <script>
-
-    var stored_search_keys_dialog_wrapper = '<div id="ODRStoredSearchKeysDialogWrapper" class="ODRHidden"> </div>';
-
     /**
      * Opens ODR's modal and loads a form to change stored search keys for this datatype.
      *
      * @param {number} datatype_id
      */
     function openStoredSearchKeysDialog(datatype_id) {
+        /** @type {odr_remodal_options} modal_options */
         var modal_options = {
             title: 'Stored Search Keys Dialog',
-            loading: true,
-            body: stored_search_keys_dialog_wrapper,
             buttons: [
                 {
                     id: 'ODRStoredSearchKeys_save',
-                    text: 'Save'
+                    text: 'Save',
+                    click_handler: function() {
+                        saveStoredSearchKeysDialog(datatype_id);
+                    }
                 },
                 {
                     id: 'ODRStoredSearchKeys_close',
                     secondary: true,
-                    text: 'Cancel'
+                    text: 'Cancel',
+                    click_handler: function () {
+                        closeODRRemodal();
+                    }
                 }
             ]
         };
         openODRRemodal(modal_options);
-
-        loadStoredSearchKeysDialog(datatype_id);
-
-        // Attach event handlers to the buttons
-        $("#ODRStoredSearchKeys_save").unbind('click').click(function() {
-            saveStoredSearchKeysDialog(datatype_id);
-        });
-        $("#ODRStoredSearchKeys_close").unbind('click').click(function() {
-            closeODRRemodal();
-        });
-    }
-
-    /**
-     * Loads a form to change stored search keys for this datatype.
-     *
-     * @param {number} datatype_id
-     */
-    function loadStoredSearchKeysDialog(datatype_id) {
 
         var url = '{{ path('odr_design_get_stored_search_keys', { 'datatype_id': 0 }) }}';
         url = url.substr(0, url.length-1);
@@ -57,19 +40,9 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRStoredSearchKeysDialogWrapper").html( data.d.html );
+                updateODRRemodalBody(data.d.html, 'full');
 
                 initStoredSearchKeysDialog();
-
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('250', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRStoredSearchKeysDialogWrapper").show();
-
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight(true);
-                });
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -135,7 +108,5 @@
         });
     }
 </script>
-
-<!-- End of Stored Search Keys Edit Dialog Form -->
 
 {% endspaceless %}

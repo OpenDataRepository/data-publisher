@@ -34,8 +34,8 @@
                 <i class="fa fa-caret-down fa-lg"></i><span class="ODRPaginationLabel">Page&nbsp;</span>
                 <input type="text" id="odr_page_input" value="{{ offset }}" size="3" length="10" autocomplete="off"/>&nbsp;of&nbsp;<b>{{ num_pages }}</b>
             </span>
-            <span id="ODRPagePopup">Jump to page:
-                <button type="button" id="ODRPageSelectButton" class="pure-button" type="submit">Go</button>
+            <span id="ODRPagePopup" class="ODRHidden">
+                <button type="button" id="ODRPageSelectButton" class="pure-button" type="submit">Jump to page</button>
             </span>
             {% else %}
             <span class="ODRPaginationLabel Cursor">Page&nbsp;</span>
@@ -94,18 +94,10 @@
         {% set is_datatype_admin = true %}
     {% endif %}
 
-    {# Page/View Options #}
-    {% set page_type = 'search_results' %}
-    {# TODO - do I actually want a separate page type for linking purposes?
-    {% if intent == 'linking' %}
-        {% set page_type = 'linking' %}
-    {% endif %}
-    #}
-
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
-        'page_type': page_type,
+        'page_type': 'search_results',
         'search_key': search_key,
 
         'has_datarecords': has_datarecords,
@@ -138,10 +130,10 @@
         });
 
         $("#ODRPageSelect").unbind('click').click(function() {
-            if ( $("#ODRPagePopup").is(':hidden') )
-                $("#ODRPagePopup").fadeIn('fast');
+            if ( $("#ODRPagePopup").hasClass('ODRHidden') )
+                $("#ODRPagePopup").removeClass('ODRHidden');
             else
-                $("#ODRPagePopup").fadeOut('fast');
+                $("#ODRPagePopup").addClass('ODRHidden');
 
             // Calculate where the popup should go
             var selector_offset = $("#ODRPageSelect").offset();
@@ -216,7 +208,7 @@
         if (page > {{ num_pages }})
             page = {{ num_pages }};
 
-        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
+        showSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
         var url = "{{ path_str }}" + '/' + page;
         UpdateURL(url);

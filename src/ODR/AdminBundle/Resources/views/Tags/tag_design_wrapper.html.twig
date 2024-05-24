@@ -9,96 +9,98 @@
 {% set allow_multiple_levels = datafield_meta.tags_allow_multiple_levels %}
 {% set sort_by_name = datafield_meta.radio_option_name_sort %}
 
-<div id="odr_tag_design_modal">
-    <div class="ODRThemeElement">
-        <button class="ODRAddTag pure-button pure-button-primary{% if disable_controls %} pure-button-disabled{% endif %}">Create single tag</button>
-        <button class="ODRTagCreationMode pure-button{% if disable_controls %} pure-button-disabled{% endif %}">Import tags</button>
-    </div>
-
-    <input type="hidden" id="tag_order_hash" value="" />
-
-    <div id="odr_tag_design" class="ODRTagWrapper_design pure-form">
-        {# this form is for tag displayOrder and setting parent/child relationships #}
-        <form id="ODRTagPositionForm" rel="{{ datafield.id }}"></form>
-
+<div id="ODRTagEditDialogWrapper">
+    <div id="odr_tag_design_modal">
         <div class="ODRThemeElement">
-        {% if disable_controls and not can_modify_template %}
-            <div class="ODRTagMoveHelpDiv">
-                This modal is in read-only mode because you do not have permissions to modify the template field.
-            </div>
-        {% elseif disable_controls and out_of_sync %}
-            <div class="ODRTagMoveHelpDiv">
-                This modal is in read-only mode because this field and the template field are out of sync.
-            </div>
-        {% else %}
-            <div class="ODRTagMoveHelpDiv">
-                To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving.
-            </div>
-        {% endif %}
-
-        {% if disable_controls %}
-            {# do nothing #}
-        {% elseif sort_by_name %}
-            <div class="ODRTagMoveHelpDiv">
-                After saving, the system will automatically update the tags to be in alphabetical order.
-            </div>
-        {% else %}
-            <div class="ODRTagMoveHelpDiv">
-                To move a tag, click on the <i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Cursor"></i> icon, then press the arrow keys to change the position of the selected tag.
-            </div>
-        {% endif %}
+            <button class="ODRAddTag pure-button pure-button-primary{% if disable_controls %} pure-button-disabled{% endif %}">Create single tag</button>
+            <button class="ODRTagCreationMode pure-button{% if disable_controls %} pure-button-disabled{% endif %}">Import tags</button>
         </div>
 
-        <div class="ODRThemeElement" style="margin-top: 15px;">
-            {# this form is for renaming tags #}
-            <form id="ODRTagForm" rel="{{ datafield.id }}">
-                {% include 'ODRAdminBundle:Tags:tag_wrapper.html.twig' with {
-                    'datafield' : datafield,
-                    'stacked_tags': stacked_tags,
+        <input type="hidden" id="tag_order_hash" value="" />
 
-                    'disable_controls': disable_controls,
-                } %}
-            </form>
-        </div>
-    </div>
+        <div id="odr_tag_design" class="ODRTagWrapper_design pure-form">
+            {# this form is for tag displayOrder and setting parent/child relationships #}
+            <form id="ODRTagPositionForm" rel="{{ datafield.id }}"></form>
 
-    <div id="odr_tag_import" class="pure-form">
-        <div class="pure-u-1-2 ODRTagWrapper_design">
-            <form id="ODRTagListForm" class="pure-form" rel="{{ datafield.id }}" style="padding-left: 20px;">
-                <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if sort_by_name %}1{% else %}0{% endif %}" />
-                {% if allow_multiple_levels %}
-                <fieldset style="margin-bottom: 10px;">
-                    <label for="tag_hierarchy_delimiter" class="ODRFieldLabel">
-                        Tag Hierarchy delimiter:&nbsp;
-                    </label>
-                    <input type="text" name="tag_hierarchy_delimiter" id="tag_hierarchy_delimiter" class="ODRDelimiterField" maxlength="3" size="4" />
-                    &nbsp;
-                    <span class="ODRInputError ODRAlwaysShow ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">Needs a value</span></span>
-                </fieldset>
-                {% else %}
-                <fieldset style="margin-bottom: 10px;">
-                    <span class="ODRInputError ODRAlwaysShow ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">This field only allows a single level of tags</span></span>
-                </fieldset>
-                {% endif %}
-                <fieldset>
-                    <table class="ODRTagListImport pure-table pure-table-striped pure-u-1">
-                        <thead>
-                            <tr>
-                                <th>Tags (one per line)</th>
-                            </tr>
-                        </thead>
-                        <tbody class="ODRSortableOption pure-u-1" rel="{{ datafield.id }}">
-                            <tr class="pure-u-1">
-                                <td class="pure-u-1">
-                                    <textarea id="tag_list" class="pure-u-1" name="tag_list"></textarea>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </fieldset>
-            </form>
+            <div class="ODRThemeElement">
+            {% if disable_controls and not can_modify_template %}
+                <div class="ODRTagMoveHelpDiv">
+                    This modal is in read-only mode because you do not have permissions to modify the template field.
+                </div>
+            {% elseif disable_controls and out_of_sync %}
+                <div class="ODRTagMoveHelpDiv">
+                    This modal is in read-only mode because this field and the template field are out of sync.
+                </div>
+            {% else %}
+                <div class="ODRTagMoveHelpDiv">
+                    To save, click somewhere inside the dialog box.  Press the escape key to close without saving.
+                </div>
+            {% endif %}
+
+            {% if disable_controls %}
+                {# do nothing #}
+            {% elseif sort_by_name %}
+                <div class="ODRTagMoveHelpDiv">
+                    After saving, the system will automatically update the tags to be in alphabetical order.
+                </div>
+            {% else %}
+                <div class="ODRTagMoveHelpDiv">
+                    To move a tag, click on the <i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Cursor"></i> icon, then press the arrow keys to change the position of the selected tag.
+                </div>
+            {% endif %}
+            </div>
+
+            <div class="ODRThemeElement" style="margin-top: 15px;">
+                {# this form is for renaming tags #}
+                <form id="ODRTagForm" rel="{{ datafield.id }}">
+                    {% include 'ODRAdminBundle:Tags:tag_wrapper.html.twig' with {
+                        'datafield' : datafield,
+                        'stacked_tags': stacked_tags,
+
+                        'disable_controls': disable_controls,
+                    } %}
+                </form>
+            </div>
         </div>
-        <div class="pure-u-1-2 ODRTagWrapper_import">
+
+        <div id="odr_tag_import" class="pure-form ODRHidden">
+            <div class="pure-u-1-2 ODRTagWrapper_design">
+                <form id="ODRTagListForm" class="pure-form" rel="{{ datafield.id }}" style="padding-left: 20px;">
+                    <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if sort_by_name %}1{% else %}0{% endif %}" />
+                    {% if allow_multiple_levels %}
+                    <fieldset style="margin-bottom: 10px;">
+                        <label for="tag_hierarchy_delimiter" class="ODRFieldLabel">
+                            Tag Hierarchy delimiter:&nbsp;
+                        </label>
+                        <input type="text" name="tag_hierarchy_delimiter" id="tag_hierarchy_delimiter" class="ODRDelimiterField" maxlength="3" size="4" />
+                        &nbsp;
+                        <span class="ODRInputError ODRAlwaysShow ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">Needs a value</span></span>
+                    </fieldset>
+                    {% else %}
+                    <fieldset style="margin-bottom: 10px;">
+                        <span class="ODRInputError ODRAlwaysShow ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">This field only allows a single level of tags</span></span>
+                    </fieldset>
+                    {% endif %}
+                    <fieldset>
+                        <table class="ODRTagListImport pure-table pure-table-striped pure-u-1">
+                            <thead>
+                                <tr>
+                                    <th>Tags (one per line)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="ODRSortableOption pure-u-1" rel="{{ datafield.id }}">
+                                <tr class="pure-u-1">
+                                    <td class="pure-u-1">
+                                        <textarea id="tag_list" class="pure-u-1" name="tag_list"></textarea>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </fieldset>
+                </form>
+            </div>
+            <div class="pure-u-1-2 ODRTagWrapper_import">
+            </div>
         </div>
     </div>
 </div>
@@ -106,9 +108,6 @@
 <script>
     var SaveTimeout = 1500;
     $(function () {
-        $("#odr_tag_import").hide();
-        $(".ODRInputError").not(".ODRAlwaysShow").hide();
-
 {% if not disable_controls and (not sort_by_name or allow_multiple_levels) %}
         {# Going to need tag movement in some capacity #}
         $("#odr_tag_design_modal").unbind('click').click(function() {
@@ -146,9 +145,16 @@
             event.stopPropagation();
             clearTagHighlights();
 
-            if ( $("#odr_tag_import").is(':visible') ) {
-                $("#odr_tag_design").show();
-                $("#odr_tag_import").hide();
+            if ( $("#odr_tag_import").hasClass('ODRHidden') ) {
+                $("#odr_tag_design").addClass('ODRHidden');
+                $("#odr_tag_import").removeClass('ODRHidden');
+
+                $(".ODRTagCreationMode").html("Stop importing tags");
+                $(".ODRAddTag").html("Validate tag list");
+            }
+            else {
+                $("#odr_tag_design").removeClass('ODRHidden');
+                $("#odr_tag_import").addClass('ODRHidden');
 
                 $("#tag_hierarchy_delimiter").val('');
                 $("#ODRTagListForm").find('textarea').each(function() {
@@ -158,27 +164,18 @@
 
                 $(".ODRTagCreationMode").html("Import tags");
                 $(".ODRAddTag").html("Create single tag");
-
-                resetRemodalInnerHeight();
             }
-            else {
-                $("#odr_tag_design").hide();
-                $("#odr_tag_import").show();
 
-                $(".ODRTagCreationMode").html("Stop importing tags");
-                $(".ODRAddTag").html("Validate tag list");
-
-                resetRemodalInnerHeight();
-            }
+            resetRemodalInnerHeight();
         });
 
         $(".ODRDelimiterField").unbind('keyup paste').on('keyup paste', function() {
             var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter").val().trim();
 
             if ( tag_hierarchy_delimiter_value === '' )
-                $(".ODRTagHierarchyWarnWrapper").show();
+                $(".ODRTagHierarchyWarnWrapper").removeClass('ODRHidden');
             else
-                $(".ODRTagHierarchyWarnWrapper").hide();
+                $(".ODRTagHierarchyWarnWrapper").addClass('ODRHidden');
         });
 
         $("#tag_list").unbind('keyup paste').on('keyup paste', function() {
@@ -200,7 +197,7 @@
      * Locates and highlights tags in the modal that do not have unique names.
      */
     function FindDuplicateTagNames() {
-        $(".ODRInputError").not(".ODRAlwaysShow").hide();
+        $(".ODRInputError").not(".ODRAlwaysShow").addClass('ODRHidden');
         var has_duplicates = false;
 
         $("#odr_tag_design_modal").find(".ODRTagGroup").each(function() {
@@ -217,17 +214,17 @@
                     has_duplicates = true;
 
                     var prev_elem = tag_names[name];
-                    $(prev_elem).next().show();
-                    $(elem).next().show();
+                    $(prev_elem).next().removeClass('ODRHidden');
+                    $(elem).next().removeClass('ODRHidden');
                 }
             });
         });
 
         {% if not disable_controls %}
         if (has_duplicates)
-            $(".ODRTagCreationMode").addClass('pure-button-disabled');
+            $(".ODRTagCreationMode").addClass('pure-button-disabled').html('Fix duplicates to import');
         else
-            $(".ODRTagCreationMode").removeClass('pure-button-disabled');
+            $(".ODRTagCreationMode").removeClass('pure-button-disabled').html('Import tags');
         {% endif %}
     }
 
@@ -262,12 +259,10 @@
             event.stopPropagation();
             clearTagHighlights();
 
-            if ( $("#odr_tag_import").is(':visible') ) {
-                ValidateTags({{ datafield.id }});
-            }
-            else {
+            if ( $("#odr_tag_import").hasClass('ODRHidden') )
                 AddTag({{ datafield.id }});
-            }
+            else
+                ValidateTags({{ datafield.id }});
         });
 
         $(".ODRDeleteTag").unbind('click').click(function(event) {
@@ -516,7 +511,8 @@
 
                 if ( data.d.reload_modal ) {
                     // ...also reload the list of radio options
-                    loadTagEditDialog(data.d.datafield_id, tag_id);
+                    updateODRRemodalBody('', 'full');
+                    loadTagEditDialogContents(data.d.datafield_id, tag_id);
                 }
                 else {
                     // Replace the previous "old-value" with the one that just got saved
@@ -607,9 +603,9 @@
         // Load display template menu
         url = url.substring(0,(url.length - 1));
         url += datafield_id;
+        // alert(url);  return;
 
-        // alert(url);
-        // return;
+        updateODRRemodalBody('', 'full');
 
         $.ajax({
             cache: false,
@@ -619,7 +615,7 @@
             success: function(data) {
                 // Reload parts of the page so that the new radio option shows up
                 ReloadTagDatafield(data.d.datafield_id);
-                loadTagEditDialog(data.d.datafield_id, data.d.tag_id);
+                loadTagEditDialogContents(data.d.datafield_id, data.d.tag_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -658,7 +654,6 @@
         // Load display template menu
         url = url.substring(0,(url.length - 1));
         url += tag_id;
-
         // alert(url);  return;
 
         $.ajax({
@@ -751,7 +746,8 @@
 
                 // The controller may have made a lot of changes...just reload the datafield on the page
                 {% if sort_by_name %}
-                loadTagEditDialog(datafield_id);
+                updateODRRemodalBody('', 'full');
+                loadTagEditDialogContents(datafield_id);
                 {% endif %}
                 ReloadTagDatafield(datafield_id);
             },

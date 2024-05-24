@@ -20,7 +20,7 @@
                      </div>
                  </div>
 
-                 <div class="ODRRemoteSearch_long_version ODRBodyContent" style="display:none;">
+                 <div class="ODRRemoteSearch_long_version ODRBodyContent ODRHidden">
                      <div>
                          To view the simple example implementation again, click <a class="ODRRemoteSearch_toggle_config">here</a>
                          <br>
@@ -52,7 +52,7 @@
         </div>
     </div>
 
-    <div class="ODRRemoteSearch_long_version ODRThemeElement pure-u-1" style="display:none;">
+    <div class="ODRRemoteSearch_long_version ODRThemeElement pure-u-1 ODRHidden">
         <div class="ODRInnerBox pure-u-1">
             <div class="ODRRemoteSearch_pre pure-u-11-24">
                 <div style="text-indent: 20px;">
@@ -115,13 +115,13 @@
 <script>
     $(function() {
         $(".ODRRemoteSearch_toggle_config").unbind('click').click(function() {
-            if ( $(".ODRRemoteSearch_short_version").is(':visible') ) {
-                $(".ODRRemoteSearch_short_version").hide();
-                $(".ODRRemoteSearch_long_version").show();
+            if ( $(".ODRRemoteSearch_short_version").first().hasClass('ODRHidden') ) {
+                $(".ODRRemoteSearch_short_version").removeClass('ODRHidden');
+                $(".ODRRemoteSearch_long_version").addClass('ODRHidden');
             }
             else {
-                $(".ODRRemoteSearch_long_version").hide();
-                $(".ODRRemoteSearch_short_version").show();
+                $(".ODRRemoteSearch_long_version").removeClass('ODRHidden');
+                $(".ODRRemoteSearch_short_version").addClass('ODRHidden');
             }
         });
     });

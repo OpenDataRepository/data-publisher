@@ -87,9 +87,9 @@
                         </td>
                         <td>
                             {% if rpf.must_be_unique %}
-                            <i id="rpf_{{ rpf_id }}_warning" rel="must_be_unique" class="fa fa-lg fa-exclamation-triangle ODRRenderPluginField_warnings Info" title="This field must be unique."></i>
+                            <i id="rpf_{{ rpf_id }}_warning" rel="must_be_unique" class="fa fa-lg fa-exclamation-triangle ODRRenderPluginField_warnings Info ODRHidden" title="This field must be unique."></i>
                             {% elseif rpf.single_uploads_only %}
-                            <i id="rpf_{{ rpf_id }}_warning" rel="single_uploads_only" class="fa fa-lg fa-exclamation-triangle ODRRenderPluginField_warnings Info" title="This field must not allow multiple file/images."></i>
+                            <i id="rpf_{{ rpf_id }}_warning" rel="single_uploads_only" class="fa fa-lg fa-exclamation-triangle ODRRenderPluginField_warnings Info ODRHidden" title="This field must not allow multiple file/images."></i>
                             {% endif %}
                         </td>
                     </tr>
@@ -107,8 +107,6 @@
 
     <script>
         $(function() {
-            $(".ODRRenderPluginField_warnings").hide();
-
             $(".ODRRenderPluginMap").unbind('change').change(function() {
                 var datafield_id = parseInt( $(this).val() );
                 var render_plugin_field_id = $(this).attr('rel');
@@ -121,7 +119,7 @@
 
                     // Hide warnings about required properties
                     if ( $(rpf_warning).length > 0 )
-                        $(rpf_warning).hide();
+                        $(rpf_warning).addClass('ODRHidden');
                 }
                 else if (datafield_id == '-1') {
                     // Let user select fieldtype of new datafield
@@ -129,7 +127,7 @@
 
                     // Hide warnings about required properties
                     if ( $(rpf_warning).length > 0 )
-                        $(rpf_warning).hide();
+                        $(rpf_warning).addClass('ODRHidden');
                 }
                 else {
                     // Prevent user from changing fieldtype of existing datafield
@@ -142,15 +140,15 @@
                         var warning_type = $(rpf_warning).attr('rel');
                         if ( warning_type === "must_be_unique" ) {
                             if ( !current_unique_fields.includes(datafield_id) )
-                                $(rpf_warning).show();
+                                $(rpf_warning).removeClass('ODRHidden');
                             else
-                                $(rpf_warning).hide();
+                                $(rpf_warning).addClass('ODRHidden');
                         }
                         else if ( warning_type === "single_uploads_only" ) {
                             if ( !current_single_upload_fields.includes(datafield_id) )
-                                $(rpf_warning).show();
+                                $(rpf_warning).removeClass('ODRHidden');
                             else
-                                $(rpf_warning).hide();
+                                $(rpf_warning).addClass('ODRHidden');
                         }
                     }
                 }
@@ -165,9 +163,9 @@
                 });
 
                 if (show_warning)
-                    $("#plugin_datafield_creation_warn").show();
+                    $("#plugin_datafield_creation_warn").removeClass('ODRHidden');
                 else
-                    $("#plugin_datafield_creation_warn").hide();
+                    $("#plugin_datafield_creation_warn").addClass('ODRHidden');
             });
 
         {% if render_plugin_instance != null %}
@@ -238,7 +236,7 @@
     {% endif %}
     </fieldset>
 
-    <fieldset id="custom_renderpluginoptions" style="display: none;">
+    <fieldset id="custom_renderpluginoptions" class="ODRHidden">
     {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
         {% if custom_render_plugin_options_html[rpo_id] is defined %}
             {{ custom_render_plugin_options_html[rpo_id]|raw }}
@@ -249,7 +247,7 @@
     <script>
         $(function() {
         {% if custom_render_plugin_options_html|length > 0 %}
-            $("#custom_renderpluginoptions").show();
+            $("#custom_renderpluginoptions").removeClass('ODRHidden');
         {% endif %}
 
         {% if is_datatype_admin %}

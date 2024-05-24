@@ -150,14 +150,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * @inheritDoc
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
@@ -179,15 +172,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Executes the RenderPlugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * @inheritDoc
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
@@ -295,14 +280,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Returns which of its entries the plugin wants to override in the search sidebar.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $datafield
-     * @param array $rendering_options
-     *
-     * @return array|bool returns true/false if a datafield plugin, or an array of datafield ids if a datatype plugin
+     * @inheritDoc
      */
     public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
     {
@@ -312,15 +290,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Returns HTML to override a datafield's entry in the search sidebar.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $datafield
-     * @param string|array $preset_value
-     * @param array $rendering_options
-     *
-     * @return string
+     * @inheritDoc
      */
     public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
     {
@@ -369,14 +339,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Returns an array of datafield values that TableThemeHelperService should display, instead of
-     * using the values in the datarecord.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datarecord
-     * @param array|null $datafield Shouldn't be null here, since this is a datafield plugin
-     *
-     * @return string[] An array where the keys are datafield ids, and the values are the strings to display
+     * @inheritDoc
      */
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
@@ -414,11 +377,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Returns an array of datafields where MassEdit should enable the abiilty to run a background
-     * job without actually changing their values.
-     *
-     * @param array $render_plugin_instance
-     * @return array An array where the values are datafield ids
+     * @inheritDoc
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -432,16 +391,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
-     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
-     * may not want to activate if the user has also entered a value in the relevant field.
-     *
-     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
-     * should always be activated, or false if it should only be activated when the user didn't
-     * also enter a value into the field.
-     *
-     * @param array $render_plugin_instance
-     * @return array
+     * @inheritDoc
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {
@@ -574,16 +524,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Returns an array of HTML strings for each RenderPluginOption in this RenderPlugin that needs
-     * to use custom HTML in the RenderPlugin settings dialog.
-     *
-     * @param ODRUser $user The user opening the dialog
-     * @param boolean $is_datatype_admin Whether the user is able to make changes to this RenderPlugin's config
-     * @param RenderPlugin $render_plugin The RenderPlugin in question
-     * @param DataType $datatype The relevant datatype if this is a Datatype Plugin, otherwise the Datatype of the given Datafield
-     * @param DataFields|null $datafield Will be null unless this is a Datafield Plugin
-     * @param RenderPluginInstance|null $render_plugin_instance Will be null if the RenderPlugin isn't in use
-     * @return string[]
+     * @inheritDoc
      */
     public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
     {
@@ -616,12 +557,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Given an array of datafields mapped by this plugin, returns which datafields SearchAPIService
-     * should call {@link SearchOverrideInterface::searchOverriddenField()} on instead of running
-     * the default searches.
-     *
-     * @param array $df_list
-     * @return array An array where the values are datafield ids
+     * @inheritDoc
      */
     public function getSearchOverrideFields($df_list)
     {
@@ -632,14 +568,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Searches the specified datafield for the specified value, returning an array of datarecord
-     * ids that match the search.
-     *
-     * @param DataFields $datafield
-     * @param array $search_term
-     * @param array $render_plugin_options
-     *
-     * @return array
+     * @inheritDoc
      */
     public function searchOverriddenField($datafield, $search_term, $render_plugin_options)
     {
@@ -770,12 +699,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
 
     /**
-     * Returns whether SortService should use the "value" or the "converted_value" to sort the
-     * given datafield.
-     *
-     * @param array $render_plugin_options
-     *
-     * @return boolean
+     * @inheritDoc
      */
     public function useConvertedValue($render_plugin_options)
     {
@@ -1183,5 +1107,45 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                throw $e;
         }
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function getExportOverrideFields($render_plugin_instance)
+    {
+        // Only want to override the contents of this field for CSVExport if the config option is set
+        if ($render_plugin_instance['renderPluginOptionsMap']['export_converted'] === 'yes' )
+            return array(0 => $render_plugin_instance['renderPluginMap']['Field']['id']);
+
+        return array();
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function getExportOverrideValues($datafield_ids, $render_plugin_instance, $datatype_array, $datarecord_array, $user_permissions)
+    {
+        // Since this is a datafield plugin, there should always be a single field here...don't
+        //  need to dig through the renderPluginInstance array for it
+        $df_id = $datafield_ids[0];
+
+        // ...unfortunately, since this interface needs to share with datatype plugins, that means
+        //  datafield plugins have to do more work to locate their relevant cache entry
+        if ( isset($datatype_array['dataFields'][$df_id]) ) {
+            $typeclass = lcfirst( $datatype_array['dataFields'][$df_id]['dataFieldMeta']['fieldType']['typeClass'] );
+
+            if ( isset($datarecord_array['dataRecordFields'][$df_id][$typeclass][0]) ) {
+                $drf = $datarecord_array['dataRecordFields'][$df_id][$typeclass][0];
+
+                // Since this is getting called, we can assume the export wants the converted value
+                return array($df_id => $drf['converted_value']);
+            }
+        }
+
+        // If something went wrong, just return the empty string
+        return array($df_id => '');
     }
 }

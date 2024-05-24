@@ -58,6 +58,11 @@
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         $("#ChooseView").unbind('click').click(function(event) {
+            window.ODRChooseView_applyredirectcallback = function(theme_id) {
+                // When a new 'display' theme is selected, just reload the entire page afterwards
+                // ...the newly selected theme will be pulled from the user's session
+                reloadPage();
+            }
             openChooseViewRemodal({{ datatype.id }}, 'display', '{{ search_key }}');
         });
 

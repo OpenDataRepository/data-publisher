@@ -100,12 +100,11 @@
         $(".ODRFormAccordion").children("h3").each(function() {
             $(this).unbind('click').click(function() {
                 $(this).parent().children(".accordion-content").each(function() {
-                    if(!$(this).is(":hidden")) {
-                        $(this).hide();
-                    }
+                    if( !$(this).hasClass('ODRHidden') )
+                        $(this).addClass('ODRHidden');
                     $(this).prev().removeClass('ODRAccordionSelected');
                 });
-                $(this).next().fadeIn();
+                $(this).next().removeClass('ODRHidden');
                 {#ODR_scrollIntoView( $(this).next() );#}
                 $(this).addClass('ODRAccordionSelected');
 
@@ -116,8 +115,8 @@
         });
 
         // Hide all template descriptions, only show the final one
-        $(".ODRFormAccordion").children("h3").next().hide();
-        $(".ODRFormAccordion").children("h3:last").next().show();
+        $(".ODRFormAccordion").children("h3").next().addClass('ODRHidden');
+        $(".ODRFormAccordion").children("h3:last").next().removeClass('ODRHidden');
     });
 </script>
 

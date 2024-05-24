@@ -113,7 +113,7 @@ class DatabaseInfoService
      * contains data of all datatypes with the requested datatype as their grandparent, as
      * well as any datatypes that are linked to by the requested datatype or its children.
      *
-     * Use self::stackDatatypeArray() to get an array structure where child/linked datatypes
+     * Use {@link self::stackDatatypeArray()} to get an array structure where child/linked datatypes
      * are stored "underneath" their parent datatypes.
      * 
      * @param integer $grandparent_datatype_id
@@ -423,7 +423,6 @@ class DatabaseInfoService
      * @param int $grandparent_datatype_id
      * @param array $derived_dt_data
      * @param array $derived_df_data
-     * @return void
      */
     private function getDerivedData($grandparent_datatype_id, &$derived_dt_data, &$derived_df_data)
     {
@@ -804,9 +803,10 @@ class DatabaseInfoService
 
 
     /**
-     * "Inflates" the normally flattened $datatype_array...
+     * Recursively "inflates" a $datarecord_array from {@link self::getDatatypeArray()} so that
+     * child/linked datarecords are stored "underneath" their parents/grandparents.
      *
-     * @param array $datatype_array
+     * @param array $datatype_array {@link self::getDatatypeArray()}
      * @param integer $initial_datatype_id
      *
      * @return array
@@ -842,7 +842,7 @@ class DatabaseInfoService
      * $datatype_ids
      *
      * @param int[] $datatype_ids
-     * @param array $datatype_permissions
+     * @param array $datatype_permissions {@link PermissionsManagementService::getDatatypePermissions()}
      *
      * @return array
      */

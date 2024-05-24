@@ -1,41 +1,43 @@
 {% spaceless %}
 
-<div class="pure-u-1">
-    <button type="button" id="ODRTracking_deleted_users" class="pure-button" rel="Hide">Show deleted users</button>
-    <button type="button" id="ODRTracking_deselect_all" class="pure-button" rel="Hide">Deselect all users</button>
-</div>
-
-{% set deleted_column_num = 5 %}
-<div class="pure-u-1-24"></div>
-<div class="ODRTableOuterWrap pure-u-22-24">
-    <div class="ODRTableWrap">
-        <table id="ODRTrackingUserList" class="display dataTable">
-            <thead><tr>
-                <th></th>
-                <th></th>
-                <th>User</th>
-                <th>Institution</th>
-                <th></th>
-                <th></th>
-            </tr></thead>
-            <tbody>
-            {% for user in user_list %}
-                <tr {% if user.enabled == 0 %}class="ODRDeletedUser ODRHidden"{% endif %}>
-                    <td>{{ user.id }}</td>
-                    <td>
-                        <input class="ODRTrackingUser_checkbox" type="checkbox" rel="{{ user.id }}"/>
-                    </td>
-                    <td{% if user.enabled == 0 %} class="strikethrough"{% endif %}>{{ user.getuserstring }}</td>
-                    <td>{{ user.institution }}</td>
-                    <td>{% if user.hasrole("ROLE_SUPER_ADMIN") %}Super Admin{% endif %}</td>
-                    <td class="strikethrough">{% if user.enabled == 0 %}Deleted User{% endif %}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+<div id="ODRTrackingDialogFormWrapper" class="pure-form">
+    <div class="pure-u-1">
+        <button type="button" id="ODRTracking_deleted_users" class="pure-button" rel="Hide">Show deleted users</button>
+        <button type="button" id="ODRTracking_deselect_all" class="pure-button" rel="Hide">Deselect all users</button>
     </div>
+
+    {% set deleted_column_num = 5 %}
+    <div class="pure-u-1-24"></div>
+    <div class="ODRTableOuterWrap pure-u-22-24">
+        <div class="ODRTableWrap">
+            <table id="ODRTrackingUserList" class="display dataTable">
+                <thead><tr>
+                    <th></th>
+                    <th></th>
+                    <th>User</th>
+                    <th>Institution</th>
+                    <th></th>
+                    <th></th>
+                </tr></thead>
+                <tbody>
+                {% for user in user_list %}
+                    <tr {% if user.enabled == 0 %}class="ODRDeletedUser ODRHidden"{% endif %}>
+                        <td>{{ user.id }}</td>
+                        <td>
+                            <input class="ODRTrackingUser_checkbox" type="checkbox" rel="{{ user.id }}"/>
+                        </td>
+                        <td{% if user.enabled == 0 %} class="strikethrough"{% endif %}>{{ user.getuserstring }}</td>
+                        <td>{{ user.institution }}</td>
+                        <td>{% if user.hasrole("ROLE_SUPER_ADMIN") %}Super Admin{% endif %}</td>
+                        <td class="strikethrough">{% if user.enabled == 0 %}Deleted User{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="pure-u-1-24"></div>
 </div>
-<div class="pure-u-1-24"></div>
 
 <script>
     // Sourced from: https://www.datatables.net/plug-ins/sorting/custom-data-source/dom-checkbox
@@ -89,7 +91,7 @@
                 table.column({{ deleted_column_num }}).visible(false);
             }
 
-            redoRowClasses();
+            redoRowClasses( $("#ODRTrackingUserList") );
         });
 
         $("#ODRTracking_deselect_all").unbind('click').click(function() {
@@ -127,24 +129,7 @@
         if ( deleted_user_is_selected )
             $("#ODRTracking_deleted_users").trigger('click');
         else
-            redoRowClasses();
-    }
-
-    /**
-     * Resets the even/odd classnames for the tracking table.  For use after deleted users are
-     * either shown or hidden.
-     */
-    function redoRowClasses() {
-        var count = 0;
-        $("#ODRTrackingUserList tbody tr").each(function() {
-            if ( !$(this).hasClass('ODRHidden') ) {
-                count++;
-                if ( count % 2 === 1 )
-                    $(this).removeClass('odd').addClass('even');
-                else
-                    $(this).removeClass('even').addClass('odd');
-            }
-        });
+            redoRowClasses( $("#ODRTrackingUserList") );
     }
 </script>
 

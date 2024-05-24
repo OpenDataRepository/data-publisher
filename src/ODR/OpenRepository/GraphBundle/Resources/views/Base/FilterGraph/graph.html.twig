@@ -23,7 +23,7 @@
                 <div id="{{ odr_chart_id }}_settings" class="DynamicGraphSettingsDiv">
                     <a><i class="fa fa-cog"></i></a>
 
-                    <div class="DynamicGraphSettings">
+                    <div class="DynamicGraphSettings ODRHidden">
                         <div class="DynamicGraphSettingsDiv_close">
                             <label id="{{ odr_chart_id }}_close" style="cursor:pointer;">
                                 <i class="fa fa-close"></i>&nbsp;Close
@@ -32,11 +32,11 @@
 
                         <div>
                             <label id="{{ odr_chart_id }}_column_1_label" for="{{ odr_chart_id }}_column_1" class="graph_columns"></label>
-                            <select id="{{ odr_chart_id }}_column_1" class="graph_columns" style="display: none;"></select>
+                            <select id="{{ odr_chart_id }}_column_1" class="graph_columns ODRHidden"></select>
                         </div>
                         <div>
-                            <label id="{{ odr_chart_id }}_column_2_label" for="{{ odr_chart_id }}_column_2" class="graph_columns" style="vertical-align: top; display: none;"></label>
-                            <select id="{{ odr_chart_id }}_column_2" class="graph_columns" multiple style="display: none;"></select>
+                            <label id="{{ odr_chart_id }}_column_2_label" for="{{ odr_chart_id }}_column_2" class="graph_columns ODRHidden" style="vertical-align: top;"></label>
+                            <select id="{{ odr_chart_id }}_column_2" class="graph_columns ODRHidden" multiple></select>
                         </div>
                         <div>
                             <label id="{{ odr_chart_id }}_graph_type_label" for="{{ odr_chart_id }}_graph_type">Graph Type: </label>
@@ -49,7 +49,7 @@
                             </select>
                         </div>
 
-                        <div id="{{ odr_chart_id }}_line_settings" class="{{ odr_chart_id }}_settings" style="display: none;">
+                        <div id="{{ odr_chart_id }}_line_settings" class="{{ odr_chart_id }}_settings ODRHidden">
                             <label id="{{ odr_chart_id }}_line_type_label" for="{{ odr_chart_id }}_line_type">Line Type: </label>
                             <select id="{{ odr_chart_id }}_line_type">
                                 <option value="lines" {% if plugin_options.line_type == "lines" %}selected{% endif %}>Lines</option>
@@ -64,7 +64,7 @@
                             <input type="checkbox" id="{{ odr_chart_id }}_disable_scatterGL" />
                         </div>
 {#
-                        <div id="{{ odr_chart_id }}_bar_settings" class="{{ odr_chart_id }}_settings" style="display: none;">
+                        <div id="{{ odr_chart_id }}_bar_settings" class="{{ odr_chart_id }}_settings ODRHidden">
                             <label id="{{ odr_chart_id }}_bar_type_label" for="{{ odr_chart_id }}_bar_type">Bar Type: </label>
                             <select id="{{ odr_chart_id }}_bar_type">
                                 <option value="v" {% if plugin_options.bar_type == "vert" %}selected{% endif %}>Vertical</option>
@@ -77,9 +77,8 @@
                                 <option value="stack" {% if plugin_options.bar_options == "stacked" %}selected{% endif %}>Stacked</option>
                             </select>
                         </div>
-#}
-{#
-                        <div id="{{ odr_chart_id }}_histogram_settings" class="{{ odr_chart_id }}_settings" style="display: none;">
+
+                        <div id="{{ odr_chart_id }}_histogram_settings" class="{{ odr_chart_id }}_settings ODRHidden">
                             <label id="{{ odr_chart_id }}_histogram_dir_label" for="{{ odr_chart_id }}_histogram_dir">Histogram Type: </label>
                             <select id="{{ odr_chart_id }}_histogram_dir">
                                 <option value="v" {% if plugin_options.histogram_dir == "vert" %}selected{% endif %}>Vertical</option>
@@ -155,8 +154,8 @@ jQuery(function() {
 
     $("#{{ odr_chart_id }}_Static_GraphWrapper").unbind('click').click(function() {
         var graph_parent = $(this).parent().parent();
-        $(this).hide();
-        $(graph_parent).find('.DynamicGraphs').show();
+        $(this).addClass('ODRHidden');
+        $(graph_parent).find('.DynamicGraphs').removeClass('ODRHidden');
 
         $(graph_parent).parents('.ODRGraphSpacer').first().next().removeClass('ODRHidden');
 
@@ -166,9 +165,9 @@ jQuery(function() {
     });
 {#
     $(".DynamicGraphs").unbind('click').click(function() {
-        var parent = $(this).parent()
-        $(this).hide()
-        $(parent).find('.StaticGraphs').show()
+        var parent = $(this).parent();
+        $(this).addClass('ODRHidden');
+        $(parent).find('.StaticGraphs').removeClass('ODRHidden');
     });
 #}
 
@@ -190,10 +189,10 @@ jQuery(function() {
     });
 
     $("#{{ odr_chart_id }}_settings").click(function() {
-        $(this).children(".DynamicGraphSettings").first().show();
+        $(this).children(".DynamicGraphSettings").first().removeClass('ODRHidden');
     });
     $("#{{ odr_chart_id }}_close").click(function(event) {
-        $(this).closest(".DynamicGraphSettings").first().hide();
+        $(this).closest(".DynamicGraphSettings").first().addClass('ODRHidden');
         event.stopPropagation();
     });
 

@@ -16,7 +16,7 @@
 
 
 {% for dt_id,dt_data in datatype_data %}
-<div id="ODRReplaceLinks_dt_{{ dt_id }}" class="ODRReplaceLinks_content_div pure-u-1" rel="{{ dt_data['df_id'] }}" style="display: none;">
+<div id="ODRReplaceLinks_dt_{{ dt_id }}" class="ODRReplaceLinks_content_div pure-u-1 ODRHidden" rel="{{ dt_data['df_id'] }}">
     <div>External ID Field: "{{ dt_data['df_name'] }}"</div>
     <div class="pure-u-11-24">
         <form id="ODRReplaceLinks_left" class="ODRReplaceLinks_form pure-u-1" rel="left">
@@ -53,7 +53,7 @@
 {% endfor %}
 
 <div class="pure-u-1"></div>
-<div id="ODRReplaceLinks_final" style="display: none;">
+<div id="ODRReplaceLinks_final ODRHidden">
     <form id="ODRReplaceLinks_final_form">
         <label for="ODRReplaceLinks_final_delete">
             <input id="ODRReplaceLinks_final_delete" type="checkbox" name="delete_after_link" value="1" />&nbsp;Delete after replace?
@@ -120,7 +120,7 @@
                     ) {
                         var left_input = $(dt_div).find('#ODRReplaceLinks_left_input').val();
                         var right_input = $(dt_div).find('#ODRReplaceLinks_right_input').val();
-                        $("#ODRReplaceLinks_final").show();
+                        $("#ODRReplaceLinks_final").removeClass('ODRHidden');
                         $("#ODRReplaceLinks_final_blurb").html('Replace all links to/from "' + left_input + '" with "' + right_input + '"?');
                     }
                 },
@@ -131,7 +131,7 @@
                     $(info_div).find(".linked_from").html('');
                     $(info_div).next().html('');
 
-                    $("#ODRReplaceLinks_final").hide();
+                    $("#ODRReplaceLinks_final").addClass('ODRHidden');
                     $("#ODRReplaceLinks_final_blurb").html('');
                 },
                 complete: function(jqXHR) {
@@ -155,7 +155,7 @@
             $("#ODRReplaceLinks_final_form .odrreplacelinks_form_input").remove();
 
             $(".ODRReplaceLinks_content_div").each(function(index,div) {
-                if ( $(div).is(':visible') ) {
+                if ( !$(div).hasClass('ODRHidden') ) {
                     var external_id_field_id = $(div).attr('rel');
                     var replaced_record_id = $(div).find('#ODRReplaceLinks_left_input').val();
                     var replacement_record_id = $(div).find('#ODRReplaceLinks_right_input').val();
@@ -179,7 +179,7 @@
 
             var dt_id = '';
             $(".ODRReplaceLinks_content_div").each(function(index,div) {
-                if ( $(div).is(':visible') ) {
+                if ( !$(div).hasClass('ODRHidden') ) {
                     var pieces = $(this).attr('id').split(/_/);
                     dt_id = pieces[2];
                 }
@@ -223,8 +223,8 @@
      * @param {number} dt_id
      */
     function ODRReplaceLinks_reset(dt_id) {
-        $(".ODRReplaceLinks_content_div").hide();
-        $("#ODRReplaceLinks_dt_" + dt_id).show();
+        $(".ODRReplaceLinks_content_div").addClass('ODRHidden');
+        $("#ODRReplaceLinks_dt_" + dt_id).removeClass('ODRHidden');
 
         $(".ODRReplaceLinks_left_info .links_to").html('');
         $(".ODRReplaceLinks_left_info .linked_from").html('');
@@ -233,7 +233,7 @@
         $(".ODRReplaceLinks_left_content").html('');
         $(".ODRReplaceLinks_right_content").html('');
 
-        $("#ODRReplaceLinks_final").hide();
+        $("#ODRReplaceLinks_final").addClass('ODRHidden');
         $("#ODRReplaceLinks_final_blurb").html('');
     }
 </script>

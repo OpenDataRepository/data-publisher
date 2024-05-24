@@ -1,14 +1,26 @@
 {% spaceless %}
 
+{# The "intent" variable passed in is always "linking" for this file...
+   ODRCustomController::renderList() renders ODRAdminBundle:TextResults:textresultslist.html.twig
+   when intent == 'searching' #}
+
 {% set theme = theme_array[initial_theme_id] %}
 
 {# Page/View Options #}
 {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
     'datatype': datatype,
     'theme': theme,
-    'page_type': 'search_results',
-    'search_key': '',
-} %}    {# TODO - do I actually want a separate page type for linking purposes? #}
+    'page_type': 'table',
+    'search_key': search_key,
+
+    'has_datarecords': has_datarecords,
+    'has_search_restriction': has_search_restriction,
+    'editable_only': editable_only,
+
+    'display_export_options': false,
+    'intent': 'linking',
+    'user_permissions': user_permissions,
+} %}
 
 <div class="ODRTableOuterWrap">
     <table id="TextResults_search" class="display ODRDatatableInstance"></table>
@@ -21,12 +33,18 @@
     $(function() {
         all_datarecords = [{% for num,dr_id in all_datarecords %}{{ dr_id }},{% endfor %}];
 
+        $("#ChooseView").unbind('click').click(function(event) {
+            window.ODRChooseView_applyredirectcallback = function(theme_id) {
+                // When a new theme is selected for this usage, the result needs to be surgically
+                //  spliced into a specific div on the page...
+                $("#selected_theme_id").val(theme_id);
+                doSearch( '{{ path('odr_search_results') }}' );
+            }
+            openChooseViewRemodal({{ datatype.id }}, 'search_results', '{{ search_key }}');
+        });
+
         var allow_multiple_links = $("#LinkDataRecordForm").children('input[name="allow_multiple_links"]').val();
         var local_datarecord_is_ancestor = $("#LinkDataRecordForm").children('input[name="local_datarecord_is_ancestor"]').val();
-        if (allow_multiple_links === 0)
-            $("#ODRLinkSelection").remove();
-        else
-            $("#ODRLinkSelection").show();
 
         // Initialize the datatables object
         var search_table = $("#TextResults_search").dataTable({
@@ -61,10 +79,11 @@
 
             "deferRender": true,
             "createdRow": function( row, data, index ) {
+                var dr_id = data[0];
                 if (allow_multiple_links == 1 || local_datarecord_is_ancestor == 0)
-                    $(row).prepend('<td><input type="checkbox" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
+                    $(row).prepend('<td><input type="checkbox" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');"/></td>');
                 else
-                    $(row).prepend('<td><input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
+                    $(row).prepend('<td><input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');"/></td>');
             }
         });
 
@@ -104,7 +123,7 @@
 
         // Ensure checkboxes have proper state on redraw of search results table
         $(search_table).on('draw.dt', function() {
-            initCheckboxes("#TextResults_search", false);
+            ODRLinkDatarecords_initCheckboxes("#TextResults_search", false);
         });
 
         // Prepend a header for the checkbox column

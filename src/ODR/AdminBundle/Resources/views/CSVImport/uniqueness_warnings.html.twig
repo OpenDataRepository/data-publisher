@@ -72,9 +72,9 @@
 
         // Display the warning based on whether it is
         if (selected)
-            $("#external_id_field_warning").hide();
+            $("#external_id_field_warning").addClass('ODRHidden');
         else
-            $("#external_id_field_warning").show();
+            $("#external_id_field_warning").removeClass('ODRHidden');
 
 {% endif %}
 
@@ -92,9 +92,9 @@
 
         jQuery.each(datafield_usage, function(key,value) {
             if (value === 1)
-                $("#datafield_" + key + "_unique_notice").hide();
+                $("#datafield_" + key + "_unique_notice").addClass('ODRHidden');
             else
-                $("#datafield_" + key + "_unique_notice").show();
+                $("#datafield_" + key + "_unique_notice").removeClass('ODRHidden');
         });
     }
 </script>

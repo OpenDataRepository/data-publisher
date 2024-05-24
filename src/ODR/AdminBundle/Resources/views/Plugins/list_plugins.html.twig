@@ -112,19 +112,21 @@
         $("#ODRRenderPluginList").removeAttr('style');
 
         $(".ODRDisplayOnlyInstalled").unbind('click').click(function() {
-            if ($(".ODRNotInstalledPlugin").is(':visible')) {
+            var checked = $("#display_only_installed_toggle").prop('checked');
+
+            if ( checked ) {
                 $(".ODRNotInstalledPlugin").each(function() {
-                    $(this).hide();
+                    $(this).addClass('ODRHidden');
                 });
             }
             else {
                 $(".ODRNotInstalledPlugin").each(function() {
-                    $(this).show();
+                    $(this).removeClass('ODRHidden');
                 });
             }
 
             // Redraw the table so the row colors match
-            redoRowClasses();
+            redoRowClasses( $("#ODRRenderPluginList") );
         });
 
         $(".ODRInstallRenderPlugin").unbind('click').click(function() {
@@ -209,53 +211,15 @@
         });
     });
 
-    function redoRowClasses() {
-        var count = 0;
-        $("#ODRRenderPluginList tr").each(function() {
-            if ( $(this).is(':visible') ) {
-                count++;
-                if ( count % 2 === 1 )
-                    $(this).removeClass('odd').addClass('even');
-                else
-                    $(this).removeClass('even').addClass('odd');
-            }
-        });
-    }
-
-    var plugin_update_problems_body = '<div id="ODRPluginUpdateProblemsDialogWrapper" class="ODRHidden"> </div>';
-
     /**
      * Opens ODR's modal to display the problems associated with updating a render plugin
      */
     function openPluginUpdateProblemsDialog(plugin_classname) {
-        // open dialog
+        /** @type {odr_remodal_options} modal_options */
         var modal_options = {
             title: 'Problems when updating "' + plugin_classname + '"',
-            loading: true,
-            body: plugin_update_problems_body,
-            buttons: [
-                {
-                    id: 'ODRPluginUpdateProblems_close',
-                    text: 'Close'
-                }
-            ]
         };
         openODRRemodal(modal_options);
-
-        loadPluginProblems(plugin_classname);
-
-        // Attach an event handler to the close button
-        $("#ODRPluginUpdateProblems_close").unbind('click').click(function() {
-            closeODRRemodal();
-        });
-    }
-
-    /**
-     * Loads the HTML for a list of problems with updating a given render plugin.
-     *
-     * @param {string} plugin_classname
-     */
-    function loadPluginProblems(plugin_classname) {
 
         var url  = '{{ path('odr_plugin_problems', {'plugin_classname': '' } ) }}';
         url += plugin_classname;
@@ -266,17 +230,7 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRPluginUpdateProblemsDialogWrapper").html( data.d.html );
-
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRPluginUpdateProblemsDialogWrapper").show();
-
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
-                });
+                updateODRRemodalBody( data.d.html );
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state

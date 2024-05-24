@@ -38,8 +38,8 @@ class ThemeInfoService
      * and as a result theme_type only because useful to indicate a datatype's "master" theme.
      *
      * NOTE: due to this change, the database could have 'master', 'custom', 'custom_view', 'table',
-     * or 'search_results' for this value...as such, it's only safe to compare with/against the
-     * string 'master'.
+     * 'search_results', or 'linking' for this value...as such, it's only safe to compare with/against
+     * the string 'master'.
      *
      * @var string[]
      */
@@ -58,7 +58,7 @@ class ThemeInfoService
         1 => 'search_results',
         2 => 'display',
         4 => 'edit',
-//        8 => 'linking',    // TODO - do I actually want a separate page type for linking purposes?
+        8 => 'linking',    // TODO - differentiate between the "currently linked" table and the "linking search results"?
     );
 
 

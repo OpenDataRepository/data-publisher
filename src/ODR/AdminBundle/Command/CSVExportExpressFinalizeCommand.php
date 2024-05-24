@@ -25,6 +25,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
 {
+
+    /**
+     * @inheritDoc
+     */
     protected function configure()
     {
         parent::configure();
@@ -34,6 +38,9 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
             ->setDescription('Finishes up a CSV export file...');
     }
 
+    /**
+     * @inheritDoc
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $output->writeln( 'CSV Express Export Finalize Start' );

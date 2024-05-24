@@ -59,7 +59,7 @@
         </div>
     </div>
 
-    <div class="pure-u-1" {% if datafield_meta.allow_multiple_uploads == 0 and has_file == true %}style="display: none;"{% endif %}>
+    <div class="pure-u-1 {% if datafield_meta.allow_multiple_uploads == 0 and has_file == true %}ODRHidden{% endif %}">
         {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
         {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
         {% set single_file = true %}
@@ -100,10 +100,17 @@
                 <div class="pure-u-1">
                     &nbsp;<i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ oimage.created|date('Y-m-d') }} by {{ oimage.createdBy|user_string }}"></i>
                     &nbsp;<i class="ODRDeleteImage tooltip Pointer fa fa-lg fa-trash-o" title="Delete Image" rel="{{ oimage.id }}"></i>
-                    &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if oimage_meta.publicDate|is_public %}ODRActiveIcon{% endif %}" title="{% if not oimage_meta.publicDate|is_public %}Image is not public{% else %}Public since {{ oimage_meta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
+                    &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if oimage_meta.publicDate|is_public %}fa-public{% else %}fa-not-public{% endif %}" title="{% if not oimage_meta.publicDate|is_public %}Image is not public{% else %}Public since {{ oimage_meta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
                     &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-left" title="Rotate Image 90 degrees counter-clockwise" rel="{{ oimage.id }}"></i>
                     &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-right" title="Rotate Image 90 degrees clockwise" rel="{{ oimage.id }}"></i>
-                    &nbsp;
+
+                    {% if datafield_meta.quality_str != '' %}
+                        {% include 'ODRAdminBundle:Edit:file_quality.html.twig' with {
+                            'datafield': datafield,
+                            'file': oimage,
+                            'meta': oimage_meta,
+                        } %}
+                    {% endif %}
                 </div>
                 <div class="pure-u-23-24">
                     <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
@@ -125,7 +132,15 @@
             {% endif %}
             {% set callback = 'ReloadEditDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': datarecord.dataType.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+                'target': target,
+                'single_file': single_file,
+                'upload_type': 'image',
+                'datatype_id': datarecord.dataType.id,
+                'datarecord_id': datarecord.id,
+                'datafield_id': datafield.id,
+                'callback': callback
+            } %}
         {% endif %}
     </div>
 

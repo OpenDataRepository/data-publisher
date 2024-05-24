@@ -231,18 +231,12 @@
         {% endif %}
 
         // Display the modal
-        $(".ODRRemodalBody").html(body);
-        $(".ODRRemodalLoading").fadeOut('150', function() {
-            $(".ODRRemodalBody").show();
-            $(".ODRRemodalButtons").show();
-            $("#ODRFileDownloadFormWrapper").show();
-            // Resize ODRFileDownloadModal to take up full height
-            {% if use_phase_sets %}
-            if (phase_sets[0] !== undefined)
-                selectPhase(phase_sets[0].set_name);
-            {% endif %}
-            resetRemodalInnerHeight();
-        });
+        updateODRRemodalBody(body);
+
+        {% if use_phase_sets %}
+        if (phase_sets[0] !== undefined)
+            selectPhase(phase_sets[0].set_name);
+        {% endif %}
 
         jQuery("#RunQanalyze").click(function (e) {
             buildDataAndSubmit(analysis_file_id);
@@ -252,19 +246,17 @@
 
 
     function buildDataAndSubmit(file_id) {
+
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
+            title: 'Qanalyze',
+        };
+        openODRRemodal(modal_options);
+
         // Use path here...
         var base_url = '{{ path('odr_file_download', { 'file_id': 0 }) }}';
         base_url = base_url.substr(0,(base_url.length - 1));
         var file_url = base_url + file_id;
-
-        // display loading/preparing
-        var modal = $('[data-remodal-id=ODRRemodal]');
-        setODRRemodalLoadingText("Starting");
-        modal.find(".ODRRemodalBody").hide();
-        modal.find(".ODRRemodalButtons").hide();
-        modal.find(".ODRRemodalLoading").show();
-        resetRemodalInnerHeight();
-
 
         $.ajax({
             cache: false,
@@ -279,7 +271,7 @@
                     // console.log('got unencrypted file data')
                     // console.log(data)
                     // console.log(textStatus)
-                    setODRRemodalLoadingText("Preparing data");
+                    setODRRemodalLoadingText("Preparing data...");
                     local_getFileData(data)
                 }
                 else if (status_code === 202) {
@@ -322,14 +314,8 @@
         function submitToPopup(f) {
             form.target = 'qanalyze';
             var w = window.open('about:blank', form.target);
-            if(!w || w.closed || typeof w.closed=='undefined')
-            {
-                var modal = $('[data-remodal-id=ODRRemodal]');
-                modal.find(".ODRRemodalBody").html("<h4>You appear to have pop-ups blocked for this site.</h4><p>Please enable popups to allow external apps to open.<p>");
-                modal.find(".ODRRemodalLoading").hide();
-                modal.find(".ODRRemodalButtons").show();
-                modal.find(".ODRRemodalBody").show();
-                resetODRRemodalLoadingText();
+            if (!w || w.closed || typeof w.closed=='undefined') {
+                updateODRRemodalBody("<h4>You appear to have pop-ups blocked for this site.</h4><p>Please enable popups to allow external apps to open.<p>");
             }
             else {
                 var hiddenField = document.createElement("input");
@@ -356,14 +342,8 @@
             success: function(data) {
                 // var w = window.open('about:blank', qanalyze_data.sample.name);
                 var w = window.open('about:blank', 'qanalyze');
-                if(!w || w.closed || typeof w.closed=='undefined')
-                {
-                    var modal = $('[data-remodal-id=ODRRemodal]');
-                    modal.find(".ODRRemodalBody").html("<h4>You appear to have pop-ups blocked for this site.</h4><p>Please enable popups to allow external apps to open.<p>");
-                    modal.find(".ODRRemodalLoading").hide();
-                    modal.find(".ODRRemodalButtons").show();
-                    modal.find(".ODRRemodalBody").show();
-                    resetODRRemodalLoadingText();
+                if (!w || w.closed || typeof w.closed=='undefined') {
+                    updateODRRemodalBody("<h4>You appear to have pop-ups blocked for this site.</h4><p>Please enable popups to allow external apps to open.<p>");
                 }
                 else {
                     w.document.write(data);

@@ -4167,6 +4167,7 @@ class APIController extends ODRCustomController
                                     $new_field->setUpdatedBy($user);
                                     self::setDates($new_field, $field['created']);
                                     $new_field->setValue($field['value']);
+                                    $new_field->setConvertedValue('');    // TODO - need converted value
 
                                     $em->persist($new_field);
                                     if ($existing_field) {

@@ -80,17 +80,17 @@ jQuery(function() {
 
     $("#{{ odr_chart_id }}_Static_GraphWrapper").unbind('click').click(function() {
         var graph_parent = $(this).parent().parent();
-        $(this).hide();
-        $(graph_parent).find('.DynamicGraphs').show();
+        $(this).addClass('ODRHidden');
+        $(graph_parent).find('.DynamicGraphs').removeClass('ODRHidden');
 
         var chart_id = $(graph_parent).find('.ODRDynamicGraph').attr('id');
         window["SetupGraphs_" + chart_id]();
     });
 {#
     $(".DynamicGraphs").unbind('click').click(function() {
-        var parent = $(this).parent()
-        $(this).hide()
-        $(parent).find('.StaticGraphs').show()
+        var parent = $(this).parent();
+        $(this).addClass('ODRHidden');
+        $(parent).find('.StaticGraphs').removeClass('ODRHidden');
     });
 #}
 

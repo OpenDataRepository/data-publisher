@@ -59,7 +59,7 @@
     {% for dt_id, dt in datatypes %}
         {% set datatype_meta = dt.dataTypeMeta %}
 
-        <div id="datatype_groups_{{ dt_id }}" class="ODRGroupList pure-u-11-24" rel="{{ dt_id }}">
+        <div id="datatype_groups_{{ dt_id }}" class="ODRGroupList pure-u-11-24 ODRHidden" rel="{{ dt_id }}">
             <div class="pure-u-1 ODRManageGroupsHeader">Default Groups for "{{ datatype_meta.shortName }}"</div>
 
             <div class="pure-u-1">
@@ -184,7 +184,7 @@
 
             // Iterate over all visible rows, attempting to find the one that is currently selected
             var selected_element = null;
-            $(".ODRListExpand:visible").each(function() {
+            $(".ODRListExpand").not('.ODRHidden').each(function() {
                 if ( $(this).children(".fa-caret-right").length > 0 ) {
                     selected_element = $(this);
                 }
@@ -194,7 +194,7 @@
             if ( selected_row_id !== '' && selected_element === null ) {
                 // The group list div is visible but the corresponding row wasn't found, then the
                 //  search function has hidden the corresponding row...so hide the group list div
-                $(".ODRGroupList").hide();
+                $(".ODRGroupList").addClass('ODRHidden');
                 selected_row = null;
             }
             else if ( selected_row_id !== '' && selected_element !== null ) {
@@ -210,7 +210,7 @@
                 //  ...reset the arrows
                 $(selected_element).children(".fa-caret-right").each(function() {   // should only return one
                     var row_num = $(this).attr('rel');
-                    $("#datatype_groups_" + row_num).hide();
+                    $("#datatype_groups_" + row_num).addClass('ODRHidden');
 
                     $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
                 });
@@ -222,7 +222,7 @@
 
         $("#{{ id }}").removeAttr('style');
         {% if hidden %}
-            $("#{{ id }}_wrapper").hide();
+            $("#{{ id }}_wrapper").addClass('ODRHidden');
         {% endif %}
     });
 </script>

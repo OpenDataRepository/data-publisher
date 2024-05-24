@@ -2149,7 +2149,7 @@ class DisplayController extends ODRCustomController
             }
 
             $results = $query->getArrayResult();
-            $num = rand(0, count($results));
+            $num = rand(0, count($results)-1);
 
             // ...and return a url to it
             $url = $router->generate(

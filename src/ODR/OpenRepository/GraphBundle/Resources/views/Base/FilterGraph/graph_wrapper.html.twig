@@ -58,7 +58,7 @@
                     <div id="ODRFilterGraphPlugin_{{ odr_chart_id }}_settings_div" class="ODRFilterGraphPlugin_settings_div">
                         <a><i class="fa fa-cog"></i></a>
 
-                        <div class="ODRFilterGraphPlugin_settings">
+                        <div class="ODRFilterGraphPlugin_settings ODRHidden">
                             <div class="ODRFilterGraphPlugin_settings_close">
                                 <label id="ODRFilterGraphPlugin_{{ odr_chart_id }}_close" style="cursor:pointer;">
                                     <i class="fa fa-close"></i>&nbsp;Close
@@ -205,10 +205,10 @@
 
         {# Also need to attach events on a per-graph basis... #}
         $("#ODRFilterGraphPlugin_{{ odr_chart_id }}_settings_div").click(function() {
-            $(this).children(".ODRFilterGraphPlugin_settings").first().show();
+            $(this).children(".ODRFilterGraphPlugin_settings").first().removeClass('ODRHidden');
         });
         $("#ODRFilterGraphPlugin_{{ odr_chart_id }}_close").click(function(event) {
-            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
+            $(this).closest(".ODRFilterGraphPlugin_settings").first().addClass('ODRHidden');
             event.stopPropagation();
         });
 
@@ -217,12 +217,12 @@
             var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
 
             if ( $(this).is(':checked') ) {
-                $("#" + chart_id + "_filter").children(".ODRFilterGraphPlugin_HiddenFilterField").show();
+                $("#" + chart_id + "_filter").children(".ODRFilterGraphPlugin_HiddenFilterField").removeClass('ODRHidden');
             }
             else {
                 var option_reselected = false;
                 $("#" + chart_id + "_filter").children(".ODRFilterGraphPlugin_HiddenFilterField").each(function(index,elem) {
-                    $(elem).hide();
+                    $(elem).addClass('ODRHidden');
 
                     // If hiding fields, then ensure all of their options are
                     //  selected so they don't affect the graph
@@ -242,7 +242,7 @@
             }
 
             // Don't want the settings div open anymore
-            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
+            $(this).closest(".ODRFilterGraphPlugin_settings").first().addClass('ODRHidden');
         });
 
         $("#{{ odr_chart_id }}_show_odr_data").unbind('change').change(function() {
@@ -253,7 +253,7 @@
             ODRGraph_triggerDynamicGraph(chart_id);
 
             // Don't want the settings div open anymore
-            $(this).closest(".ODRFilterGraphPlugin_settings").first().hide();
+            $(this).closest(".ODRFilterGraphPlugin_settings").first().addClass('ODRHidden');
         });
     });
 </script>

@@ -20,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\SidebarLayout;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -31,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
@@ -187,8 +189,8 @@ class SessionController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -213,7 +215,7 @@ class SessionController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // If the user can't view the datatype, then they shouldn't be setting themes for it
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
             if ($user === 'anon.') {
@@ -242,6 +244,109 @@ class SessionController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x1aeac909;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Allows a user to set their session or default sidebar layout.
+     *
+     * NOTE: the corresponding unset is in SearchSidebarController::unsetpersonaldefaultlayoutAction()
+     *
+     * @param integer $datatype_id
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
+     * @param integer $sidebar_layout_id
+     * @param integer $persist If 1, then save this choice to the database
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function applysidebarlayoutAction($datatype_id, $intent, $sidebar_layout_id, $persist, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Unlike themes, the "master" sidebar layout does not have an id to use
+            /** @var SidebarLayout|null $sidebar_layout */
+            $sidebar_layout = null;
+            if ( $sidebar_layout_id != 0 ) {
+                $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+                if ($sidebar_layout == null)
+                    throw new ODRNotFoundException('Sidebar Layout');
+
+                if ($sidebar_layout->getDataType()->getId() !== $datatype->getId())
+                    throw new ODRBadRequestException('Sidebar Layout does not match Datatype');
+            }
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // If the user can't view the datatype, then they shouldn't be setting layouts for it
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            if ( is_null($sidebar_layout) ) {
+                // If a sidebar layout wasn't specified, then just set the user's session to use
+                //  the "master" sidebar layout
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $intent, 0);    // passing zero to use the datatype's "master" sidebar layout
+
+                // If a logged-in user requested this to be their default sidebar layout, then
+                //  unset any existing preference they have
+                if ( $user !== 'anon.' && $persist == 1 )
+                    $search_sidebar_service->resetUserSidebarLayoutPreference($datatype->getId(), $user, $intent);
+            }
+            else if ($user === 'anon.') {
+                // The sidebar layout must be public for an anonymous user to be able to use it
+                if ( !$sidebar_layout->isShared() )
+                    throw new ODRForbiddenException();
+
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $intent, $sidebar_layout->getId());
+
+                // Silently ignore attempts to save this preference to the database
+            }
+            else {
+                // If the sidebar layout isn't public or the user doesn't own the layout...then they can't use it
+                if ( !$sidebar_layout->isShared() && $sidebar_layout->getCreatedBy()->getId() !== $user->getId() )
+                    throw new ODRForbiddenException();
+
+                $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $intent, $sidebar_layout->getId());
+
+                // Save this sidebar layout as their default if they wanted
+                if ($persist == 1)
+                    $search_sidebar_service->setUserSidebarLayoutPreference($user, $sidebar_layout, $intent);
+            }
+
+        }
+        catch (\Exception $e) {
+            $source = 0xda22f5ec;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

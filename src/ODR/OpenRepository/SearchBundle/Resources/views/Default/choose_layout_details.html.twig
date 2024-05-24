@@ -1,0 +1,180 @@
+{% spaceless %}
+
+<li data-sidebar-layout-id="{{ sidebar_layout.id }}" {% if sidebar_layout.id == selected_layout_id %}class="ODRCurrentLayout"{% endif %}>
+    <div class="pure-u-1 pure-u-md-6-24">
+        <h4>
+        {% if sidebar_layout.name != "" %}
+            {{ sidebar_layout.name }}
+        {% else %}
+            Unnamed View.
+        {% endif %}
+        </h4>
+        <div class="ODRChooseViewDescription">
+        {% if sidebar_layout.description != "" %}
+            {{ sidebar_layout.description }}
+        {% else %}
+            No description.
+        {% endif %}
+        </div>
+        <div>Created By: {{ sidebar_layout.created_by_name }}</div>
+{#        <div>sidebar_layout id: {{ sidebar_layout.id }}&nbsp;&nbsp;page type: {{ formatted_intent }}</div>#}
+    </div>
+
+    <div class="pure-u-1 pure-u-md-11-24 ODRChooseViewDetails">
+    {% if sidebar_layout.id == selected_layout_id %}
+        <div class="ODRViewNote">[ Currently selected layout. ]</div>
+        <div class="ODRViewNote">&nbsp;</div>
+    {% endif %}
+
+        <div class="ODRViewNote ODRLayoutInfoDiv">
+            <i class="fa fa-lg fa-info-circle"></i>&nbsp;Database default for...
+            <div class="ODRLayoutInfo">
+                {% for num,label in sidebar_layout.default_for %}
+                    <div class="ODRViewNote">
+                        {% if is_datatype_admin %}
+                            {# datatype admins can make a theme no longer used as a default for a database #}
+                            <i class="ODRSidebarLayout_UnsetDatabaseDefault fa fa-unlink" title="Stop using as database default" rel="{{ label }}"></i>&nbsp;
+                        {% endif %}
+                        Database default for {{ label }} mode
+                    </div>
+                {% endfor %}
+
+                {% if sidebar_layout.default_for|length > 0 and is_datatype_admin and formatted_intent not in sidebar_layout.default_for %}
+                    <div>&nbsp;</div>
+                {% endif %}
+
+                {% if is_datatype_admin and formatted_intent not in sidebar_layout.default_for %}
+                    <div class="ODRViewNote">
+                        {% if sidebar_layout.is_shared and not sidebar_layout.is_empty %}
+                            {# datatype admins can set any shared theme as the default for a database #}
+                            <i class="ODRSidebarLayout_SetDatabaseDefault fa fa-link" title="Make this view the database default."></i>&nbsp;
+                            Use as default for {% if formatted_intent != '' %}{{ formatted_intent }}{% else %}current{% endif %} mode.
+                        {% elseif sidebar_layout.is_empty %}
+                            <i class="fa fa-ban"></i>&nbsp;
+                            Empty layouts can't be used as database defaults.
+                        {% else %}
+                            <i class="fa fa-ban"></i>&nbsp;
+                            Unshared layouts can't be used as database defaults.
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    {% if user != "anon." %}
+        <div class="ODRViewNote ODRLayoutInfoDiv">
+            <i class="fa fa-lg fa-info-circle"></i>&nbsp;Personal default for...
+            <div class="ODRLayoutInfo">
+                {% if sidebar_layout.is_empty %}
+                    <div class="ODRViewNote">
+                        <i class="fa fa-ban"></i>&nbsp;
+                        Empty layouts can't be used as personal defaults.
+                    </div>
+                {% elseif formatted_intent not in sidebar_layout.user_preference_for %}
+                    {# users can select any non-empty sidebar layout they can view to be their personal default #}
+                    <div class="ODRViewNote">
+                        <i class="ODRSidebarLayout_SetPersonalDefault fa fa-link"></i>&nbsp;
+                        Use this layout as your personal default for {% if formatted_intent != '' %}{{ formatted_intent }}{% else %}current{% endif %} mode.
+                    </div>
+                {% endif %}
+
+                {% for num,label in sidebar_layout.user_preference_for %}
+                    <div class="ODRViewNote">
+                        <i class="ODRSidebarLayout_UnsetPersonalDefault fa fa-unlink" title="Stop using as personal default" rel="{{ label }}"></i>&nbsp;
+                        Personal default for {{ label }} mode
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+    </div>
+
+    <div class="pure-u-1 pure-u-md-6-24">
+        <ul class="ODRViewOptions">
+        {% set need_spacer = false %}
+
+        {% if sidebar_layout.id != selected_layout_id %}
+            {# all users and visitors can select a shared, non-empty layout #}
+
+            {% if sidebar_layout.is_empty %}
+            <li class="ODRChooseViewLink strikethrough" title="This layout can't be used because it is empty">
+                <i class="fa fa-eye"></i>&nbsp;Use (current session)
+            </li>
+            {% else %}
+            <li class="ODRChooseViewLink ODRSidebarLayout_UseSession">
+                <i class="fa fa-eye"></i>&nbsp;Use (current session)
+            </li>
+            {% endif %}
+
+            <li>&nbsp;</li>
+        {% endif %}
+
+        {% if is_datatype_admin or (user != "anon." and sidebar_layout.created_by == user.id) %}
+            {# datatype admins are allowed to edit any sidebar layout for this datatype #}
+            {# non-datatype admins can only edit sidebar layouts they created #}
+            <li class="ODRChooseViewLink ODRSidebarLayout_Modify">
+                <i class="fa fa-edit"></i>&nbsp;Edit
+            </li>
+        {% endif %}
+
+        {% if user != "anon." %}
+            {# users are allowed to make their own copy of any non-empty sidebar layout #}
+            {% if sidebar_layout.is_empty %}
+            <li class="ODRChooseViewLink strikethrough" title="This layout can't be copied because it is empty">
+                <i class="fa fa-copy"></i>&nbsp;Copy
+            </li>
+            {% else %}
+            <li class="ODRChooseViewLink ODRSidebarLayout_Copy">
+                <i class="fa fa-copy"></i>&nbsp;Copy
+            </li>
+            {% endif %}
+        {% endif %}
+
+        {% if user != "anon." and (is_super_admin or sidebar_layout.created_by == user.id) %}
+            {# users can delete sidebar layouts, but only if they created it... #}
+            {% if sidebar_layout.default_for|length > 0 %}
+                {# if it's a default for some mode, then show the link but don't activate it #}
+                <li class="ODRChooseViewLink strikethrough" title="This layout can't be deleted because it is being used as a database default">
+                    <i class="fa fa-trash"></i>&nbsp;Delete
+                </li>
+            {% else %}
+                <li class="ODRChooseViewLink ODRSidebarLayout_Delete">
+                    <i class="fa fa-trash"></i>&nbsp;Delete
+                </li>
+            {% endif %}
+
+            {# datatype admins are not allowed to delete other users' sidebar layouts, but super admins are #}
+        {% endif %}
+
+        {% if user != "anon." and (is_super_admin or sidebar_layout.created_by == user.id) %}
+            {% if sidebar_layout.is_shared %}
+                {# users can only unshare one of their own sidebar layouts if it's not being used as a default #}
+                {% if sidebar_layout.default_for|length > 0 %}
+                    <li class="ODRChooseViewLink strikethrough" title="This layout can't be set to private because it is being used as a database default">
+                        <i class="fa fa-globe fa-public"></i>&nbsp;Make private
+                    </li>
+                {% else %}
+                    <li class="ODRChooseViewLink ODRSidebarLayout_ToggleShared">
+                        <i class="fa fa-globe fa-public"></i>&nbsp;Make private
+                    </li>
+                {% endif %}
+            {% else %}
+                {# users can always share one of their own sidebar layouts #}
+                {% if sidebar_layout.is_empty %}
+                    <li class="ODRChooseViewLink strikethrough" title="This layout can't be set to public because it is empty">
+                        <i class="fa fa-globe fa-not-public"></i>&nbsp;Make public
+                    </li>
+                {% else %}
+                    <li class="ODRChooseViewLink ODRSidebarLayout_ToggleShared">
+                        <i class="fa fa-globe fa-not-public"></i>&nbsp;Make public
+                    </li>
+                {% endif %}
+            {% endif %}
+
+            {# datatype admins are not allowed to change public status of other users' sidebar layouts, but super admins are #}
+        {% endif %}
+        </ul>
+    </div>
+</li>
+
+{% endspaceless %}

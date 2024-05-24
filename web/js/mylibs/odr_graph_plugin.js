@@ -272,34 +272,34 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
     // console.log( 'selected_values', selected_values );
 
     // Show settings specific to the current graph type
-    $("." + chart_id + "_settings").hide();
+    $("." + chart_id + "_settings").addClass('ODRHidden');
     if ( chart_type === 'histogram' )
-        $("#" + chart_id + "_histogram_settings").show();
+        $("#" + chart_id + "_histogram_settings").removeClass('ODRHidden');
     else if ( chart_type === 'bar' )
-        $("#" + chart_id + "_bar_settings").show();
+        $("#" + chart_id + "_bar_settings").removeClass('ODRHidden');
     else if ( chart_type === 'xy' )
-        $("#" + chart_id + "_line_settings").show();
+        $("#" + chart_id + "_line_settings").removeClass('ODRHidden');
 
     // Re-enable and relabel the selectors based on the current graph type
-    $("#" + chart_id + "_settings").find(".graph_columns").hide();
+    $("#" + chart_id + "_settings").find(".graph_columns").addClass('ODRHidden');
     if ( chart_type === 'histogram' ) {
         // Histograms only read one column
-        $(ids[0] + "_label").html("values: ").show();
-        $(ids[0]).show();
+        $(ids[0] + "_label").html("values: ").removeClass('ODRHidden');
+        $(ids[0]).removeClass('ODRHidden');
     }
     else if ( chart_type === 'pie' ) {
         // Pie charts need two columns
-        $(ids[0] + "_label").html("values: ").show();
-        $(ids[0]).show();
-        $(ids[1] + "_label").html("labels: ").show();
-        $(ids[1]).show();
+        $(ids[0] + "_label").html("values: ").removeClass('ODRHidden');
+        $(ids[0]).removeClass('ODRHidden');
+        $(ids[1] + "_label").html("labels: ").removeClass('ODRHidden');
+        $(ids[1]).removeClass('ODRHidden');
     }
     else {
         // The other graph types need x/y columns  TODO - error selectors for these?
-        $(ids[0] + "_label").html("x values: ").show();
-        $(ids[0]).show();
-        $(ids[1] + "_label").html("y values: ").show();
-        $(ids[1]).show();
+        $(ids[0] + "_label").html("x values: ").removeClass('ODRHidden');
+        $(ids[0]).removeClass('ODRHidden');
+        $(ids[1] + "_label").html("y values: ").removeClass('ODRHidden');
+        $(ids[1]).removeClass('ODRHidden');
     }
 
     return selected_values;

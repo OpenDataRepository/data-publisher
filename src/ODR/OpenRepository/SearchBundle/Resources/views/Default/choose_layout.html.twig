@@ -1,0 +1,553 @@
+{% spaceless %}
+
+{% if intent == '' %}
+<div>
+    <label for="ODRChooseLayout_PageType">
+        Mode Selection:
+    </label>
+    <select id="ODRChooseLayout_PageType">
+    {% for key,label in available_intents %}
+        <option value="{{ key }}">{{ label }}</option>
+    {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+<ul id="ODRChooseLayout" class="pure-u-1">
+    {# The user's currently selected layout goes at the top of the list... #}
+    {% for sidebar_layout in available_layouts %}
+        {% if sidebar_layout.id == selected_layout_id %}
+            {% include 'ODROpenRepositorySearchBundle:Default:choose_layout_details.html.twig' with {
+                'sidebar_layout': sidebar_layout,
+                'user': user,
+                'selected_layout_id': selected_layout_id,
+
+                'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
+                'formatted_intent': formatted_intent,
+                'available_intents': available_intents,
+            } %}
+        {% endif %}
+    {% endfor %}
+
+    {# ...all others come after the currently selected sidebar layout #}
+    {% include 'ODROpenRepositorySearchBundle:Default:default_layout_details.html.twig' with {
+        'user': user,
+        'selected_layout_id': selected_layout_id,
+    } %}
+
+    {% for sidebar_layout in available_layouts %}
+        {% if sidebar_layout.id != selected_layout_id %}
+            {% include 'ODROpenRepositorySearchBundle:Default:choose_layout_details.html.twig' with {
+                'sidebar_layout': sidebar_layout,
+                'user': user,
+                'selected_layout_id': selected_layout_id,
+
+                'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
+                'formatted_intent': formatted_intent,
+                'available_intents': available_intents,
+            } %}
+        {% endif %}
+    {% endfor %}
+</ul>
+
+<script>
+    $(function() {
+        $(".ODRSidebarLayout_UseSession").unbind('click').click(function() {
+            // Reading properties of the modal has to come before calling setModalMessage()
+{% if intent == '' %}
+            var selected_intent = $("#ODRChooseLayout_PageType").children(":selected").val();
+{% else %}
+            var selected_intent = '';
+{% endif %}
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+
+            setModalMessage("Setting layout for session.");
+
+            var reload = true;
+            var persist = false;
+            ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
+        });
+
+        $(".ODRSidebarLayout_SetPersonalDefault").unbind('click').click(function() {
+            // Reading properties of the modal has to come before calling setModalMessage()
+{% if intent == '' %}
+            var selected_intent = $("#ODRChooseLayout_PageType").children(":selected").val();
+{% else %}
+            var selected_intent = '';
+{% endif %}
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+
+            setModalMessage("Setting view as personal default.");
+
+            var reload = true;
+            var persist = true;
+            ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
+        });
+
+        $(".ODRSidebarLayout_ToggleShared").unbind('click').click(function() {
+            // Reading properties of the modal has to come before calling setModalMessage()
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+
+            setModalMessage("Toggling public status of view.");
+
+            ODRSidebarLayout_toggleLayoutShared(sidebar_layout_id);
+        });
+
+
+        $(".ODRSidebarLayout_SetDatabaseDefault").unbind('click').click(function() {
+            // Reading properties of the modal has to come before calling setModalMessage()
+{% if intent == '' %}
+            var selected_intent = $("#ODRChooseLayout_PageType").children(":selected").val();
+{% else %}
+            var selected_intent = '';
+{% endif %}
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+
+            setModalMessage("Setting view as database default.");
+
+            ODRSidebarLayout_setDatabaseDefaultLayout(sidebar_layout_id, selected_intent);
+        });
+
+
+        $(".ODRSidebarLayout_Create").unbind('click').click(function() {
+            setModalMessage("Creating new layout, please wait...");
+
+            ODRSidebarLayout_createLayout();
+        });
+
+        $(".ODRSidebarLayout_Modify").unbind('click').click(function() {
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+            // Do not set this sidebar layout as the user's default for this datatype
+            ODRSidebarLayout_modifyLayout(sidebar_layout_id, false);
+        });
+
+        $(".ODRSidebarLayout_Copy").unbind('click').click(function() {
+            // Reading properties of the modal has to come before calling setModalMessage()
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+
+            setModalMessage("Copying selected layout, please wait...");
+
+            ODRSidebarLayout_copyLayout(sidebar_layout_id);
+        });
+
+        $(".ODRSidebarLayout_Delete").unbind('click').click(function() {
+            // Reading properties of the modal has to come before calling setModalMessage()
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+
+            setModalMessage("Deleting view...");
+
+            ODRSidebarLayout_deleteLayout(sidebar_layout_id);
+        });
+
+
+        $(".ODRSidebarLayout_UnsetPersonalDefault").unbind('click').click(function() {
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+            var selected_intent = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
+
+            ODRSidebarLayout_unsetPersonalDefaultLayout(sidebar_layout_id, selected_intent);
+        });
+
+        $(".ODRSidebarLayout_UnsetDatabaseDefault").unbind('click').click(function() {
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+            var selected_intent = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
+
+            ODRSidebarLayout_unsetDatabaseDefaultLayout(sidebar_layout_id, selected_intent);
+        });
+    });
+
+    /**
+     * Changes the user's current sidebar layout.
+     *
+     * @param {number} sidebar_layout_id The sidebar layout to use
+     * @param {boolean} reload If true, reloads the sidebar to use the requested layout
+     * @param {boolean} persist If true, then the database is updated to indicate the user prefers to use the selected sidebar layout
+     * @param {string} selected_intent
+     */
+    function ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent = '') {
+        if (persist)
+            persist = 1;
+        else
+            persist = 0;
+
+        if ( selected_intent == '' ) {
+{% if intent != '' %}
+            // If a page type isn't provided, then set it based on where this is being called from
+            selected_intent = '{{ intent }}';
+{% else %}
+            // If a page type isn't provided and this is being called from the datatype landing page,
+            //  then there's nothing to store the sidebar layout under...return without saving anything
+            return;
+{% endif %}
+        }
+
+        // console.log('ODRSidebarLayout_useLayout()', 'sidebar_layout_id', sidebar_layout_id, 'reload', reload, 'persist', persist, 'selected_intent', selected_intent);
+
+        var url = '{{ path('odr_apply_sidebar_layout', { 'datatype_id': datatype.id, 'intent': '', 'sidebar_layout_id': 0, 'persist': 0 }) }}';
+        url = url.substr(0, (url.length - 4)) + selected_intent + "/" + sidebar_layout_id + "/" + persist;
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                if (reload) {
+                    // Guarantee the sidebar is current
+                    updateSearchSidebar('{{ search_key }}', selected_intent, true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                    closeODRRemodal();
+                }
+
+                // Without reload, this just sets the view preference
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Toggles whether the given sidebar layout is shared or not.
+     *
+     * @param {number} sidebar_layout_id
+     */
+    function ODRSidebarLayout_toggleLayoutShared(sidebar_layout_id) {
+        var url = '{{ path('odr_toggle_sidebar_layout_shared', { 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 1)) + sidebar_layout_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Close modal
+                closeODRRemodal();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Sets the given sidebar layout as its datatype's default sidebar layout for the current intent
+     * (searching, linking, etc)
+     *
+     * @param {number} sidebar_layout_id
+     * @param {string} selected_intent
+     */
+    function ODRSidebarLayout_setDatabaseDefaultLayout(sidebar_layout_id, selected_intent) {
+
+        if ( selected_intent == '' )
+            selected_intent = '{{ intent }}';
+
+        var url = '{{ path('odr_make_default_sidebar_layout', { 'intent': '', 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_intent + "/" + sidebar_layout_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Apply view for session and reload
+                var reload = true;
+                var persist = true;
+                ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Creates a new blank sidebar layout, then redirects to its design page.
+     */
+    function ODRSidebarLayout_createLayout() {
+        var url = '{{ path('odr_create_sidebar_layout', { 'datatype_id': datatype.id }) }}';
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Open the edit page for the new sidebar layout
+                // This will also make the new sidebar layout the user's default for this datatype
+                ODRSidebarLayout_modifyLayout(data.d.sidebar_layout_id, true);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Triggers a copy of the selected sidebar layout, then redirects to its design page.
+     *
+     * @param {number} sidebar_layout_id
+     */
+    function ODRSidebarLayout_copyLayout(sidebar_layout_id) {
+        var url = '{{ path('odr_clone_sidebar_layout', { 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 1)) + sidebar_layout_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Open the edit page for the new sidebar layout
+                // This will also make the new sidebar layout the user's default for this datatype
+                ODRSidebarLayout_modifyLayout(data.d.new_sidebar_layout_id, true);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Opens the design page for the given sidebar layout.
+     *
+     * @param {number} sidebar_layout_id
+     * @param {boolean} persist
+     */
+    function ODRSidebarLayout_modifyLayout(sidebar_layout_id, persist = false) {
+        // Set view for session
+        var reload = false;
+        ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist);    // Don't necessarily have a intent available here...could be coming from the landing page
+
+        // Open View Editor
+        var url = '{{ path('odr_modify_sidebar_layout', { 'datatype_id': datatype.id, 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += sidebar_layout_id + '/' + '{{ intent }}' + '/' + '{{ search_key }}';
+
+        // alert(url);  return;
+
+        // Hash change event will load page...
+        window.location.hash = url;
+        // ...but need to close the modal
+        closeODRRemodal();
+    }
+
+    /**
+     * Deletes the given sidebar layout.
+     *
+     * @param {number} sidebar_layout_id
+     */
+    function ODRSidebarLayout_deleteLayout(sidebar_layout_id) {
+        var url = '{{ path('odr_delete_sidebar_layout', { 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 1)) + sidebar_layout_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Ensure the sidebar didn't break if the user deleted their currently selected
+                //  layout
+                updateSearchSidebar('{{ search_key }}', '{{ intent }}', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                closeODRRemodal();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Updates the given sidebar layout so it's no longer considered the default for a user.
+     *
+     * @param {number} sidebar_layout_id
+     * @param {string} selected_intent
+     */
+    function ODRSidebarLayout_unsetPersonalDefaultLayout(sidebar_layout_id, selected_intent) {
+
+        var url = '{{ path('odr_unset_personal_sidebar_layout', { 'intent': '', 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_intent + '/' + sidebar_layout_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Do not apply view to user's session or reload
+                closeODRRemodal();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Updates the given sidebar layout so it's no longer considered the default for a database.
+     *
+     * @param {number} sidebar_layout_id
+     * @param {string} selected_intent
+     */
+    function ODRSidebarLayout_unsetDatabaseDefaultLayout(sidebar_layout_id, selected_intent) {
+
+        if ( selected_intent == '' )
+            selected_intent = '{{ intent }}';
+
+        var url = '{{ path('odr_unset_default_sidebar_layout', { 'intent': '', 'sidebar_layout_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_intent + '/' + sidebar_layout_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Do not apply view to user's session or reload
+                closeODRRemodal();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

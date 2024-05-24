@@ -3,41 +3,53 @@
 {% set datatype_id = datatype.id %}
 {% set datafield_id = datafield.id %}
 
-{% set datafield_meta = datafield.dataFieldMeta %}
-{% set fieldname = datafield_meta['fieldName'] %}
-{% set description = datafield_meta['description'] %}
-{% set field_typename = datafield_meta['fieldType']['typeName'] %}
-{% set field_typeclass = datafield_meta['fieldType']['typeClass'] %}
-
 {% set preset_value = '' %}
 {% if search_params[datafield_id] is defined %}
     {# doesn't make sense for radio/tags #}
     {% set preset_value = search_params[datafield_id] %}
 {% endif %}
 
-{% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
-{% set render_plugin_instance = null %}
 {% set can_execute_plugin = false %}
-
-{% for rpi_num,rpi in datafield.renderPluginInstances %}
-    {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-        {% set can_execute_plugin = rpi|can_execute_search_plugin(datatype, datafield, rendering_options) %}
-
-        {# Only want to save the render_plugin_instance if it's render-able #}
-        {% if can_execute_plugin %}
-            {% set render_plugin_instance = rpi %}
-        {% endif %}
-    {% endif %}
-{% endfor %}
-
 {% set content = '' %}
-{% if can_execute_plugin %}
-    {% set content = render_plugin_instance|search_plugin(datatype, datafield, preset_value, rendering_options) %}
+{% if design_page is not defined %}
+    {% set rendering_options = {'is_datatype_admin': false, 'context': 'search'} %}
+    {% set render_plugin_instance = null %}
+
+    {% for rpi_num,rpi in datafield.renderPluginInstances %}
+        {% if rpi.renderPlugin.overrideSearch == true and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+            {% set can_execute_plugin = rpi|can_execute_search_plugin(datatype, datafield, rendering_options) %}
+
+            {# Only want to save the render_plugin_instance if it's render-able #}
+            {% if can_execute_plugin %}
+                {% set render_plugin_instance = rpi %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% if can_execute_plugin %}
+        {% set content = render_plugin_instance|search_plugin(datatype, datafield, preset_value, rendering_options) %}
+    {% endif %}
 {% endif %}
 
 {% if can_execute_plugin and content|length > 0 %}
     {{ content|raw }}
+{% elseif datafield_id == 0 %}
+    <label for="textbox_general">
+        All Fields:
+        <input id="textbox_general" class="pure-u-1" type="text" name="gen"
+            {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
+            {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
+            {% if design_page is defined %}readonly{% endif %}
+        />
+    </label>
+
 {% else %}
+    {% set datafield_meta = datafield.dataFieldMeta %}
+    {% set fieldname = datafield_meta['fieldName'] %}
+    {% set description = datafield_meta['description'] %}
+    {% set field_typename = datafield_meta['fieldType']['typeName'] %}
+    {% set field_typeclass = datafield_meta['fieldType']['typeClass'] %}
+
     <span class="pure-u-1">
         <label {% if field_typename != "DateTime" and field_typeclass != "Radio" and field_typeclass != "Tag"%}for="datafield_{{ datafield_id }}"{% endif %}
                class="pure-u-1">
@@ -64,7 +76,7 @@
             <input id="df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
                    title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
                    placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
-                   size="15" maxlength="15"
+                   size="15" maxlength="15" {% if design_page is defined %}readonly{% endif %}
             />
         {% endif %}
         {% if field_typename == "DateTime" %}
@@ -74,7 +86,7 @@
     </span>
 
     {% if field_typename == "Boolean" %}
-        <select class="ODRInput pure-u-1 Pointer" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}">
+        <select class="ODRInput pure-u-1 Pointer" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}" {% if design_page is defined %}disabled{% endif %}>
             <option value="">Any</option>
             <option value="0" {% if preset_value == '0' %}selected{% endif %}>Unchecked</option>
             <option value="1" {% if preset_value == '1' %}selected{% endif %}>Checked</option>
@@ -88,10 +100,10 @@
             {% set can_view_nonpublic_files = true %}
         {% endif %}
 
-        <input type="text" class="ODRInput ODRFileDatafieldName pure-u-1" id="datafield_{{ datafield_id }}_fn" name="{{ datafield_id }}" value="{{ preset_value }}" rel="{{ datatype_id }}" title="Search based on the {{ field_typename }}'s filename"/>
+        <input type="text" class="ODRInput ODRFileDatafieldName pure-u-1" id="datafield_{{ datafield_id }}_fn" name="{{ datafield_id }}" value="{{ preset_value }}" rel="{{ datatype_id }}" title="Search based on the {{ field_typename }}'s filename" {% if design_page is defined %}readonly{% endif %} />
 
         <label class="pure-u-1"></label>
-        <select class="ODRInput ODRFileDatafieldExist pure-u-1" id="datafield_{{ datafield_id }}_ex" rel="{{ datatype_id }}" title="Search based on whether this field has any {{ field_typename }}s uploaded or not">
+        <select class="ODRInput ODRFileDatafieldExist pure-u-1" id="datafield_{{ datafield_id }}_ex" rel="{{ datatype_id }}" title="Search based on whether this field has any {{ field_typename }}s uploaded or not"  {% if design_page is defined %}disabled{% endif %}>
             <option value="">Any</option>
             <option value="1" {% if preset_value != '' and preset_value != '""' %}selected{% endif %}>Has {{ field_typename }}s</option>
             <option value="0" {% if preset_value == '""' %}selected{% endif %}>Does not have {{ field_typename }}s</option>
@@ -105,7 +117,7 @@
                 {% set value = search_params[key] %}
             {% endif %}
             <label class="pure-u-1" for="{{ datafield_id }}_pub" title="Find {{ field_typename }}s based on public status">{{ fieldname }} Public status:</label>
-            <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}">
+            <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}" {% if design_page is defined %}disabled{% endif %}>
                 <option id="Option_0" value="">Any</option>
                 <option id="Option_nonpublic" value="0" {% if value == '0' %}selected{% endif %}>Non-public</option>
                 <option id="Option_public" value="1" {% if value == '1' %}selected{% endif %}>Public</option>
@@ -126,7 +138,7 @@
                     {% set max = 5 %}
                 {% endif %}
 
-                <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}">
+                <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}" {% if design_page is defined %}disabled{% endif %}>
                     <option id="Option_any" value="">Any</option>
                     {% for i in 0..max %}
                         <option id="Option_{{ i }}" value="{{ i }}" {% if selection != '' and selection == i %}selected{% endif %}>{{ i }}</option>
@@ -135,7 +147,7 @@
             {% else %}
                 {% set decoded_quality = datafield_meta.quality_str|quality_json_decode %}    {# TODO: should attempt to cache this... #}
                 {% if decoded_quality != '' %}
-                    <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}">
+                    <select class="ODRInput pure-u-1 Pointer" id="{{ key }}" name="{{ key }}" rel="{{ datafield_id }}" {% if design_page is defined %}disabled{% endif %}>
                         <option id="Option_any" value="">Any</option>
                         {% for num,label in decoded_quality %}
                             <option value="{{ num }}" {% if selection != '' and selection == num %}selected{% endif %}>{{ label }}</option>
@@ -151,7 +163,7 @@
         {% if search_params[key] is defined %}
             {% set value = search_params[key] %}
         {% endif %}
-        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="df_{{ datafield_id }}_start" name="{{ key }}" value="{{ value }}" rel="df_{{ datafield_id }}" title="Find records with a value AFTER this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="df_{{ datafield_id }}_start" name="{{ key }}" value="{{ value }}" rel="df_{{ datafield_id }}" title="Find records with a value AFTER this date" {% if design_page is defined %}readonly{% endif %} />
 
         {% set key = datafield_id ~ '_e' %}
         {% set value = '' %}
@@ -159,7 +171,7 @@
             {% set value = search_params[key] %}
         {% endif %}
         <label class="pure-u-1"></label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="df_{{ datafield_id }}_end" name="{{ key }}" value="{{ value }}" rel="df_{{ datafield_id }}" title="Find records with a value BEFORE this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="df_{{ datafield_id }}_end" name="{{ key }}" value="{{ value }}" rel="df_{{ datafield_id }}" title="Find records with a value BEFORE this date" {% if design_page is defined %}readonly{% endif %} />
 
     {% elseif field_typeclass == "Radio" %}
         {% set selected_ro_ids = [] %}
@@ -208,7 +220,7 @@
         </span>
 
     {% else %}    {# text/number fieldtypes #}
-        <input type="text" class="ODRInput pure-u-1" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}" {% if preset_value != '' %}value="{{ preset_value }}"{% endif %}/>
+        <input type="text" class="ODRInput pure-u-1" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}" {% if preset_value != '' %}value="{{ preset_value }}"{% endif %} {% if design_page is defined %}readonly{% endif %} />
     {% endif %}
 {% endif %}
 
