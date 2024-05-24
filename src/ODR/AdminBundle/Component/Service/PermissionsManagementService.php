@@ -1070,9 +1070,11 @@ class PermissionsManagementService
      * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig
      * doesn't end up rendering anything they're not supposed to see.
      *
-     * @param array &$datatype_array    @see DatabaseInfoService::getDatatypeArray()
-     * @param array &$datarecord_array  @see DatarecordInfoService::getDatarecordArray()
-     * @param array $permissions_array  @see self::getUserPermissionsArray()
+     * The arrays passed to this function must not be stacked.
+     *
+     * @param array &$datatype_array {@link DatabaseInfoService::getDatatypeArray()}
+     * @param array &$datarecord_array {@link DatarecordInfoService::getDatarecordArray()}
+     * @param array $permissions_array {@link self::getUserPermissionsArray()}
      */
     public function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
     {

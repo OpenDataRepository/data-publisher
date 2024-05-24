@@ -49,6 +49,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -59,7 +60,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, MassEditTriggerEventInterface
+class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, ExportOverrideInterface, MassEditTriggerEventInterface
 {
 
     /**
@@ -188,13 +189,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $rendering_options
-     *
-     * @return bool
+     * @inheritDoc
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
@@ -220,20 +215,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Executes the IMA Plugin on the provided datarecords
-     *
-     * @param array $datarecords
-     * @param array $datatype
-     * @param array $render_plugin_instance
-     * @param array $theme_array
-     * @param array $rendering_options
-     * @param array $parent_datarecord
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param array $token_list
-     *
-     * @return string
-     * @throws \Exception
+     * @inheritDoc
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
@@ -558,7 +540,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * Need to check for and warn if a derived field is blank when the source field is not.
      *
-     * @param array $relevant_datafields @see self::getRelevantFields()
+     * @param array $relevant_datafields {@link self::getRelevantFields()}
      *
      * @return array
      */
@@ -1147,17 +1129,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * The derived fields for the IMA plugin (chemical elements and valence elements) need to use a
-     * different template when they're reloaded in edit mode.
-     *
-     * @param string $rendering_context
-     * @param RenderPluginInstance $render_plugin_instance
-     * @param DataFields $datafield
-     * @param DataRecord $datarecord
-     * @param Theme $theme
-     * @param ODRUser $user
-     *
-     * @return array
+     * @inheritDoc
      */
     public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user)
     {
@@ -1243,12 +1215,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Returns an array of which datafields are derived from which source datafields, with everything
-     * identified by datafield id.
-     *
-     * @param array $render_plugin_instance
-     *
-     * @return array
+     * @inheritDoc
      */
     public function getDerivationMap($render_plugin_instance)
     {
@@ -1280,7 +1247,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * function attempts to locate the datarecords pointed to by the Reference A/B datafields in a
      * linked RRUFF Reference database.
      *
-     * The arrays are expected to already be filtered by user permissions.
+     * The arrays are expected to already be filtered by user permissions and stacked.
      *
      * @param array $datatype_array
      * @param array $datarecord_array
@@ -1468,7 +1435,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * that twig doesn't have to potentially render the same reference more than once.
      *
      * @param array $prerendered_references
-     * @param array $related_reference_info @see self::getRelatedReferenceInfo()
+     * @param array $related_reference_info {@link self::getRelatedReferenceInfo()}
      * @param array $ima_datarecord
      * @param array $datatype_permissions
      * @param array $datafield_permissions
@@ -1536,8 +1503,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * Attempts to substitute any reference placeholders in the Status Notes value with the
      * rendered form of the RRUFF Reference, and creates warning blurbs if it can't.
      *
-     * @param array $relevant_fields @see self::getRelevantFields()
-     * @param array $related_reference_info @see self::getRelatedReferenceInfo()
+     * @param array $relevant_fields {@link self::getRelevantFields()}
+     * @param array $related_reference_info {@link self::getRelatedReferenceInfo()}
      *
      * @return array
      */
@@ -1589,11 +1556,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Returns an array of datafields where MassEdit should enable the abiilty to run a background
-     * job without actually changing their values.
-     *
-     * @param array $render_plugin_instance
-     * @return array An array where the values are datafield ids
+     * @inheritDoc
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1617,16 +1580,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
-     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
-     * may not want to activate if the user has also entered a value in the relevant field.
-     *
-     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
-     * should always be activated, or false if it should only be activated when the user didn't
-     * also enter a value into the field.
-     *
-     * @param array $render_plugin_instance
-     * @return array
+     * @inheritDoc
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {
@@ -1646,5 +1600,94 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         }
 
         return $trigger_fields;
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function getExportOverrideFields($render_plugin_instance)
+    {
+        // Three different fields need to have be overridden, assuming they're getting exported...
+        $relevant_datafields = array(
+            'Status Notes' => 1,
+            'Reference A' => 1,
+            'Reference B' => 1,
+        );
+
+        $override_fields = array();
+        foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
+            if ( isset($relevant_datafields[$rpf_name]) )
+                $override_fields[] = $rpf['id'];
+        }
+
+        return $override_fields;
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function getExportOverrideValues($datafield_ids, $render_plugin_instance, $datatype_array, $datarecord_array, $user_permissions)
+    {
+        // Need the master theme so twig can render the references...
+        $master_theme = $this->theme_info_service->getDatatypeMasterTheme($datatype_array['id']);
+        $theme_array = $this->theme_info_service->getThemeArray($master_theme->getId());
+        $theme_array = $this->theme_info_service->stackThemeArray($theme_array, $master_theme->getId());
+
+        // Locate all the information that's required to get twig to render the references...
+        $relevant_fields = self::getRelevantFields($datatype_array, $datarecord_array);
+        $related_reference_info = self::getRelatedReferenceInfo($datatype_array, $datarecord_array, $theme_array, $relevant_fields, 'csv_export');
+
+        // ...get twig to render the references
+        $reference_rendering_options = array(
+            'is_top_level' => false,
+            'is_link' => true,
+            'is_datatype_admin' => false,
+            'context' => 'text'    // don't want the HTML wrappers around each reference
+        );
+
+        self::prerenderReferences(
+            $related_reference_info['prerendered_references'],
+            $related_reference_info,
+            $datarecord_array,
+            $user_permissions['datatypes'],
+            $user_permissions['datafields'],
+            array(),
+            $reference_rendering_options,
+        );
+
+        // Also substitute any placeholders in the Status Notes field with the correct reference
+        $status_notes_info = self::getStatusNotesInfo($relevant_fields, $related_reference_info);
+
+
+        // ----------------------------------------
+        // Only return values for the datafields that are getting exported, falling back to the
+        //  empty string if there was any issue rendering the reference
+        $override_values = array();
+        foreach ($datafield_ids as $num => $df_id) {
+            if ( $relevant_fields['Reference A']['id'] === $df_id ) {
+                $df_value = $relevant_fields['Reference A']['value'];
+                if ( isset($related_reference_info['prerendered_references'][$df_value]) )
+                    $override_values[$df_id] = $related_reference_info['prerendered_references'][$df_value];
+                else
+                    $override_values[$df_id] = '';
+            }
+            if ( $relevant_fields['Reference B']['id'] === $df_id ) {
+                $df_value = $relevant_fields['Reference B']['value'];
+                if ( isset($related_reference_info['prerendered_references'][$df_value]) )
+                    $override_values[$df_id] = $related_reference_info['prerendered_references'][$df_value];
+                else
+                    $override_values[$df_id] = '';
+            }
+            if ( $relevant_fields['Status Notes']['id'] === $df_id ) {
+                if ( empty($status_notes_info['warnings']) )
+                    $override_values[$df_id] = $status_notes_info['value'];
+                else
+                    $override_values[$df_id] = '';
+            }
+        }
+
+        return $override_values;
     }
 }

@@ -2,7 +2,7 @@
 
 /**
 * Open Data Repository Data Publisher
-* ClearCSVExportWorker Command
+* ClearCSVExportExpressWorker Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
@@ -16,20 +16,18 @@ namespace ODR\AdminBundle\Command;
 
 //use Symfony\Component\Console\Command\Command;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
-
-
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-// dunno if needed
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
 
-//class RefreshCommand extends Command
-class ClearCSVExportWorkerCommand extends ContainerAwareCommand
+class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
 {
+
+    /**
+     * @inheritDoc
+     */
     protected function configure()
     {
         parent::configure();
@@ -40,6 +38,9 @@ class ClearCSVExportWorkerCommand extends ContainerAwareCommand
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
+    /**
+     * @inheritDoc
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // Only need to load these once...
@@ -51,9 +52,9 @@ class ClearCSVExportWorkerCommand extends ContainerAwareCommand
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($redis_prefix.'_csv_export_worker')->ignore('default')->reserve();
+                $job = $pheanstalk->watch($redis_prefix.'_csv_export_worker_express')->ignore('default')->reserve();
             else
-                $job = $pheanstalk->watch('csv_export_worker')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch('csv_export_worker_express')->ignore('default')->reserve();
 
             $data = json_decode($job->getData());
             $datarecord_id = $data->datarecord_id;
@@ -69,6 +70,6 @@ else
             // Sleep for a bit
             usleep(50000); // sleep for 0.05 seconds
         }
-
     }
+
 }

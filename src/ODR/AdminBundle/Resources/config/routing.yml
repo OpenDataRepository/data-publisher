@@ -1615,6 +1615,7 @@ odr_purge_files:
     path: /admin/purge_files
     defaults: { _controller: ODRAdminBundle:Validation:purgefiles }
 
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1710,6 +1711,26 @@ odr_track_get_datafield_selector:
 odr_track_get_user_selector:
     path: /admin/track/user_list
     defaults: { _controller: ODRAdminBundle:Tracking:getuserselector }
+#-----------------------------------------
+
+#-----------------------------------------
+# Debug Controller
+# The routes in here probably should be commented out unless actively being tested
+
+# Controller action to be able to use xdebug on the worker process of CSVExport, instead of having
+#  to repeatedly run jobs and read logs...the finalize process can't be debugged, but is simple enough
+#  that it shouldn't be needed
+#odr_debug_csv_export_start:
+#    path: /admin/debug_csv_export/{datatype_id}/{search_key}
+#    defaults: { _controller: ODRAdminBundle:Debug:debugcsvexportstart, search_key: '' }
+#    requirements:
+#        datatype_id: \d+
+#        search_key: '[a-zA-Z0-9\-\_]*'
+
+#odr_debug_csv_export:
+#    path: /admin/debug_csv_export
+#    defaults: { _controller: ODRAdminBundle:Debug:debugcsvexport }
+#    methods: [POST]
 #-----------------------------------------
 
 
