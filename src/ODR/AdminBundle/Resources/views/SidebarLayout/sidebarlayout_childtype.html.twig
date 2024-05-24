@@ -1,0 +1,92 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+<div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion ODRChildDatatype{% endif %}{% if multiple_allowed == 1 %} ODRMultipleAllowed{% endif %} pure-u-1" id="DataType_{{ datatype.id }}">
+
+    {% if is_top_level == 0 %}
+        {# current datatype is a child or linked datatype #}
+        <h3 class="102 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <a id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
+                {{ datatype.dataTypeMeta.shortName }}
+            </a>
+        </h3>
+        {#
+        {% include 'ODRAdminBundle:Theme:theme_datatypetools_div.html.twig' with {
+            'datatype': datatype,
+            'theme_id': theme.id,
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
+        } %}
+        #}
+        <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
+            {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_fieldarea.html.twig' with {
+                'datatype_array': datatype_array,
+                'theme_array': theme_array,
+                'site_baseurl': site_baseurl,
+
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
+
+                'datatype_permissions': datatype_permissions,
+                'is_datatype_admin': is_datatype_admin,
+
+                'sidebar_array': sidebar_array,
+
+                'is_top_level': is_top_level,
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
+            } %}
+        </div><!-- End of #FieldArea_{{ datatype.id }} -->
+    {% else %}
+
+        <div class="ODRThemeElement pure-u-1">
+            <div class="ODRInnerBox pure-u-1">
+                <h3 class="ODRHeader ODRDatatypeProperties" id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
+                    {{ datatype.dataTypeMeta.shortName }}
+                </h3>
+                {# current datatype is top-level #}
+                {#
+                {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_datatypetools_div.html.twig' with {
+                    'datatype': datatype,
+                    'theme_id': theme.id,
+
+                    'is_top_level': is_top_level,
+                    'is_link': is_link,
+                    'display_type': display_type,
+                    'multiple_allowed': multiple_allowed,
+                } %}
+                #}
+            </div>
+        </div>
+
+        <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
+            {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_fieldarea.html.twig' with {
+                'datatype_array': datatype_array,
+                'theme_array': theme_array,
+                'site_baseurl': site_baseurl,
+
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
+
+                'datatype_permissions': datatype_permissions,
+                'is_datatype_admin': is_datatype_admin,
+
+                'sidebar_array': sidebar_array,
+
+                'is_top_level': is_top_level,
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
+            } %}
+        </div><!-- End of #FieldArea_{{ datatype.id }} -->
+    {% endif %}
+
+</div><!-- End of #DataType_{{ datatype.id }} -->
+
+{% endspaceless %}

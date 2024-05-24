@@ -55,6 +55,9 @@ use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\SidebarLayout;
+use ODR\AdminBundle\Entity\SidebarLayoutMap;
+use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
@@ -209,7 +212,7 @@ class EntityCreationService
         $datafield_meta->setForceNumericSort(false);
         $datafield_meta->setRequired(false);
         $datafield_meta->setPreventUserEdits(false);
-        $datafield_meta->setSearchable(DataFields::NOT_SEARCHED);
+        $datafield_meta->setSearchable(DataFields::NOT_SEARCHABLE);
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);
@@ -727,7 +730,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param DataFields $datafield
-     * @param int $field_purpose
+     * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}
      * @param int $display_order
      * @param bool $delay_flush
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
@@ -2144,6 +2147,95 @@ class EntityCreationService
 
 
     /**
+     * Creates and returns a new SidebarLayout entity.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     * @param boolean $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return SidebarLayout
+     */
+    public function createSidebarLayout($user, $datatype, $delay_flush = false, $created = null)
+    {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $sidebar_layout = new SidebarLayout();
+        $sidebar_layout->setDataType($datatype);
+
+        $sidebar_layout->setCreated($created);
+        $sidebar_layout->setUpdated($created);
+        $sidebar_layout->setCreatedBy($user);
+        $sidebar_layout->setUpdatedBy($user);
+
+        $this->em->persist($sidebar_layout);
+
+        $sidebar_layout_meta = new SidebarLayoutMeta();
+        $sidebar_layout_meta->setSidebarLayout($sidebar_layout);
+        $sidebar_layout_meta->setLayoutName('');
+        $sidebar_layout_meta->setLayoutDescription('');
+        $sidebar_layout_meta->setShared(false);
+
+        // Currently unused...
+        $sidebar_layout_meta->setDefaultFor(0);
+        $sidebar_layout_meta->setDisplayOrder(0);
+
+        $sidebar_layout_meta->setCreated($created);
+        $sidebar_layout_meta->setUpdated($created);
+        $sidebar_layout_meta->setCreatedBy($user);
+        $sidebar_layout_meta->setUpdatedBy($user);
+
+        $this->em->persist($sidebar_layout_meta);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $sidebar_layout;
+    }
+
+
+    /**
+     * Creates and returns an entity tying a datafield to one of a datatype's sidebar layouts
+     *
+     * @param ODRUser $user
+     * @param SidebarLayout $sidebar_layout
+     * @param DataFields|null $datafield If null, then this will be the placeholder for the "general search" input
+     * @param DataType $datatype The datatype of $datafield (which isn't necessarily the datatype of $sidebar_layout)
+     * @param integer $category {@link SidebarLayoutMap::ALWAYS_DISPLAY}, {@link SidebarLayoutMap::EXTENDED_DISPLAY}
+     * @param boolean $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return SidebarLayoutMap
+     */
+    public function createSidebarLayoutMap($user, $sidebar_layout, $datafield, $datatype, $category, $delay_flush = false, $created = null)
+    {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $sidebar_layout_map = new SidebarLayoutMap();
+        $sidebar_layout_map->setSidebarLayout($sidebar_layout);
+        $sidebar_layout_map->setDataType($datatype);
+        $sidebar_layout_map->setDataField($datafield);
+
+        $sidebar_layout_map->setCategory($category);
+        $sidebar_layout_map->setDisplayOrder(0);
+
+        $sidebar_layout_map->setCreated($created);
+        $sidebar_layout_map->setUpdated($created);
+        $sidebar_layout_map->setCreatedBy($user);
+        $sidebar_layout_map->setUpdatedBy($user);
+
+        $this->em->persist($sidebar_layout_map);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $sidebar_layout_map;
+    }
+
+
+    /**
      * Creates, persists, and flushes a new storage entity.
      *
      * This function doesn't permit delaying flushes, because it's impossible to lock properly.
@@ -2294,7 +2386,7 @@ class EntityCreationService
      * @param DataType $datatype
      * @param string $search_key
      * @param string $label
-     * @param boolean $delay_flush
+     * @param boolean $delay_flush If provided, then the created/updated dates are set to this
      *
      * @return StoredSearchKey
      */

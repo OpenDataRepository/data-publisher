@@ -1,19 +1,6 @@
 {% spaceless %}
 
-<!-- Mass Download Dialog -->
 <script>
-    var mass_download_body =
-        '<div id="ODRMassDownloadFormWrapper" class="ODRHidden"> ' +
-            '<form id="ODRMassDownloadForm" method="POST"></form> ' +
-        '</div> ' +
-        '<div id="ODRFileDownloadForm_progress" class="ODRHidden"> ' +
-            '<div>Creating archive:</div> ' +
-            '<div> ' +
-                '<span id="ODRFileDownloadForm_current"></span> / ' +
-                '<span id="ODRFileDownloadForm_total"></span> files added. ' +
-            '</div> ' +
-        '</div>';
-
     /**
      * Opens an ODR modal to allow users to pick a file/image field, of which all files will be added
      * to a zip archive for download.
@@ -22,11 +9,9 @@
      * @param {number} [datafield_id]
      */
     function openMassDownloadDialog(search_key, datafield_id = 0) {
-        // open dialog
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: "Select datafields to download:",
-            loading: true,
-            body: mass_download_body,
             buttons: [
                 {
                     id: 'ODRMassDownloadFormSubmit',
@@ -34,7 +19,7 @@
                     // secondary: true,
                     disabled: true,
                     title: 'You must select one or more datafields before this button becomes active.',
-                    click: function() {
+                    click_handler: function() {
                         // Create/send a POST request of file ids
                         submitMassDownloadForm( "#ODRMassDownloadForm" );
                     }
@@ -43,18 +28,6 @@
         };
         openODRRemodal(modal_options);
 
-        loadMassDownloadData(search_key, datafield_id);
-    }
-
-
-    /**
-     * Requests the tree structure of all file/image fields in the current datatype and its
-     * descendants.
-     *
-     * @param {string} search_key
-     * @param {number} [datafield_id]
-     */
-    function loadMassDownloadData(search_key, datafield_id = 0) {
         var url = '{{ path('odr_get_search_results_file_list', {'search_key': ''}) }}';
         url += search_key;
 
@@ -64,27 +37,12 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $("#ODRMassDownloadForm").html( data.d );
+                updateODRRemodalBody(data.d);
+
                 initMassDownloadDialogForm();
 
                 if ( datafield_id !== 0 )
                     $("#ODRMassDownloadForm_df_" + datafield_id).trigger('click');
-
-                // remove loading
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRMassDownloadFormWrapper").show();
-                    // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
-
-                    // Setup submit handler
-                    $('#ODRMassDownloadFormSubmit').unbind('click').click(function() {
-                        var $el = $(this).parent().parent();
-                        // Create/send a POST request of file ids
-                        submitMassDownloadForm( $el.attr('id') );
-                    });
-                });
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -105,7 +63,6 @@
             }
         });
     }
-
 
     /**
      * Attaches click handlers to the tristate checkboxes.
@@ -157,7 +114,7 @@
             }
 
             // Update classes for parent elements
-            applyToParents( $(this) );
+            MassDownloadDialog_applyToParents( $(this) );
 
             // If no files/images selected for download, disable the submit button
             if ( $("#ODRMassDownloadForm").find('.fa.fa-check').length > 0 )
@@ -167,13 +124,12 @@
         });
     }
 
-
     /**
      * Updates the state of the tri-state checkboxes going up the tree.
      *
      * @param {HTMLElement} source_element
      */
-    function applyToParents(source_element) {
+    function MassDownloadDialog_applyToParents(source_element) {
         var parent_list_element = $(source_element).parent().parent().parent().not('form');
         if (parent_list_element.length == 0)
             return;
@@ -196,9 +152,8 @@
             $(parent_checkbox_element).children('i').addClass('fa-check partial');
         }
 
-        applyToParents(parent_checkbox_element);
+        MassDownloadDialog_applyToParents(parent_checkbox_element);
     }
-
 
     /**
      * Submits which datafields the user wants to download files/images from to the server.
@@ -222,11 +177,8 @@
         $('#ODRFileDownloadForm_current').html("0");
         // $('#ODRFileDownloadForm_total').html(file_count);    // don't know how many files, yet
 
-        // Hide before ajax stuff
-        $('#ODRMassDownloadFormWrapper').hide();
-        $("#ODRMassDownloadForm").html("");
-        $('#ODRFileDownloadForm_progress').show();
-        // Resize ODRFileDownloadModal to take up full height
+        $('#ODRMassDownloadFormWrapper').addClass('ODRHidden');
+        $('#ODRFileDownloadForm_progress').removeClass('ODRHidden');
         resetRemodalInnerHeight();
 
         $.ajax({
@@ -263,4 +215,5 @@
         });
     }
 </script>
+
 {% endspaceless %}

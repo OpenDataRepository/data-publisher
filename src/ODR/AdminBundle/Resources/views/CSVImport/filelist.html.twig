@@ -2,7 +2,7 @@
 
 <div id="ODRCSVImport_files">
 
-    <div id="ODRCSVImport_filediv">
+    <div id="ODRCSVImport_filediv" class="ODRHidden">
 {#{% if presets == null %}#}
         <button class="pure-button" onclick="ODRCSVFileList_refresh();">Refresh File List</button>
         <button class="pure-button" onclick="ODRCSVFileList_delete();">Delete Listed Files</button>
@@ -21,7 +21,6 @@
 
 <script>
     $(function() {
-        $("#ODRCSVImport_filediv").hide();
         ODRCSVFileList_refresh();
     });
 
@@ -119,9 +118,9 @@
 
         // If files exist in the table...show the table, buttons, and file count
         if ( num_files > 0 )
-            $("#ODRCSVImport_filediv").show();
+            $("#ODRCSVImport_filediv").removeClass('ODRHidden');
         else
-            $("#ODRCSVImport_filediv").hide();
+            $("#ODRCSVImport_filediv").addClass('ODRHidden');
     }
 
 </script>

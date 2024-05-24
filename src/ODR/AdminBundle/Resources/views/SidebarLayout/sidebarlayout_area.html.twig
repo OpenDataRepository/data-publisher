@@ -1,0 +1,24 @@
+{% spaceless %}
+
+{% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
+
+<div id="ODRDatatypeDesign" class="ODRFormWrap ODRDesign pure-u-1">
+    {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_childtype.html.twig' with {
+        'datatype_array': datatype_array,
+        'theme_array': theme_array,
+        'site_baseurl': site_baseurl,
+
+        'target_datatype_id': initial_datatype_id,
+        'target_theme_id': initial_theme_id,
+
+        'datatype_permissions': datatype_permissions,
+        'is_datatype_admin': is_datatype_admin,
+
+        'is_link': 0,
+        'is_top_level': 1,
+        'display_type': ACCORDION_HEADER,
+        'multiple_allowed': 0
+    } %}
+</div><!-- End of .ODRFormWrap -->
+
+{% endspaceless %}

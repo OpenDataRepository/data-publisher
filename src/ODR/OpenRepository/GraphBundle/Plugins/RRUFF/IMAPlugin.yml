@@ -8,7 +8,7 @@ odr_plugins.rruff.ima:
     override_field_reload: true
     override_child: false
     override_table_fields: false
-    override_export: false
+    override_export: true
     override_search: false
     override_sort: false
     suppress_no_fields_note: false

@@ -20,7 +20,7 @@
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
-        'page_type': 'search_results',
+        'page_type': 'table',
         'search_key': search_key,
 
         'has_datarecords': has_datarecords,
@@ -37,7 +37,7 @@
             <table id="TextResults" class="display ODRDatatableInstance">
                 <thead>
                 {% for num,col in column_names %}
-                    <th {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ col['title']|raw }}</th>
+                    <th {% if loop.index <= 2 %}class="ODRHidden" {% endif %}>{{ col['title']|raw }}</th>
                 {% endfor %}
                 {% if can_edit_datatype %}
                     <th></th>
@@ -47,7 +47,7 @@
                 {% for row_num,row in row_data %}
                     <tr class="ODRTableRecord DataRecord_{{ row[0] }}" rel="{{ row[0] }}">
                     {% for col_num,data in row %}
-                        <td {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ data|raw }}</td>
+                        <td {% if loop.index <= 2 %}class="ODRHidden"{% endif %}>{{ data|raw }}</td>
                     {% endfor %}
                     {% if can_edit_datatype %}    {# TODO - datarecord restriction? #}
                         <td>
@@ -79,11 +79,11 @@
 
 <script>
     $(function() {
-        {% if theme.themeMeta.disableSearchSidebar == false %}
-        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-        {% else %}
+{% if theme.themeMeta.disableSearchSidebar == false %}
+        enableSearchSidebar('{{ search_key }}', 'expanded');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+{% else %}
         disableSearchSidebar();
-        {% endif %}
+{% endif %}
 
         $(".MenuDesignArea").remove();
 
@@ -92,6 +92,26 @@
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         $("#ChooseView").unbind('click').click(function(event) {
+            window.ODRChooseView_applyredirectcallback = function(theme_id) {
+                // When a new 'search_results' theme is selected...need to redirect to a new URL
+                //  with the desired theme_id
+
+                // Need to extract the offset...
+                var hash = window.location.hash;
+                var offset = hash.substr(hash.lastIndexOf('/') + 1);
+                if ( isNaN(offset) )
+                    offset = '1';
+                // ...and ensure the search sidebar doesn't revert back to the previous theme when
+                //  the Search button is clicked
+                $("#selected_theme_id").val(theme_id);
+
+                // Reload the search results list with the newly selected theme
+                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
+                url = url.substr(0, url.length-4);
+                url += theme_id + '/' + '{{ search_key }}' + '/' + offset;
+
+                UpdateURL(url);
+            }
             openChooseViewRemodal({{ datatype.id }}, 'search_results', '{{ search_key }}');
         });
 
@@ -108,23 +128,23 @@
             "pageLength": {{ page_length }},
             "autoWidth": false,
 
-{# https://datatables.net/reference/option/dom
-            "dom" parameter results in:
-            <div class="wrapper">
-                <div class="FLeft">
-                    {information}
-                </div>
-                <div class="FRight">
-                    {filter}
-                </div>
-                {processing}
-                {table}
-                <div class="FLeft">
-                    {information}
-                </div>
-           </div>
-#}
-            "dom": '<"FLeft"i><"FRight"f>rt<"FLeft"i>',
+            {# https://datatables.net/reference/option/dom
+                "dom" parameter results in:
+                <div class="wrapper">
+                    <div class="ODRDTInfo">
+                        {information}
+                    </div>
+                    <div class="ODRDTPager">
+                        {filter}
+                    </div>
+                    {processing}
+                    {table}
+                    <div class="ODRDTInfoFoot">
+                        {information}
+                    </div>
+               </div>
+            #}
+            // "dom": '<"ODRDTInfo"i><"ODRDTPager"f>rt<"ODRDTInfoFoot"i>',
             {# NOTE: no point having datatable's built-in pagination active...it won't work here since page_length === count(datarecord_list) #}
             "paging": false,
 

@@ -14,6 +14,7 @@
 {% endif %}
 
 <ul id="ODRChooseView" class="pure-u-1">
+    <h4>To create a new view, copy an existing view and modify it.</h4>
     {# The user's currently selected theme goes at the top of the list... #}
     {% for theme_data in available_themes %}
         {% if theme_data.id == selected_theme_id %}
@@ -23,6 +24,7 @@
                 'selected_theme_id': selected_theme_id,
 
                 'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
                 'formatted_page_type': formatted_page_type,
                 'available_page_types': available_page_types,
             } %}
@@ -38,6 +40,7 @@
                 'selected_theme_id': selected_theme_id,
 
                 'is_datatype_admin': is_datatype_admin,
+                'is_super_admin': is_super_admin,
                 'formatted_page_type': formatted_page_type,
                 'available_page_types': available_page_types,
             } %}
@@ -54,9 +57,13 @@
 {% else %}
             var selected_page_type = '';
 {% endif %}
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Setting view for session.");
+
+            {% if formatted_page_type == '' %}
+            window.ODRChooseView_applyredirectcallback = function() {};
+            {% endif %}
 
             var redirect = true;
             var persist = false;
@@ -70,9 +77,13 @@
 {% else %}
             var selected_page_type = '';
 {% endif %}
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Setting view as personal default.");
+
+            {% if formatted_page_type == '' %}
+            window.ODRChooseView_applyredirectcallback = function() {};
+            {% endif %}
 
             var redirect = true;
             var persist = true;
@@ -81,7 +92,7 @@
 
         $(".ODRMakeViewShared").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Toggling public status of view.");
 
@@ -96,7 +107,7 @@
 {% else %}
             var selected_page_type = '';
 {% endif %}
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Setting view as database default.");
 
@@ -105,14 +116,14 @@
 
 
         $(".ODRModifyTheme").unbind('click').click(function() {
-            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
             // Do not set this theme as the user's default for this datatype
             openModifyThemeEditor(theme_id, false);
         });
 
         $(".ODRCopyModifyTheme").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Copying selected theme, please wait...");
 
@@ -121,7 +132,7 @@
 
         $(".ODRDeleteTheme").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
-            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
 
             setModalMessage("Deleting view...");
 
@@ -130,14 +141,14 @@
 
 
         $(".ODRUnsetDefaultPersonal").unbind('click').click(function() {
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
             var selected_page_type = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
             unsetPersonalDefaultView(theme_id, selected_page_type);
         });
 
         $(".ODRUnsetDefaultDatabase").unbind('click').click(function() {
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().closest('li').attr('data-theme-id');
             var selected_page_type = $(this).attr('rel').toLowerCase().replaceAll(' ', '_');
 
             unsetDatabaseDefaultView(theme_id, selected_page_type);
@@ -150,7 +161,7 @@
      * @param {number} theme_id The theme to use
      * @param {boolean} redirect If true, reloads the page to immediately use the selected theme
      * @param {boolean} persist If true, then the database is updated to indicate the user prefers to use the selected theme
-     * @param {string} selected_page_type
+     * @param {string} [selected_page_type]
      */
     function applyView(theme_id, redirect, persist, selected_page_type = '') {
         if (persist)
@@ -163,12 +174,11 @@
             // If a page type isn't provided, then set it based on where this is being called from
             selected_page_type = '{{ page_type }}';
 {% else %}
-            // If a page type isn't provided and this is being called from the datatype landing page,
-            //  then there's nothing to store the theme under...return without saving anything
+            // If a page type isn't provided, then this is being called from the datatype landing page
+            //  and there's nothing to store the theme under...return without saving anything
             return;
 {% endif %}
         }
-
 
         var url = '{{ path('odr_apply_theme', { 'datatype_id': datatype.id, 'page_type': '', 'theme_id': 0, 'persist': 0 }) }}';
         url = url.substr(0, (url.length - 4)) + selected_page_type + "/" + theme_id + "/" + persist;
@@ -182,30 +192,14 @@
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 if (redirect) {
-{% if page_type == '' %}
-                    // Just close the modal when running on the landing page
-{% elseif page_type == 'display' or page_type == 'edit' %}
-                    // If viewing a single datarecord, reload the search content...the correct theme
-                    //  will be pulled from the user's session
-                    reloadPage();
-{% else %}
-                    // Need to extract the offset, then redirect to a URL with the desired theme id
-                    var hash = window.location.hash;
-                    var offset = hash.substr(hash.lastIndexOf('/') + 1);
-                    if ( isNaN(offset) )
-                        offset = '1';
+                    // What to do after selecting a theme depends on which page the user is on...
+                    //  ...due to an ajax call and symfony being between the page and the rendering,
+                    //  the pages have to set a global variable for this function to use
+                    if ( window.ODRChooseView_applyredirectcallback )
+                        ODRChooseView_applyredirectcallback(theme_id);
+                    else
+                        alert('missing redirect callback');
 
-                    // Ensure the search sidebar doesn't revert back to the previous theme if the
-                    //  Search button is clicked
-                    $("#selected_theme_id").val(theme_id);
-
-                    // Reload the search results list with the newly selected theme
-                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
-                    url = url.substr(0, url.length-4);
-                    url += theme_id + '/' + '{{ search_key }}' + '/' + offset;
-
-                    UpdateURL(url);
-{% endif %}
                     closeODRRemodal();
                 }
 
@@ -296,6 +290,10 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
+                {% if formatted_page_type == '' %}
+                window.ODRChooseView_applyredirectcallback = function() {};
+                {% endif %}
+
                 // Apply view for session and redirect
                 var redirect = true;
                 var persist = true;

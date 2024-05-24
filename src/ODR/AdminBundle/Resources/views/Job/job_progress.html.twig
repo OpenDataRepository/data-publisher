@@ -46,14 +46,14 @@
                             html += '<div class="JobDownloadLink"><a href="' + url + '" class="pure-button pure-button-primary">Open Search</a></div>';
                         }
 
-                        $('.loading-container').fadeOut('fast');
-                        $('.JobComplete').fadeIn('fast')
-                        $('.CSVExportMessage').fadeOut('fast');
+                        $('.loading-container').fadeOut('fast').addClass('ODRHidden');
+                        $('.JobComplete').removeClass('ODRHidden').fadeIn('fast');
+                        $('.CSVExportMessage').fadeOut('fast').addClass('ODRHidden');
                     }
                     else {
                         setTimeout(function () {
                             getJobProgress(job_type, tracked_job_id)
-                        }, 300);
+                        }, 500);
                     }
 
                     $('.JobTracker').html(html);

@@ -39,34 +39,34 @@
         {% if not is_top_level %}
         <span class="fa-stack ODRDataTypePermission ODRCanViewDatatype {% if is_datatype_admin or prevent_all_changes or datatype_is_public %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if can_view_datatype or datatype_is_public %}{% else %} not{% endif %} allowed to view this{% if datatype_is_public %} public{% else %} non-public{% endif %} Datatype" rel="{{ group.id }}">
             <i class="fa fa-list-alt fa-stack-1x"></i>
-            <i class="fa fa-ban fa-stack-2x" {% if can_view_datatype or datatype_is_public %}style="display: none;"{% endif %}></i>
+            <i class="fa fa-ban fa-stack-2x {% if can_view_datatype or datatype_is_public %}ODRHidden{% endif %}"></i>
         </span>
         {% endif %}
 
         <span class="fa-stack ODRDataTypePermission ODRCanViewDatarecord {% if is_datatype_admin or prevent_all_changes %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if not can_view_datarecord %} not{% endif %} allowed to view non-public Datarecords" rel="{{ group.id }}">
             <i class="fa fa-eye fa-stack-1x"></i>
-            <i class="fa fa-ban fa-stack-2x" {% if can_view_datarecord %}style="display: none;"{% endif %}></i>
+            <i class="fa fa-ban fa-stack-2x {% if can_view_datarecord %}ODRHidden{% endif %}"></i>
         </span>
 
         <span class="fa-stack ODRDataTypePermission ODRCanAddDatarecord {% if is_datatype_admin or prevent_all_changes %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if not can_add_datarecord %} not{% endif %} allowed to create new Datarecords" rel="{{ group.id }}">
             <i class="fa fa-plus fa-stack-1x"></i>
-            <i class="fa fa-ban fa-stack-2x" {% if can_add_datarecord %}style="display: none;"{% endif %}></i>
+            <i class="fa fa-ban fa-stack-2x {% if can_add_datarecord %}ODRHidden{% endif %}"></i>
         </span>
 
         <span class="fa-stack ODRDataTypePermission ODRCanDeleteDatarecord {% if is_datatype_admin or prevent_all_changes %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if not can_delete_datarecord %} not{% endif %} allowed to delete existing Datarecords" rel="{{ group.id }}">
             <i class="fa fa-trash-o fa-stack-1x"></i>
-            <i class="fa fa-ban fa-stack-2x" {% if can_delete_datarecord %}style="display: none;"{% endif %}></i>
+            <i class="fa fa-ban fa-stack-2x {% if can_delete_datarecord %}ODRHidden{% endif %}"></i>
         </span>
 
         <span class="fa-stack ODRDataTypePermission ODRCanChangePublicStatus {% if is_datatype_admin or prevent_all_changes %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if not can_change_public_status %} not{% endif %} allowed to change public status of Datarecords" rel="{{ group.id }}">
             <i class="fa fa-globe fa-stack-1x"></i>
-            <i class="fa fa-ban fa-stack-2x" {% if can_change_public_status %}style="display: none;"{% endif %}></i>
+            <i class="fa fa-ban fa-stack-2x {% if can_change_public_status %}ODRHidden{% endif %}"></i>
         </span>
 
         {% if is_top_level %}
         <span class="fa-stack ODRDataTypePermission ODRIsDatatypeAdmin {% if prevent_all_changes %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if not is_datatype_admin %} not{% endif %} allowed to make layout changes and modify Group permissions for this Datatype" rel="{{ group.id }}">
             <i class="fa fa-edit fa-stack-1x"></i>
-            <i class="fa fa-ban fa-stack-2x" {% if is_datatype_admin %}style="display: none;"{% endif %}></i>
+            <i class="fa fa-ban fa-stack-2x {% if is_datatype_admin %}ODRHidden{% endif %}"></i>
         </span>
         {% endif %}
     </span>

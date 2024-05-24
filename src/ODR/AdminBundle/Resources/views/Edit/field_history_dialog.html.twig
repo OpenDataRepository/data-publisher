@@ -1,35 +1,19 @@
 {% spaceless %}
 
-	<!-- Field History Dialog -->
-
 <script>
-
-    var field_history_body = '<div id="ODRFieldHistoryDialogWrapper" class="ODRHidden"> </div>';
-
+    /**
+     * Opens the dialog to show previous values in a field, and provide the option to revert back
+     * to them.
+     *
+     * @param {number} datarecord_id
+     * @param {number} datafield_id
+     */
     function openFieldHistoryDialog(datarecord_id, datafield_id) {
-        // open dialog
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: 'Field History',
-            loading: true,
-            body: field_history_body,
-            buttons: [
-                {
-                    id: 'ODRFieldHistory_close',
-                    text: 'Close'
-                }
-            ]
         };
         openODRRemodal(modal_options);
-
-        loadFieldHistoryDialog(datarecord_id, datafield_id);
-
-        // Attach an event handler to the close button
-        $("#ODRFieldHistory_close").unbind('click').click(function() {
-            closeODRRemodal();
-        });
-    }
-
-    function loadFieldHistoryDialog(datarecord_id, datafield_id) {
 
         var url = '{{ path('odr_record_get_field_history', { 'datarecord_id': 0, 'datafield_id': 0 } ) }}';
         url = url.substring(0, (url.length - 3));
@@ -41,16 +25,7 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRFieldHistoryDialogWrapper").html( data.d.html );
-
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRFieldHistoryDialogWrapper").show();
-                });
-
-                resetRemodalInnerHeight();
+                updateODRRemodalBody(data.d.html);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state

@@ -33,31 +33,27 @@
 {% endif %}
 
 {% set display_add_record = false %}
-{% if (display_export_options is defined and display_export_options == true)
-    and intent == 'searching' and can_add_record == true %}
-    {% set display_add_record = true %}
-{% endif %}
-
 {% set display_mass_edit = false %}
-{% if (display_export_options is defined and display_export_options == true)
-    and intent == 'searching' and has_datarecords and can_edit_datatype == true %}
-    {% set display_mass_edit = true %}
-{% endif %}
-
 {% set display_csv_export = false %}
-{% if (display_export_options is defined and display_export_options == true)
-    and intent == 'searching' and has_datarecords %}
-    {% set display_csv_export = true %}
-{% endif %}
-
 {% set display_tracking = false %}
-{% if can_edit_datatype == true %}
-    {% set display_tracking = true %}
-{% endif %}
-
 {% set display_download_files = false %}
-{% if can_edit_datatype == true and has_datarecords %}
-    {% set display_download_files = true %}
+{% if (display_export_options is defined and display_export_options == true) and intent == 'searching' %}
+    {% if can_add_record %}
+        {% set display_add_record = true %}
+    {% endif %}
+
+    {% if has_datarecords and can_edit_datatype %}
+        {% set display_mass_edit = true %}
+        {% set display_download_files = true %}
+    {% endif %}
+
+    {% if has_datarecords %}
+        {% set display_csv_export = true %}
+    {% endif %}
+
+    {% if can_edit_datatype %}
+        {% set display_tracking = true %}
+    {% endif %}
 {% endif %}
 
 {% if notitle is defined %}
@@ -148,10 +144,11 @@
 <script>
 
     $(function() {
-
         $("#ODRPageSelectSettings").unbind('click').click(function(event) {
             $("#page_settings_menu").toggle('fast');
         });
+
+        {# NOTE: intentionally not defining a handler for "#ChooseView" here...that requires a callback which depends on whether this page is being used for linking or not #}
 
 {% if display_add_record %}
         $("#ODRAddRecord").unbind('click').click(function() {

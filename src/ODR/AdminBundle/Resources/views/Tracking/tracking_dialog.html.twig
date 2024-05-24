@@ -3,8 +3,6 @@
 <!-- Tracking Dialog Form -->
 
 <script>
-    var tracking_dialog_body = '<div id="ODRTrackingDialogFormWrapper" class="ODRHidden pure-form"> </div>';
-
     /**
      * Opens the modal dialog to view/change criteria used by ODR's tracking page.
      *
@@ -12,11 +10,9 @@
      * @param {string} datatype_id_restriction
      */
     function openTrackingDialog(focus, datatype_id_restriction = '') {
-        // open dialog
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: 'Tracking Critera selection',
-            loading: true,
-            body: tracking_dialog_body,
             buttons: [
                 {
                     id: 'ODRTrackingDialogFormSubmit',
@@ -59,96 +55,86 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRTrackingDialogFormWrapper").html( data.d.html );
+                // Insert HTML and resize the modal to take up as much space as it can
+                updateODRRemodalBody(data.d.html, 'full');
 
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRTrackingDialogFormWrapper").show();
+                // Setup submit handler
+                $('#ODRTrackingDialogFormSubmit').unbind('click').click(function() {
+                    if (focus === 'datafield') {
+                        // Clear the div showing which datatypes have been selected
+                        $("#selected_datatypes").html('');
 
-                    // Resize ODRFileDownloadModal to take up as much space as it can
-                    var ignore_content_height = true;
-                    resetRemodalInnerHeight(ignore_content_height);
+                        var target_datatype_names = {};
+                        var target_datafield_ids = '';
+                        $(".ODRTristateCheckbox.binary").each(function(index, elem) {
+                            if ( $(elem).children('i').hasClass('fa-check') ) {
+                                var df_id = $(elem).attr('rel');
+                                if (target_datafield_ids === '')
+                                    target_datafield_ids = df_id;
+                                else
+                                    target_datafield_ids += ',' + df_id;
 
-                    // Setup submit handler
-                    $('#ODRTrackingDialogFormSubmit').unbind('click').click(function() {
-                        if (focus === 'datafield') {
-                            // Clear the div showing which datatypes have been selected
-                            $("#selected_datatypes").html('');
+                                var top_level_dt_name = $(elem).parents(".ODRTrackingdatafieldList_top_level").first().find(".ODRTrackingDatafieldList_dt_name").html();
+                                target_datatype_names[top_level_dt_name] = 1;
+                            }
+                        });
+                        // Update the form contents
+                        $("#target_datafield_ids").val(target_datafield_ids);
 
-                            var target_datatype_names = {};
-                            var target_datafield_ids = '';
-                            $(".ODRTristateCheckbox.binary").each(function(index, elem) {
-                                if ( $(elem).children('i').hasClass('fa-check') ) {
-                                    var df_id = $(elem).attr('rel');
-                                    if (target_datafield_ids === '')
-                                        target_datafield_ids = df_id;
-                                    else
-                                        target_datafield_ids += ',' + df_id;
+                        // Display a notification about which top-level datatypes have fields
+                        //  selected as criteria
+                        jQuery.each(target_datatype_names, function(dt_name, obj) {
+                            $("<span>", {
+                                "class": "ODRTracking_criteria Cursor",
+                                "html": dt_name,
+                            }).appendTo("#selected_datatypes");
+                        });
 
-                                    var top_level_dt_name = $(elem).parents(".ODRTrackingdatafieldList_top_level").first().find(".ODRTrackingDatafieldList_dt_name").html();
-                                    target_datatype_names[top_level_dt_name] = 1;
-                                }
-                            });
-                            // Update the form contents
-                            $("#target_datafield_ids").val(target_datafield_ids);
+                        // If no fields were selected, insert a placeholder instead
+                        if ( $("#selected_datatypes").html() === '' ) {
+                            $("<span>", {
+                                "class": "ODRTracking_placeholder Cursor",
+                                "html": "Any",
+                            }).appendTo("#selected_datatypes");
+                        }
+                    }
+                    else {
+                        // Clear the div showing which users have been selected
+                        $("#selected_users").html('');
 
-                            // Display a notification about which top-level datatypes have fields
-                            //  selected as criteria
-                            jQuery.each(target_datatype_names, function(dt_name, obj) {
+                        // Determine which users have been selected
+                        var target_user_ids = '';
+                        $(".ODRTrackingUser_checkbox").each(function(index, elem) {
+                            if ( $(elem).is(':checked') ) {
+                                var user_id = $(elem).attr('rel');
+                                if (target_user_ids === '')
+                                    target_user_ids = user_id;
+                                else
+                                    target_user_ids += ',' + user_id;
+
+                                var user_name = $(elem).parent().next().html();
                                 $("<span>", {
                                     "class": "ODRTracking_criteria Cursor",
-                                    "html": dt_name,
-                                }).appendTo("#selected_datatypes");
-                            });
-
-                            // If no fields were selected, insert a placeholder instead
-                            if ( $("#selected_datatypes").html() === '' ) {
-                                $("<span>", {
-                                    "class": "ODRTracking_placeholder Cursor",
-                                    "html": "Any",
-                                }).appendTo("#selected_datatypes");
-                            }
-                        }
-                        else {
-                            // Clear the div showing which users have been selected
-                            $("#selected_users").html('');
-
-                            // Determine which users have been selected
-                            var target_user_ids = '';
-                            $(".ODRTrackingUser_checkbox").each(function(index, elem) {
-                                if ( $(elem).is(':checked') ) {
-                                    var user_id = $(elem).attr('rel');
-                                    if (target_user_ids === '')
-                                        target_user_ids = user_id;
-                                    else
-                                        target_user_ids += ',' + user_id;
-
-                                    var user_name = $(elem).parent().next().html();
-                                    $("<span>", {
-                                        "class": "ODRTracking_criteria Cursor",
-                                        "html": user_name,
-                                    }).appendTo("#selected_users");
-                                }
-                            });
-                            // Update the form contents
-                            $("#target_user_ids").val(target_user_ids);
-
-                            // If no users are selected, insert a placeholder instead
-                            if (target_user_ids === '') {
-                                $("<span>", {
-                                    "class": "ODRTracking_placeholder Cursor",
-                                    "html": "Any",
+                                    "html": user_name,
                                 }).appendTo("#selected_users");
                             }
-                        }
+                        });
+                        // Update the form contents
+                        $("#target_user_ids").val(target_user_ids);
 
-                        // No longer want the modal open
-                        closeODRRemodal();
-                        // Redo the search
-                        reloadTrackingData();
-                    });
+                        // If no users are selected, insert a placeholder instead
+                        if (target_user_ids === '') {
+                            $("<span>", {
+                                "class": "ODRTracking_placeholder Cursor",
+                                "html": "Any",
+                            }).appendTo("#selected_users");
+                        }
+                    }
+
+                    // No longer want the modal open
+                    closeODRRemodal();
+                    // Redo the search
+                    reloadTrackingData();
                 });
             },
             error: function(jqXHR, textStatus, errorThrown) {

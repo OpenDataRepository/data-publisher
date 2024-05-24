@@ -1,0 +1,106 @@
+{% spaceless %}
+
+<table id="TextResults_current" class="display ODRDatatableInstance">
+    <thead>
+    {% for col_num,col in column_names %}
+        <th>{{ col|raw }}</th>
+    {% endfor %}
+    </thead>
+    <tbody>
+    {% for row_num,row in data %}
+        <tr>
+        {% for col_num,col in row %}
+            <td>{{ col|raw }}</td>
+        {% endfor %}
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<input type="hidden" id="remote_theme_id" value="{{ theme_id }}" />    {# TODO - this shouldn't go here technically #}
+
+<script>
+    var linked_datarecords = [{% for dr,value in linked_datarecords %}{{ dr }},{% endfor %}];
+
+    $(function() {
+        var table_elem = $("#TextResults_current");
+        var table = $(table_elem).dataTable({
+            "destroy": true,    // silently destroy any existing instance of datatables
+{#            "data": {{ data }}, #} {# the data is already in the HTML #}
+            "columns": [{{ column_str|raw }}],
+            "order": [[1, 'asc']],
+            "searching": false,
+            "autoWidth": false,
+
+            "pageLength": 10,
+            {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
+            "pagingType": "input",
+
+            "responsive": true,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+
+            {# https://datatables.net/reference/option/dom
+                "dom" parameter results in:
+                <div class="wrapper">
+                    <div id="ODRLinkDatarecords_ChooseView" class="pure-button"></div>
+                    <div class="FRight">
+                        {information}
+                        {length}
+                        {pagination}
+                    </div>
+                    {processing}
+                    {table}
+               </div>
+            #}
+            "dom": '<"#ODRLinkDatarecords_ChooseView.FLeft"><"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
+
+            "createdRow": function( row, data, index ) {
+                // console.log(row, data, index);
+                var dr_id = data[1];
+                {% if allow_multiple_links or not local_datarecord_is_ancestor %}
+                $(row).children('td').first().html('<input type="checkbox" class="ODRCurrentLink ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" checked />');
+                {% else %}
+                $(row).children('td').first().html('<input type="radio" name="radio_group_orig" id="hidden_radio" class="ODRHidden"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="ODRLinkDatarecords_linkRecord(' + dr_id + ');" checked />');
+                {% endif %}
+            },
+
+            "language": {
+                "emptyTable": "No Datarecords are currently linked"
+            },
+        });
+
+        // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
+        $.fn.dataTable.ext.errMode = 'none';
+        $(table).on('error.dt', function(e, settings, techNote, message) {
+            console.log(message);
+        });
+
+        // Ensure checkboxes have proper state on redraw of table
+        $(table).on('draw.dt', function() {
+            ODRLinkDatarecords_initCheckboxes(table_elem, true);
+        });
+
+        $("#ODRLinkDatarecords_ChooseView").html('Choose View').addClass('pure-button').unbind('click').click(function() {
+            window.ODRChooseView_applyredirectcallback = function(theme_id) {
+                // When a new theme is selected for this table, the result needs to be surgically
+                //  spliced into a specific div on the page...
+                ODRLinkDatarecords_loadCurrentLinks(theme_id);
+            }
+            openChooseViewRemodal({{ remote_datatype.id }}, 'linking');
+        });
+
+        // Delete any existing inputs to be safe...
+        $(".link_form_dr").remove();
+        // ...then add one input for each remote datarecord the local record is linked with
+        $.each(linked_datarecords, function(index,dr_id) {
+            ODRLinkDatarecords_insertFormInput(dr_id);
+        });
+
+        {% if not allow_multiple_links and local_datarecord_is_ancestor and linked_datarecords|length > 0 %}
+        $(".ODRLinkDatarecords_unlinkButton").removeClass('ODRHidden');  {# TODO - do i ever need to re-hide this? #}
+        {% endif %}
+    });
+</script>
+
+{% endspaceless %}

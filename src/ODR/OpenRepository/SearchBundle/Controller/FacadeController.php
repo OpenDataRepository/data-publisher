@@ -533,10 +533,13 @@ class FacadeController extends Controller
             }
 
             // ----------------------------------------
+            // TODO - where is this used?
+            $default_search_params = array();
+
             // Need to build everything used by the sidebar...
-            $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
-            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
+            $sidebar_layout_id = $ssb_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
+            $sidebar_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
+            $user_list = $ssb_service->getSidebarUserList($admin_user, $sidebar_array);
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
@@ -648,8 +651,7 @@ class FacadeController extends Controller
                     // datatype/datafields to search
                     'search_params' => array(),
                     'target_datatype' => $target_datatype,
-                    'datatype_array' => $datatype_array,
-                    'datatype_relations' => $datatype_relations,
+                    'sidebar_array' => $sidebar_array,
 
                     // theme selection
 //                    'available_themes' => $available_themes,

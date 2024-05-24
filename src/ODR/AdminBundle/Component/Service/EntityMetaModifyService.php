@@ -45,6 +45,9 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\SidebarLayout;
+use ODR\AdminBundle\Entity\SidebarLayoutMap;
+use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
@@ -346,6 +349,12 @@ class EntityMetaModifyService
         $old_fieldtype_typename = $datafield->getFieldType()->getTypeName();
         $new_fieldtype_typename = $relevant_fieldtype->getTypeName();    // NOTE - may not actually be different from old typename
 
+        // ...also need to update SidebarLayouts if the searchable property changed
+        $old_searchable = $datafield->getSearchable();
+        $new_searchable = $old_searchable;
+        if ( isset($properties['searchable']) )
+            $new_searchable = $properties['searchable'];
+
         // Ensure that the searchable property isn't set to something invalid for this fieldtype
         switch ($relevant_typeclass) {
             case 'DecimalValue':
@@ -363,24 +372,21 @@ class EntityMetaModifyService
             case 'File':
             case 'Boolean':
             case 'DatetimeValue':
-                // Use the value from $properties if it exists, otherwise fall back to the datafield's
-                //  current value
-                $relevant_searchable = $datafield->getSearchable();
-                if ( isset($properties['searchable']) )
-                    $relevant_searchable = $properties['searchable'];
+                // In early May 2024, the 'searchable' property got changed from allowing four values
+                //  (NOT_SEARCHED, GENERAL_SEARCH, ADVANCED_SEARCH, and ADVANCED_SEARCH_ONLY) to only
+                //  allowing two values (NOT_SEARCHABLE, SEARCHABLE)
 
-                // General search is meaningless for these fieldtypes, so they can only
-                //  be searched via advanced search
-                if ($relevant_searchable == DataFields::GENERAL_SEARCH
-                    || $relevant_searchable == DataFields::ADVANCED_SEARCH
-                ) {
-                    $properties['searchable'] = DataFields::ADVANCED_SEARCH_ONLY;
-                }
+                // Previously, these four fieldtypes were only allowed to have NOT_SEARCHED or
+                //  ADVANCED_SEARCH_ONLY, because they can't be properly searched by the simple string
+                //  that the "general search" input provides.
+
+                // The search system is now 100% responsible for enforcing this, so these fieldtypes
+                //  are allowed to have the SEARCHABLE value
                 break;
 
             default:
                 // No other fieldtypes can be searched
-                $properties['searchable'] = DataFields::NOT_SEARCHED;
+                $properties['searchable'] = DataFields::NOT_SEARCHABLE;
                 break;
         }
 
@@ -579,6 +585,16 @@ class EntityMetaModifyService
             $this->cache_service->delete('default_radio_options');
         }
 
+        // If the datafield is no longer searchable...
+        if ( $old_searchable !== $new_searchable && $new_searchable === DataFields::NOT_SEARCHABLE ) {
+            // ...then need to forcibly remove it from all SidebarLayouts
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:SidebarLayoutMap slm
+                SET slm.deletedAt = :now
+                WHERE slm.dataField = :datafield_id AND slm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datafield_id' => $datafield->getId()) );
+            $rows = $query->execute();
+        }
 
         // Changes to the properties of a template datafield need to also update its datatype's
         //  master_revision property
@@ -1909,6 +1925,181 @@ class EntityMetaModifyService
 
 
     /**
+     * Copies the contents of the given SidebarLayout entity into a new SidebarLayout entity if
+     * something was changed.
+     *
+     * @param ODRUser $user
+     * @param SidebarLayout $sidebar_layout
+     * @param array $properties
+     * @param boolean|null $delay_flush
+     * @param \Datetime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return SidebarLayoutMeta
+     */
+    public function updateSidebarLayoutMeta($user, $sidebar_layout, $properties, $delay_flush = false, $created = null)
+    {
+        // Load the old meta entry
+        /** @var SidebarLayoutMeta $old_meta_entry */
+        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:SidebarLayoutMeta')->findOneBy(
+            array(
+                'sidebarLayout' => $sidebar_layout->getId()
+            )
+        );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'layoutName' => $old_meta_entry->getLayoutName(),
+            'layoutDescription' => $old_meta_entry->getLayoutDescription(),
+            'shared' => $old_meta_entry->getShared(),
+
+            'defaultFor' => $old_meta_entry->getDefaultFor(),
+            'displayOrder' => $old_meta_entry->getDisplayOrder(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $remove_old_entry = false;
+        $new_sidebar_layout_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
+            // Clone the old SidebarLayoutMeta entry
+            $remove_old_entry = true;
+
+            $new_sidebar_layout_meta = clone $old_meta_entry;
+
+            // These properties need to be specified in order to be saved properly...
+            $new_sidebar_layout_meta->setCreated($created);
+            $new_sidebar_layout_meta->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_sidebar_layout_meta = $old_meta_entry;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['layoutName']) )
+            $new_sidebar_layout_meta->setLayoutName( $properties['layoutName'] );
+        if ( isset($properties['layoutDescription']) )
+            $new_sidebar_layout_meta->setLayoutDescription( $properties['layoutDescription'] );
+        if ( isset($properties['shared']) )
+            $new_sidebar_layout_meta->setShared( $properties['shared'] );
+
+        if ( isset($properties['defaultFor']) )
+            $new_sidebar_layout_meta->setDefaultFor( $properties['defaultFor'] );
+        if ( isset($properties['displayOrder']) )
+            $new_sidebar_layout_meta->setDisplayOrder( $properties['displayOrder'] );
+
+        $new_sidebar_layout_meta->setUpdated($created);
+        $new_sidebar_layout_meta->setUpdatedBy($user);
+
+        // Delete the old meta entry if it's getting replaced
+        if ($remove_old_entry) {
+            $sidebar_layout->removeSidebarLayoutMetum($old_meta_entry);
+            $this->em->remove($old_meta_entry);
+
+            // Ensure the theme knows about its new meta entry
+            $sidebar_layout->addSidebarLayoutMetum($new_sidebar_layout_meta);
+        }
+
+        // Save the new meta entry
+        $this->em->persist($new_sidebar_layout_meta);
+        if (!$delay_flush) {
+            $this->em->flush();
+            $this->em->refresh($sidebar_layout);
+        }
+
+        // Return the new entry
+        return $new_sidebar_layout_meta;
+    }
+
+
+    /**
+     * Copies the contents of the given SidebarLayoutMap entity into a new SidebarLayoutMap entity
+     * if something was changed.
+     *
+     * @param ODRUser $user
+     * @param SidebarLayoutMap $sidebar_layout_map
+     * @param array $properties
+     * @param boolean|null $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return SidebarLayoutMap
+     */
+    public function updateSidebarLayoutMap($user, $sidebar_layout_map, $properties, $delay_flush = false, $created = null)
+    {
+        // ----------------------------------------
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'category' => $sidebar_layout_map->getCategory(),
+            'displayOrder' => $sidebar_layout_map->getDisplayOrder(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $sidebar_layout_map;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $remove_old_entry = false;
+        $new_sidebar_layout_map = null;
+        if ( self::createNewMetaEntry($user, $sidebar_layout_map, $created) ) {
+            // Clone the old ThemeDatafield entry
+            $remove_old_entry = true;
+
+            $new_sidebar_layout_map = clone $sidebar_layout_map;
+
+            // These properties need to be specified in order to be saved properly...
+            $new_sidebar_layout_map->setCreated($created);
+            $new_sidebar_layout_map->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_sidebar_layout_map = $sidebar_layout_map;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['category']) )
+            $new_sidebar_layout_map->setCategory( $properties['category'] );
+        if ( isset($properties['displayOrder']) )
+            $new_sidebar_layout_map->setDisplayOrder( $properties['displayOrder'] );
+
+        $new_sidebar_layout_map->setUpdated($created);
+        $new_sidebar_layout_map->setUpdatedBy($user);
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($sidebar_layout_map);
+
+        // Save the new meta entry
+        $this->em->persist($new_sidebar_layout_map);
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        // Return the new entry
+        return $new_sidebar_layout_map;
+    }
+
+
+    /**
      * Modifies a given storage entity by copying the old value into a new storage entity, then
      * deleting the old entity.
      *
@@ -2063,10 +2254,11 @@ class EntityMetaModifyService
      * @param StoredSearchKey $ssk
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime $created If provided, then the created/updated dates are set to this
      *
      * @return StoredSearchKey
      */
-    public function updateStoredSearchKey($user, $ssk, $properties, $delay_flush = false)
+    public function updateStoredSearchKey($user, $ssk, $properties, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
@@ -2088,6 +2280,9 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_ssk = null;
         if ( self::createNewMetaEntry($user, $ssk) ) {
@@ -2097,8 +2292,8 @@ class EntityMetaModifyService
             $new_ssk = clone $ssk;
 
             // These properties aren't automatically updated when persisting the cloned entity...
-            $new_ssk->setCreated(new \DateTime());
-            $new_ssk->setUpdated(new \DateTime());
+            $new_ssk->setCreated($created);
+            $new_ssk->setUpdated($created);
             $new_ssk->setCreatedBy($user);
             $new_ssk->setUpdatedBy($user);
         }

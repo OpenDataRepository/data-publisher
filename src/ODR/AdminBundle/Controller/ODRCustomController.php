@@ -366,19 +366,21 @@ class ODRCustomController extends Controller
                 $pagination_html = $templating->render(
                     'ODRAdminBundle:Default:pagination_header.html.twig',
                     array(
+                        'user_permissions' => $datatype_permissions,
+                        'datatype' => $datatype,
+                        'theme' => $theme,
+                        'user' => $user,
+
+                        'intent' => $intent,
+                        'search_theme_id' => $theme->getId(),
+                        'search_key' => $search_key,
                         'path_str' => $path_str,
 
                         'num_pages' => $pagination_values['num_pages'],
                         'num_datarecords' => $pagination_values['num_datarecords'],
                         'offset' => $pagination_values['offset'],
                         'page_length' => $pagination_values['page_length'],
-                        'user_permissions' => $datatype_permissions,
-                        'datatype' => $datatype,
-                        'theme' => $theme,
-                        'intent' => $intent,
-                        'search_theme_id' => $theme->getId(),
-                        'search_key' => $search_key,
-                        'user' => $user,
+
                         'has_datarecords' => $has_datarecords,
                         'has_search_restriction' => $has_search_restriction,
                         'editable_only' => $only_display_editable_datarecords,
@@ -387,7 +389,7 @@ class ODRCustomController extends Controller
                     )
                 );
             }
-            // var_dump($stacked_datatype_array); exit();
+
 
             // -----------------------------------
             // Finally, render the list

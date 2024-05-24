@@ -265,7 +265,6 @@
         return null;
     }
 
-
     /**
      * Loads the properties form for the given theme_element.
      *
@@ -353,7 +352,6 @@
             }
         });
     }
-
 
     /**
      * Initializes the resizeable and sortable handles for a field, TED, or child datatype.
@@ -529,13 +527,13 @@
 
         // Hide the datafield copy
         // console.log('hiding copy df');
-        tools.copy_df.parent().hide();
-        tools.add_df.parent().show();
+        tools.copy_df.parent().addClass('ODRHidden');
+        tools.add_df.parent().removeClass('ODRHidden');
 
 
         // Hide fields for master templates
         if (isMasterType) {
-            tools.link_ft.hide();
+            tools.link_ft.addClass('ODRHidden');
             tools.link_dt.find('.link-text').html('Link to Template');
             tools.link_dt.attr('title', 'Link to Template');
         }
@@ -998,8 +996,8 @@
                 // ----------------------------------------
                 // Can't add a datafield to a Datafield
                 // This element handles copying of datafields instead
-                tools.add_df.parent().hide();
-                tools.copy_df.parent().show();
+                tools.add_df.parent().addClass('ODRHidden');
+                tools.copy_df.parent().removeClass('ODRHidden');
 
                 if ( is_datatype_admin && props.can_copy ) {
                     tools.copy_df.removeClass('faded');
@@ -1220,7 +1218,7 @@
             dataType: "json",
             success: function () {
                 // Remove theme element from page
-                $("#ThemeElement_" + theme_element_id).fadeOut('slow').remove();
+                $("#ThemeElement_" + theme_element_id).addClass('ODRHidden').remove();
 
                 // Update the sidebar so it no longer references the now-deleted theme element
                 ResetToolSet();
@@ -1621,7 +1619,7 @@
             // console.log('Datatype Props 1:', datatype_properties[datatype_id]);
 
             // Reset the theme design form prior to reloading its contents
-            $(form_div).hide().html("");
+            $(form_div).addClass('ODRHidden').html("");
 
             var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0, 'theme_element_id': 0 } ) }}';
             url = url.substring(0, (url.length - 5));
@@ -1643,7 +1641,7 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
-                    $(form_div).html(data.d.html).fadeIn('fast');
+                    $(form_div).html(data.d.html).removeClass('ODRHidden');
                     InitDatatypePropertiesForm();
 
                     // Only want to set this to null once a properties form request successfully
@@ -1858,8 +1856,8 @@
                 // console.log('loaded_datafield_id: ' + loaded_datafield_id + ', datafield_id: ' + datafield_id);
                 if (data.d.force_slideout_reload == true && loaded_datafield_id == datafield_id) {
                     // console.log(' -- reloading slideout');
-                    $(form_div).fadeOut('slow').html("");
-                    $(form_div).html(data.d.html).fadeIn('slow');
+                    $(form_div).addClass('ODRHidden').html("");
+                    $(form_div).html(data.d.html).removeClass('ODRHidden');
 
                     InitDatafieldPropertiesForm();
                 }
@@ -1874,7 +1872,7 @@
                         //  datafield reloading could trigger multiple theme_element reloads...not
                         //  only is that process asynchronous, but there's no way to highlight the
                         //  correct one afterwards...
-                        $(form_div).html('').fadeIn('fast');
+                        $(form_div).html('').removeClass('ODRHidden');
                     }
                 }
                 else {
@@ -1987,7 +1985,7 @@
 
             // Don't attempt to load the properties form for a datafield the user can't view
             // This will prevent an unecessary error message from popping up...
-            $(form_div).html('').fadeIn('fast');
+            $(form_div).html('').removeClass('ODRHidden');
             if ( $(this).hasClass('ODRForbidden') )
                 return;
 
@@ -2014,7 +2012,7 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
-                    $(form_div).html(data.d.html).fadeIn('fast');
+                    $(form_div).html(data.d.html).removeClass('ODRHidden');
                     InitDatafieldPropertiesForm();
 
                     // Only want to set this to null once a properties form request successfully
@@ -2044,7 +2042,7 @@
     }
 
     /**
-     * Attaches event handlers to the various elements in a datfield properties form.
+     * Attaches event handlers to the various elements in a datafield properties form.
      */
     function InitDatafieldPropertiesForm() {
         var form_div = $("#ThemeDesignForm");
@@ -2117,15 +2115,15 @@
                         trigger_save = false;
 
                         // Instead, show the input for the custom value
-                        $("#" + base_id + "_field").show();
-                        $(".ODRDesign_quality_warning").show();
+                        $("#" + base_id + "_field").removeClass('ODRHidden');
+                        $(".ODRDesign_quality_warning").removeClass('ODRHidden');
                     }
                     else {
                         // Do want to trigger a save when the other values are selected
                         $("#" + base_id).val( selection );
 
-                        $("#" + base_id + "_field").hide();
-                        $(".ODRDesign_quality_warning").hide();
+                        $("#" + base_id + "_field").addClass('ODRHidden');
+                        $(".ODRDesign_quality_warning").addClass('ODRHidden');
                     }
                 }
 
@@ -2260,7 +2258,7 @@
             });
         });
 
-        $(form_div).fadeIn('fast');
+        $(form_div).removeClass('ODRHidden');
     }
 
 
@@ -2928,8 +2926,7 @@
         url = url.substring(0, (url.length - 1));
         url += datafield_id;
 
-        $("#loading-overlay").show();
-        $("#loading").show();
+        showSearchOverlay('Deleting...');
 
         $.ajax({
             cache: false,
@@ -2955,8 +2952,7 @@
                 // Update the sidebar so it no longer references the now-deleted datafield
                 ResetToolSet();
 
-                $("#loading-overlay").hide();
-                $("#loading").hide();
+                hideSearchOverlay();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -3040,8 +3036,7 @@
             dataType: 'json',
             success: function(data) {
                 // Remove old theme element
-                $(theme_element).fadeOut();
-                $(theme_element).remove();
+                $(theme_element).addClass('ODRHidden').remove();
 
                 // Insert new html
                 if (append)

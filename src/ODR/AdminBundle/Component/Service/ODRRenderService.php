@@ -19,14 +19,20 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\Group;
+use ODR\AdminBundle\Entity\SidebarLayout;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Form\UpdateThemeForm;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+// Forms
+use ODR\AdminBundle\Form\UpdateSidebarLayoutForm;
+use ODR\AdminBundle\Form\UpdateThemeForm;
+// Services
+use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Pheanstalk\Pheanstalk;
@@ -321,6 +327,54 @@ class ODRRenderService
 
 
     /**
+     * Renders and returns the HTML for the design page of a sidebar layout
+     *
+     * @param ODRUser $user
+     * @param SidebarLayout $sidebar_layout
+     * @param array $sidebar_array {@link SearchSidebarService::getSidebarDatatypeArray()}
+     * @param string $intent {@link SearchSidebarService::PAGE_INTENT}
+     * @param string $search_key
+     *
+     * @return string
+     */
+    public function getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $intent, $search_key = '')
+    {
+        $datatype = $sidebar_layout->getDataType();
+        $datarecord = null;
+
+        $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $datatype);
+
+        // ----------------------------------------
+        // Build the Form to save changes to the Theme's name/description
+        $sidebar_layout_meta = $sidebar_layout->getSidebarLayoutMeta();
+        $sidebar_layout_form = $this->form_factory->create(
+            UpdateSidebarLayoutForm::class,
+            $sidebar_layout_meta,
+        );
+
+        // ----------------------------------------
+        $template_name = 'ODRAdminBundle:SidebarLayout:sidebarlayout_ajax.html.twig';
+        $extra_parameters = array(
+            'site_baseurl' => $this->site_baseurl,
+            'search_key' => $search_key,
+
+            'is_datatype_admin' => $is_datatype_admin,
+
+            'sidebar_layout_form' => $sidebar_layout_form->createView(),
+            'sidebar_layout' => $sidebar_layout,    // Needed for ODRAdminBundle:SidebarLayout:sidebarlayout_properties_form.html.twig
+            'sidebar_array' => $sidebar_array,
+
+            'intent' => $intent,
+        );
+
+        // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
+        $theme = $this->theme_info_service->getDatatypeMasterTheme($datatype->getId());
+
+        return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
+    }
+
+
+    /**
      * Renders and returns the HTML for the viewing of a single datarecord.
      *
      * @param ODRUser $user
@@ -456,7 +510,7 @@ class ODRRenderService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param string $odr_tab_id
-     * @param array $mass_edit_trigger_datafields
+     * @param array $mass_edit_trigger_datafields {@link MassEditTriggerEventInterface::getMassEditTriggerFields()}
      * @param Theme|null $theme
      *
      * @return string
@@ -1551,5 +1605,44 @@ class ODRRenderService
             $template_name,
             $parameters
         );
+    }
+
+
+    /**
+     * Rebuilds the fake sidebar used by the sidebar design UI when fields are added.  Re-ordering
+     * or removing fields from the sidebar layout doesn't need to interact with this.
+     *
+     * @param int $target_datatype_id
+     * @param array $sidebar_array {@link SearchSidebarService::getSidebarDatatypeArray()}
+     *
+     * @return string
+     */
+    public function reloadSidebarDesignArea($target_datatype_id, $sidebar_array)
+    {
+        // Want the array version of the relevant datatype...
+        $datatype_array = array();
+        if ( isset($sidebar_array['datatype_array']) ) {
+            // In the case of an actual SidebarLayout, the cached datatype array is in this key
+            $datatype_array = $sidebar_array['datatype_array'];
+        }
+        else {
+            // In the case of a "master" sidebar layout (which don't have SidebarLayout entries),
+            //  the cached datatype array is in this key instead
+            $datatype_array = $sidebar_array['extended_display'];
+        }
+
+        // Don't want the datatype array to be wrapped with its id
+        $datatype_array = $datatype_array[$target_datatype_id];
+
+        // Render and return the
+        $html = $this->templating->render(
+            'ODROpenRepositorySearchBundle:Default:search_sidebar_design_element.html.twig',
+            array(
+                'datatype' => $datatype_array,
+                'sidebar_array' => $sidebar_array
+            )
+        );
+
+        return $html;
     }
 }

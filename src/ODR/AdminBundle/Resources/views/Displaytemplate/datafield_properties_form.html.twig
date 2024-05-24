@@ -417,7 +417,7 @@
                 <label for="{{ datafield_form.quality_str.vars.id }}">
                     {{ datafield_form.quality_str.vars.label }}
 
-                    <i class="ODRDesign_quality_warning fa fa-lg {% if valid_quality_json %}fa-check-circle ODRActiveIcon{% else %}fa-exclamation-triangle ODRInputError{% endif %}" title="{{ quality_json_error }}" {% if quality_str != 'custom' %}style="display: none;"{% endif %}></i>
+                    <i class="ODRDesign_quality_warning fa fa-lg {% if valid_quality_json %}fa-check-circle ODRActiveIcon{% else %}fa-exclamation-triangle ODRInputError{% endif %} {% if quality_str != 'custom' %}ODRHidden{% endif %}" title="{{ quality_json_error }}"></i>
                 </label>
 
                 <select id="{{ datafield_form.quality_str.vars.id }}_select" class="ODRDesign_quality_select">
@@ -427,7 +427,7 @@
                     <option value="custom" {% if quality_str == 'custom' %}selected{% endif %}>Custom...</option>
                 </select>
 
-                <input id="{{ datafield_form.quality_str.vars.id }}_field" class="ODRDesign_quality_field" type="text" {% if quality_str != 'custom' %}style="display: none;"{% endif %} value="{{ datafield_form.quality_str.vars.value }}" />
+                <input id="{{ datafield_form.quality_str.vars.id }}_field" class="ODRDesign_quality_field {% if quality_str != 'custom' %}ODRHidden{% endif %}" type="text" value="{{ datafield_form.quality_str.vars.value }}" />
 
                 {# Need the actual control to remain hidden... #}
                 {{ form_widget(datafield_form.quality_str, {
@@ -449,7 +449,7 @@
             {{ form_widget(datafield_form.internal_reference_name, { 'attr': {'class': 'ODRInternalReferenceName pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
 
-        <div style="display: none">
+        <div style="display: none;">
             {{ form_rest(datafield_form) }}
         </div>
 

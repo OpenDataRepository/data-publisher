@@ -369,12 +369,12 @@ function ODR_isFormulaFormatted(input, subscript_delimiter = '_', superscript_de
 function ODR_hasDuplicatedDelimiters(input_id, subscript_delimiter = '_', superscript_delimiter = '^') {
     let val = $("#" + input_id + "_parsed").val();
     if ( val.indexOf(subscript_delimiter + subscript_delimiter) !== -1 )
-        $("#" + input_id + "_subscript_warning").show();
+        $("#" + input_id + "_subscript_warning").removeClass('ODRHidden');
     else
-        $("#" + input_id + "_subscript_warning").hide();
+        $("#" + input_id + "_subscript_warning").addClass('ODRHidden');
 
     if ( val.indexOf(superscript_delimiter + superscript_delimiter) !== -1 )
-        $("#" + input_id + "_superscript_warning").show();
+        $("#" + input_id + "_superscript_warning").removeClass('ODRHidden');
     else
-        $("#" + input_id + "_superscript_warning").hide();
+        $("#" + input_id + "_superscript_warning").addClass('ODRHidden');
 }

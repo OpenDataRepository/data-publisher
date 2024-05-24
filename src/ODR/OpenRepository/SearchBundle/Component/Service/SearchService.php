@@ -49,12 +49,12 @@ class SearchService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var TagHelperService
      */
-    private $th_service;
+    private $tag_helper_service;
 
     /**
      * @var SearchQueryService
@@ -87,8 +87,8 @@ class SearchService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatree_info_service;
-        $this->th_service = $tag_helper_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->tag_helper_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
     }
@@ -390,7 +390,7 @@ class SearchService
         // In order for caching to work, any non-leaf tags in the tag selections list need to get
         //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
         $use_tag_uuids = false;
-        $all_tag_selections = $this->th_service->expandTagSelections($datafield, $selections, $use_tag_uuids);
+        $all_tag_selections = $this->tag_helper_service->expandTagSelections($datafield, $selections, $use_tag_uuids);
 
 
         // Otherwise, probably going to need to run searches again...
@@ -520,7 +520,7 @@ class SearchService
         // In order for caching to work, any non-leaf tags in the tag selections list need to get
         //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
         $use_tag_uuids = true;
-        $all_tag_selections = $this->th_service->expandTagSelections($template_datafield, $selections, $use_tag_uuids);
+        $all_tag_selections = $this->tag_helper_service->expandTagSelections($template_datafield, $selections, $use_tag_uuids);
 
 
         // Otherwise, probably going to need to run searches again...
@@ -2037,7 +2037,7 @@ class SearchService
      */
     public function getRelatedDatatypes($top_level_datatype_id)
     {
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
         $related_datatypes = self::getRelatedDatatypes_worker($datatree_array, array($top_level_datatype_id) );
 
         // array_values() to make unique
@@ -2243,14 +2243,9 @@ class SearchService
      * )
      * </pre>
      *
-     * searchable can have four different values...
-     * - 0: "not searchable"...doesn't show up on the search page
-     * - 1: "general search only"...doesn't show up as its on field on the search page, but is
-     * searched through the "general" textbox
-     * - 2: "advanced search"...shows up as its own field on the search page, and is also searched
-     * through the "general" textbox
-     * - 3: "advanced search only"...shows up as its own field on the search page, but is not
-     * searched through the "general" textbox
+     * searchable is supposed to be either a 0 ("not searchable"), or a 1 ("searchable")...but legacy
+     * databases might also have a value of 2 or 3.  Any value greater than 0 should be treated as
+     * indicating a "searchable" datafield.
      *
      * @param int $datatype_id
      *
@@ -2309,7 +2304,7 @@ class SearchService
 
                     // Inline searching requires the ability to search on any datafield, even those
                     //  the user may not have necessarily marked as "searchable"
-//                    if ( $searchable > 0 ) {
+//                    if ( $searchable !== DataFields::NOT_SEARCHABLE ) {
                         $df_id = $result['df_id'];
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching
 

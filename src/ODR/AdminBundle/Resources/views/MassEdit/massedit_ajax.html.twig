@@ -24,7 +24,7 @@
         </h1>
     </div>
 
-    <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
+    <form id="massedit_form" class="ODRHidden" action="{{ path('odr_mass_update_start') }}">
         <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
         <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
     </form>
@@ -121,7 +121,7 @@ function initPage() {
         });
 
         if (!found)
-            $(this).hide();
+            $(this).addClass('ODRHidden');
     });
 
     $(".ODRMassEdit_block").each(function() {
@@ -306,7 +306,7 @@ function filterMassEditTagField(context, df_id) {
     if ( filter_text == '' ) {
         // If no text in the filter, ensure all tags are visible
         $(tags).each(function(index,elem) {
-            $(elem).removeAttr('style');
+            $(elem).removeClass('ODRHidden');
         });
     }
     else {
@@ -316,12 +316,12 @@ function filterMassEditTagField(context, df_id) {
 
             // ...so it can get compared against the provided filter text
             if ( tag_name.indexOf(filter_text) === -1 )
-                $(elem).hide();
+                $(elem).addClass('ODRHidden');
             else {
-                $(elem).removeAttr('style');
+                $(elem).removeClass('ODRHidden');
 
                 // Also need to ensure that all parents of this tag are visible
-                $(elem).parents('.ODRTagItem').removeAttr('style');
+                $(elem).parents('.ODRTagItem').removeClass('ODRHidden');
             }
         });
     }
@@ -331,14 +331,13 @@ function filterMassEditTagField(context, df_id) {
  * Triggers a mass update of all datarecords in the search results.
  */
 function doMassUpdate() {
-
     // Remove any already-existing input elements added by this function
     $("#MassEditForm .massedit_form_input").remove();
 
     // Only save if there are no input errors...
     var has_errors = false;
     $(".ODRInputError").each(function(index, elem) {
-        if ( $(elem).is(':visible') )
+        if ( !$(elem).hasClass('ODRHidden') )
             has_errors = true;
     });
     if ( has_errors ) {
@@ -560,8 +559,8 @@ function doMassUpdate() {
         success: function(data) {
             if(data.d.tracked_job_id !== undefined) {
                 // Replace this with loading message/checker directly
-                $('#MassEditForm').hide();
-                $('#LoadingBlock').fadeIn('fast');
+                $('#MassEditForm').addClass('ODRHidden');
+                $('#LoadingBlock').removeClass('ODRHidden').fadeIn('fast');
                 // Get CSV Exports from Jobs Page - add messaging
 
                 // data.d.tracked_job_id

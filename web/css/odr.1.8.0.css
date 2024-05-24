@@ -1735,7 +1735,7 @@ pre .support.value  {
 }
 
 .ODRHidden {
-    display: none;
+    display: none !important;
 }
 
 /**
@@ -2566,7 +2566,6 @@ form .row {
     position: absolute;
     top: 0px;
     left: 0px;
-    display: none;
     padding: 10px 13px;
     z-index: 10;
 }
@@ -2874,6 +2873,9 @@ form .row {
     text-align: center;
     vertical-align: middle;
     z-index: 100;
+}
+.ODRSearchableToggle {
+    z-index: 101;
 }
 
 .fa-globe {
@@ -3325,12 +3327,6 @@ a.ui-button:active,
     display: none;
     cursor: default;
 }
-.ODRFileSpacer_public {
-    background: green none repeat scroll 0 0;
-}
-.ODRFileSpacer_nonpublic {
-    background: red none repeat scroll 0 0;
-}
 .ODRFileSpacer_empty {
     flex: 0 0 auto;
 
@@ -3506,14 +3502,6 @@ a.ui-button:active,
     -moz-box-shadow:    0px 1px 10px 0px rgba(50, 50, 50, 0.3);
     box-shadow:         0px 1px 10px 0px rgba(50, 50, 50, 0.3);
 }
-.ODRRemodalCancel {
-    position: relative;
-    display: inline;
-    margin-top: 10px;
-    padding-top: 10px;
-    vertical-align: middle;
-    top: -5px;
-}
 .ODRRemodalLoading {
     padding-top: 100px;
     padding-bottom: 100px;
@@ -3528,7 +3516,9 @@ a.ui-button:active,
     /* max-height: 1px; */
 }
 .remodal-close {
-    z-index: 100;
+    z-index: 10000;
+    left: unset;
+    right: 5px;
 }
 .ODRRemodalBody {
     margin-top: 40px;
@@ -3597,7 +3587,6 @@ a.ui-button:active,
 }
 
 #ODRFileDownloadFormWrapper, #ODRMassDownloadFormWrapper {
-    display: none;
     text-align: left;
     font-size: 0.96em;
     color: #444;
@@ -3756,17 +3745,20 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 /* End Loading CSS Widget */
 
 
-#ODRChooseView {
+#ODRChooseView,
+#ODRChooseLayout {
     list-style-type: none;
     -webkit-margin-before: 0;
     -webkit-margin-after: 0;
     -webkit-margin-start: 0;
     -webkit-margin-end: 0;
     -webkit-padding-start: 0;
-    padding-bottom: 100px;
+    /*padding-bottom: 100px;*/
+    padding-left: 0px;
 }
 
-#ODRChooseView > li {
+#ODRChooseView > li,
+#ODRChooseLayout > li {
     background-color: rgba(184, 232, 250, 0.25);
     border-radius: 8px;
     padding-bottom: 0.6em;
@@ -3775,11 +3767,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-right: 0.4em;
     border: 1px solid #ddd;
 }
-#ODRChooseView:first-child {
+#ODRChooseView > li.ODRCurrentLayout,
+#ODRChooseLayout > li.ODRCurrentLayout {
+    border: 3px solid #0d0;
+}
+#ODRChooseView:first-child,
+#ODRChooseLayout:first-child {
     padding-bottom: 0.6em;
     margin-top: 0.6em;
 }
-#ODRChooseView h4 {
+#ODRChooseView h4,
+#ODRChooseLayout h4 {
     -webkit-margin-before: 0;
     -webkit-margin-after: 0;
     -webkit-margin-start: 0;
@@ -3798,6 +3796,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRChooseViewDescription {
+    color: #888;
+    font-size: 1.0em;
+}
+.ODRChooseViewDetails {
     box-sizing: border-box; /* 1 */
     margin-top: 0.4em;
     padding-left: 0.8em;
@@ -3805,6 +3807,30 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     color: #888;
     font-size: 1.0em;
     text-align: left;
+}
+
+.ODRLayoutInfoDiv {
+    cursor: pointer;
+    position: relative;
+    /*display: inline-block;*/
+}
+.ODRLayoutInfo {
+    background-color: white;
+    border: 1px solid #EEEEFF;
+    padding: 5px;
+    position: absolute;
+    visibility: hidden;
+    max-width: 500px;
+    z-index: 999;
+    cursor: default;
+    /*left: 0px;*/
+    box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+    color: #555;
+    line-height: 1.6em;
+    font-weight: normal;
+}
+.ODRLayoutInfoDiv:hover .ODRLayoutInfo {
+    visibility: visible;
 }
 
 #ODRRenderPluginSettingsForm fieldset {
@@ -3828,36 +3854,31 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     width: auto;
     position: relative;
 }
-.ODRDefaultPersonal,
-.ODRUnsetDefaultPersonal,
-.ODRDefaultDatabase,
-.ODRUnsetDefaultDatabase,
-.ODRMakeCurrentView,
-.ODRMakeViewShared,
-.ODREditThemeName,
-.ODRModifyTheme,
-.ODRCopyModifyTheme,
-.ODRDeleteTheme {
+
+.ODRChooseViewLink {
     cursor: pointer;
 }
-
-.ODRDefaultPersonal:hover,
-.ODRUnsetDefaultPersonal:hover,
-.ODRDefaultDatabase:hover,
-.ODRUnsetDefaultDatabase:hover,
-.ODRMakeCurrentView:hover,
-.ODRMakeViewShared:hover,
-.ODREditThemeName:hover,
-.ODRModifyTheme:hover,
-.ODRCopyModifyTheme:hover,
-.ODRDeleteTheme:hover {
+.ODRChooseViewLink:hover {
     color: #2ca02c;
+}
+
+.ODRViewNote {
+    cursor: default;
+}
+.ODRViewNote > i {
+    cursor: pointer;
 }
 
 
 .ODRSearchBoxWrapper {
     padding-top: 8px !important;
-    padding-bottom: 10px !important;
+    /*padding-bottom: 10px !important;*/
+}
+.ODRSearchHelp,
+.ODRChooseSidebarLayout,
+.ODREditSearchNotes {
+    padding-left: 5px;
+    cursor: pointer;
 }
 
 #ODRReturnToSearchResults {
@@ -3917,6 +3938,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
 .ODRPluginErrorDiv {
     margin: 0.5em;
+}
+#ODRPluginProblemsWrapper {
+    padding: 12px;
+    background: white none;
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: #555;
+    line-height: 1.6;
+}
+#ODRPluginUpdateProblemsTable {
+    text-align: left;
 }
 
 
@@ -4069,11 +4101,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     background-color: #000000;
     opacity: 0.3;
 }
-.ODRVisibleDatafield {
+.ODRVisibleDatafield,
+.ODRUsedDatafield {
     background-color: #00ffff;
     opacity: 0.2;
 }
-/* .ODREditableDatafield {} */
+/*
+.ODREditableDatafield,
+.ODRUnusedDatafield {
+
+}
+*/
 
 #ODRTagForm {
     /*max-height: 700px;*/
@@ -4272,11 +4310,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRPageSelectSettings {
     text-align: left;
 }
-
 #ODRPageSelectForm {
     text-align: left;
 }
-
+#ODRPageSelectButton {
+    margin: 0;
+}
 #ODRPageSelect_header {
     margin-top: 15px;
     text-align: left;
@@ -4522,7 +4561,6 @@ i {
     background: white;
     border: 2px solid black;
     border-radius: 4px;
-    display: none;
     font-weight: 400;
     padding: 5px;
 }
@@ -4576,7 +4614,6 @@ i {
     background: white;
     border: 2px solid black;
     border-radius: 4px;
-    display: none;
     font-weight: 400;
     padding: 5px;
 }
@@ -4688,7 +4725,6 @@ i {
     border-radius: 6px;
     padding: 5px;
     position: absolute;
-    display: none;
     min-width: 200px;
     z-index: 999;
     cursor: default;
@@ -5250,4 +5286,25 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 .ODRRecordLinkInfoList {
     padding-left: 10px;
+}
+
+.ODRSidebarLayout_dragTarget {
+    min-height: 200px;
+    border: #0d5aa7 1px solid;
+    margin-top: 10px;
+}
+.ODRSidebarLayout_dragTargetBlurb {
+    text-indent: 5px;
+    color: #7777EE;
+    padding: 5px;
+}
+.ODRSidebarLayout_sidebarDatafield,
+.ODRSidebarLayout_sidebarDatafield > input {
+    cursor: default;
+}
+.ODRSidebarLayout_sidebarDatafield {
+    padding: 10px;
+}
+#ODRSidebarLayout_includeGeneralSearch {
+    margin-left: 10px;
 }

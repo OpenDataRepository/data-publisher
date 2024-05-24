@@ -176,6 +176,14 @@
                 <i class="fa fa-lg fa-object-group"></i>&nbsp;Manage Database Layouts
             </a>
         </div>
+        {# Link to bring up the search sidebar layout selection modal for the database #}
+        <div>
+            <a id="ODRDatatypeList_{{ datatype.id }}_choose_sidebar_view"
+               class="address"
+            >
+                <i class="fa fa-lg fa-object-group"></i>&nbsp;Manage Sidebar Layouts
+            </a>
+        </div>
 
         {# Group management link for this datatype #}
         <div>
@@ -320,6 +328,12 @@
             openChooseViewRemodal_landing();
         });
 
+        $("#ODRDatatypeList_{{ datatype.id }}_choose_sidebar_view").unbind('click').click(function(event) {
+            event.stopImmediatePropagation();
+
+            openSidebarChooseViewRemodal_landing();
+        });
+
         $('#ODRHelpButton')
             .attr('data-step', '1')
             .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
@@ -344,13 +358,13 @@
     });
 
     /**
-     * Opens the modal for users to view/select available themes for this datatype.
+     * Opens the modal for users to view/select available themes for this datatype.  This is different
+     * than openChooseViewRemodal() because there's no search key on the landing page.
      */
     function openChooseViewRemodal_landing() {
-        modal_options = {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: "Choose from available layouts:",
-            // body: "<div>Loading will not display if body is set.</div>",
-            // loading: true,  // Force loading to display
         };
         openODRRemodal(modal_options);
         var url = '{{ path('odr_get_available_themes', { 'datatype_id': datatype.id, 'page_type': '', 'search_key': '' }) }}';
@@ -361,11 +375,48 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $(".ODRRemodalBody").html( data.d );
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    resetRemodalInnerHeight();
-                });
+                updateODRRemodalBody(data.d);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Opens the modal for users to view/select available sidebar layouts for this datatype.  This is
+     * different than openSidebarChooseViewRemodal() because there's no search key on the landing page.
+     */
+    function openSidebarChooseViewRemodal_landing() {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
+            title: "Choose from available layouts:",
+        };
+        openODRRemodal(modal_options);
+        var url = '{{ path('odr_get_available_sidebar_layouts', { 'datatype_id': datatype.id, 'intent': '', 'search_key': '' }) }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                updateODRRemodalBody(data.d);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically

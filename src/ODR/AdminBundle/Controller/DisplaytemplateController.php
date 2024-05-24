@@ -4103,8 +4103,8 @@ if ($debug)
 
                 if ( isset($post['searchable'][$df_id]) ) {
                     $searchable = $post['searchable'][$df_id];
-                    if ($searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY)
-                        throw new ODRBadRequestException('Form submitted with illegal search status for datafield '.$df_id);
+                    if ( !($searchable === DataFields::NOT_SEARCHABLE || $searchable === DataFields::SEARCHABLE) )
+                        throw new ODRBadRequestException('Form submitted with illegal searchable status for datafield '.$df_id);
                 }
 
                 // Don't want to force a searchable value right this second, since it depends on
@@ -4737,11 +4737,13 @@ if ($debug)
             // --------------------
 
 
-            // Going to attempt to render the regular search sidebar here, which would allow the
-            //  use of the SearchSidebarService...
-            $datatype_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId());
-            $datatype_relations = $search_sidebar_service->getSidebarDatatypeRelations($datatype_array, $datatype->getId());
-            $datafields = $datafield_info_service->getDatafieldProperties($datatype_array);
+            // Need to start from a clean "master" search sidebar...
+            $search_params = array();
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params);
+            // Because this is the "master" layout, an unmodified version of the cached datatype
+            //  array exists in this key...
+            $dt_array = $sidebar_array['datatype_array'];
+            $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
             // Don't want the user list or the preferred theme id
 
 
@@ -4799,8 +4801,7 @@ if ($debug)
                 array('dt_id' => $datatype->getId())
             );
 
-            // If a search key exists, decode it into search parameters so that the sidebar will
-            //  show them by default
+            // If a stored search key exists, ensure the "fake" sidebar will show it by default
             $default_search_key = '';
             $default_search_params = array();
             if ( !empty($stored_search_keys) ) {
@@ -4808,7 +4809,7 @@ if ($debug)
                     // Should only be one stored search key, for the moment
                     $default_search_key = $ssk['search_key'];
                     $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
-                    $search_sidebar_service->fixSearchParamsOptionsAndTags($datatype_array, $default_search_params);
+                    $search_sidebar_service->fixSearchParamsOptionsAndTags($sidebar_array, $default_search_params);
                     break;
                 }
             }
@@ -4834,13 +4835,12 @@ if ($debug)
 
 //                        'user_list' => $user_list,
                         'logged_in' => true,
-                        'intent' => 'default_settings',
+                        'intent' => 'stored_search_keys',
 //                        'sidebar_reload' => true,
 
                         // datatype/datafields to search
                         'target_datatype' => $datatype,
-                        'datatype_array' => $datatype_array,
-                        'datatype_relations' => $datatype_relations,
+                        'sidebar_array' => $sidebar_array,
 
                         // theme selection
 //                        'preferred_theme_id' => $preferred_theme_id,

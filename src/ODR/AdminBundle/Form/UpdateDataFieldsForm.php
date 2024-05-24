@@ -17,8 +17,8 @@ namespace ODR\AdminBundle\Form;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 // Symfony Forms
-use ODR\AdminBundle\Entity\RenderPlugin;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
@@ -255,18 +255,37 @@ class UpdateDataFieldsForm extends AbstractType
                 ChoiceType::class,
                 array(
                     'choices' => array(
-                        'No' => DataFields::NOT_SEARCHED,
-                        'General Only' => DataFields::GENERAL_SEARCH,
-                        'Advanced' => DataFields::ADVANCED_SEARCH,
-                        'Advanced Only' => DataFields::ADVANCED_SEARCH_ONLY,
+                        'No' => DataFields::NOT_SEARCHABLE,
+                        'Yes' => DataFields::SEARCHABLE,
                     ),
-                    'choices_as_values' => true,
                     'label' => 'Searchable',
                     'expanded' => false,
                     'multiple' => false,
                     'placeholder' => false
                 )
             );
+
+            // In early May 2024, the 'searchable' property got changed from allowing four values
+            //  (NOT_SEARCHED, GENERAL_SEARCH, ADVANCED_SEARCH, and ADVANCED_SEARCH_ONLY) to only
+            //  allowing two values (NOT_SEARCHABLE, SEARCHABLE)
+            // In order for this form element to still work, it needs a transformer to ensure the
+            //  two values that no longer exist map to SEARCHABLE
+            $builder->get('searchable')->addModelTransformer(new CallbackTransformer(
+                function($input) {
+                    // Will receive null when form is first created with an empty DatafieldMeta entity
+                    if ( is_null($input) || $input === DataFields::NOT_SEARCHABLE )
+                        return DataFields::NOT_SEARCHABLE;
+                    else
+                        return DataFields::SEARCHABLE;
+                },
+                function($output) {
+                    // ...not sure if this is strictly necessary, but it seems to not cause problems
+                    if ( is_null($output) || $output === DataFields::NOT_SEARCHABLE )
+                        return DataFields::NOT_SEARCHABLE;
+                    else
+                        return DataFields::SEARCHABLE;
+                }
+            ));
         }
 
         if ( $current_typeclass === 'File' || $current_typeclass === 'Image' ) {

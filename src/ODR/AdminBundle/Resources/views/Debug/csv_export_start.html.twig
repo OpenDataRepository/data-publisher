@@ -1,0 +1,86 @@
+{% spaceless %}
+
+<div>
+    <span>Select delimiters and fields for the export:</span>
+    <br>
+    <button class="ODRDebugCSVExport_selectAll">Select All</button>
+    <button class="ODRDebugCSVExport_deselectAll">Deselect All</button>
+
+    <form id="debug_csv_export_form" method="post" action="{{ path('odr_debug_csv_export') }}">
+        <fieldset>
+            <input type="hidden" name="search_key" value="{{ search_key }}" />
+            <label for="delimiter_select">
+                Export delimiter:&nbsp;
+                <select id="delimiter_select" name="delimiter">
+                    <option value=",">{comma}</option>
+                    <option value="tab">{tab}</option>
+                    <option value="">{other}</option>
+                </select>
+            </label><br>
+            <label for="file_image_delimiter_select">
+                File/Image delimiter:&nbsp;
+                <select id="file_image_delimiter_select" name="file_image_delimiter">
+                    <option value="">Select a delimiter...</option>
+                    <option value="|">{pipe}</option>
+                    <option value=",">{comma}</option>
+                </select>
+            </label><br>
+            <label for="radio_delimiter_select">
+                Multiple Radio/Select delimiter:&nbsp;
+                <select id="radio_delimiter_select" name="radio_delimiter">
+                    <option value="">Select a delimiter...</option>
+                    <option value="|">{pipe}</option>
+                    <option value=",">{comma}</option>
+                    <option value="space">{space}</option>
+                </select>
+            </label><br>
+            <label for="tag_delimiter_select">
+                Tag field delimiter:&nbsp;
+                <select class="TagDelimiterSelect" name="tag_delimiter">
+                    <option value="">Select a delimiter...</option>
+                    <option value="|">{pipe}</option>
+                    <option value=",">{comma}</option>
+                </select>
+            </label><br>
+            <label for="tag_hierarchy_delimiter_select">
+                Tag Hierarchy delimiter:&nbsp;
+                <select class="TagDelimiterSelect" name="tag_hierarchy_delimiter">
+                    <option value="">Select a delimiter...</option>
+                    <option value=">>">&gt;&gt;</option>
+                </select>
+            </label><br>
+        </fieldset>
+
+    {% for dt_id,dt in datatype_array %}
+        <fieldset>
+            <legend>{{ dt['dataTypeMeta']['shortName'] }}</legend>
+            {% for df_id,df in dt['dataFields'] %}
+                {% set df_meta = df['dataFieldMeta'] %}
+                {% set typename = df_meta['fieldType']['typeName'] %}
+                {% if typename != 'Markdown' %}
+                <label for="df_{{ df_id }}">
+                    <input id="df_{{ df_id }}" type="checkbox" name="datafields[]" value="{{ df_id }}"/>&nbsp;{{ df_meta['fieldName'] }} ({{ typename }})
+                </label>
+                {% endif %}
+                <br>
+            {% endfor %}
+        </fieldset>
+    {% endfor %}
+
+        <button type="submit">Submit</button>
+    </form>
+</div>
+
+<script>
+    $(function() {
+        $(".ODRDebugCSVExport_selectAll").unbind("click").click(function() {
+            $("input:checkbox").prop('checked', true);
+        });
+
+        $(".ODRDebugCSVExport_deselectAll").unbind("click").click(function() {
+            $("input:checkbox").prop('checked', false);
+        });
+    });
+</script>
+
+{% endspaceless %}

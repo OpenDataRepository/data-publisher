@@ -11,7 +11,7 @@
 {% endif %}
 
 <div class="pure-u-1">
-    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_config_str }}</textarea>
+    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]">{{ current_config_str }}</textarea>
 
     <div class="pure-u-1 ODRFilterGraphPlugin_header">
         This table is where you select the datafields with the files you want graphed.
@@ -45,7 +45,7 @@
                         <td>
                             <input class="ODRFilterGraphPlugin_secondary" type="checkbox" value="{{ df_id }}" {% if selected_secondary_graph_df == df_id %}checked{% endif %} />
                         </td>
-                        <td class="ODRFilterGraphPlugin_warn" style="display: none;">
+                        <td class="ODRFilterGraphPlugin_warn ODRHidden">
                             <i class="fa fa-warning"></i>
                             <span></span>
                         </td>
@@ -125,7 +125,7 @@
         });
 
         // Only need warnings when there's a secondary graph file selected...
-        $('.ODRFilterGraphPlugin_warn').hide();
+        $('.ODRFilterGraphPlugin_warn').addClass('ODRHidden');
         if ( selected_secondary !== null ) {
             var warn_column = $(selected_secondary).parent().next();
             var warn_text = $(warn_column).children('span');
@@ -133,14 +133,14 @@
             if ( selected_primary === null ) {
                 // ...there has to be a primary graph file selected
                 $(warn_text).html('Select a primary graph field first');
-                $(warn_column).show();
+                $(warn_column).removeClass('ODRHidden');
             }
             else {
                 // ...if there is a primary graph field selected...
                 if ( $(selected_primary).val() === $(selected_secondary).val() ) {
                     // ...then it can't be the same field as the secondary graph field
                     $(warn_text).html('The primary and secondary graph file fields must not be the same');
-                    $(warn_column).show();
+                    $(warn_column).removeClass('ODRHidden');
                 }
                 else {
                     // ...and it needs to belong to the same datatype as the secondary graph field
@@ -148,7 +148,7 @@
                     var secondary_prefix = $(selected_secondary).parents('tr').first().attr('rel');
                     if ( primary_prefix !== secondary_prefix ) {
                         $(warn_text).html('The primary and secondary graph file fields must belong to the same datatype');
-                        $(warn_column).show();
+                        $(warn_column).removeClass('ODRHidden');
                     }
                 }
             }

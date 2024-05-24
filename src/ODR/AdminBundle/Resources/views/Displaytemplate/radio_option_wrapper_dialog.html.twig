@@ -1,37 +1,20 @@
 {% spaceless %}
 
-<!-- Radio Option Edit Dialog Form -->
-
 <script>
-
-    var radio_option_edit_body = '<div id="ODRRadioOptionEditDialogWrapper"> </div>';
-
     /**
      * Opens ODR's modal to create/import/edit/move Radio Options in the given datafield.
      *
      * @param {number} datafield_id
+     * @param {number} [radio_option_id]
      */
-    function openRadioOptionEditDialog(datafield_id) {
-        // open dialog
-        modal_options = {
+    function openRadioOptionEditDialog(datafield_id, radio_option_id = undefined) {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
             title: 'Radio Option Design',
-            loading: true,
-            body: radio_option_edit_body,
-            buttons: [
-                {
-                    id: 'ODRRadioOptionEdit_close',
-                    text: 'Close'
-                }
-            ]
         };
         openODRRemodal(modal_options);
 
-        loadRadioOptionEditDialog(datafield_id);
-
-        // Attach an event handler to the close button
-        $("#ODRRadioOptionEdit_close").unbind('click').click(function() {
-            closeODRRemodal();
-        });
+        loadRadioOptionEditDialogContents(datafield_id, radio_option_id);
     }
 
     /**
@@ -42,10 +25,7 @@
      * @param {number} datafield_id
      * @param {number} [radio_option_id]
      */
-    function loadRadioOptionEditDialog(datafield_id, radio_option_id = undefined) {
-
-        $(".ODRRemodalLoading").show();
-        $("#ODRRadioOptionEditDialogWrapper").hide().html("");
+    function loadRadioOptionEditDialogContents(datafield_id, radio_option_id = undefined) {
 
         var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
@@ -57,19 +37,12 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRRadioOptionEditDialogWrapper").html( data.d.html );
+                // Insert HTML and resize the modal to take up as much space as it can
+                updateODRRemodalBody(data.d.html, 'full');
 
-                // remove loading spinner
-                $(".ODRRemodalLoading").fadeOut('150', function() {
-                    $(".ODRRemodalBody").show();
-                    $(".ODRRemodalButtons").show();
-                    $("#ODRRadioOptionEditDialogWrapper").show();
-
-                    resetRemodalInnerHeight(true);
-
-                    if ( radio_option_id !== undefined )
-                        $("#radio_option_" + radio_option_id).effect("highlight", {}, 2000);
-                });
+                // If a radio option id was given, then highlight it
+                if ( radio_option_id !== undefined )
+                    $("#radio_option_" + radio_option_id).effect("highlight", {}, 2000);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -91,7 +64,5 @@
         });
     }
 </script>
-
-<!-- End of Radio Option Edit Dialog Form -->
 
 {% endspaceless %}

@@ -38,7 +38,7 @@
                 success: function(data) {
                     // Going to need to reload both the modal and the datafield afterwards
                     ReloadDatafield(datafield_id);
-                    loadTagEditDialog(datafield_id);
+                    loadTagEditDialogContents(datafield_id);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error

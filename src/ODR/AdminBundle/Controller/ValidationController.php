@@ -30,6 +30,8 @@ use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\SidebarLayout;
+use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -394,6 +396,7 @@ class ValidationController extends ODRCustomController
             $repo_file = $em->getRepository('ODRAdminBundle:File');
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
             $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
+            $repo_sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
@@ -453,7 +456,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setForceNumericSort(false);
                     $dfm->setRequired(false);
                     $dfm->setPreventUserEdits(false);
-                    $dfm->setSearchable(DataFields::NOT_SEARCHED);
+                    $dfm->setSearchable(DataFields::NOT_SEARCHABLE);
                     $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
                     $dfm->setChildrenPerRow(1);
@@ -747,6 +750,49 @@ class ValidationController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Sidebar Layouts
+            $query =
+                'SELECT sl.id AS sl_id
+                 FROM odr_sidebar_layout AS sl
+                 WHERE sl.id NOT IN (
+                     SELECT DISTINCT(slm.sidebar_layout_id)
+                     FROM odr_sidebar_layout_meta AS slm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_sidebar_layouts = array();
+            foreach ($results as $result)
+                $missing_sidebar_layouts[] = $result['sl_id'];
+
+            print 'missing sidebar layout meta entries: '."\n";
+            print_r($missing_sidebar_layouts);
+
+            if (self::SAVE) {
+                foreach ($missing_sidebar_layouts as $num => $sl_id) {
+                    /** @var SidebarLayout $sidebar_layout */
+                    $sidebar_layout = $repo_sidebar_layout->find($sl_id);
+
+                    $slm = new SidebarLayoutMeta();
+                    $slm->setSidebarLayout($sidebar_layout);
+                    $slm->setLayoutName('');
+                    $slm->setLayoutDescription('');
+                    $slm->setShared(false);
+
+                    $slm->setCreatedBy($user);
+                    $slm->setUpdatedBy($user);
+
+                    $em->persist($slm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
             // Themes
             $query =
                 'SELECT t.id AS t_id
@@ -913,6 +959,7 @@ class ValidationController extends ODRCustomController
                 'Group' => 'group',
                 'Image' => 'image',
                 'RadioOptions' => 'radioOption',
+                'SidebarLayout' => 'sidebarLayout',
                 'Theme' => 'theme',
                 'ThemeElement' => 'themeElement',
             );
@@ -1048,6 +1095,7 @@ class ValidationController extends ODRCustomController
                 'Group' => 'group',
                 'Image' => 'image',
                 'RadioOptions' => 'radioOption',
+                'SidebarLayout' => 'sidebarLayout',
                 'Theme' => 'theme',
                 'ThemeElement' => 'themeElement',
             );
@@ -1480,6 +1528,7 @@ class ValidationController extends ODRCustomController
                 'RenderPluginFields',
                 'RenderPluginInstance',
                 'RenderPluginMap',
+                'SidebarLayout',
                 'Theme',
                 'ThemeElement',
             );
@@ -2898,8 +2947,8 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $site_baseurl = $this->getParameter('site_baseurl');
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -2922,8 +2971,8 @@ class ValidationController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Load the array version of both datatypes
-            $left = $dbi_service->getDatatypeArray($left_datatype->getId());
-            $right = $dbi_service->getDatatypeArray($right_datatype->getId());
+            $left = $database_info_service->getDatatypeArray($left_datatype->getId());
+            $right = $database_info_service->getDatatypeArray($right_datatype->getId());
 
             // Get rid of the masterDataType and masterDataField entries since they cause mis-alignments
             self::inflateTemplateInfo($left);
@@ -3252,6 +3301,19 @@ class ValidationController extends ODRCustomController
                 $render_plugin_instance_ids[] = $result['rpi_id'];
 
 
+            // Sidebar Layouts
+            $query_str =
+                'SELECT sl.id AS sl_id
+                 FROM odr_sidebar_layout AS sl
+                 WHERE sl.data_type_id IN (?)';
+            $parameters = array(1 => $datatype_ids);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $sidebar_layout_ids = array();
+            foreach ($results as $result)
+                $sidebar_layout_ids[] = $result['sl_id'];
+
+
             // Groups
             $query_str =
                 'SELECT g.id AS g_id
@@ -3396,6 +3458,22 @@ class ValidationController extends ODRCustomController
             }
             else {
                 fprintf($handle, "# No themes to delete\n");
+            }
+
+            // ...then Sidebar layouts...
+            if ( !empty($datafield_ids) )
+                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_field_id IN (".implode(',', $datafield_ids).");\n");
+            if ( !empty($datatype_ids) )
+                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_type_id IN (".implode(',', $datatype_ids).");\n");
+
+            if ( !empty($sidebar_layout_ids) ) {
+                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_sidebar_layout_preferences slp WHERE slp.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_sidebar_layout_meta slm WHERE slm.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_sidebar_layout sl WHERE sl.id IN (".implode(',', $sidebar_layout_ids).");\n");
+            }
+            else {
+                fprintf($handle, "# No sidebar layouts to delete\n");
             }
 
             // ...then storage entities...
@@ -3654,6 +3732,7 @@ class ValidationController extends ODRCustomController
             // Themes
             // ThemeElements
             // RenderPluginInstances
+            // Sidebar layouts
             // Groups
 
 
@@ -3804,6 +3883,22 @@ class ValidationController extends ODRCustomController
 //            }
 //            else {
 //                fprintf($handle, "# No themes to delete\n");
+//            }
+
+//            // ...then Sidebar layouts...
+//            if ( !empty($datafield_ids) )
+//                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_field_id IN (".implode(',', $datafield_ids).");\n");
+//            if ( !empty($datatype_ids) )
+//                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_type_id IN (".implode(',', $datatype_ids).");\n");
+//
+//            if ( !empty($sidebar_layout_ids) ) {
+//                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
+//                fprintf($handle, "DELETE FROM odr_sidebar_layout_preferences slp WHERE slp.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
+//                fprintf($handle, "DELETE FROM odr_sidebar_layout_meta slm WHERE slm.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
+//                fprintf($handle, "DELETE FROM odr_sidebar_layout sl WHERE sl.id IN (".implode(',', $sidebar_layout_ids).");\n");
+//            }
+//            else {
+//                fprintf($handle, "# No sidebar layouts to delete\n");
 //            }
 
             // ...then storage entities...

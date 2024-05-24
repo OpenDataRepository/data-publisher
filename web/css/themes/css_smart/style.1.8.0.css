@@ -1194,6 +1194,12 @@ ul#wizardStatus li.completed:before{
     padding-bottom: 2px;
 }
 
+#SidebarLayoutDesignArea .ODRDataField label,
+#SidebarLayoutDesignArea .ODRDataField {
+    cursor: pointer;
+    padding-bottom: 2px;
+}
+
 
 .ODRThemeElement {
     position: relative;
@@ -1327,7 +1333,8 @@ h3.ODRFieldSelected .ODRSortHandle {
 #ThemeDesignArea .ODRFieldSelected > a {
     background: transparent;
 }
-#ThemeDesignArea .ODRDatatypeProperties.ODRFieldSelected {
+#ThemeDesignArea .ODRDatatypeProperties.ODRFieldSelected,
+#SidebarLayoutDesignArea .ODRDatatypeProperties.ODRFieldSelected {
     -webkit-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
     -moz-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
     box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
@@ -1336,7 +1343,8 @@ h3.ODRFieldSelected .ODRSortHandle {
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
 }
-#ThemeDesignArea .ODRDataField.ODRFieldSelected {
+#ThemeDesignArea .ODRDataField.ODRFieldSelected,
+#SidebarLayoutDesignArea .ODRDataField.ODRFieldSelected {
     /*
     background: rgba(54, 187, 114, 0.40);
     */

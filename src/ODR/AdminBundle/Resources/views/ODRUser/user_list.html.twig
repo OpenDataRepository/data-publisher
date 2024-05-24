@@ -129,23 +129,10 @@
                 "emptyTable": "No Users found"
             }
         });
-
         $("#ODRUserList").removeAttr('style');
-        redoRowClasses();
-    });
 
-    function redoRowClasses() {
-        var count = 0;
-        $("#ODRUserList tbody tr").each(function() {
-            if ( !$(this).hasClass('ODRHidden') ) {
-                count++;
-                if ( count % 2 === 1 )
-                    $(this).removeClass('odd').addClass('even');
-                else
-                    $(this).removeClass('even').addClass('odd');
-            }
-        });
-    }
+        redoRowClasses( $("#ODRUserList") );
+    });
 
 {% if is_granted("ROLE_SUPER_ADMIN") %}
     function toggleDeletedUsers() {
@@ -165,7 +152,7 @@
             });
         }
 
-        redoRowClasses();
+        redoRowClasses( $("#ODRUserList") );
     }
 {% endif %}
 

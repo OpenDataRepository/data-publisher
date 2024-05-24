@@ -44,10 +44,8 @@
                     file.cancel();
 
                     // If cancel button clicked when file encountered some sort of error, remove the upload divs
-                    if (file.error == true) {
-                        $(this).parent().hide();
+                    if (file.error == true)
                         $(this).parent().remove();
-                    }
 
                     // Remove this progress div since the user cancelled the upload
                     $("#" + id).remove();

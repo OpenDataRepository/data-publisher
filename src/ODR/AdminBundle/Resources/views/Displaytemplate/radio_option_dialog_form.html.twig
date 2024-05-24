@@ -8,76 +8,78 @@
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set sort_by_name = datafield_meta.radio_option_name_sort %}
 
-<div id="odr_radio_option_design_modal">
-    <div class="ODRThemeElement">
-        <button class="ODRAddRadioOption pure-button pure-button-primary{% if disable_controls %} pure-button-disabled{% endif %}">Create single radio option</button>
-        <button class="ODRRadioOptionCreationMode pure-button{% if disable_controls %} pure-button-disabled{% endif %}">Import radio options</button>
-    </div>
-
-    <div id="odr_radio_option_design" class="ODRRadioOptionWrapper_design pure-form">
+<div id="ODRRadioOptionEditDialogWrapper">
+    <div id="odr_radio_option_design_modal">
         <div class="ODRThemeElement">
-        {% if disable_controls and not can_modify_template %}
-            <div class="ODRTagMoveHelpDiv">
-                This modal is in read-only mode because you do not have permissions to modify the template field.
-            </div>
-        {% elseif disable_controls and out_of_sync %}
-            <div class="ODRTagMoveHelpDiv">
-                This modal is in read-only mode because this field and the template field are out of sync.
-            </div>
-        {% else %}
-            <div class="ODRTagMoveHelpDiv">
-                Saving will happen automatically as changes are made.  Press the escape key to close without saving.
-            </div>
-        {% endif %}
-
-        {% if disable_controls %}
-            {# do nothing #}
-        {% elseif sort_by_name %}
-            <div class="ODRTagMoveHelpDiv">
-                After saving, the system will automatically update the radio options to be in alphabetical order.
-            </div>
-        {% else %}
-            <div class="ODRTagMoveHelpDiv">
-                To move a Radio Option, click and drag on the <i class="fa fa-arrows-v Cursor"></i> icon next to that Radio Option.
-            </div>
-        {% endif %}
+            <button class="ODRAddRadioOption pure-button pure-button-primary{% if disable_controls %} pure-button-disabled{% endif %}">Create single radio option</button>
+            <button class="ODRRadioOptionCreationMode pure-button{% if disable_controls %} pure-button-disabled{% endif %}">Import radio options</button>
         </div>
 
-        <div class="ODRThemeElement" style="margin-top: 15px;">
-            {# this form is for renaming radio options #}
-            <form id="ODRRadioOptionForm" rel="{{ datafield.id }}">
-                {% include 'ODRAdminBundle:Displaytemplate:radio_option_rows.html.twig' with {
-                    'datafield' : datafield,
+        <div id="odr_radio_option_design" class="ODRRadioOptionWrapper_design pure-form">
+            <div class="ODRThemeElement">
+            {% if disable_controls and not can_modify_template %}
+                <div class="ODRTagMoveHelpDiv">
+                    This modal is in read-only mode because you do not have permissions to modify the template field.
+                </div>
+            {% elseif disable_controls and out_of_sync %}
+                <div class="ODRTagMoveHelpDiv">
+                    This modal is in read-only mode because this field and the template field are out of sync.
+                </div>
+            {% else %}
+                <div class="ODRTagMoveHelpDiv">
+                    Saving will happen automatically as changes are made.  Press the escape key to close without saving.
+                </div>
+            {% endif %}
 
-                    'disable_controls': disable_controls,
-                } %}
-            </form>
-        </div>
-    </div>
+            {% if disable_controls %}
+                {# do nothing #}
+            {% elseif sort_by_name %}
+                <div class="ODRTagMoveHelpDiv">
+                    After saving, the system will automatically update the radio options to be in alphabetical order.
+                </div>
+            {% else %}
+                <div class="ODRTagMoveHelpDiv">
+                    To move a Radio Option, click and drag on the <i class="fa fa-arrows-v Cursor"></i> icon next to that Radio Option.
+                </div>
+            {% endif %}
+            </div>
 
-    <div id="odr_radio_option_import" class="pure-form">
-        <div class="pure-u-1-2 ODRRadioOptionWrapper_design">
-            <form id="ODRRadioOptionListForm" class="pure-form" rel="{{ datafield.id }}" style="padding-left: 20px;">
-                <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if sort_by_name == true %}1{% else %}0{% endif %}" />
-                <fieldset>
-                    <table class="ODRRadioOptionListImport pure-table pure-table-striped pure-u-1">
-                        <thead>
-                            <tr>
-                                <th>Radio Options (one per line)</th>
-                            </tr>
-                        </thead>
-                        <tbody class="ODRSortableOption pure-u-1" rel="{{ datafield.id }}">
-                            <tr class="pure-u-1">
-                                <td class="pure-u-1">
-                                    <textarea id="radio_option_list" class="pure-u-1" name="radio_option_list"></textarea>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </fieldset>
-            </form>
+            <div class="ODRThemeElement" style="margin-top: 15px;">
+                {# this form is for renaming radio options #}
+                <form id="ODRRadioOptionForm" rel="{{ datafield.id }}">
+                    {% include 'ODRAdminBundle:Displaytemplate:radio_option_rows.html.twig' with {
+                        'datafield' : datafield,
+
+                        'disable_controls': disable_controls,
+                    } %}
+                </form>
+            </div>
         </div>
-        <div class="pure-u-1-2 ODRRadioOptionWrapper_import">
+
+        <div id="odr_radio_option_import" class="pure-form ODRHidden">
+            <div class="pure-u-1-2 ODRRadioOptionWrapper_design">
+                <form id="ODRRadioOptionListForm" class="pure-form" rel="{{ datafield.id }}" style="padding-left: 20px;">
+                    <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if sort_by_name == true %}1{% else %}0{% endif %}" />
+                    <fieldset>
+                        <table class="ODRRadioOptionListImport pure-table pure-table-striped pure-u-1">
+                            <thead>
+                                <tr>
+                                    <th>Radio Options (one per line)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="ODRSortableOption pure-u-1" rel="{{ datafield.id }}">
+                                <tr class="pure-u-1">
+                                    <td class="pure-u-1">
+                                        <textarea id="radio_option_list" class="pure-u-1" name="radio_option_list"></textarea>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </fieldset>
+                </form>
+            </div>
+            <div class="pure-u-1-2 ODRRadioOptionWrapper_import">
+            </div>
         </div>
     </div>
 </div>
@@ -85,9 +87,6 @@
 <script>
     var SaveTimeout = 1500;
     $(function () {
-        $("#odr_radio_option_import").hide();
-        $(".ODRInputError").not(".ODRAlwaysShow").hide();
-
 {% if not disable_controls and not sort_by_name %}
         // If user can make change and the radio options aren't being sorted by name, then destroy
         //  existing sortable instances before recreating them
@@ -118,9 +117,16 @@
             // Don't want #odr_radio_option_design_modal click event to fire
             event.stopPropagation();
 
-            if ( $("#odr_radio_option_import").is(':visible') ) {
-                $("#odr_radio_option_design").show();
-                $("#odr_radio_option_import").hide();
+            if ( $("#odr_radio_option_import").hasClass('ODRHidden') ) {
+                $("#odr_radio_option_design").addClass('ODRHidden');
+                $("#odr_radio_option_import").removeClass('ODRHidden');
+
+                $(".ODRRadioOptionCreationMode").html("Stop importing radio options");
+                $(".ODRAddRadioOption").html("Import radio option list");
+            }
+            else {
+                $("#odr_radio_option_design").removeClass('ODRHidden');
+                $("#odr_radio_option_import").addClass('ODRHidden');
 
                 $("#ODRRadioOptionListForm").find('textarea').each(function() {
                     $(this).val('');
@@ -129,18 +135,9 @@
 
                 $(".ODRRadioOptionCreationMode").html("Import radio options");
                 $(".ODRAddRadioOption").html("Create single radio option");
-
-                resetRemodalInnerHeight();
             }
-            else {
-                $("#odr_radio_option_design").hide();
-                $("#odr_radio_option_import").show();
 
-                $(".ODRRadioOptionCreationMode").html("Stop importing radio options");
-                $(".ODRAddRadioOption").html("Import radio option list");
-
-                resetRemodalInnerHeight();
-            }
+            resetRemodalInnerHeight();
         });
 
         $("#radio_option_list").unbind('keyup paste').on('keyup paste', function() {
@@ -159,7 +156,7 @@
      * Finds and highlights radio options that have duplicate names.
      */
     function FindDuplicateRadioOptionNames() {
-        $(".ODRInputError").not(".ODRAlwaysShow").hide();
+        $(".ODRInputError").not(".ODRAlwaysShow").addClass('ODRHidden');
         var has_duplicates = false;
 
         var radio_option_names = {};
@@ -174,16 +171,16 @@
                 has_duplicates = true;
 
                 var prev_elem = radio_option_names[name];
-                $(this).parent().children('.ODRInputError').show();
-                $(prev_elem).parent().children('.ODRInputError').show();
+                $(this).parent().children('.ODRInputError').removeClass('ODRHidden');
+                $(prev_elem).parent().children('.ODRInputError').removeClass('ODRHidden');
             }
         });
 
         {% if not disable_controls %}
         if (has_duplicates)
-            $(".ODRRadioOptionCreationMode").addClass('pure-button-disabled');
+            $(".ODRRadioOptionCreationMode").addClass('pure-button-disabled').html('Fix duplicates to import');
         else
-            $(".ODRRadioOptionCreationMode").removeClass('pure-button-disabled');
+            $(".ODRRadioOptionCreationMode").removeClass('pure-button-disabled').html('Import radio options');
         {% endif %}
     }
 
@@ -196,12 +193,10 @@
             // Don't want #odr_radio_option_design_modal click event to fire
             event.stopPropagation();
 
-            if ( $("#odr_radio_option_import").is(':visible') ) {
-                ImportRadioOptionsList({{ datafield.id }});
-            }
-            else {
+            if ( $("#odr_radio_option_import").hasClass('ODRHidden') )
                 AddRadioOption({{ datafield.id }});
-            }
+            else
+                ImportRadioOptionsList({{ datafield.id }});
         });
 
         $(".ODRDeleteRadioOption").unbind('click').click(function(event) {
@@ -276,7 +271,7 @@
             success: function(data) {
                 // Reload parts of the page so that the new radio option shows up
                 ReloadDatafield(data.d.datafield_id);
-                loadRadioOptionEditDialog(data.d.datafield_id, data.d.radio_option_id);
+                loadRadioOptionEditDialogContents(data.d.datafield_id, data.d.radio_option_id);
                 FindDuplicateRadioOptionNames();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -393,7 +388,7 @@
 
                 if ( data.d.reload_modal ) {
                     // ...also reload the list of radio options
-                    loadRadioOptionEditDialog(data.d.datafield_id, radio_option_id);
+                    loadRadioOptionEditDialogContents(data.d.datafield_id, radio_option_id);
                 }
                 else {
                     // Replace the previous "old-value" with the one that just got saved
@@ -493,7 +488,7 @@
 
                 // The controller may have made a lot of changes...just reload the datafield on the page
                 {% if sort_by_name %}
-                loadRadioOptionEditDialog(datafield_id);
+                loadRadioOptionEditDialogContents(datafield_id);
                 {% endif %}
                 ReloadDatafield(datafield_id);
             },
@@ -543,7 +538,7 @@
             success: function(data) {
                 // Going to need to reload both the modal and the datafield afterwards
                 ReloadDatafield(datafield_id);
-                loadRadioOptionEditDialog(datafield_id);
+                loadRadioOptionEditDialogContents(datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

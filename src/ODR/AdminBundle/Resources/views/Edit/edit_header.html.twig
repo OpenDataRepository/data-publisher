@@ -88,6 +88,11 @@
         });
 
         $("#ChooseView").unbind('click').click(function(event) {
+            window.ODRChooseView_applyredirectcallback = function(theme_id) {
+                // When a new 'edit' theme is selected, just reload the entire page afterwards
+                // ...the newly selected theme will be pulled from the user's session
+                reloadPage();
+            }
             openChooseViewRemodal({{ datatype.id }}, 'edit', '{{ search_key }}');
         });
 
