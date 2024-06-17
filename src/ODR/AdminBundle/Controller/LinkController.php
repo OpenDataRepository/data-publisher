@@ -1814,7 +1814,10 @@ class LinkController extends ODRCustomController
             });
 
             // Easier if PHP creates the extra info string
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             $site_baseurl = $this->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
+            if ( $is_wordpress_integrated )
+                $site_baseurl = $this->getParameter('wordpress_site_baseurl').'/';    // doesn't have trailing slash by default
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 $site_baseurl .= 'app_dev.php/';
 

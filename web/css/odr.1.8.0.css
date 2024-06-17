@@ -3369,7 +3369,7 @@ a.ui-button:active,
 
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    /*text-overflow: ellipsis;*/
     min-width: 0;
 }
 

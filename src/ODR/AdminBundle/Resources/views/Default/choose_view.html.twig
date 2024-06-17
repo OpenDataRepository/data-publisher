@@ -14,7 +14,8 @@
 {% endif %}
 
 <ul id="ODRChooseView" class="pure-u-1">
-    <h4>To create a new view, copy an existing view and modify it.</h4>
+    {% if user != "anon." %}<h4>To create a new view, copy an existing view and modify it.</h4>{% endif %}
+
     {# The user's currently selected theme goes at the top of the list... #}
     {% for theme_data in available_themes %}
         {% if theme_data.id == selected_theme_id %}
