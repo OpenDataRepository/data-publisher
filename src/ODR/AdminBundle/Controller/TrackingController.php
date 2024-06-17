@@ -86,12 +86,12 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -114,10 +114,10 @@ class TrackingController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
+            $datafield_permissions = $permissions_service->getDatafieldPermissions($user);
 
             // Ensure user has permissions to be doing this
-            if (!$pm_service->canEditDatarecord($user, $datarecord))
+            if (!$permissions_service->canEditDatarecord($user, $datarecord))
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -135,7 +135,7 @@ class TrackingController extends ODRCustomController
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
-            $dt_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
 
             $datafield_ids = array();
             foreach ($dt_array as $dt_id => $dt_data) {
@@ -154,7 +154,7 @@ class TrackingController extends ODRCustomController
             $target_datatype_name = $grandparent_datatype->getLongName();
 
             // Also need to display this datarecord's name on the page...
-            $dr_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId(), false);    // don't want links
+            $dr_array = $datarecord_info_service->getDatarecordArray($grandparent_datarecord->getId(), false);    // don't want links
             $datarecord_name = $dr_array[$grandparent_datarecord->getId()]['nameField_value'];
 
             // Generate the HTML required for a header
@@ -214,12 +214,12 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -249,7 +249,7 @@ class TrackingController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($admin);
+            $user_permissions = $permissions_service->getUserPermissionsArray($admin);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -286,8 +286,8 @@ class TrackingController extends ODRCustomController
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
-            $dt_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId(), true);    // need to have linked datatypes
-            $datatree_array = $dti_service->getDatatreeArray();
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), true);    // need to have linked datatypes
+            $datatree_array = $datatree_info_service->getDatatreeArray();
 
             $datafield_ids = array();
             foreach ($dt_array as $dt_id => $dt_data) {
@@ -298,7 +298,7 @@ class TrackingController extends ODRCustomController
                             // For the purposes of tracking changes, only want the datafields that
                             //  belong to the grandparent datatype and its children, and that the
                             //  user can edit
-                            $gdt_id = $dti_service->getGrandparentDatatypeId($dt_id, $datatree_array);
+                            $gdt_id = $datatree_info_service->getGrandparentDatatypeId($dt_id, $datatree_array);
                             if ( $grandparent_datatype->getId() === $gdt_id )
                                 $datafield_ids[] = $df_id;
                         }
@@ -373,10 +373,10 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -392,10 +392,10 @@ class TrackingController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
+            $datafield_permissions = $permissions_service->getDatafieldPermissions($user);
 
             // Ensure user has permissions to be doing this
-            if (!$pm_service->canEditDatatype($user, $datatype))
+            if (!$permissions_service->canEditDatatype($user, $datatype))
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -413,7 +413,7 @@ class TrackingController extends ODRCustomController
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
-            $dt_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
 
             $datafield_ids = array();
             foreach ($dt_array as $dt_id => $dt_data) {
@@ -485,8 +485,8 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -501,7 +501,7 @@ class TrackingController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($admin);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($admin);
 
             // Determine whether the user is an admin for any datatype
             $valid_datatype_ids = array();
@@ -618,11 +618,11 @@ class TrackingController extends ODRCustomController
             // The "|" character causes the H:i:s portion to default to 00:00:00
             $start = \DateTime::createFromFormat("Y-m-d|", $post['start_date']);
             $start_errors = \DateTime::getLastErrors();
-            if ($start_errors['error_count'] > 0)
+            if ( $start_errors['error_count'] > 0 )
                 throw new ODRBadRequestException("Invalid start date");
             $end = \DateTime::createFromFormat("Y-m-d|", $post['end_date']);
             $end_errors = \DateTime::getLastErrors();
-            if ($end_errors['error_count'] > 0)
+            if ( $end_errors['error_count'] > 0 )
                 throw new ODRBadRequestException("Invalid end date");
 
             // End date needs to be incremented by one day...because of the mysql BETWEEN condition,
@@ -639,6 +639,9 @@ class TrackingController extends ODRCustomController
             $display_datarecord_metadata = false;
             if ( isset($post['display_datarecord_metadata']) )
                 $display_datarecord_metadata = true;
+            $simple = false;
+            if ( isset($post['simple']) )
+                $simple = true;
 
             // Also need to have at least one of these...
             $target_datarecord_id = null;
@@ -662,8 +665,8 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchAPIService $search_api_service */
@@ -739,7 +742,7 @@ class TrackingController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($admin);
+            $user_permissions = $permissions_service->getUserPermissionsArray($admin);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -887,10 +890,16 @@ class TrackingController extends ODRCustomController
                 $dr_created_deleted_history = self::getDatarecordChanges($em, $criteria, $row_count);
 
                 // Combine all of the datafield-level changes...
-                $history = self::combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes);
+//                if ( $simple )
+//                    $history = self::combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes);
+//                else
+                    $history = self::combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes);
 
                 // Need to convert all the ids into names...
                 $names = self::getNames($em, $history, $dr_created_deleted_history);
+
+                if ( $simple )
+                    $history = self::combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes);
             }
 
 
@@ -900,9 +909,13 @@ class TrackingController extends ODRCustomController
             if ( $row_count > self::ROWS_SOFT_LIMIT )
                 $rows_exceeded = true;
 
+            $template_name = 'ODRAdminBundle:Tracking:tracking_data.html.twig';
+            if ( $simple )
+                $template_name = 'ODRAdminBundle:Tracking:tracking_data_simple.html.twig';
+
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tracking:tracking_data.html.twig',
+                    $template_name,
                     array(
                         'no_criteria' => $no_criteria,
                         'history' => $history,
@@ -1140,13 +1153,13 @@ class TrackingController extends ODRCustomController
                 $updated = $result['updated'];
                 $updatedBy = $result['updatedBy'];
 
-                if (!isset($history[$dt_id]))
+                if ( !isset($history[$dt_id]) )
                     $history[$dt_id] = array();
-                if (!isset($history[$dt_id][$dr_id]))
+                if ( !isset($history[$dt_id][$dr_id]) )
                     $history[$dt_id][$dr_id] = array();
-                if (!isset($history[$dt_id][$dr_id][$df_id]))
+                if ( !isset($history[$dt_id][$dr_id][$df_id]) )
                     $history[$dt_id][$dr_id][$df_id] = array();
-                if (!isset($history[$dt_id][$dr_id][$df_id][$id]))
+                if ( !isset($history[$dt_id][$dr_id][$df_id][$id]) )
                     $history[$dt_id][$dr_id][$df_id][$id] = array();
 
                 $history[$dt_id][$dr_id][$df_id][$id][$updated] = array(
@@ -1340,13 +1353,13 @@ class TrackingController extends ODRCustomController
                             break;
                     }
 
-                    if (!isset($history[$dt_id]))
+                    if ( !isset($history[$dt_id]) )
                         $history[$dt_id] = array();
-                    if (!isset($history[$dt_id][$dr_id]))
+                    if ( !isset($history[$dt_id][$dr_id]) )
                         $history[$dt_id][$dr_id] = array();
-                    if (!isset($history[$dt_id][$dr_id][$df_id]))
+                    if ( !isset($history[$dt_id][$dr_id][$df_id]) )
                         $history[$dt_id][$dr_id][$df_id] = array();
-                    if (!isset($history[$dt_id][$dr_id][$df_id][$file_id]))
+                    if ( !isset($history[$dt_id][$dr_id][$df_id][$file_id]) )
                         $history[$dt_id][$dr_id][$df_id][$file_id] = array();
 
                     switch ($query_type) {
@@ -1496,13 +1509,13 @@ class TrackingController extends ODRCustomController
                 $updated = $result['updated'];
                 $updatedBy = $result['updatedBy'];
 
-                if (!isset($history[$dt_id]))
+                if ( !isset($history[$dt_id]) )
                     $history[$dt_id] = array();
-                if (!isset($history[$dt_id][$dr_id]))
+                if ( !isset($history[$dt_id][$dr_id]) )
                     $history[$dt_id][$dr_id] = array();
-                if (!isset($history[$dt_id][$dr_id][$df_id]))
+                if ( !isset($history[$dt_id][$dr_id][$df_id]) )
                     $history[$dt_id][$dr_id][$df_id] = array();
-                if (!isset($history[$dt_id][$dr_id][$df_id][$id]))
+                if ( !isset($history[$dt_id][$dr_id][$df_id][$id]) )
                     $history[$dt_id][$dr_id][$df_id][$id] = array();
 
                 $history[$dt_id][$dr_id][$df_id][$id][$updated] = array(
@@ -1896,12 +1909,12 @@ class TrackingController extends ODRCustomController
 
         foreach ($text_number_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
-            if (!isset($history[$dt_id]))
+            if ( !isset($history[$dt_id]) )
                 $history[$dt_id] = array();
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
-                if (!isset($history[$dt_id][$dr_id]))
+                if ( !isset($history[$dt_id][$dr_id]) )
                     $history[$dt_id][$dr_id] = array();
 
                 // Copy all the history data into this datarecord entry
@@ -1911,12 +1924,12 @@ class TrackingController extends ODRCustomController
         }
         foreach ($file_image_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
-            if (!isset($history[$dt_id]))
+            if ( !isset($history[$dt_id]) )
                 $history[$dt_id] = array();
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
-                if (!isset($history[$dt_id][$dr_id]))
+                if ( !isset($history[$dt_id][$dr_id]) )
                     $history[$dt_id][$dr_id] = array();
 
                 // Copy all the history data into this datarecord entry
@@ -1926,17 +1939,99 @@ class TrackingController extends ODRCustomController
         }
         foreach ($radio_tag_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
-            if (!isset($history[$dt_id]))
+            if ( !isset($history[$dt_id]) )
                 $history[$dt_id] = array();
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
-                if (!isset($history[$dt_id][$dr_id]))
+                if ( !isset($history[$dt_id][$dr_id]) )
                     $history[$dt_id][$dr_id] = array();
 
                 // Copy all the history data into this datarecord entry
                 foreach ($dr_data as $df_id => $data)
                     $history[$dt_id][$dr_id][$df_id] = $data;
+            }
+        }
+
+        return $history;
+    }
+
+
+    /**
+     * Combines the text/number, file/image, and radio/tag arrays into a single array, but ignores
+     * the individual datafields in favor of one entry per datarecord
+     *
+     * @param array $text_number_changes
+     * @param array $file_image_changes
+     * @param array $radio_tag_changes
+     *
+     * @return array
+     */
+    private function combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes)
+    {
+        $history = array();
+
+        foreach ($text_number_changes as $dt_id => $dt_data) {
+            // Create an entry for the datatype if it doesn't exist...
+            if ( !isset($history[$dt_id]) )
+                $history[$dt_id] = array();
+
+            foreach ($dt_data as $dr_id => $dr_data) {
+                // Create an entry for the datarecord if it doesn't exist...
+                if ( !isset($history[$dt_id][$dr_id]) )
+                    $history[$dt_id][$dr_id] = array();
+
+                // Copy just the date into the history entry
+                foreach ($dr_data as $df_id => $df_data) {
+                    foreach ($df_data as $entity_id => $entity_data) {
+                        foreach ($entity_data as $date => $data) {
+                            $date = explode(' ', $date)[0];
+                            $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($file_image_changes as $dt_id => $dt_data) {
+            // Create an entry for the datatype if it doesn't exist...
+            if ( !isset($history[$dt_id]) )
+                $history[$dt_id] = array();
+
+            foreach ($dt_data as $dr_id => $dr_data) {
+                // Create an entry for the datarecord if it doesn't exist...
+                if ( !isset($history[$dt_id][$dr_id]) )
+                    $history[$dt_id][$dr_id] = array();
+
+                // Copy just the date into the history entry
+                foreach ($dr_data as $df_id => $df_data) {
+                    foreach ($df_data as $entity_id => $entity_data) {
+                        foreach ($entity_data as $date => $data) {
+                            $date = explode(' ', $date)[0];
+                            $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($radio_tag_changes as $dt_id => $dt_data) {
+            // Create an entry for the datatype if it doesn't exist...
+            if ( !isset($history[$dt_id]) )
+                $history[$dt_id] = array();
+
+            foreach ($dt_data as $dr_id => $dr_data) {
+                // Create an entry for the datarecord if it doesn't exist...
+                if ( !isset($history[$dt_id][$dr_id]) )
+                    $history[$dt_id][$dr_id] = array();
+
+                // Copy just the date into the history entry
+                foreach ($dr_data as $df_id => $df_data) {
+                    foreach ($df_data as $entity_id => $entity_data) {
+                        foreach ($entity_data as $date => $data) {
+                            $date = explode(' ', $date)[0];
+                            $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
+                        }
+                    }
+                }
             }
         }
 
@@ -2175,10 +2270,10 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -2196,8 +2291,8 @@ class TrackingController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($admin);
-            $datafield_permissions = $pm_service->getDatafieldPermissions($admin);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($admin);
+            $datafield_permissions = $permissions_service->getDatafieldPermissions($admin);
 
             $editable_datatypes = array();
             if ( is_null($datatype_restriction) ) {
@@ -2215,11 +2310,11 @@ class TrackingController extends ODRCustomController
             }
             else {
                 // Otherwise, the user needs to be able to edit the provided datatype
-                if ( !$pm_service->canEditDatatype($admin, $datatype_restriction) )
+                if ( !$permissions_service->canEditDatatype($admin, $datatype_restriction) )
                     throw new ODRForbiddenException();
 
                 // Only going to load fields belonging to the provided datatype
-                $dt_array = $dbi_service->getDatatypeArray($datatype_restriction->getGrandparent()->getId(), false);    // don't want links
+                $dt_array = $database_info_service->getDatatypeArray($datatype_restriction->getGrandparent()->getId(), false);    // don't want links
                 foreach ($dt_array as $dt_id => $dt_data) {
                     if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_edit']) ) {
                         $editable_datatypes[] = $dt_id;
@@ -2339,8 +2434,8 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var EngineInterface $templating */
@@ -2351,7 +2446,7 @@ class TrackingController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Need to determine which datatypes the user is allowed to edit...
             $editable_datatypes = array();
@@ -2451,10 +2546,10 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
         }
         catch (\Exception $e) {
