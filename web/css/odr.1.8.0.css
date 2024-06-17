@@ -3599,7 +3599,7 @@ a.ui-button:active,
 #ODRFileDownloadForm_submit, #ODRMassDownloadForm_submit {
     margin: 10px 10px 10px 10px;
 }
-#ODRFileDownloadForm_progress, #ODRMassDownloadForm_progress {
+.ODRFileDownloadForm_progress {
     font-size: 20px;
     padding: 100px 10px 100px 10px;
 }
@@ -5214,6 +5214,7 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 
 .ODRFilterGraphPlugin_blurb {
     margin-left: 30px;
+    cursor: default;
 }
 .ODRFilterGraphPlugin_settings_div {
     cursor: pointer;

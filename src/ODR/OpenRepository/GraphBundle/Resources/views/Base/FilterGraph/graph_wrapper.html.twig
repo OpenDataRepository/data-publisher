@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
+{% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -22,9 +23,11 @@
 
             'is_top_level': is_top_level,
             'is_link': is_link,
-            'display_type': display_type,
+            'display_type': LIST_HEADER,
             'multiple_allowed': multiple_allowed,
         } %}
+        {# NOTE: intentionally using LIST_HEADER instead of display_type...only want a basic accordion header block before the graph... #}
+        {# ...instead of an actual accordion/tab/dropdown that will do nothing because it's not tied to any datarecords #}
 
         {# Any datarecord id can be used for this #}
         {% set rollup_id = 'rollup_' ~ parent_datarecord.id %}
@@ -37,8 +40,9 @@
             'target_datatype_id': target_datatype_id,
             'target_datarecord_id': rollup_id,
 
+            'record_display_view': record_display_view,
             'is_top_level': is_top_level,
-            'display_type': display_type,
+            'display_type': LIST_HEADER,
 
             'odr_chart_id': odr_chart_id,
             'odr_chart_legend': odr_chart_legend,
@@ -46,7 +50,10 @@
             'odr_chart_output_files': odr_chart_output_files,
         } %}
 
-        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
+        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {
+            'display_type': LIST_HEADER,
+            'is_top_level': is_top_level,
+        } %}
     {% endif %}
     </div>
 
@@ -54,7 +61,6 @@
         <div class="ODRThemeElement {% if odr_chart_file_ids|length < 2 %}ODRHidden{% endif %}">    {# Don't display the filter area if there's nothing to filter by #}
             <div class="ODRInnerBox">
                 <div id="{{ odr_chart_id }}_blurb">
-                    <span class="ODRFilterGraphPlugin_blurb">The selected values in the fields below control which files are displayed on the graphs above.</span>
                     <div id="ODRFilterGraphPlugin_{{ odr_chart_id }}_settings_div" class="ODRFilterGraphPlugin_settings_div">
                         <a><i class="fa fa-cog"></i></a>
 
@@ -68,10 +74,23 @@
                             <div>
                                 <label for="{{ odr_chart_id }}_show_hidden_filters">Show Hidden Fields: </label>
                                 <input type="checkbox" id="{{ odr_chart_id }}_show_hidden_filters" />
-                                <label for="{{ odr_chart_id }}_show_odr_data">Always Show ODR Data: </label>
-                                <input type="checkbox" id="{{ odr_chart_id }}_show_odr_data" {% if odr_chart_file_ids|length < 2 %}checked{% endif %}/>
                             </div>
                         </div>
+                    </div>
+                    <span class="ODRFilterGraphPlugin_blurb">The selected values in the fields below control which files are displayed on the graphs above.</span>
+
+                    <form id="ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadFilesForm" class="ODRHidden"></form>
+                    <div id="ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadFiles">
+                        <span id="ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadLabel" class="ODRFileDownloadForm_label">
+                            <a style="padding-left: 3px"><i class="fa fa-download"></i></a>
+                            <span style="cursor: pointer;">&nbsp;&nbsp;Click to download all files currently in the graph</span>
+                        </span>
+                        <span class="ODRFileDownloadForm_progress ODRHidden">
+                            <div>Creating archive:</div>
+                            <div>
+                                <span class="ODRFileDownloadForm_current"></span> / <span class="ODRFileDownloadForm_total"></span> files added.
+                            </div>
+                        </span>
                     </div>
                 </div>
 
@@ -92,7 +111,7 @@
         </div>
     </div>
 
-    <div class="ODRGraphSpacer pure-u-1 ODRHidden">
+    <div class="ODRGraphSpacer pure-u-1">
         {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
             'context' : 'display',
 
@@ -131,6 +150,7 @@
 
                         'is_datatype_admin': is_datatype_admin,
 
+                        'record_display_view': record_display_view,
                         'is_top_level': is_top_level,
                         'is_link': is_link,
                         'display_type': display_type,
@@ -155,8 +175,12 @@
             } %}
         {% endif %}
 
-        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
+        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {
+            'display_type': display_type,
+            'is_top_level': is_top_level,
+        } %}
     </div>
+</div>    <!-- End of #DataType_{{ datatype.id }} -->
 
 <script>
     /** @var {odrFilterChartObj} */
@@ -245,18 +269,58 @@
             $(this).closest(".ODRFilterGraphPlugin_settings").first().addClass('ODRHidden');
         });
 
-        $("#{{ odr_chart_id }}_show_odr_data").unbind('change').change(function() {
-            var pieces = $(this).attr('id').split('_');
-            var chart_id = pieces.slice(0, -3).join('_'); // console.log(chart_id);
+        $("#ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadLabel").unbind('click').click(function() {
+            // Attempt to prevent accidental doubleclicks
+            var container_id = 'ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadFiles';
+            // console.log( zip_archive_timeouts[container_id] );
+            if ( !(zip_archive_timeouts[ container_id ] == null || zip_archive_timeouts[ container_id ] == undefined) )
+                return false;
+            zip_archive_timeouts[container_id] = 0;
 
-            // Just trigger a graph redraw
-            ODRGraph_triggerDynamicGraph(chart_id);
+            // Need the current list of displayed files...
+            var files_to_graph = ODRFilterGraph_updateGraphedFiles({{ odr_chart_id }}_obj);
 
-            // Don't want the settings div open anymore
-            $(this).closest(".ODRFilterGraphPlugin_settings").first().addClass('ODRHidden');
+            // Create a form for post submission
+            $("#ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadFilesForm").children().remove();
+            files_to_graph.forEach((file_obj) => {
+               $('<input>', {
+                   'name': 'files[]',
+                   'value': file_obj.file_id,
+               }).appendTo('#ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadFilesForm');
+            });
+            var data = $("#ODRFilterGraphPlugin_{{ odr_chart_id }}_downloadFilesForm").serialize();
+
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                url: '{{ path('odr_create_zip_archive_from_filelist') }}',
+                data: data,
+                dataType: "json",
+                success: function (data, textStatus, jqXHR) {
+                    var archive_filename = data.d.archive_filename;
+                    var archive_size = data.d.archive_size;
+
+                    createZipArchiveProgressCheck(archive_filename, archive_size, container_id);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
         });
     });
 </script>
-</div><!-- end of #DataType_{{ datatype.id }} -->
 
 {% endspaceless %}

@@ -686,6 +686,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
             // ----------------------------------------
             // Pulled up here so the graph builder can access the data if needed
+            $record_display_view = 'single';
+            if ( isset($rendering_options['record_display_view']) )
+                $record_display_view = $rendering_options['record_display_view'];
+
             $page_data = array(
                 'datatype_array' => array($datatype['id'] => $datatype),
                 'datarecord_array' => $datarecords,
@@ -695,6 +699,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 'parent_datarecord' => $parent_datarecord,
                 'target_theme_id' => $theme['id'],
 
+                'record_display_view' => $record_display_view,
                 'is_top_level' => $rendering_options['is_top_level'],
                 'is_link' => $rendering_options['is_link'],
                 'display_type' => $rendering_options['display_type'],
@@ -1001,24 +1006,33 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 }
                 else if ( $typeclass === 'file' ) {
                     // If a file datafield is in here, then it's using the quality stuff...
+                    $has_file = false;
                     if ( isset($drf['dataField']) && isset($drf['file']) ) {
                         $quality_str = $drf['dataField']['dataFieldMeta']['quality_str'];
                         if ( $quality_str === 'toggle' || $quality_str === 'stars5' ) {
+                            // Don't need to parse these quality values
+                            $has_file = true;
                             $quality_val = $drf['file']['fileMeta']['quality'];
                             $values[$df_id][$quality_val][] = $dr_id;
                         }
                         else {
+                            // Do need to parse the custom quality json...
                             $ret = ValidUtility::isValidQualityJSON($quality_str);
                             if ( is_array($ret) ) {
+                                // If an array was returned, then it was a valid quality string
+                                $has_file = true;
                                 $quality_val = $drf['file'][0]['fileMeta']['quality'];    // should only have one file...
                                 $quality_label = $ret[$quality_val];
                                 $values[$df_id][$quality_label][] = $dr_id;
                             }
                             else {
-                                // Ignore invalid quality values
+                                // Ignore invalid quality strings
                             }
                         }
                     }
+
+                    if ( !$has_file )
+                        $null_values[$df_id][] = $dr_id;
                 }
                 else {
                     // Locating the value is straightforward for the text/integer typeclasses, though

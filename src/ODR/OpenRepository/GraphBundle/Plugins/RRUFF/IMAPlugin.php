@@ -359,6 +359,10 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $status_notes_df_id = $relevant_fields['Status Notes']['id'];
                 $datarecord['dataRecordFields'][$status_notes_df_id]['longText'][0]['value'] = $status_notes_info['value'];
 
+                $record_display_view = 'single';
+                if ( isset($rendering_options['record_display_view']) )
+                    $record_display_view = $rendering_options['record_display_view'];
+
                 // TODO - should this also try to take over display mode of Chemistry Plugin?
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_fieldarea.html.twig',
@@ -372,6 +376,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         'target_datarecord_id' => $datarecord['id'],
                         'target_theme_id' => $initial_theme_id,
 
+                        'record_display_view' => $record_display_view,
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],

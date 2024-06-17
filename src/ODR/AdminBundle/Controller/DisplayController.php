@@ -43,6 +43,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
+use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -146,8 +147,8 @@ class DisplayController extends ODRCustomController
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var SearchAPIService $search_api_service */
@@ -201,16 +202,16 @@ class DisplayController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Store whether the user is permitted to edit at least one datarecord for this datatype
-            $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
+            $can_edit_datatype = $permissions_service->canEditDatatype($user, $datatype);
             // Store whether the user is permitted to edit this specific datarecord
-            $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
+            $can_edit_datarecord = $permissions_service->canEditDatarecord($user, $datarecord);
             // Store whether the user is permitted to create new datarecords for this datatype
-            $can_add_datarecord = $pm_service->canAddDatarecord($user, $datatype);
+            $can_add_datarecord = $permissions_service->canAddDatarecord($user, $datatype);
 
-            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canViewDatarecord($user, $datarecord) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) || !$permissions_service->canViewDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -226,7 +227,7 @@ class DisplayController extends ODRCustomController
 
 
             // Determine whether the user has a restriction on which datarecords they can edit
-            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
+            $restricted_datarecord_list = $permissions_service->getDatarecordRestrictionList($user, $datatype);
 
             // Determine which list of datarecords to pull from the user's session
             $cookies = $request->cookies;
@@ -446,8 +447,8 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Locate the file in the database
@@ -476,7 +477,7 @@ class DisplayController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canViewFile($user, $file) )
+            if ( !$permissions_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -603,8 +604,8 @@ class DisplayController extends ODRCustomController
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // Locate the file in the database
@@ -633,7 +634,7 @@ class DisplayController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canViewFile($user, $file) )
+            if ( !$permissions_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -789,14 +790,14 @@ class DisplayController extends ODRCustomController
             $filename = 'Image_'.$image->getId().'.'.$image->getExt();
             if ( !$image->isPublic() ) {
 
-                /** @var PermissionsManagementService $pm_service */
-                $pm_service = $this->container->get('odr.permissions_management_service');
+                /** @var PermissionsManagementService $permissions_service */
+                $permissions_service = $this->container->get('odr.permissions_management_service');
                 // ----------------------------------------
                 // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
                 /** @var ODRUser $user */
                 $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-                if ( !$pm_service->canViewImage($user, $image) )
+                if ( !$permissions_service->canViewImage($user, $image) )
                     throw new ODRForbiddenException();
                 // ----------------------------------------
 
@@ -912,12 +913,12 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -937,11 +938,11 @@ class DisplayController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure the user can view the grandparent datarecord/datatype
-            if ( !$pm_service->canViewDatatype($user, $grandparent_datatype)
-                || !$pm_service->canViewDatarecord($user, $grandparent_datarecord)
+            if ( !$permissions_service->canViewDatatype($user, $grandparent_datatype)
+                || !$permissions_service->canViewDatarecord($user, $grandparent_datarecord)
             ) {
                 throw new ODRForbiddenException();
             }
@@ -951,11 +952,11 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Get all Datarecords and Datatypes that are associated with the datarecord...need to
             //  render an abbreviated view in order to select files
-            $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
+            $datarecord_array = $datarecord_info_service->getDatarecordArray($grandparent_datarecord->getId());
+            $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // Extracts the entity "names" of the datatypes/datarecords/datafields that will be
             //  displayed...and also filters out all array entries that aren't relevant to files/images
@@ -1287,12 +1288,12 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataRecord $grandparent_datarecord */
@@ -1308,7 +1309,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
             // Don't need to verify any permissions, filterByGroupPermissions() will take care of it
 
             // Need a user id for the temp directory to work...
@@ -1322,11 +1323,11 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Easier/faster to just load the entire datarecord/datatype arrays...
-            $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
+            $datarecord_array = $datarecord_info_service->getDatarecordArray($grandparent_datarecord->getId());
+            $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());
 
             // ...so the permissions service can prevent the user from downloading files/images they're not allowed to see
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
             // ----------------------------------------
@@ -1483,10 +1484,10 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var EngineInterface $templating */
@@ -1513,20 +1514,20 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // TODO - loosen restrictions even more?
-            if ( !$pm_service->canEditDatatype($user, $datatype) )
+            if ( !$permissions_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
 
             // Going to use the cached datatype array for this
-            $dt_array = $dbi_service->getDatatypeArray($datatype->getId());
+            $dt_array = $database_info_service->getDatatypeArray($datatype->getId());
 
             // Filter down to what the user is allowed to see first
             $dr_array = array();
-            $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+            $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
 
             // Need the names of all the datatypes and file datafields
@@ -1551,7 +1552,7 @@ class DisplayController extends ODRCustomController
             }
 
             // Stack the datatype array so recursion is easier
-            $dt_array = $dbi_service->stackDatatypeArray($dt_array, $search_params_dt_id);
+            $dt_array = $database_info_service->stackDatatypeArray($dt_array, $search_params_dt_id);
             // Wrap it with the datatype id for the same reason
             $dt_array = array($search_params_dt_id => $dt_array);
 
@@ -1616,10 +1617,10 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -1639,7 +1640,7 @@ class DisplayController extends ODRCustomController
 
             // Need to verify that each datafield provided is related to the grandparent datatype,
             //  and that they're all file or image fields
-            $associated_datatypes = $dti_service->getAssociatedDatatypes($search_params_dt_id);
+            $associated_datatypes = $datatree_info_service->getAssociatedDatatypes($search_params_dt_id);
             // Flip because isset() is faster than in_array()
             $associated_datatypes = array_flip($associated_datatypes);
 
@@ -1665,10 +1666,10 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // TODO - loosen restrictions even more?
-            if ( !$pm_service->canEditDatatype($user, $grandparent_datatype) )
+            if ( !$permissions_service->canEditDatatype($user, $grandparent_datatype) )
                 throw new ODRForbiddenException();
 
             // The search results are already filtered to just the datarecords the user can view
@@ -1678,13 +1679,13 @@ class DisplayController extends ODRCustomController
             $can_view_nonpublic_datarecords = array();
             foreach ($hydrated_datafields as $df_id => $df) {
                 // Need to check whether the user can view each of the datafields, though
-                if ( !$pm_service->canViewDatafield($user, $df) )
+                if ( !$permissions_service->canViewDatafield($user, $df) )
                     throw new ODRForbiddenException();
 
                 // The filtering of non-public files has to be done on a per-datatype basis, but
                 //  it's easier to use on a per-datafield basis
                 if ( !isset($can_view_nonpublic_datarecords[$df_id]) ) {
-                    $can_view_nonpublic_datarecords[$df_id] = $pm_service->canViewNonPublicDatarecords($user, $df->getDataType());
+                    $can_view_nonpublic_datarecords[$df_id] = $permissions_service->canViewNonPublicDatarecords($user, $df->getDataType());
                 }
             }
             // ----------------------------------------
@@ -2171,6 +2172,177 @@ class DisplayController extends ODRCustomController
         }
 
         $response = new Response(json_encode($return));
+        return $response;
+    }
+
+
+    /**
+     * In certain situations it's necessary to create a zip archive from a list of file ids, instead
+     * of by datafield/datarecord id.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createziparchivefromfilelistAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
+            if ( !isset($post['files']) )
+                throw new ODRBadRequestException();
+
+            $file_ids = $post['files'];
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatarecordInfoService $datarecord_info_service */
+            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+            // Don't need to verify any permissions, filterByGroupPermissions() will take care of it
+
+            // Need a user id for the temp directory to work...
+            $user_id = null;
+            if ($user == null || $user === 'anon.')
+                $user_id = 0;
+            else
+                $user_id = $user->getId();
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Verifying the post is easier to do with a doctrine query
+            $query =
+               'SELECT dr.data_type_id AS dt_id, dr.grandparent_id AS g_dr_id, f.id AS file_id
+                FROM odr_file AS f
+                JOIN odr_data_record AS dr ON f.data_record_id = dr.id
+                WHERE f.id IN (?)
+                AND f.deletedAt IS NULL AND dr.deletedAt IS NULL';
+            $parameters = array(1 => $file_ids);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+
+            $conn = $em->getConnection();
+            $results = $conn->fetchAll($query, $parameters, $types);
+
+            $datatype_id = null;
+            $dr_arrays = array();
+            foreach ($results as $result) {
+                // Ensure that the files all belong to the same datatype
+                $dt_id = $result['dt_id'];
+                if ( is_null($datatype_id) )
+                    $datatype_id = $dt_id;
+                else if ( $datatype_id !== $dt_id )
+                    throw new ODRBadRequestException('Invalid file list');
+
+                // Going to be slightly easier to load the existing cached arrays...
+                $g_dr_id = $result['g_dr_id'];
+                if ( !isset($dr_arrays[$g_dr_id]) )
+                    $dr_arrays[$g_dr_id] = $datarecord_info_service->getDatarecordArray($g_dr_id, true);    // do need links...
+            }
+
+            // Each of the datarecord arrays should be filtered by the user's permissions...
+            $dt_array = $database_info_service->getDatatypeArray($datatype_id, true);    // do need links...
+            foreach ($dr_arrays as $g_dr_id => $dr_array) {
+                $tmp = $dr_array;
+                $permissions_service->filterByGroupPermissions($dt_array, $tmp, $user_permissions);
+
+                $dr_arrays[$g_dr_id] = $tmp;
+            }
+
+            // Once filtering is done, attempt to find the array entries for each of the requested
+            //  files
+            $file_ids = array_flip($file_ids);
+            $file_list = array();
+            foreach ($dr_arrays as $g_dr_id => $dr_array) {
+                foreach ($dr_array as $dr_id => $dr) {
+                    if ( isset($dr['dataRecordFields']) ) {
+                        foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+                            if ( !empty($drf['file']) ) {
+                                $file = $drf['file'][0];
+                                $file_id = $file['id'];
+                                $filename = $file['fileMeta']['originalFileName'];
+                                if ( isset($file_ids[$file_id]) )
+                                    $file_list[$filename] = $file;
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // If any files/images remain...
+            if ( empty($file_list) ) {
+                // TODO - what to return?
+                $exact = true;
+                throw new ODRNotFoundException('No files are available for downloading', $exact);
+            }
+            else {
+                // Create a filename for the zip archive
+                $tokenGenerator = $this->get('fos_user.util.token_generator');
+                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
+
+                $archive_filename = $random_id.'.zip';
+                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+
+                $archive_size = count($file_list);
+
+                $requests = array();
+                foreach ($file_list as $desired_filename => $file) {
+                    // Need to locate the decrypted version of the file
+                    $local_filename = '';
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
+                        // non-public files need to be decrypted to something difficult to guess
+                        // This won't ever be run when $user_id == 0, since users that aren't logged in can't see non-public files
+                        $local_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user_id);
+                        $local_filename .= '.'.$file['ext'];
+                    }
+                    else {
+                        // public files need to be decrypted to this format
+                        $local_filename = 'File_'.$file['id'].'.'.$file['ext'];
+                    }
+
+                    $requests[] = array(
+                        'object_type' => 'File',
+                        'object_id' => $file['id'],
+                        'local_filename' => $local_filename,
+                        'desired_filename' => $desired_filename,
+                    );
+                }
+
+                // Create the decryption requests for each of the files/images
+                self::createArchiveRequest($archive_filepath, $requests);
+            }
+
+            $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
+        }
+        catch (\Exception $e) {
+            $source = 0xcf533f63;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        // If error encountered, do a json return
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 }

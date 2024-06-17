@@ -187,10 +187,6 @@
 
         $("#ODRFileDownloadFormSubmit").attr('disabled', 'disabled');
 
-        // Init display of progress
-        $('#ODRFileDownloadForm_current').html("0");
-        // $('#ODRFileDownloadForm_total').html(file_count);    // don't know how many files, yet
-
         // Hide before ajax stuff
         $('#ODRFileDownloadFormWrapper').addClass('ODRHidden');
         $('#ODRFileDownloadForm_progress').removeClass('ODRHidden');
@@ -208,7 +204,7 @@
                 // Couldn't do this earlier...
                 $('#ODRFileDownloadForm_total').html(archive_size);
 
-                createZipArchiveProgressCheck(archive_filename, archive_size, form_id);
+                createZipArchiveProgressCheck(archive_filename, archive_size, 'ODRRemodal');
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Handle errors

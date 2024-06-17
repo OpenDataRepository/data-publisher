@@ -27,18 +27,24 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     var odr_chart_id = odr_chart_obj['chart_id'];
     // console.log(odr_chart_obj['filter_values']);
 
-    var permitted_datarecords = [];
+    // While each datarecord should only match a single option per datafield, bad data could break
+    //  this rule...therefore, use the Map object to ensure there are no duplicate datarecord ids
+    var permitted_datarecords = new Map();
     $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select_div').each(function(index,div) {
         // if ( $(div).parent().find('.ODRFilterGraphPlugin_active').is(':checked') ) {
             var df_id = $(div).attr('rel');
-            permitted_datarecords[df_id] = [];
+            // console.log( $(div), df_id );
 
+            var tmp = new Map();
             $(div).find('option:selected').each(function (index,input) {
                 var option_id = $(input).attr('rel');
                 $.each(odr_chart_obj['filter_values'][df_id][option_id], function (index, dr_id) {
-                    permitted_datarecords[df_id].push(dr_id);
+                    tmp.set(dr_id, 1);
                 });
             });
+
+            permitted_datarecords.set(df_id, Array.from(tmp.keys()));
+            // console.log('permitted_datarecords[' + df_id + ']: ', permitted_datarecords.get(df_id));
         // }
 
         // Sorting this probably doesn't help
@@ -46,14 +52,26 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     });
     // console.log('permitted_datarecords', permitted_datarecords);
 
-    // Using .forEach() instead of jquery $.each(), because the latter does not like sparse arrays
+    // Going to need a list of all datarecords which could be visible, and the list of datarecords
+    //  which should be visible
     var final_dr_list = null;
-    permitted_datarecords.forEach((dr_list) => {
+    var full_dr_list = new Map();
+
+    // Apparently, using .forEach() on a Map object returns (value, key) pairs, instead of (key, value) pairs
+    permitted_datarecords.forEach((dr_list, df_id) => {
+        // console.log('dr_list: ', dr_list);
         if ( final_dr_list === null )
             final_dr_list = dr_list;
         else
-            final_dr_list = final_dr_list.filter(dr_id => dr_list.includes(dr_id));
+            final_dr_list = final_dr_list.filter((dr_id) => dr_list.includes(dr_id));
+
+        dr_list.forEach((dr_id) => {
+            full_dr_list.set(dr_id, 1);
+        });
     });
+    // Convert the full datarecord list back into an array
+    full_dr_list = Array.from(full_dr_list.keys());
+    // console.log('full_dr_list', full_dr_list);
     // console.log('final_dr_list', final_dr_list);
 
     // Going to return a list of files for the plugin to graph...
@@ -101,56 +119,178 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     }
 
 
-
-    // Want to set visibility of the related data div depending on how many files remain...
+    // Want to set visibility of the related data divs depending on which files are graphed...
     var data_div = $("#" + odr_chart_id + "_filter").parents('.ODRGraphSpacer').first().next();
-    // ...but also need an override to always show the data
-    var show_data = false;
-    if ( $("#" + odr_chart_id + "_show_odr_data").is(':checked') )
-        show_data = true;
 
-    if ( file_count < 2 || show_data ) {
-        // If there's one datarecord...
-        if ( remaining_dr_id !== null || show_data ) {
-            // ...then want to display it.  However, it's likely that it's a descendant of some other
-            //  record, so it'll take some effort to guarantee it's visible...
-            var record_ids = [remaining_dr_id];
-            var fieldarea = $("#FieldArea_" + remaining_dr_id);
-            if ( $(fieldarea).length > 0 ) {
-                while ( !$(fieldarea).parent().parent().hasClass('ODRGraphSpacer') ) {
-                    // Need to traverse up the HTML to get each parent of the remaining datarecord
-                    fieldarea = $(fieldarea).parents('.ODRFieldArea').first();
-                    record_ids.push( $(fieldarea).attr('id').split(/_/)[1] );
-                }
+    // In order to pull this off, we need three maps...one of all fieldareas the rest of this
+    //  function could show/hide...
+    var all_fieldareas = new Map();
+    $(data_div).find('.ODRFieldArea').each(function(index,elem) {
+        var dr_id = parseInt( $(elem).attr('id').split('_')[1] );
+        all_fieldareas.set(dr_id, elem);
+    });
+    // console.log('all_fieldareas', all_fieldareas);
 
-                // This list of ids needs to be reversed, so that the parent accordion/tab/dropdown
-                //  elements can be selected before the children
-                record_ids.reverse();
-                // console.log( 'record ids', record_ids );
+    // ...another map to quickly determine the parent of any given fieldarea in the data div...
+    var parent_div_lookup = new Map();
+    // ...and a third to determine whether any of a parent div's children are visible
+    var parent_div_visible_counts = new Map();
 
-                record_ids.forEach((dr_id) => {
-                    selectRecordFieldArea(dr_id);
-                });
+    // For each fieldarea div inside the data div...
+    all_fieldareas.forEach((fieldarea, dr_id) => {
+        // ...get that fieldarea's parent id
+        var parent_dr = $(fieldarea).parents('.ODRFieldArea').first();
+        if ( $(parent_dr).length > 0 ) {
+            var parent_dr_id = parseInt( $(parent_dr).attr('id').split('_')[1] );
+
+            // If the parent fieldarea is still a child of the data div, and the parent doesn't have any
+            //  files itself...
+            if ( all_fieldareas.has(parent_dr_id) && full_dr_list.indexOf(parent_dr_id) === -1 ) {
+                // ...then save the lookup data for the parent div so it can have its visibility set
+                //  alongside its child(ren) divs later on
+                parent_div_lookup.set(dr_id, parent_dr_id);
+                parent_div_visible_counts.set(parent_dr_id, 0);
             }
         }
+    });
+    // console.log('parent_div_lookup', parent_div_lookup);
+    // console.log('parent_div_visible_counts', parent_div_visible_counts);
 
-        // Regardless of whether there's a datarecord or not, show the data div now
-        $(data_div).removeClass('ODRHidden');
+    // Then, for each fieldarea that has a file...
+    var visible_fieldareas = new Map();
+    full_dr_list.forEach((dr_id) => {
+        var fieldarea = all_fieldareas.get(dr_id);
+
+        if ( final_dr_list.indexOf(dr_id) === -1 ) {
+            // ...the filter options selected by the user decree this fieldarea should be hidden
+            ODRFilterGraph_updateFieldarea(fieldarea, dr_id, 'hide');
+        }
+        else {
+            // ...the filter options selected by the user decree this fieldarea should be visible
+            ODRFilterGraph_updateFieldarea(fieldarea, dr_id, 'show');
+
+            // Save that this fieldarea is visible...
+            visible_fieldareas.set(dr_id, fieldarea);
+            if ( parent_div_lookup.has(dr_id) ) {
+                // ...and also save that its parent has at least one visible child fieldarea
+                var parent_div_id = parent_div_lookup.get(dr_id);
+                parent_div_visible_counts.set(parent_div_id, parent_div_visible_counts.get(parent_div_id) + 1);
+            }
+        }
+    });
+    // console.log('visible_fieldareas', visible_fieldareas);
+    // console.log('parent_div_visible_counts', parent_div_visible_counts);
+
+    // Now that all the fieldareas with files have been shown/hidden...
+    if ( parent_div_visible_counts.size > 0 ) {
+        // ...need to also ensure their parents are properly visible
+        parent_div_visible_counts.forEach((num, dr_id) => {
+            var fieldarea = all_fieldareas.get(dr_id);
+
+            // A parent fieldarea div is shown when it has at least one visible child fieldarea
+            if (num > 0)
+                ODRFilterGraph_updateFieldarea(fieldarea, dr_id, 'show');
+            else
+                ODRFilterGraph_updateFieldarea(fieldarea, dr_id, 'hide');
+        });
+    }
+
+
+    // Once the visibility of the individual data divs is correctly set...
+    if ( visible_fieldareas.size > 0 ) {
+        // ...at least one data div is visible, so ensure the data portion is also visible
+        $(data_div).show();
+        // Extract the id of the first div in the array
+        var dr_id = ( Array.from(visible_fieldareas.keys()).slice(0,1) )[0];
+
+        // Need to build an array of the ids of this div and its parents...
+        var record_ids = [dr_id];
+        while ( parent_div_lookup.has(dr_id) ) {
+            var parent_dr_id = parent_div_lookup.get(dr_id);
+            record_ids.push(parent_dr_id);
+            dr_id = parent_dr_id;
+        }
+        // ...then reverse that array...
+        record_ids.reverse();
+        // ...because the function to select fieldareas has to work from the top down
+        record_ids.forEach((dr_id) => {
+            selectRecordFieldArea(dr_id);
+        });
     }
     else {
-        // Otherwise, more than one file, so "no point" displaying the raw data...
-        $(data_div).addClass('ODRHidden');
+        // ...no data divs are visible, ensure the data portion is hidden to avoid empty HTML elements
+        $(data_div).hide();
     }
 
+
+    // If the user selected options which result in no files...
     if ( file_count == 0 ) {
+        // ...then change some of the highlights to clearly indicate they made a bad selection
         $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select').each(function(index,elem) {
             if ( !$(elem).parent().parent().find('.ODRFilterGraphPlugin_select_all').hasClass('ODRFilterGraphPlugin_select_all_faded') )
                 $(elem).find('option:selected').addClass('ODRFilterGraphPlugin_bad_selection');
         });
     }
     else {
+        // ...otherwise, this is a valid selection
         $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_option').removeClass('ODRFilterGraphPlugin_bad_selection');
     }
 
     return files_to_graph;
+}
+
+/**
+ * Due to needing to set both the visibility of the fieldarea and the element that selects it at the
+ * same time, it's easier to use a separate function...
+ *
+ * @param {HTMLElement} fieldarea
+ * @param {number} dr_id
+ * @param {string} action
+ */
+function ODRFilterGraph_updateFieldarea(fieldarea, dr_id, action) {
+    // Setting the visibility of the data div is the easier part...
+    // console.log('ODRFilterGraph_updateFieldarea()', dr_id);
+
+    // Intentionally using show/hide() here...the existing descendant selection already uses the
+    //  ODRHidden class, and it's harder to figure out whether the div is hidden because the selector
+    //  wants it to be, or because the filter graph wants it to be
+    if ( action === 'hide' )
+        $(fieldarea).hide();
+    else
+        $(fieldarea).show();
+
+    // ...the harder part is locating the element used to select this fieldarea
+    var parent = $(fieldarea).parent();
+    if ( $(parent).hasClass('ODRTabAccordion') ) {
+        // Tab display type
+        $(parent).find('.ODRTabButton').each(function(index,elem) {
+            if ( $(elem).attr('rel') == dr_id ) {
+                if ( action === 'hide' )
+                    $(elem).hide();
+                else
+                    $(elem).show();
+            }
+        })
+    }
+    else if ( $(parent).hasClass('ODRDropdownAccordion') ) {
+        // Dropdown display type
+        var dropdown = $(parent).children('h3').find('.ODRSelect');
+        var option = $(dropdown).children('option[value="' + dr_id + '"]');
+        if ( $(option).length > 0 ) {
+            if ( action === 'hide' )
+                $(option).hide();
+            else
+                $(option).show();
+        }
+    }
+    else if ( $(parent).hasClass('ODRFormAccordion') ) {
+        // Accordion display type
+        if ( action === 'hide' )
+            $(fieldarea).prev().hide();
+        else
+            $(fieldarea).prev().show();
+    }
+    else {
+        // List display type...no headers to select or hide, so nothing else to do
+    }
 }
