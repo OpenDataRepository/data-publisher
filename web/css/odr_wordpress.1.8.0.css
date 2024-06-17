@@ -4661,6 +4661,9 @@ i {
 .ODRChemistryPlugin_insert {
     height: 25px;
     width: 25px;
+    background: #EEF;
+    color: #77E;
+    padding: 0;
 }
 
 .ODRCellparamPlugin_button {
