@@ -3953,6 +3953,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
 
 /* Radio Option Modal CSS */
+#ODRRadioOptionForm {
+    overflow-y: scroll;
+}
 .ODRRadioOptionWrapper_design {
     padding-left: 15px;
     text-align: left;
@@ -4133,9 +4136,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRTagMoveHelpDiv {
+    margin-top: 10px;
     margin-left: 25px;
     /*vertical-align: middle;*/
-    /*padding-top: 10px;*/
 }
 
 .ODRSearchToggle {

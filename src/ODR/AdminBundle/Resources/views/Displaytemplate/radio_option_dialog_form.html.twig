@@ -85,7 +85,7 @@
 </div>
 
 <script>
-    var SaveTimeout = 1500;
+    var SaveTimeout = 2000;
     $(function () {
 {% if not disable_controls and not sort_by_name %}
         // If user can make change and the radio options aren't being sorted by name, then destroy
@@ -144,13 +144,51 @@
             $(".ODRRadioOptionWrapper_import").html('');
         });
 
+        // Override each of the three ways to close this tag remodal so they go through ODR's javascript
+        //  instead of the remodal.js source file
+        $("button.remodal-close").removeAttr('onclick').on('click', function() {
+            closeODRRadioOptionsRemodal();
+        });
+        $(document).off('keydown.remodal').on('keydown.remodal', function(e) {
+            var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+            var state = inst.getState();
+
+            if (inst /*&& current.settings.closeOnEscape*/ && state === 'opened' && e.keyCode === 27) {
+                closeODRRadioOptionsRemodal();
+            }
+        });
+        $("div.remodal-wrapper").off('click.remodal').on('click.remodal', function(e) {
+            if ( $(e.target).hasClass('remodal-wrapper') )
+                closeODRRadioOptionsRemodal();
+        });
+
         // Only want to run this if the user can actually make changes
         initRadioOptions();
-        {% endif %}
+{% endif %}
 
         // Probably should locate/warn about duplicate radio options regardless
         FindDuplicateRadioOptionNames();
+
+        // Need to set #ODRRadioOptionForm to have a max-height, but have to wait for
+        //  resetRemodalInnerHeight() to finish first...
+        setTimeout("resizeRadioOptionsForm()", 400);
     });
+
+    /**
+     * Resizes the radio options form so the modal scrollbars can be disabled without impacting
+     * functionality
+     */
+    function resizeRadioOptionsForm() {
+        var remodal_height = $(".ODRRemodalInner").height();
+        var buttons_height = $("#odr_radio_option_design_modal").children(".ODRThemeElement").first().height();
+        var blurbs_height = $("#odr_radio_option_design").children(".ODRThemeElement").first().height();
+
+        var form_height = remodal_height - buttons_height - blurbs_height - 75;
+        // console.log(remodal_height, buttons_height, blurbs_height, tag_form_height);
+
+        $("#ODRRadioOptionForm").css('max-height', form_height + 'px').css('height', form_height + 'px');
+        $("#ODRRemodal").find('.ODRRemodalInner').css('overflow', 'hidden');
+    }
 
     /**
      * Finds and highlights radio options that have duplicate names.
@@ -185,6 +223,38 @@
     }
 
 {% if not disable_controls %}
+    /**
+     * Most of the actions this modal permits end up requiring a reload of the underlying tag
+     * datafield...rather than reload after every single change, it makes more sense to only reload
+     * once when the modal is closing.
+     */
+    function closeODRRadioOptionsRemodal() {
+        // Trigger a reload of the radio options datafield and close the remodal
+        ReloadDatafield({{ datafield.id }});
+        closeODRRemodal();
+
+        // Because all of ODR shares the same remodal instance, the earlier overrides to closing it
+        //  need to be restored back to what they were...but this has to be done "manually".  Sigh.
+        $("button.remodal-close").attr('onclick', "closeODRRemodal()").off('click');
+        $(document).off('keydown.remodal').on('keydown.remodal', function(e) {
+            var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+            var state = inst.getState();
+
+            if (inst /*&& current.settings.closeOnEscape*/ && state === 'opened' && e.keyCode === 27) {
+                inst.close();
+            }
+        });
+        $("div.remodal-wrapper").off('click.remodal').on('click.remodal', function(e) {
+            if ( $(e.target).hasClass('remodal-wrapper') ) {
+                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+                inst.close();
+            }
+        });
+
+        // Same deal for the temporary CSS overrides
+        $("#ODRRemodal").find('.ODRRemodalInner').css('overflow', '');
+    }
+
     /**
      * Attaches event handlers to several of the elements on the page
      */
@@ -263,6 +333,8 @@
 
         // alert(url);  return;
 
+        updateODRRemodalBody('', 'full');
+
         $.ajax({
             cache: false,
             type: 'GET',
@@ -270,9 +342,7 @@
             dataType: "json",
             success: function(data) {
                 // Reload parts of the page so that the new radio option shows up
-                ReloadDatafield(data.d.datafield_id);
                 loadRadioOptionEditDialogContents(data.d.datafield_id, data.d.radio_option_id);
-                FindDuplicateRadioOptionNames();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -309,6 +379,10 @@
 
         // alert(url);  return;
 
+        // Show the loading blurb
+        setODRRemodalLoadingText('Deleting...');
+        showODRRemodalLoading();
+
         $.ajax({
             cache: false,
             type: 'GET',
@@ -317,11 +391,13 @@
             success: function(data) {
                 // Remove the option from this modal
                 $("#radio_option_" + radio_option_id).remove();
-                initRadioOptions();
-                FindDuplicateRadioOptionNames();
 
-                // Also reload the datafield on the page so it no longer displays the deleted option
-                ReloadDatafield(data.d.datafield_id);
+                // Redo any warnings
+                FindDuplicateRadioOptionNames();
+                initRadioOptions();
+
+                // Hide the loading blurb
+                hideODRRemodalLoading();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -374,21 +450,25 @@
 
         var post_data = $("#ODRRadioOptionForm").find("#radio_option_" + radio_option_id + "_name").serialize();    // only want one radio option
 
+        {% if sort_by_name %}
+        setODRRemodalLoadingText('Loading...');
+        showODRRemodalLoading();
+        {% endif %}
+
         $.ajax({
             type: 'POST',
             url: url,
             dataType: "json",
             data: post_data,
             success: function(data) {
-                notifySaved();
-
-                // Always need to reload the datafield to ensure it's displaying the right name
-                {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
-                ReloadDatafield(data.d.datafield_id);
+                hideODRRemodalLoading();
 
                 if ( data.d.reload_modal ) {
                     // ...also reload the list of radio options
+                    {% if sort_by_name %}
+                    updateODRRemodalBody('', 'full');
                     loadRadioOptionEditDialogContents(data.d.datafield_id, radio_option_id);
+                    {% endif %}
                 }
                 else {
                     // Replace the previous "old-value" with the one that just got saved
@@ -486,11 +566,10 @@
             success: function(data) {
                 notifySaved();
 
-                // The controller may have made a lot of changes...just reload the datafield on the page
+                // The controller may have made a lot of changes...just reload the modal
                 {% if sort_by_name %}
                 loadRadioOptionEditDialogContents(datafield_id);
                 {% endif %}
-                ReloadDatafield(datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -536,8 +615,7 @@
             dataType: "json",
             data: form_data,
             success: function(data) {
-                // Going to need to reload both the modal and the datafield afterwards
-                ReloadDatafield(datafield_id);
+                // Going to need to the modal contents
                 loadRadioOptionEditDialogContents(datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {

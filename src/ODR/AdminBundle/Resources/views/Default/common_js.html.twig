@@ -767,7 +767,7 @@
                 });
 
                 // After that, show the selected content div
-                $(this).next().fadeIn();
+                $(this).next().removeClass('ODRHidden').fadeIn();
                 {# ODR_scrollIntoView( $(this).next() ); #}
                 $(this).addClass('ODRAccordionSelected');
 
@@ -1182,7 +1182,8 @@
         }
         else if ( field_area.parent().hasClass("ODRDropdownAccordion") ) {
             // Dropdown displayType
-            field_area.parent().children(".ui-accordion-header").children(".ODRSelectWrap").find(".ODRSelect").val(datarecord_id).change();
+            var dropdown = field_area.parent().children(".ui-accordion-header").find(".ODRSelect");
+            $(dropdown).val(datarecord_id).change();
         }
         else {
             // List displayType

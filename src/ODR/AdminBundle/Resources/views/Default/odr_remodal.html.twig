@@ -22,6 +22,24 @@
 <script>
 
     /**
+     * Shows the loading blurb of the remodal and hides the body instead
+     */
+    function showODRRemodalLoading() {
+        var modal = $('[data-remodal-id=ODRRemodal]');
+        modal.find(".ODRRemodalBody").addClass('ODRHidden');
+        modal.find(".ODRRemodalLoading").removeClass('ODRHidden');
+    }
+
+    /**
+     * Hides the loading blurb of the remodal and shows the body instead
+     */
+    function hideODRRemodalLoading() {
+        var modal = $('[data-remodal-id=ODRRemodal]');
+        modal.find(".ODRRemodalLoading").addClass('ODRHidden');
+        modal.find(".ODRRemodalBody").removeClass('ODRHidden');
+    }
+
+    /**
      * Changes the modal dialog's "loading" message text to something else.
      *
      * @param {string} message
@@ -206,14 +224,12 @@
      */
     function updateODRRemodalBody(html, resize = 'normal') {
         var modal = $('[data-remodal-id=ODRRemodal]');
-        var loading_div = modal.find(".ODRRemodalLoading");
         var body_div = modal.find(".ODRRemodalBody");
 
         $(body_div).html(html);
 
         if (html.length > 0) {
-            $(loading_div).addClass('ODRHidden');
-            $(body_div).removeClass('ODRHidden');
+            hideODRRemodalLoading();
 
             if (resize === 'normal')
                 resetRemodalInnerHeight();
@@ -221,8 +237,8 @@
                 resetRemodalInnerHeight(true);
         }
         else {
-            $(loading_div).removeClass('ODRHidden');
-            $(body_div).addClass('ODRHidden');
+            setODRRemodalLoadingText('Loading...');
+            showODRRemodalLoading();
         }
     }
 
@@ -242,7 +258,7 @@
         var content_height = modal_inner_content.prop('scrollHeight') + 100;
         // console.log('content_height: ' + content_height);
 
-        var modal_height =  $(window).height()
+        var modal_height = $(window).height()
             - modal.find(".ODRRemodalButtons").height()
             - modal.find(".ODRRemodalTitle").height();
 

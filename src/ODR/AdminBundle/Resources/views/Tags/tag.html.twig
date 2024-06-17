@@ -13,9 +13,8 @@
 
     <div class="ODRTagUnit">
     {% if has_children %}
-        {# Have the tag tree start out expanded instead of collapsed #}
-        <span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>
-{#        <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>#}
+        {# Have the tag tree start out collapsed #}
+        <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
     {% else %}
         <span class="ODRTagSpacer"></span>
     {% endif %}
@@ -48,7 +47,8 @@
     </div>
 
     {% if tag.children is defined and tag.children|length > 0 %}
-    <ul class="ODRTagGroup">
+    {# Have the tag tree start out collapsed #}
+    <ul class="ODRTagGroup ODRHidden">
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
                 'datafield': datafield,

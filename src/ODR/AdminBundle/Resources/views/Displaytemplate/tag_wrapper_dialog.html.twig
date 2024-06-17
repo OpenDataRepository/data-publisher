@@ -52,8 +52,9 @@
                 updateODRRemodalBody(data.d.html, 'full');
 
                 if ( tag_id !== undefined ) {
-                    ensureTagVisibility( $("#ODRTag_" + tag_id + "_name") );
-                    $("#ODRTag_" + tag_id + "_name").effect("highlight", {}, 2000);
+                    // Need to wait for the remodal resize to finish before scrolling...
+                    setTimeout( 'ensureTagVisibility( $("#ODRTag_' + tag_id + '_name") )', 500 );
+                    $("#ODRTag_" + tag_id + "_name").effect("highlight", {}, 3000);
                 }
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -83,11 +84,15 @@
      */
     function ensureTagVisibility(element) {
         var pageTop = $('#ODRTagForm').offset().top;
-        var pageBottom = pageTop + $('#ODRTagForm').height();
+        // var pageBottom = pageTop + $('#ODRTagForm').height();
+        var pageBottom = pageTop + parseInt( $('#ODRTagForm').css('height').slice(0, -2) );
+        // console.log('pageTop', pageTop, 'pageBottom', pageBottom);
         var elementTop = $(element).offset().top;
         var elementBottom = elementTop + $(element).height();
+        // console.log('elementTop', elementTop, 'elementBottom', elementBottom);
 
         if ( (elementTop > pageBottom) || (elementBottom < pageTop) ) {
+            // console.log('scrolling...');
             $("#ODRTagForm").scrollTo(
                 $(element),      // target
                 250,             // duration
