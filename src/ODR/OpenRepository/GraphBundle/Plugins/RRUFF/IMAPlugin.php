@@ -51,6 +51,8 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -60,7 +62,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, ExportOverrideInterface, MassEditTriggerEventInterface
+class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, ExportOverrideInterface, MassEditTriggerEventInterface, SearchOverrideInterface
 {
 
     /**
@@ -109,6 +111,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private $lock_service;
 
     /**
+     * @var SearchService
+     */
+    private $search_service;
+
+    /**
      * @var SortService
      */
     private $sort_service;
@@ -149,6 +156,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param EntityMetaModifyService $entity_modify_service
      * @param PermissionsManagementService $permissions_service
      * @param LockService $lock_service
+     * @param SearchService $search_service
      * @param SortService $sort_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -165,6 +173,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         EntityMetaModifyService $entity_modify_service,
         PermissionsManagementService $permissions_service,
         LockService $lock_service,
+        SearchService $search_service,
         SortService $sort_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -180,6 +189,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $this->entity_modify_service = $entity_modify_service;
         $this->permissions_service = $permissions_service;
         $this->lock_service = $lock_service;
+        $this->search_service = $search_service;
         $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -1694,5 +1704,70 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         }
 
         return $override_values;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
+    {
+        // Don't want to override any part of the search sidebar specifically
+        return array();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
+    {
+        // Don't want to override any part of the search sidebar specifically
+        return '';
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getSearchOverrideFields($df_list)
+    {
+        // The array entry for 'Mineral Display Name' will only exist if the search system needs to
+        //  run a search on the field
+        if ( isset($df_list['Mineral Display Name']) )
+            return array( 'Mineral Display Name' => $df_list['Mineral Display Name'] );
+        else
+            return array();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function searchOverriddenField($mineral_name_df, $search_term, $render_plugin_fields, $render_plugin_options)
+    {
+        // This currently should only be called with the 'Mineral Name' field...any search term should
+        //  simultaneously be used on the contents of the 'Mineral Aliases' field
+        $mineral_aliases_df_id = $render_plugin_fields['Mineral Aliases'];
+
+
+        // ----------------------------------------
+        // Not going to fundamentally change how the searches are done...
+        $search_value = $search_term['value'];
+        $mineral_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_name_df, $search_value);
+
+        // ...but that does mean the 'Mineral Aliases' field also needs to be hydrated here
+        /** @var DataFields $mineral_aliases_df */
+        $mineral_aliases_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($mineral_aliases_df_id);
+        $mineral_aliases_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_aliases_df, $search_value);
+
+
+        // ----------------------------------------
+        // These two sets of results need to be OR'ed together...
+        $final_dr_list = $mineral_name_search_results['records'];
+        foreach ($mineral_aliases_search_results['records'] as $dr_id => $num)
+            $final_dr_list[$dr_id] = 1;
+
+        // ...and then returned as if it was any other search result
+        return array(
+            'dt_id' => $mineral_name_search_results['dt_id'],
+            'records' => $final_dr_list,
+        );
     }
 }

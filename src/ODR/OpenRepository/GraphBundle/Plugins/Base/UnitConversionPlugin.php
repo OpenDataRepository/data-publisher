@@ -570,7 +570,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
     {
         // ----------------------------------------
         // Don't continue if somehow called on the wrong type of datafield
@@ -612,6 +612,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 $datafield->getId(),
                 $typeclass,
                 $value,
+                false,    // don't change doublequote handling
                 $search_converted    // get whichever value the user wants by default
             );
 
@@ -621,7 +622,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             );
         }
         else {
-            // If the user is not searching with just  the "alt" input, then need to get a bit fancier
+            // If the user is not searching with just the "alt" input, then need to get a bit fancier
             // The search term is given in "<'main' input value>:<'alt' input value>", where either
             //  input value might be blank (but theoretically not both)
             $values = explode(':', $value);
@@ -648,6 +649,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $datafield->getId(),
                     $typeclass,
                     $original_value,
+                    false,    // don't change doublequote handling
                     false    // get the original value stored in this field
                 );
             }
@@ -658,6 +660,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $datafield->getId(),
                     $typeclass,
                     $converted_value,
+                    false,    // don't change doublequote handling
                     true    // get the converted value stored in this field
                 );
             }

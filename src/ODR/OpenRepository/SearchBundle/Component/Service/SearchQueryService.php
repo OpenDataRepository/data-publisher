@@ -1397,15 +1397,16 @@ class SearchQueryService
      * @param int $datafield_id
      * @param string $typeclass
      * @param string $value
+     * @param bool $doublequotes_force_exact_match {@link SearchQueryService::parseField()}
      * @param bool $search_converted If true, then run the search against 'converted_value' instead of 'value'
      *
      * @return array The datarecord IDs are keys, not values
      */
-    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $search_converted = false)
+    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $doublequotes_force_exact_match = false, $search_converted = false)
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
-        $search_params = self::parseField($value, $typeclass, $search_converted);
+        $search_params = self::parseField($value, $typeclass, $doublequotes_force_exact_match, $search_converted);
         $search_params['params']['datafield_id'] = $datafield_id;
 
 
@@ -1800,11 +1801,13 @@ class SearchQueryService
      *
      * @param string $str The string to turn into SQL...
      * @param string $typeclass
+     * @param bool $doublequotes_force_exact_match If true, then the search term is required to match
+     *                                             the entire field's contents instead of just a substring
      * @param bool $search_converted If true, then build the search to use 'converted_value' instead of 'value'
      *
      * @return array
      */
-    private function parseField($str, $typeclass, $search_converted = false)
+    private function parseField($str, $typeclass, $doublequotes_force_exact_match = false, $search_converted = false)
     {
         // ----------------------------------------
         // Ensure that the search doesn't attempt to work with converted_value on invalid typeclasses
@@ -2107,6 +2110,8 @@ class SearchQueryService
             }
             else {
                 if (!$inequality) {
+                    // Don't need fancier logic here, because the search term has already been
+                    //  split into individual pieces by this point
                     $piece_is_quoted = false;
                     if ( strlen($piece) > 2 && substr($piece, 0, 1) === "\"" && substr($piece, -1) === "\"" )
                         $piece_is_quoted = true;
@@ -2134,15 +2139,31 @@ class SearchQueryService
                             $piece = '';
                         }
                     }
-                    else if ( $piece_is_quoted && strpos($piece, " ") === false ) {  // does have a quote, but doesn't have a space
-                        // NOTE - this intentionally excludes searches like "\"abc def\""...I'm
-                        //  betting that people using that construct are more likely to expect it to
-                        //  match some ~phrase~ inside the datafield, instead of expecting it to
-                        //  match the entire content of the datafield
+                    else if ( ($piece_is_quoted && $doublequotes_force_exact_match)
+                        || ($piece_is_quoted && strpos($piece, " ") === false)    // does have a quote, but doesn't have a space
+                    ) {
+                        // This block is for triggering exact matches on an entire field's contents
 
-                        // If the first/last characters are doublequotes, replace them with nothing
-                        if ($piece_is_quoted)
-                            $piece = substr($piece, 1, -1);
+                        // ----------------------------------------
+                        // By default, this intentionally triggers on searches like "\"abc\"", but not
+                        //  searches like "\"abc def\""...the current assumption is that double-quotes
+                        //  containing spaces are expecting to match some ~phrase~ inside the
+                        //  datafield, instead of being expected to match the entire field's content
+                        //  ...as a result those search terms don't enter this block, but fall through
+                        //  to the next one
+
+                        // e.g. "\"abc\"" matches "abc", but does not match "abc def"
+                        //      "\"abc def\"" matches "abc def" and "abc def ghi", but not "def abc"
+                        //      "abc def" matches "abc def", "def abc", and "abc def ghi"
+
+
+                        // This default behavior can be overridden by $doublequotes_force_exact_match,
+                        //  in which case "\"abc def\"" won't match "abc def ghi" or "def abc"
+
+                        // ----------------------------------------
+                        // The first/last characters are doublequotes, and need to be replaced with
+                        //  nothing
+                        $piece = substr($piece, 1, -1);
 
                         if ( is_numeric($piece) )
                             if ( strpos($piece, '.') === false )
