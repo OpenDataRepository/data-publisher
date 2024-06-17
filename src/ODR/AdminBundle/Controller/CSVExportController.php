@@ -469,19 +469,57 @@ class CSVExportController extends ODRCustomController
             $restrictions = '';
             $total = count($grandparent_datarecord_list);
 
-            $tracked_job = self::ODR_getTrackedJob(
-                $em, $user, $job_type, $target_entity,
-                $additional_data, $restrictions, $total,
-                false
-            );
+            $tracked_job = new TrackedJob();
+            $tracked_job->setTargetEntity($target_entity);
+            $tracked_job->setJobType('csv_export');
+            $tracked_job->setAdditionalData($additional_data);
+            $tracked_job->setRestrictions($restrictions);
+
+            $tracked_job->setStarted(null);
+            $tracked_job->setCompleted(null);
+            $tracked_job->setCurrent(0);
+            $tracked_job->setTotal($total);
+            $tracked_job->setFailed(false);
+
+            $tracked_job->setCreated(new \DateTime());
+            $tracked_job->setCreatedBy($user);
+
+            $em->persist($tracked_job);
+            $em->flush();
+            $em->refresh($tracked_job);
+
             $tracked_job_id = $tracked_job->getId();
 
             $return['d'] = array("tracked_job_id" => $tracked_job_id);
 
+
             // ----------------------------------------
-            // Create a beanstalk job for each of these datarecords
+            // Now that the tracked job exists, create a "finalize" job for the export...this is
+            //  what actually tracks the progress
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    'tracked_job_id' => $tracked_job_id,
+                    'user_id' => $user->getId(),
+
+                    'delimiter' => $delimiter,
+
+                    'datatype_id' => $datatype_id,
+                    'datafields' => $datafields,
+
+                    'redis_prefix' => $redis_prefix,    // debug purposes only
+                    'url' => $url,
+                    'api_key' => $api_key,
+                )
+            );
+//            $logger->debug('CSVExportController::newCsvExportStart() tracked_job_id: '.$tracked_job_id.', payload size: '.strlen($payload));
+            $pheanstalk->useTube('csv_export_finalize_express')->put($payload, $priority, 0);
+
+
+            // ----------------------------------------
+            // Create a beanstalk job for each of these datarecords
             $datarecord_ids = [];
             $complete_datarecord_list_array = [];
             $job_order = 0;
@@ -497,8 +535,8 @@ class CSVExportController extends ODRCustomController
                 // Job order - used for reassembly of export temp files in the proper
                 // order to match the original query.
                 $counter++;
-                if(
-                    $counter % 200 === 0
+                if (
+                    $counter % 100 === 0
                     || $counter === count($grandparent_datarecord_list)
                 ) {
                     $priority = 1024;   // should be roughly default priority
@@ -526,11 +564,12 @@ class CSVExportController extends ODRCustomController
                             'api_key' => $api_key,
                         )
                     );
-                    $pheanstalk->useTube('csv_export_worker_express')->put($payload, $priority, 0);
+//                    $logger->debug('CSVExportController::newCsvExportStart() tracked_job_id: '.$tracked_job_id.', payload size: '.strlen($payload));
+                    $pheanstalk->useTube('csv_export_worker_express')->put($payload, $priority, 0, 300);    // try to use a 5 minute ttl
 
                     // Reset for the next payload
                     $datarecord_ids = [];
-                    $complete_datarecord_list_array= [];
+                    $complete_datarecord_list_array = [];
                     $job_order++;
                 }
             }

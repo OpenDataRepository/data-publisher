@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearCSVExportFinalizeCommand extends ContainerAwareCommand
+class ClearCSVExportExpressFinalizeCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
@@ -36,7 +36,7 @@ class ClearCSVExportFinalizeCommand extends ContainerAwareCommand
 
         $this
             ->setName('odr_csv_export:clear_finalize')
-            ->setDescription('Deletes all jobs from the csv_export_finalize tube')
+            ->setDescription('Deletes all jobs from the csv_export_finalize_express tube')
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
@@ -51,9 +51,9 @@ class ClearCSVExportFinalizeCommand extends ContainerAwareCommand
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($redis_prefix.'_csv_export_finalize')->ignore('default')->reserve();
+                $job = $pheanstalk->watch($redis_prefix.'_csv_export_finalize_express')->ignore('default')->reserve();
             else
-                $job = $pheanstalk->watch('csv_export_finalize')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch('csv_export_finalize_express')->ignore('default')->reserve();
 
             $data = json_decode($job->getData());
 //            $datarecord_id = $data->datarecord_id;
@@ -62,9 +62,9 @@ class ClearCSVExportFinalizeCommand extends ContainerAwareCommand
             // Dealt with the job
             $pheanstalk->delete($job);
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job from '.$redis_prefix.'_csv_export_finalize');
+    $output->writeln( date('H:i:s').'  deleted job from '.$redis_prefix.'_csv_export_express_finalize');
 else
-    $output->writeln( date('H:i:s').'  deleted job from ('.$job_source.') from csv_export_finalize');
+    $output->writeln( date('H:i:s').'  deleted job from ('.$job_source.') from csv_export_express_finalize');
 
             // Sleep for a bit
             usleep(50000); // sleep for 0.05 seconds

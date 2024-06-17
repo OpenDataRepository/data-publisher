@@ -88,7 +88,6 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
                     'job_order' => $data->job_order,
                     'api_key' => $data->api_key,
-                    'redis_prefix' => $data->redis_prefix,
                 );
 
                 if ( !isset($parameters['tracked_job_id'])
@@ -102,12 +101,13 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
                     || !isset($parameters['job_order'])
                     || !isset($parameters['api_key'])
-                    || !isset($parameters['redis_prefix'])
                 ) {
-                    $output->writeln('Invalid list of parameters passed to command');
+                    $output->writeln('Invalid list of parameters passed to CSVExportExpressWorkerCommand');
                     $output->writeln( print_r($parameters, true) );
                     throw new ODRBadRequestException();
                 }
+
+                $output->writeln('-- attempting to process tracked_job: '.$parameters['tracked_job_id'].', job_order: '.$parameters['job_order']);
 
                 /** @var CSVExportHelperService $csv_export_helper_service */
                 $csv_export_helper_service = $container->get('odr.csv_export_helper_service');
@@ -115,6 +115,8 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
                 // Dealt with (or ignored) the job
                 $pheanstalk->delete($job);
+
+                $output->writeln('-- success'."\n");
             }
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {

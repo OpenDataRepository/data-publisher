@@ -33,19 +33,24 @@ class TrackedCSVExport
     private $random_key;
 
     /**
-     * @var boolean
-     */
-    private $finalize;
-
-    /**
      * @var int|null
      */
     private $job_order;
 
     /**
+     * @var int|null
+     */
+    private $line_count;
+
+    /**
      * @var \ODR\AdminBundle\Entity\TrackedJob
      */
     private $trackedJob;
+
+    /**
+     * @var \DateTime
+     */
+    private $created;
 
 
     /**
@@ -79,29 +84,6 @@ class TrackedCSVExport
     public function getRandomKey()
     {
         return $this->random_key;
-    }
-
-    /**
-     * Set finalize
-     *
-     * @param boolean $finalize
-     * @return TrackedCSVExport
-     */
-    public function setFinalize($finalize)
-    {
-        $this->finalize = $finalize;
-
-        return $this;
-    }
-
-    /**
-     * Get finalize
-     *
-     * @return boolean 
-     */
-    public function getFinalize()
-    {
-        return $this->finalize;
     }
 
     /**
@@ -178,5 +160,53 @@ class TrackedCSVExport
     public function getOrder()
     {
         return $this->order;
+    }
+
+    /**
+     * Set lineCount.
+     *
+     * @param int|null $lineCount
+     *
+     * @return TrackedCSVExport
+     */
+    public function setLineCount($lineCount = null)
+    {
+        $this->line_count = $lineCount;
+
+        return $this;
+    }
+
+    /**
+     * Get lineCount.
+     *
+     * @return int|null
+     */
+    public function getLineCount()
+    {
+        return $this->line_count;
+    }
+
+    /**
+     * Set created.
+     *
+     * @param \DateTime $created
+     *
+     * @return TrackedCSVExport
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created.
+     *
+     * @return \DateTime
+     */
+    public function getCreated()
+    {
+        return $this->created;
     }
 }

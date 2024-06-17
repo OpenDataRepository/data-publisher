@@ -55,6 +55,9 @@ ODR\AdminBundle\Entity\TrackedJob:
             default: null
             nullable: true
 
+        failed:
+            type: boolean
+            default: false
         viewed:
             type: datetime
             default: null

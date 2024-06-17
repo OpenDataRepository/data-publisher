@@ -651,6 +651,8 @@ class ODRCustomController extends Controller
         $tracked_job->setCompleted(null);
         $tracked_job->setCurrent(0);                // TODO - possible desynch, though haven't spotted one yet
         $tracked_job->setTotal($total);
+        $tracked_job->setFailed(false);
+
         $em->persist($tracked_job);
         $em->flush();
 
