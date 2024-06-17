@@ -72,6 +72,15 @@ class UpdateThemeForm extends AbstractType
         );
 
         $builder->add(
+            'disableSearchSidebar',
+            CheckboxType::class,
+            array(
+                'required' => true,
+                'label' => 'Disable the search sidebar when in use'
+            )
+        );
+
+        $builder->add(
             'isTableTheme',
             CheckboxType::class,
             array(
@@ -85,16 +94,16 @@ class UpdateThemeForm extends AbstractType
             CheckboxType::class,
             array(
                 'required' => true,
-                'label' => 'Render up to 10,000 records (Table render only, potentially slow)'
+                'label' => 'Render up to 10,000 records (Table layouts only, potentially slow)'
             )
         );
 
         $builder->add(
-            'disableSearchSidebar',
+            'enableHorizontalScrolling',
             CheckboxType::class,
             array(
                 'required' => true,
-                'label' => 'Disable the search sidebar when in use'
+                'label' => 'Force Table layouts to scroll horizontally instead of responsively hiding columns'
             )
         );
     }

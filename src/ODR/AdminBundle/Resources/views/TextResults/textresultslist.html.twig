@@ -44,6 +44,20 @@
 
 </div><!-- End of .ODRFormWrap -->
 
+{% if theme.themeMeta.enableHorizontalScrolling == true %}
+{# NOTE: this is intentionally a *local* override to CSS...the datatables FixedHeader plugin can't handle horizontal scrolling at the moment #}
+{# https://stackoverflow.com/a/73952504 #}
+<style>
+    .dataTables_scrollHead {
+        position: sticky !important;
+        top: 0px;
+        z-index: 99;
+        background-color: white;
+        box-shadow: 0px 5px 5px 0px rgba(82, 63, 105, 0.08);
+    }
+</style>
+{% endif %}
+
 <script>
     $(function() {
 {% if theme.themeMeta.disableSearchSidebar == false %}
@@ -114,10 +128,14 @@
             {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",
 
+            {% if theme.themeMeta.enableHorizontalScrolling == false %}
             "responsive": true,
             "fixedHeader": {
-               /* headerOffset: 42 */
+                "header": true,
             },
+            {% else %}
+            "scrollX": true,
+            {% endif %}
 
             // https://datatables.net/manual/server-side
             // "processing": true,   // only displays a little "processing..." blurb

@@ -49,21 +49,27 @@ ODR\AdminBundle\Entity\ThemeMeta:
             nullable: true
             column: source_sync_version
 
-        isTableTheme:
-            type: boolean
-            nullable: false
-            default: false
-
-        displaysAllResults:
-            type: boolean
-            nullable: false
-            default: false
-
         disableSearchSidebar:
             type: boolean
             nullable: false
             default: false
             column: disable_search_sidebar
+
+        isTableTheme:
+            type: boolean
+            nullable: false
+            default: false
+
+        # these options are specific to table themes
+        displaysAllResults:
+            type: boolean
+            nullable: false
+            default: false
+        enableHorizontalScrolling:
+            type: boolean
+            nullable: false
+            default: false
+            column: enable_horizontal_scrolling
 
         created:
             type: datetime

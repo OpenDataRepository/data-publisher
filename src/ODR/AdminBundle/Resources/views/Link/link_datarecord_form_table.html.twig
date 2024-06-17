@@ -16,7 +16,20 @@
     {% endfor %}
     </tbody>
 </table>
-<input type="hidden" id="remote_theme_id" value="{{ theme_id }}" />    {# TODO - this shouldn't go here technically #}
+<input type="hidden" id="remote_theme_id" value="{{ theme.id }}" />    {# TODO - this shouldn't go here technically #}
+
+{% if theme.themeMeta.enableHorizontalScrolling == true %}
+{# NOTE: this is intentionally a *local* override to CSS...the datatables FixedHeader plugin can't handle horizontal scrolling at the moment #}
+<style>
+    .dataTables_scrollHead {
+        position: sticky !important;
+        top: 0px;
+        z-index: 99;
+        background-color: white;
+        box-shadow: 0px 5px 5px 0px rgba(82, 63, 105, 0.08);
+    }
+</style>
+{% endif %}
 
 <script>
     var linked_datarecords = [{% for dr,value in linked_datarecords %}{{ dr }},{% endfor %}];
@@ -35,10 +48,14 @@
             {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",
 
+            {% if theme.themeMeta.enableHorizontalScrolling == false %}
             "responsive": true,
             "fixedHeader": {
-                /* headerOffset: 42 */
+                "header": true,
             },
+            {% else %}
+            "scrollX": true,
+            {% endif %}
 
             {# https://datatables.net/reference/option/dom
                 "dom" parameter results in:
