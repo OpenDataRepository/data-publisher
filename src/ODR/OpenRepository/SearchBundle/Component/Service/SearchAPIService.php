@@ -1001,6 +1001,9 @@ class SearchAPIService
                 $rpf_name = $result['fieldName'];
                 $df_id = $result['df_id'];
                 $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
+
+                // NOTE: $render_plugins_overrides could have more fields than the plugin actually
+                //  wants to override
             }
 
             // Now that the fields have been grouped, determine whether the render plugin wants to
@@ -1016,8 +1019,8 @@ class SearchAPIService
                     if ( !empty($ret) ) {
                         // ...the plugin wants to override at least one field
                         foreach ($ret as $rpf_name => $df_id) {
-                            // It's easier on SearchAPIService if each datafield gets a reference to the
-                            //  plugin (and eventually to the plugin's options)
+                            // It's easier on SearchAPIService if each datafield gets a reference to
+                            //  the plugin (and eventually to the plugin's options)
                             $render_plugins[$df_id] = array(
                                 'renderPlugin' => $plugin_data,
                             );
@@ -1094,17 +1097,23 @@ class SearchAPIService
 
                 foreach ($rpi_list as $rpi_id => $df_list) {
                     foreach ($df_list as $rpf_name => $df_id) {
-                        // Easier to replace the existing array entry for this datafield...
-                        $render_plugins[$df_id] = array(
-                            'renderPlugin' => $plugin,
-                            'renderPluginOptions' => array()
-                        );
-                        // ...and attach any render plugin options if they exist
-                        if ( isset($render_plugin_options[$rpi_id]) )
-                            $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$rpi_id];
-                        // ...same for the render plugin field list
-                        if ( isset($render_plugin_fields[$rpi_id]) )
-                            $render_plugins[$df_id]['renderPluginFields'] = $render_plugin_fields[$rpi_id];
+                        // Since $render_plugins_overrides could refer to more fields than the plugin
+                        //  actually wants to override...
+                        if ( isset($render_plugins[$df_id]) ) {
+                            // ...only continue processing on entries that already exist
+
+                            // Easier to replace the existing array entry for this datafield...
+                            $render_plugins[$df_id] = array(
+                                'renderPlugin' => $plugin,
+                                'renderPluginOptions' => array()
+                            );
+                            // ...and attach any render plugin options if they exist
+                            if ( isset($render_plugin_options[$rpi_id]) )
+                                $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$rpi_id];
+                            // ...same for the render plugin field list
+                            if ( isset($render_plugin_fields[$rpi_id]) )
+                                $render_plugins[$df_id]['renderPluginFields'] = $render_plugin_fields[$rpi_id];
+                        }
                     }
                 }
             }
