@@ -28,12 +28,10 @@ use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Other
-use Ddeboer\DataImport\Reader\CsvReader;
 use Ddeboer\DataImport\Writer\CsvWriter;
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use FOS\UserBundle\Util\TokenGenerator;
-use Pheanstalk\Pheanstalk;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -87,11 +85,6 @@ class CSVExportHelperService
     private $token_generator;
 
     /**
-     * @var Pheanstalk
-     */
-    private $pheanstalk;
-
-    /**
      * @var Logger
      */
     private $logger;
@@ -109,7 +102,6 @@ class CSVExportHelperService
      * @param SearchAPIService $search_api_service
      * @param SearchKeyService $search_key_service
      * @param TokenGenerator $token_generator
-     * @param Pheanstalk $pheanstalk
      * @param Logger $logger
      */
     public function __construct(
@@ -122,7 +114,6 @@ class CSVExportHelperService
         SearchAPIService $search_api_service,
         SearchKeyService $search_key_service,
         TokenGenerator $token_generator,
-        Pheanstalk $pheanstalk,
         Logger $logger
     ) {
         $this->container = $container;
@@ -134,7 +125,6 @@ class CSVExportHelperService
         $this->search_api_service = $search_api_service;
         $this->search_key_service = $search_key_service;
         $this->token_generator = $token_generator;
-        $this->pheanstalk = $pheanstalk;
         $this->logger = $logger;
     }
 
@@ -254,7 +244,7 @@ class CSVExportHelperService
 
 
     /**
-     * Does the work of executing a CSVExport worker job.
+     * Does the work of a CSVExport worker job.
      *
      * @param array $parameters
      */
@@ -271,14 +261,17 @@ class CSVExportHelperService
 
             || !isset($parameters['job_order'])
             || !isset($parameters['api_key'])
-            || !isset($parameters['redis_prefix'])
         ) {
-            $this->logger->debug('invalid list of parameters passed to function');
+            $this->logger->debug('invalid list of parameters passed to CSVExportHelperService::execute()');
             $this->logger->debug( print_r($parameters, true) );
             throw new ODRBadRequestException();
         }
 
         // Pull data from the parameters
+        $api_key = $parameters['api_key'];
+        if ( $this->container->getParameter('beanstalk_api_key') !== $api_key )
+            throw new ODRBadRequestException('Invalid API key');
+
         $tracked_job_id = intval($parameters['tracked_job_id']);
         $user_id = $parameters['user_id'];
 
@@ -288,12 +281,22 @@ class CSVExportHelperService
         $datafields = $parameters['datafields'];
 
         $job_order = $parameters['job_order'];
-        $api_key = $parameters['api_key'];
-        $redis_prefix = $parameters['redis_prefix'];
 
         // Each execution of this function needs its own random id
-        $random_id = substr($this->token_generator->generateToken(), 0, 8);
-        $random_key = $random_id.'_'.$datatype_id.'_'.$tracked_job_id;
+        $random_id = substr($this->token_generator->generateToken(), 0, 12);
+        $filename_fragment = $random_id.'_'.$datatype_id.'_'.$tracked_job_id;
+
+        /** @var TrackedJob $tracked_job */
+        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        if ($tracked_job == null)
+            throw new ODRNotFoundException('Tracked Job');
+
+        if ( $tracked_job->getCurrent() >= $tracked_job->getTotal() )
+            throw new ODRException('Tracked Job has current >= total');
+        if ( $tracked_job->getCompleted() != null)
+            throw new ODRException('Tracked Job already marked as completed');
+        if ( $tracked_job->getFailed() )
+            throw new ODRException('Tracked Job marked as failed');
 
 
         // ----------------------------------------
@@ -423,7 +426,7 @@ class CSVExportHelperService
         //  (or their datatypes) want to override a csv export
         $plugin_data = array();
         foreach ($dt_array as $dt_id => $dt) {
-            if (isset($datatypes_to_export[$dt_id])) {
+            if ( isset($datatypes_to_export[$dt_id]) ) {
                 foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     if ( $rpi['renderPlugin']['overrideExport'] == true ) {
                         $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
@@ -438,7 +441,7 @@ class CSVExportHelperService
             }
 
             foreach ($dt['dataFields'] as $df_id => $df) {
-                if (isset($datafields_to_export[$df_id])) {
+                if ( isset($datafields_to_export[$df_id]) ) {
                     foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['overrideExport'] == true ) {
                             $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
@@ -496,10 +499,13 @@ class CSVExportHelperService
 
         // ----------------------------------------
         // Originally, this export process created a beanstalk job for each grandparent record
-        //  that was getting exported...this was "safe", but slow.  People complained.
+        //  that was getting exported, then used one background process that called cURL to process
+        //  one record at a time.
+        // This was "safe", but slow.  People complained.
 
-        // The easiest way to speed it up is to have one worker process do it all...and to reduce
-        // the amount of hydration needed, verify the datarecord list outside of the for loop
+        // In late 2023, it was modified so that a worker process handled more than one grandparent,
+        //  and ran the code directly.  To reduce the amount of hydration needed, verify the
+        //  datarecord list outside the primary for loop
         $query =
            'SELECT dr.id AS dr_id, dr.data_type_id AS dt_id
             FROM odr_data_record AS dr
@@ -585,35 +591,39 @@ class CSVExportHelperService
 
 
         // ----------------------------------------
-        // Ensure the random key is stored in the database for later retrieval by the finalization
-        //  process
-        if ( $tracked_job_id !== -1 ) {
-            /** @var TrackedCSVExport $tracked_csv_export */
-            $tracked_csv_export = $this->em->getRepository('ODRAdminBundle:TrackedCSVExport')
-                ->findOneBy( array('random_key' => $random_key) );
+        // Now that a chunk of the CSV data has been gathered...it needs to be stored so it can be
+        //  combined into a "finalized" file that the user will eventually download.
 
-            if ($tracked_csv_export == null) {
-                $query =
-                   'INSERT INTO odr_tracked_csv_export
-                    (random_key, tracked_job_id, finalize, job_order)
-                    SELECT * FROM (SELECT :random_key AS random_key,
-                        :tj_id AS tracked_job_id, :finalize AS finalize,
-                        :job_order as job_order) AS tmp
-                    WHERE NOT EXISTS (
-                        SELECT random_key FROM odr_tracked_csv_export
-                        WHERE random_key = :random_key AND tracked_job_id = :tj_id
-                        AND job_order = :job_order
-                    )
-                    LIMIT 1;';
-                $params = array(
-                    'random_key' => $random_key,
-                    'tj_id' => $tracked_job_id,
-                    'finalize' => 0,
-                    'job_order' => $job_order,
-                );
-                $conn = $this->em->getConnection();
-                $rowsAffected = $conn->executeUpdate($query, $params);
-            }
+        // The export process was originally written to try to have multiple background processes,
+        //  but the implementation used a complicated INSERT INTO (SELECT FROM WHERE NOT EXISTS)
+        //  query...as a result, it only ever worked with a single background process.
+        // In late 2023 the export was modified to run faster, but it reused the same flawed query
+        //  ...it suffered from the same deadlock as a result, although the massive speedup elsewhere
+        //  apparently made the deadlocks less common.
+
+        // Since conventional mutexes weren't allowed, the other way to fix these deadlock issues is
+        //  for each background process to only insert the random key it computed earlier in this
+        //  function.  This is the first of a three-part solution to the deadlocks...
+        if ( $tracked_job_id !== -1 ) {
+            $query =
+               'INSERT INTO odr_tracked_csv_export
+                (random_key, tracked_job_id, job_order, line_count, created)
+                VALUES (:random_key, :tj_id, :job_order, :line_count, :created)';
+
+            $now = new \DateTime();
+            $params = array(
+                'random_key' => $filename_fragment,
+                'tj_id' => $tracked_job_id,
+                'job_order' => $job_order,
+                'line_count' => count($datarecord_ids),
+                'created' => $now->format('Y-m-d H:i:s'),
+            );
+
+            $conn = $this->em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
+
+            if ( $rowsAffected !== 1 )
+                throw new ODRException('CSVExportHelperService: failure when inserting into odr_tracked_csv_export table');
         }
 
 
@@ -626,8 +636,7 @@ class CSVExportHelperService
             mkdir($csv_export_path);
 
         // Open the indicated file
-        $filename = 'f_'.$random_key.'.csv';
-//        $output->writeln('Export File: '.$csv_export_path.$filename);
+        $filename = 'f_'.$filename_fragment.'.csv';
         $handle = fopen($csv_export_path.$filename, 'a');
         if ($handle !== false) {
             // Write the line given to the file
@@ -651,148 +660,31 @@ class CSVExportHelperService
 
 
         // ----------------------------------------
-        // Update the job tracker if necessary
-        $completed = false;
-        if ($tracked_job_id !== -1) {
-            /** @var TrackedJob $tracked_job */
-            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        // Originally, the "worker" background processes were also responsible for updating the
+        //  progress of the job as a whole...this was the other part that caused deadlocks.
+        // The modification in late 2023 also reused this flawed code...but the combination of the
+        //  "worker" processes handling more than one record at a time and the massive speedup again
+        //  masked the deadlock issue for a bit.
 
-            $count = 0;
-            $total = $tracked_job->getTotal();
-            for ($i = 0; $i < count($datarecord_ids); $i++) {
-                // ...while the loop to increment seems dumb...due to having both an unknown number
-                //  of datarecords and background processes working on this job...need to safely
-                //  increment this value instead of just setting it to something
-                $count = $tracked_job->incrementCurrent($this->em);
-            }
-
-            if ($count >= $total) {
-                $tracked_job->setCompleted(new \DateTime());
-                $completed = true;
-            }
-
-            $this->em->persist($tracked_job);
-            $this->em->flush();
-            //print '  Set current to '.$count."\n";
-        }
+        // Since, again, conventional mutexes weren't allowed, the second part of this three-part
+        //  solution is to simply not have the "worker" processes update job progress.
 
 
         // ----------------------------------------
-        // NOTE - incrementCurrent()'s current implementation can't guarantee that only a single
-        //  process will enter this block...so have to ensure that only one process starts the
-        //  finalize step
+        // The entire reason why the original setup was prone to deadlocks was that the "worker"
+        //  background process was also eventually responsible for triggering the "finalize" process
+        //  ...and they used the job progress to determine whether they should be the one to start
+        //  the "finalize" process.  Starting multiple "finalize" processes broke the export.
 
-        // If this was the last line to write to be written to a file for this particular export...
-        $random_keys = array();
-        if ( $completed && $tracked_job_id !== -1 ) {
-            // Make a hash from all the random keys used
-            $query = $this->em->createQuery(
-               'SELECT tce.id AS id, tce.random_key AS random_key
-                FROM ODRAdminBundle:TrackedCSVExport AS tce
-                WHERE tce.trackedJob = :tracked_job AND tce.finalize = 0
-                ORDER BY tce.job_order asc'
-            )->setParameters(array('tracked_job' => $tracked_job_id));
-            $results = $query->getArrayResult();
-
-            // Due to ORDER BY, every process entering this section should compute the same hash
-            $random_key_hash = '';
-            foreach ($results as $num => $result) {
-                $random_keys[$result['id']] = $result['random_key'];
-                $random_key_hash .= $result['random_key'];
-            }
-            $random_key_hash = md5($random_key_hash);
-
-            // Attempt to insert this hash back into the database...
-            // NOTE: this uses the same random_key field as the previous INSERT WHERE NOT EXISTS query
-            //  ...the first time it had an 8 character string inserted into it, this time it's
-            //  taking a 32 character string
-            $query =
-               'INSERT INTO odr_tracked_csv_export
-                    (random_key, tracked_job_id, finalize)
-                    SELECT * FROM (SELECT :random_key_hash AS random_key,
-                        :tj_id AS tracked_job_id,
-                        :finalize AS finalize) AS tmp
-                    WHERE NOT EXISTS (
-                        SELECT random_key FROM odr_tracked_csv_export
-                        WHERE random_key = :random_key_hash
-                        AND tracked_job_id = :tj_id AND finalize = :finalize
-                    )
-                    LIMIT 1; ';
-            $params = array('random_key_hash' => $random_key_hash, 'tj_id' => $tracked_job_id, 'finalize' => 1);
-            $conn = $this->em->getConnection();
-            $rowsAffected = $conn->executeUpdate($query, $params);
-
-            if ($rowsAffected == 1) {
-                // This is the first process to attempt to insert this key...it will be in charge of
-                //  creating the information used to concatenate the temporary files together
-                $completed = true;
-            }
-            else {
-                // This is not the first process to attempt to insert this key...do nothing to
-                //  prevent creation of multiple finalize jobs
-                $completed = false;
-            }
-        }
+        // The modification in late 2023 also reused this logic, though it never seemed to trigger
+        //  a deadlock in and of itself.
+        // The third of the three-part solution to these deadlocks is to convert the "finalize"
+        //  process from something that gets triggered into something that actively queries the
+        //  database to determine whether it needs to step up and do something.
 
 
-        // ----------------------------------------
-        // If the export is ready to be combined into the final export file...
-        if ( $completed && $tracked_job_id !== -1 ) {
-            // ...then it needs a header line.  Recreate the $flipped_datafields array...
-            $flipped_datafields = array_flip($datafields);
-
-            // ...so another loop can get the fieldnames of all fields that got exported
-            $header_line = array();
-            foreach ($dt_array as $dt_id => $dt) {
-                foreach ($dt['dataFields'] as $df_id => $df) {
-                    if ( isset($flipped_datafields[$df_id]) ) {
-                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                        $fieldname = $df['dataFieldMeta']['fieldName'];
-
-                        // All fieldtypes except for Markdown can be exported
-                        if ($typename !== 'Markdown')
-                            $header_line[$df_id] = $fieldname;
-                    }
-                }
-            }
-
-            // Make a "final" file for the export, and insert the header line
-            $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
-            $final_file = fopen($csv_export_path.$final_filename, 'w');
-
-            if ($final_file !== false) {
-                $enclosure = "\"";
-                $writer = new CsvWriter($delimiters['base'], $enclosure);
-
-                $writer->setStream($final_file);
-                $writer->writeItem($header_line);
-            }
-            else {
-                throw new ODRException('Could not open csv finalize export file.');
-            }
-
-            fclose($final_file);
-
-            // ----------------------------------------
-            // Now that the "final" file exists, need to use a different background worker to splice
-            //  the temporary files together into it
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    'tracked_job_id' => $tracked_job_id,
-                    'final_filename' => $final_filename,
-                    'random_keys' => $random_keys,
-
-                    'user_id' => $user_id,
-                    'redis_prefix' => $redis_prefix,    // debug purposes only
-                    'api_key' => $api_key,
-                )
-            );
-
-            $delay = 0.500; // 500ms delay
-            $this->pheanstalk->useTube('csv_export_express_finalize')->put($payload, $priority, $delay);
-        }
-
+        // This technically means that the job of the "worker" process completed once it finished
+        //  writing to the temporary file.
 
         // TODO - Close the connection to prevent stale handles?  I think every time this gets loaded the connection is "fresh"...
 //        $this->em->getConnection()->close();
@@ -1249,5 +1141,218 @@ class CSVExportHelperService
 
         // Return all the lines created from this datarecord and its children
         return $lines;
+    }
+
+
+    /**
+     * Does the work of a CSVExport finalize job.
+     *
+     * @param array $parameters
+     * @return string 'success', 'ignore', or 'retry'
+     */
+    public function finalize($parameters)
+    {
+        if (!isset($parameters['tracked_job_id'])
+            || !isset($parameters['user_id'])
+
+            || !isset($parameters['delimiter'])
+            || !isset($parameters['datatype_id'])
+            || !isset($parameters['datafields'])
+
+            || !isset($parameters['api_key'])
+        ) {
+            $this->logger->debug('CSVExportHelperService::finalize(): invalid parameter list');
+            $this->logger->debug( print_r($parameters, true) );
+            throw new ODRBadRequestException();
+        }
+
+        $tracked_job_id = $parameters['tracked_job_id'];
+        $user_id = $parameters['user_id'];
+        $datatype_id = $parameters['datatype_id'];
+        $datafields = $parameters['datafields'];
+
+        $file_delimiter = $parameters['delimiter'];
+        if ( $file_delimiter === 'tab' )
+            $file_delimiter = "\t";
+
+        $api_key = $parameters['api_key'];
+        if ( $this->container->getParameter('beanstalk_api_key') !== $api_key )
+            throw new ODRBadRequestException('Invalid API key');
+
+        // ----------------------------------------
+        // If no tracked job given, then this is probably a debug attempt...ignore the request
+        if ( $tracked_job_id === -1 )
+            return 'ignore';
+
+        // Need to load the tracked job to determine the progress...
+        /** @var TrackedJob $tracked_job */
+        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        if ($tracked_job == null)
+            throw new ODRNotFoundException('Tracked Job');
+
+        // Need to also load all the TrackedCSVExport entries of this job...
+        /** @var TrackedCSVExport[] $tracked_csv_exports */
+        $tracked_csv_exports = $this->em->getRepository('ODRAdminBundle:TrackedCSVExport')->findBy(
+            array('trackedJob' => $tracked_job_id)
+        );
+        if ( count($tracked_csv_exports) == 0 ) {
+            // Nothing has happened yet
+            return 'retry';
+        }
+
+        $most_recent_completion = null;
+        $ordered_filenames = array();
+        $count = 0;
+        foreach ($tracked_csv_exports as $te) {
+            $count += $te->getLineCount();
+            $ordered_filenames[ $te->getJobOrder() ] = $te;
+
+            if ( is_null($most_recent_completion) )
+                $most_recent_completion = $te->getCreated();
+            else if ( $te->getCreated() > $most_recent_completion )
+                $most_recent_completion = $te->getCreated();
+        }
+        ksort($ordered_filenames);
+
+
+        // ----------------------------------------
+        // Check for a stalled job
+        $interval = $most_recent_completion->diff(new \DateTime());
+        // If the most recent progress on the job was over 10 minutes ago, consider it to be stalled
+        if ( $interval->y > 0 || $interval->m > 0 || $interval->d > 0 || $interval->h > 0 || $interval->i > 10 ) {
+            // Mark stalled jobs as failed
+            $tracked_job->setFailed(true);
+            $this->em->persist($tracked_job);
+            $this->em->flush();
+            $this->em->refresh($tracked_job);
+
+            // Throw an exception to get the background process to delete the finalize job
+            throw new ODRException('CSVExportHelperService::finalize(): tracked job '.$tracked_job_id.' appears to be stalled, aborting');
+        }
+
+
+        // ----------------------------------------
+        if ( $count > $tracked_job->getTotal() ) {
+            // TODO
+            $this->logger->debug('CSVExportHelperService::finalize(): tracked job '.$tracked_job_id.', count of '.$count.' exceeds total of '.$tracked_job->getTotal());
+            throw new ODRException('count for tracked_job '.$tracked_job_id.' is '.$count.', which exceeds the expected count of '.$tracked_job->getTotal());
+        }
+        else if ( $count < $tracked_job->getTotal() ) {
+            // If the count changed from what's currently in the tracked job, then store it
+            if ( $count !== $tracked_job->getCurrent() ) {
+                $this->logger->debug('CSVExportHelperService::finalize(): setting count to '.$count.' for tracked job '.$tracked_job_id);
+
+                $tracked_job->setCurrent($count);
+                $this->em->persist($tracked_job);
+                $this->em->flush();
+
+                // NOTE: have to refresh the entity afterwards...
+                $this->em->refresh($tracked_job);
+                // TODO - ...why use doctrine here if I have to ensure it's updated?
+            }
+
+            // Job is not complete yet, continue checking
+            return 'retry';
+        }
+        else if ( $count == $tracked_job->getTotal() ) {
+            // Each of the "worker" processes has finished, so the job is completed
+            $tracked_job->setCurrent($count);
+            $tracked_job->setCompleted(new \DateTime());
+            $this->em->persist($tracked_job);
+            $this->logger->debug('CSVExportHelperService::finalize(): tracked job '.$tracked_job_id.' complete, beginning finalize...');
+
+            // Originally, there was some more INSERT INTO SELECT FROM WHERE NOT EXISTS crap at
+            //  this point in an attempt to ensure only one "finalize" job was created, but it was
+            //  dumb and technically another deadlock risk.
+
+            // The "final" file needs to have a header line...the best way to get it is to read the
+            //  cached datatype array
+            $dt_array = $this->database_info_service->getDatatypeArray($datatype_id, true);    // do need links
+
+            // Ensure this datatype's external id field is going to be exported, if one exists
+            $external_id_field = $dt_array[$datatype_id]['dataTypeMeta']['externalIdField'];
+            if ( !is_null($external_id_field) )
+                $datafields[] = $external_id_field['id'];
+
+            // Dig through the cached datatype array and save the names of all fields being exported
+            $flipped_datafields = array_flip($datafields);
+            $header_line = array();
+            foreach ($dt_array as $dt_id => $dt) {
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    if ( isset($flipped_datafields[$df_id]) ) {
+                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                        $fieldname = $df['dataFieldMeta']['fieldName'];
+
+                        // All fieldtypes except for Markdown can be exported
+                        if ($typename !== 'Markdown')
+                            $header_line[$df_id] = $fieldname;
+                    }
+                }
+            }
+
+            // Ensure directories exists
+            $csv_export_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/';
+            if ( !file_exists($csv_export_path) )
+                mkdir($csv_export_path);
+            $csv_export_path .= 'csv_export/';
+            if ( !file_exists($csv_export_path) )
+                mkdir($csv_export_path);
+
+            // Make a "final" file for the export, and insert the header line
+            $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
+            $final_file = fopen($csv_export_path.$final_filename, 'w');
+
+            if ($final_file !== false) {
+                $enclosure = "\"";
+                $writer = new CsvWriter($file_delimiter, $enclosure);
+
+                $writer->setStream($final_file);
+                $writer->writeItem($header_line);
+            }
+            else {
+                throw new ODRException('Unable to open CSVExport final file: "'.$final_filename.'"');
+            }
+
+
+            // Now that the header line is in there, copy each of the "temporary" files into the
+            //  "final" file
+            foreach ($ordered_filenames as $job_order_num => $te) {
+                $random_key = $te->getRandomKey();
+                $tmp_filename = 'f_'.$random_key.'.csv';
+                $this->logger->debug('CSVExportHelperService::finalize(): -- tracked job '.$tracked_job_id.', appending file "' . $tmp_filename.'"');
+
+                // Copy the contents of this "temporary" file...
+                $str = file_get_contents($csv_export_path.$tmp_filename);
+                if ( fwrite($final_file, $str) === false ) {
+                    $this->logger->debug('CSVExportHelperService::finalize(): !! tracked job '.$tracked_job_id.', could not write to "'.$csv_export_path.$final_filename.'"'."\n");
+                    throw new ODRException('Unable to write to CSVExport final file: "'.$final_filename.'"');
+                }
+
+                // ...then delete it...
+                if ( unlink($csv_export_path.$tmp_filename) === false ) {
+                    $this->logger->debug('CSVExportHelperService::finalize(): !! tracked job '.$tracked_job_id.', could not unlink "'.$csv_export_path.$tmp_filename.'"'."\n");
+                    throw new ODRException('Unable to delete CSVExport temporary file: "'.$tmp_filename.'"');
+                }
+
+                // ...and also delete the TrackedCSVExport entry
+                $this->em->remove($te);
+            }
+
+            // Save any changes to the database
+            $this->em->flush();
+
+            // NOTE: have to refresh the entity afterwards...
+            $this->em->refresh($tracked_job);
+            // TODO - ...why use doctrine here if I have to ensure it's updated?
+
+            // Done with the file...close it and return success
+            fclose($final_file);
+            $this->logger->debug('CSVExportHelperService::finalize(): -- tracked job '.$tracked_job_id.' finished, returning success');
+
+            // TODO - Close the connection to prevent stale handles?  I think every time this gets loaded the connection is "fresh"...
+//            $this->em->getConnection()->close();
+
+            return 'success';
+        }
     }
 }

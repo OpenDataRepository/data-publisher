@@ -33,19 +33,18 @@
                 </div>
             {% else %}
                 <div class="ODRTagMoveHelpDiv">
-                    To save, click somewhere inside the dialog box.  Press the escape key to close without saving.
+                    To save changes to a tag's name, click on blank space inside the dialog box.  Press the escape key to close without saving.
                 </div>
             {% endif %}
 
             {% if disable_controls %}
                 {# do nothing #}
-            {% elseif sort_by_name %}
-                <div class="ODRTagMoveHelpDiv">
-                    After saving, the system will automatically update the tags to be in alphabetical order.
-                </div>
             {% else %}
                 <div class="ODRTagMoveHelpDiv">
-                    To move a tag, click on the <i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Cursor"></i> icon, then press the arrow keys to change the position of the selected tag.
+                    To begin moving a tag, click on the <i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Cursor"></i> icon.  The currently selected tag is highlighted in green.<br>
+                    The up/down arrow keys will change the order of the tag{% if sort_by_name %}, but the tags will be re-sorted to be in alphabetical order when the dialog is closed{% endif %}.<br>
+                    {% if allow_multiple_levels %}The right arrow key will change the selected tag to be a child of the tag above it, while the left arrow key does the opposite.{% endif %}<br>
+                    When finished moving, click somewhere else in the box to save any changes, or press escape to close without saving.
                 </div>
             {% endif %}
             </div>
@@ -106,7 +105,7 @@
 </div>
 
 <script>
-    var SaveTimeout = 1500;
+    var SaveTimeout = 2000;
     $(function () {
 {% if not disable_controls and (not sort_by_name or allow_multiple_levels) %}
         {# Going to need tag movement in some capacity #}
@@ -182,6 +181,24 @@
             $(".ODRTagWrapper_import").html('');
         });
 
+        // Override each of the three ways to close this tag remodal so they go through ODR's javascript
+        //  instead of the remodal.js source file
+        $("button.remodal-close").removeAttr('onclick').on('click', function() {
+            closeODRTagRemodal();
+        });
+        $(document).off('keydown.remodal').on('keydown.remodal', function(e) {
+            var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+            var state = inst.getState();
+
+            if (inst /*&& current.settings.closeOnEscape*/ && state === 'opened' && e.keyCode === 27) {
+                closeODRTagRemodal();
+            }
+        });
+        $("div.remodal-wrapper").off('click.remodal').on('click.remodal', function(e) {
+            if ( $(e.target).hasClass('remodal-wrapper') )
+                closeODRTagRemodal();
+        });
+
         // Only want to run this if the user can actually make changes
         initTags();
 {% endif %}
@@ -191,7 +208,26 @@
 
         // Also want tag tree collapsing/expanding
         setupTagTree($("#ODRTagForm"));
+
+        // Need to set #ODRTagForm to have a max-height, but have to wait for resetRemodalInnerHeight()
+        //  to finish first...
+        setTimeout("resizeTagForm()", 400);
     });
+
+    /**
+     * Resizes the tag form so the modal scrollbars can be disabled without impacting functionality
+     */
+    function resizeTagForm() {
+        var remodal_height = $(".ODRRemodalInner").height();
+        var buttons_height = $("#odr_tag_design_modal").children(".ODRThemeElement").first().height();
+        var blurbs_height = $("#odr_tag_design").children(".ODRThemeElement").first().height();
+
+        var tag_form_height = remodal_height - buttons_height - blurbs_height - 75;
+        // console.log(remodal_height, buttons_height, blurbs_height, tag_form_height);
+
+        $("#ODRTagForm").css('max-height', tag_form_height + 'px').css('height', tag_form_height + 'px');
+        $("#ODRRemodal").find('.ODRRemodalInner').css('overflow', 'hidden');
+    }
 
     /**
      * Locates and highlights tags in the modal that do not have unique names.
@@ -229,6 +265,38 @@
     }
 
 {% if not disable_controls %}
+    /**
+     * Most of the actions this modal permits end up requiring a reload of the underlying tag
+     * datafield...rather than reload after every single change, it makes more sense to only reload
+     * once when the modal is closing.
+     */
+    function closeODRTagRemodal() {
+        // Trigger a reload of the tag datafield and close the remodal
+        ReloadTagDatafield({{ datafield.id }});
+        closeODRRemodal();
+
+        // Because all of ODR shares the same remodal instance, the earlier overrides to closing it
+        //  need to be restored back to what they were...but this has to be done "manually".  Sigh.
+        $("button.remodal-close").attr('onclick', "closeODRRemodal()").off('click');
+        $(document).off('keydown.remodal').on('keydown.remodal', function(e) {
+            var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+            var state = inst.getState();
+
+            if (inst /*&& current.settings.closeOnEscape*/ && state === 'opened' && e.keyCode === 27) {
+                inst.close();
+            }
+        });
+        $("div.remodal-wrapper").off('click.remodal').on('click.remodal', function(e) {
+            if ( $(e.target).hasClass('remodal-wrapper') ) {
+                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+                inst.close();
+            }
+        });
+
+        // Same deal for the temporary CSS overrides
+        $("#ODRRemodal").find('.ODRRemodalInner').css('overflow', '');
+    }
+
     /**
      * Initializes the tag modal.
      */
@@ -497,17 +565,15 @@
 
         var post_data = $("#ODRTagForm").find("#ODRTag_" + tag_id + "_name").serialize();    // only want one tag
 
+        showODRRemodalLoading();
+
         $.ajax({
             type: 'POST',
             url: url,
             dataType: "json",
             data: post_data,
             success: function(data) {
-                notifySaved();
-
-                // Always need to reload the datafield to ensure it's displaying the right name
-                {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
-                ReloadTagDatafield(data.d.datafield_id);
+                hideODRRemodalLoading();
 
                 if ( data.d.reload_modal ) {
                     // ...also reload the list of radio options
@@ -613,8 +679,7 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                // Reload parts of the page so that the new radio option shows up
-                ReloadTagDatafield(data.d.datafield_id);
+                // Reload parts of the page so that the new tag shows up
                 loadTagEditDialogContents(data.d.datafield_id, data.d.tag_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -656,19 +721,26 @@
         url += tag_id;
         // alert(url);  return;
 
+        // Show the loading blurb
+        setODRRemodalLoadingText('Deleting...');
+        showODRRemodalLoading();
+
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
             dataType: "json",
             success: function(data) {
-                // Remove the option from this modal
+                // Remove the tag from this modal
                 $("#ODRTag_" + tag_id + "_name").closest(".ODRTagItem").remove();
+
+                // Redo any warnings
+                FindDuplicateTagNames();
                 clearTagHighlights();
                 initTags();
 
-                // Also reload the datafield on the page so it no longer displays the deleted tag
-                ReloadTagDatafield(data.d.datafield_id);
+                // Hide the loading blurb
+                hideODRRemodalLoading();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -730,8 +802,11 @@
         url = url.substring(0, (url.length - 1));
         url += datafield_id;
 
+        {% if sort_by_name %}
         // Duplicate tag names shouldn't prevent this, but should be mentioned
         FindDuplicateTagNames();
+        showODRRemodalLoading();
+        {% endif %}
 
         // alert(url);  return;
 
@@ -742,14 +817,13 @@
             dataType: "json",
             data: post_data,
             success: function(data) {
-                notifySaved();
+                hideODRRemodalLoading();
 
-                // The controller may have made a lot of changes...just reload the datafield on the page
                 {% if sort_by_name %}
+                // The controller may have made a lot of changes...easier to just reload the contents
                 updateODRRemodalBody('', 'full');
                 loadTagEditDialogContents(datafield_id);
                 {% endif %}
-                ReloadTagDatafield(datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Forcibly reload on error

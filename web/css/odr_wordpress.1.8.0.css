@@ -3413,7 +3413,7 @@ a.ui-button:active,
 
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    /*text-overflow: ellipsis;*/
     min-width: 0;
 }
 
@@ -3643,7 +3643,7 @@ a.ui-button:active,
 #ODRFileDownloadForm_submit, #ODRMassDownloadForm_submit {
     margin: 10px 10px 10px 10px;
 }
-#ODRFileDownloadForm_progress, #ODRMassDownloadForm_progress {
+.ODRFileDownloadForm_progress {
     font-size: 20px;
     padding: 100px 10px 100px 10px;
 }
@@ -3997,6 +3997,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
 
 /* Radio Option Modal CSS */
+#ODRRadioOptionForm {
+    overflow-y: scroll;
+}
 .ODRRadioOptionWrapper_design {
     padding-left: 15px;
     text-align: left;
@@ -4177,9 +4180,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRTagMoveHelpDiv {
+    margin-top: 10px;
     margin-left: 25px;
     /*vertical-align: middle;*/
-    /*padding-top: 10px;*/
 }
 
 .ODRSearchToggle {
@@ -4658,6 +4661,9 @@ i {
 .ODRChemistryPlugin_insert {
     height: 25px;
     width: 25px;
+    background: #EEF;
+    color: #77E;
+    padding: 0;
 }
 
 .ODRCellparamPlugin_button {
@@ -4814,6 +4820,63 @@ button.jGrowl-close {
     top: 10px;
 }
  */
+
+.ODRStoredSearchKeySelection_header {
+    text-align: left;
+    text-indent: 15px;
+    font-size: 16px;
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 15px;
+    width: 90%;
+}
+.ODRStoredSearchKeySelection_header > p {
+    margin: 5px;
+}
+.ODRStoredSearchKeySelection_sidebar {
+    overflow-y: scroll;
+    max-height: 700px;
+}
+.ODRStoredSearchKeySelection_controls {
+    padding-top: 10px;
+    padding-left: 10px;
+}
+.ODRStoredSearchKeySelection_list {
+
+}
+.ODRStoredSearchKeySelection_list > p {
+    font-weight: bold;
+}
+
+#ODRStoredSearchKey_empty {
+    padding-left: 20px;
+}
+#ODRStoredSearchKeys_form {
+    display: none;
+}
+
+.ODRFileRenameInput {
+    margin-right: 2px;
+}
+.ODRFileRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
+}
+.ODRImageRenameInput {
+    margin-right: 2px;
+}
+.ODRImageRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
+}
 
 #ODRSearchHeaderWrapper {
     margin-top: -10px;
@@ -5202,6 +5265,7 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 
 .ODRFilterGraphPlugin_blurb {
     margin-left: 30px;
+    cursor: default;
 }
 .ODRFilterGraphPlugin_settings_div {
     cursor: pointer;

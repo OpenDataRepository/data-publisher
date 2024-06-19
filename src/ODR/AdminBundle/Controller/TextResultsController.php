@@ -837,7 +837,7 @@ class TextResultsController extends ODRCustomController
                         'column_str' => $column_str,
                         'column_names' => $column_names,
 
-                        'theme_id' => $remote_theme->getId(),
+                        'theme' => $remote_theme,
                         'linked_datarecords' => $linked_datarecords,
                         'allow_multiple_links' => $allow_multiple_links,
                         'local_datarecord_is_ancestor' => $local_datarecord_is_ancestor,

@@ -40,9 +40,11 @@
                 // Insert HTML and resize the modal to take up as much space as it can
                 updateODRRemodalBody(data.d.html, 'full');
 
-                // If a radio option id was given, then highlight it
-                if ( radio_option_id !== undefined )
-                    $("#radio_option_" + radio_option_id).effect("highlight", {}, 2000);
+                if ( radio_option_id !== undefined ) {
+                    // Need to wait for the remodal resize to finish before scrolling...
+                    setTimeout( 'ensureRadioOptionVisibility( $("#radio_option_' + radio_option_id + '") )', 500 );
+                    $("#radio_option_" + radio_option_id).effect("highlight", {}, 3000);
+                }
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state
@@ -62,6 +64,30 @@
                 }
             }
         });
+    }
+
+    /**
+     * Scrolls to the requested radio option in the modal.
+     *
+     * @param {HTMLElement} element
+     */
+    function ensureRadioOptionVisibility(element) {
+        var pageTop = $('#ODRRadioOptionForm').offset().top;
+        // var pageBottom = pageTop + $('#ODRTagForm').height();
+        var pageBottom = pageTop + parseInt( $('#ODRRadioOptionForm').css('height').slice(0, -2) );
+        // console.log('pageTop', pageTop, 'pageBottom', pageBottom);
+        var elementTop = $(element).offset().top;
+        var elementBottom = elementTop + $(element).height();
+        // console.log('elementTop', elementTop, 'elementBottom', elementBottom);
+
+        if ( (elementTop > pageBottom) || (elementBottom < pageTop) ) {
+            // console.log('scrolling...');
+            $("#ODRRadioOptionForm").scrollTo(
+                $(element),      // target
+                250,             // duration
+                {margin: 'true'} // options...get scrollTo() to consider margin when scrolling
+            );
+        }
     }
 </script>
 

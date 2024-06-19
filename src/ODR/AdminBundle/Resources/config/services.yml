@@ -377,7 +377,6 @@ services:
             $search_api_service: "@odr.search_api_service"
             $search_key_service: "@odr.search_key_service"
             $token_generator: "@fos_user.util.token_generator"
-            $pheanstalk: "@pheanstalk"
             $logger: "@logger"
 
     # Defines a number of reusable classes to use inside Symfony forms

@@ -35,6 +35,16 @@
         </div>
 
         <div class="ODRDataField pure-u-1">
+            <label class="ODRFieldLabel" for="{{ theme_form.disableSearchSidebar.vars.id }}">
+                <strong>{{ theme_form.disableSearchSidebar.vars.label }}&nbsp;&nbsp;</strong>
+            </label>
+            {#<div class="ODRFieldWrapper">#}
+            {{ form_errors(theme_form.disableSearchSidebar) }}
+            {{ form_widget(theme_form.disableSearchSidebar, { 'attr': {'class': 'pure-u-1-3', 'style': 'width:auto'} }) }}
+            {#</div>#}
+        </div>
+
+        <div class="ODRDataField pure-u-1">
             <label class="ODRFieldLabel" for="{{ theme_form.isTableTheme.vars.id }}">
                 <strong>{{ theme_form.isTableTheme.vars.label }}&nbsp;&nbsp;</strong>
             </label>
@@ -55,12 +65,12 @@
         </div>
 
         <div class="ODRDataField pure-u-1">
-            <label class="ODRFieldLabel" for="{{ theme_form.disableSearchSidebar.vars.id }}">
-                <strong>{{ theme_form.disableSearchSidebar.vars.label }}&nbsp;&nbsp;</strong>
+            <label class="ODRFieldLabel" for="{{ theme_form.enableHorizontalScrolling.vars.id }}">
+                <strong>{{ theme_form.enableHorizontalScrolling.vars.label }}&nbsp;&nbsp;</strong>
             </label>
             {#<div class="ODRFieldWrapper">#}
-            {{ form_errors(theme_form.disableSearchSidebar) }}
-            {{ form_widget(theme_form.disableSearchSidebar, { 'attr': {'class': 'pure-u-1-3', 'style': 'width:auto'} }) }}
+            {{ form_errors(theme_form.enableHorizontalScrolling) }}
+            {{ form_widget(theme_form.enableHorizontalScrolling, { 'attr': {'class': 'pure-u-1-3', 'style': 'width:auto'} }) }}
             {#</div>#}
         </div>
 

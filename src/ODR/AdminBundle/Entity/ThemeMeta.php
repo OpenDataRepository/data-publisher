@@ -73,6 +73,11 @@ class ThemeMeta
     private $disableSearchSidebar;
 
     /**
+     * @var bool
+     */
+    private $enableHorizontalScrolling;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -325,6 +330,30 @@ class ThemeMeta
     public function getDisableSearchSidebar()
     {
         return $this->disableSearchSidebar;
+    }
+
+    /**
+     * Set enableHorizontalScrolling.
+     *
+     * @param bool $enableHorizontalScrolling
+     *
+     * @return ThemeMeta
+     */
+    public function setEnableHorizontalScrolling($enableHorizontalScrolling)
+    {
+        $this->enableHorizontalScrolling = $enableHorizontalScrolling;
+
+        return $this;
+    }
+
+    /**
+     * Get enableHorizontalScrolling.
+     *
+     * @return bool
+     */
+    public function getEnableHorizontalScrolling()
+    {
+        return $this->enableHorizontalScrolling;
     }
 
     /**

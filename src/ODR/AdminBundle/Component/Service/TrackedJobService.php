@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -96,6 +97,9 @@ class TrackedJobService
         $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($job_id);
         if ($tracked_job == null)
             return null;
+
+        if ( $tracked_job->getFailed() )
+            throw new ODRException('Tracked Job '.$tracked_job->getId().' ('.$tracked_job->getJobType().') appears to be stalled, aborting');
 
         // If it exists, convert its data into an array and return that
         $job_data = self::getJobData( array($tracked_job), $datatype_permissions );
@@ -448,6 +452,8 @@ class TrackedJobService
         $tracked_job->setCompleted(null);
         $tracked_job->setCurrent(0);                // TODO - possible desynch, though haven't spotted one yet
         $tracked_job->setTotal($total);
+        $tracked_job->setFailed(false);
+
         $this->em->persist($tracked_job);
         $this->em->flush();
 
@@ -654,6 +660,12 @@ class TrackedJobService
                 // Deleting is allowed, but only when the datafield isn't already being migrated
                 'delete_radio_option' => 'self::requireDifferentDatafield',
                 'delete_tag' => 'self::requireDifferentDatafield',
+            ),
+
+            'csv_export' => array(
+                // Since export filenames include which tracked job they're for, a user can run
+                //  multiple exports at the same time
+                'csv_export' => 'self::alwaysAllowed',
             ),
 
 //            'csv_export' => array(

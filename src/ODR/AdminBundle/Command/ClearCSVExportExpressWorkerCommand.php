@@ -34,7 +34,7 @@ class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
 
         $this
             ->setName('odr_csv_export:clear_worker')
-            ->setDescription('Deletes all jobs from the csv_export_worker tube')
+            ->setDescription('Deletes all jobs from the csv_export_worker_express tube')
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
@@ -57,15 +57,13 @@ class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('csv_export_worker_express')->ignore('default')->reserve();
 
             $data = json_decode($job->getData());
-            $datarecord_id = $data->datarecord_id;
-            $job_source = $data->redis_prefix;
 
             // Dealt with the job
             $pheanstalk->delete($job);
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for datarecord '.$datarecord_id.' from '.$redis_prefix.'_csv_export_worker');
+    $output->writeln( date('H:i:s').'  deleted job from '.$redis_prefix.'_csv_export_worker_express');
 else
-    $output->writeln( date('H:i:s').'  deleted job for datarecord '.$datarecord_id.' ('.$job_source.') from csv_export_worker');
+    $output->writeln( date('H:i:s').'  deleted job from csv_export_worker_express');
 
             // Sleep for a bit
             usleep(50000); // sleep for 0.05 seconds

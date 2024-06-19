@@ -211,7 +211,10 @@
 
         {% endfor %}
 
-        {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}
+        {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {
+            'display_type': display_type,
+            'is_top_level': is_top_level,
+        } %}
 
     </div><!-- End of #DataType_{{ datatype.id }} -->
 {% endif %}

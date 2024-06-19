@@ -190,6 +190,10 @@ class MapPlugin implements DatatypePluginInterface
                 $theme = $t;
 
             // Render and return the map
+            $record_display_view = 'single';
+            if ( isset($rendering_options['record_display_view']) )
+                $record_display_view = $rendering_options['record_display_view'];
+
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Base:Map/map_wrapper.html.twig',
                 array(
@@ -201,6 +205,7 @@ class MapPlugin implements DatatypePluginInterface
                     'parent_datarecord' => $parent_datarecord,
                     'target_theme_id' => $theme['id'],
 
+                    'record_display_view' => $record_display_view,
                     'is_top_level' => $rendering_options['is_top_level'],
                     'is_link' => $rendering_options['is_link'],
                     'display_type' => $rendering_options['display_type'],

@@ -20,11 +20,14 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\LockService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
@@ -45,6 +48,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
     private $em;
 
     /**
+     * @var CacheService
+     */
+    private $cache_service;
+
+    /**
      * @var EntityCreationService
      */
     private $entity_create_service;
@@ -53,6 +61,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
      * @var LockService
      */
     private $lock_service;
+
+    /**
+     * @var SearchQueryService
+     */
+    private $search_query_service;
 
     /**
      * @var SortService
@@ -87,8 +100,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
      * RRUFF References constructor
      *
      * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
      * @param EntityCreationService $entity_create_service
      * @param LockService $lock_service
+     * @param SearchQueryService $search_query_service
      * @param SortService $sort_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -97,8 +112,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
      */
     public function __construct(
         EntityManager $entity_manager,
+        CacheService $cache_service,
         EntityCreationService $entity_create_service,
         LockService $lock_service,
+        SearchQueryService $search_query_service,
         SortService $sort_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -106,8 +123,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
         Logger $logger
     ) {
         $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
         $this->entity_create_service = $entity_create_service;
         $this->lock_service = $lock_service;
+        $this->search_query_service = $search_query_service;
         $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -117,13 +136,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $rendering_options
-     *
-     * @return bool
+     * @inheritDoc
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
@@ -149,20 +162,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
 
     /**
-     * Executes the RRUFF References Plugin on the provided datarecord
-     *
-     * @param array $datarecords
-     * @param array $datatype
-     * @param array $render_plugin_instance
-     * @param array $theme_array
-     * @param array $rendering_options
-     * @param array $parent_datarecord
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param array $token_list
-     *
-     * @return string
-     * @throws \Exception
+     * @inheritDoc
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
@@ -564,14 +564,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
 
     /**
-     * Returns which of its entries the plugin wants to override in the search sidebar.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $datafield
-     * @param array $rendering_options
-     *
-     * @return array|bool returns true/false if a datafield plugin, or an array of datafield ids if a datatype plugin
+     * @inheritDoc
      */
     public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
     {
@@ -587,15 +580,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
 
     /**
-     * Returns HTML to override a datafield's entry in the search sidebar.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $datafield
-     * @param string|array $preset_value
-     * @param array $rendering_options
-     *
-     * @return string
+     * @inheritDoc
      */
     public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
     {
@@ -624,34 +609,80 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
 
     /**
-     * Given an array of datafields mapped by this plugin, returns which datafields SearchAPIService
-     * should call {@link SearchOverrideInterface::searchOverriddenField()} on instead of running
-     * the default searches.
-     *
-     * @param array $df_list
-     * @return array An array where the values are datafield ids
+     * @inheritDoc
      */
     public function getSearchOverrideFields($df_list)
     {
-        // Don't want to override SearchAPIService
-        return array();
+        // The array entry for 'Journal' will only exist if the search system needs to run a search
+        //  on the field
+        if ( isset($df_list['Journal']) )
+            return array( 'Journal' => $df_list['Journal'] );
+        else
+            return array();
     }
 
 
     /**
-     * Searches the specified datafield for the specified value, returning an array of datarecord
-     * ids that match the search.
-     *
-     * @param DataFields $datafield
-     * @param array $search_term
-     * @param array $render_plugin_options
-     *
-     * @return array
+     * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
     {
-        // This won't be called
-        return null;
+        // The goal is to modify the Journal field so doublequotes around the search term are treated
+        //  as matching the entire field, instead of just a ~phrase~ inside the field...which is how
+        //  SearchQueryService::parseField() behaves by default
+        // e.g.  "\"Inorganic Chemistry\"" should not match "\"Inorganic Chemistry Communications\""
+
+        // ----------------------------------------
+        // Have to re-implement SearchService::searchTextOrNumberDatafield() here, so that the call
+        //  to SearchQueryService::searchTextOrNumberDatafield() can receive a different parameter
+        $allowed_typeclasses = array(
+            'LongText'
+        );
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( !in_array($typeclass, $allowed_typeclasses) )
+            throw new ODRBadRequestException('RRUFFReferencesPlugin::searchOverriddenField() called with '.$typeclass.' datafield', 0xbf8b897d);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
+        $value = $search_term['value'];
+        $cache_key = mb_strtolower($value);
+        if ( isset($cached_searches[$cache_key]) )
+            return $cached_searches[$cache_key];
+
+
+        // ----------------------------------------
+        // Otherwise, going to need to run the search again...
+
+        // The entire reason why searches of this field get overridden is so that doublequotes
+        //  match the entire field instead of just a substring
+        // e.g. "\"Inorganic Chemistry\"" should not match "\"Inorganic Chemistry Communications\""
+        $doublequotes_force_exact_match = true;
+
+        $result = $this->search_query_service->searchTextOrNumberDatafield(
+            $datafield->getDataType()->getId(),
+            $datafield->getId(),
+            $typeclass,
+            $value,
+            $doublequotes_force_exact_match
+        );
+
+        $end_result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => $result
+        );
+
+        // ...then recache the search result
+        $cached_searches[$cache_key] = $end_result;
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+
+        // ...then return it
+        return $end_result;
     }
 
 

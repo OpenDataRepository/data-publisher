@@ -153,11 +153,11 @@ jQuery(function() {
     });
 
     $("#{{ odr_chart_id }}_Static_GraphWrapper").unbind('click').click(function() {
-        var graph_parent = $(this).parent().parent();
+        var graph_parent = $(this).parents('.ODRDataType').first().children('.ODRGraphSpacer').first();
         $(this).addClass('ODRHidden');
         $(graph_parent).find('.DynamicGraphs').removeClass('ODRHidden');
 
-        $(graph_parent).parents('.ODRGraphSpacer').first().next().removeClass('ODRHidden');
+        $(graph_parent).next().removeClass('ODRHidden');
 
         var chart_id = $(graph_parent).find('.ODRDynamicGraph').attr('id');
         var graph_type = "{{ plugin_options.graph_type }}";

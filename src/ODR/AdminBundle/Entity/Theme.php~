@@ -612,4 +612,14 @@ class Theme
     {
         return $this->getThemeMeta()->getDisableSearchSidebar();
     }
+
+    /**
+     * Get enableHorizontalScrolling
+     *
+     * @return bool
+     */
+    public function getEnableHorizontalScrolling()
+    {
+        return $this->getThemeMeta()->getEnableHorizontalScrolling();
+    }
 }

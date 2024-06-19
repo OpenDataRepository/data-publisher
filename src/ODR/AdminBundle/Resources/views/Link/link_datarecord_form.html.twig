@@ -18,6 +18,7 @@
 
     <div class="pure-u-1">
         <button class="pure-button pure-button-primary" type="button" onclick="ODRLinkDatarecords_submitForm();">Save Changes</button>
+        <button class="pure-button" type="button" onclick="ODRLinkDatarecords_saveAndReturn();">Save and Return</button>
         <button class="pure-button" type="button" onclick="ODRLinkDatarecords_returnToPrevious();">Return to Record</button>
         <button class="pure-button ODRLinkDatarecords_unlinkButton ODRHidden" type="button" onclick="ODRLinkDatarecords_unlinkRecord();">Unlink current Datarecord</button>
     </div>
@@ -46,7 +47,7 @@
             'search_key': '',
 
             'record_display_view': 'multiple'
-        } %}
+        } %}    {# NOTE: passing in "multiple" to disable certain javascript on the page #}
         </div>
     </div>
 
@@ -271,6 +272,42 @@
                 // Only reload the page if a change was made
                 if ( data.d.change_made )
                     window.location.reload();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Submits the form, then immediately returns to the local datarecord's edit page.
+     */
+    function ODRLinkDatarecords_saveAndReturn() {
+        var post_data = $("#LinkDataRecordForm").serialize();
+        var url = "{{ path('odr_link_datarecords') }}";
+
+//alert(url);  return;
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data, textStatus, xhr) {
+                ODRLinkDatarecords_returnToPrevious();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

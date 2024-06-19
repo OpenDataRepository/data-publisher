@@ -43,6 +43,7 @@ services:
             $entity_modify_service: "@odr.entity_meta_modify_service"
             $permissions_service: "@odr.permissions_management_service"
             $lock_service: "@odr.lock_service"
+            $search_service: "@odr.search_service"
             $sort_service: "@odr.sort_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
@@ -60,7 +61,9 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $entity_create_service: "@odr.entity_creation_service"
+            $cache_service: "@odr.cache_service"
             $lock_service: "@odr.lock_service"
+            $search_query_service: "@odr.search_query_service"
             $sort_service: "@odr.sort_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"

@@ -722,9 +722,13 @@ class CloneTemplateService
                                 $change_made = true;
                                 $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = $radio_option_changelists;
                             }
-//                            else {
-//                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = array();
-//                            }
+                            else {
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = array(
+                                    'created' => array(),
+                                    'updated' => array(),
+                                    'deleted' => array(),
+                                );
+                            }
                         }
 
                         // Need to check tags...

@@ -11,7 +11,7 @@
                             The files are currently grouped by which{% if group_by_datafield %} datafield {% else %} datarecord {% endif %}they have been uploaded to.
                         </p>
                         <p>
-                            {# The <button> element is unusable here...can't seem to prevent it from triggering some kind of form submit #}
+                            {# NOTE: The <button> element is unusable here...can't seem to prevent it from triggering some kind of form submit #}
                             <a class="pure-button {% if not group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="0">Group by Datarecord</a>
                             <a class="pure-button {% if group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="1">Group by Datafield</a>
                         </p>
@@ -40,10 +40,10 @@
     </form>
 </div>
 
-<div id="ODRFileDownloadForm_progress" class="ODRHidden">
+<div class="ODRFileDownloadForm_progress ODRHidden">
     <div>Creating archive:</div>
     <div>
-        <span id="ODRFileDownloadForm_current"></span> / <span id="ODRFileDownloadForm_total"></span> files added.
+        <span class="ODRFileDownloadForm_current"></span> / <span class="ODRFileDownloadForm_total"></span> files added.
     </div>
 </div>
 

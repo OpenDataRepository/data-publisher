@@ -1125,6 +1125,12 @@ odr_download_zip_archive:
     requirements:
         archive_filename: 0|[0-9a-zA-Z\-\_]{12}.zip
 
+odr_create_zip_archive_from_filelist:
+    path:  /view/archive_from_file_list
+    defaults: { _controller: ODRAdminBundle:Display:createziparchivefromfilelist }
+    methods: [ POST ]
+
+
 #-----------------------------------------
 
 #-----------------------------------------

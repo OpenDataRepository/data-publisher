@@ -95,6 +95,14 @@
                         <strong>Display Record metadata?&nbsp;&nbsp;</strong>
                     </label>
                     <input id="ODRTrackingForm_record_metadata" type="checkbox" name="display_datarecord_metadata" value="1" {% if display_datarecord_metadata %}checked{% endif %}/>
+                    <br>
+                    <label for="ODRTrackingForm_simple"
+                           title="Displays at most one entry per Record per day"
+                           class="Info"
+                    >
+                        <strong>Display one entry per Record per day?&nbsp;&nbsp;</strong>
+                    </label>
+                    <input id="ODRTrackingForm_simple" type="checkbox" name="simple" value="1" />
                 </fieldset>
             </form>
         </div>
@@ -230,6 +238,9 @@
         });
 
         $("#ODRTrackingForm_record_metadata").unbind('click').click(function() {
+            reloadTrackingData();
+        });
+        $("#ODRTrackingForm_simple").unbind('click').click(function() {
             reloadTrackingData();
         });
 

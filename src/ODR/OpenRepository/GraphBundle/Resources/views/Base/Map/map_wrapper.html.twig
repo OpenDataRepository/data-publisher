@@ -46,6 +46,7 @@
 
                         'is_datatype_admin': is_datatype_admin,
 
+                        'record_display_view': record_display_view,
                         'is_top_level': is_top_level,
                         'is_link': is_link,
                         'display_type': display_type,
@@ -75,7 +76,10 @@
             } %}
         {% endif %}
 
-        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
+        {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {
+            'display_type': display_type,
+            'is_top_level': is_top_level,
+        } %}
     </div>
 {% endif %}
 

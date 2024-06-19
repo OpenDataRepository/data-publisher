@@ -121,8 +121,13 @@
                 // Set up initial values each time the popup is opened
                 let current_value = $("#{{ input_id }}").val();
                 $("#{{ input_id }}_hidden").text(current_value);
-                $("#{{ input_id }}_original").text(current_value);
                 $("#{{ input_id }}_parsed").val(current_value);
+
+                {% if field_typename == "Paragraph Text" %}
+                $("#{{ input_id }}_original").text(current_value);
+                {% else %}
+                $("#{{ input_id }}_original").val(current_value);
+                {% endif %}
 
                 let prettified = ODR_prettifyChemicalFormula($("#{{ input_id }}").val(), {% if field_typename == "Paragraph Text" %}true{% else %}false{% endif %}, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
                 $("#{{ input_id }}_prettified").html( prettified );
@@ -233,7 +238,12 @@
 
             // Select everything in the original field...
             let textarea = $("#{{ input_id }}_original");
+            {% if field_typename == "Paragraph Text" %}
             let len = $(textarea).text().length;
+            {% else %}
+            let len = $(textarea).val().length;
+            {% endif %}
+
             $(textarea)[0].setSelectionRange(0, len);
 
             // ...then trigger the Chemistry Plugin again

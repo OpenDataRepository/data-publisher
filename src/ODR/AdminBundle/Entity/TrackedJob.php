@@ -522,4 +522,33 @@ class TrackedJob
 
         return $curr_value;
     }
+    /**
+     * @var bool
+     */
+    private $failed;
+
+
+    /**
+     * Set failed.
+     *
+     * @param bool $failed
+     *
+     * @return TrackedJob
+     */
+    public function setFailed($failed)
+    {
+        $this->failed = $failed;
+
+        return $this;
+    }
+
+    /**
+     * Get failed.
+     *
+     * @return bool
+     */
+    public function getFailed()
+    {
+        return $this->failed;
+    }
 }

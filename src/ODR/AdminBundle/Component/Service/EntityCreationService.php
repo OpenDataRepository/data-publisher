@@ -2717,9 +2717,10 @@ class EntityCreationService
 
         $theme_meta->setDefaultFor(0);
         $theme_meta->setShared(false);
+        $theme_meta->setDisableSearchSidebar(false);
         $theme_meta->setIsTableTheme(false);
         $theme_meta->setDisplaysAllResults(false);
-        $theme_meta->setDisableSearchSidebar(false);
+        $theme_meta->setEnableHorizontalScrolling(false);
 
         $theme_meta->setSourceSyncVersion(1);
 

@@ -1,3 +1,7 @@
+# ----------------------------------------
+# IMPORTANT: CSVExportHelperService inserts directly into this table, bypassing doctrine
+# Changes here need to be manually added over there too
+# ----------------------------------------
 ODR\AdminBundle\Entity\TrackedCSVExport:
     type: entity
     table: odr_tracked_csv_export
@@ -19,15 +23,21 @@ ODR\AdminBundle\Entity\TrackedCSVExport:
             fixed: false
             nullable: false
 
-        finalize:
-            type: boolean
-            nullable: false
-            default: false
-
         job_order:
             type: integer
             unsigned: false
             nullable: true
+
+        line_count:
+            type: integer
+            unsigned: false
+            nullable: true
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
 
     manyToOne:
         trackedJob:

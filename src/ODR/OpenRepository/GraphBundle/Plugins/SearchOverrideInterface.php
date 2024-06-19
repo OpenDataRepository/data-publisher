@@ -51,7 +51,7 @@ interface SearchOverrideInterface
      * should call {@link SearchOverrideInterface::searchOverriddenField()} on instead of running
      * the default searches.
      *
-     * @param array $df_list
+     * @param array $df_list An array where the RenderPluginField names are the keys, and the values are datafield ids
      * @return array An array where the values are datafield ids
      */
     public function getSearchOverrideFields($df_list);
@@ -63,9 +63,10 @@ interface SearchOverrideInterface
      *
      * @param DataFields $datafield
      * @param array $search_term
+     * @param array $render_plugin_fields
      * @param array $render_plugin_options
      *
      * @return array
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_options);
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options);
 }

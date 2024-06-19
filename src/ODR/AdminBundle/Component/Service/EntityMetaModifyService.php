@@ -2806,9 +2806,10 @@ class EntityMetaModifyService
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'shared' => $old_meta_entry->getShared(),
             'sourceSyncVersion' => $old_meta_entry->getSourceSyncVersion(),
+            'disableSearchSidebar' => $old_meta_entry->getDisableSearchSidebar(),
             'isTableTheme' => $old_meta_entry->getIsTableTheme(),
             'displaysAllResults' => $old_meta_entry->getDisplaysAllResults(),
-            'disableSearchSidebar' => $old_meta_entry->getDisableSearchSidebar(),
+            'enableHorizontalScrolling' => $old_meta_entry->getEnableHorizontalScrolling(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2854,12 +2855,15 @@ class EntityMetaModifyService
             $new_theme_meta->setShared( $properties['shared'] );
         if ( isset($properties['sourceSyncVersion']) )
             $new_theme_meta->setSourceSyncVersion( $properties['sourceSyncVersion'] );
+        if ( isset($properties['disableSearchSidebar']) )
+            $new_theme_meta->setDisableSearchSidebar( $properties['disableSearchSidebar'] );
         if ( isset($properties['isTableTheme']) )
             $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
         if ( isset($properties['displaysAllResults']) )
             $new_theme_meta->setDisplaysAllResults( $properties['displaysAllResults'] );
-        if ( isset($properties['disableSearchSidebar']) )
-            $new_theme_meta->setDisableSearchSidebar( $properties['disableSearchSidebar'] );
+        if ( isset($properties['enableHorizontalScrolling']) )
+            $new_theme_meta->setEnableHorizontalScrolling( $properties['enableHorizontalScrolling'] );
+
 
         // Earlier versions of ODR used a combination of theme_type and page_type to control
         //  when and where they were used...in late 2023 this was changed so that any theme

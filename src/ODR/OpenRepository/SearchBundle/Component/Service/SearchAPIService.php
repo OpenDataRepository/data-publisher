@@ -569,10 +569,11 @@ class SearchAPIService
                         $tmp = $hydrated_entities['renderPlugin'][$entity_id];
                         /** @var SearchOverrideInterface $rp */
                         $rp = $tmp['renderPlugin'];
+                        $rpf_list = $tmp['renderPluginFields'];
                         $rpo = $tmp['renderPluginOptions'];
 
                         // The plugin will return the same format that the regular searches do
-                        $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpo);
+                        $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo);
                     }
                     else {
                         // Datafield search depends on the typeclass of the field
@@ -978,7 +979,7 @@ class SearchAPIService
 
             // Only want to load each render plugin once...
             $render_plugins_cache = array();
-            $render_plugins_fields = array();
+            $render_plugins_overrides = array();
             foreach ($results as $result) {
                 $rp_id = $result['rp_id'];
                 $plugin_classname = $result['plugin_classname'];
@@ -992,14 +993,14 @@ class SearchAPIService
 
                 // Also need to organize these datafields by the render plugin instance that they're
                 //  attached to
-                if ( !isset($render_plugins_fields[$plugin_classname]) )
-                    $render_plugins_fields[$plugin_classname] = array();
-                if ( !isset($render_plugins_fields[$plugin_classname][$rpi_id]) )
-                    $render_plugins_fields[$plugin_classname][$rpi_id] = array();
+                if ( !isset($render_plugins_overrides[$plugin_classname]) )
+                    $render_plugins_overrides[$plugin_classname] = array();
+                if ( !isset($render_plugins_overrides[$plugin_classname][$rpi_id]) )
+                    $render_plugins_overrides[$plugin_classname][$rpi_id] = array();
 
                 $rpf_name = $result['fieldName'];
                 $df_id = $result['df_id'];
-                $render_plugins_fields[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
+                $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
             }
 
             // Now that the fields have been grouped, determine whether the render plugin wants to
@@ -1009,7 +1010,7 @@ class SearchAPIService
 
                 // ...I don't think it's strictly necessary to check each render plugin instance, but
                 //  maybe it will be in the future.  Dunno.
-                foreach ($render_plugins_fields[$plugin_classname] as $rpi_id => $df_list) {
+                foreach ($render_plugins_overrides[$plugin_classname] as $rpi_id => $df_list) {
                     $ret = $plugin->getSearchOverrideFields($df_list);
 
                     if ( !empty($ret) ) {
@@ -1024,14 +1025,14 @@ class SearchAPIService
                     }
                     else {
                         // ...the plugin doesn't want to override any fields
-                        unset( $render_plugins_fields[$plugin_classname][$rpi_id] );
+                        unset( $render_plugins_overrides[$plugin_classname][$rpi_id] );
                     }
                 }
             }
 
             // If a plugin wants to override searching for a field...
             $render_plugin_instance_ids = array();
-            foreach ($render_plugins_fields as $plugin_classname => $rpi_list) {
+            foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
                 // ...then we need to also load the related set of options for each render plugin
                 //  instance
                 foreach ($rpi_list as $rpi_id => $df_list)
@@ -1039,6 +1040,7 @@ class SearchAPIService
             }
 
             $render_plugin_options = array();
+            $render_plugin_fields = array();    // NOTE: different than $render_plugin_fields
             if ( !empty($render_plugin_instance_ids) ) {
                 $query = $this->em->createQuery(
                    'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
@@ -1061,10 +1063,33 @@ class SearchAPIService
                         $render_plugin_options[$rpi_id][$option_name] = $option_value;
                     }
                 }
+
+                // When overriding datatype plugins, it's useful to have the renderPluginField list...
+                $query = $this->em->createQuery(
+                   'SELECT rpi.id AS rpi_id, rpm_df.id AS df_id, rpf.fieldName AS rpf_name
+                    FROM ODRAdminBundle:RenderPluginInstance AS rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                    LEFT JOIN ODRAdminBundle:DataFields AS rpm_df WITH rpm.dataField = rpm_df
+                    WHERE rpi.id IN (:render_plugin_instance_ids)
+                    AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
+                    AND rpf.deletedAt IS NULL AND rpm_df.deletedAt IS NULL'
+                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $rpi_id = $result['rpi_id'];
+                    $df_id = $result['df_id'];
+                    $rpf_name = $result['rpf_name'];
+
+                    if ( !isset($render_plugin_fields[$rpi_id]) )
+                        $render_plugin_fields[$rpi_id] = array();
+                    $render_plugin_fields[$rpi_id][$rpf_name] = $df_id;
+                }
             }
 
             // Need to map any existing render plugin options to each datafield they're related to
-            foreach ($render_plugins_fields as $plugin_classname => $rpi_list) {
+            foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
                 $plugin = $render_plugins_cache[$plugin_classname]['plugin'];
 
                 foreach ($rpi_list as $rpi_id => $df_list) {
@@ -1077,6 +1102,9 @@ class SearchAPIService
                         // ...and attach any render plugin options if they exist
                         if ( isset($render_plugin_options[$rpi_id]) )
                             $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$rpi_id];
+                        // ...same for the render plugin field list
+                        if ( isset($render_plugin_fields[$rpi_id]) )
+                            $render_plugins[$df_id]['renderPluginFields'] = $render_plugin_fields[$rpi_id];
                     }
                 }
             }

@@ -347,13 +347,19 @@ class LinkController extends ODRCustomController
             // Now that the datatype exists, create the background job that will perform the clone
             /** @var TrackedJob $tracked_job */
             $tracked_job = new TrackedJob();
-            $tracked_job->setCreatedBy($user);
-            $tracked_job->setJobType('clone_and_link');
-            $tracked_job->setTotal(2);
-            $tracked_job->setCurrent(0);
-            $tracked_job->setStarted(new \DateTime());
             $tracked_job->setTargetEntity('datatype_' . $local_datatype_id);
+            $tracked_job->setJobType('clone_and_link');
             $tracked_job->setAdditionalData( array() );
+
+            $tracked_job->setStarted(new \DateTime());
+            $tracked_job->setCompleted(null);
+            $tracked_job->setCurrent(0);
+            $tracked_job->setTotal(2);
+            $tracked_job->setFailed(false);
+
+            $tracked_job->setCreated(new \DateTime());
+            $tracked_job->setCreatedBy($user);
+
             $em->persist($tracked_job);
 
             // Save all the changes that were made
@@ -1808,7 +1814,10 @@ class LinkController extends ODRCustomController
             });
 
             // Easier if PHP creates the extra info string
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             $site_baseurl = $this->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
+            if ( $is_wordpress_integrated )
+                $site_baseurl = $this->getParameter('wordpress_site_baseurl').'/';    // doesn't have trailing slash by default
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 $site_baseurl .= 'app_dev.php/';
 

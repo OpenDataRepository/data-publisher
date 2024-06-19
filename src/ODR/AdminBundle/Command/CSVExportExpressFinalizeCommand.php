@@ -14,12 +14,14 @@
 
 namespace ODR\AdminBundle\Command;
 
+// Entities
+// Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRException;
+// Services
+use ODR\AdminBundle\Component\Service\CSVExportHelperService;
+// Symfony
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
@@ -34,7 +36,7 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
         parent::configure();
 
         $this
-            ->setName('odr_csv_export:express_finalize')
+            ->setName('odr_csv_export:finalize_express')
             ->setDescription('Finishes up a CSV export file...');
     }
 
@@ -55,95 +57,87 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Wait for a job?
-                $job = $pheanstalk->watch('csv_export_express_finalize')
+                $job = $pheanstalk->watch('csv_export_finalize_express')
                     ->ignore('default')->reserve();
 
                 // Get Job Data
                 $data = json_decode($job->getData());
 
-                // 
-                $str = 'CSVExportFinalize request from '.$data->redis_prefix.'...';
-
-                $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
-                $output->writeln($str);
-
                 $parameters = array(
                     'tracked_job_id' => $data->tracked_job_id,
-                    'final_filename' => $data->final_filename,
-                    'random_keys' => $data->random_keys,
                     'user_id' => $data->user_id,
+
+                    'delimiter' => $data->delimiter,
+                    'datatype_id' => $data->datatype_id,
+                    'datafields' => $data->datafields,
+
                     'api_key' => $data->api_key,
                 );
 
-
                 if ( !isset($parameters['tracked_job_id'])
-                    || !isset($parameters['final_filename'])
-                    || !isset($parameters['random_keys'])
                     || !isset($parameters['user_id'])
+                    || !isset($parameters['delimiter'])
+                    || !isset($parameters['datatype_id'])
+                    || !isset($parameters['datafields'])
                     || !isset($parameters['api_key'])
                 ) {
+                    $output->writeln('Invalid list of parameters passed to CSVExportExpressFinalizeCommand');
+                    $output->writeln( print_r($parameters, true) );
                     throw new ODRBadRequestException();
                 }
 
-                // Pull data from the post
-                $tracked_job_id = intval($parameters['tracked_job_id']);
-                $user_id = $parameters['user_id'];
-                $final_filename = $parameters['final_filename'];
-                $random_keys = $parameters['random_keys'];
-                $api_key = $parameters['api_key'];
+                // Don't really want to spam the log every half second, but meh...
+                $current_time = new \DateTime();
+                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
+                $output->writeln('CSVExportExpressFinalizeCommand: request from '.$data->redis_prefix.' for tracked job '.$parameters['tracked_job_id'].'...');
 
-                // Load symfony objects
-                $beanstalk_api_key = $container->getParameter('beanstalk_api_key');
+                /** @var CSVExportHelperService $csv_export_helper_service */
+                $csv_export_helper_service = $container->get('odr.csv_export_helper_service');
+                $ret = $csv_export_helper_service->finalize($parameters);
 
-                if ($api_key !== $beanstalk_api_key)
-                    throw new ODRBadRequestException();
+                if ( $ret === 'success' ) {
+                    $tracked_job_id = intval($parameters['tracked_job_id']);
+                    $user_id = intval($parameters['user_id']);
+                    $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
 
-                /** @var \Doctrine\ORM\EntityManager $em */
-                $em = $container->get('doctrine')->getManager();
+                    $output->writeln('CSVExportExpressFinalizeCommand: finished processing tracked_job: '.$tracked_job_id.', final_filename: '.$final_filename);
 
-                // -----------------------------------------
-                // Append the contents of one of the temporary files to the final file
-                $csv_export_path = $container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
-                $final_file = fopen($csv_export_path.$final_filename, 'a');
-                if (!$final_file)
-                    throw new ODRException('Unable to open csv export finalize file');
-
-                // Go through and append the contents of each of the temporary files to the "final" file
-                $tracked_csv_export_id = null;
-                foreach ($random_keys as $tracked_csv_export_id => $random_key) {
-                    $tmp_filename = 'f_'.$random_key.'.csv';
-                    $output->writeln('Appending file: ' . $tmp_filename);
-                    $str = file_get_contents($csv_export_path.$tmp_filename);
-
-                    if ( fwrite($final_file, $str) === false )
-                        $output->writeln('could not write to "'.$csv_export_path.$final_filename.'"'."\n");
-
-                    // Done with this intermediate file, get rid of it
-                    if ( unlink($csv_export_path.$tmp_filename) === false )
-                        $output->writeln('could not unlink "'.$csv_export_path.$tmp_filename.'"'."\n");
-
-                    $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')
-                        ->find($tracked_csv_export_id);
-                    $em->remove($tracked_csv_export);
-                    $em->flush();
+                    // Dealt with the job
+                    $pheanstalk->delete($job);
                 }
-                fclose($final_file);
+                else if ( $ret === 'ignore' ) {
+                    // Ignoring the job
+                    $output->writeln('CSVExportExpressFinalizeCommand: ignoring tracked_job: '.$tracked_job_id.', final_filename: '.$final_filename);
+                    $pheanstalk->delete($job);
+                }
+                else {
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
 
-
-                // Close the connection to prevent stale handles
-                $em->getConnection()->close();
-
-                // Dealt with (or ignored) the job
-                $pheanstalk->delete($job);
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                }
 
             }
             catch (\Exception $e) {
-                $output->writeln($e->getMessage());
-                $logger->err('CSVExportExpressFinalizeCommand.php: '.$e->getMessage());
+                if ( $e->getMessage() == 'retry' ) {
+                    $output->writeln( 'Could not resolve host, releasing job to try again' );
+                    $logger->err('CSVExportExpressFinalizeCommand.php: '.$e->getMessage());
 
-                // Delete the job so the queue doesn't hang, in theory
-                $pheanstalk->delete($job);
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                }
+                else {
+                    $output->writeln('ERROR: ' . $e->getMessage());
+
+                    $logger->err('CSVExportExpressFinalizeCommand.php: '.$e->getMessage());
+
+                    // Delete the job so the queue doesn't hang, in theory
+                    $pheanstalk->delete($job);
+                }
             }
         }
     }

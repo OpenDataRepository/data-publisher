@@ -395,6 +395,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 );
             }
             else if ( $rendering_options['context'] === 'display' ) {
+                $record_display_view = 'single';
+                if ( isset($rendering_options['record_display_view']) )
+                    $record_display_view = $rendering_options['record_display_view'];
+
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_display_fieldarea.html.twig',
                     array(
@@ -407,6 +411,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'target_datarecord_id' => $datarecord['id'],
                         'target_theme_id' => $initial_theme_id,
 
+                        'record_display_view' => $record_display_view,
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],

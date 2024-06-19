@@ -188,11 +188,18 @@
         });
 #}
         {# Actually have access to the form variables here... #}
+        $("#{{ theme_form.disableSearchSidebar.vars.id }}").unbind('change').change(function() {
+            clearTimeout(theme_properties_change);
+            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+        });
+
         $("#{{ theme_form.isTableTheme.vars.id }}").unbind('change').change(function() {
-            // If the "is_table_theme" checkbox got unselected, then ensure the "display_all_results"
-            //  checkbox is also unselected
-            if ( !$(this).prop('checked') )
+            // If the "is_table_theme" checkbox got unselected, then ensure the other two table-specific
+            //  options are also unselected
+            if ( !$(this).prop('checked') ) {
                 $("#{{ theme_form.displaysAllResults.vars.id }}").prop('checked', false);
+                $("#{{ theme_form.enableHorizontalScrolling.vars.id }}").prop('checked', false);
+            }
 
             clearTimeout(theme_properties_change);
             theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
@@ -208,7 +215,12 @@
             theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
         });
 
-        $("#{{ theme_form.disableSearchSidebar.vars.id }}").unbind('change').change(function() {
+        $("#{{ theme_form.enableHorizontalScrolling.vars.id }}").unbind('change').change(function() {
+            // If the "enable_horizontal_scrolling" checkbox got selected, then ensure the "is_table_theme"
+            //  checkbox is also selected
+            if ( $(this).prop('checked') )
+                $("#{{ theme_form.isTableTheme.vars.id }}").prop('checked', true);
+
             clearTimeout(theme_properties_change);
             theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
         });

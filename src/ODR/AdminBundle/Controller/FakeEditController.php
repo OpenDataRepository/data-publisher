@@ -44,6 +44,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 // Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -222,6 +223,9 @@ class FakeEditController extends ODRCustomController
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
+            /** @var Logger $logger */
+            $logger = $this->container->get('logger');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -359,8 +363,11 @@ class FakeEditController extends ODRCustomController
 
             // Verify that all the listed datafields belong to the datatype
             foreach ($datafields as $df_id => $val) {
-                if ( !isset($found_datafields[$df_id]) )
+                if ( !isset($found_datafields[$df_id]) ) {
+                    $logger->debug('FakeEditController: unable to find datafield '.$df_id.' when attempting to create new datarecord for datatype '.$datatype_id);
+                    $logger->debug('FakeEditController: received '.print_r($datafields, true) );
                     throw new ODRBadRequestException('Invalid Datafield');
+                }
             }
 
 

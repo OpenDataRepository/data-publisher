@@ -369,12 +369,13 @@
      *
      * @param {string} archive_filename
      * @param {string} archive_size
-     * @param {string} form_id
+     * @param {string} container_id
      */
-    function createZipArchiveProgressCheck(archive_filename, archive_size, form_id) {
-        if ( zip_archive_timeouts[ archive_filename ] == null || zip_archive_timeouts[ archive_filename ] == undefined ) {
-            zip_archive_timeouts[ archive_filename ] = 1;
-            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
+    function createZipArchiveProgressCheck(archive_filename, archive_size, container_id) {
+        // console.log('createZipArchiveProgressCheck()', archive_filename, archive_size, container_id);
+        if ( zip_archive_timeouts[ container_id ] == null || zip_archive_timeouts[ container_id ] == undefined || zip_archive_timeouts[ container_id ] == 0 ) {
+            zip_archive_timeouts[ container_id ] = 1;
+            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + container_id + "');", decrypt_check_timeout );
         }
     }
 
@@ -384,15 +385,22 @@
      *
      * @param {string} archive_filename
      * @param {string} archive_size
-     * @param {string} form_id
+     * @param {string} container_id
      */
-    function checkZipArchiveProgress(archive_filename, archive_size, form_id) {
+    function checkZipArchiveProgress(archive_filename, archive_size, container_id) {
+        // console.log('checkZipArchiveProgress()', archive_filename, archive_size, container_id);
+
+        var container = $('#' + container_id);
+        $(container).find('.ODRFileDownloadForm_label').addClass('ODRHidden');
+        $(container).find('.ODRFileDownloadForm_progress').removeClass('ODRHidden');
+
+        archive_size = parseInt(archive_size);
+        $(container).find('.ODRFileDownloadForm_total').html(archive_size);
+
         // Get progress of zip archive from server
         var url = "{{ path('odr_get_zip_archive_progress', {'archive_filename': 0}) }}";
         url = url.substr(0, url.length-1);
         url += archive_filename;
-
-        archive_size = parseInt(archive_size);
 
         $.ajax({
             cache: false,
@@ -401,15 +409,21 @@
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 var archive_filecount = parseInt(data.d.archive_filecount);
+                // console.log('archive_filecount', archive_filecount);
 
                 // Update the progress indicator
-                $('#ODRFileDownloadForm_current').html(archive_filecount);
-
+                $(container).find('.ODRFileDownloadForm_current').html(archive_filecount);
 
                 if ( archive_size == archive_filecount ) {
                     // Reset and close the file download dialog form
-                    $('#ODRFileDownloadForm_progress').hide();
+                    // console.log('archive finished, resetting');
+
+                    $(container).find('.ODRFileDownloadForm_label').removeClass('ODRHidden');
+                    $(container).find('.ODRFileDownloadForm_progress').addClass('ODRHidden');
                     closeODRRemodal();
+
+                    $(container).find('.ODRFileDownloadForm_current').html('');
+                    $(container).find('.ODRFileDownloadForm_total').html('');
 
                     // Construct the URL to download the archive
                     var download_url = "{{ path('odr_download_zip_archive', {'archive_filename': 0}) }}";
@@ -427,11 +441,11 @@
                         },
                         successCallback: function (url) {
                             // File is finished
-                            zip_archive_timeouts[ archive_filename ] = null;
+                            zip_archive_timeouts[ container_id ] = null;
                         },
                         failCallback: function (responseHtml, url, error) {
                             // Something went wrong...
-                            zip_archive_timeouts[ archive_filename ] = null;
+                            zip_archive_timeouts[ container_id ] = null;
 
                             // Convert response to json, and display error message
                             var response = $.parseJSON(responseHtml);
@@ -440,11 +454,18 @@
                     });
                 }
                 else {
-                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
+                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + container_id + "');", decrypt_check_timeout );
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
-                zip_archive_timeouts[ archive_filename ] = null;
+                // Reset the progress elements
+                // console.log('error, resetting');
+                $(container).find('.ODRFileDownloadForm_label').removeClass('ODRHidden');
+                $(container).find('.ODRFileDownloadForm_progress').addClass('ODRHidden');
+                $(container).find('.ODRFileDownloadForm_current').html('');
+                $(container).find('.ODRFileDownloadForm_total').html('');
+
+                zip_archive_timeouts[ container_id ] = null;
                 // Close modal
                 closeODRRemodal();
                 // Show growl

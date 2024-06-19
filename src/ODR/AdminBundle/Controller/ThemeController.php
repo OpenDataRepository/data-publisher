@@ -405,9 +405,10 @@ class ThemeController extends ODRCustomController
                     $properties = array(
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
+                        'disableSearchSidebar' => $submitted_data->getDisableSearchSidebar(),
                         'isTableTheme' => $submitted_data->getIsTableTheme(),
                         'displaysAllResults' => $submitted_data->getDisplaysAllResults(),
-                        'disableSearchSidebar' => $submitted_data->getDisableSearchSidebar(),
+                        'enableHorizontalScrolling' => $submitted_data->getEnableHorizontalScrolling(),
                     );
                     $entity_modify_service->updateThemeMeta($user, $theme, $properties);
 
