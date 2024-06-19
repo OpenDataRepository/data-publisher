@@ -29,7 +29,7 @@ php app/console odr_datatype:sync_template >> app/logs/sync_template.log 2>&1 &
 php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_1.log 2>&1 &
 php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_2.log 2>&1 &
 php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_3.log 2>&1 &
-php app/console odr_csv_export:express_finalize >> app/logs/export_express_finalize.log 2>&1 &
+php app/console odr_csv_export:finalize_express >> app/logs/export_finalize_express.log 2>&1 &
 
 cd /home/odr/data-publisher/background_services
 node graph_renderer_daemon.js >> ../app/logs/graph_preview_1.log 2>&1 &
