@@ -1739,6 +1739,18 @@ odr_track_get_user_selector:
 #    methods: [POST]
 #-----------------------------------------
 
+odr_amcsd_parse:
+    path: /admin/amcsd/parse
+    defaults: { _controller: ODRAdminBundle:Worker:amcsdparse }
+odr_amcsd_decrypt:
+    path: /admin/amcsd/decrypt
+    defaults: { _controller: ODRAdminBundle:Worker:amcsddecrypt }
+odr_amcsd_diff:
+    path: /admin/amcsd/diff
+    defaults: { _controller: ODRAdminBundle:Worker:amcsddiff }
+odr_amcsd_update:
+    path: /admin/amcsd/update
+    defaults: { _controller: ODRAdminBundle:Worker:amcsdupdate }
 
 imports:
     resource: api.yml
