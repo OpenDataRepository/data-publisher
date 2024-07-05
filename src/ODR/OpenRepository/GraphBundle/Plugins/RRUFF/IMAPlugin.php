@@ -1751,11 +1751,15 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         // Not going to fundamentally change how the searches are done...
         $search_value = $search_term['value'];
         $mineral_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_name_df, $search_value);
+        $involves_empty_string = $mineral_name_search_results['guard'];
 
-        // ...but that does mean the 'Mineral Aliases' field also needs to be hydrated here
-        /** @var DataFields $mineral_aliases_df */
-        $mineral_aliases_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($mineral_aliases_df_id);
-        $mineral_aliases_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_aliases_df, $search_value);
+        $mineral_aliases_search_results = array('records' => array());
+        if ( $search_value !== "\"\"" ) {
+            // ...but should only search the 'Mineral Aliases' field when not searching on the empty string
+            /** @var DataFields $mineral_aliases_df */
+            $mineral_aliases_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($mineral_aliases_df_id);
+            $mineral_aliases_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_aliases_df, $search_value);
+        }
 
 
         // ----------------------------------------
@@ -1768,6 +1772,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         return array(
             'dt_id' => $mineral_name_search_results['dt_id'],
             'records' => $final_dr_list,
+            'guard' => $involves_empty_string,
         );
     }
 }

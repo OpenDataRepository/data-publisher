@@ -901,6 +901,17 @@ class SearchService
      * Searches the given file or image datafield by either the given filename or whether it has
      * any files or not, and returns an array of datarecord ids that match the given criteria.
      *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'dt_id' => <dt_id>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     * )
+     * </pre>
+     *
      * @param DataFields $datafield
      * @param array $search_terms
      *
@@ -1049,7 +1060,8 @@ class SearchService
 
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $result
+            'records' => $result,
+            'guard' => $involves_empty_string,
         );
 
         // ...and recache the search result
@@ -1236,6 +1248,17 @@ class SearchService
      * Searches the specified datafield for the specified value, returning an array of
      * datarecord ids that match the search.
      *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'dt_id' => <dt_id>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     * )
+     * </pre>
+     *
      * @param DataFields $datafield
      * @param string $value
      *
@@ -1281,7 +1304,8 @@ class SearchService
 
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $result
+            'records' => $result['records'],
+            'guard' => $result['guard'],
         );
 
         // ...then recache the search result

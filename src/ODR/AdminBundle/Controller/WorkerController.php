@@ -31,6 +31,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -1829,4 +1830,277 @@ $ret .= '  Set current to '.$count."\n";
         return $response;
     }
 
+
+    /**
+     * TODO
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function amcsdlinkAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $conn = null;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // ----------------------------------------
+            // Need to get three dataype ids...
+            $query =
+               'SELECT dt.id AS dt_id, dtm.short_name
+                FROM odr_data_type dt
+                LEFT JOIN odr_data_type_meta dtm ON dtm.data_type_id = dt.id
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            $rruff_reference_dt_id = $amcsd_dt_id = $ima_dt_id = 0;
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dt_name = $result['short_name'];
+
+                switch ($dt_name) {
+                    case 'AMCSD':
+                        $amcsd_dt_id = $dt_id;
+                        break;
+                    case 'RRUFF References':
+                        $rruff_reference_dt_id = $dt_id;
+                        break;
+                    case 'IMA Mineral List':
+                        $ima_dt_id = $dt_id;
+                        break;
+                }
+            }
+
+
+            // ----------------------------------------
+            // Need to take a slight detour to find the 'Needs Review' field from RRUFF References...
+            $query =
+               'SELECT df.id AS df_id
+                FROM odr_data_fields df
+                LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+                WHERE df.data_type_id = '.$rruff_reference_dt_id.'
+                AND dfm.field_name LIKE "%needs%"
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            $needs_review_df_id = 0;
+            foreach ($results as $result)
+                $needs_review_df_id = $result['df_id'];
+
+            // ...and the 'Mineral' field from AMCSD...
+            $query =
+               'SELECT df.id AS df_id
+                FROM odr_data_fields df
+                LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+                WHERE df.data_type_id = '.$amcsd_dt_id.'
+                AND dfm.field_name LIKE "%mineral%"
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            $mineral_df_id = 0;
+            foreach ($results as $result)
+                $mineral_df_id = $result['df_id'];
+
+            // ...and the 'Mineral Name' field from IMA
+            $query =
+               'SELECT df.id AS df_id
+                FROM odr_data_fields df
+                LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+                WHERE df.data_type_id = '.$ima_dt_id.'
+                AND dfm.field_name LIKE "%mineral name%"
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            $mineral_name_df = null;
+            foreach ($results as $result) {
+                // ...unlike the previous two, want the hydrated datafield
+                $df_id = $result['df_id'];
+                $mineral_name_df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                if ( $mineral_name_df == null )
+                    throw new ODRNotFoundException('datafield');
+            }
+            /** @var DataFields $mineral_name_df */
+
+            /** @var DataType $rruff_reference_dt */
+            $rruff_reference_dt = $em->getRepository('ODRAdminBundle:DataType')->find($rruff_reference_dt_id);
+            if ( $rruff_reference_dt == null )
+                throw new ODRNotFoundException('rruff reference datatype');
+            /** @var DataType $ima_dt */
+            $ima_dt = $em->getRepository('ODRAdminBundle:DataType')->find($ima_dt_id);
+            if ( $ima_dt == null )
+                throw new ODRNotFoundException('ima datatype');
+
+
+            // ----------------------------------------
+            // Find all AMCSD records that link to a RRUFF Reference with the "Needs Review?" flag
+            $query =
+               'SELECT reference_dr.id AS reference_dr_id, amcsd_dr.id AS amcsd_dr_id, mv.value AS mineral_value
+                FROM odr_boolean bv
+                LEFT JOIN odr_data_record reference_dr ON bv.data_record_id = reference_dr.id
+                LEFT JOIN odr_linked_data_tree ldt ON ldt.descendant_id = reference_dr.id
+                LEFT JOIN odr_data_record amcsd_dr ON ldt.ancestor_id = amcsd_dr.id
+                LEFT JOIN odr_data_record_fields drf ON (drf.data_record_id = amcsd_dr.id AND drf.data_field_id = '.$mineral_df_id.')
+                LEFT JOIN odr_medium_varchar mv ON mv.data_record_fields_id = drf.id
+                WHERE bv.data_field_id = '.$needs_review_df_id.' AND bv.value = 1
+                AND bv.deletedAt IS NULL AND reference_dr.deletedAt IS NULL
+                AND ldt.deletedAt IS NULL AND amcsd_dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND mv.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            $invalid_mineral_chars = array(' ', '.', '*', ',', '[');
+            $mineral_lookup = array();
+            $data = array();
+            foreach ($results as $result) {
+                $reference_dr_id = intval( $result['reference_dr_id'] );
+                $amcsd_dr_id = intval( $result['amcsd_dr_id'] );
+                $mineral_name = trim( $result['mineral_value'] );
+
+                // AMCSD "minerals" aren't necessarily IMA minerals...should filter out most of the
+                //  compounds so searching for IMA records doesn't take even longer
+                if ( strlen($mineral_name) < 3 )
+                    continue;
+                foreach ($invalid_mineral_chars as $char) {
+                    if ( strpos($mineral_name, $char) !== false )
+                        continue 2;
+                }
+
+                if ( !isset($data[$reference_dr_id]) )
+                    $data[$reference_dr_id] = array();
+                if ( !isset($data[$reference_dr_id][$amcsd_dr_id]) )
+                    $data[$reference_dr_id][$amcsd_dr_id] = $mineral_name;
+
+                if ( !isset($mineral_lookup[$mineral_name]) )
+                    $mineral_lookup[$mineral_name] = null;
+            }
+
+
+            // ----------------------------------------
+            // Attempt to locate all IMA minerals
+            foreach ($mineral_lookup as $mineral_name => $val) {
+                $dr_list = $search_service->searchTextOrNumberDatafield($mineral_name_df, '"'.$mineral_name.'"');
+
+                if ( count($dr_list['records']) == 1 ) {
+                    foreach ($dr_list['records'] as $dr_id => $num)
+                        $mineral_lookup[$mineral_name] = $dr_id;
+                }
+            }
+            ksort($mineral_lookup);
+
+            // Might as well get rid of all "mineral names" which aren't IMA minerals
+            foreach ($mineral_lookup as $mineral_name => $val) {
+                if ( is_null($val) )
+                    unset( $mineral_lookup[$mineral_name] );
+            }
+
+
+            // ----------------------------------------
+            // Link each of these RRUFF Reference datarecords to the related IMA mineral if possible
+            $linked_datarecords = array();
+
+            // ...but to avoid double-linking, get a list of all links that alraedy exist
+            $query =
+               'SELECT reference_dr.id AS reference_dr_id, ima_dr.id AS ima_dr_id
+                FROM odr_data_record reference_dr
+                LEFT JOIN odr_linked_data_tree ldt ON ldt.descendant_id = reference_dr.id
+                LEFT JOIN odr_data_record ima_dr ON ldt.ancestor_id = ima_dr.id
+                WHERE reference_dr.data_type_id = '.$rruff_reference_dt_id.'
+                AND ima_dr.data_type_id = '.$ima_dt_id.'
+                AND reference_dr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ima_dr.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            foreach ($results as $result) {
+                $reference_dr_id = $result['reference_dr_id'];
+                $ima_dr_id = $result['ima_dr_id'];
+
+                if ( !isset($linked_datarecords[$reference_dr_id]) )
+                    $linked_datarecords[$reference_dr_id] = array();
+                $linked_datarecords[$reference_dr_id][$ima_dr_id] = 1;
+            }
+
+            $conn->beginTransaction();
+            print '<pre>';
+            foreach ($data as $reference_dr_id => $amcsd_drs) {
+                foreach ($amcsd_drs as $amcsd_dr_id => $mineral_name) {
+                    if ( isset($mineral_lookup[$mineral_name]) ) {
+                        // Don't really want to hydrate every single bloody datarecord...
+                        $ima_dr_id = $mineral_lookup[$mineral_name];
+
+                        // If the reference datarecord is already linked to the ima record, then
+                        //  don't link it again
+                        if ( isset($linked_datarecords[$reference_dr_id][$ima_dr_id]) )
+                            continue;
+
+                        // Doing this "manually" because i'm not hydrating everything, and also
+                        //  don't really want a shitload of events to fire
+                        $query = 'INSERT INTO odr_linked_data_tree (`ancestor_id`, `descendant_id`, `created`, `createdBy`) VALUES ('.$ima_dr_id.', '.$reference_dr_id.', NOW(), '.$user->getId().')';
+                        $conn->executeUpdate($query);
+
+                        // Ensure the reference doesn't get linked to the mineral more than once
+                        $linked_datarecords[$reference_dr_id][$ima_dr_id] = 1;
+
+                        print 'linked rruff reference '.$reference_dr_id.' to IMA Mineral "'.$mineral_name.'" ('.$ima_dr_id.')'."\n";
+                    }
+                }
+            }
+            print '</pre>';
+//            $conn->rollBack();
+            $conn->commit();
+
+            // Fire off events to clear all relevant cache entries
+            try {
+                $event = new DatatypeImportedEvent($rruff_reference_dt, $user);
+                $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+
+                $event = new DatatypeImportedEvent($ima_dt, $user);
+                $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
+
+        }
+        catch (\Exception $e) {
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollback();
+
+            $source = 0xe5ca8383;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }

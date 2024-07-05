@@ -1752,5 +1752,9 @@ odr_amcsd_update:
     path: /admin/amcsd/update
     defaults: { _controller: ODRAdminBundle:Worker:amcsdupdate }
 
+odr_amcsd_link:
+    path: /admin/amcsd/link
+    defaults: { _controller: ODRAdminBundle:Worker:amcsdlink }
+
 imports:
     resource: api.yml

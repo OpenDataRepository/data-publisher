@@ -618,7 +618,8 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
             $end_result = array(
                 'dt_id' => $datafield->getDataType()->getId(),
-                'records' => $result
+                'records' => $result['records'],
+                'guard' => $result['guard'],
             );
         }
         else {
@@ -643,6 +644,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
             // Run the required searches
             $original_result = $converted_result = null;
+            $original_involves_empty_string = $converted_involves_empty_string = false;
             if ( $original_value !== '' ) {
                 $original_result = $this->search_query_service->searchTextOrNumberDatafield(
                     $datafield->getDataType()->getId(),
@@ -652,6 +654,9 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     false,    // don't change doublequote handling
                     false    // get the original value stored in this field
                 );
+
+                if ( $original_result['guard'] )
+                    $original_involves_empty_string = true;
             }
 
             if ( $converted_value !== '' ) {
@@ -663,6 +668,9 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     false,    // don't change doublequote handling
                     true    // get the converted value stored in this field
                 );
+
+                if ( $original_result['guard'] )
+                    $converted_involves_empty_string = true;
             }
 
             // Need to combine the two results together
@@ -681,12 +689,13 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             }
             else {
                 // Searched on both...take the intersection of both arrays
-                $result = array_intersect_key($original_result, $converted_result);
+                $result = array('records' => array_intersect_key($original_result['records'], $converted_result['records']));
             }
 
             $end_result = array(
                 'dt_id' => $datafield->getDataType()->getId(),
-                'records' => $result
+                'records' => $result['records'],
+                'guard' => $original_involves_empty_string | $converted_involves_empty_string,
             );
         }
 

@@ -674,7 +674,8 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $result
+            'records' => $result['records'],
+            'guard' => $result['guard'],
         );
 
         // ...then recache the search result
