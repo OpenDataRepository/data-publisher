@@ -72,6 +72,7 @@ services:
         arguments:
             $cache_service: "@snc_redis.default"
             $cache_prefix: "%memcached_key_prefix%"
+            $related_cache_prefixes: "%related_memcached_key_prefixes%"
 
     odr.lock_service:
         class: ODR\AdminBundle\Component\Service\LockService

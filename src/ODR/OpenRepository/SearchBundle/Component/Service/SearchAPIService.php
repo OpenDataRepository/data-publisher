@@ -574,6 +574,14 @@ class SearchAPIService
 
                         // The plugin will return the same format that the regular searches do
                         $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo);
+
+                        // If this search involved the empty string...
+                        $involves_empty_string = $dr_list['guard'];
+                        if ($involves_empty_string) {
+                            // ...then insert an entry into the criteria array so that the later
+                            //  call of self::mergeSearchResults() can properly compensate
+                            $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                        }
                     }
                     else {
                         // Datafield search depends on the typeclass of the field
@@ -602,6 +610,14 @@ class SearchAPIService
                         else if ($typeclass === 'File' || $typeclass === 'Image') {
                             // Searches on Files/Images are effectively interchangable
                             $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term);    // There could be three different terms in there, actually
+
+                            // If this search involved the empty string...
+                            $involves_empty_string = $dr_list['guard'];
+                            if ($involves_empty_string) {
+                                // ...then insert an entry into the criteria array so that the later
+                                //  call of self::mergeSearchResults() can properly compensate
+                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                            }
                         }
                         else if ($typeclass === 'DatetimeValue') {
                             // DatetimeValue needs to worry about before/after...
@@ -610,6 +626,14 @@ class SearchAPIService
                         else {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
                             $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
+
+                            // If this search involved the empty string...
+                            $involves_empty_string = $dr_list['guard'];
+                            if ($involves_empty_string) {
+                                // ...then insert an entry into the criteria array so that the later
+                                //  call of self::mergeSearchResults() can properly compensate
+                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                            }
                         }
                     }
 
@@ -2465,6 +2489,70 @@ class SearchAPIService
 
 
         // ----------------------------------------
+        // There are two situations under which merging by OR needs to happen...
+
+        // The more common instance is when a search term inside a descendant datatype could
+        //  match the empty string...in this case, we also want records from the ancestor datatype
+        //  that DO NOT have descendants to match the query
+        $merge_ancestors_without_descendants = null;
+        foreach ($descendants as $descendant_dt_id => $data) {
+            if ( isset($criteria[$descendant_dt_id]) ) {
+                foreach ($criteria[$descendant_dt_id] as $facet_num => $facet) {
+                    foreach ($facet['search_terms'] as $df_id => $search_term) {
+                        // If the 'guard' key exists in the array, then this search_term could've
+                        //  matched the empty string...
+                        if ( isset($search_term['guard']) ) {
+                            // ...this currently can only happen as a result of a search on a
+                            //  text/number field, or a file/image filename search
+                            $merge_ancestors_without_descendants = $descendant_dt_id;
+                            break 3;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ( !is_null($merge_ancestors_without_descendants) ) {
+            $relevant_descendant_dt_id = $merge_ancestors_without_descendants;
+
+            // Going to be faster to determine which datarecords don't have descendants by
+            //  digging through the $search_datatree array...
+            $relevant_descendant_dr_list = null;
+            if ( isset($search_datatree['children'][$relevant_descendant_dt_id]) )
+                $relevant_descendant_dr_list = $search_datatree['children'][$relevant_descendant_dt_id]['dr_list'];
+            else
+                $relevant_descendant_dr_list = $search_datatree['links'][$relevant_descendant_dt_id]['dr_list'];
+
+            // Copy the current list of ancestor datarecords...
+            $current_ancestor_dr_list = $search_datatree['dr_list'];
+            foreach ($relevant_descendant_dr_list as $descendant_dr_id => $ancestors) {
+                if ( is_array($ancestors) ) {
+                    // The descendant is a linked datatype, and therefore could have multiple ancestors
+                    foreach ($ancestors as $ancestor_dr_id => $str) {
+                        // ...then get rid of all entries that are ancestors of these descendant records
+                        if ( isset($current_ancestor_dr_list[$ancestor_dr_id]) )
+                            unset( $current_ancestor_dr_list[$ancestor_dr_id] );
+                    }
+                }
+                else {
+                    // The descendant is a child datatype, and therefore only has a single ancestor
+                    if ( isset($current_ancestor_dr_list[$ancestors]) )
+                        unset( $current_ancestor_dr_list[$ancestors] );
+                }
+            }
+
+            // Each of the ancestors without descendants then need to be inserted into $facets...
+            $ancestors_without_descendants = $current_ancestor_dr_list;
+            foreach ($ancestors_without_descendants as $ancestor_dr_id => $ancestors_of_ancestor_dr) {
+                // ...insert the ancestor records as if they directly matched the results of the
+                //  descendant datatype...after the do/while loop, there's no guarantee of a relation
+                //  between the datatype and datarecord ids in the array anyways
+                $facets['adv'][$relevant_descendant_dt_id][$ancestor_dr_id] = 1;
+            }
+        }
+
+
+        // ----------------------------------------
         // $facets['adv'] now contains two types of lists of records belonging that match the search
         //  terms provided by the user...
         do {
@@ -2472,6 +2560,7 @@ class SearchAPIService
             $merge_by_OR = false;
             if ( empty($descendants) )
                 break;
+
 
             // The only time a datatype might need to merge search results by OR is when there are
             //  "multiple paths" to reach the same descendant datatype...
@@ -2508,6 +2597,7 @@ class SearchAPIService
             }
 
 
+            // ----------------------------------------
             if ( $merge_by_OR ) {
                 // If merging by OR is required, then all the current datarecord lists and descendant
                 //  data should get merged into a single logical facet

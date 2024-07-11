@@ -101,7 +101,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(
                     'dt_id' => 2
                 ),
-                array(91,92,93,94,95,96,97),
+                array(91,92,93,94,95,96,97,322),
                 true
             ],
             'IMA List: default search, not logged in' => [
@@ -234,7 +234,7 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 2,
                     '19' => '""',
                 ),
-                array(91,93,95,96,97),
+                array(91,93,95,96,97,322),
                 true
             ],
             'IMA List: mineral_aliases is not blank, including non-public records' => [
@@ -391,6 +391,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),
                 false
             ],
+
             'RRUFF Sample: IMA Mineral::mineral_name contains "b" and RRUFF Reference::Authors contains "downs", including non-public records' => [
                 array(
                     'dt_id' => 3,
@@ -840,6 +841,30 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'IMA List: search for minerals without a reference' => [
+                array(
+                    'dt_id' => 2,
+                    '1' => '""',
+                ),
+                array(322),    // should return one result, the only IMA mineral without a linked reference
+                true
+            ],
+            'IMA List: search for minerals with author == "downs" OR minerals without a reference' => [
+                array(
+                    'dt_id' => 2,
+                    '1' => 'downs OR ""',
+                ),
+                array(91,94,97,322),    // should return the three minerals referred to by "downs" and the only IMA mineral without a linked reference
+                true
+            ],
+            'IMA List: search for minerals with author == "downs" AND minerals without a reference' => [
+                array(
+                    'dt_id' => 2,
+                    '1' => 'downs AND ""',
+                ),
+                array(),    // should return nothing because it's impossible to match
+                true
+            ],
             'IMA List: search for minerals with non-public references' => [
                 array(
                     'dt_id' => 2,
@@ -860,7 +885,7 @@ class SearchAPIServiceTest extends WebTestCase
 
             'RRUFF Sample: search for minerals with non-public references and mineral_display_name !== ""' => [
                 array(
-                    'dt_id' => 2,
+                    'dt_id' => 3,
                     'dt_1_pub' => 0,
                     '18' => '!""',
                 ),
@@ -869,13 +894,59 @@ class SearchAPIServiceTest extends WebTestCase
             ],
             'RRUFF Sample: search for minerals with non-public references and rruff_id !== ""' => [
                 array(
-                    'dt_id' => 2,
+                    'dt_id' => 3,
                     'dt_1_pub' => 0,
                     '30' => '!""',
                 ),
                 array(),    // should also return no results, despite the other part of the search returning results
                 true
             ],
+
+            // ----------------------------------------
+            // IMPORTANT: while you might expect these next two tests to behave similarly to
+            //  the two that are were run on the IMA List, you would be sorely mistaken.
+
+            // ODR quasi-intentionally obsfucates searching in situations in which there are multiple
+            // "paths" to reach a descendant...
+            // e.g. "Samples" links to "Mineral", "Mineral" links to "References", "Samples" also links to "References"
+            // ...the search sidebar UI would need to be modified to display a hierarchy and inform
+            //  the user why it's different, and SearchAPIService::getSearchArrays() would have to
+            //  create/store two copies of the "Reference" records, SearchAPIService::mergeSearchResults()
+            //  would have to differentiate which copy of the records matched the search query, and
+            //  the merging would also have to differentiate between the different sets of records
+            //  ...that's obviously a serious pain in the ass to code, and that's before you have to
+            //  explain to a user who isn't *expecting* such a drastic distinction why they have to
+            //  jump through hoops instead of having it just work.
+            'RRUFF Sample: reference author == ""' => [
+                // Without the ability to differentiate between which "path" you want, this is
+                //  actually asking for the rruff samples which aren't linked to a reference, or
+                //  for the rruff samples linked to a mineral that aren't linked to a reference
+
+                // This clearly isn't something that's terribly useful to know, but this is the price
+                //  paid for allowing queries like '"RRUFF Sample: reference author == "downs"' to
+                //  return results from both "paths" so the query works as *expected*.  Whee.
+                array(
+                    'dt_id' => 3,
+                    '1' => '""',
+                ),
+                array_merge(
+                    array_diff(
+                        range(98,139),  // the rruff samples range from 98 to 139...
+                        array(107)      // ...but 107 won't match the query since it's the only one with a reference of its own
+                    ),
+                    array(323)         // ...also need the rruff sample 323, since it links to the mineral 322 which has no references
+                ),
+                true
+            ],
+            'RRUFF Sample: search for samples where minerals with author == "downs" AND minerals without a reference' => [
+                array(
+                    'dt_id' => 3,
+                    '1' => 'downs AND ""',
+                ),
+                array(),    // should return nothing because it's impossible to match
+                true
+            ],
+            // ----------------------------------------
         ];
     }
 
@@ -898,14 +969,14 @@ class SearchAPIServiceTest extends WebTestCase
                 array(
                     'dt_id' => 2
                 ),
-                range(1, 97),    // all RRUFF Reference records, plus the 7 IMA List records
+                array_merge( range(1, 97), array(322) ),    // all RRUFF Reference records, plus the 8 IMA List records
                 true
             ],
             'RRUFF Sample: default search, including non-public records' => [
                 array(
                     'dt_id' => 3
                 ),
-                range(1, 295),    // all RRUFF Reference records, plus the 7 IMA List records, plus the 42 RRUFF Sample records, plus the 156 Raman Spectra records
+                array_merge( range(1, 295), array(322,323) ),    // all RRUFF Reference records, plus the 8 IMA List records, plus the 43 RRUFF Sample records, plus the 156 Raman Spectra records
                 true
             ],
             'RRUFF Sample: wavelength = "999"' => [

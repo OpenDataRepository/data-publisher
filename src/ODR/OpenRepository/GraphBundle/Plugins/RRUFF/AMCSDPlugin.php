@@ -1541,7 +1541,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $val += 1;
 
         // Convert it back into the expected format so the storage entity can get created
-        $new_value = str_pad($val, 5, '0', STR_PAD_LEFT);
+        $new_value = str_pad($val, 5, '0', STR_PAD_LEFT).'.amc';
         $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
         $this->logger->debug('Setting df '.$datafield->getId().' "fileno" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
@@ -1584,7 +1584,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $query =
            'SELECT e.value
             FROM odr_short_varchar e
-            WHERE e.data_field_id = :datafield AND e.value REGEXP "^[0-9]{5,5}$"
+            WHERE e.data_field_id = :datafield AND e.value REGEXP "^[0-9]{5,5}\.amc$"
             AND e.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';

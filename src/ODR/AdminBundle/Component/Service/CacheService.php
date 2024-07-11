@@ -27,28 +27,42 @@ class CacheService
      */
     private $cache_prefix;
 
+    /**
+     * @var string[]
+     */
+    private $related_cache_prefixes;
+
 
     /**
      * CacheService constructor.
      *
      * @param Predis\Client $cache_service
      * @param string $cache_prefix
+     * @param string[] $related_cache_prefixes
      */
-    public function __construct(Predis\Client $cache_service, $cache_prefix)
+    public function __construct(Predis\Client $cache_service, $cache_prefix, $related_cache_prefixes)
     {
         $this->cache_service = $cache_service;
         $this->cache_prefix = $cache_prefix;
+        $this->related_cache_prefixes = $related_cache_prefixes;
     }
 
 
     /**
-     * Deletes the specified key out of the cache.
+     * Deletes the specified key out of the cache.  If any related cache prefixes are configured,
+     * then those are deleted as well.
      *
      * @param string $key
      */
     public function delete($key)
     {
-        $this->cache_service->del( array($this->cache_prefix.'.'.$key) );
+        $tmp = array($this->cache_prefix.'.'.$key);
+        foreach ($this->related_cache_prefixes as $prefix) {
+            if ( !is_null($prefix) && $prefix !== '' )
+                $tmp[] = $prefix.'.'.$key;
+        }
+
+        $this->cache_service->del($tmp);
     }
 
 

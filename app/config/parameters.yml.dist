@@ -159,7 +159,14 @@ parameters:
         -
             host: 127.0.0.1
             port: 11211
-    memcached_key_prefix: odr_master         # If the physical server handles more than a single instance of ODR, then each instance of ODR must have a different memcached_key_prefix
+    # If the physical server handles more than a single instance of ODR, then each instance of ODR must have a different memcached_key_prefix
+    memcached_key_prefix: odr_master
+    # When the same backend mysql database is being used by more than one ODR site, each with their
+    #  own memcached_key_prefix...changes made on one site need to delete redis cache entries on
+    #  the related sites, otherwise they'll appear to be out of sync.
+    # Usually will be an empty array, but is an array of strings when needed
+    related_memcached_key_prefixes: []
+
     session_memcached_expire: 3600
     session_memcached_prefix: odr_master
     session_memcached_host: 127.0.0.1

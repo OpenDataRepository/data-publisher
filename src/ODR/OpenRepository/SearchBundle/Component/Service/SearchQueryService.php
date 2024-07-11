@@ -966,7 +966,20 @@ class SearchQueryService
 
     /**
      * Searches a file/image datafield for a filename and/or whether it has files or not, returning
-     * an array of datarecord ids that match the criteria
+     * an array of datarecord ids that match the criteria.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     *      'all_records' => array(
+     *          <matching dr_id> => 1
+     *      ),
+     *     'public_only' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
      *
      * @param int $datatype_id
      * @param int $datafield_id
@@ -974,7 +987,7 @@ class SearchQueryService
      * @param string $search_type
      * @param string $search_value
      *
-     * @return array The datarecord IDs are keys, not values
+     * @return array
      */
     public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_type, $search_value)
     {
@@ -1393,6 +1406,16 @@ class SearchQueryService
      * Searches the specified datafield for the specified value, returning an array of
      * datarecord ids that match the search.
      *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     *
      * @param int $datatype_id
      * @param int $datafield_id
      * @param string $typeclass
@@ -1400,7 +1423,7 @@ class SearchQueryService
      * @param bool $doublequotes_force_exact_match {@link SearchQueryService::parseField()}
      * @param bool $search_converted If true, then run the search against 'converted_value' instead of 'value'
      *
-     * @return array The datarecord IDs are keys, not values
+     * @return array
      */
     public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $doublequotes_force_exact_match = false, $search_converted = false)
     {
@@ -1435,11 +1458,18 @@ class SearchQueryService
         // ----------------------------------------
         // Determine whether this query's search parameters contain an empty string...if so, may
         //  have to to run an additional query because of how ODR is designed...
+        $involves_empty_string = false;
         if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
             // ...but only when the query actually has a logical chance of returning results...
             if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
                 $search_params['params']['datatype_id'] = $datatype_id;
                 $query .= "\nUNION\n".$null_query;
+
+                // Need to inform callers that this query can matches the empty string
+                // This is important because if this search is on a descendant datatype, then the
+                //  ancestor datatype needs to take records without descendants and merge_by_OR with
+                //  the descendant datatype's records that match the query
+                $involves_empty_string = true;
             }
         }
 
@@ -1462,7 +1492,10 @@ class SearchQueryService
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
-        return $datarecords;
+        return array(
+            'records' => $datarecords,
+            'guard' => $involves_empty_string,
+        );
     }
 
 
@@ -1521,10 +1554,18 @@ class SearchQueryService
 
         // Determine whether this query's search parameters contain an empty string...if so, may
         //  have to to run an additional query because of how ODR is designed...
+        $involves_empty_string = false;
+
         if ( self::isNullDrfPossible($search_params_text['str'], $search_params_text['params']) ) {
             // ...but only when the query actually has a logical chance of returning results...
             if ( self::canQueryReturnResults($search_params_text['str'], $search_params_text['params']) ) {
                 $null_queries[0] = $null_queries[1] = $null_queries[2] = $null_queries[3] = true;
+
+                // Need to inform callers that this query can matches the empty string
+                // This is important because if this search is on a descendant datatype, then the
+                //  ancestor datatype needs to take records without descendants and merge_by_OR with
+                //  the descendant datatype's records that match the query
+                $involves_empty_string = true;
             }
         }
 
@@ -1534,6 +1575,8 @@ class SearchQueryService
         if ( self::isNullDrfPossible($search_params_num['str'], $search_params_num['params']) ) {
             if ( self::canQueryReturnResults($search_params_num['str'], $search_params_num['params']) ) {
                 $null_queries[4] = $null_queries[5] = true;
+
+                $involves_empty_string = true;
             }
         }
 
@@ -1620,7 +1663,10 @@ class SearchQueryService
             }
         }
 
-        return $datarecords;
+        return array(
+            'guard' => $involves_empty_string,
+            'records' => $datarecords,
+        );
     }
 
 
