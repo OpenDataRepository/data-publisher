@@ -133,6 +133,16 @@ class DataFieldsMeta
     private $radio_option_display_unselected;
 
     /**
+     * @var bool
+     */
+    private $merge_by_AND;
+
+    /**
+     * @var bool
+     */
+    private $search_can_request_both_merges;
+
+    /**
      * @var boolean
      */
     private $tags_allow_multiple_levels;
@@ -687,6 +697,54 @@ class DataFieldsMeta
     public function getRadioOptionDisplayUnselected()
     {
         return $this->radio_option_display_unselected;
+    }
+
+    /**
+     * Set mergeByAND.
+     *
+     * @param bool $mergeByAND
+     *
+     * @return DataFieldsMeta
+     */
+    public function setMergeByAND($mergeByAND)
+    {
+        $this->merge_by_AND = $mergeByAND;
+
+        return $this;
+    }
+
+    /**
+     * Get mergeByAND.
+     *
+     * @return bool
+     */
+    public function getMergeByAND()
+    {
+        return $this->merge_by_AND;
+    }
+
+    /**
+     * Set searchCanRequestBothMerges.
+     *
+     * @param bool $searchCanRequestBothMerges
+     *
+     * @return DataFieldsMeta
+     */
+    public function setSearchCanRequestBothMerges($searchCanRequestBothMerges)
+    {
+        $this->search_can_request_both_merges = $searchCanRequestBothMerges;
+
+        return $this;
+    }
+
+    /**
+     * Get searchCanRequestBothMerges.
+     *
+     * @return bool
+     */
+    public function getSearchCanRequestBothMerges()
+    {
+        return $this->search_can_request_both_merges;
     }
 
     /**

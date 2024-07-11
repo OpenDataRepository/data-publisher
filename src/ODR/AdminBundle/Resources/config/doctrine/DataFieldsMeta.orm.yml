@@ -39,18 +39,15 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             column: internal_reference_name
 
 
-        # This column tracks the latest revision of
-        # the data field (when field is a master field).
+        # This column tracks the latest revision of the data field (when field is a master field).
         master_published_revision:
             type: integer
             unsigned: true
             nullable: false
             default: 0
 
-        # A master template field will track
-        # its latest revision here.  This may not
-        # be the published revision until the
-        # master template is published.
+        # A master template field will track its latest revision here.  This may not be the published
+        #  revision until the master template is published.
         master_revision:
             type: integer
             unsigned: true
@@ -58,9 +55,8 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: 0
             column: master_revision
 
-        # A field created from a master template
-        # field will log the revision it is in compliance
-        # with here.
+        # A field created from a master template field will log the revision it is in compliance
+        #  with here.
         tracking_master_revision:
             type: integer
             unsigned: true
@@ -139,7 +135,7 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: 1
             column: children_per_row
 
-        # These two apply to both radio options and tags
+        # These four apply to both radio options and tags
         radio_option_name_sort:
             type: boolean
             nullable: false
@@ -150,6 +146,16 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             nullable: false
             default: false
             column: radio_option_display_unselected
+        merge_by_AND:
+            type: boolean
+            nullable: false
+            default: false
+            column: merge_by_AND
+        search_can_request_both_merges:
+            type: boolean
+            nullable: false
+            default: false
+            column: search_can_request_both_merges
 
         # These two only apply to tags
         tags_allow_multiple_levels:

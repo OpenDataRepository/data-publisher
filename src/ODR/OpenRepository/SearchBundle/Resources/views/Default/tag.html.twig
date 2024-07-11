@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set datafield_meta = datafield['dataFieldMeta'] %}
+
 {# Store whether this tag has any child tags #}
 {% set tag_id = tag.id %}
 {% set has_children = false %}
@@ -16,11 +18,23 @@
 {% endif %}
 
     <label id="Label_{{ tag_id }}" for="Tag_{{ tag_id }}" class="ODRTagLabel">
-        <span id="Tag_{{ tag_id }}" class="ODRTristateCheckbox">
-            <i class="fa {% if tag_id in selected_tags %}fa-check{% elseif tag_id in unselected_tags %}fa-ban{% endif %}"></i>
-            <input type="hidden" rel="{{ tag_id }}"
-                   value="{% if tag_id in selected_tags %}{{ tag_id }}{% elseif tag_id in unselected_tags %}-{{ tag_id }}{% endif %}"
-            />
+        <span id="Tag_{{ tag_id }}" class="{% if datafield_meta['search_can_request_both_merges'] != 1 %}ODRTristateCheckbox{% else %}ODRFourstateCheckbox{% endif %}">
+
+            {% set t_val = '' %}
+            {% set fa_class = '' %}
+            {% if tag_id in preset_value['selected'] %}
+                {% set t_val = tag_id %}
+                {% set fa_class = fa_selected_class %}
+            {% elseif tag_id in preset_value['alt_selected'] %}
+                {% set t_val = '~' ~ tag_id %}
+                {% set fa_class = fa_alt_selected_class %}
+            {% elseif tag_id in preset_value['unselected'] %}
+                {% set t_val = '-' ~ tag_id %}
+                {% set fa_class = 'fa-ban' %}
+            {% endif %}
+
+            <i class="fa {{ fa_class }}"></i>
+            <input type="hidden" rel="{{ tag_id }}" value="{{ t_val }}" />
         </span>
         {{ tag.tagMeta.tagName|markdown }}
     </label>
@@ -29,10 +43,12 @@
     <ul class="ODRTagGroup ODRHidden">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
+                'datafield': datafield,
                 'tag': child_tag,
 
-                'selected_tags': selected_tags,
-                'unselected_tags': unselected_tags,
+                'preset_value': preset_value,
+                'fa_selected_class': fa_selected_class,
+                'fa_alt_selected_class': fa_alt_selected_class,
             } %}
         {% endfor %}
     </ul>

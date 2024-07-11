@@ -201,10 +201,26 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,94,97),
                 true
             ],
+            'IMA List: tags containing "Grandfathered AND Abiotic", including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '28' => "19,41",    // field is set to merge_by_AND by default, so no prefix needed
+                ),
+                array(92,93,97),
+                true
+            ],
+            'IMA List: tags containing "Grandfathered AND Abiotic" (alternate), including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '28' => "19,~41",    // ...however, one of them having the prefix shouldn't change the results, as it's in the "AT LEAST ONE OF" category by itself
+                ),
+                array(92,93,97),
+                true
+            ],
             'IMA List: tags containing "Grandfathered OR Abiotic", including non-public records' => [
                 array(
                     'dt_id' => 2,
-                    '28' => "19,41",
+                    '28' => "~19,~41",    // ...both of them need to have the prefix to do a proper merge_by_OR
                 ),
                 array(92,93,94,96,97),
                 true

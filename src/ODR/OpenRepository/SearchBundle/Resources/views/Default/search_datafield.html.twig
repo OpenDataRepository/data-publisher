@@ -2,6 +2,7 @@
 
 {% set datatype_id = datatype.id %}
 {% set datafield_id = datafield.id %}
+{% set datafield_meta = datafield['dataFieldMeta'] %}
 
 {% set preset_value = '' %}
 {% if search_params[datafield_id] is defined %}
@@ -174,23 +175,56 @@
         <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="df_{{ datafield_id }}_end" name="{{ key }}" value="{{ value }}" rel="df_{{ datafield_id }}" title="Find records with a value BEFORE this date" {% if design_page is defined %}readonly{% endif %} />
 
     {% elseif field_typeclass == "Radio" %}
-        {% set selected_ro_ids = [] %}
-        {% set unselected_ro_ids = [] %}
-        {% if preset_value != '' %}
-            {% set selected_ro_ids = preset_value['selected'] %}
-            {% set unselected_ro_ids = preset_value['unselected'] %}
+        {% if preset_value == '' %}
+            {% set preset_value = {'selected': [], 'alt_selected': [], 'unselected': [] } %}
         {% endif %}
 
-        <span class="pure-u-1 ODRRadioSearchDiv ODRSearchScrollbox" id="Input_{{ datafield_id }}" rel="{{ datatype_id }}">
+        {% set additional_class = '' %}
+        {% if datafield_meta['search_can_request_both_merges'] == 1 %}
+            {% if datafield_meta['merge_by_AND'] == 0 %}
+                {% set additional_class = 'ODRDefaultMerge_OR' %}
+            {% else %}
+                {% set additional_class = 'ODRDefaultMerge_AND' %}
+            {% endif %}
+        {% endif %}
+
+        <span class="pure-u-1 ODRRadioSearchDiv ODRSearchScrollbox {{ additional_class }}" id="Input_{{ datafield_id }}" rel="{{ datatype_id }}">
         {% if datafield['radioOptions'] is defined %}
-            <input type="hidden" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" value="" />
+
+            {% set fa_selected_class = 'fa-check' %}
+            {% set fa_alt_selected_class = '' %}
+            {% if datafield_meta['search_can_request_both_merges'] == 1 %}
+                {% if datafield_meta['merge_by_AND'] != 1 %}
+                    {% set fa_selected_class = 'ODRFourstate_OR' %}
+                    {% set fa_alt_selected_class = 'ODRFourstate_AND' %}
+                {% else %}
+                    {% set fa_selected_class = 'ODRFourstate_AND' %}
+                    {% set fa_alt_selected_class = 'ODRFourstate_OR' %}
+                {% endif %}
+            {% endif %}
+
+            <input type="hidden" id="datafield_{{ datafield_id }}" class="ODRInput" name="{{ datafield_id }}" value="" />
 
             {% for num, radio_option in datafield['radioOptions'] %}
             {% set ro_id = radio_option.id %}
             <label id="Label_{{ ro_id }}" for="RadioOption_{{ ro_id }}" class="ODRRadioLabel pure-u-1">
-                <span id="RadioOption_{{ ro_id }}" class="ODRTristateCheckbox" rel="{% if field_typename == "Single Radio" or field_typename == "Single Select" %}single{% else %}multiple{% endif %}">
-                    <i class="fa {% if ro_id in selected_ro_ids %}fa-check{% elseif ro_id in unselected_ro_ids %}fa-ban{% endif %}"></i>
-                    <input type="hidden" rel="{{ ro_id }}" value="" />
+                <span id="RadioOption_{{ ro_id }}" class="{% if datafield_meta['search_can_request_both_merges'] != 1 %}ODRTristateCheckbox{% else %}ODRFourstateCheckbox{% endif %}" rel="{% if field_typename == "Single Radio" or field_typename == "Single Select" %}single{% else %}multiple{% endif %}">
+
+                    {% set ro_val = '' %}
+                    {% set fa_class = '' %}
+                    {% if ro_id in preset_value['selected'] %}
+                        {% set ro_val = ro_id %}
+                        {% set fa_class = fa_selected_class %}
+                    {% elseif ro_id in preset_value['alt_selected'] %}
+                        {% set ro_val = '~' ~ ro_id %}
+                        {% set fa_class = fa_alt_selected_class %}
+                    {% elseif ro_id in preset_value['unselected'] %}
+                        {% set ro_val = '-' ~ ro_id %}
+                        {% set fa_class = 'fa-ban' %}
+                    {% endif %}
+
+                    <i class="fa {{ fa_class }}"></i>
+                    <input type="hidden" rel="{{ ro_id }}" value="{{ ro_val }}" />
                 </span>
                 {{ radio_option['radioOptionMeta']['optionName'] }}
             </label>
@@ -199,22 +233,42 @@
         </span>
 
     {% elseif field_typeclass == "Tag" %}
-        {% set selected_tags = [] %}
-        {% set unselected_tags = [] %}
-        {% if preset_value != '' %}
-            {% set selected_tags = preset_value['selected'] %}
-            {% set unselected_tags = preset_value['unselected'] %}
+        {% if preset_value == '' %}
+            {% set preset_value = {'selected': [], 'alt_selected': [], 'unselected': [] } %}
         {% endif %}
 
-        <span class="pure-u-1 ODRTagSearchDiv ODRSearchScrollbox" id="Input_{{ datafield_id }}" rel="{{ datatype_id }}">
+        {% set additional_class = '' %}
+        {% if datafield_meta['search_can_request_both_merges'] == 1 %}
+            {% if datafield_meta['merge_by_AND'] == 0 %}
+                {% set additional_class = 'ODRDefaultMerge_OR' %}
+            {% else %}
+                {% set additional_class = 'ODRDefaultMerge_AND' %}
+            {% endif %}
+        {% endif %}
+
+        {% set fa_selected_class = 'fa-check' %}
+        {% set fa_alt_selected_class = '' %}
+        {% if datafield_meta['search_can_request_both_merges'] == 1 %}
+            {% if datafield_meta['merge_by_AND'] != 1 %}
+                {% set fa_selected_class = 'ODRFourstate_OR' %}
+                {% set fa_alt_selected_class = 'ODRFourstate_AND' %}
+            {% else %}
+                {% set fa_selected_class = 'ODRFourstate_AND' %}
+                {% set fa_alt_selected_class = 'ODRFourstate_OR' %}
+            {% endif %}
+        {% endif %}
+
+        <span class="pure-u-1 ODRTagSearchDiv ODRSearchScrollbox {{ additional_class }}" id="Input_{{ datafield_id }}" rel="{{ datatype_id }}">
         {% if datafield['tags'] is defined %}
             <input type="hidden" class="ODRInput" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" value="" />
 
             {% include 'ODROpenRepositorySearchBundle:Default:tag_wrapper.html.twig' with {
+                'datafield': datafield,
                 'stacked_tags': datafield['tags'],
 
-                'selected_tags': selected_tags,
-                'unselected_tags': unselected_tags,
+                'preset_value': preset_value,
+                'fa_selected_class': fa_selected_class,
+                'fa_alt_selected_class': fa_alt_selected_class,
             } %}
         {% endif %}
         </span>

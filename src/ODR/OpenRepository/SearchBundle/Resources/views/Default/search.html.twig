@@ -125,7 +125,7 @@
             var first_selection = true;
             var has_selections = false;
 
-            $(this).find('input').each(function () {
+            $(this).children('.ODRRadioLabel').find('input').each(function () {
                 // Grab the radio_option_id
                 var value = $(this).val().trim();
                 if (value == '')
@@ -158,7 +158,7 @@
             var first_selection = true;
             var has_selections = false;
 
-            $(this).find('input').each(function () {
+            $(this).children('.ODRTagWrapper').find('input').each(function () {
                 // Grab the tag
                 var value = $(this).val().trim();
                 if (value == '')
@@ -339,13 +339,15 @@
             return;
 
         // $(parent_tag) should be a <li class="ODRTagItem"> element
-        var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
-        var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
+        var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox,.ODRFourstateCheckbox').first().children('i');
+        var selected_count = $(parent_tag).children('ul').find('.fa-check, .ODRFourstate_OR, .ODRFourstate_AND').length;
         var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
         // var total_count = $(parent_tag).children('ul').find('.fa').length;
+        // NOTE: intentionally not differentiating between OR/AND here
+
         if (selected_count === 0 && unselected_count === 0) {
             // No children selected, so this one should be unselected too
-            $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
+            $(parent_checkbox_icon).removeClass('fa-check fa-ban partial ODRFourstate_OR ODRFourstate_AND');
         }
         /*
         else if (selected_count === total_count) {
@@ -359,12 +361,12 @@
         */
         else if (selected_count > 0) {
             // Some children selected, so this one should be partially selected
-            $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
+            $(parent_checkbox_icon).removeClass('fa-ban ODRFourstate_OR ODRFourstate_AND').addClass('fa-check partial');
         }
         else if (unselected_count > 0) {
             // No children are selected, but at least one child is unselected...so this one
             //  should be partially unselected
-            $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
+            $(parent_checkbox_icon).removeClass('fa-check ODRFourstate_OR ODRFourstate_AND').addClass('fa-ban partial');
         }
 
         // The parent tag should no longer have a selection of its own
@@ -384,7 +386,7 @@
             return;
 
         $(child_tag_group).find('i').each(function() {
-            $(this).removeClass('fa-check fa-ban partial');
+            $(this).removeClass('fa-check fa-ban partial ODRFourstate_AND ODRFourstate_OR');
         });
         $(child_tag_group).find('input').each(function() {
             $(this).val('');

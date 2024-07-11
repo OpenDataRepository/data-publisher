@@ -599,27 +599,32 @@ class SearchSidebarService
         foreach ($dt_list as $num => $dt) {
             foreach ($dt['dataFields'] as $df_id => $df) {
                 // Only interested in radio/tag datafields...
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                $dfm = $df['dataFieldMeta'];
+                $typeclass = $dfm['fieldType']['typeClass'];
                 if ( $typeclass == 'Radio' || $typeclass == 'Tag' ) {
                     if ( isset($search_params[$df_id]) ) {
                         // ...and only when the search criteria involves them
                         $ids = explode(',', $search_params[$df_id]);
 
                         // The search key uses a '-' prefix before the option/tag id to indicate
-                        //  the user only wants results where those are unselected
+                        //  "unselected"...a '~' prefix indicates selected, but to merge by the
+                        //  opposite of the field default
                         $selected_ids = array();
+                        $alt_selected_ids = array();
                         $unselected_ids = array();
                         foreach ($ids as $id) {
-                            if ( strpos($id, '-') !== false )
+                            if ( $id[0] === '-' )
                                 $unselected_ids[] = substr($id, 1);
+                            else if ( $id[0] === '~' )
+                                $alt_selected_ids[] = substr($id, 1);
                             else
                                 $selected_ids[] = $id;
                         }
 
-                        // It's easier for twig if the selected options/tags are kept separate from
-                        //  the unselected options/tags
+                        // ...all this because it's easier for twig
                         $search_params[$df_id] = array(
                             'selected' => $selected_ids,
+                            'alt_selected' => $alt_selected_ids,
                             'unselected' => $unselected_ids
                         );
                     }

@@ -2432,6 +2432,8 @@ class DisplaytemplateController extends ODRCustomController
 //                    $submitted_data->setChildrenPerRow( $master_datafield->getChildrenPerRow() );
                     $submitted_data->setRadioOptionNameSort( $master_datafield->getRadioOptionNameSort() );
 //                    $submitted_data->setRadioOptionDisplayUnselected( $master_datafield->getRadioOptionDisplayUnselected() );
+//                    $submitted_data->setMergeByAND( $master_datafield->getMergeByAND() );
+//                    $submitted_data->setSearchCanRequestBothMerges( $master_datafield->getSearchCanRequestBothMerges() );
                     $submitted_data->setTagsAllowMultipleLevels( $master_datafield->getTagsAllowMultipleLevels() );
 //                    $submitted_data->setTagsAllowNonAdminEdit( $master_datafield->getTagsAllowNonAdminEdit() );
 //                    $submitted_data->setSearchable( $master_datafield->getSearchable() );
@@ -2535,6 +2537,8 @@ class DisplaytemplateController extends ODRCustomController
                         'children_per_row' => $submitted_data->getChildrenPerRow(),
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
+                        'merge_by_AND' => $submitted_data->getMergeByAND(),
+                        'search_can_request_both_merges' => $submitted_data->getSearchCanRequestBothMerges(),
                         'tags_allow_multiple_levels' => $submitted_data->getTagsAllowMultipleLevels(),
                         'tags_allow_non_admin_edit' => $submitted_data->getTagsAllowNonAdminEdit(),
                         'searchable' => $submitted_data->getSearchable(),

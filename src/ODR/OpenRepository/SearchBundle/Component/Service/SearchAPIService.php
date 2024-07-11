@@ -597,7 +597,7 @@ class SearchAPIService
                         }
                         else if ($typeclass === 'Radio' && $facet_type !== 'general') {
                             // The more specific version of searching a radio datafield provides an array of selected/deselected options
-                            $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
+                            $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections']);
                         }
                         else if ($typeclass === 'Tag' && $facet_type === 'general') {
                             // General search only provides a string, and only wants selected tags
@@ -605,7 +605,7 @@ class SearchAPIService
                         }
                         else if ($typeclass === 'Tag' && $facet_type !== 'general') {
                             // The more specific version of searching a tag datafield provides an array of selected/deselected options
-                            $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
+                            $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections']);
                         }
                         else if ($typeclass === 'File' || $typeclass === 'Image') {
                             // Searches on Files/Images are effectively interchangable

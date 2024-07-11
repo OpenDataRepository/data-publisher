@@ -1269,6 +1269,7 @@ class SearchAPIServiceNoConflict
      */
     public function performSearch($datatype, $search_key, $user_permissions, $sort_df_id = 0, $sort_ascending = true, $search_as_super_admin = false)
     {
+        throw new ODRException('Please use the regular SearchAPIService instead, this one does not return correct results');
 
         // ----------------------------------------
         // This really shouldn't be null, but just in case...

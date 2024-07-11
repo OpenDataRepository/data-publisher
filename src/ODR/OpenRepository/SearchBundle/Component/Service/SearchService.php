@@ -99,12 +99,14 @@ class SearchService
      * array of all datarecord ids that match the criteria.
      *
      * @param DataFields $datafield
-     * @param array $selections An array with radio option ids for keys, and 0 or 1 for values
-     * @param bool $merge_using_OR  If false, merge using AND instead
+     * @param array $selections An array with tag ids for keys...and 0, 1, or 2 for values
+     * @param boolean $is_general_search If true, then results are always merged by OR...though this
+     *                                   isn't needed because {@link searchForSelectedRadioOptions()}
+     *                                   gets used instead
      *
      * @return array
      */
-    public function searchRadioDatafield($datafield, $selections, $merge_using_OR = true)
+    public function searchRadioDatafield($datafield, $selections, $is_general_search = false)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -116,11 +118,18 @@ class SearchService
         if ( count($selections) == 0 )
             throw new ODRBadRequestException('searchRadioDatafield() called with empty selections array', 0x5e0dc6db);
 
+        // This typeclass prefers to use OR to merge selected options together, but it can be inverted
+        //  to merge by AND by default instead
+        $default_merge_OR = true;
+        if ( $datafield->getMergeByAND() )
+            $default_merge_OR = false;
+
 
         // ----------------------------------------
-        // Otherwise, probably going to need to run searches again...
-        $selected = null;
-        $unselected = null;
+        // Since multiple options/tags can be selected, multiple sets of results are most likely
+        //  going to have to be merged together to get the final result
+        $AND_result = null;
+        $OR_result = null;
         $end_result = null;
 
         // This should already be cached from earlier in the search routine
@@ -130,7 +139,6 @@ class SearchService
         foreach ($datarecord_list as $dr_id => $parent_id)
             $datarecord_list[$dr_id] = 1;
 
-
         foreach ($selections as $radio_option_id => $value) {
             // Attempt to find the cached result for this radio option...
             $result = $this->cache_service->get('cached_search_ro_'.$radio_option_id);
@@ -138,7 +146,7 @@ class SearchService
                 $result = array();
 
             // If it doesn't exist...
-            if ( !isset($result[$value]) ) {
+            if ( empty($result) ) {
                 // ...run the search again
                 $result = $this->search_query_service->searchRadioDatafield(
                     $datarecord_list,
@@ -149,58 +157,55 @@ class SearchService
                 $this->cache_service->set('cached_search_ro_'.$radio_option_id, $result);
             }
 
+            if ( !$is_general_search &&    // general search must never be merged by AND
+                ($value === 0 || (!$default_merge_OR && $value === 1) || ($default_merge_OR && $value === 2) )
+            ) {
+                // Unselected tags and those required to be merged by AND can be intersected
+                //  together in any order...but need to be sure to use the correct array
+                $tmp = array();
+                if ($value === 0)
+                    $tmp = $result[0];
+                else
+                    $tmp = $result[1];
 
-            // TODO - Eventually going to need something more refined than just a single merge_type flag?
-            if ($value === 1) {
-                // Selected options can be combined by either AND or OR
-                if ( is_null($selected) ) {
-                    $selected = $result[$value];
+                if (is_null($AND_result)) {
+                    // ...if this is the first set of results, then use it directly
+                    $AND_result = $tmp;
                 }
                 else {
-                    // TODO - allow users to pick which merge type to use, defaults to OR for now
-                    if ($merge_using_OR) {
-                        // array_merge() is slower than using isset() and array_flip() later...
-                        foreach ($result[$value] as $dr_id => $num)
-                            $selected[$dr_id] = 1;
-                    }
-                    else {
-                        // Otherwise, only save the datarecord ids that are in both arrays
-                        $selected = array_intersect_key($selected, $result[$value]);
-
-                        // If nothing in $selected, then no results are possible...but don't exit
-                        //  early because the final array_intersect_key() could get screwed up
-                    }
+                    // ...otherwise, only save the datarecord ids that currently exist in both arrays
+                    $AND_result = array_intersect_key($AND_result, $tmp);
                 }
             }
             else {
-                // Unselected options are always combined by AND
-                if ( is_null($unselected) ) {
-                    // If first run, then use the first set of results to start off with
-                    $unselected = $result[$value];
+                // If this point is reached, then the records are supposed to be merged by OR
+                if ( is_null($OR_result) ) {
+                    // Unlike the other block, never want to use the list of unselected tags...those
+                    //  are always merged by AND
+                    $OR_result = $result[1];
                 }
                 else {
-                    // Otherwise, only save the datarecord ids that are in both arrays
-                    $unselected = array_intersect_key($unselected, $result[$value]);
+                    // array_merge() is slower than doing it this way
+                    foreach ($result[1] as $dr_id => $num)
+                        $OR_result[$dr_id] = 1;
                 }
-
-                // If nothing in $selected, then no results are possible...but don't exit early
-                //  because the final array_intersect_key() could get screwed up
             }
         }
 
 
-        // At least one of the arrays should not be null...
-        if ( is_null($selected) ) {
-            // Search didn't specify any selected options, just use the matching unselected options
-            $end_result = $unselected;
+        // Both the result arrays shouldn't be null at the same time...
+        if ( is_null($AND_result) ) {
+            // ...so if one result is null, then just use the other one
+            $end_result = $OR_result;
         }
-        else if ( is_null($unselected) ) {
-            // Search didn't specify any unselected options, just use the matching selected options
-            $end_result = $selected;
+        else if ( is_null($OR_result) ) {
+            // ...this logic holds for either case
+            $end_result = $AND_result;
         }
         else {
-            // Search specified both selected and unselected options...merge the two results by AND
-            $end_result = array_intersect_key($selected, $unselected);
+            // ...but if the search specified both types of merges, then the result needs one final
+            //  merge by AND
+            $end_result = array_intersect_key($AND_result, $OR_result);
         }
 
 
@@ -368,12 +373,12 @@ class SearchService
      * datarecord ids that match the criteria.
      *
      * @param DataFields $datafield
-     * @param array $selections An array with tag ids for keys, and 0 or 1 for values
-     * @param bool $merge_using_OR  If false, merge using AND instead
+     * @param array $selections An array with tag ids for keys...and 0, 1, or 2 for values
+     * @param boolean $is_general_search If true, then
      *
      * @return array
      */
-    public function searchTagDatafield($datafield, $selections, $merge_using_OR = true)
+    public function searchTagDatafield($datafield, $selections, $is_general_search = false)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -385,6 +390,12 @@ class SearchService
         if ( count($selections) == 0 )
             throw new ODRBadRequestException('searchTagDatafield() called with empty selections array', 0x385d0acd);
 
+        // This typeclass prefers to use OR to merge selected tags together, but it can be inverted
+        //  to merge by AND by default instead
+        $default_merge_OR = true;
+        if ( $datafield->getMergeByAND() )
+            $default_merge_OR = false;
+
 
         // ----------------------------------------
         // In order for caching to work, any non-leaf tags in the tag selections list need to get
@@ -392,10 +403,10 @@ class SearchService
         $use_tag_uuids = false;
         $all_tag_selections = $this->tag_helper_service->expandTagSelections($datafield, $selections, $use_tag_uuids);
 
-
-        // Otherwise, probably going to need to run searches again...
-        $selected = null;
-        $unselected = null;
+        // Since multiple options/tags can be selected, multiple sets of results are most likely
+        //  going to have to be merged together to get the final result
+        $AND_result = null;
+        $OR_result = null;
         $end_result = null;
 
         // This should already be cached from earlier in the search routine
@@ -405,7 +416,6 @@ class SearchService
         foreach ($datarecord_list as $dr_id => $parent_id)
             $datarecord_list[$dr_id] = 1;
 
-
         foreach ($all_tag_selections as $tag_id => $value) {
             // Attempt to find the cached result for this tag...
             $result = $this->cache_service->get('cached_search_tag_'.$tag_id);
@@ -413,7 +423,7 @@ class SearchService
                 $result = array();
 
             // If it doesn't exist...
-            if ( !isset($result[$value]) ) {
+            if ( empty($result) ) {
                 // ...run the search again
                 $result = $this->search_query_service->searchTagDatafield(
                     $datarecord_list,
@@ -424,58 +434,55 @@ class SearchService
                 $this->cache_service->set('cached_search_tag_'.$tag_id, $result);
             }
 
+            if ( !$is_general_search &&    // general search must never be merged by AND
+                ($value === 0 || (!$default_merge_OR && $value === 1) || ($default_merge_OR && $value === 2) )
+            ) {
+                // Unselected tags and those required to be merged by AND can be intersected
+                //  together in any order...but need to be sure to use the correct array
+                $tmp = array();
+                if ($value === 0)
+                    $tmp = $result[0];
+                else
+                    $tmp = $result[1];
 
-            // TODO - Eventually going to need something more refined than just a single merge_type flag?
-            if ($value === 1) {
-                // Selected options can be combined by either AND or OR
-                if ( is_null($selected) ) {
-                    $selected = $result[$value];
+                if (is_null($AND_result)) {
+                    // ...if this is the first set of results, then use it directly
+                    $AND_result = $tmp;
                 }
                 else {
-                    // TODO - allow users to pick which merge type to use, defaults to OR for now
-                    if ($merge_using_OR) {
-                        // array_merge() is slower than using isset() and array_flip() later...
-                        foreach ($result[$value] as $dr_id => $num)
-                            $selected[$dr_id] = 1;
-                    }
-                    else {
-                        // Otherwise, only save the datarecord ids that are in both arrays
-                        $selected = array_intersect_key($selected, $result[$value]);
-
-                        // If nothing in $selected, then no results are possible...but don't exit
-                        //  early because the final array_intersect_key() could get screwed up
-                    }
+                    // ...otherwise, only save the datarecord ids that currently exist in both arrays
+                    $AND_result = array_intersect_key($AND_result, $tmp);
                 }
             }
             else {
-                // Unselected options are always combined by AND
-                if ( is_null($unselected) ) {
-                    // If first run, then use the first set of results to start off with
-                    $unselected = $result[$value];
+                // If this point is reached, then the records are supposed to be merged by OR
+                if ( is_null($OR_result) ) {
+                    // Unlike the other block, never want to use the list of unselected tags...those
+                    //  are always merged by AND
+                    $OR_result = $result[1];
                 }
                 else {
-                    // Otherwise, only save the datarecord ids that are in both arrays
-                    $unselected = array_intersect_key($unselected, $result[$value]);
+                    // array_merge() is slower than doing it this way
+                    foreach ($result[1] as $dr_id => $num)
+                        $OR_result[$dr_id] = 1;
                 }
-
-                // If nothing in $selected, then no results are possible...but don't exit early
-                //  because the final array_intersect_key() could get screwed up
             }
         }
 
 
-        // At least one of the arrays should not be null...
-        if ( is_null($selected) ) {
-            // Search didn't specify any selected options, just use the matching unselected options
-            $end_result = $unselected;
+        // Both the result arrays shouldn't be null at the same time...
+        if ( is_null($AND_result) ) {
+            // ...so if one result is null, then just use the other one
+            $end_result = $OR_result;
         }
-        else if ( is_null($unselected) ) {
-            // Search didn't specify any unselected options, just use the matching selected options
-            $end_result = $selected;
+        else if ( is_null($OR_result) ) {
+            // ...this logic holds for either case
+            $end_result = $AND_result;
         }
         else {
-            // Search specified both selected and unselected options...merge the two results by AND
-            $end_result = array_intersect_key($selected, $unselected);
+            // ...but if the search specified both types of merges, then the result needs one final
+            //  merge by AND
+            $end_result = array_intersect_key($AND_result, $OR_result);
         }
 
 
@@ -734,7 +741,8 @@ class SearchService
             //  a (larger) set of leaf tags, and then search for records that have those selected
             $end_result = self::searchTagDatafield(
                 $datafield,
-                $selections
+                $selections,
+                true    // this has to merge by OR regardless of the field's default config
             );
         }
 
@@ -2291,7 +2299,7 @@ class SearchService
                 $query = $this->em->createQuery(
                    'SELECT
                         df.id AS df_id, df.fieldUuid AS df_uuid, dfm.publicDate AS df_public_date,
-                        dfm.searchable, ft.typeClass,
+                        dfm.searchable, dfm.merge_by_AND, ft.typeClass,
                         dtm.publicDate AS dt_public_date
                 
                     FROM ODRAdminBundle:DataType AS dt
@@ -2326,6 +2334,12 @@ class SearchService
                     $searchable = $result['searchable'];
                     $typeclass = $result['typeClass'];
 
+                    // NOTE: the merge_by_AND property was added later, after multiple databases
+                    //  already expected merge_by_OR to always be true...
+                    $default_merge = 'OR';
+                    if ( $result['merge_by_AND'] )
+                        $default_merge = 'AND';
+
                     // Inline searching requires the ability to search on any datafield, even those
                     //  the user may not have necessarily marked as "searchable"
 //                    if ( $searchable !== DataFields::NOT_SEARCHABLE ) {
@@ -2338,6 +2352,9 @@ class SearchService
                                 'typeclass' => $typeclass,
                                 'field_uuid' => $df_uuid,
                             );
+
+                            if ( $typeclass === 'Radio' || $typeclass === 'Tag' )
+                                $df_list['datafields'][$df_id]['default_merge'] = $default_merge;
                         }
                         else {
                             $df_list['datafields']['non_public'][$df_id] = array(
@@ -2345,6 +2362,9 @@ class SearchService
                                 'typeclass' => $typeclass,
                                 'field_uuid' => $df_uuid,
                             );
+
+                            if ( $typeclass === 'Radio' || $typeclass === 'Tag' )
+                                $df_list['datafields']['non_public'][$df_id]['default_merge'] = $default_merge;
                         }
 //                    }
                 }

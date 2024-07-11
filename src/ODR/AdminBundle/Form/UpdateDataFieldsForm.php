@@ -194,12 +194,14 @@ class UpdateDataFieldsForm extends AbstractType
         }
 
         // Radio options and Tags have slightly different labels for these values
-        $name_sort_label = 'Sort Options Alphabetically';
-        $display_unselected_label = 'Display Unselected Options';
-        if ($current_typeclass === 'Tag') {
-            $name_sort_label = 'Sort Tags Alphabetically';
-            $display_unselected_label = 'Display Unselected Tags';
-        }
+        $key = 'Options';
+        if ( $current_typeclass === 'Tag' )
+            $key = 'Tags';
+
+        $name_sort_label = 'Sort '.$key.' Alphabetically';
+        $display_unselected_label = 'Display Unselected '.$key;
+        $merge_by_and_label = 'Searching on more '.$key.' should typically return fewer results';
+        $multi_merge_label = 'Enable searching '.$key.' by both AND/OR';
 
         if ( $current_typeclass === 'Radio' || $current_typeclass === 'Tag' ) {
             // These two properties only make sense for Radio or Tag fields
@@ -218,6 +220,24 @@ class UpdateDataFieldsForm extends AbstractType
                 CheckboxType::class,
                 array(
                     'label' => $display_unselected_label,
+                    'required' => false
+                )
+            );
+
+            $builder->add(
+                'merge_by_AND',
+                CheckboxType::class,
+                array(
+                    'label' => $merge_by_and_label,
+                    'required' => false
+                )
+            );
+
+            $builder->add(
+                'search_can_request_both_merges',
+                CheckboxType::class,
+                array(
+                    'label' => $multi_merge_label,
                     'required' => false
                 )
             );

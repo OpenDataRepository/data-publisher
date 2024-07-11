@@ -246,7 +246,9 @@
                             // Search for a selection made in this radio field
                             var selected = false;
                             $(elem).parent().find('i').each(function () {
-                                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban') ) {
+                                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban')
+                                    || $(this).hasClass('ODRFourstate_OR') || $(this).hasClass('ODRFourstate_AND')
+                                ) {
                                     selected = true;
                                     return false;
                                 }
@@ -260,7 +262,9 @@
                             // Search for a selection made in this tag field
                             var selected = false;
                             $(elem).parent().find('i').each(function () {
-                                if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
+                                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban')
+                                    || $(this).hasClass('ODRFourstate_OR') || $(this).hasClass('ODRFourstate_AND')
+                                ) {
                                     selected = true;
                                     return false;
                                 }
@@ -310,30 +314,30 @@
         // Radio Tristate checkbox
         $(context).find(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function () {
             // Grab data about the option being clicked
-            var icon = $(this).children('i').first();
-            var input = $(this).children('input').first();
-            var radio_option_id = $(input).attr('rel');
+            var icon_div = $(this).children('i').first();
+            var input_div = $(this).children('input').first();
+            var radio_option_id = $(input_div).attr('rel');
 
             if ( $(this).parent().hasClass("ODRSelectAllOption") )
                 return;
 
-            if ($(icon).hasClass('fa-check')) {
+            if ($(icon_div).hasClass('fa-check')) {
                 // Currently selected, change to deselected
                 $(this).attr('title', 'Search for Datarecords where this option is unselected');
-                $(icon).removeClass('fa-check').addClass('fa-ban');
-                $(input).val('-' + radio_option_id);
+                $(icon_div).removeClass('fa-check').addClass('fa-ban');
+                $(input_div).val('-' + radio_option_id);
             }
-            else if ($(icon).hasClass('fa-ban')) {
+            else if ($(icon_div).hasClass('fa-ban')) {
                 // Currently deselected, change to blank
                 $(this).removeAttr('title');
-                $(icon).removeClass('fa-ban');
-                $(input).val('');
+                $(icon_div).removeClass('fa-ban');
+                $(input_div).val('');
             }
             else {
                 // Currently blank, change to selected
                 $(this).attr('title', 'Search for Datarecords where this option is selected');
-                $(icon).addClass('fa-check');
-                $(input).val(radio_option_id);
+                $(icon_div).addClass('fa-check');
+                $(input_div).val(radio_option_id);
             }
         });
         // Tag Tristate checkbox
@@ -372,24 +376,176 @@
             // Also need to wipe any status of the children of this tag
             applyToTagChildren( $(tag_item) );
         });
+
+        // Radio fourstate checkbox
+        $(context).find(".ODRRadioLabel > .ODRFourstateCheckbox").unbind('click').click(function () {
+            // Grab data about the tag being clicked
+            var default_merge_AND = $(this).parents('.ODRRadioSearchDiv').first().hasClass('ODRDefaultMerge_AND');
+            var icon_div = $(this).children('i').first();
+            var input_div = $(this).children('input').first();
+            var radio_option_id = $(input_div).attr('rel');
+
+            if ( $(this).parent().hasClass("ODRSelectAllOption") )
+                return;
+
+            if ( $(icon_div).hasClass('ODRFourstate_AND') ) {
+                // Currently set to merge by AND...
+                $(icon_div).removeClass('ODRFourstate_AND');
+
+                if ( default_merge_AND ) {
+                    // ...since default is to merge by AND, next step is to merge by OR
+                    $(this).attr('title', 'Search for Datarecords where this option is selected');
+                    $(icon_div).addClass('ODRFourstate_OR');
+                    $(input_div).val('~' + radio_option_id);
+                }
+                else {
+                    // ...since default is to merge by OR, next step is to "deselect" the option
+                    $(this).attr('title', 'Search for Datarecords where this option is unselected');
+                    $(icon_div).addClass('fa-ban');
+                    $(input_div).val('-' + radio_option_id);
+                }
+            }
+            else if ( $(icon_div).hasClass('ODRFourstate_OR') ) {
+                // Currently set to merge by OR...
+                $(icon_div).removeClass('ODRFourstate_OR');
+
+                if ( default_merge_AND ) {
+                    // ...since default is to merge by AND, next step is to "deselect" the option
+                    $(this).attr('title', 'Search for Datarecords where this option is unselected');
+                    $(icon_div).addClass('fa-ban');
+                    $(input_div).val('-' + radio_option_id);
+                }
+                else {
+                    // ...since default is to merge by OR, next step is to merge by AND
+                    $(this).attr('title', 'Search for Datarecords where this option is selected');
+                    $(icon_div).addClass('ODRFourstate_AND');
+                    $(input_div).val('~' + radio_option_id);
+                }
+            }
+            else if ( $(icon_div).hasClass('fa-ban') ) {
+                // Currently "deselected", change to "doesn't matter"
+                $(this).removeAttr('title');
+                $(icon_div).removeClass('fa-ban');
+                $(input_div).val('');
+            }
+            else {
+                // Currently "blank"...
+                if ( default_merge_AND ) {
+                    // ...default is to merge by AND
+                    $(this).attr('title', 'Search for Datarecords where this option is selected');
+                    $(icon_div).addClass('ODRFourstate_AND');
+                }
+                else {
+                    // ...default is to merge by OR
+                    $(this).attr('title', 'Search for Datarecords where this option is selected');
+                    $(icon_div).addClass('ODRFourstate_OR');
+                }
+                $(input_div).val(radio_option_id);
+            }
+        });
+        // Tag fourstate checkbox
+        $(context).find(".ODRTagLabel > .ODRFourstateCheckbox").unbind('click').click(function () {
+            // Grab data about the tag being clicked
+            var default_merge_AND = $(this).parents('.ODRTagSearchDiv').first().hasClass('ODRDefaultMerge_AND');
+            var icon_div = $(this).children('i').first();
+            var input_div = $(this).children('input').first();
+            var tag_id = $(input_div).attr('rel');
+
+            // Ensure this tag being clicked no longer has the "partial" class
+            $(icon_div).removeClass('partial');
+
+            if ( $(icon_div).hasClass('ODRFourstate_AND') ) {
+                // Currently set to merge by AND...
+                $(icon_div).removeClass('ODRFourstate_AND');
+
+                if ( default_merge_AND ) {
+                    // ...since default is to merge by AND, next step is to merge by OR
+                    $(this).attr('title', 'Search for Datarecords where this tag is selected');
+                    $(icon_div).addClass('ODRFourstate_OR');
+                    $(input_div).val('~' + tag_id);
+                }
+                else {
+                    // ...since default is to merge by OR, next step is to "deselect" the tag
+                    $(this).attr('title', 'Search for Datarecords where this tag is unselected');
+                    $(icon_div).addClass('fa-ban');
+                    $(input_div).val('-' + tag_id);
+                }
+            }
+            else if ( $(icon_div).hasClass('ODRFourstate_OR') ) {
+                // Currently set to merge by OR...
+                $(icon_div).removeClass('ODRFourstate_OR');
+
+                if ( default_merge_AND ) {
+                    // ...since default is to merge by AND, next step is to "deselect" the tag
+                    $(this).attr('title', 'Search for Datarecords where this tag is unselected');
+                    $(icon_div).addClass('fa-ban');
+                    $(input_div).val('-' + tag_id);
+                }
+                else {
+                    // ...since default is to merge by OR, next step is to merge by AND
+                    $(this).attr('title', 'Search for Datarecords where this tag is selected');
+                    $(icon_div).addClass('ODRFourstate_AND');
+                    $(input_div).val('~' + tag_id);
+                }
+            }
+            else if ( $(icon_div).hasClass('fa-ban') ) {
+                // Currently "deselected", change to "doesn't matter"
+                $(this).removeAttr('title');
+                $(icon_div).removeClass('fa-ban fa-check');    // non-leaf tags could have the fa-check class at this point
+                $(input_div).val('');
+            }
+            else {
+                // Currently "blank"...
+                if ( default_merge_AND ) {
+                    // ...default is to merge by AND
+                    $(this).attr('title', 'Search for Datarecords where this tag is selected');
+                    $(icon_div).addClass('ODRFourstate_AND');
+                }
+                else {
+                    // ...default is to merge by OR
+                    $(this).attr('title', 'Search for Datarecords where this tag is selected');
+                    $(icon_div).addClass('ODRFourstate_OR');
+                }
+                $(input_div).val(tag_id);
+            }
+
+            // Update any parents of this tag to indicate the status of their descendant tags
+            var tag_item = $(this).parent().parent();
+            applyToTagParents( $(tag_item) );
+
+            // Also need to wipe any status of the children of this tag
+            applyToTagChildren( $(tag_item) );
+        });
+
         // Attach expand/collapse handlers to the tags in just the search sidebar
         setupTagTree( $("#ODRSearchSidebar"), 2);
 
-        // Update the parents of all selected/deselected tags
+        // Update the parents of all initially selected/deselected tags
         $(context).find(".ODRTagLabel > .ODRTristateCheckbox > .fa-check,.fa-ban").each(function() {
+            var tag_item = $(this).parent().parent().parent();
+            applyToTagParents( tag_item );
+        });
+        $(context).find(".ODRTagLabel > .ODRFourstateCheckbox > .ODRFourstate_OR,.ODRFourstate_AND,.fa-ban").each(function() {
             var tag_item = $(this).parent().parent().parent();
             applyToTagParents( tag_item );
         });
 
         // Shortcut to select all options of a Multiple Radio/Select datafield
         $(context).find(".ODRSelectAll").unbind('click').click(function () {
+            var div = $(this).parents('.ODRAdvSearch_datafield').find('.ODRRadioSearchDiv').first();
+            var fa_class = 'fa-check';
+            if ( $(div).hasClass('ODRDefaultMerge_AND') )
+                fa_class = 'ODRFourstate_AND';
+            else if ( $(div).hasClass('ODRDefaultMerge_OR') )
+                fa_class = 'ODRFourstate_OR';
+
             var datafield_id = $(this).attr('rel');
             var search_div = $(this).parents(".ODRAdvSearch_datafield").find("#Input_" + datafield_id);
 
             $(search_div).find('i.fa').each(function () {
-                if ( !$(this).hasClass('fa-check') ) {
+                if ( !($(this).hasClass('fa-check') || $(this).hasClass('ODRFourstate_AND') || $(this).hasClass('ODRFourstate_OR')) ) {
                     $(this).parent().attr('title', 'Search for Datarecords where this option is selected');
-                    $(this).removeClass('fa-ban').addClass('fa-check');
+                    $(this).removeClass('fa-ban').addClass(fa_class);
                     $(this).next().val($(this).next().attr('rel'));
                 }
             });
@@ -402,7 +558,7 @@
             $(search_div).find('i.fa').each(function () {
                 if ( !$(this).hasClass('fa-ban') ) {
                     $(this).parent().attr('title', 'Search for Datarecords where this option is unselected');
-                    $(this).removeClass('fa-check').addClass('fa-ban');
+                    $(this).removeClass('fa-check ODRFourstate_AND ODRFourstate_OR').addClass('fa-ban');
                     $(this).next().val('-' + $(this).next().attr('rel'));
                 }
             });
@@ -413,9 +569,9 @@
             var search_div = $(this).parents(".ODRAdvSearch_datafield").find("#Input_" + datafield_id);
 
             $(search_div).find('i.fa').each(function () {
-                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban') ) {
+                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban') || $(this).hasClass('ODRFourstate_AND') || $(this).hasClass('ODRFourstate_OR') ) {
                     $(this).parent().removeAttr('title');
-                    $(this).removeClass('fa-ban fa-check');
+                    $(this).removeClass('fa-check fa-ban ODRFourstate_AND ODRFourstate_OR');
                     $(this).next().val('');
                 }
             });

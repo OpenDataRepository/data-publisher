@@ -716,8 +716,10 @@ class SearchQueryService
 
     /**
      * Searches for all tags where their name matches the given value.  DOES NOT return datarecord
-     * ids.  This only returns tags because $value could match a non-leaf tag, which shouldn't be
-     * selected in the first place.
+     * ids.
+     *
+     * This function only returns tag ids/uuids because $value could match a non-leaf tag...in which
+     * case the non-leaf tag needs to replaced by all of its leaf tag descendants.
      *
      * @param int $datafield_id
      * @param string $value

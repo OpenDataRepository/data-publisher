@@ -5363,3 +5363,41 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 #ODRSidebarLayout_includeGeneralSearch {
     margin-left: 10px;
 }
+
+.ODRFourstateCheckbox {
+    cursor: pointer;
+    border: 2px solid #666;
+    border-radius: 5px;
+    height: 1.5em;
+    width: 1.5em;
+    display: inline-block;
+    margin-right: 5px;
+}
+.ODRFourstateCheckbox > .fa {
+    line-height: 1.6em;
+    padding: 0 0 0 0 !important;
+    margin: 0 0 0 0 !important;
+    position: relative;
+    top: -3px;
+    left: 3px;
+}
+.ODRFourstateCheckbox:hover, .ODRFourstateCheckbox:active, .ODRFourstateCheckbox:focus {
+    background: #9cd4d4;
+}
+.ODRFourstateCheckbox > .partial {
+    color: grey !important;
+}
+
+.ODRFourstateCheckbox > .ODRFourstate_AND {
+    color: green;
+}
+.ODRFourstateCheckbox > .ODRFourstate_AND::before {
+    content: "\26\26";
+    font-size: 70%;
+}
+.ODRFourstateCheckbox > .ODRFourstate_OR {
+    color: green;
+}
+.ODRFourstateCheckbox > .ODRFourstate_OR::before {
+    content: "\7c\a0\7c";
+}

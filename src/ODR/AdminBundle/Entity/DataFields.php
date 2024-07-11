@@ -966,6 +966,26 @@ class DataFields
     }
 
     /**
+     * Get merge_by_AND
+     *
+     * @return boolean
+     */
+    public function getMergeByAND()
+    {
+        return $this->getDataFieldMeta()->getMergeByAND();
+    }
+
+    /**
+     * Get searchCanRequestBothMerges.
+     *
+     * @return bool
+     */
+    public function getSearchCanRequestBothMerges()
+    {
+        return $this->getDataFieldMeta()->getSearchCanRequestBothMerges();
+    }
+
+    /**
      * Get tagsAllowMultipleLevels
      *
      * @return boolean
