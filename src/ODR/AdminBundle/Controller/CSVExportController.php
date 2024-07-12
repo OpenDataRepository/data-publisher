@@ -33,6 +33,7 @@ use ODR\AdminBundle\Component\Service\CSVExportHelperService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -86,6 +87,8 @@ class CSVExportController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -190,8 +193,13 @@ class CSVExportController extends ODRCustomController
                 )
             );
 
+            // More useful if the CSVExport page matches whatever theme the user prefers
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
             // Get the CSVExport page rendered
-            $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id);
+            $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id, $theme);
 
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
