@@ -182,8 +182,17 @@ class FakeEditController extends ODRCustomController
             // Need to unescape the values if they're coming from a wordpress install...
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
-                foreach ($datafields as $id => $val)
-                    $datafields[$id] = stripslashes($val);
+                foreach ($datafields as $id => $val) {
+                    if ( !is_array($val) ) {
+                        // Most fieldtypes are straightforward...
+                        $datafields[$id] = stripslashes($val);
+                    }
+                    else {
+                        // ...but tags and radio options are posted as arrays themselves
+                        foreach ($val as $ro_id => $ro_val)
+                            $datafields[$id][$ro_id] = stripslashes($ro_val);
+                    }
+                }
             }
 
             $csrf_tokens = array();
