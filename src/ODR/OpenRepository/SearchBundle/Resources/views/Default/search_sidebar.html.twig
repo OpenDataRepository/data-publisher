@@ -38,9 +38,8 @@
 
     <div class="ODRInnerBox">
         {% if intent != 'stored_search_keys' %}
-        <span class="ODRSearchToggle">
-            <i class="fa fa-lg fa-arrow-circle-left ODRHidden"></i>
-            <i class="fa fa-lg fa-arrow-circle-right"></i>
+        <span>
+            <i class="ODRSearchToggle fa fa-lg"></i>
         </span>
         {% endif %}
 
@@ -657,7 +656,8 @@
 
         // Slide out the help menu
         $(context).find(".ODRSearchHelp").unbind('click').click(function () {
-            $(context).find("#ODRSearchHelp_div").slideToggle();
+            var search_help_div = $(context).find("#ODRSearchHelp_div");
+            $(search_help_div).toggleClass('ODRHidden');
         });
         $(context).find(".ODRGeneralSearchList").unbind('click').click(function () {
             $(context).find("#ODRGeneralSearchList_div").slideToggle();

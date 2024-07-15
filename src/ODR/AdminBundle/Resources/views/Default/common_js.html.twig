@@ -414,13 +414,11 @@
         });
     }
 
-
     /**
      * Hides the search sidebar so that users can't see or expand it.
      */
     function disableSearchSidebar() {
-        // console.log('disableSearchSidebar()');
-        // console.trace();
+        // console.log('disableSearchSidebar()');  console.trace();
 
         var sidebar = $("#ODRSearchSidebar");
         // var searchToggle = $(".ODRSearchToggle");
@@ -438,7 +436,7 @@
      * Puts the search sidebar into a 'collapsed' state.
      */
     function collapseSearchSidebar() {
-        // console.log('disableSearchSidebar()');
+        // console.log('collapseSearchSidebar()');  console.trace();
 
         var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
@@ -446,9 +444,7 @@
 
         $(sidebar).removeClass("ODRSearchVisible ODRHidden").addClass("ODRSearchHidden");
         $(searchContent).addClass("ODRSearchResultsWide");
-
-        $(searchToggle).find(".fa-arrow-circle-left").addClass('ODRHidden');
-        $(searchToggle).find(".fa-arrow-circle-right").removeClass('ODRHidden');
+        $(searchToggle).removeClass('fa-arrow-circle-left').addClass('fa-arrow-circle-right');
 
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         // Have to wait for that to finish before recalculating the width of datatables objects
@@ -459,7 +455,7 @@
      * Puts the search sidebar into an 'expanded' state.
      */
     function expandSearchSidebar() {
-        // console.log('expandSearchSidebar()');
+        // console.log('expandSearchSidebar()');  console.trace();
 
         var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
@@ -467,9 +463,7 @@
 
         $(sidebar).removeClass("ODRSearchHidden ODRHidden").addClass("ODRSearchVisible");
         $(searchContent).removeClass("ODRSearchResultsWide");
-
-        $(searchToggle).find(".fa-arrow-circle-left").removeClass('ODRHidden');
-        $(searchToggle).find(".fa-arrow-circle-right").addClass('ODRHidden');
+        $(searchToggle).removeClass('fa-arrow-circle-right').addClass('fa-arrow-circle-left');
 
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         // Have to wait for that to finish before recalculating the width of datatables objects
@@ -481,11 +475,11 @@
      * in the 'disabled' state, then it is set to 'collapsed' instead.
      */
     function searchToggle() {
+        // console.log('searchToggle()');  console.trace();
+
         var is_expanded = true;
         if ( $("#ODRSearchContent").hasClass('ODRSearchResultsWide') )
             is_expanded = false;
-
-        // console.log('searchToggle()', 'is_expanded', is_expanded);
 
         if (is_expanded)
             collapseSearchSidebar();
@@ -502,23 +496,24 @@
      * @param {string} [intent]
      */
     function enableSearchSidebar(search_key, when_disabled, intent = '') {
-        // console.log('enableSearchSicebar()', 'search_key', search_key, 'when_disabled', when_disabled, 'intent', intent);
-
-        // If the sidebar is currently disabled...
-        if ( $("#ODRSearchSidebar").hasClass('ODRHidden') ) {
-            // ...then set it to 'expanded' or 'collapsed' depending on the caller
-            if ( when_disabled === 'expanded' )
-                expandSearchSidebar();
-            else
-                collapseSearchSidebar();
-        }
+        // console.log('enableSearchSidebar()', 'search_key', search_key, 'when_disabled', when_disabled, 'intent', intent);  console.trace();
 
         // Default intent is for a search page
         if (intent === undefined || intent === null || intent === '')
             intent = 'searching';
 
-        // Don't update the sidebar if it's already current
-        updateSearchSidebar(search_key, intent, false);
+        // Need to ensure the sidebar is up to date first...
+        updateSearchSidebar(search_key, intent, false, function() {
+            // console.log('enableSearchSidebar_callback()', 'when_disabled', when_disabled);  console.trace();
+            // ...and only expand/collapse it afterwards in case it got replaced
+            if ( $("#ODRSearchSidebar").hasClass('ODRHidden') ) {
+                // ...then set it to 'expanded' or 'collapsed' depending on the caller
+                if ( when_disabled === 'expanded' )
+                    expandSearchSidebar();
+                else
+                    collapseSearchSidebar();
+            }
+        });
     }
 
     /**
@@ -527,9 +522,14 @@
      * @param {string} search_key
      * @param {string} intent
      * @param {boolean} force_reload If true, then the sidebar will always be reloaded
+     * @param {function} callback
      */
-    function updateSearchSidebar(search_key, intent, force_reload) {
-        // console.log('updateSearchSidebar()', 'search_key', search_key, 'intent', intent, 'force_reload', force_reload);
+    function updateSearchSidebar(search_key, intent, force_reload, callback) {
+        if (callback == undefined)
+            callback = function() {}
+
+        // console.log('updateSearchSidebar()', 'search_key', search_key, 'intent', intent, 'force_reload', force_reload, 'callback', callback);  console.trace();
+
         // Don't want to always update the sidebar...
         var can_reload = true;
         var should_reload = false;
@@ -546,9 +546,9 @@
         if (force_reload)
             should_reload = true;
 
+        // console.log('updateSearchSidebar()', 'can_reload', can_reload, 'should_reload', should_reload);
 
         // If the sidebar can and should be reloaded...
-        // console.log('updateSearchSidebar()', 'can_reload', can_reload, 'should_reload', should_reload);
         if ( can_reload && should_reload ) {
             showSearchOverlay();
 
@@ -565,6 +565,8 @@
                     if ( data.d.html !== '' ) {
                         $("#ODRSearchSidebar").html(data.d.html);
                         InitSearchSidebar();
+
+                        callback();
                     }
                 },
                 complete: function() {
@@ -572,6 +574,10 @@
                     hideSearchOverlay();
                 }
             });
+        }
+        else {
+            // ...probably should ensure the callback fires even if the sidebar didn't get reloaded
+            callback();
         }
     }
 

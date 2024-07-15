@@ -75,6 +75,8 @@ class ODRCustomController extends Controller
         if ( isset($jupyterhub_config['use_jupyterhub']) && $jupyterhub_config['use_jupyterhub'] == true )
             $use_jupyterhub = true;
 
+        $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
@@ -397,6 +399,8 @@ class ODRCustomController extends Controller
             $final_html = $templating->render(
                 $template,
                 array(
+                    'odr_wordpress_integrated' => $is_wordpress_integrated,
+
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $datarecord_array,
                     'theme_array' => $stacked_theme_array,
@@ -489,6 +493,8 @@ class ODRCustomController extends Controller
             $final_html = $templating->render(
                 $template,
                 array(
+                    'odr_wordpress_integrated' => $is_wordpress_integrated,
+
                     'datatype' => $datatype,
                     'has_datarecords' => $has_datarecords,
                     'column_names' => $column_names,

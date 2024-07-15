@@ -3881,9 +3881,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     cursor: pointer;
 }
 
+#ODRSearchResultsButtons {
+    text-align: right;
+    margin-top: 8px;
+}
+#ODRSearchResultsPrevious, #ODRSearchResultsNext {
+    position: relative;
+    top: -10px;
+}
 #ODRReturnToSearchResults {
-    padding-top: 3px;
-    padding-bottom: 3px;
+    padding-top: 2px;
+    padding-bottom: 6px;
     padding-right: 14px;
     padding-left: 14px;
     position: relative;
@@ -4443,11 +4451,11 @@ i {
 }
 
 #ODRSearchSidebar {
-    margin-left: -30px;
+    margin-left: -60px;
 }
 
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
-    padding-left: 20px;
+    padding-left: 10px;
     padding-right: 6px;
 }
 
