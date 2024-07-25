@@ -4,3 +4,17 @@ imports:
     - { resource: "../../Plugins/AHED/config.yml" }
     - { resource: "../../Plugins/Metadata/config.yml" }
     - { resource: "../../Plugins/RRUFF/config.yml" }    # TODO - need a more robust plugin management system...these plugins shouldn't be active/available to the entirety of ODR...
+
+services:
+    odr.amcsd_update_service:
+        class: ODR\OpenRepository\GraphBundle\Component\Service\AMCSDUpdateService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $odr_tmp_directory: "%odr_tmp_directory%"
+            $odr_web_directory: "%odr_web_directory%"
+            $event_dispatcher: "@event_dispatcher"
+            $crypto_service: "@odr.crypto_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $odr_upload_service: "@odr.upload_service"
+            $search_service: "@odr.search_service"
+            $logger: "@logger"
