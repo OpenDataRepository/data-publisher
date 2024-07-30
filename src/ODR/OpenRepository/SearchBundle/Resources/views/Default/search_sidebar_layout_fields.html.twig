@@ -8,9 +8,24 @@
         {# Insert the "general search" input #}
         <label for="textbox_general">
             All Fields:
-            <input id="textbox_general" class="pure-u-1" type="text" name="gen"
+            {% if datatype_array|length > 1 %}
+                {% if search_params is defined and search_params['gen_all'] is defined %}
+                <span id="textbox_general_blurb" title="Search in all possible fields, including descendant databases">
+                    (include descendants)
+                </span>
+                {% else %}
+                <span id="textbox_general_blurb" title="Search each field in the current database">
+                    (current database)
+                </span>
+                {% endif %}
+            {% endif %}
+
+            <input id="textbox_general" class="pure-u-1" type="text"
+                {% if search_params is defined and search_params['gen_all'] is defined %}name="gen_all"{% else %}name="gen"{% endif %}
+
                 {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
                 {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
+                {% if search_params is defined and search_params['gen_all'] is defined %}value="{{ search_params['gen_all'] }}"{% endif %}
             />
         </label>
     {% else %}

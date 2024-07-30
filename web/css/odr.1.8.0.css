@@ -4459,6 +4459,13 @@ i {
     padding-right: 6px;
 }
 
+#textbox_general_blurb {
+    cursor: pointer;
+    color: rgb(85, 85, 85);
+    float: right;
+    text-decoration: underline;
+}
+
 
 #ODRTrackingForm > fieldset {
     margin: 10px;

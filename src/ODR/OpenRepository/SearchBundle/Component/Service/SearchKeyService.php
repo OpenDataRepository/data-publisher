@@ -522,9 +522,14 @@ class SearchKeyService
         // Want the search key in array format...
         $search_params = self::decodeSearchKey($search_key);
 
+        // Search keys should always have the "dt_id" key...
         if ( !isset($search_params['dt_id']) || !is_numeric($search_params['dt_id']) )
             throw new ODRBadRequestException('Invalid search key: missing "dt_id"', $exception_code);
         $dt_id = $search_params['dt_id'];
+
+        // ...they should not have both "gen" and "gen_all"..."gen" is a subset of "gen_all"
+        if ( isset($search_params['gen']) && isset($search_params['gen_all']) )
+            throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_all"', $exception_code);
 
 
         $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
@@ -534,7 +539,7 @@ class SearchKeyService
         $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_all' ) {
                 // Nothing to validate
                 continue;
             }
@@ -899,7 +904,7 @@ class SearchKeyService
                 // ...the reason being that if SearchAPIService::performSearch() directly used this
                 //  entry, then any sort_criteria for this tab in the user's session would be ignored
             }
-            else if ($key === 'gen') {
+            else if ($key === 'gen' || $key === 'gen_all' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
@@ -913,6 +918,13 @@ class SearchKeyService
                 foreach ($tokens as $token_num => $token) {
                     // Need to find each datafield that qualifies for general search...
                     foreach ($searchable_datafields as $dt_id => $df_list) {
+                        // Don't create criteria for fields from descendant datatypes unless that's
+                        //  what the user wants
+                        if ( $key === 'gen' && $dt_id !== $datatype_id )
+                            continue;
+
+                        // After this point, the 'gen_all' key effectively ceases to exist
+
                         // Each token in the general search string gets its own facet
                         if ( !isset($criteria['general'][$token_num]) ) {
                             $criteria['general'][$token_num] = array(
@@ -1946,12 +1958,15 @@ class SearchKeyService
             if ( $key === 'dt_id' || $key === 'sort_by' )
                 continue;
 
-            if ( $key === 'gen' ) {
+            if ( $key === 'gen' || $key === 'gen_all' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
 
-                $readable_search_key['General Search'] = $value;
+                if ( $key === 'gen' )
+                    $readable_search_key['All Fields (current database)'] = $value;
+                else
+                    $readable_search_key['All Fields (including descendants)'] = $value;
             }
             else if ( is_numeric($key) ) {
                 // If this datafield doesn't exist (most likely due to deletion), then don't fully

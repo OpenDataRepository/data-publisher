@@ -120,10 +120,18 @@ class SearchAPIServiceTest extends WebTestCase
                 array(35,36,49,66,68),
                 false
             ],
-            'IMA List: general search of "downs"' => [
+            'IMA List: general search of "downs", not including descendants' => [
                 array(
                     'dt_id' => 2,
                     'gen' => 'downs',
+                ),
+                array(),    // None of the fields directly belonging to IMA have "downs" in them, so there will be no results
+                false
+            ],
+            'IMA List: general search of "downs", including descendants' => [
+                array(
+                    'dt_id' => 2,
+                    'gen_all' => 'downs',
                 ),
                 array(94,97),
                 false
@@ -131,7 +139,7 @@ class SearchAPIServiceTest extends WebTestCase
             'IMA List: general search of "downs", including non-public records' => [
                 array(
                     'dt_id' => 2,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                 ),
                 array(91,94,97),
                 true
@@ -139,7 +147,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "downs"' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                 ),
                 array(
                     98,    // Abelsonite
@@ -597,7 +605,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "downs" and authors contains "d"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                     '1' => 'd',
                 ),
                 array(35,36,49,66,68),    // should be same as "gen" = "downs", obviously
@@ -606,7 +614,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "downs" and authors contains "f"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                     '1' => 'f',
                 ),
                 array(36,49,66),
@@ -615,7 +623,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "downs" and journal contains "mineral"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                     '3' => 'mineral',
                 ),
                 array(35,49,66,68),
@@ -625,7 +633,7 @@ class SearchAPIServiceTest extends WebTestCase
             'IMA List: general search of "downs" and mineral_name contains "t", including non-public records' => [
                 array(
                     'dt_id' => 2,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                     '17' => "t",
                 ),
                 array(91,97),
@@ -635,7 +643,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "downs" and authors contains "f", including non-public records' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                     '1' => 'f',
                 ),
                 array(
@@ -648,7 +656,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "downs" and mineral_name contains "t", including non-public records' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                     '17' => 't',
                 ),
                 array(
@@ -664,7 +672,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "downs mineral"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'downs mineral',
+                    'gen_all' => 'downs mineral',
                 ),
                 array(35,49,66,68),
                 false
@@ -672,7 +680,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "\"downs mineral\""' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => '"downs mineral"',
+                    'gen_all' => '"downs mineral"',
                 ),
                 array(),    // no field has "downs mineral" in it at the same time
                 false
@@ -680,7 +688,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "\"downs hazen\""' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => '"downs hazen"',
+                    'gen_all' => '"downs hazen"',
                 ),
                 array(),    // authors have "downs" and "hazen" individually, but not the string "downs hazen"
                 false
@@ -689,7 +697,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "abelsonite"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'abelsonite',
+                    'gen_all' => 'abelsonite',
                 ),
                 array(1,35,63,83),
                 false
@@ -697,7 +705,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "american"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'american',
+                    'gen_all' => 'american',
                 ),
                 array(2,6,7,8,9,17,25,27,31,32,35,43,49,58,60,61,64,66,68,71,72,75,79,81,82,83),
                 false
@@ -706,7 +714,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "abelsonite OR american"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'abelsonite OR american',
+                    'gen_all' => 'abelsonite OR american',
                 ),
                 array(
                     1,35,63,83,
@@ -718,7 +726,7 @@ class SearchAPIServiceTest extends WebTestCase
             'IMA List: general search of "downs mineral"' => [
                 array(
                     'dt_id' => 2,
-                    'gen' => 'downs mineral',
+                    'gen_all' => 'downs mineral',
                 ),
                 array(94,97),
                 false
@@ -727,7 +735,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "532"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => '532',
+                    'gen_all' => '532',
                 ),
                 array(24),
                 false
@@ -735,7 +743,7 @@ class SearchAPIServiceTest extends WebTestCase
             'IMA List: general search of "532"' => [
                 array(
                     'dt_id' => 2,
-                    'gen' => '532',
+                    'gen_all' => '532',
                 ),
                 array(94),    // Aegirine
                 false
@@ -743,7 +751,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "532"' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => '532',
+                    'gen_all' => '532',
                 ),
                 array(
                     // Samples of Aegirine
@@ -760,7 +768,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "downs OR 532", including non-public records' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'downs OR 532',
+                    'gen_all' => 'downs OR 532',
                 ),
                 array(
                     // Abelsonite
@@ -783,7 +791,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "downs 532", including non-public records' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'downs 532',
+                    'gen_all' => 'downs 532',
                 ),
                 array(
                     // Samples need to have "downs" somewhere, and have "532" somewhere
@@ -823,7 +831,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "ross"' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'ross',    // results in 73 and 77 from references, and 99, 106, 128 from rruff sample
+                    'gen_all' => 'ross',    // results in 73 and 77 from references, and 99, 106, 128 from rruff sample
                 ),
                 array(
                     // Aegirine
@@ -1058,7 +1066,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: general search of "downs"' => [
                 array(
                     'dt_id' => 1,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                 ),
                 array(35,36,49,66,68),
                 false
@@ -1066,7 +1074,7 @@ class SearchAPIServiceTest extends WebTestCase
             'IMA List: general search of "downs"' => [
                 array(
                     'dt_id' => 2,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                 ),
                 array(
                     // from IMA List, Abelsonite (91) is non-public
@@ -1084,7 +1092,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "downs"' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                 ),
                 array(
                     // from IMA List, Abelsonite (91) is non-public
@@ -1121,7 +1129,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Sample: general search of "downs" and wavelength = "532"' => [
                 array(
                     'dt_id' => 3,
-                    'gen' => 'downs',
+                    'gen_all' => 'downs',
                     '41' => '532',
                 ),
                 array(
