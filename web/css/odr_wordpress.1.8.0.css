@@ -3788,6 +3788,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 /* End Loading CSS Widget */
 
+#ChooseView {
+    position: relative;
+    top: 10px;
+}
 
 #ODRChooseView,
 #ODRChooseLayout {
@@ -3926,12 +3930,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 #ODRReturnToSearchResults {
-    padding-top: 3px;
-    padding-bottom: 3px;
+    padding-top: 4px;
+    padding-bottom: 4px;
     padding-right: 14px;
     padding-left: 14px;
     position: relative;
-    top: -5px;
+    top: 8px;
 }
 
 .ODRJobList_header {

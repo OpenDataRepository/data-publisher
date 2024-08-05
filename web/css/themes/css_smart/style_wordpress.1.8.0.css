@@ -74,14 +74,14 @@ input,
 .ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,  /* rollup graph */
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement > .ODRInnerBox,  /* not-rollup graph */
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
-    border: 1px solid #EEEEFF;
+    border: 1px solid #ccccff;
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
     padding-top: 0;
     padding-left: 0;
     padding-right: 0;
-    border-radius: 7px;
+    border-radius: px;
     background-color: white;
 }
 
