@@ -60,10 +60,10 @@ class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
 
             // Dealt with the job
             $pheanstalk->delete($job);
-if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job from '.$redis_prefix.'_csv_export_worker_express');
-else
-    $output->writeln( date('H:i:s').'  deleted job from csv_export_worker_express');
+            if ($input->getOption('old'))
+                $output->writeln( date('H:i:s').'  deleted job from '.$redis_prefix.'_csv_export_worker_express');
+            else
+                $output->writeln( date('H:i:s').'  deleted job from csv_export_worker_express');
 
             // Sleep for a bit
             usleep(50000); // sleep for 0.05 seconds

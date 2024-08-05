@@ -94,7 +94,18 @@ odr_api_get_template_single:
 
 odr_api_datarecord_list:
   path: /api/{version}/search/database/{datatype_uuid}/records/{limit}/{offset}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, _format: json }
+  defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, recent: false, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d'  # v1, v2, v3, v4 - no difference
+    datatype_uuid: '^[a-z0-9]+$'
+    limit: \d+
+    offset: \d+
+    _format: '|json|xml'
+
+odr_api_recent_datarecord_list:
+  path: /api/{version}/search/database/{datatype_uuid}/modified/records/{recent}/{limit}/{offset}.{_format}
+  defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, recent: true, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d'  # v1, v2, v3, v4 - no difference
@@ -456,8 +467,115 @@ odr_api_record_public:
     version: 'v\d+'
     _format: '|json|xml'
 
+
+#
+# Starts a tracked job
+# Returns a tracked job object
+#
+odr_api_start_job:
+  path: /api/{version}/job
+  defaults: { _controller: ODRAdminBundle:API:createJob, _format: json, version: 'v3' }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+    _format: '|json|xml'
+
+#
+# Check status on tracked job
+# Returns a tracked job object
+#
+odr_api_job_status:
+  path: /api/{version}/job/status/{job_id}/{full}
+  defaults: { _controller: ODRAdminBundle:API:jobStatus, _format: json, version: 'v3', full: 1, job_id: 9999999 }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+    full: '\d'
+    job_id: '\d+'
+    _format: '|json|xml'
+
+#
+# Returns a list of recently completed jobs
+#
+odr_api_completed_jobs:
+  path: /api/{version}/jobs/completed/{job_type}/{count}
+  defaults: { _controller: ODRAdminBundle:API:completedJobs, _format: json, version: 'v3', job_type: 'ima_update', count: 5 }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+    job_type: '^[A-Za-z_0-9]+$'
+    count: '\d+'
+    _format: '|json|xml'
+
+#
+# Cancels a tracked job
+# Clears related jobs in tuebes
+# Returns a tracked job object
+#
+odr_api_job_cancel:
+  path: /api/{version}/job/cancel/{job_id}
+  defaults: { _controller: ODRAdminBundle:API:jobCancel, _format: json, version: 'v3', job_id: 9999999 }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+    job_id: '\d+'
+    _format: '|json|xml'
+
+#
+# Force complete
+# Sets current = total so job finishers can run
+# Inserts required number of CSVExport Rows to
+# Make job complete
+# Returns a tracked job object
+#
+odr_api_job_complete:
+  path: /api/{version}/job/complete/{job_id}
+  defaults: { _controller: ODRAdminBundle:API:jobComplete, _format: json, version: 'v3', job_id: 9999999 }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+    job_id: '\d+'
+    _format: '|json|xml'
+
+#
+# Check status on tracked job
+# Returns a tracked job object
+#
+odr_api_running_job_list:
+  path: /api/{version}/jobs/{job_type}
+  defaults: { _controller: ODRAdminBundle:API:runningJobs, _format: json, version: 'v3', job_type: 'ima_update' }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+    job_type: '^[A-Za-z_0-9]+$'
+    _format: '|json|xml'
+
+#
+# Update a tracked job
+# Returns a tracked job object
+#
+odr_api_update_job:
+  path: /api/{version}/job
+  defaults: { _controller: ODRAdminBundle:API:updateJob, _format: json, version: 'v3' }
+  methods: [ PUT ]
+  requirements:
+    version: 'v\d+'
+    _format: '|json|xml'
+#
+# Update a tracked job count
+# Returns a worker job object
+#
+odr_api_worker_job:
+  path: /api/{version}/worker/job
+  defaults: { _controller: ODRAdminBundle:API:workerJob, _format: json, version: 'v3' }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+    _format: '|json|xml'
+
 #
 # Get an individual dataset record
+# Returns a tracked job object
 #
 odr_api_get_dataset_record:
   path: /api/{version}/dataset/record/{record_uuid}

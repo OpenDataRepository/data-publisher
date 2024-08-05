@@ -199,7 +199,14 @@ odr_random_network_search:
 # IMA List Rebuilder
 odr_ima_list_rebuild:
     path: /ima_list_rebuild
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:IMAListRebuild, version: 'v4' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:IMAListRebuild, version: 'v4', recent: false }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+
+odr_ima_list_update:
+    path: /ima_list_update
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:IMAListRebuild, version: 'v4', recent: true }
     methods: [ GET ]
     requirements:
         version: 'v\d+'

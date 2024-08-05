@@ -453,7 +453,7 @@ class CSVImportController extends ODRCustomController
             $csv_filename = $session->get('csv_file');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist 5');
 
 
             // Ensure the delimiter is valid before attempting to read the file...
@@ -1418,7 +1418,7 @@ class CSVImportController extends ODRCustomController
             $delimiter = $session->get('csv_delimiter');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist 4');
 
             // Don't need to check whether the file needs to be rewritten
 
@@ -2003,13 +2003,13 @@ class CSVImportController extends ODRCustomController
 
                                 if ( !file_exists($upload_dir.$filename) ) {
                                     // File/Image does not exist in the upload directory
-                                    $errors[] = array(
-                                        'level' => 'Error',
-                                        'body' => array(
-                                            'line_num' => $line_num,
-                                            'message' => 'Column "'.$column_names[$column_num].'" references a '.$typeclass.' "'.$filename.'", but that '.$typeclass.' has not been uploaded to the server.',
-                                        )
-                                    );
+                                    // $errors[] = array(
+                                        // 'level' => 'Error',
+                                        // 'body' => array(
+                                            // 'line_num' => $line_num,
+                                            // 'message' => 'Column "'.$column_names[$column_num].'" references a '.$typeclass.' "'.$filename.'", but that '.$typeclass.' has not been uploaded to the server.',
+                                        // )
+                                    // );
                                 }
                                 else {
                                     // File/Image exists, ensure it has a valid mimetype
@@ -2508,7 +2508,7 @@ class CSVImportController extends ODRCustomController
             $delimiter = $presets['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist 3');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2773,7 +2773,7 @@ class CSVImportController extends ODRCustomController
             $delimiter = $job_data['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist 2');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -3098,7 +3098,7 @@ print_r($new_mapping);
             $delimiter = $job_data['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist 1');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -3707,6 +3707,7 @@ exit();
                                 WHERE e.dataRecord = :datarecord AND e.dataField = :datafield ';
                             if ($typeclass == 'Image')
                                 $query_str .= 'AND e.original = 1 ';
+
                             $query_str .= 'AND e.deletedAt IS NULL';
                             $query = $em->createQuery($query_str)->setParameters(
                                 array(
@@ -3727,13 +3728,20 @@ exit();
                             // ----------------------------------------
                             // For each file/image listed in the csv file...
                             $csv_filenames = explode( $column_delimiters[$column_num], $column_data );
+                            $status .= 'FILENAME:: ' . $column_data;
                             foreach ($csv_filenames as $csv_filename) {
                                 // Don't attempt to upload files with no name
                                 $csv_filename = trim($csv_filename);
                                 if ($csv_filename === '')
                                     continue;
 
-                                // ...there are three possibilities...
+                                // If file doesn't exist, continue
+                                if(!file_exists($storage_filepath.'/'.$csv_filename)) {
+                                    print $storage_filepath.'/'.$csv_filename."<br>\n";
+                                    continue;
+                                }
+
+                                    // ...there are three possibilities...
                                 if ( !isset($existing_files[$csv_filename]) ) {
                                     // ...need to add a new file/image
                                     if ( $typeclass === 'File' )

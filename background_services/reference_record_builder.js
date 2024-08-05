@@ -7,19 +7,19 @@ const fs = require('fs');
 
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
-const tube = 'odr_ima_record_builder';
+const tube = 'odr_references_record_builder';
 let browser;
 let token = '';
 
 function delay(time) {
     return new Promise(function(resolve) {
-        setTimeout(resolve, time)
+        setTimeout(resolve, time);
     });
 }
 
 async function app() {
     browser = await puppeteer.launch({headless:'new'});
-    console.log('IMA Record Builder Start');
+    console.log('References Record Builder Start');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {
@@ -31,7 +31,7 @@ async function app() {
                     console.log('Starting job: ' + job.id);
 
                     // Login/get token
-                    // console.log('API URL: ', record.api_login_url);
+                    console.log('API URL: ', record.api_login_url);
                     let post_data = {
                         'username': record.api_user,
                         'password': record.api_key
@@ -40,7 +40,6 @@ async function app() {
                     token = login_token.token;
                     // console.log('Login Token: ', login_token.token);
 
-
                     // Check Status of Job
                     // console.log(data.api_job_status_url + ' -- ' + data.tracked_job_id);
                     let status_url = record.api_job_status_url + '/' + record.tracked_job_id + '/0';
@@ -48,6 +47,7 @@ async function app() {
                     if(!tracked_job) {
                         throw Error('Job canceled.');
                     }
+
 
                     /*
                     {
@@ -68,7 +68,6 @@ async function app() {
                     /*
                         path: ^/api/{version}/dataset/record/{record_uuid}
                      */
-                    // let record_url = record.base_url + '/odr/api/v5/dataset/record/' + record.unique_id;
                     let record_url = record.base_url + '/api/v5/dataset/record/' + record.unique_id;
                     // console.log(record_url);
 
@@ -76,187 +75,41 @@ async function app() {
                     let record_data = await loadPage(record_url);
                     // console.log(record_data);
 
-                    /*
-                    'Abellaite
-                    ||Abellaite
-                    ||NaPb<sup>2+</sup><sub>2</sub>(CO<sub>3</sub>)<sub>2</sub>(OH)
-                    ||NaPb<sub>2</sub>(CO<sub>3</sub>)<sub>2</sub>(OH)
-                    ||
-                    ||
-                    ||1
-                    ||Na Pb C O H
-                    ||785 765 786 90 236 173 766 813 895 893 1132 1135 1000001 1000008
-                    ||18519 18520 19655 19668 19924
-                    ||
-                    ||
-                    ||NaPb^2+^_2_(CO_3_)_2_(OH)
-                    ||NaPb_2_(CO_3_)_2_(OH)
-                    ||
-                    ||
-                    ||6482
-                    ||SWLDocOxZXotSW5zYSBKLCBFbHZpcmEgSiBKLCBMbG92ZXQgWCwgUMOpcmV6LUNhbm8gSiwgT3Jpb2xzIE4sIEJ1c3F1ZXRzLU1hc8OzIE0sIEhlcm7DoW5kZXogUyAoMjAxNykgQWJlbGxhaXRlLCBOYVBiXzJfKENPXzNfKV8yXyhPSCksIGEgbmV3IHN1cGVyZ2VuZSBtaW5lcmFsIGZyb20gdGhlIEV1cmVrYSBtaW5lLCBMbGVpZGEgcHJvdmluY2UsIENhdGFsb25pYSwgU3BhaW4uIEV1cm9wZWFuIEpvdXJuYWwgb2YgTWluZXJhbG9neSAyOSwgOTE1LTkyMg==:::
-                    ||Na Pb C O H
-                    ||IMA2014-111
-                    ||Abellaite
-                    ||Spain
-                    ||2014
-                    ||Na Pb^2+ C O H
-                    ||Abe
-                    ||Abe
-                    ||HOM File';
+                    // throw Error('Break for debug.');
 
+
+                    // Aarden H M, Gittins J (1974) Hiortdahlite from Kipawa River, Villedieu Township Temiscaming County, Québec, Canada. The Canadian Mineralogist 12, 241-247
+                    // authors: 'af88b9e5d2680ac5bf6dc4fc34cd'
+                    // article_title: 'dbf1b342812f12c1b750b036b201'
+                    // journal: 'b1e0f7899c4fe89fe3813251c8e0'
+                    // year: '889ce6e0f61474112e1fe8adf9da'
+                    // volume: '5efacf0643a1e8fda456e9b87e10'
+                    // pages: '98d09e2bcc2de65a4025a1eed271'
+                    // reference_id: '72a950a4705a83547020834a1ce8'
+
+                    let reference_id = await findValue(record.reference_record_map.reference_id, record_data);
+                    let reference_record = {
+                        'reference_id': await findValue(record.reference_record_map.reference_id, record_data),
+                        'author': await findValue(record.reference_record_map.authors, record_data),
+                        'year': await findValue(record.reference_record_map.year, record_data),
+                        'article_title': await findValue(record.reference_record_map.article_title, record_data),
+                        'journal': await findValue(record.reference_record_map.journal, record_data),
+                        'volume': await findValue(record.reference_record_map.pages, record_data),
+                        'record_uuid': record_data.record_uuid,
+                        'internal_id': record_data.internal_id
+                    };
+
+                    /*
+                    Buffer.from(
+                        await findValue(record.ima_record_map.status_notes , record_data)
+                    ).toString('base64') + '||' +
                      */
 
-                    // minerals_by_name[0]={
-                    // name:"Abellaite",
-                    // id:"6482"
-                    // };
-                    // mineral_keys['6482']=
-                    // 'Abellaite';
-                    // mineral_data_array['6482']=
-                    // 'Abellaite||
-                    // Abellaite||
-                    // NaPb<sup>2+</sup><sub>2</sub>(CO<sub>3</sub>)<sub>2</sub>(OH)
-                    // ||NaPb<sub>2</sub>(CO<sub>3</sub>)<sub>2</sub>(OH)
-                    // || // Has HOM
-                    // ||
-                    // ||1 // Has AMCSD
-                    // ||Na Pb C O H
-                    // TAG Data: ||785 765 786 90 236 173 766 813 895 893 1132 1135 1000001 1000008 Tags???
-                    // References? ||18519 18520 19655 19668 19924
-                    // || has RRUFF Record
-                    // ||
-                    // ||NaPb^2+^_2_(CO_3_)_2_(OH)
-                    // ||NaPb_2_(CO_3_)_2_(OH)
-                    // ||
-                    // ||
-                    // ||6482
-                    // ||SWLDocOxZXotSW5zYSBKLCBFbHZpcmEgSiBKLCBMbG92ZXQgWCwgUMOpcmV6LUNhbm8gSiwgT3Jpb2xzIE4sIEJ1c3F1ZXRzLU1hc8OzIE0sIEhlcm7DoW5kZXogUyAoMjAxNykgQWJlbGxhaXRlLCBOYVBiXzJfKENPXzNfKV8yXyhPSCksIGEgbmV3IHN1cGVyZ2VuZSBtaW5lcmFsIGZyb20gdGhlIEV1cmVrYSBtaW5lLCBMbGVpZGEgcHJvdmluY2UsIENhdGFsb25pYSwgU3BhaW4uIEV1cm9wZWFuIEpvdXJuYWwgb2YgTWluZXJhbG9neSAyOSwgOTE1LTkyMg==:::
-                    // ||Na Pb C O H
-                    // ||IMA2014-111
-                    // ||Abellaite
-                    // ||Spain
-                    // ||2014
-                    // ||Na Pb^2+ C O H
-                    // ||Abe
-                    // ||Abe';
-                    let content = '' +
-                        'minerals_by_name[' + record.mineral_index + ']={name:"' +
-                            // Mineral Name
-                            await findValue(record.cell_params_map.mineral_name , record_data) +
-                            '",id:"' +
-                            // Mineral ID
-                             record_data.record_uuid +
-                        '"};';
-
-                    content += '' +
-                        'mineral_keys[' +
-                            // Mineral ID
-                            '\'' + record_data.record_uuid + '\'' +
-                        ']=\'' +
-                            // Mineral Name
-                            await findValue(record.cell_params_map.mineral_name , record_data) +
-                        '\';';
-
-                    content += '' +
-                        'mineral_name_keys[\'' +
-                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data) +
-                            // Mineral Name
-                            await findValue(record.cell_params_map.mineral_name , record_data) +
-                        '\']=\'' +
-                            // Mineral ID
-                            record_data.record_uuid +
-                        '\';';
-
-                    content += '' +
-                        'mineral_data_array[' +
-                            // Mineral ID
-                            '\'' + record_data.record_uuid + '\'' +
-                        ']=\'' +
-                        // Mineral Name -- 0
-                        await findValue(record.cell_params_map.mineral_name , record_data) + '||' +
-                        // Mineral Display Name -- 1
-                        await findValue(record.cell_params_map.mineral_name , record_data) + '||' +
-                        // Ideal IMA Formula (html) -- 2
-                        formatChemistry(await findValue(record.cell_params_map.ima_chemistry , record_data)) + '||' +
-                        // RRUFF Formula (html) -- 3
-                        formatChemistry(await findValue(record.ima_record_map.rruff_formula , record_data)) + '||' +
-                        // Has HOM -- 4
-                        await findValue(record.ima_record_map.hom_file, record_data) + '||' +
-                        // await findValue('' , record_data) + '||' +
-                        // <empty> -- 5
-                        await findValue('' , record_data) + '||' +
-                        // Has AMCSD -- 6
-                        await findValue('' , record_data) + '||' +
-                        // Chemistry Elements -- 7
-                        await findValue(record.cell_params_map.chemistry_elements , record_data) + '||' +
-                        // Tag Data -- 8
-                        await findValue(record.ima_record_map.tag_data , record_data) + '||' +
-                        // References -- 9
-                        await findReferences(record, record_data) + '||' +
-                        // IMA Number -- 10
-                        await findValue('' , record_data) + '||' +
-                        // RRUFF IDs -- 11
-                        await findValue('' , record_data) + '||' +
-                        // Ideal IMA Formula (raw) -- 12
-                        await findValue(record.cell_params_map.ima_chemistry , record_data) + '||' +
-                        // RRUFF Formula (raw) -- 13
-                        await findValue(record.ima_record_map.rruff_formula , record_data) + '||' +
-                        // -- 14
-                        await findValue('' , record_data) + '||' +
-                        // -- 15
-                        await findValue('' , record_data) + '||' +
-                        // Mineral ID -- 16
-                        await findValue(record.ima_record_map.mineral_id , record_data) + '||' +
-                        // Status Notes Base64 -- 17
-                        Buffer.from(
-                            await findValue(record.ima_record_map.status_notes , record_data)
-                        ).toString('base64') + '||' +
-                        // Chemistry Elements -- 18
-                        await findValue('' , record_data) + '||' +
-                        // IMA Number -- 19
-                        await findValue(record.ima_record_map.ima_number , record_data) + '||' +
-                        // Mineral Name -- 20
-                        await findValue(record.cell_params_map.mineral_name , record_data) + '||' +
-                        // Type Locality Country -- 21
-                        await findValue(record.ima_record_map.type_locality_country , record_data) + '||' +
-                        // Year First Published -- 22
-                        await findValue(record.ima_record_map.year_first_published , record_data) + '||' +
-                        // Valence Elements -- 23
-                        await findValue(record.ima_record_map.valence_elements , record_data) + '||' +
-                        // Mineral Display Abbreviation -- 24
-                        await findValue(record.ima_record_map.mineral_display_abbreviation , record_data) + '||' +
-                        // Mineral UUID -- 25
-                        record_data.record_uuid +
-                        '\';\n';
-
+                    let content = 'references[' + reference_id + '] = ' + JSON.stringify(reference_record) + ';';
                     // console.log(content)
-                    // console.log('writeFile: ' + record.base_path + record.mineral_data + '.' + record.file_extension);
-                    await appendFile( record.base_path + record.mineral_data + '.' + record.file_extension, content);
+                    // console.log('writeFile: ' + record.base_path + record.references + '.' + record.file_extension);
+                    await appendFile( record.base_path + record.references + '.' + record.file_extension, content);
 
-
-
-                    /*
-                    {
-                        internal_id: 25599,
-                        unique_id: 'a5dddfa3632906b0976c9d43ac84',
-                        external_id: 6482,
-                        record_name: 'Abellaite'
-                     }
-                    */
-                        // Push job into queue for completion
-                        // Creat random key for temp file
-                        // Count records for job
-
-
-                    // Get List of IMA Records
-
-                    // Post Record UUID, new ID, and total # to
-                    // Builder queue
-                    // Builder queue also builds cell param data
-                    // If record id == max id - overwrite old file
-
-                    // console.log('Updating Job Count:', data.api_worker_job_url);
                     /*
                         {
                            "user_email": "nate@opendatarepository.org",
@@ -271,7 +124,7 @@ async function app() {
                     let worker_job = {
                         'job': {
                             'tracked_job_id': record.tracked_job_id,
-                            'random_key': 'IMARecord_' + Math.floor(Math.random() * 99999999).toString(),
+                            'random_key': 'References_' + Math.floor(Math.random() * 99999999).toString(),
                             'job_order': 0,
                             'line_count': 1
                         }
@@ -280,7 +133,6 @@ async function app() {
                     // console.log('Worker Job: ', worker_job);
 
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
-                        // console.log('Deleted (' + Date.now() + '): ' , job);
                         resJob();
                     });
                 }
@@ -307,43 +159,17 @@ async function writeFile(file_name, content) {
     }
 }
 
-async function appendFile(file_name, content) {
-    try {
-        fs.appendFileSync(file_name, content);
-        // file written successfully
-    } catch (err) {
-        console.log(err);
-    }
-}
-
-function formatChemistry(formula) {
-
-    // $sub = preg_quote($sub);
-    let sub = '_';
-    let str = formula.replaceAll(new RegExp(sub + '([^' + sub + ']+)' + sub, 'g'), '<sub>$1</sub>');
-
-    // Apply the superscripts...
-    let sup = '^';
-    str = str.replaceAll(new RegExp(sup + '([^' + sup + ']+)' + sup, 'g'), '<sup>$1</sup>');
-
-    // Escape single quotes
-    str = str.replace(/'/g, "\\'");
-
-    return str.replace(/\[box\]/g, '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>');
-
-}
-
 async function loadPage(page_url) {
     return await apiCall(page_url, '', 'GET');
 }
 
 async function findValue(field_uuid, record) {
     if(
-        record !== undefined
-        && record['fields_' + record.template_uuid] !== undefined
+        record['fields_' + record.template_uuid] !== undefined
         && record['fields_' + record.template_uuid].length > 0
     ) {
         let fields = record['fields_' + record.template_uuid];
+
         // Using V5 we can directly access the field
 
         for(let i = 0; i < fields.length; i++) {
@@ -356,7 +182,7 @@ async function findValue(field_uuid, record) {
                     && the_field.files[0] !== undefined
                     && the_field.files[0].href !== undefined
                 ) {
-                    // console.log('Getting file: ', the_field.files[0].href)
+                    // console.log('Getting file: ', the_field.files[0])
                     return the_field.files[0].href;
                 }
                 if(the_field.value !== undefined) {
@@ -400,7 +226,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.tags[j].id + ' ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output.trim();
+                    return output;
                 }
                 else if(the_field.values !== undefined) {
                     let output = '';
@@ -408,7 +234,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output.trim();
+                    return output;
                 }
                 else {
                     return '';
@@ -417,8 +243,7 @@ async function findValue(field_uuid, record) {
         }
     }
     if(
-        record !== undefined
-        && record['fields_' + record.record_uuid] !== undefined
+        record['fields_' + record.record_uuid] !== undefined
         && record['fields_' + record.record_uuid].length > 0
     ) {
         let fields = record['fields_' + record.record_uuid];
@@ -437,7 +262,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.tags[j].id + ' ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output.trim();
+                    return output;
                 }
                 else if(the_field.values !== undefined) {
                     let output = '';
@@ -445,7 +270,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output.trim();
+                    return output;
                 }
                 else {
                     return '';
@@ -464,7 +289,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.tags[j].id + ' ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output.trim();
+                    return output;
                 }
                 else if(the_field.values !== undefined) {
                     let output = '';
@@ -472,7 +297,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output.trim();
+                    return output;
                 }
                 else {
                     return '';
@@ -481,8 +306,7 @@ async function findValue(field_uuid, record) {
         }
     }
     if(
-        record !== undefined
-        && record['records_' + record.template_uuid] !== undefined
+        record['records_' + record.template_uuid] !== undefined
         && record['records_' + record.template_uuid].length > 0
     ) {
         for(let i = 0; i < record['records_' + record.template_uuid].length; i++) {
@@ -493,8 +317,7 @@ async function findValue(field_uuid, record) {
         }
     }
     if(
-        record !== undefined
-        && record['records_' + record.record_uuid] !== undefined
+        record['records_' + record.record_uuid] !== undefined
         && record['records_' + record.record_uuid].length > 0
     ) {
         for(let i = 0; i < record['records_' + record.record_uuid].length; i++) {
@@ -507,20 +330,6 @@ async function findValue(field_uuid, record) {
     return '';
 }
 
-async function findReferences(record, record_data) {
-    // console.log('Find Reference: ')
-    let references_list = '';
-    for(let i = 0; i < record_data['records_' + record.ima_record_map.ima_template_uuid].length; i++) {
-        let record_obj = record_data['records_' + record.ima_record_map.ima_template_uuid][i];
-        // console.log('Record: ', record_obj);
-        record_obj = {
-           ...record_obj,
-           "template_uuid": record.ima_record_map.reference_template_uuid
-        };
-        references_list += await findValue(record.ima_record_map.reference_id , record_obj) + ' ';
-    }
-    return references_list.trim();
-}
 
 async function apiCall(api_url, post_data, method) {
     console.log('API Call: ', api_url);
@@ -572,6 +381,14 @@ async function apiCall(api_url, post_data, method) {
     }
 }
 
+async function appendFile(file_name, content) {
+    try {
+        fs.appendFileSync(file_name, content);
+        // file written successfully
+    } catch (err) {
+        console.log(err);
+    }
+}
 
 
 app();

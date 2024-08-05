@@ -15,8 +15,9 @@ parameters:
     #  IMA List Data Files
     ima_uuid: '0f59b751673686197f49f4e117e9'
     cell_params_uuid: 'a85a97461686ef3dfe77e14e2209'
-    rruff_database_uuid: '0abf343d3fa1a10597ef1f0bd662'  # template_uuid: eb0451ce86d7f6cd20505170ea69
-    powder_diffraction_search_key: 'eyJkdF9pZCI6Ijc3IiwiMzA4IjoiIVxcXCJcXFwiIn0'
+    rruff_database_uuid: '0abf343d3fa1a10597ef1f0bd662'
+    reference_database_uuid: 'e7e7e1706e6163550eb03129883a'
+    amcsd_database_uuid: 'bf04d8bf310bcf7a1126d2f042c6'
     mineral_data: 'web/uploads/mineral_data.js'
     cell_params: 'web/uploads/cell_params.js'
     cell_params_range: 'web/uploads/cell_params_range.js'
