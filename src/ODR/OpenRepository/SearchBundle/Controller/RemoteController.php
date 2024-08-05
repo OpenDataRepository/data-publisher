@@ -62,12 +62,12 @@ class RemoteController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             // --------------------
@@ -75,13 +75,13 @@ class RemoteController extends Controller
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Don't actually care about the user here, but should keep datarecord counts accurate
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
             // --------------------
 
 
             // ----------------------------------------
             // Need a list of public top-level non-metadata datatypes
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             $query = $em->createQuery(
                'SELECT dt, dtm, dt_cb
                 FROM ODRAdminBundle:DataType AS dt
@@ -114,7 +114,7 @@ class RemoteController extends Controller
             }
 
             // Also need the counts of the public datarecords
-            $metadata = $dbi_service->getDatarecordCounts($top_level_datatypes, $datatype_permissions);
+            $metadata = $database_info_service->getDatarecordCounts($top_level_datatypes, $datatype_permissions);
 
 
             // ----------------------------------------
@@ -174,14 +174,14 @@ class RemoteController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var PermissionsManagementService $pm_service */
-//            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+//            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchService $search_service */
             $search_service = $this->container->get('odr.search_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataType $datatype */
@@ -209,7 +209,7 @@ class RemoteController extends Controller
 
             // ----------------------------------------
             // Going to need name/description info for all the datafields to be displayed
-            $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // should contain links
+            $dt_array = $database_info_service->getDatatypeArray($datatype_id, true);    // should contain links
 
             // Need the list of public, searchable datafields
             $searchable_datafields = $search_service->getSearchableDatafields($datatype_id);
@@ -265,12 +265,12 @@ class RemoteController extends Controller
             }
 
             // Also going to need the theme array
-            $master_theme = $ti_service->getDatatypeMasterTheme($datatype_id);
-            $theme_array = $ti_service->getThemeArray($master_theme->getId());
+            $master_theme = $theme_info_service->getDatatypeMasterTheme($datatype_id);
+            $theme_array = $theme_info_service->getThemeArray($master_theme->getId());
 
             // Need to stack both arrays
-            $dt_array = array( $datatype_id => $dbi_service->stackDatatypeArray($dt_array, $datatype_id) );
-            $theme_array = array( $master_theme->getId() => $ti_service->stackThemeArray($theme_array, $master_theme->getId()) );
+            $dt_array = array( $datatype_id => $database_info_service->stackDatatypeArray($dt_array, $datatype_id) );
+            $theme_array = array( $master_theme->getId() => $theme_info_service->stackThemeArray($theme_array, $master_theme->getId()) );
 
 
             // ----------------------------------------
@@ -340,8 +340,8 @@ class RemoteController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
 
 
             /** @var DataType $datatype */
@@ -368,14 +368,14 @@ class RemoteController extends Controller
 
 
             // Need the datafield info
-            $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // should contain links
+            $dt_array = $database_info_service->getDatatypeArray($datatype_id, true);    // should contain links
             $datafields = array();
 
             // If the "general search" checkbox was selected, create an entry for it in the final
             //  array since it won't be in the cached datatype array
             if ( isset($datafield_ids['gen']) ) {
                 $datafields['gen'] = array(
-                    'datafield_name' => 'Search everything',
+                    'datafield_name' => 'All Fields',
                     'element_name' => 'general_search',
                 );
             }
