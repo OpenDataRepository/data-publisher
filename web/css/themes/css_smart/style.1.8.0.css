@@ -1630,6 +1630,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 #ODRSearchContent {
     margin-top: 32px;
     margin-bottom: 20px;
+    margin-left: 10px;
 }
 .ODRPaginationLabel {
     color: #4D88ED !important;

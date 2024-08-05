@@ -5,6 +5,13 @@
 
 {% for theme_element in theme.themeElements %}
 
+    {% set theme_element_meta = theme_element.themeElementMeta %}
+    {% set theme_element_hidden = false %}
+    {% if theme_element_meta.hidden == 1 %}
+        {% set theme_element_hidden = true %}
+    {% endif %}
+
+    {% if not theme_element_hidden %}
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
         <div class="ODRInnerBox">
 
@@ -16,15 +23,18 @@
                     {# user doesn't have permissions to see this datafield #}
                     <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
                 {% else %}
-                    {% set datafield = datatype['dataFields'][datafield_id] %}
+                    {% if theme_datafield.hidden == 0 %}
+                        {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                    {% include 'ODRAdminBundle:CSVExport:csvexport_datafield.html.twig' with {
-                        'site_baseurl': site_baseurl,
-                        'theme_datafield': theme_datafield,
-                        'datafield': datafield,
-                    } %}
+                        {% include 'ODRAdminBundle:CSVExport:csvexport_datafield.html.twig' with {
+                            'site_baseurl': site_baseurl,
+                            'theme_datafield': theme_datafield,
+                            'datafield': datafield,
+                        } %}
+                    {% endif %}
                 {% endif %}
             {% endfor %}
+
         {% elseif theme_element.themeDataType is defined %}
 
             {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
@@ -59,6 +69,7 @@
 
         </div><!-- End of .ODRInnerBox -->
     </div><!-- End of #ThemeElement_{{ theme_element.id }} -->
+    {% endif %}
 
 {% endfor %}
 

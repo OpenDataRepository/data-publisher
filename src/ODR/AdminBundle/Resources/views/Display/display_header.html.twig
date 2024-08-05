@@ -33,7 +33,6 @@
     </div>
 
     {% if search_key != '' %}
-    <div class="pure-u-1-2" style="text-align: right">
         {% include 'ODRAdminBundle:Default:search_header.html.twig' with {
             'search_theme_id': search_theme_id,
             'search_key': search_key,
@@ -47,7 +46,6 @@
 
             'page_type': page_type,
         } %}
-    </div>
     {% endif %}
 </div>
 

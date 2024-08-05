@@ -686,8 +686,8 @@ class CSVExportHelperService
         // This technically means that the job of the "worker" process completed once it finished
         //  writing to the temporary file.
 
-        // TODO - Close the connection to prevent stale handles?  I think every time this gets loaded the connection is "fresh"...
-//        $this->em->getConnection()->close();
+        // Close the connection to prevent stale handles?  I think every time this gets loaded the connection is "fresh"...
+        $this->em->getConnection()->close();
     }
 
 
@@ -1349,8 +1349,8 @@ class CSVExportHelperService
             fclose($final_file);
             $this->logger->debug('CSVExportHelperService::finalize(): -- tracked job '.$tracked_job_id.' finished, returning success');
 
-            // TODO - Close the connection to prevent stale handles?  I think every time this gets loaded the connection is "fresh"...
-//            $this->em->getConnection()->close();
+            // Close the connection to prevent stale handles?  I think every time this gets loaded the connection is "fresh"...
+            $this->em->getConnection()->close();
 
             return 'success';
         }

@@ -1188,12 +1188,12 @@ class ODRUserController extends ODRCustomController
 
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters);
-
-                // Delete the cached permissions for this user
-                $cache_service->delete('user_'.$user_id.'_permissions');
             }
 
             $user_manager->updateUser($target_user);
+
+            // Delete the cached permissions for this user
+            $cache_service->delete('user_'.$user_id.'_permissions');
         }
         catch (\Exception $e) {
             $source = 0xee335a24;

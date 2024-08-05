@@ -101,6 +101,7 @@ class SortService
      * datarecords from the entire sorted list.
      *
      * @param array $datarecord_list An array where the datarecord_ids are keys
+     * TODO - why is this a string and not an array?  Seems like this adds conversion from array to string to array.
      * @param null|string $subset_str
      *
      * @return array

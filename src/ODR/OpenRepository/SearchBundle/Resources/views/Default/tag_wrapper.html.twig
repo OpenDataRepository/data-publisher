@@ -4,10 +4,12 @@
     <ul class="ODRTagGroup">
         {% for tag_id, tag in stacked_tags %}
             {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
+                'datafield': datafield,
                 'tag': tag,
 
-                'selected_tags': selected_tags,
-                'unselected_tags': unselected_tags,
+                'preset_value': preset_value,
+                'fa_selected_class': fa_selected_class,
+                'fa_alt_selected_class': fa_alt_selected_class,
             } %}
         {% endfor %}
     </ul>

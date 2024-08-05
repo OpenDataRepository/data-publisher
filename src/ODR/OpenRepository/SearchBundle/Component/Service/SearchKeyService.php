@@ -522,9 +522,14 @@ class SearchKeyService
         // Want the search key in array format...
         $search_params = self::decodeSearchKey($search_key);
 
+        // Search keys should always have the "dt_id" key...
         if ( !isset($search_params['dt_id']) || !is_numeric($search_params['dt_id']) )
             throw new ODRBadRequestException('Invalid search key: missing "dt_id"', $exception_code);
         $dt_id = $search_params['dt_id'];
+
+        // ...they should not have both "gen" and "gen_all"..."gen" is a subset of "gen_all"
+        if ( isset($search_params['gen']) && isset($search_params['gen_all']) )
+            throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_all"', $exception_code);
 
 
         $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
@@ -534,7 +539,7 @@ class SearchKeyService
         $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_all' ) {
                 // Nothing to validate
                 continue;
             }
@@ -679,7 +684,7 @@ class SearchKeyService
                     // Convert the given string into an array of radio option ids...
                     $radio_options = explode(',', $search_params[$df_id]);
                     foreach ($radio_options as $num => $ro_id) {
-                        if ( $ro_id[0] === '-' )
+                        if ( $ro_id[0] === '-' || $ro_id[0] === '~' )
                             $ro_id = intval(substr($ro_id, 1));
                         else
                             $ro_id = intval($ro_id);
@@ -716,7 +721,7 @@ class SearchKeyService
                     // Convert the given string into an array of tag ids...
                     $tags = explode(',', $search_params[$df_id]);
                     foreach ($tags as $num => $t_id) {
-                        if ( $t_id[0] === '-' )
+                        if ( $t_id[0] === '-' || $t_id[0] === '~' )
                             $t_id = intval(substr($t_id, 1));
                         else
                             $t_id = intval($t_id);
@@ -899,7 +904,7 @@ class SearchKeyService
                 // ...the reason being that if SearchAPIService::performSearch() directly used this
                 //  entry, then any sort_criteria for this tab in the user's session would be ignored
             }
-            else if ($key === 'gen') {
+            else if ($key === 'gen' || $key === 'gen_all' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
@@ -913,6 +918,13 @@ class SearchKeyService
                 foreach ($tokens as $token_num => $token) {
                     // Need to find each datafield that qualifies for general search...
                     foreach ($searchable_datafields as $dt_id => $df_list) {
+                        // Don't create criteria for fields from descendant datatypes unless that's
+                        //  what the user wants
+                        if ( $key === 'gen' && $dt_id !== $datatype_id )
+                            continue;
+
+                        // After this point, the 'gen_all' key effectively ceases to exist
+
                         // Each token in the general search string gets its own facet
                         if ( !isset($criteria['general'][$token_num]) ) {
                             $criteria['general'][$token_num] = array(
@@ -1020,37 +1032,49 @@ class SearchKeyService
                     if ( !$can_view_file )
                         $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
 
-                    // NOTE: this is to prevent users without permissions from being able to figure
-                    //  out which records match a filename/presence/absence search...using the
-                    //  existing 'public_status' flag won't work
+                    // NOTE: this enables slightly different search logic in the backend.  While users
+                    //  wouldn't be able to actually see non-public files, they would be able to use
+                    //  the results to deduce which records have non-public files without this change
+                    //  in logic.  Simply using the existing 'public_status' flag won't handle this.
                     // @see SearchService::searchFileOrImageDatafield()
                 }
                 else if ($typeclass === 'Radio' || $typeclass === 'Tag') {
-                    // Radio selections and Tags are stored by id, separated by commas
+                    // Since these fieldtypes can have multiple selected options/tags per search,
+                    //  there's a property to control how these selections are merged.  By default,
+                    //  ODR merges these by OR, but the "merge_by_AND" datafield property can change
+                    //  that to merging by AND instead.
+
+                    // Radio selections and Tags are provided by id, separated by commas
                     $items = explode(',', $value);
 
                     $selections = array();
                     foreach ($items as $num => $item) {
-                        // Searches for unselected radio options or tags are preceded by a dash
+                        // By default, the options/tags are provided as either "<id>" or "-<id>"...
+                        //  "<id>" indicates "selected", and uses the default merge_type for the
+                        //  field..."-<id>" indicates "unselected", and is always merged by AND
+
+                        // They can also be provided as "~<id>"...this also indicates "selected",
+                        //  but uses the opposite merge_type of whatever the default for the field
+                        //  is set to.
+                        // The UI will only provide this when the "search_can_request_both_merges"
+                        //  flag is active for the field, but the search logic will handle it
+                        //  regardless
                         if ( $item[0] === '-' ) {
                             $item = substr($item, 1);
                             $selections[$item] = 0;
+                        }
+                        else if ( $item[0] === '~' ) {
+                            $item = substr($item, 1);
+                            $selections[$item] = 2;
                         }
                         else {
                             $selections[$item] = 1;
                         }
                     }
 
-                    // Whether to combine the selected options/tags by AND or OR...unselected
-                    //  options/tags are always combined by AND
-                    // TODO - let users change this
-                    $combine_by_or = true;
-
-
                     // Create an entry in the criteria array for this datafield...there won't be any
                     //  duplicate entries
                     $criteria[$dt_id][0]['search_terms'][$df_id] = array(
-                        'combine_by_OR' => $combine_by_or,
                         'selections' => $selections,
                         'entity_type' => 'datafield',
                         'entity_id' => $df_id,
@@ -1934,12 +1958,15 @@ class SearchKeyService
             if ( $key === 'dt_id' || $key === 'sort_by' )
                 continue;
 
-            if ( $key === 'gen' ) {
+            if ( $key === 'gen' || $key === 'gen_all' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
 
-                $readable_search_key['General Search'] = $value;
+                if ( $key === 'gen' )
+                    $readable_search_key['All Fields (current database)'] = $value;
+                else
+                    $readable_search_key['All Fields (including descendants)'] = $value;
             }
             else if ( is_numeric($key) ) {
                 // If this datafield doesn't exist (most likely due to deletion), then don't fully

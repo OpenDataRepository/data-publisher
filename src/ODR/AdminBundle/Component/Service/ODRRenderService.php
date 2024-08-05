@@ -52,6 +52,11 @@ class ODRRenderService
     private $site_baseurl;
 
     /**
+     * @var bool
+     */
+    private $odr_wordpress_integrated;
+
+    /**
      * @var string
      */
     private $odr_web_dir;
@@ -146,6 +151,7 @@ class ODRRenderService
      * ODRRender Service
      *
      * @param string $site_baseurl
+     * @param bool $odr_wordpress_integrated
      * @param string $odr_web_dir
      * @param string $api_key
      * @param string $redis_prefix
@@ -167,6 +173,7 @@ class ODRRenderService
      */
     public function __construct(
         string $site_baseurl,
+        bool $odr_wordpress_integrated,
         string $odr_web_dir,
         string $api_key,
         string $redis_prefix,
@@ -187,6 +194,7 @@ class ODRRenderService
         Logger $logger
     ) {
         $this->site_baseurl = $site_baseurl;
+        $this->odr_wordpress_integrated = $odr_wordpress_integrated;
         $this->odr_web_dir = $odr_web_dir;
         $this->api_key = $api_key;
         $this->redis_prefix = $redis_prefix;
@@ -760,6 +768,7 @@ class ODRRenderService
         // ----------------------------------------
         // Most templates tend to use all of these parameters...
         $parameters = array(
+            'odr_wordpress_integrated' => $this->odr_wordpress_integrated,
             'user' => $user,
 //            'notify_of_sync' => $notify_of_sync,
 

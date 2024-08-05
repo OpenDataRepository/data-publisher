@@ -218,6 +218,8 @@ class EntityCreationService
         $datafield_meta->setChildrenPerRow(1);
         $datafield_meta->setRadioOptionNameSort(false);
         $datafield_meta->setRadioOptionDisplayUnselected(false);
+        $datafield_meta->setMergeByAND(false);
+        $datafield_meta->setSearchCanRequestBothMerges(false);
         $datafield_meta->setTagsAllowNonAdminEdit(false);
         $datafield_meta->setTagsAllowMultipleLevels(false);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {

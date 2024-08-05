@@ -302,6 +302,7 @@ services:
         class: ODR\AdminBundle\Component\Service\ODRRenderService
         arguments:
             $site_baseurl: "%site_baseurl%"
+            $odr_wordpress_integrated: "%odr_wordpress_integrated%"
             $odr_web_dir: "%odr_web_directory%"    # These three are needed for image decryption...
             $api_key: "%beanstalk_api_key%"
             $redis_prefix: "%memcached_key_prefix%"

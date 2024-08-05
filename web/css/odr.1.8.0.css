@@ -3881,9 +3881,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     cursor: pointer;
 }
 
+#ODRSearchResultsButtons {
+    text-align: right;
+    margin-top: 8px;
+}
+#ODRSearchResultsPrevious, #ODRSearchResultsNext {
+    position: relative;
+    top: -10px;
+}
 #ODRReturnToSearchResults {
-    padding-top: 3px;
-    padding-bottom: 3px;
+    padding-top: 2px;
+    padding-bottom: 6px;
     padding-right: 14px;
     padding-left: 14px;
     position: relative;
@@ -4443,12 +4451,19 @@ i {
 }
 
 #ODRSearchSidebar {
-    margin-left: -30px;
+    margin-left: -60px;
 }
 
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
-    padding-left: 20px;
+    padding-left: 10px;
     padding-right: 6px;
+}
+
+#textbox_general_blurb {
+    cursor: pointer;
+    color: rgb(85, 85, 85);
+    float: right;
+    text-decoration: underline;
 }
 
 
@@ -5311,4 +5326,42 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 #ODRSidebarLayout_includeGeneralSearch {
     margin-left: 10px;
+}
+
+.ODRFourstateCheckbox {
+    cursor: pointer;
+    border: 2px solid #666;
+    border-radius: 5px;
+    height: 1.5em;
+    width: 1.5em;
+    display: inline-block;
+    margin-right: 5px;
+}
+.ODRFourstateCheckbox > .fa {
+    line-height: 1.6em;
+    padding: 0 0 0 0 !important;
+    margin: 0 0 0 0 !important;
+    position: relative;
+    top: -3px;
+    left: 3px;
+}
+.ODRFourstateCheckbox:hover, .ODRFourstateCheckbox:active, .ODRFourstateCheckbox:focus {
+    background: #9cd4d4;
+}
+.ODRFourstateCheckbox > .partial {
+    color: grey !important;
+}
+
+.ODRFourstateCheckbox > .ODRFourstate_AND {
+    color: green;
+}
+.ODRFourstateCheckbox > .ODRFourstate_AND::before {
+    content: "\26\26";
+    font-size: 70%;
+}
+.ODRFourstateCheckbox > .ODRFourstate_OR {
+    color: green;
+}
+.ODRFourstateCheckbox > .ODRFourstate_OR::before {
+    content: "\7c\a0\7c";
 }

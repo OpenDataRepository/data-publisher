@@ -262,6 +262,38 @@
                 </label>
             </span>
         </div>
+
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.merge_by_AND) }}
+
+            <span title="If checked, then searches with multiple selected {% if typeclass == 'Radio' %}Radio Options{% else %}Tags{% endif %} will combine results by AND instead of by OR.">
+                <label for="{{ datafield_form.merge_by_AND.vars.id }}">
+                    {{ form_widget(datafield_form.merge_by_AND, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
+
+                    {{ datafield_form.merge_by_AND.vars.label }}
+                </label>
+            </span>
+        </div>
+
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.search_can_request_both_merges) }}
+
+            <span title="If checked, then searches on this datafield can simultaneously use both OR and AND...this is more powerful, but considerably harder to understand for the average user.">
+                <label for="{{ datafield_form.search_can_request_both_merges.vars.id }}">
+                    {{ form_widget(datafield_form.search_can_request_both_merges, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
+
+                    {{ datafield_form.search_can_request_both_merges.vars.label }}
+                </label>
+            </span>
+        </div>
     {% endif %}
 
     {% if typeclass == 'Tag' %}

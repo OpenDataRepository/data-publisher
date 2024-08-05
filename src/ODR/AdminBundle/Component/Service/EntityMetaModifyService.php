@@ -319,6 +319,8 @@ class EntityMetaModifyService
             'children_per_row' => $old_meta_entry->getChildrenPerRow(),
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
+            'merge_by_AND' => $old_meta_entry->getMergeByAND(),
+            'search_can_request_both_merges' => $old_meta_entry->getSearchCanRequestBothMerges(),
             'tags_allow_multiple_levels' => $old_meta_entry->getTagsAllowMultipleLevels(),
             'tags_allow_non_admin_edit' => $old_meta_entry->getTagsAllowNonAdminEdit(),
             'searchable' => $old_meta_entry->getSearchable(),
@@ -418,6 +420,8 @@ class EntityMetaModifyService
             // These properties are shared by radio options and tags
             $properties['radio_option_name_sort'] = false;
             $properties['radio_option_display_unselected'] = false;
+            $properties['merge_by_AND'] = false;
+            $properties['search_can_request_both_merges'] = false;
         }
         if ($relevant_typeclass !== 'Tag') {
             // These properties are only used by tags
@@ -499,6 +503,10 @@ class EntityMetaModifyService
             $new_datafield_meta->setRadioOptionNameSort( $properties['radio_option_name_sort'] );
         if ( isset($properties['radio_option_display_unselected']) )
             $new_datafield_meta->setRadioOptionDisplayUnselected( $properties['radio_option_display_unselected'] );
+        if ( isset($properties['merge_by_AND']) )
+            $new_datafield_meta->setMergeByAND( $properties['merge_by_AND'] );
+        if ( isset($properties['search_can_request_both_merges']) )
+            $new_datafield_meta->setSearchCanRequestBothMerges( $properties['search_can_request_both_merges'] );
         if ( isset($properties['tags_allow_multiple_levels']) )
             $new_datafield_meta->setTagsAllowMultipleLevels( $properties['tags_allow_multiple_levels'] );
         if ( isset($properties['tags_allow_non_admin_edit']) )

@@ -207,6 +207,9 @@ class TagHelperService
                             $selections_to_process[$child_tag_id] = $val;
                         }
                     }
+
+                    // The tags which aren't leaf-level can't remain in the array to be searched on
+                    unset( $selections[$t_id] );
                 }
             }
         }

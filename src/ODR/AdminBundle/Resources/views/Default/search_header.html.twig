@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% if search_key != '' %}
-<div>
+<div id="ODRSearchResultsButtons" class="pure-u-1-2">
     {% if search_result_count > 1 %}
         <button id="ODRSearchResultsPrevious" class="pure-button pure-button-primary" onclick="changeResult('prev');">
             <i class="fa fa-backward"></i><span>&nbsp;Prev</span>
@@ -21,7 +21,6 @@
             <span>Next&nbsp;</span><i class="fa fa-forward"></i>
         </button>
     {% endif %}
-
 </div>
 {% endif %}
 
