@@ -475,6 +475,7 @@ class TrackedJob
         $tracked_job['started'] = $this->getStarted();
         $tracked_job['viewed'] = $this->getViewed();
         $tracked_job['additional_data'] = $this->getAdditionalData();
+        $tracked_job['target_entity'] = $this->getTargetEntity();
 
         return $tracked_job;
     }

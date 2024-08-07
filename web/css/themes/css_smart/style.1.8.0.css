@@ -159,8 +159,12 @@ h3.ODRHeader,
 
 /* Needs both element and class apparently...otherwise prvious rule always overrides regardless */
 label.ODRResults_radio {
-    margin: 0.5em 0;
+    margin: 0 0.4em !important;
     color: #444;
+}
+
+.SingleSelectGroup {
+    width: 99%;
 }
 /* END Input Decorations */
 

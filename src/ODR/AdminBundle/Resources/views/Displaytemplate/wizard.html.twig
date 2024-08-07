@@ -100,8 +100,27 @@
                     <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Edit Dataset Design</h3>
 
                     <div class="ODRBodyContent">
-                        <p>The dataset may be extended or modified using this design system.  The system will alert you when a change will
-                            break compatibility with the parent template.</p>
+
+                        <p>
+                            The {% if datatype.is_master_type == false %}dataset{% else %}template{% endif %} may be extended or modified using this design system.
+                            {% if datatype.is_master_type == true %}
+                            Changes made here will propogate to any datasets derived from this template.
+                            {% endif %}
+                        </p>
+
+                        {% if datatype.masterDataType is not null %}
+                        <p>
+                            <i class="fa fa-lg fa-exclamation-circle ODRInputError"></i>
+                            NOTE: this dataset is derived from a master template.  Modifications made here
+                            will not propogate to other datasets also derived from the master template.
+                            {% if datatype_permissions[ datatype.masterDataType.id ] is defined and datatype_permissions[ datatype.masterDataType.id ][ 'dt_admin' ] is defined %}
+                                <a href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">Click here</a>
+                                to modify the master template instead.
+                            {% endif %}
+                        </p>
+                        {% endif %}
+
+                        <br>
                         <a class="ODRWizardLink" href="#{{ path('odr_datatype_landing', {'datatype_id': datatype_id}) }}">
                             <span class="wizardStatusText">Next step: Manage Dataset</span>
                         </a>

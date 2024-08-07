@@ -209,4 +209,21 @@ class TrackedCSVExport
     {
         return $this->created;
     }
+
+    /**
+     * Converts object to a simple array
+     *
+     * @return array
+     */
+    public function toArray() {
+        $tracked_csv_export = array();
+
+        $tracked_csv_export['id'] = $this->getId();
+        $tracked_csv_export['job_order'] = $this->getJobOrder();
+        $tracked_csv_export['random_key'] = $this->getRandomKey();
+        $tracked_csv_export['line_count'] = $this->getLineCount();
+
+        return $tracked_csv_export;
+    }
+
 }
