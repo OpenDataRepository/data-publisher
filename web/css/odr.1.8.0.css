@@ -5366,3 +5366,10 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRFourstateCheckbox > .ODRFourstate_OR::before {
     content: "\7c\a0\7c";
 }
+
+.ODRInlineLink_icon {
+    top: 10px;
+}
+.ODRInlineLink_blurb {
+    margin: 10px;
+}
