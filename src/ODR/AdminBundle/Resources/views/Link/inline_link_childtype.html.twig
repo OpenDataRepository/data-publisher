@@ -83,6 +83,9 @@
             {% set is_first_record = false %}
 
             {% if dr_is_fake %}
+            <div class="ODRInlineLink_blurb">
+                <i class="fa fa-lg fa-exclamation-circle"></i> This is a "temporary" record.  Entering text into the fields below will search for {{ datatype['dataTypeMeta']['shortName'] }} records, and display any matching records in a popup below the field.  Clicking a line in the popup will link to that record.
+            </div>
             <div class="ODRFieldArea accordion-content pure-u-1 ODRInlineLinkRecord" id="FieldArea_{{ datarecord.id }}">
                 {# The fake record in this case is for the inline link functionality...it (currently) does not use a render plugin #}
 {#

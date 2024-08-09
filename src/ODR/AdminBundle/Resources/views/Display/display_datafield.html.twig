@@ -85,7 +85,7 @@
 
     {% elseif field_typename == "Boolean" %}
         <fieldset>
-            <label for="Input_{{ unique_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield_meta.description }}">
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                     <input id="{{ input_id }}" type="checkbox" value="1" {% if valuefield_value == 1 %}checked{% endif %} disabled />
                     {{ datafield_meta.fieldName }}
@@ -225,7 +225,7 @@
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% if datafield.radioOptions is defined %}
                 {% for radio_option in datafield.radioOptions %}
@@ -252,7 +252,7 @@
 
     {% elseif field_typename == "Tags" %}
         <fieldset>
-            <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             {% if datafield.tags is defined %}
                 {% include 'ODRAdminBundle:Display:tag_wrapper.html.twig' with {
                     'datafield': datafield,

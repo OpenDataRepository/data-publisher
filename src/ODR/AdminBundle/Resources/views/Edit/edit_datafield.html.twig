@@ -116,7 +116,7 @@
 
     {% elseif field_typename == "Boolean" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield_meta.description }}">
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                     <input
                         {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
@@ -314,7 +314,7 @@
     {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label class="ODRRadioField ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label class="ODRRadioField ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% set print_null_option = false %}
             {% set has_selection = false %}
@@ -382,7 +382,7 @@
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             <select
                 {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}

@@ -166,9 +166,8 @@
                 data: data,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    // TODO - this clobbers the linking search results page
-                    var url = "{{ path_str }}" + "/" + "{{ offset }}";
-                    UpdateURL(url);
+                    // Might as well just return to the first page
+                    goToPage(1);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
@@ -192,7 +191,7 @@
 
     /**
      * Changes the displayed page for a search result.
-     * @param {integer} [page]
+     * @param {number} [page]
      */
     function goToPage(page) {
         if ( page === undefined ) {
@@ -210,8 +209,32 @@
 
         showSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
+    {% if intent == 'searching' %}
         var url = "{{ path_str }}" + '/' + page;
         UpdateURL(url);
+    {% else %}
+        var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
+        url = url.substr(0, url.length - 10);
+        url += '{{ search_key }}' + '/' + page + '/linking';
+        if ( window.sessionStorage.getItem('odr_tab_id') )
+            url += '?odr_tab_id=' + window.sessionStorage.getItem('odr_tab_id');
+
+        // Render the html into the #ODRSearchBoxContent div on this page
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function (data, textStatus, jqXHR) {
+                // Don't need to update the search key, since this only updates the existing search
+                // $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
+                $("#ODRSearchBoxContent").html(data.d.html);
+
+                // Linking does need the search overlay to be hidden though, since the
+                //  results are spliced onto the page
+                hideSearchOverlay();
+            }
+        });
+    {% endif %}
     }
 </script>
 {% endspaceless %}

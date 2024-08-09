@@ -2,7 +2,7 @@
 
 <div class="ODRSidebarLayout_dragTarget pure-u-1-1" rel="always_display">
     <div class="ODRSidebarLayout_dragTargetBlurb">
-        Fields in this block will always be visible in the sidebar.
+        Fields dragged into this block will always be visible in the sidebar.
     </div>
 {% if sidebar_array['always_display']|length > 0 %}
     {% for df_id,df in sidebar_array['always_display'] %}
@@ -21,7 +21,7 @@
 
 <div class="ODRSidebarLayout_dragTarget pure-u-1-1" rel="extended_display">
     <div class="ODRSidebarLayout_dragTargetBlurb">
-        Fields in this block will appear when "Open Expanded Search" is clicked.
+        Fields dragged into this block will appear when "Open Expanded Search" is clicked.
     </div>
 {% if sidebar_array['extended_display']|length > 0 %}
     {% for df_id,df in sidebar_array['extended_display'] %}

@@ -505,8 +505,14 @@
         // Need to ensure the sidebar is up to date first...
         updateSearchSidebar(search_key, intent, false, function() {
             // console.log('enableSearchSidebar_callback()', 'when_disabled', when_disabled);  console.trace();
-            // ...and only expand/collapse it afterwards in case it got replaced
-            if ( $("#ODRSearchSidebar").hasClass('ODRHidden') ) {
+            // ...and only expand/collapse it afterwards if it got replaced
+            var is_hidden = false;
+            if ( $("#ODRSearchSidebar").hasClass('ODRHidden') )
+                is_hidden = true;
+            if ( !( $(".ODRSearchToggle").is('.fa-arrow-circle-right', '.fa-arrow-circle-left') ) )
+                is_hidden = true;
+
+            if ( is_hidden ) {
                 // ...then set it to 'expanded' or 'collapsed' depending on the caller
                 if ( when_disabled === 'expanded' )
                     expandSearchSidebar();

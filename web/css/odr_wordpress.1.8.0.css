@@ -2711,6 +2711,7 @@ form .row {
     font-size: 0.92em !important;
     font-weight: 700;
     color: #7777EE;
+    display: inline;
 }
 
 .ODRDesign .ODRFieldLabel {
@@ -3788,6 +3789,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 /* End Loading CSS Widget */
 
+#ChooseView {
+    position: relative;
+    /*top: 10px;*/
+}
 
 #ODRChooseView,
 #ODRChooseLayout {
@@ -3926,12 +3931,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 #ODRReturnToSearchResults {
-    padding-top: 3px;
-    padding-bottom: 3px;
+    padding-top: 4px;
+    padding-bottom: 4px;
     padding-right: 14px;
     padding-left: 14px;
     position: relative;
-    top: -5px;
+    top: 8px;
 }
 
 .ODRJobList_header {
@@ -5407,4 +5412,11 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 .ODRFourstateCheckbox > .ODRFourstate_OR::before {
     content: "\7c\a0\7c";
+}
+
+.ODRInlineLink_icon {
+    top: 10px;
+}
+.ODRInlineLink_blurb {
+    margin: 10px;
 }

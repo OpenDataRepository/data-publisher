@@ -92,7 +92,7 @@
             <input id="df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
                    title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
                    placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
-                   size="15" maxlength="15" {% if design_page is defined %}readonly{% endif %}
+                   size="10" maxlength="10" {% if design_page is defined %}readonly{% endif %}
             />
         {% endif %}
         {% if field_typename == "DateTime" %}
