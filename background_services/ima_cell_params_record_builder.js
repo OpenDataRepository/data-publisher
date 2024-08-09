@@ -60,8 +60,8 @@ async function app() {
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
                         "tag_data":"web\\/uploads\\/master_tag_data.js",
-                        "ima_url":"\\/\\/beta.rruff.net\\/odr_rruff",
-                        "cell_params_url":"\\/\\/beta.rruff.net\\/odr_rruff"
+                        "ima_url":"\\/\\/www.rruff.net\\/odr_rruff",
+                        "cell_params_url":"\\/\\/www.rruff.net\\/odr_rruff"
                      }
                      */
 
@@ -229,7 +229,7 @@ async function app() {
                                     await findValue(pd_map.rruff_id, record_data)
                                 ).toString('base64') + '|' +
                                 // File/citation link
-                                'https://beta.rruff.net/' + await findValue(pd_map.rruff_id, record_data) + '|' +
+                                'https://www.rruff.net/' + await findValue(pd_map.rruff_id, record_data) + '|' +
                                 // File/citation link 2
                                 await findValue('', record_data) + '|' +
                                 // Status Notes Base64
@@ -292,7 +292,7 @@ async function app() {
                                     await buildReference(amcsd_map, record_data)
                                 ).toString('base64')  + '|' +
                                 // File/citation link
-                                'https://beta.rruff.net/' + await findValue(amcsd_map.cite_link, record_data) + '|' +
+                                'https://www.rruff.net/' + await findValue(amcsd_map.cite_link, record_data) + '|' +
                                 // File/citation link 2
                                 await findValue('' , record_data) + '|' +
                                 // Status Notes Base64

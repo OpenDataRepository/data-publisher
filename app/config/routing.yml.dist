@@ -1,14 +1,30 @@
 api_login_check:
     path: /api/v3/token
     methods: [POST]
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    prefix:   /odr_rruff
 
-api_login_check_v4:
-    path: /api/v4/token
+api_login_check_2:
+    path: /odr/api/v3/token
     methods: [POST]
     prefix:   /
     #prefix:   /odr   # Use prefix when Wordpress Integrated
+
+api_login_check_3:
+    path: /api/v3/token
+    methods: [POST]
+    prefix:   /
+
+api_login_check_v4:
+    path: /odr_rruff/api/v4/token
+    methods: [POST]
+    prefix:   /odr_rruff
+    #prefix:   /odr   # Use prefix when Wordpress Integrated
+
+api_login_check_v5:
+    path: /odr_rruff/api/v5/token
+    methods: [POST]
+    prefix:   /odr_rruff
+
 
 # ----------------------------------------
 # Internal routing configuration to handle ESI
@@ -32,8 +48,8 @@ fos_user_security:
 # using FoS built-in password reset functionality
 fos_user_resetting:
     resource: "@FOSUserBundle/Resources/config/routing/resetting.xml"
-    prefix: /resetting
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix: /resetting
+    prefix:   /odr/resetting   # Use prefix when Wordpress Integrated
 
 # also using FoS built-in password change functionality
 #fos_user_change_password:
@@ -52,13 +68,13 @@ fos_oauth_server_authorize:
 # HWIOAuthBundle routes
 hwi_oauth_redirect:
     resource: "@HWIOAuthBundle/Resources/config/routing/redirect.xml"
-    prefix:   /connect
-    #prefix:   /odr/connect   # Use prefix when Wordpress Integrated
+    #prefix:   /connect
+    prefix:   /odr/connect   # Use prefix when Wordpress Integrated
 
 hwi_oauth_connect:
     resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
-    prefix:   /connect
-    #prefix:   /odr/connect   # Use prefix when Wordpress Integrated
+    #prefix:   /connect
+    prefix:   /odr/connect   # Use prefix when Wordpress Integrated
 
 # unused, FOSUserBundle's login files are overridden to include pieces from this bundle
 #hwi_oauth_login:
@@ -68,40 +84,48 @@ hwi_oauth_connect:
 # Resource file needs to contain the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
 odr_open_repository_oauth_client:
     resource: "@ODROpenRepositoryOAuthClientBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
 
 # ----------------------------------------
 # ODR routes
 odr_open_repository_graph:
     resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
 
 odr_open_repository_api:
     resource: "@ODROpenRepositoryApiBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
 
 odr_open_repository_user:
     resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
 
 odr_open_repository_oauth_server:
     resource: "@ODROpenRepositoryOAuthServerBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
 
 odr_open_repository_jupyterhub_bridge:
     resource: "@ODROpenRepositoryJupyterhubBridgeBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
 
 odr_admin:
     resource: "@ODRAdminBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
+
+
+#
+# API Route does not need prefixing even when WP Integrated
+#
+odr_api:
+    resource: "@ODRAdminBundle/Resources/config/api.yml"
+    prefix:   /   # Use prefix when Wordpress Integrated
 
 
 # ----------------------------------------
@@ -109,5 +133,5 @@ odr_admin:
 # MUST be last in this list due to use of a general catch-all route
 odr_open_repository_search:
     resource: "@ODROpenRepositorySearchBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+    #prefix:   /
+    prefix:   /odr   # Use prefix when Wordpress Integrated
