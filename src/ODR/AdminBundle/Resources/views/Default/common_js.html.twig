@@ -1173,34 +1173,45 @@
     /**
      * Scrolls to and displays the requested datarecord.
      *
-     * @param {string|number} datarecord_id
+     * @param {string|number} target_datarecord_id
      */
-    function selectRecordFieldArea(datarecord_id) {
-        // console.log('attempting to focus on datarecord: ' + datarecord_id);
+    function selectRecordFieldArea(target_datarecord_id) {
+        // The requested datarecord could be a descendant...if so, its ancestors need to be visible
+        //  first starting from the top
+        var dr_ids = [];
+        $("#FieldArea_" + target_datarecord_id).parents('.ODRFieldArea').each(function(index, elem) {
+            var dr_id = $(elem).attr('id').split(/_/)[1];
+            dr_ids.push(dr_id);
+        });
+        dr_ids = dr_ids.reverse();
+        dr_ids.push(target_datarecord_id);
+        // console.log('datarecord order', dr_ids);
 
-        var field_area = $("#FieldArea_" + datarecord_id);
+        dr_ids.forEach((dr_id) => {
+            var fieldarea = $("#FieldArea_" + dr_id);
 
-        if ( field_area.parent().hasClass("ODRFormAccordion") ) {
-            // Accordion displayType
-            field_area.prev().click();
-        }
-        else if (field_area.parent().hasClass("ODRTabAccordion")) {
-            // Tab displayType
-            field_area.parent().children(".ODRTabButtonHeader").find(".ODRTabButton").each(function() {
-                if ($(this).attr('rel').toString() === datarecord_id.toString()) {
-                    $(this).click();
-                }
-            });
-        }
-        else if ( field_area.parent().hasClass("ODRDropdownAccordion") ) {
-            // Dropdown displayType
-            var dropdown = field_area.parent().children(".ui-accordion-header").find(".ODRSelect");
-            $(dropdown).val(datarecord_id).change();
-        }
-        else {
-            // List displayType
-            ScrollHighlight( $(field_area) );
-        }
+            if ( $(fieldarea).parent().hasClass("ODRFormAccordion") ) {
+                // Accordion displayType
+                $(fieldarea).prev().click();
+            }
+            else if ($(fieldarea).parent().hasClass("ODRTabAccordion")) {
+                // Tab displayType
+                $(fieldarea).parent().children(".ODRTabButtonHeader").find(".ODRTabButton").each(function() {
+                    if ($(this).attr('rel').toString() === dr_id.toString()) {
+                        $(this).click();
+                    }
+                });
+            }
+            else if ( $(fieldarea).parent().hasClass("ODRDropdownAccordion") ) {
+                // Dropdown displayType
+                var dropdown = $(fieldarea).parent().children(".ui-accordion-header").find(".ODRSelect");
+                $(dropdown).val(dr_id).change();
+            }
+            else {
+                // List displayType
+                ScrollHighlight( $(fieldarea) );
+            }
+        });
     }
 
     /**

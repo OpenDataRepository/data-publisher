@@ -1177,11 +1177,12 @@ class DatarecordInfoService
      *
      * @param array $datatype_array {@link DatabaseInfoService::getDatatypeArray()}
      * @param int $target_datatype_id
+     * @param string $fake_dr_id An optional string to use for identifying the datarecord
      * @param array $datafield_values An optional array of df_id => value pairs, if the "fake" record isn't supposed to be completely blank
      *
      * @return array
      */
-    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id, $datafield_values = array())
+    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id, $fake_dr_id = '', $datafield_values = array())
     {
         if ( !isset($datatype_array[$target_datatype_id]) )
             throw new ODRBadRequestException('Unable to generate a fake record of datatype '.$target_datatype_id, 0x00ba0e84);
@@ -1196,12 +1197,14 @@ class DatarecordInfoService
         // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
         // self::generateCSRFTokens() doesn't require numeric ids, and the length doesn't matter
         // Don't need to use UUIDService::generateDatarecordUniqueId(), $fake_id will be discarded
-        $fake_id = UniqueUtility::uniqueIdReal();
-        while ( is_numeric($fake_id) )
-            $fake_id = UniqueUtility::uniqueIdReal();
+        if ( $fake_dr_id === '' ) {
+            $fake_dr_id = UniqueUtility::uniqueIdReal();
+            while ( is_numeric($fake_dr_id) )
+                $fake_dr_id = UniqueUtility::uniqueIdReal();
+        }
 
         $entry = array(
-            'id' => $fake_id,
+            'id' => $fake_dr_id,
             'is_fake' => true,
 
             // These values shouldn't cause a problem...
@@ -1214,10 +1217,10 @@ class DatarecordInfoService
             ),
 
             'parent' => array(
-                'id' => $fake_id,
+                'id' => $fake_dr_id,
             ),
             'grandparent' => array(
-                'id' => $fake_id,
+                'id' => $fake_dr_id,
             ),
             'dataType' => $dt_entry,
 
@@ -1230,7 +1233,7 @@ class DatarecordInfoService
 
             'children' => array(),
             'externalIdField_value' => '',
-            'nameField_value' => $fake_id,    // Get Edit mode to render the datatype name instead of a blank
+            'nameField_value' => $fake_dr_id,    // Get Edit mode to render the datatype name instead of a blank
             'sortField_value' => '',
             'sortField_typeclass' => '',
 
