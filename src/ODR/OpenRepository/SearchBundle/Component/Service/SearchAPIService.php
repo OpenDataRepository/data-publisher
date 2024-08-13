@@ -1854,108 +1854,35 @@ class SearchAPIService
      */
     private function getSearchArrays_inverseWorker($datatree_array, $permissions_array, $top_level_datatype_ids, &$flattened_list, &$inflated_list)
     {
-        $dr_lists = array();
-        $dr_lookup = array();
         foreach ($permissions_array as $dt_id => $permissions) {
             // Ensure that the user is allowed to view this datatype before doing anything with it
-//            if ( !$permissions['can_view_datatype'] )
-//                continue;
-
-            $list = $this->search_service->getCachedSearchDatarecordList($dt_id);
-            $dr_lists[$dt_id] = $list;
-            foreach ($list as $dr_id => $parent_dr_id)
-                $dr_lookup[$dr_id] = $dt_id;
-        }
-
-        $tmp = array();
-        foreach ($permissions_array as $dt_id => $permissions) {
-            // Ensure that the user is allowed to view this datatype before doing anything with it
-            if ( !$permissions['can_view_datatype'] )
+            if (!$permissions['can_view_datatype'])
                 continue;
 
 
             // If the datatype is linked...then the backend query to rebuild the cache entry is
             //  different, as is the insertion of the resulting datarecords into the "inflated" list
-            $is_linked_type = true;
+            $is_linked_type = false;
+            if ( isset($datatree_array['linked_from'][$dt_id]) )
+                $is_linked_type = true;
 
-            // NOTE: this starts out as true because it's easier to exclude child datatypes than it
-            //  is to include linked datatypes when $inverse == true
-
-            // If this datatype exists in the 'descendant_of' section of the datatree array, then
-            //  it can't be a linked type
-            if ( isset($datatree_array['descendant_of'][$dt_id]) && $datatree_array['descendant_of'][$dt_id] !== '' )
+            // If this is the datatype being searched on (or one of the datatypes directly derived
+            //  from the template being searched on), then $is_linked_type needs to be false, so
+            //  getCachedSearchDatarecordList() will return all datarecords...otherwise, it'll only
+            //  return those that are linked to from somewhere (which is usually desired when
+            //  searching a linked datatype)
+            if ( isset($top_level_datatype_ids[$dt_id]) )
                 $is_linked_type = false;
 
             // Attempt to load this datatype's datarecords and their parents from the cache...
-            $tmp[$dt_id] = array(
-                'is_linked_type' => $is_linked_type,
-                'list' => $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type)
-            );
-            $list = $tmp[$dt_id]['list'];
-            if ( empty($list) ) {
-                // ...an empty result here means a top-level datatype that isn't a linked descendant
-                //  of any datatype.  The relationship will be a part of the list from a different
-                //  datatype, however, so can just TODO
-                continue;
-            }
+            $list = $this->search_service->getInverseSearchDatarecordList($dt_id, $is_linked_type);
 
-            // Inserting into $inflated_list depends on what type of datatype this is...
-            // @see self::buildDatarecordTree() for the eventual structure
-            if ( isset($top_level_datatype_ids[$dt_id]) ) {
-                // These are top-level datarecords for a top-level datatype...the 0 is in there
-                //  to make recursion in buildDatarecordTree() easier
-                foreach ($list as $dr_id => $value)
-                    $inflated_list[0][$dt_id][$dr_id] = '';
-            }
-
-            if (!$is_linked_type) {
-                // These datarecords are for a child datatype
-                foreach ($list as $dr_id => $parent_dr_id) {
-                    if ( !isset($inflated_list[$parent_dr_id]) )
-                        $inflated_list[$parent_dr_id] = array();
-                    if ( !isset($inflated_list[$parent_dr_id][$dt_id]) )
-                        $inflated_list[$parent_dr_id][$dt_id] = array();
-
-                    // NOTE: this is identical to the "regular" search...don't want to invert
-                    //  parent/child relationships
-                    $inflated_list[$parent_dr_id][$dt_id][$dr_id] = '';
-                }
-            }
-            else {
-                // These datarecords are for a linked datatype
-                foreach ($list as $dr_id => $parents) {
-                    foreach ($parents as $parent_dr_id => $value) {
-                        if ( !isset($inflated_list[$parent_dr_id]) )
-                            $inflated_list[$parent_dr_id] = array();
-
-                        $parent_dt_id = $dr_lookup[$parent_dr_id];
-                        if ( !isset($inflated_list[$parent_dr_id][$parent_dt_id]) )
-                            $inflated_list[$parent_dr_id][$parent_dt_id] = array();
-
-
-                        $inflated_list[$dr_id][$parent_dt_id][$parent_dr_id] = '';
-                    }
-                }
-            }
-        }
-
-        // Now that all the relevant entries in $flattened_list are guaranteed to exist...
-        foreach ($permissions_array as $dt_id => $permissions) {
-            // Ensure that the user is allowed to view this datatype before doing anything with it
-            if ( !$permissions['can_view_datatype'] )
-                continue;
-
-            // Still need a full list of datarecords to be able to initialize $flattened_list
-            //  ...the permissions array only has a list of non-public records, at best
-            $list = $tmp[$dt_id]['list'];
-            if ( empty($list) )
-                $list = $dr_lists[$dt_id];
-
-            // This second pass through the $permissions_array is needed to be able to initialize
-            //  the values correctly.  When building the arrays for an "inverse" search, the records
-            //  for the "ancestor" datatypes don't exist until getCachedSearchDatarecordList() gets
-            //  called on the "descendant" datatypes...which isn't guaranteed to happen before the
-            //  the foreach() loop on the permissions array gets to said "ancestors".
+            // Each datarecord in the flattened list needs to start out with one of three values...
+            // - CANT_VIEW: this user can't see this datarecord, so it needs to be ignored
+            // - MUST_MATCH: this datarecord has a datafield that's part of "advanced" search...
+            //               ...it must end up matching the search to be included in the results
+            // - DOESNT_MATTER: this datarecord is not part of an "advanced" search, so it will
+            //                   have no effect on the final search result
             foreach ($list as $dr_id => $value) {
                 if ( isset($permissions['non_public_datarecords'][$dr_id]) )
                     $flattened_list[$dr_id] = SearchAPIService::CANT_VIEW;
@@ -1965,8 +1892,39 @@ class SearchAPIService
                     $flattened_list[$dr_id] = SearchAPIService::DOESNT_MATTER;
             }
 
-            // ...this isn't a problem for the "regular" search process, because the calls to
-            //  getCachedSearchDatarecordList() are guaranteed to never return empty datarecord lists
+
+            // Inserting into $inflated_list depends on what type of datatype this is...
+            // @see self::buildDatarecordTree() for the eventual structure
+            if ( isset($top_level_datatype_ids[$dt_id]) ) {
+                // These are top-level datarecords for a top-level datatype...the 0 is in there
+                //  to make recursion in buildDatarecordTree() easier
+                foreach ($list as $dr_id => $value)
+                    $inflated_list[0][$dt_id][$dr_id] = '';
+            }
+            else if (!$is_linked_type) {
+                // These datarecords are for a child datatype
+                foreach ($list as $dr_id => $parent_dr_id) {
+                    if ( !isset($inflated_list[$parent_dr_id]) )
+                        $inflated_list[$parent_dr_id] = array();
+                    if ( !isset($inflated_list[$parent_dr_id][$dt_id]) )
+                        $inflated_list[$parent_dr_id][$dt_id] = array();
+
+                    $inflated_list[$parent_dr_id][$dt_id][$dr_id] = '';
+                }
+            }
+            else {
+                // These datarecords are for a linked datatype
+                foreach ($list as $dr_id => $parents) {
+                    foreach ($parents as $parent_dr_id => $value) {
+                        if ( !isset($inflated_list[$parent_dr_id]) )
+                            $inflated_list[$parent_dr_id] = array();
+                        if ( !isset($inflated_list[$parent_dr_id][$dt_id]) )
+                            $inflated_list[$parent_dr_id][$dt_id] = array();
+
+                        $inflated_list[$parent_dr_id][$dt_id][$dr_id] = '';
+                    }
+                }
+            }
         }
     }
 

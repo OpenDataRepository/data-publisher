@@ -489,7 +489,7 @@ class DefaultController extends Controller
                 // The same thing will happen when it refers to a datafield the user can't view
             }
 
-//            $default_search_params['inverse'] = 1;    // TODO
+            $default_search_params['inverse'] = 1;    // TODO
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');

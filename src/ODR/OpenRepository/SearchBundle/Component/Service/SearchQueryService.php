@@ -2389,8 +2389,6 @@ class SearchQueryService
      * Runs a query to return an array where the keys are datarecords ids belonging to the given
      * datatype, and the values are the ids of the datarecords that it links to.
      *
-     * TODO - modify SearchAPIService::getSearchArrays_inverseWorker() to use this...
-     *
      * @param int $datatype_id
      *
      * @return array
