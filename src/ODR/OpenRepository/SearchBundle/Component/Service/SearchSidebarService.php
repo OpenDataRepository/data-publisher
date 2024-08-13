@@ -133,7 +133,10 @@ class SearchSidebarService
     public function getSidebarDatatypeArray($user, $target_datatype_id, &$search_params, $sidebar_layout_id = null, $fallback = true)
     {
         // Need to load the cached version of this datatype, along with any linked datatypes it has
-        $datatype_array = $this->database_info_service->getDatatypeArray($target_datatype_id, true);    // do need links
+        if ( !isset($search_params['inverse']) )
+            $datatype_array = $this->database_info_service->getDatatypeArray($target_datatype_id);
+        else
+            $datatype_array = $this->database_info_service->getInverseDatatypeArray($target_datatype_id);
 
         // ...then filter the array to just what the user can see
         $datarecord_array = array();

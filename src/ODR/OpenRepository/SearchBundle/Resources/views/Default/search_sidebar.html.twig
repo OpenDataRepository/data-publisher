@@ -52,6 +52,9 @@
         {% endif %}
 
         <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
+
+{#            <input type="hidden" name="inverse" value="1" />#}    {# TODO #}
+
             <input type="hidden" id="search_type" value="collapsed" />
             <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
             {% if intent != 'stored_search_keys' %}

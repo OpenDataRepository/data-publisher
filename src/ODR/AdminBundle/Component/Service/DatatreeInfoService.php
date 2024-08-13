@@ -167,8 +167,11 @@ class DatatreeInfoService
 
     /**
      * Given the id of a top-level datatype, returns the ids of all other top-level datatypes that
-     * need to have their cache entries loaded so that the original top-level datatype can get
-     * rendered.
+     * "can be reached" from the original top-level datatype by traversing from "ancestors" to
+     * "descendants".
+     *
+     * Most of ODR treats this as the default way to associate datatypes together, and it's used
+     * for everything from rendering to permissions.
      *
      * @param int $top_level_datatype_id
      *
@@ -210,6 +213,55 @@ class DatatreeInfoService
             $associated_datatypes = array_keys($associated_datatypes);
             $this->cache_service->set('associated_datatypes_for_'.$top_level_datatype_id, $associated_datatypes);
         }
+
+        return $associated_datatypes;
+    }
+
+
+    /**
+     * This function is similar to {@link getAssociatedDatatypes()}, but it goes from "descendants"
+     * to "ancestors" instead.  Due to only being needed by extremely specific usecases, the result
+     * is uncached.
+     *
+     * @param int $bottom_level_datatype_id
+     *
+     * @return array
+     */
+    public function getInverseAssociatedDatatypes($bottom_level_datatype_id)
+    {
+        // Need to locate all linked datatypes for the provided datatype
+//        $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$top_level_datatype_id);
+//        if ($associated_datatypes == false) {
+            // Only want to load the cached datatree array once...
+            $datatree_array = self::getDatatreeArray();
+
+            // The end result should always contain the requested top-level datatype id
+            $associated_datatypes = array($bottom_level_datatype_id => 0);
+            $datatypes_to_check = array($bottom_level_datatype_id);
+            while ( !empty($datatypes_to_check) ) {
+                // Need to get the ids of all datatypes that link to the requested datatype...
+                $links = self::getLinkedAncestors($datatypes_to_check, $datatree_array);
+                $immediate_parents = array();
+                foreach ($links as $num => $dt_id)
+                    $immediate_parents[] = $dt_id;
+
+                // ...but then need to get the grandparents of those datatypes
+                $datatypes_to_check = array();
+                foreach ($immediate_parents as $num => $dt_id) {
+                    $gp_dt_id = self::getGrandparentDatatypeId($dt_id, $datatree_array);
+
+                    $associated_datatypes[$gp_dt_id] = 0;
+                    $datatypes_to_check[$gp_dt_id] = 0;
+                }
+
+                // Reset for the next loop
+                $datatypes_to_check = array_keys($datatypes_to_check);
+            }
+
+            // Save the list of associated datatypes back into the cache
+            $associated_datatypes = array_keys($associated_datatypes);
+//            $this->cache_service->set('associated_datatypes_for_'.$top_level_datatype_id, $associated_datatypes);
+//        }
 
         return $associated_datatypes;
     }

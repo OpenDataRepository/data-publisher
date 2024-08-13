@@ -531,15 +531,22 @@ class SearchKeyService
         if ( isset($search_params['gen']) && isset($search_params['gen_all']) )
             throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_all"', $exception_code);
 
+        $inverse = false;
+        if ( isset($search_params['inverse']) )
+            $inverse = true;
 
         $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
-        $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id, true);
+        $datatype_array = array();
+        if ( !$inverse )
+            $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id);
+        else
+            $datatype_array = $this->dbi_service->getInverseDatatypeArray($grandparent_datatype_id);
 
-        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id);
+        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id, $inverse);
         $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_all' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_all' || $key === 'inverse' ) {
                 // Nothing to validate
                 continue;
             }
@@ -893,18 +900,18 @@ class SearchKeyService
 
         foreach ($search_params as $key => $value) {
 
-            if ($key === 'dt_id') {
-                // Don't want to do anything with this key
+            if ( $key === 'dt_id' || $key === 'inverse' ) {
+                // Don't want to do anything with these keys
                 continue;
             }
-            else if ($key === 'sort_by') {
+            else if ( $key === 'sort_by' ) {
                 // Don't want to do anything with this key either...
                 continue;
 
                 // ...the reason being that if SearchAPIService::performSearch() directly used this
                 //  entry, then any sort_criteria for this tab in the user's session would be ignored
             }
-            else if ($key === 'gen' || $key === 'gen_all' ) {
+            else if ( $key === 'gen' || $key === 'gen_all' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
@@ -1299,7 +1306,10 @@ class SearchKeyService
         $criteria['affected_datatypes'] = $affected_datatypes;
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
-        $criteria['all_datatypes'] = $this->search_service->getRelatedDatatypes($datatype_id);
+        if ( !isset($search_params['inverse']) )
+            $criteria['all_datatypes'] = $this->search_service->getRelatedDatatypes($datatype_id);
+        else
+            $criteria['all_datatypes'] = $this->search_service->getInverseRelatedDatatypes($datatype_id);
 
         return $criteria;
     }

@@ -2117,6 +2117,17 @@ class SearchService
         }
     }
 
+    /**
+     * TODO
+     *
+     * @param integer $datatype_id
+     * @return array
+     */
+    public function getInverseRelatedDatatypes($datatype_id)
+    {
+        return $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id);
+    }
+
 
     /**
      * TODO - rename this?
@@ -2125,11 +2136,17 @@ class SearchService
      * Building/modifying the two search arrays requires knowledge of all datarecords of a given
      * datatype, and their parent datarecords (or ancestors if this is a linked datatype).
      *
+     * The "local datarecord" is always the key of the array.  The value is either an integer or
+     * an array...when an integer, then it's the parent of the "local datarecord" (which could be
+     * itself when it's already a top-level datarecord)...when an array, then the keys of the array
+     * are all datarecords of any datatype that link to the "local datarecord".
+     *
      * @param int $datatype_id
      * @param bool $search_as_linked_datatype If true, then the returned array will only contain
      *                                        datarecords of this datatype that have been linked to
      *                                        If false, then the returned array will contain all
      *                                        datarecords of this datatype
+     * @param bool $inverse
      *
      * @return array
      */
@@ -2161,6 +2178,22 @@ class SearchService
         }
 
         return $list;
+    }
+
+
+    /**
+     * TODO
+     *
+     * @param integer $datatype_id
+     * @param bool $is_linked_type
+     * @return array
+     */
+    public function getInverseSearchDatarecordList($datatype_id, $is_linked_type)
+    {
+        if ( $is_linked_type )
+            return $this->search_query_service->getLinkedChildDatarecords($datatype_id);
+        else
+            return $this->search_query_service->getParentDatarecords($datatype_id);
     }
 
 
@@ -2280,15 +2313,19 @@ class SearchService
      * indicating a "searchable" datafield.
      *
      * @param int $datatype_id
-     *
+     * @param bool $inverse If false, then the array contains the searchable datafields from descendant
+     *                      datatypes...if true, then it comes from the ancestor datatypes instead
      * @return array
      */
-    public function getSearchableDatafields($datatype_id)
+    public function getSearchableDatafields($datatype_id, $inverse = false)
     {
         // ----------------------------------------
         // Going to need all the datatypes related to this given datatype...
         $datatype_id = intval($datatype_id);
-        $related_datatypes = self::getRelatedDatatypes($datatype_id);
+        if ( !$inverse )
+            $related_datatypes = self::getRelatedDatatypes($datatype_id);
+        else
+            $related_datatypes = self::getInverseRelatedDatatypes($datatype_id);
 
         // The resulting array depends on the contents of each of the related datatypes
         $searchable_datafields = array();
