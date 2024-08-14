@@ -1616,6 +1616,10 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     color: #049cdb;
 }
 
+#ODRSearchHeaderWrapper #ODRPublicExportButtons {
+    margin-top: 4px;
+}
+
 #ODRPropertiesPage #ODRPublicExportButtons {
     float: right;
     text-align: right;
