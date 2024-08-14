@@ -81,6 +81,35 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_datarecord_ids, $complete_datarecord_list );
     }
 
+    /**
+     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
+     * @dataProvider provideInverseSearchParams
+     */
+    public function testInverseSearch($search_params, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $client->getContainer()->get('odr.search_key_service');
+
+        // Convert each array of search params into a search key, then run the search
+        $search_key = $search_key_service->encodeSearchKey($search_params);
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,         // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),      // search testing is with either zero permissions, or super-admin permissions
+            false,        // only want grandparent datarecord ids here
+            array(),      // testing doesn't need a specific set of sort datafields...
+            array(),      // ...or a specific sort order
+            $search_as_super_admin
+        );
+
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
 
     /**
      * @return array
@@ -956,7 +985,8 @@ class SearchAPIServiceTest extends WebTestCase
                 array_merge(
                     array_diff(
                         range(98,139),  // the rruff samples range from 98 to 139...
-                        array(107)      // ...but 107 won't match the query since it's the only one with a reference of its own
+                        array(107,126)  // ...but 107 and 126 won't match the query since they're the only ones with references of their own
+                                        // NOTE: 126 is a Bournonite sample, but has a ref from Abelsonite specifically to make an inverse search test work
                     ),
                     array(323)         // ...also need the rruff sample 323, since it links to the mineral 322 which has no references
                 ),
@@ -1152,6 +1182,100 @@ class SearchAPIServiceTest extends WebTestCase
                     282,283,290,291,294,
                 ),
                 false
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function provideInverseSearchParams()
+    {
+        /*
+         * These tests are for an "Inverse" search...the underlying database has these relations:
+         * RRUFF Sample
+         *  - IMA Mineral (linked to RRUFF Sample)
+         *     - RRUFF Reference (linked to IMA Mineral)
+         *  - RRUFF Reference (linked to RRUFF Sample)
+         *  - Raman Spectra (child of RRUFF Sample)
+         *
+         * ...but an "inverse" search runs the search with these relations instead:
+         * RRUFF Reference
+         *  - IMA Mineral (links to RRUFF Reference)
+         *     - RRUFF Sample (links to IMA Mineral)
+         *        - Raman Spectra (child of RRUFF Sample)
+         *  - RRUFF Sample (links to RRUFF Reference)
+         *     - Raman Spectra (child of RRUFF Sample)
+         *
+         * ...with the "inverse" flag set, the search system should properly set up the various arrays
+         * so the actual logic doesn't even know the difference.
+         *
+         * That being said, the further "away" from the source that you get (e.g. searching for
+         * references based on sample wavelength)...the returned results will quickly start requiring
+         * extended investigation to figure out why they actually match.
+         */
+
+        return [
+            // ----------------------------------------
+            'RRUFF Reference: default inverse search, including non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 1
+                ),
+                range(1, 90),
+                true
+            ],
+
+            'RRUFF Reference: inverse search, references with the mineral_name "Bournonite"' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 1,
+                    '18' => "Bournonite",
+                ),
+                array(5,13,22,26,34,41,80),
+                true
+            ],
+            'RRUFF Reference: inverse search, references with the rruff_id "R050111"' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 1,
+                    '30' => "R050111",
+                ),
+                array(5,13,22,26,34,41,80),    // should be no difference from previous...this sample doesn't link to a reference
+                true
+            ],
+            'RRUFF Reference: inverse search, references with the rruff_id "R050364"' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 1,
+                    '30' => "R050364",
+                ),
+                array(5,13,22,26,34,41,80, 1),  // should have the Bournonite references, plus the one linked to directly by this sample
+                                                // NOTE: 126 is a Bournonite sample, but has a ref from Abelsonite specifically to make this inverse search test work
+                true
+            ],
+
+            'RRUFF Reference: inverse search, references with a mineral_name "Abelsonite" and a wavelength "532"' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 1,
+                    '18' => "Abelsonite",
+                    '41' => "532",
+                ),
+                array(1,9,35,63,83, 77),    // the five Abelsonite references, plus dr_id 77 because "R050104" (dr_id 107) directly links to it...
+                                            // ...the reason being that R050104 has a 532 spectra, so "R050104" matches, so dr_id 77 matches
+                true
+            ],
+            'RRUFF Reference: inverse search, references with a article_title of "Abelsonite" and a wavelength "532"' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 1,
+                    '2' => "Abelsonite",
+                    '41' => "532",
+                ),
+                array(1,35,63,83),  // should only have the four references that directly mention "abelsonite", despite "532" matching pretty much every RRUFF Sample...
+                                    // ...9 and 77 shouldn't match due to the article_title
+                true
             ],
         ];
     }

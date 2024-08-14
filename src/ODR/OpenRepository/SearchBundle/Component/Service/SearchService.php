@@ -2058,78 +2058,6 @@ class SearchService
 
 
     /**
-     * TODO - replace with DatatreeInfoService?
-     *
-     * Uses the cached datatree aray to recursively locate every child/linked datatype related to
-     * the given datatype id.  Does NOT filter by user permissions.
-     *
-     * @param int $top_level_datatype_id
-     *
-     * @return array
-     */
-    public function getRelatedDatatypes($top_level_datatype_id)
-    {
-        $datatree_array = $this->datatree_info_service->getDatatreeArray();
-        $related_datatypes = self::getRelatedDatatypes_worker($datatree_array, array($top_level_datatype_id) );
-
-        // array_values() to make unique
-        return array_unique($related_datatypes);
-    }
-
-
-    /**
-     * TODO - replace with DatatreeInfoService?
-     *
-     * Uses the cached datatree array to recursively locate every child/linked datatypes related to
-     * the datatype ids in the given array.
-     *
-     * @param array $datatree_array
-     * @param array $datatype_ids
-     *
-     * @return array
-     */
-    private function getRelatedDatatypes_worker($datatree_array, $datatype_ids)
-    {
-        $this_level = $datatype_ids;
-        $datatype_ids = array_flip($datatype_ids);
-
-        // Find all children of the datatypes specified in $datatype_ids
-        $next_level = array();
-        foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
-            if ( isset($datatype_ids[$parent_dt_id]) )
-                $next_level[] = intval($dt_id);
-        }
-
-        // Find all datatypes linked to by the datatypes specified in $datatype_ids
-        foreach ($datatree_array['linked_from'] as $descendant_id => $ancestor_ids) {
-            foreach ($ancestor_ids as $num => $dt_id) {
-                if ( isset($datatype_ids[$dt_id]) )
-                    $next_level[] = intval($descendant_id);
-            }
-        }
-
-        if ( count($next_level) > 0 ) {
-            $descendant_datatype_ids = self::getRelatedDatatypes_worker($datatree_array, $next_level);
-            return array_merge($this_level, $descendant_datatype_ids);
-        }
-        else {
-            return $this_level;
-        }
-    }
-
-    /**
-     * TODO
-     *
-     * @param integer $datatype_id
-     * @return array
-     */
-    public function getInverseRelatedDatatypes($datatype_id)
-    {
-        return $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id);
-    }
-
-
-    /**
      * TODO - rename this?
      * TODO - hunt down everywhere that queries the database for a datarecord list and replace with this function?
      *
@@ -2323,9 +2251,9 @@ class SearchService
         // Going to need all the datatypes related to this given datatype...
         $datatype_id = intval($datatype_id);
         if ( !$inverse )
-            $related_datatypes = self::getRelatedDatatypes($datatype_id);
+            $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
         else
-            $related_datatypes = self::getInverseRelatedDatatypes($datatype_id);
+            $related_datatypes = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, true);
 
         // The resulting array depends on the contents of each of the related datatypes
         $searchable_datafields = array();
@@ -2506,7 +2434,7 @@ class SearchService
     public function getRelatedTemplateDatatypes($datatype_id)
     {
         // Locate related datatypes from the cached datatree array...
-        $related_datatypes = self::getRelatedDatatypes($datatype_id);
+        $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
 
         // ...then get the uuids of all the related datatypes
         $query = $this->em->createQuery(

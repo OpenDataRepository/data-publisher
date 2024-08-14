@@ -39,12 +39,12 @@ class SearchKeyService
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var SearchService
@@ -83,8 +83,8 @@ class SearchKeyService
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->dti_service = $datatree_info_service;
+        $this->database_info_service = $database_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->user_manager = $user_manager;
 
@@ -535,12 +535,12 @@ class SearchKeyService
         if ( isset($search_params['inverse']) )
             $inverse = true;
 
-        $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
+        $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id);
         $datatype_array = array();
         if ( !$inverse )
-            $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id);
+            $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id);
         else
-            $datatype_array = $this->dbi_service->getInverseDatatypeArray($grandparent_datatype_id);
+            $datatype_array = $this->database_info_service->getInverseDatatypeArray($grandparent_datatype_id);
 
         $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id, $inverse);
         $sortable_typenames = null;
@@ -1307,9 +1307,9 @@ class SearchKeyService
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
         if ( !isset($search_params['inverse']) )
-            $criteria['all_datatypes'] = $this->search_service->getRelatedDatatypes($datatype_id);
+            $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
         else
-            $criteria['all_datatypes'] = $this->search_service->getInverseRelatedDatatypes($datatype_id);
+            $criteria['all_datatypes'] = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, true);
 
         return $criteria;
     }
@@ -1337,11 +1337,11 @@ class SearchKeyService
             throw new ODRBadRequestException('Invalid search key: "template_uuid" is in wrong format', $exception_code);
 
         $template_uuid = $search_params['template_uuid'];
-        $dt = $this->dbi_service->getDatatypeFromUniqueId($template_uuid);
+        $dt = $this->database_info_service->getDatatypeFromUniqueId($template_uuid);
         $dt_id = $dt->getId();
 
-        $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
-        $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id, true);
+        $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id);
+        $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id, true);
 
         // The template search key isn't supposed to know about any datatypes derived from said
         //  template, so this is an acceptable use of this function
@@ -1918,7 +1918,7 @@ class SearchKeyService
 
         // ----------------------------------------
         // Use the datatype id to load the cached datatype array...
-        $dt_array = $this->dbi_service->getDatatypeArray($dt_id);    // may need linked data
+        $dt_array = $this->database_info_service->getDatatypeArray($dt_id);    // may need linked data
         // ...and then extract the relevant datatype/datafield data from it
         $dt_lookup = array();
         $df_lookup = array();

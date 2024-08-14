@@ -174,15 +174,18 @@ class DatatreeInfoService
      * for everything from rendering to permissions.
      *
      * @param int $top_level_datatype_id
+     * @param boolean $deep If true, then all children of the associated datatypes are also returned
      *
      * @return array
      */
-    public function getAssociatedDatatypes($top_level_datatype_id)
+    public function getAssociatedDatatypes($top_level_datatype_id, $deep = false)
     {
+        // Only want to load the cached datatree array once...
+        $datatree_array = null;
+
         // Need to locate all linked datatypes for the provided datatype
         $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$top_level_datatype_id);
         if ($associated_datatypes == false) {
-            // Only want to load the cached datatree array once...
             $datatree_array = self::getDatatreeArray();
 
             // The end result should always contain the requested top-level datatype id
@@ -214,25 +217,42 @@ class DatatreeInfoService
             $this->cache_service->set('associated_datatypes_for_'.$top_level_datatype_id, $associated_datatypes);
         }
 
+        // If the caller also needs the ids of the children of these top-level datatypes...
+        if ($deep) {
+            // ...ensure the datatree array exists...
+            if ( is_null($datatree_array) )
+                $datatree_array = self::getDatatreeArray();
+
+            // ...dig through it to find all the non-linked descendants (since the linked descendants
+            //  are already in $associated_datatypes)...
+            $tmp = self::getChildDescendants($associated_datatypes, $datatree_array, true);
+            // ...and splice those into the array for returning
+            foreach ($tmp as $num => $dt_id)
+                $associated_datatypes[] = $dt_id;
+        }
+
         return $associated_datatypes;
     }
 
 
     /**
      * This function is similar to {@link getAssociatedDatatypes()}, but it goes from "descendants"
-     * to "ancestors" instead.  Due to only being needed by extremely specific usecases, the result
-     * is uncached.
+     * to "ancestors" instead.  Due to only being used in extremely specific situations, the result
+     * is currently uncached.
      *
      * @param int $bottom_level_datatype_id
+     * @param boolean $deep If true, then all children of the associated datatypes are also returned
      *
      * @return array
      */
-    public function getInverseAssociatedDatatypes($bottom_level_datatype_id)
+    public function getInverseAssociatedDatatypes($bottom_level_datatype_id, $deep = false)
     {
+        // Only want to load the cached datatree array once...
+        $datatree_array = null;
+
         // Need to locate all linked datatypes for the provided datatype
 //        $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$top_level_datatype_id);
 //        if ($associated_datatypes == false) {
-            // Only want to load the cached datatree array once...
             $datatree_array = self::getDatatreeArray();
 
             // The end result should always contain the requested top-level datatype id
@@ -262,6 +282,20 @@ class DatatreeInfoService
             $associated_datatypes = array_keys($associated_datatypes);
 //            $this->cache_service->set('associated_datatypes_for_'.$top_level_datatype_id, $associated_datatypes);
 //        }
+
+        // If the caller also needs the ids of the children of these top-level datatypes...
+        if ($deep) {
+            // ...ensure the datatree array exists...
+            if ( is_null($datatree_array) )
+                $datatree_array = self::getDatatreeArray();
+
+            // ...dig through it to find all the non-linked descendants (since the linked descendants
+            //  are already in $associated_datatypes)...
+            $tmp = self::getChildDescendants($associated_datatypes, $datatree_array, true);
+            // ...and splice those into the array for returning
+            foreach ($tmp as $num => $dt_id)
+                $associated_datatypes[] = $dt_id;
+        }
 
         return $associated_datatypes;
     }

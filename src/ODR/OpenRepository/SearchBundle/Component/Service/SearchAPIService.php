@@ -1683,19 +1683,21 @@ class SearchAPIService
      *
      * The first array is a "flattened" list of all records that could end up matching the search,
      *  and is primarily utilized so the rest of the searching doesn't have to deal with recursion
-     *  when computing search results.  It consists of <datarecord_id> => <num> pairs, where <num>
-     *  is some compound of the various binary flags defined at the top of the SearchAPIService.
+     *  when computing search results.  It consists of an array of <datarecord_id> => <num> pairs,
+     *  where <num> is some composite of the various binary flags defined at the top of the SearchAPIService.
      *
-     * The second array is an "inflated" array of all records and their descendants, used to locate
-     *  each individual datarecord that matches the search. See {@link buildDatarecordTree()}
+     * The second array is an "inflated" array of all records and their descendants, because the
+     *  hierarchy of "ancestor" -> "descendant" is critical to determining which "ancestors" end up
+     *  matching the search. See {@link buildDatarecordTree()}.  When $inverse is true, then the
+     *  linked relations are inverted, while the parent/child relations remain the same.
      *
      * The third array {@link buildSearchDatatree()} is used as a guide for merging the various
      * facets of records that matched the search. {@link mergeSearchResults()}
      *
      * @param int[] $top_level_datatype_ids
      * @param array $permissions_array {@link getSearchPermissionsArray()}
-     * @param bool $inverse If false, then the array contains the searchable datafields from descendant
-     *                      datatypes...if true, then it comes from the ancestor datatypes instead
+     * @param bool $inverse
+     *
      * @return array
      */
     public function getSearchArrays($top_level_datatype_ids, $permissions_array, $inverse = false)
@@ -1726,15 +1728,8 @@ class SearchAPIService
         // @see self::buildSearchDatatree()
         $search_datatree = self::buildSearchDatatree($datatree_array, $top_level_datatype_ids, $inverse);
 
-
-        // ----------------------------------------
-        // Typical searches go from "ancestor" to "descendant", like the rest of ODR...but if doing
-        //  the inverse, the logic is just different enough that it's easier to have it in its own
-        //  function
-        if ( !$inverse )
-            self::getSearchArrays_Worker($datatree_array, $permissions_array, $top_level_datatype_ids, $flattened_list, $inflated_list);
-        else
-            self::getSearchArrays_inverseWorker($datatree_array, $permissions_array, $top_level_datatype_ids, $flattened_list, $inflated_list);
+        // Actually build the flattened and inflated lists
+        self::getSearchArrays_Worker($datatree_array, $permissions_array, $top_level_datatype_ids, $flattened_list, $inflated_list, $inverse);
 
 
         // ----------------------------------------
@@ -1755,16 +1750,18 @@ class SearchAPIService
 
 
     /**
-     * TODO
+     * This is split off from {@link getSearchArrays()} for readability reasons.
      *
      * @param array $datatree_array
      * @param array $permissions_array
      * @param array $top_level_datatype_ids
      * @param array &$flattened_list
      * @param array &$inflated_list
+     * @param boolean $inverse
+     *
      * @return void
      */
-    private function getSearchArrays_Worker($datatree_array, $permissions_array, $top_level_datatype_ids, &$flattened_list, &$inflated_list)
+    private function getSearchArrays_Worker($datatree_array, $permissions_array, $top_level_datatype_ids, &$flattened_list, &$inflated_list, $inverse)
     {
         foreach ($permissions_array as $dt_id => $permissions) {
             // Ensure that the user is allowed to view this datatype before doing anything with it
@@ -1787,96 +1784,23 @@ class SearchAPIService
                 $is_linked_type = false;
 
             // Attempt to load this datatype's datarecords and their parents from the cache...
-            $list = $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type);
+            if ( !$inverse )
+                $list = $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type);
+            else
+                $list = $this->search_service->getInverseSearchDatarecordList($dt_id, $is_linked_type);
+
+            // Both calls return datarecord lists in the same format...the keys are always the ids
+            //  of the records belonging to $dt_id.  When $inverse is false the values are always the
+            //  parents...either
+            //  1) the id of its parent when it's not a top-level datarecord, or
+            //  2) an array of the ids of records that link to it
+
+            // When $inverse is true, then #2 changes to provide an array of the ids this record
+            //  links to instead...this effectively inverts the "ancestor" -> "descendant" relation,
+            //  and fortunately most of the rest of the searching logic doesn't care
 
 
-            // Each datarecord in the flattened list needs to start out with one of three values...
-            // - CANT_VIEW: this user can't see this datarecord, so it needs to be ignored
-            // - MUST_MATCH: this datarecord has a datafield that's part of "advanced" search...
-            //               ...it must end up matching the search to be included in the results
-            // - DOESNT_MATTER: this datarecord is not part of an "advanced" search, so it will
-            //                   have no effect on the final search result
-            foreach ($list as $dr_id => $value) {
-                if ( isset($permissions['non_public_datarecords'][$dr_id]) )
-                    $flattened_list[$dr_id] = SearchAPIService::CANT_VIEW;
-                else if ( $permissions['affected'] === true )
-                    $flattened_list[$dr_id] = SearchAPIService::MUST_MATCH;
-                else
-                    $flattened_list[$dr_id] = SearchAPIService::DOESNT_MATTER;
-            }
-
-
-            // Inserting into $inflated_list depends on what type of datatype this is...
-            // @see self::buildDatarecordTree() for the eventual structure
-            if ( isset($top_level_datatype_ids[$dt_id]) ) {
-                // These are top-level datarecords for a top-level datatype...the 0 is in there
-                //  to make recursion in buildDatarecordTree() easier
-                foreach ($list as $dr_id => $value)
-                    $inflated_list[0][$dt_id][$dr_id] = '';
-            }
-            else if (!$is_linked_type) {
-                // These datarecords are for a child datatype
-                foreach ($list as $dr_id => $parent_dr_id) {
-                    if ( !isset($inflated_list[$parent_dr_id]) )
-                        $inflated_list[$parent_dr_id] = array();
-                    if ( !isset($inflated_list[$parent_dr_id][$dt_id]) )
-                        $inflated_list[$parent_dr_id][$dt_id] = array();
-
-                    $inflated_list[$parent_dr_id][$dt_id][$dr_id] = '';
-                }
-            }
-            else {
-                // These datarecords are for a linked datatype
-                foreach ($list as $dr_id => $parents) {
-                    foreach ($parents as $parent_dr_id => $value) {
-                        if ( !isset($inflated_list[$parent_dr_id]) )
-                            $inflated_list[$parent_dr_id] = array();
-                        if ( !isset($inflated_list[$parent_dr_id][$dt_id]) )
-                            $inflated_list[$parent_dr_id][$dt_id] = array();
-
-                        $inflated_list[$parent_dr_id][$dt_id][$dr_id] = '';
-                    }
-                }
-            }
-        }
-    }
-
-
-    /**
-     * TODO
-     *
-     * @param array $datatree_array
-     * @param array $permissions_array
-     * @param array $top_level_datatype_ids
-     * @param array &$flattened_list
-     * @param array &$inflated_list
-     * @return void
-     */
-    private function getSearchArrays_inverseWorker($datatree_array, $permissions_array, $top_level_datatype_ids, &$flattened_list, &$inflated_list)
-    {
-        foreach ($permissions_array as $dt_id => $permissions) {
-            // Ensure that the user is allowed to view this datatype before doing anything with it
-            if (!$permissions['can_view_datatype'])
-                continue;
-
-
-            // If the datatype is linked...then the backend query to rebuild the cache entry is
-            //  different, as is the insertion of the resulting datarecords into the "inflated" list
-            $is_linked_type = false;
-            if ( isset($datatree_array['linked_from'][$dt_id]) )
-                $is_linked_type = true;
-
-            // If this is the datatype being searched on (or one of the datatypes directly derived
-            //  from the template being searched on), then $is_linked_type needs to be false, so
-            //  getCachedSearchDatarecordList() will return all datarecords...otherwise, it'll only
-            //  return those that are linked to from somewhere (which is usually desired when
-            //  searching a linked datatype)
-            if ( isset($top_level_datatype_ids[$dt_id]) )
-                $is_linked_type = false;
-
-            // Attempt to load this datatype's datarecords and their parents from the cache...
-            $list = $this->search_service->getInverseSearchDatarecordList($dt_id, $is_linked_type);
-
+            // ----------------------------------------
             // Each datarecord in the flattened list needs to start out with one of three values...
             // - CANT_VIEW: this user can't see this datarecord, so it needs to be ignored
             // - MUST_MATCH: this datarecord has a datafield that's part of "advanced" search...
