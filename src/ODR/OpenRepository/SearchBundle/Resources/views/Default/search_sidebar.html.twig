@@ -53,7 +53,7 @@
 
         <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
 
-            <input type="hidden" name="inverse" value="1" />      {# TODO #}
+{#            <input type="hidden" name="inverse" value="1" />      #}{# TODO #}
 
             <input type="hidden" id="search_type" value="collapsed" />
             <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
@@ -107,7 +107,6 @@
                     'datatype_array': datatype_array,
                     'rpi_lookup': rpi_lookup,
 
-                    'search_string': search_string,
                     'search_params': search_params,
                 } %}
             {% else %}
@@ -116,22 +115,21 @@
                     <label for="textbox_general">
                         All Fields:
                         {% if datatype_array|length > 1 %}
-                            {% if search_params is defined and search_params['gen_all'] is defined %}
-                            <span id="textbox_general_blurb" title="Search in all possible fields, including descendant databases">
-                                (include descendants)
-                            </span>
-                            {% else %}
+                            {% if search_params is defined and search_params['gen_lim'] is defined %}
                             <span id="textbox_general_blurb" title="Search each field in the current database">
                                 (current database)
+                            </span>
+                            {% else %}
+                            <span id="textbox_general_blurb" title="Search in all possible fields, including descendant databases">
+                                (include descendants)
                             </span>
                             {% endif %}
                         {% endif %}
                         <input id="textbox_general" class="pure-u-1" type="text"
-                            {% if search_params is defined and search_params['gen_all'] is defined %}name="gen_all"{% else %}name="gen"{% endif %}
+                            {% if search_params is defined and search_params['gen_lim'] is defined %}name="gen_lim"{% else %}name="gen"{% endif %}
 
-                            {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
                             {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
-                            {% if search_params is defined and search_params['gen_all'] is defined %}value="{{ search_params['gen_all'] }}"{% endif %}
+                            {% if search_params is defined and search_params['gen_lim'] is defined %}value="{{ search_params['gen_lim'] }}"{% endif %}
                         />
                     </label>
                 </fieldset>
@@ -145,7 +143,6 @@
                     'datatype_array': datatype_array,
                     'rpi_lookup': rpi_lookup,
 
-                    'search_string': search_string,
                     'search_params': search_params,
                 } %}
             {% else %}
@@ -155,7 +152,6 @@
                     'target_datatype_id': target_datatype.id,
                     'rpi_lookup': rpi_lookup,
 
-                    'search_string': search_string,
                     'search_params': search_params,
 
                     'user_list': user_list,
@@ -210,12 +206,12 @@
         //  all descendants
         $(context).find("#textbox_general_blurb").unbind('click').click(function() {
             var input = $("#textbox_general");
-            if ( $(input).attr('name') === 'gen' ) {
-                $(input).attr('name', 'gen_all');
+            if ( $(input).attr('name') === 'gen_lim' ) {
+                $(input).attr('name', 'gen');
                 $(this).html('(include descendants)').attr('title', 'Search in all possible fields, including descendant databases');
             }
             else {
-                $(input).attr('name', 'gen')
+                $(input).attr('name', 'gen_lim')
                 $(this).html('(current database)').attr('title', 'Search each field in the current database');
             }
         });

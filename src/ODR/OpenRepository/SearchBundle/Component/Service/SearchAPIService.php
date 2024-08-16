@@ -359,7 +359,7 @@ class SearchAPIService
         //  user is allowed to view
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_all' || $key === 'inverse' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' ) {
                 // Don't need to do anything special with these keys
                 $filtered_search_params[$key] = $value;
             }

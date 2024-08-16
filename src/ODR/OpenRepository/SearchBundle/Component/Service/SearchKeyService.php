@@ -527,9 +527,9 @@ class SearchKeyService
             throw new ODRBadRequestException('Invalid search key: missing "dt_id"', $exception_code);
         $dt_id = $search_params['dt_id'];
 
-        // ...they should not have both "gen" and "gen_all"..."gen" is a subset of "gen_all"
-        if ( isset($search_params['gen']) && isset($search_params['gen_all']) )
-            throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_all"', $exception_code);
+        // ...they should not have both "gen" and "gen_lim"..."gen_lim" is a subset of "gen"
+        if ( isset($search_params['gen']) && isset($search_params['gen_lim']) )
+            throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_lim"', $exception_code);
 
         $inverse = false;
         if ( isset($search_params['inverse']) )
@@ -546,7 +546,7 @@ class SearchKeyService
         $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_all' || $key === 'inverse' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' ) {
                 // Nothing to validate
                 continue;
             }
@@ -877,6 +877,9 @@ class SearchKeyService
      * )
      * </pre>
      *
+     * NOTE: whether the search key has "gen" or "gen_lim" doesn't change the array's structure, but
+     * instead changes which datafields are mentioned inside the facet.
+     *
      * @param string $search_key
      * @param array $searchable_datafields {@link SearchAPIService::getSearchableDatafieldsForUser()}
      * @param array $user_permissions
@@ -911,7 +914,7 @@ class SearchKeyService
                 // ...the reason being that if SearchAPIService::performSearch() directly used this
                 //  entry, then any sort_criteria for this tab in the user's session would be ignored
             }
-            else if ( $key === 'gen' || $key === 'gen_all' ) {
+            else if ( $key === 'gen' || $key === 'gen_lim' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
@@ -925,12 +928,12 @@ class SearchKeyService
                 foreach ($tokens as $token_num => $token) {
                     // Need to find each datafield that qualifies for general search...
                     foreach ($searchable_datafields as $dt_id => $df_list) {
-                        // Don't create criteria for fields from descendant datatypes unless that's
-                        //  what the user wants
-                        if ( $key === 'gen' && $dt_id !== $datatype_id )
+                        // Don't create criteria for fields from descendant datatypes if the user
+                        //  only wants the to-level datatype
+                        if ( $key === 'gen_lim' && $dt_id !== $datatype_id )
                             continue;
 
-                        // After this point, the 'gen_all' key effectively ceases to exist
+                        // After this point, the 'gen_lim' key effectively ceases to exist
 
                         // Each token in the general search string gets its own facet
                         if ( !isset($criteria['general'][$token_num]) ) {
@@ -1968,12 +1971,12 @@ class SearchKeyService
             if ( $key === 'dt_id' || $key === 'sort_by' )
                 continue;
 
-            if ( $key === 'gen' || $key === 'gen_all' ) {
+            if ( $key === 'gen' || $key === 'gen_lim' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
 
-                if ( $key === 'gen' )
+                if ( $key === 'gen_lim' )
                     $readable_search_key['All Fields (current database)'] = $value;
                 else
                     $readable_search_key['All Fields (including descendants)'] = $value;

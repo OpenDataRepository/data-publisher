@@ -43,6 +43,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
@@ -51,6 +52,14 @@ use Symfony\Component\HttpFoundation\Cookie;
 class DefaultController extends Controller
 {
 
+    /**
+     * TODO
+     *
+     * @param String $search_slug Which datatype to load a search page for.
+     * @param String $search_string An optional string to immediately enter into the general search field and search with.
+     * @param Request $request
+     * @return Response|RedirectResponse
+     */
     public function homeAction($search_slug, $search_string, Request $request)
     {
         $html = '';
@@ -225,6 +234,9 @@ class DefaultController extends Controller
                 // The same thing will happen when it refers to a datafield the user can't view
             }
 
+            if ( $search_string !== '' )
+                $default_search_params['gen'] = $search_string;
+
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
             $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
@@ -266,7 +278,6 @@ class DefaultController extends Controller
                     'sidebar_reload' => false,
                     'search_slug' => $search_slug,
                     'site_baseurl' => $site_baseurl,
-                    'search_string' => $search_string,
                     'odr_tab_id' => $odr_tab_id,
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
                     'wordpress_site_baseurl' => $wordpress_site_baseurl,
@@ -489,7 +500,10 @@ class DefaultController extends Controller
                 // The same thing will happen when it refers to a datafield the user can't view
             }
 
-            $default_search_params['inverse'] = 1;    // TODO
+            if ( $search_string !== '' )
+                $default_search_params['gen'] = $search_string;
+
+//            $default_search_params['inverse'] = 1;    // TODO
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
@@ -542,7 +556,6 @@ class DefaultController extends Controller
                         'sidebar_reload' => false,
                         'search_slug' => $search_slug,
                         'site_baseurl' => $site_baseurl,
-                        'search_string' => $search_string,
                         'odr_tab_id' => $odr_tab_id,
 
                         // required for background image
@@ -580,7 +593,6 @@ class DefaultController extends Controller
                         'sidebar_reload' => false,
                         'search_slug' => $search_slug,
                         'site_baseurl' => $site_baseurl,
-                        'search_string' => $search_string,
                         'odr_tab_id' => $odr_tab_id,
                         'odr_wordpress_integrated' => $is_wordpress_integrated,
                         'wordpress_site_baseurl' => $wordpress_site_baseurl,
