@@ -200,22 +200,10 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     if ( visible_fieldareas.size > 0 ) {
         // ...at least one data div is visible, so ensure the data portion is also visible
         $(data_div).show();
-        // Extract the id of the first div in the array
+        // Extract the id of the first div in the array...
         var dr_id = ( Array.from(visible_fieldareas.keys()).slice(0,1) )[0];
-
-        // Need to build an array of the ids of this div and its parents...
-        var record_ids = [dr_id];
-        while ( parent_div_lookup.has(dr_id) ) {
-            var parent_dr_id = parent_div_lookup.get(dr_id);
-            record_ids.push(parent_dr_id);
-            dr_id = parent_dr_id;
-        }
-        // ...then reverse that array...
-        record_ids.reverse();
-        // ...because the function to select fieldareas has to work from the top down
-        record_ids.forEach((dr_id) => {
-            selectRecordFieldArea(dr_id);
-        });
+        // ...so it can be guaranteed to be visible
+        selectRecordFieldArea(dr_id);
     }
     else {
         // ...no data divs are visible, ensure the data portion is hidden to avoid empty HTML elements

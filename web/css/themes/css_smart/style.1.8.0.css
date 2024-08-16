@@ -1562,7 +1562,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
         position: -moz-sticky;
         position: -ms-sticky;
         position: -o-sticky;
-        top: 40;
+        top: 40px;
     }
 
     #jGrowl {
@@ -1727,12 +1727,12 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 .ODRPluginCategoryLabel {
     text-align: left;
     font-weight: bold;
-    font-size 0.96em;
+    font-size: 0.96em;
     cursor: default;
 }
 .ODRPluginEntry {
     text-align: left;
-    font-size 0.96em;
+    font-size: 0.96em;
     color: #555;
     padding: 3px 0 3px 15px;
     cursor: default;
@@ -1748,4 +1748,15 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     box-sizing: border-box;
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
+}
+
+.ui-autocomplete {
+    border: 1px solid blue !important;
+}
+.ODRAutocompleteSelect.ui-state-active {
+    background: #7777EE;
+}
+.ODRAutocomplete_blurb::before {
+    content: "Records Found - Click a highlighted row to Save";
+    margin-left: 25px;
 }

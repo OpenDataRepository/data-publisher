@@ -918,7 +918,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 if ( $child_dt_info['multiple_allowed'] === 0 || ( isset($prefix_values[1]) && $prefix_values[1] === $child_dt_id ) )
                     $allowed_descendant = true;
 
-                if ( $allowed_descendant ) {
+                if ( $allowed_descendant && isset($child_dt_info['datatype'][$child_dt_id]) ) {
                     // ...since it passes the conditions, set up for the next level of recursion
                     $child_dt = $child_dt_info['datatype'][$child_dt_id];
 

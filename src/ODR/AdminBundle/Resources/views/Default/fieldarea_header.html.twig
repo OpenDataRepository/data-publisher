@@ -108,6 +108,7 @@
             {% endif %}
         </h3>
 
+        {% if datarecord_list|length > 0 %}
         <div class="pure-u-1 ODRTabButtonHeader">
         {% for num, datarecord in datarecord_list %}
             {% set datarecord_is_fake = false %}
@@ -126,6 +127,7 @@
             {% endif %}
         {% endfor %}
         </div>
+        {% endif %}
 
 {% elseif display_type == DROPDOWN_HEADER %}
     <div class="ODRAccordionWrapper ODRDropdownAccordion">

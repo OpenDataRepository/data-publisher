@@ -1060,16 +1060,18 @@ class ODRRenderService
      * @param DataRecord $parent_datarecord
      * @param DataRecord $top_level_datarecord
      * @param bool $insert_fake_datarecord
+     * @oaram string $fake_datarecord_id
      *
      * @return string
      */
-    public function loadInlineLinkChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord)
+    public function loadInlineLinkChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $fake_datarecord_id = '')
     {
         $template_name = 'ODRAdminBundle:Link:inline_link_childtype_reload.html.twig';
 
         $extra_parameters = array(
             'token_list' => array(),
             'inline_link' => true,
+            'fake_dr_id' => $fake_datarecord_id,
         );
 
         // TODO - is this needed?
@@ -1134,8 +1136,12 @@ class ODRRenderService
             if ( isset($extra_parameters['datafield_values']) )
                 $datafield_values = $extra_parameters['datafield_values'];
 
+            $fake_dr_id = '';
+            if ( isset($extra_parameters['fake_dr_id']) )
+                $fake_dr_id = $extra_parameters['fake_dr_id'];
+
             // Create the "fake" datarecord...
-            $fake_dr_entry = $this->datarecord_info_service->createFakeDatarecordEntry($datatype_array, $child_datatype->getId(), $datafield_values);
+            $fake_dr_entry = $this->datarecord_info_service->createFakeDatarecordEntry($datatype_array, $child_datatype->getId(), $fake_dr_id, $datafield_values);
 
             // Splice it into the existing $datarecord_array
             $fake_dr_id = $fake_dr_entry['id'];

@@ -642,7 +642,7 @@ function initPage() {
                 var descendant_datatype_id = $(this).closest('.ODRDataType').attr('id').split(/_/)[1];
                 var current_linked_record = $(this).closest('.ODRFieldArea').attr('id').split(/_/)[1];
 
-                $(this).autocomplete({
+                var inst = $(this).autocomplete({
                     minLength: 1,
                     source: function(request, response) {
                         // Determine parameters for post...
@@ -758,19 +758,20 @@ function initPage() {
 
                         return false;
                     }
-                }).autocomplete( "instance" )._renderItem = function( ul, item ) {
+                });
+
+                $(inst).autocomplete( "instance" )._renderItem = function( ul, item ) {
+                    var html = '';
                     if (item.record_id < 0) {
-                        var html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
+                        html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
 
                         if ( item.record_id == -1 )    // user allowed to add record
-                            $(html).append('<span>No Results Found - Click to save record.</span>');
+                            $(html).append('<span>No Results Found - Click here to create a new record.</span>');
                         else    // user not allowed to add record
                             $(html).append('<span>No Results Found.</span>');
-
-                        return $( "<li>" ).append(html).appendTo( ul );
                     }
                     else {
-                        var html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
+                        html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
                         for (var x in item.fields) {
                             if (item.fields[x].field_value.toString().length > 30) {
                                 $(html).append('<span class="ODRLinkingSearchTruncate">' + item.fields[x].field_value.toString().substring(0,30) + "...,</span> ");
@@ -779,9 +780,25 @@ function initPage() {
                                 $(html).append('<span>' + item.fields[x].field_value + ",</span> ");
                             }
                         }
-
-                        return $( "<li>" ).append(html).appendTo( ul );
                     }
+
+                    return $( "<li>" ).append(html).appendTo( ul );
+                };
+
+                $(inst).autocomplete( "instance" )._renderMenu = function( ul, items ) {
+                    var has_results = false;
+                    var that = this;
+                    $.each( items, function( index, item ) {
+                        that._renderItemData( ul, item );
+
+                        if ( item.record_id > 0 )
+                            has_results = true;
+                    });
+
+                    if ( has_results )
+                        $(ul).addClass('ODRAutocomplete_blurb');
+                    else
+                        $(ul).removeClass('ODRAutocomplete_blurb');
                 };
 
             }    /* END  if ( !$(this).hasClass('.ui-autocomplete-input') ) */
@@ -1701,24 +1718,19 @@ function AddLinkedRecord(remote_datatype_id, parent_datarecord_id) {
         url: url,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
+            var fake_dr_html = data.d.html;
+            var fake_dr_id = data.d.fake_dr_id;
+
             // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
-            $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id).parent(".ODRInnerBox").html(data.d.html);
-            // NOTE - can't store a reference to wrapper_div before the overwrite, it'll be invalid afterwards
-            var wrapper_div = $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id);
+            $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id).parent(".ODRInnerBox").html(fake_dr_html);
 
             onWindowResize();
             setupImageGalleries();
             setupAccordions();
             initPage();
 
-            if ( $(wrapper_div).children().first().children().first().hasClass("ODRAccordionWrapper") ) {
-                // Accordion/Tabbed/Dropdown display...want the fake record selected
-                $(wrapper_div).find("h3.ui-accordion-header").first().click();
-            }
-            else {
-                // List display...fake record will be at the top of the list
-                ScrollHighlight( $(wrapper_div).find(".ODRListDisplayHeader") );
-            }
+            // Ensure the fake reord is visible
+            selectRecordFieldArea(fake_dr_id);
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error
