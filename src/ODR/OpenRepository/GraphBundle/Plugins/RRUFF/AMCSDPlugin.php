@@ -301,7 +301,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         // None of these fields can be edited, since they're from the AMC file
 
                     case 'Chemistry':
-                        // This field can't be edited, since it's from the CIF file
+                    case 'Locality':
+                        // These fields also can't be edited, since they're from the CIF file
                         break;
 
                     default:
@@ -575,7 +576,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
     /**
      * Like the "AMC File" field, the "CIF File" field is used to derive the contents of other
-     * fields...but the "CIF File" only provides the "Chemistry" value.  Still, if there was an
+     * fields...but the "CIF File" doesn't need to provide as many values.  Still, if there was an
      * error, then the user needs to be notified...
      *
      * @param array $plugin_fields
@@ -585,15 +586,18 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function cifFileHasProblem($plugin_fields, $datarecord)
     {
-        // Due to only needing to touch two fields, it's more efficient to use a slightly different
+        // Due to only needing to touch three fields, it's more efficient to use a slightly different
         //  access method when dealing with the CIF File
         $cif_file_df_id = null;
         $chemistry_df_id = null;
+        $locality_df_id = null;
         foreach ($plugin_fields as $df_id => $rpf_df) {
             if ( $rpf_df['rpf_name'] === 'CIF File' )
                 $cif_file_df_id = $df_id;
             else if ( $rpf_df['rpf_name'] === 'Chemistry' )
                 $chemistry_df_id = $df_id;
+            else if ( $rpf_df['rpf_name'] === 'Locality' )
+                $locality_df_id = $df_id;
         }
 
 
@@ -607,13 +611,21 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // If there's no storage entity for the "Chemistry" field, then there's a problem
         if ( !isset($datarecord['dataRecordFields'][$chemistry_df_id]) )
             return true;
+        // The "Locality" field is technically allowed to be blank
+//        if ( !isset($datarecord['dataRecordFields'][$locality_df_id]) )
+//            return true;
 
         // If the "Chemistry" field has a blank value, then there's a problem
         $drf = $datarecord['dataRecordFields'][$chemistry_df_id];
         if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
             return true;
+        // The "Locality" field is technically allowed to be blank
+//        $drf = $datarecord['dataRecordFields'][$locality_df_id];
+//        if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
+//            return true;
 
-        // Otherwise, there is a value in the "Chemistry" field...so there's no problem
+
+        // Otherwise, there are no problems
         return false;
     }
 
@@ -854,8 +866,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function onMassEditTrigger(MassEditTriggerEvent $event)
     {
-        // TODO - don't think listening to this event is useful...if a file can't be read for values, then reading it again doesn't really help...
-        return;
+        // Listening to this event is only useful because of the possibility of plugin changes
+        // Generally, re-reading a file doesn't really do anything of value
+//        return;
 
         // Need these variables defined out here so that the catch block can use them in case
         //  of an error
@@ -1076,6 +1089,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'Pressure':
                 case 'Temperature':
                 case 'Chemistry':
+                case 'Locality':
                     $datafield_mapping[$rpf_name] = $rpf_df_id;
                     break;
 
@@ -1111,13 +1125,15 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Need to hydrate various datafields, depending on which File field just got something uploaded...
         $df_ids = array();
         foreach ($datafield_mapping as $rpf_name => $df_id) {
-            if ( $relevant_rpf_name === 'AMC File' && $rpf_name === 'Chemistry' ) {
-                // When called on an "AMC File", all fields except "Chemistry" should be hydrated
-                unset( $datafield_mapping[$rpf_name] );
+            if ( $relevant_rpf_name === 'AMC File' ) {
+                // When called on an "AMC File", the "Chemistry" and "Locality" fields should not be hydrated
+                if ( $rpf_name === 'Chemistry' || $rpf_name === 'Locality' )
+                    unset( $datafield_mapping[$rpf_name] );
             }
-            else if ( $relevant_rpf_name === 'CIF File' && $rpf_name !== 'Chemistry' ) {
-                // When called on a "CIF File", only the "Chemistry" field should be hydrated
-                unset( $datafield_mapping[$rpf_name] );
+            else if ( $relevant_rpf_name === 'CIF File' ) {
+                // When called on a "CIF File", only the "Chemistry" and "Locality" fields should be hydrated
+                if ( $rpf_name !== 'Chemistry' && $rpf_name !== 'Locality' )
+                    unset( $datafield_mapping[$rpf_name] );
             }
         }
 
@@ -1362,6 +1378,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 $has_chemistry = true;
             }
+
+            // While the "Locality" field is also read from the CIF file, not all of the CIFs have
+            //  the _chemical_compound_source line...can't throw an exception if it's missing
         }
 
         // If it didn't find the chemistry line, then it can't be valid
@@ -1390,16 +1409,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         while ( !feof($handle) ) {
             $line = fgets($handle);
 
-            // The line starting with "_chemical_formula_sum " is the important one...
             if ( strpos($line, '_chemical_formula_sum') === 0 ) {
+                // This line has the chemical formula of the compound
                 $space = strpos($line, ' ');
                 $formula = trim( substr($line, $space+1) );
 
                 // The formula *should* have single quotes around it...get rid of them
                 $formula = substr($formula, 1, -1);
                 $value_mapping['Chemistry'] = $formula;
+            }
+            else if ( strpos($line, '_chemical_compound_source') === 0 ) {
+                // This (optional) line has either 'Synthetic', or the locality of the physical sample
+                $space = strpos($line, ' ');
+                $locality = trim( substr($line, $space+1) );
 
-                // Don't need to keep looking
+                // The locality *should* have single quotes around it...get rid of them
+                $locality = substr($locality, 1, -1);
+                $value_mapping['Locality'] = $locality;
+            }
+            else if ( strpos($line, '_space_group_symop_operation_xyz') === 0 ) {
+                // The formula and locality should be considerably earlier in the file than here,
+                //  but I'm reluctant to read several dozen thousand files to guarantee an earlier
+                //  break point...
                 break;
             }
         }
@@ -1639,9 +1670,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $pressure_df_id = $render_plugin_map['Pressure']['id'];
         $temperature_df_id = $render_plugin_map['Temperature']['id'];
 
-        // ...but there's one field that's supposed to come from the "CIF File" field
+        // ...but there are two fields that are supposed to come from the "CIF File" field
         $cif_file_df_id = $render_plugin_map['CIF File']['id'];
         $chemistry_df_id = $render_plugin_map['Chemistry']['id'];
+        $locality_df_id = $render_plugin_map['Locality']['id'];
 
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
@@ -1662,6 +1694,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $temperature_df_id => array($amc_file_df_id),
 
             $chemistry_df_id => array($cif_file_df_id),
+            $locality_df_id => array($cif_file_df_id),
         );
     }
 
@@ -1675,8 +1708,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
-        // TODO - ...do I want to allow users to trigger this via MassEdit?
-        return array();
+        // Listening to this event is only useful because of the possibility of plugin changes
+        // Generally, re-reading a file doesn't really do anything of value
+//        return array();
 
         if ( !isset($render_plugin_instance['renderPluginMap']) )
             throw new ODRException('Invalid plugin config');
@@ -1711,8 +1745,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {
-        // TODO - ...do I want to allow users to trigger this via MassEdit?
-        return array();
+        // Listening to this event is only useful because of the possibility of plugin changes
+        // Generally, re-reading a file doesn't really do anything of value
+//        return array();
 
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
