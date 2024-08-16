@@ -970,6 +970,17 @@ class FacadeController extends Controller
             $pheanstalk = $this->get('pheanstalk');
 
             $route_name = 'odr_api_datarecord_list';
+            $full_ima_url = $this->generateUrl(
+                $route_name,
+                array(
+                    'datatype_uuid' => $job_data['ima_uuid'],
+                    'version' => 'v5',
+                    'recent' => 0
+                )
+            );
+            $full_ima_url = $baseurl . $full_ima_url;
+
+            $route_name = 'odr_api_datarecord_list';
             if($recent) {
                 $route_name = 'odr_api_recent_datarecord_list';
                 $recent = '99999999';
@@ -989,8 +1000,7 @@ class FacadeController extends Controller
                 'odr_api_get_template_single',
                 array(
                     'datatype_uuid' => $job_data['ima_uuid'],
-                    'version' => 'v5',
-                    'recent' => $recent
+                    'version' => 'v5'
                 )
             );
             $ima_template_url = $baseurl . $ima_template_url;
@@ -1078,6 +1088,7 @@ class FacadeController extends Controller
             $job_data['api_create_job_url'] = $api_create_job_url;
             $job_data['api_job_status_url'] = $api_job_status_url;
             $job_data['api_login_url'] = $api_login_url;
+            $job_data['full_ima_url'] = $full_ima_url;
             $job_data['ima_url'] = $ima_url;
             $job_data['ima_template_url'] = $ima_template_url;
             $job_data['cell_params_url'] = $cell_params_url;

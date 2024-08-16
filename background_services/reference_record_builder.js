@@ -31,7 +31,7 @@ async function app() {
                     console.log('Starting job: ' + job.id);
 
                     // Login/get token
-                    console.log('API URL: ', record.api_login_url);
+                    // console.log('API URL: ', record.api_login_url);
                     let post_data = {
                         'username': record.api_user,
                         'password': record.api_key
@@ -42,13 +42,17 @@ async function app() {
 
                     // Check Status of Job
                     // console.log(data.api_job_status_url + ' -- ' + data.tracked_job_id);
+                    /*
                     let status_url = record.api_job_status_url + '/' + record.tracked_job_id + '/0';
                     let tracked_job = await apiCall(status_url, '', 'GET');
-                    if(!tracked_job) {
+                    if(
+                        tracked_job.error !== undefined
+                        && ( tracked_job.error.code === 500
+                           || tracked_job.error.code === 404)
+                    ) {
                         throw Error('Job canceled.');
                     }
-
-
+                     */
                     /*
                     {
                         'base_url' => $baseurl,
@@ -140,7 +144,8 @@ async function app() {
                     // TODO need to put job as unfinished - maybe not due to errors
                     // console.log('Error occurred: ', e);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
-                        console.log('Deleted (' + Date.now() + '): ' , job);
+                        // console.log('Deleted (' + Date.now() + '): ' , job);
+                        console.log('Deleted (' + Date.now() + '): ' , job.id);
                         resJob();
                     });
                 }
@@ -332,7 +337,7 @@ async function findValue(field_uuid, record) {
 
 
 async function apiCall(api_url, post_data, method) {
-    console.log('API Call: ', api_url);
+    // console.log('API Call: ', api_url);
     try {
         const page = await browser.newPage();
         page.on('console', message =>

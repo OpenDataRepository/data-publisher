@@ -798,6 +798,8 @@ class APIController extends ODRCustomController
                 // return new JsonResponse(['done' => $params['updated_date']]);
             }
 
+            $str .= ' ORDER BY dr.id ASC';
+
             $query = $em->createQuery($str)->setParameters($params);
             $results = $query->getArrayResult();
 

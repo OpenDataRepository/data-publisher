@@ -40,14 +40,19 @@ async function app() {
                     token = login_token.token;
                     // console.log('Login Token: ', login_token.token);
 
-
                     // Check Status of Job
                     // console.log(data.api_job_status_url + ' -- ' + data.tracked_job_id);
+                    /*
                     let status_url = record.api_job_status_url + '/' + record.tracked_job_id + '/0';
                     let tracked_job = await apiCall(status_url, '', 'GET');
-                    if(!tracked_job) {
+                    if(
+                        tracked_job.error !== undefined
+                        && ( tracked_job.error.code === 500
+                            || tracked_job.error.code === 404)
+                    ) {
                         throw Error('Job canceled.');
                     }
+                     */
 
                     /*
                     {
@@ -235,6 +240,10 @@ async function app() {
                     await appendFile( record.base_path + record.mineral_data + '.' + record.file_extension, content);
 
 
+                    content = '$mineral_names[] = "' + await findValue(record.cell_params_map.mineral_name , record_data) + '";\n';
+                    content += '$mineral_names_lowercase[] = "' + (await findValue(record.cell_params_map.mineral_name, record_data)).toLowerCase() + '";\n';
+                    // Create mineral list for quick redirect
+                    await appendFile( record.base_path + record.mineral_data + '_include.' + record.file_extension, content);
 
                     /*
                     {
@@ -288,7 +297,8 @@ async function app() {
                     // TODO need to put job as unfinished - maybe not due to errors
                     // console.log('Error occurred: ', e);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
-                        console.log('Deleted (' + Date.now() + '): ' , job);
+                        // console.log('Deleted (' + Date.now() + '): ' , job);
+                        console.log('Deleted (' + Date.now() + '): ' , job.id);
                         resJob();
                     });
                 }
@@ -523,7 +533,7 @@ async function findReferences(record, record_data) {
 }
 
 async function apiCall(api_url, post_data, method) {
-    console.log('API Call: ', api_url);
+    // console.log('API Call: ', api_url);
     try {
         const page = await browser.newPage();
         page.on('console', message =>
