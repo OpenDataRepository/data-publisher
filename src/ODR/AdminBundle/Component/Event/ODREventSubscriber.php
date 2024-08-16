@@ -1213,6 +1213,9 @@ class ODREventSubscriber implements EventSubscriberInterface
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
             }
+
+            // Don't want to clear any cache entries here...the upload process also fires off the
+            //  datarecord/datafield modified events
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -1248,12 +1251,23 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Determine whether any render plugins should run something in response to this event
             $datafield = $event->getDatafield();
             $datatype = $datafield->getDataType();
+            $file = $event->getFile();
+            $datarecord = $file->getDataRecord();
 
             $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
             }
+
+            // In the off chance that the encryption job is not running or stalled, then deleting the
+            //  cached version of the datarecord is slightly better than not doing so...that way a
+            //  page reload will indicate that there's a file there
+            $this->cache_service->delete('cached_datarecord_'.$datarecord->getId());
+
+            // ...the other two are probably better off not being deleted, though
+//            $this->cache_service->delete('cached_table_data_'.$datarecord->getId());
+//            $this->cache_service->delete('json_record_' . $datarecord->getUniqueId());
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {

@@ -196,8 +196,9 @@
                 var current_value = parseFloat(data.d.current_value);   // already a percentage of max_value
                 var max_value = parseFloat(data.d.max_value);
 
-                var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
-                var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
+                // The id/class combo is needed because there's a chance of a "fake" download div
+                var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay.ODRFakeProgressBar_overlay");
+                var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress.ODRFakeProgressBar");
 
                 if ( $(download_div).hasClass('ODRHidden') ) {
 //console.log('stopping timeout cycle for file ' + file_id);
@@ -248,9 +249,9 @@
                             file_decrypt_timeouts[ file_id ] = null;
                             file_decrypt_progress[ file_id ] = null;
 
-                            // Hide the css for the progressbar
-                            $(download_div).css('visibility', 'hidden');
-                            $(decrypt_progress).css('width', 0);
+                            // Want the css for the progressbar to remain...helps indicate something is wrong and you can't interact with the file
+                            // $(download_div).css('visibility', 'hidden');
+                            // $(decrypt_progress).css('width', 0);
 
                             return false;
                         }
@@ -291,6 +292,7 @@
     }
 
     var file_encrypt_timeouts = {};
+    var file_encrypt_progress = {};
 
     /**
      * Ensure that at most a single progress request is active for a file encryption at any given
@@ -329,30 +331,82 @@
                 var current_value = parseInt(data.d.current_value);   // already a percentage of max_value
                 var max_value = parseInt(data.d.max_value);
 
-                var file_encrypt_progress_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
-                var file_encrypt_progress_bar = $("#ODRFileDecrypt_" + file_id + "_progress");
+                // The id/class combo is needed because there's a chance of a "fake" download div
+                var file_encrypt_progress_div = $("#ODRFileDecrypt_" + file_id + "_overlay.ODRFakeProgressBar_overlay");
+                var file_encrypt_progress_bar = $("#ODRFileDecrypt_" + file_id + "_progress.ODRFakeProgressBar");
 
                 if (file_encrypt_progress_bar == null || file_encrypt_progress_bar == undefined || file_encrypt_progress_bar[0] == null || file_encrypt_progress_bar[0] == undefined) {
-                    /* element no longer exists, do nothing */
+                    // element no longer exists, reset
                     file_encrypt_timeouts[ file_id ] = null;
+                    file_encrypt_progress[ file_id ] = null;
 
-                    $(file_encrypt_progress_bar).css('width', 0);
-                    $(file_encrypt_progress_div).css('visibility', 'hidden');
-                }
-                else if (current_value == 100) {
-                    // Stop checking for progress updates
-                    file_encrypt_timeouts[ file_id ] = null;
-
-                    // Hide the css for the progressbar
                     $(file_encrypt_progress_bar).css('width', 0);
                     $(file_encrypt_progress_div).css('visibility', 'hidden');
                 }
                 else if (file_encrypt_timeouts[ file_id ] != null) {
-                    // Update the progressbar
-                    window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
+                    // Check whether this encryption has made any progress...
+                    if ( file_encrypt_progress[ file_id ] === undefined
+                        || file_encrypt_progress[ file_id ] === null
+                        || current_value !== file_encrypt_progress[ file_id ]['value']
+                    ) {
+                        // File encryption just started, or progress was made
+                        file_encrypt_progress[ file_id ] = {
+                            'count': 0,
+                            'value': current_value,
+                        };
+                    }
+                    else {
+                        // File encryption has made no progress...keep track of how long it's
+                        //  been stalled
+                        file_encrypt_progress[ file_id ]['count'] += encrypt_check_timeout;
 
-                    $(file_encrypt_progress_div).css('visibility', 'visible');
-                    $(file_encrypt_progress_bar).css('width', current_value + '%');
+                        // If it's been stalled for more than 15 seconds...
+                        if ( file_encrypt_progress[ file_id ]['count'] > 15000 ) {
+                            console.log('progress timeout exceeded, resetting');
+                            // ...assume that the encryption has failed, and notify the user
+                            var error_text = '<div class="ODRNotificationHeader">500 Internal Server Error -- 0xb02c7e54</div>';
+                            error_text += '<div class="ODRNotificationText">No apparent progress being made on encryption of File ' + file_id + '</div>';
+
+                            $.jGrowl(
+                                error_text,
+                                {
+                                    theme: "ODRNotification",
+                                    sticky: true,
+                                    openDuration: 250,
+                                    closeDuration: 250
+                                }
+                            );
+
+                            // Stop querying server for progress
+                            file_encrypt_timeouts[ file_id ] = null;
+                            file_encrypt_progress[ file_id ] = null;
+
+                            // Want the css for the progressbar to remain...helps indicate something is wrong and you can't interact with the file
+                            // $(file_encrypt_progress_bar).css('width', 0);
+                            // $(file_encrypt_progress_div).css('visibility', 'hidden');
+
+                            return false;
+                        }
+                    }
+
+                    if (current_value < 100) {
+                        // Update the progressbar
+                        $(file_encrypt_progress_div).css('visibility', 'visible');
+                        if ( current_value > 0 )
+                            $(file_encrypt_progress_bar).css('width', current_value + '%');
+
+                        // Schedule the next encrypt check
+                        window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
+                    }
+                    else {
+                        // File is fully encrypted, stop querying server for progress
+                        file_encrypt_timeouts[ file_id ] = null;
+                        file_encrypt_progress[ file_id ] = null;
+
+                        // Hide the css for the progressbar
+                        $(file_encrypt_progress_bar).css('width', 0);
+                        $(file_encrypt_progress_div).css('visibility', 'hidden');
+                    }
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
