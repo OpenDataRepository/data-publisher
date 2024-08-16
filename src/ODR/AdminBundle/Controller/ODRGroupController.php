@@ -41,6 +41,7 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
 // Symfony
@@ -73,8 +74,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -95,7 +96,7 @@ class ODRGroupController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -148,8 +149,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -170,7 +171,7 @@ class ODRGroupController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -241,10 +242,10 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -262,7 +263,7 @@ class ODRGroupController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -273,7 +274,7 @@ class ODRGroupController extends ODRCustomController
 
 
             // Create a new group
-            $ec_service->createGroup($user, $datatype);
+            $entity_create_service->createGroup($user, $datatype);
 
             // Don't need to delete any user's cached permissions entries since this is a new
             //  non-default group...nobody immediately needs or has membership in it
@@ -316,8 +317,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
@@ -339,7 +340,7 @@ class ODRGroupController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -451,10 +452,14 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -463,6 +468,7 @@ class ODRGroupController extends ODRCustomController
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
+            $group_meta = $group->getGroupMeta();
 
             $datatype = $group->getDataType();
             if ($datatype->getDeletedAt() != null)
@@ -477,9 +483,10 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -497,7 +504,13 @@ class ODRGroupController extends ODRCustomController
 
             // Populate new Group form
             $submitted_data = new GroupMeta();
-            $group_form = $this->createForm(UpdateGroupForm::class, $submitted_data);
+            $group_form = $this->createForm(
+                UpdateGroupForm::class,
+                $submitted_data,
+                array(
+                    'is_super_admin' => $is_super_admin,
+                )
+            );
 
             $group_form->handleRequest($request);
 
@@ -506,16 +519,50 @@ class ODRGroupController extends ODRCustomController
                 if ($prevent_all_changes)
                     $group_form->addError( new FormError('Not allowed to make changes to a default Group') );
 
+                // Have to be a super-admin to change the datarecord restriction
+                if ( !$is_super_admin )
+                    $submitted_data->setDatarecordRestriction( $group_meta->getDatarecordRestriction() );
+
+                $datarecord_restriction_changed = false;
+                if ( $submitted_data->getDatarecordRestriction() !== $group_meta->getDatarecordRestriction() )
+                    $datarecord_restriction_changed = true;
+
                 if ($group_form->isValid()) {
                     // If a value in the form changed, create a new GroupMeta entity to store the change
-                    // TODO - datarecord_restriction
+                    // TODO - datarecord_restriction, but in a way that doesn't suck
                     $properties = array(
                         'groupName' => $submitted_data->getGroupName(),
                         'groupDescription' => $submitted_data->getGroupDescription(),
+                        'datarecord_restriction' => $submitted_data->getDatarecordRestriction(),
                     );
-                    $emm_service->updateGroupMeta($user, $group, $properties);
+                    $entity_modify_service->updateGroupMeta($user, $group, $properties);
 
-                    // TODO - Delete cached versions of group/user permissions once datarecord_restriction is added
+
+                    // ----------------------------------------
+                    if ( $datarecord_restriction_changed ) {
+                        // Now that the database is up to date, load the list of users that have had their
+                        //  permissions affected by this change
+                        $query = $em->createQuery(
+                           'SELECT DISTINCT(u.id) AS user_id
+                            FROM ODRAdminBundle:UserGroup AS ug
+                            JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                            WHERE ug.group = :group_id
+                            AND ug.deletedAt IS NULL'
+                        )->setParameters( array('group_id' => $group->getId()) );
+                        $results = $query->getArrayResult();
+
+                        $user_list = array();
+                        foreach ($results as $result)
+                            $user_list[] = $result['user_id'];
+
+                        // Super-admins won't ever be affected by this
+
+                        // Clear cached version of permissions for all users in this group
+                        // Not updating the cache entry because it's a combination of all group permissions,
+                        //  and figuring out what all to change is more work than just rebuilding it
+                        foreach ($user_list as $user_id)
+                            $cache_service->delete('user_'.$user_id.'_permissions');
+                    }
                 }
                 else {
                     // Form validation failed
@@ -528,6 +575,11 @@ class ODRGroupController extends ODRCustomController
                 $group_meta = $group->getGroupMeta();
                 $group_form = $this->createForm(UpdateGroupForm::class, $group_meta);
 
+                $readable_search_key = '';
+                $datarecord_restriction = $group_meta->getDatarecordRestriction();
+                if ( !is_null($datarecord_restriction) && $datarecord_restriction !== '' )
+                    $readable_search_key = $search_key_service->getReadableSearchKey($datarecord_restriction);
+
                 // Return the slideout html
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
@@ -537,6 +589,8 @@ class ODRGroupController extends ODRCustomController
                         'group_form' => $group_form->createView(),
 
                         'prevent_all_changes' => $prevent_all_changes,
+                        'is_super_admin' => $is_super_admin,
+                        'readable_search_key' => $readable_search_key,
                     )
                 );
                 $return['prevent_all_changes'] = $prevent_all_changes;
@@ -576,8 +630,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -598,7 +652,7 @@ class ODRGroupController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -692,10 +746,10 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -704,7 +758,7 @@ class ODRGroupController extends ODRCustomController
             // Ensure calling user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($admin_user);
 
             // Deny access when the user isn't an admin of any datatype
             $datatypes_with_admin_permission = array();
@@ -731,7 +785,7 @@ class ODRGroupController extends ODRCustomController
 
             // ----------------------------------------
             // Only want the top-level datatypes ids where the calling user is an admin...
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             foreach ($top_level_datatypes as $num => $dt_id) {
                 if ( !isset($datatypes_with_admin_permission[$dt_id]) )
                     unset( $top_level_datatypes[$num] );
@@ -862,14 +916,13 @@ class ODRGroupController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user_group = $em->getRepository('ODRAdminBundle:UserGroup');
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ODRUserGroupMangementService $ugm_service */
-            $ugm_service = $this->container->get('odr.user_group_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ODRUserGroupMangementService $user_group_management_service */
+            $user_group_management_service = $this->container->get('odr.user_group_management_service');
 
 
             /** @var ODRUser $user */
@@ -897,7 +950,7 @@ class ODRGroupController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
-            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -916,11 +969,11 @@ class ODRGroupController extends ODRCustomController
             $value = intval($value);
             if ($value == 1) {
                 // User is supposed to be added to the indicated group
-                $ugm_service->addUserToGroup($admin_user, $user, $group);
+                $user_group_management_service->addUserToGroup($admin_user, $user, $group);
             }
             else {
                 // Otherwise, user is supposed to be removed from the indicated group
-                $ugm_service->removeUserFromGroup($admin_user, $user, $group);
+                $user_group_management_service->removeUserFromGroup($admin_user, $user, $group);
             }
 
 
@@ -985,8 +1038,10 @@ class ODRGroupController extends ODRCustomController
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->get('odr.render_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -1014,9 +1069,10 @@ class ODRGroupController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1070,7 +1126,18 @@ class ODRGroupController extends ODRCustomController
 
             // ...and third is the properties form for this group
             $group_meta = $group->getGroupMeta();
-            $group_form = $this->createForm(UpdateGroupForm::class, $group_meta);
+            $group_form = $this->createForm(
+                UpdateGroupForm::class,
+                $group_meta,
+                array(
+                    'is_super_admin' => $is_super_admin,
+                )
+            );
+
+            $readable_search_key = '';
+            $datarecord_restriction = $group_meta->getDatarecordRestriction();
+            if ( !is_null($datarecord_restriction) && $datarecord_restriction !== '' )
+                $readable_search_key = $search_key_service->getReadableSearchKey($datarecord_restriction);
 
             $return['d']['group_properties_html'] = $templating->render(
                 'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
@@ -1080,6 +1147,8 @@ class ODRGroupController extends ODRCustomController
                     'group_form' => $group_form->createView(),
 
                     'prevent_all_changes' => $prevent_all_changes,
+                    'is_super_admin' => $is_super_admin,
+                    'readable_search_key' => $readable_search_key,
                 )
             );
             $return['d']['prevent_all_changes'] = $prevent_all_changes;
@@ -1122,12 +1191,12 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1152,7 +1221,7 @@ class ODRGroupController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
-            if ( !$pm_service->isDatatypeAdmin($admin_user, $group->getDataType()) )
+            if ( !$permissions_service->isDatatypeAdmin($admin_user, $group->getDataType()) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1173,7 +1242,7 @@ class ODRGroupController extends ODRCustomController
             // The 'can_view_datatype' permission should remain true for a top-level datatype...
             //  there's no point to the group if not having this permission means they can't view
             //  the datatype
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             if ($permission == 'dt_view' && in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Unable to change the "can_view_datatype" permission on a top-level datatype');
             if ($permission == 'dt_admin' && !in_array($datatype_id, $top_level_datatypes) )
@@ -1213,7 +1282,7 @@ class ODRGroupController extends ODRCustomController
                     );
 
                     foreach ($results as $gdtp)
-                        $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately
+                        $entity_modify_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately
 
 
                     // ----------------------------------------
@@ -1234,7 +1303,7 @@ class ODRGroupController extends ODRCustomController
                     );
 
                     foreach ($results as $gdfp)
-                        $emm_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties, true);    // Don't flush immediately...
+                        $entity_modify_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties, true);    // Don't flush immediately...
                     $em->flush();
                 }
                 else {
@@ -1253,7 +1322,7 @@ class ODRGroupController extends ODRCustomController
                         'is_datatype_admin' => 0,
                     );
                     foreach ($results as $gdtp)
-                        $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately...
+                        $entity_modify_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately...
                     $em->flush();
                 }
             }
@@ -1297,7 +1366,7 @@ class ODRGroupController extends ODRCustomController
                 }
 
                 // Update the database
-                $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties);
+                $entity_modify_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties);
             }
 
 
@@ -1363,10 +1432,10 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1395,7 +1464,7 @@ class ODRGroupController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
-            if ( !$pm_service->isDatatypeAdmin($admin_user, $group->getDataType()) )
+            if ( !$permissions_service->isDatatypeAdmin($admin_user, $group->getDataType()) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1458,7 +1527,7 @@ class ODRGroupController extends ODRCustomController
 
                 /* no need to update the cache entry with this */
             }
-            $emm_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties);
+            $entity_modify_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties);
 
 
             // ----------------------------------------
