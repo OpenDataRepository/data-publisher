@@ -602,11 +602,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
         // If there's no "CIF File" uploaded, then there can't be a problem with it
-        if ( isset($datarecord['dataRecordFields'][$cif_file_df_id])
-            && empty($datarecord['dataRecordFields'][$cif_file_df_id]['file'])
-        ) {
+        if ( empty($datarecord['dataRecordFields'][$cif_file_df_id]['file']) )
             return false;
-        }
 
         // If there's no storage entity for the "Chemistry" field, then there's a problem
         if ( !isset($datarecord['dataRecordFields'][$chemistry_df_id]) )
@@ -1373,7 +1370,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $pieces = explode(' ', $line);
 
                 // Need to have at least 2 values in this line
-                if ( count($pieces) <= 2 )
+                if ( count($pieces) < 2 )
                     throw new \Exception("Invalid line starting with '_chemical_formula_sum'");
 
                 $has_chemistry = true;
