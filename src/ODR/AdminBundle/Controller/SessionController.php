@@ -168,7 +168,7 @@ class SessionController extends ODRCustomController
     /**
      * Allows a user to set their session or default theme.
      *
-     * NOTE: the corresponding unset is in ThemeController::unsetpersonaldefaultthemeAction()
+     * NOTE: the corresponding unset is in {@link ThemeController::unsetpersonaldefaultthemeAction()}
      *
      * @param integer $datatype_id
      * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
@@ -219,7 +219,7 @@ class SessionController extends ODRCustomController
                 throw new ODRForbiddenException();
 
             if ($user === 'anon.') {
-                // If the theme isn't shared, an anon user can't use it
+                // If the user isn't logged in, then they can only use shared themes
                 if ( !$theme->isShared() )
                     throw new ODRForbiddenException();
 
@@ -229,7 +229,8 @@ class SessionController extends ODRCustomController
                 // Silently ignore attempts to save this preference to the database
             }
             else {
-                // If the theme isn't shared, or the user doesn't own the theme, then they can't use it
+                // If the user is logged in...then they can use shared themes, or non-shared themes
+                //  they created
                 if ( !$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId() )
                     throw new ODRForbiddenException();
 
