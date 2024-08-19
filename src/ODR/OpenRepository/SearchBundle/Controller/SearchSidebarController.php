@@ -224,7 +224,6 @@ class SearchSidebarController extends ODRCustomController
                     array(
                         'search_key' => $search_key,
                         'search_params' => $search_params,
-                        'search_string' => '',
 
                         // required twig/javascript parameters
                         'user' => $user,

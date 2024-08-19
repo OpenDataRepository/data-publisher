@@ -4808,6 +4808,7 @@ button.jGrowl-close {
 .ODRStoredSearchKeySelection_sidebar {
     overflow-y: scroll;
     max-height: 700px;
+    margin-left: -20px !important;
 }
 .ODRStoredSearchKeySelection_controls {
     padding-top: 10px;
@@ -5369,9 +5370,6 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     content: "\7c\a0\7c";
 }
 
-.ODRInlineLink_icon {
+.ODRListHeader > .ODRInlineLink_icon {
     top: 10px;
-}
-.ODRInlineLink_blurb {
-    margin: 10px;
 }

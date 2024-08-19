@@ -48,6 +48,7 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
@@ -2915,13 +2916,21 @@ class LinkController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Need to know the id for the fake datarecord beforehand, so the javascript can ensure
+            //  the fake record is visible once it's on the page...
+            $fake_dr_id = UniqueUtility::uniqueIdReal();
+            while ( is_numeric($fake_dr_id) )
+                $fake_dr_id = UniqueUtility::uniqueIdReal();
+
             $return['d'] = array(
                 'html' => $odr_render_service->loadInlineLinkChildtype(
                     $user,
                     $theme_element,
                     $parent_datarecord,
                     $top_level_datarecord,
-                )
+                    $fake_dr_id
+                ),
+                'fake_dr_id' => $fake_dr_id,
             );
         }
         catch (\Exception $e) {

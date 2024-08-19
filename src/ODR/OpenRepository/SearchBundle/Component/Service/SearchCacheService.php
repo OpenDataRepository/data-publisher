@@ -35,6 +35,7 @@ use ODR\AdminBundle\Component\Event\DatatypePublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeLinkStatusChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
@@ -55,9 +56,9 @@ class SearchCacheService implements EventSubscriberInterface
     private $cache_service;
 
     /**
-     * @var SearchService
+     * @var DatatreeInfoService
      */
-    private $search_service;
+    private $datatree_info_service;
 
     /**
      * @var Logger
@@ -75,18 +76,18 @@ class SearchCacheService implements EventSubscriberInterface
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param SearchService $search_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        SearchService $search_service,
+        DatatreeInfoService $datatree_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->search_service = $search_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->logger = $logger;
 
 
@@ -770,7 +771,7 @@ class SearchCacheService implements EventSubscriberInterface
 
         // ----------------------------------------
         // If a datarecord was deleted, then these need to be rebuilt
-        $related_datatypes = $this->search_service->getRelatedDatatypes($datatype->getId());
+        $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype->getid(), true);
 
         foreach ($related_datatypes as $num => $dt_id) {
             // Would have to search through each of these entries to see whether they matched the

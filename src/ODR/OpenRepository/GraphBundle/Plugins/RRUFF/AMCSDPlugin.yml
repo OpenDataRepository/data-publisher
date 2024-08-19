@@ -17,7 +17,7 @@ odr_plugins.rruff.amcsd:
         DatarecordCreatedEvent: onDatarecordCreate
         FileDeletedEvent: onFileDeleted
         FilePreEncryptEvent: onFilePreEncrypt
-#        MassEditTriggerEvent: onMassEditTrigger    # TODO - ...don't think listening to this is useful...if a file can't be read for values, then reading it again doesn't really help
+        MassEditTriggerEvent: onMassEditTrigger    # Listening to this event is only useful because of the possibility of plugin changes...generally, re-reading a file doesn't really do anything of value
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: fileno
@@ -160,6 +160,14 @@ odr_plugins.rruff.amcsd:
             type: LongVarchar
             properties:
                 - no_user_edits    # TODO - allow editing?  On one hand, all the chemical formulas lack subscripts...on the other, the CIF File value is "official"...
+                - is_derived
+
+        locality:
+            name: Locality
+            description: The value of the "compound source" field in the CIF File
+            type: LongVarchar
+            properties:
+                - no_user_edits
                 - is_derived
 
         # TODO - get the plugin to derive point group/crystal system, and calculate volume too?

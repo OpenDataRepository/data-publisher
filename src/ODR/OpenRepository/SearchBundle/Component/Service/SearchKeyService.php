@@ -39,12 +39,12 @@ class SearchKeyService
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var SearchService
@@ -83,8 +83,8 @@ class SearchKeyService
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->dti_service = $datatree_info_service;
+        $this->database_info_service = $database_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->user_manager = $user_manager;
 
@@ -527,19 +527,26 @@ class SearchKeyService
             throw new ODRBadRequestException('Invalid search key: missing "dt_id"', $exception_code);
         $dt_id = $search_params['dt_id'];
 
-        // ...they should not have both "gen" and "gen_all"..."gen" is a subset of "gen_all"
-        if ( isset($search_params['gen']) && isset($search_params['gen_all']) )
-            throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_all"', $exception_code);
+        // ...they should not have both "gen" and "gen_lim"..."gen_lim" is a subset of "gen"
+        if ( isset($search_params['gen']) && isset($search_params['gen_lim']) )
+            throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_lim"', $exception_code);
 
+        $inverse = false;
+        if ( isset($search_params['inverse']) )
+            $inverse = true;
 
-        $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
-        $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id, true);
+        $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id);
+        $datatype_array = array();
+        if ( !$inverse )
+            $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id);
+        else
+            $datatype_array = $this->database_info_service->getInverseDatatypeArray($grandparent_datatype_id);
 
-        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id);
+        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id, $inverse);
         $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_all' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' ) {
                 // Nothing to validate
                 continue;
             }
@@ -870,6 +877,9 @@ class SearchKeyService
      * )
      * </pre>
      *
+     * NOTE: whether the search key has "gen" or "gen_lim" doesn't change the array's structure, but
+     * instead changes which datafields are mentioned inside the facet.
+     *
      * @param string $search_key
      * @param array $searchable_datafields {@link SearchAPIService::getSearchableDatafieldsForUser()}
      * @param array $user_permissions
@@ -893,18 +903,18 @@ class SearchKeyService
 
         foreach ($search_params as $key => $value) {
 
-            if ($key === 'dt_id') {
-                // Don't want to do anything with this key
+            if ( $key === 'dt_id' || $key === 'inverse' ) {
+                // Don't want to do anything with these keys
                 continue;
             }
-            else if ($key === 'sort_by') {
+            else if ( $key === 'sort_by' ) {
                 // Don't want to do anything with this key either...
                 continue;
 
                 // ...the reason being that if SearchAPIService::performSearch() directly used this
                 //  entry, then any sort_criteria for this tab in the user's session would be ignored
             }
-            else if ($key === 'gen' || $key === 'gen_all' ) {
+            else if ( $key === 'gen' || $key === 'gen_lim' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
@@ -918,12 +928,12 @@ class SearchKeyService
                 foreach ($tokens as $token_num => $token) {
                     // Need to find each datafield that qualifies for general search...
                     foreach ($searchable_datafields as $dt_id => $df_list) {
-                        // Don't create criteria for fields from descendant datatypes unless that's
-                        //  what the user wants
-                        if ( $key === 'gen' && $dt_id !== $datatype_id )
+                        // Don't create criteria for fields from descendant datatypes if the user
+                        //  only wants the to-level datatype
+                        if ( $key === 'gen_lim' && $dt_id !== $datatype_id )
                             continue;
 
-                        // After this point, the 'gen_all' key effectively ceases to exist
+                        // After this point, the 'gen_lim' key effectively ceases to exist
 
                         // Each token in the general search string gets its own facet
                         if ( !isset($criteria['general'][$token_num]) ) {
@@ -1299,7 +1309,10 @@ class SearchKeyService
         $criteria['affected_datatypes'] = $affected_datatypes;
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
-        $criteria['all_datatypes'] = $this->search_service->getRelatedDatatypes($datatype_id);
+        if ( !isset($search_params['inverse']) )
+            $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
+        else
+            $criteria['all_datatypes'] = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, true);
 
         return $criteria;
     }
@@ -1327,11 +1340,11 @@ class SearchKeyService
             throw new ODRBadRequestException('Invalid search key: "template_uuid" is in wrong format', $exception_code);
 
         $template_uuid = $search_params['template_uuid'];
-        $dt = $this->dbi_service->getDatatypeFromUniqueId($template_uuid);
+        $dt = $this->database_info_service->getDatatypeFromUniqueId($template_uuid);
         $dt_id = $dt->getId();
 
-        $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
-        $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id, true);
+        $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id);
+        $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id, true);
 
         // The template search key isn't supposed to know about any datatypes derived from said
         //  template, so this is an acceptable use of this function
@@ -1908,7 +1921,7 @@ class SearchKeyService
 
         // ----------------------------------------
         // Use the datatype id to load the cached datatype array...
-        $dt_array = $this->dbi_service->getDatatypeArray($dt_id);    // may need linked data
+        $dt_array = $this->database_info_service->getDatatypeArray($dt_id);    // may need linked data
         // ...and then extract the relevant datatype/datafield data from it
         $dt_lookup = array();
         $df_lookup = array();
@@ -1958,12 +1971,12 @@ class SearchKeyService
             if ( $key === 'dt_id' || $key === 'sort_by' )
                 continue;
 
-            if ( $key === 'gen' || $key === 'gen_all' ) {
+            if ( $key === 'gen' || $key === 'gen_lim' ) {
                 // Don't do anything if this key is empty
                 if ($value === '')
                     continue;
 
-                if ( $key === 'gen' )
+                if ( $key === 'gen_lim' )
                     $readable_search_key['All Fields (current database)'] = $value;
                 else
                     $readable_search_key['All Fields (including descendants)'] = $value;

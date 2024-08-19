@@ -2383,4 +2383,44 @@ class SearchQueryService
 
         return $datarecords;
     }
+
+
+    /**
+     * Runs a query to return an array where the keys are datarecords ids belonging to the given
+     * datatype, and the values are the ids of the datarecords that it links to.
+     *
+     * @param int $datatype_id
+     *
+     * @return array
+     */
+    public function getLinkedChildDatarecords($datatype_id)
+    {
+        // This function is only called when trying to build a list of all related datarecords from
+        //  the point of view of the ancestor, therefore this intentionally does not return
+        //  descendant datarecords that aren't linked to from some ancestor datarecord...
+        $query = $this->em->createQuery(
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+            FROM ODRAdminBundle:DataRecord AS ancestor
+            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+            WHERE ancestor.dataType = :datatype_id
+            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
+            AND ldt.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype_id) );
+        $results = $query->getArrayResult();
+
+        // Linked datarecords can have multiple ancestor datarecords
+        $datarecords = array();
+        foreach ($results as $result) {
+            $ancestor_id = $result['ancestor_id'];
+            $descendant_id = $result['descendant_id'];
+
+            if ( !isset($datarecords[$ancestor_id]) )
+                $datarecords[$ancestor_id] = array();
+
+            $datarecords[$ancestor_id][$descendant_id] = '';
+        }
+
+        return $datarecords;
+    }
 }

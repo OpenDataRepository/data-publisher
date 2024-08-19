@@ -125,7 +125,10 @@ async function app() {
                         data.amcsd_url = data.amcsd_url.replace(/99999999/,mtime);
                     }
 
+
                     // Get IMA Records
+                    let full_ima_record_data = await loadPage(data.full_ima_url);
+                    console.log('RECORDS: ', full_ima_record_data.records.length);
                     let ima_record_data = await loadPage(data.ima_url);
                     console.log('RECORDS: ', ima_record_data.records.length);
                     // Get Cell Params Records
@@ -136,7 +139,7 @@ async function app() {
                     console.log('RECORDS: ', powder_diffraction_record_data.records.length);
 
                     // Get reference list
-                    console.log('REF: ' + data.references_url)
+                    console.log('REF: ' + data.references_url);
                     let reference_record_data = await loadPage(data.references_url);
                     console.log('RECORDS: ', reference_record_data.records.length);
                     // Get AMCSD Cell Parameters
@@ -159,6 +162,15 @@ async function app() {
                     let mineral_data_filename = basepath + data.mineral_data + '.' + tmp_file_extension;
                     console.log('writeFile: ' + basepath + data.mineral_data + '.' + tmp_file_extension);
                     await writeFile(mineral_data_filename, content);
+
+                    if(!data.ima_update_rebuild) {
+                        content = '<?php ' +
+                            '$mineral_names = array();\n' +
+                            '$mineral_names_lowercase = array();\n';
+                    }
+                    let mineral_data_include_filename = basepath + data.mineral_data + '_include.' + tmp_file_extension;
+                    console.log('writeFile: ' + basepath + data.mineral_data + '_include.' + tmp_file_extension);
+                    await writeFile(mineral_data_include_filename, content);
 
                     // Initialize temp files
                     if(!data.ima_update_rebuild) {
@@ -203,9 +215,10 @@ async function app() {
                     let cell_params_headers = '';
                     // for(let i = 0; i < 1; i++) {
                     // for(let i = 0; i < 30; i++) {
-                    for(let i = 0; i < ima_record_data.records.length; i++) {
-                        job_count++;
-                        let record = ima_record_data['records'][i];
+                    for(let i = 0; i < full_ima_record_data.records.length; i++) {
+
+                        let record = full_ima_record_data['records'][i];
+                        // console.log(record);
                         /*
                             'base_url' => $baseurl,
                             'ima_uuid' => $this->container->getParameter('ima_uuid'),
@@ -237,24 +250,36 @@ async function app() {
                         record.cell_params_map = data.cell_params_map;
                         record.powder_diffraction_map = data.powder_diffraction_map;
 
-                        // console.log(record)
-                        record_client.use(record_tube)
-                            .onSuccess(
-                                (tubeName) => {
-                                    // console.log('Tube: ', tubeName);
-                                    // console.log('Record: ', record);
-                                    // TODO Build Full Record Here
-                                    record_client.put(JSON.stringify(record)).onSuccess(
-                                        (jobId) => {
-                                            // console.log('IMA Record Job ID: ', jobId);
-                                        }
-                                    );
-                                }
-                            );
 
-                        // Creating arrays for the Cell Parameters records using IMA Mineral UniqueIDs
-                        // console.log('Mineral Name Field: ' + data.cell_params_map.mineral_name + ' ' + record.template_uuid);
-                        cell_params_headers += 'if(cellparams[\'' + record.unique_id + '\'] === undefined) { cellparams[\'' + record.unique_id + '\'] = new Array()};'
+                        // Determine if we should process this record
+                        let found = false;
+                        for(let j= 0; j < ima_record_data.records.length; j++) {
+                            if(ima_record_data.records[j].internal_id === record.internal_id) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        // console.log(record)
+                        if(found) {
+                            job_count++;
+                            record_client.use(record_tube)
+                                .onSuccess(
+                                    (tubeName) => {
+                                        // console.log('Tube: ', tubeName);
+                                        // console.log('Record: ', record);
+                                        // TODO Build Full Record Here
+                                        record_client.put(JSON.stringify(record)).onSuccess(
+                                            (jobId) => {
+                                                // console.log('IMA Record Job ID: ', jobId);
+                                            }
+                                        );
+                                    }
+                                );
+
+                            // Creating arrays for the Cell Parameters records using IMA Mineral UniqueIDs
+                            // console.log('Mineral Name Field: ' + data.cell_params_map.mineral_name + ' ' + record.template_uuid);
+                            cell_params_headers += 'if(cellparams[\'' + record.unique_id + '\'] === undefined) { cellparams[\'' + record.unique_id + '\'] = new Array()};'
+                        }
                     }
 
                     // Write the Cell Parameters Array File
@@ -275,7 +300,6 @@ async function app() {
                     // for(let i = 0; i < 1; i++) {
                     // for(let i = 0; i < 200; i++) {
                     for(let i = 0; i < cell_params_record_data.records.length; i++) {
-                        job_count++;
                         let record = cell_params_record_data['records'][i];
                         /*
                             'base_url' => $baseurl,
@@ -309,6 +333,7 @@ async function app() {
                         record.cell_params_map = data.cell_params_map;
                         record.powder_diffraction_map = data.powder_diffraction_map;
 
+                        job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
                                 (tubeName) => {
@@ -337,7 +362,6 @@ async function app() {
                     // for(let i = 0; i < 1; i++) {
                     // for(let i = 0; i < 60; i++) {
                     for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
-                        job_count++;
                         let record = powder_diffraction_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'powder_diffraction';
@@ -360,6 +384,7 @@ async function app() {
                         record.cell_params_map = data.cell_params_map;
                         record.powder_diffraction_map = data.powder_diffraction_map;
 
+                        job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
                                 (tubeName) => {
@@ -381,7 +406,6 @@ async function app() {
                     // for(let i = 0; i < 1; i++) {
                     // for(let i = 0; i < 10; i++) {
                     for(let i = 0; i <  amcsd_record_data.records.length; i++) {
-                        job_count++;
                         let record = amcsd_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'amcsd';
@@ -404,6 +428,7 @@ async function app() {
                         record.cell_params_map = data.cell_params_map;
                         record.powder_diffraction_map = data.powder_diffraction_map;
 
+                        job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
                                 (tubeName) => {
@@ -423,7 +448,6 @@ async function app() {
                     // for(let i = 0; i < 1; i++) {
                     // for(let i = 0; i < 300; i++) {
                     for(let i = 0; i <  reference_record_data.records.length; i++) {
-                        job_count++;
                         let record = reference_record_data.records[i];
                         record.cell_params_index = i;
                         record.tracked_job_id = tracked_job.id;
@@ -447,6 +471,7 @@ async function app() {
                         record.amcsd_record_map = data.amcsd_record_map;
                         record.powder_diffraction_map = data.powder_diffraction_map;
 
+                        job_count++;
                         references_record_client.use(references_record_tube)
                             .onSuccess(
                                 (tubeName) => {
@@ -473,6 +498,7 @@ async function app() {
                     let record = {};
                     record.ima_update_rebuild = data.ima_update_rebuild;
                     record.mineral_data_filename = mineral_data_filename;
+                    record.mineral_data_include_filename = mineral_data_include_filename;
                     record.cell_params_filename = cell_params_filename;
                     record.references_filename = references_filename;
                     record.master_tag_data_filename = master_tag_data_filename;
@@ -589,7 +615,7 @@ async function apiCall(api_url, post_data, method) {
 }
 
 async function loadPage(page_url) {
-    console.log('Loading page: ', page_url);
+    // console.log('Loading page: ', page_url);
     return await apiCall(page_url, '', 'GET');
 }
 
