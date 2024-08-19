@@ -4452,6 +4452,7 @@ i {
 }
 
 #ODRSearchSidebar {
+    margin-top: 16px;
     margin-left: -60px;
 }
 
@@ -4845,7 +4846,8 @@ button.jGrowl-close {
 }
 
 #ODRSearchHeaderWrapper {
-    margin-top: -10px;
+    /* margin-top: -10px; */
+    margin-top: 6px; 
 }
 
 #ODRSearchHeaderWrapper button {
