@@ -109,7 +109,7 @@
         {% set need_spacer = false %}
 
         {% if theme_data.id != selected_theme_id %}
-            {# all users and visitors can select a shared theme #}
+            {# this dialog only receives themes the user is allowed to use #}
             <li class="ODRChooseViewLink ODRMakeCurrentView">
                 <i class="fa fa-eye"></i>&nbsp;Use (current session)
             </li>
@@ -126,48 +126,51 @@
         {% endif %}
 
         {% if user != "anon." %}
-            {# users are allowed to make their own copy of any theme #}
+            {# users are allowed to make their own copy of any theme they can use #}
             <li class="ODRChooseViewLink ODRCopyModifyTheme">
                 <i class="fa fa-copy"></i>&nbsp;Copy
             </li>
         {% endif %}
 
-        {% if user != "anon." and (is_super_admin or theme.created_by == user.id) and theme_data.theme_type != "master" %}
-            {# users can delete themes, but only if they created it and it's not a master theme... #}
-            {% if theme_data.default_for|length > 0 %}
-                {# if it's a default for some mode, then show the link but don't activate it #}
-                <li class="ODRChooseViewLink strikethrough" title="This layout can't be deleted because it is being used as a database default">
-                    <i class="fa fa-trash"></i>&nbsp;Delete
-                </li>
-            {% else %}
-                <li class="ODRChooseViewLink ODRDeleteTheme">
-                    <i class="fa fa-trash"></i>&nbsp;Delete
-                </li>
+        {% if theme_data.theme_type != "master" %}
+            {# never allowed to delete a master theme... #}
+            {% if is_super_admin or (user != "anon." and theme.created_by == user.id) %}
+                {# ...but super admins can delete any other theme, while regular users can only delete themes they created #}
+                {# datatype admins are not allowed to delete themes belonging to other users #}
+                {% if theme_data.default_for|length > 0 %}
+                    {# if it's a default for some mode, then show the link but don't activate it #}
+                    <li class="ODRChooseViewLink strikethrough" title="This layout can't be deleted because it is being used as a database default">
+                        <i class="fa fa-trash"></i>&nbsp;Delete
+                    </li>
+                {% else %}
+                    <li class="ODRChooseViewLink ODRDeleteTheme">
+                        <i class="fa fa-trash"></i>&nbsp;Delete
+                    </li>
+                {% endif %}
             {% endif %}
-
-            {# datatype admins are not allowed to delete other users' themes, but super admins are #}
         {% endif %}
 
-        {% if user != "anon." and (is_super_admin or theme_data.created_by == user.id) and theme_data.theme_type != "master" %}
-            {% if theme_data.is_shared %}
-                {# users can only unshare one of their own themes if it's not being used as a default #}
-                {% if theme_data.default_for|length > 0 %}
+
+        {% if user != "anon." %}
+            {# have to be logged in to change public status of theme... #}
+            {% if theme_data.default_for|length > 0 or theme_data.theme_type == "master" %}
+                {# never allowed to change public status of default themes #}
                 <li class="ODRChooseViewLink strikethrough" title="This layout can't be set to private because it is being used as a database default">
+                    <i class="fa fa-globe fa-public"></i>&nbsp;Make private
+                </li>
+            {% elseif is_super_admin or theme_data.created_by == user.id %}
+                {# super-admins can change public status of any other theme in the datatype #}
+                {# datatype admins and regular users are only allowed to change public status of themes they created #}
+                {% if theme_data.is_shared %}
+                <li class="ODRChooseViewLink ODRMakeViewShared">
                     <i class="fa fa-globe fa-public"></i>&nbsp;Make private
                 </li>
                 {% else %}
                 <li class="ODRChooseViewLink ODRMakeViewShared">
-                    <i class="fa fa-globe fa-public"></i>&nbsp;Make private
-                </li>
-                {% endif %}
-            {% else %}
-                {# users can always share one of their own themes #}
-                <li class="ODRChooseViewLink ODRMakeViewShared">
                     <i class="fa fa-globe fa-not-public"></i>&nbsp;Make public
                 </li>
+                {% endif %}
             {% endif %}
-
-            {# datatype admins are not allowed to change public status of other users' themes, but super admins are #}
         {% endif %}
         </ul>
     </div>

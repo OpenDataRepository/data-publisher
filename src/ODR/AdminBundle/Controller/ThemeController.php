@@ -219,6 +219,10 @@ class ThemeController extends ODRCustomController
         if ($user === "anon.")
             throw new ODRForbiddenException();
 
+        // Super-admins should be able to modify any layout/theme_element/theme_datafield
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            return;
+
         // ...and also have to be able to at least view the datatype being modified
         if ( !$permissions_service->canViewDatatype($user, $datatype) )
             throw new ODRForbiddenException();
@@ -483,6 +487,16 @@ class ThemeController extends ODRCustomController
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
+
+            // If the user is not a super-admin...
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // ...then they can only change public status on themes they created
+                if ( $theme->getCreatedBy()->getId() !== $user->getId() )
+                    throw new ODRForbiddenException();
+            }
+
+            // Datatype admins aren't allowed to change public status on themes they didn't create
+            // TODO - remove this?  they're currently allowed to do everything else to this datatype's themes, except delete it...
             // --------------------
 
 
@@ -752,7 +766,7 @@ class ThemeController extends ODRCustomController
      * Because a theme can be a default for multiple page_types, it's handy to have a way to remove
      * a default without requiring another theme to take its place.
      *
-     * NOTE: the corresponding set is in SessionController::applythemeAction()
+     * NOTE: the corresponding set is in {@link SessionController::applythemeAction()}
      *
      * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      * @param integer $theme_id
@@ -794,10 +808,8 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // The user must be an admin of the relevant datatype to change this
+            // The user has to be logged in to manage their layout preferences
             if ($user === "anon.")
-                throw new ODRForbiddenException();
-            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -875,8 +887,6 @@ class ThemeController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var Theme $theme */
@@ -894,32 +904,33 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Require users to be logged in and able to view the datatype before doing this...
+            // Require users to be logged in...
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-            if ( !$permissions_service->canViewDatatype($user, $datatype) )
-                throw new ODRForbiddenException();
 
-            // Themes are only allowed to be deleted by the users who created them...
-            if ( $theme->getCreatedBy()->getId() !== $user->getId() ) {
-                throw new ODRForbiddenException();
+            // Super-admins have permission to delete any theme (outside of the three exceptions below)
 
-                // TODO - is there a reason to allow super admins to delete themes they didn't create?
+            // If the user is not a super-admin...
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // ...then they can only delete themes they created
+                if ( $theme->getCreatedBy()->getId() !== $user->getId() )
+                    throw new ODRForbiddenException();
             }
+
             // Datatype admins aren't allowed to delete themes they didn't create
             // --------------------
 
 
             // If the theme is a 'master' theme, then nobody is allowed to delete it
-            if ($theme->getThemeType() === 'master')
+            if ( $theme->getThemeType() === 'master' )
                 throw new ODRBadRequestException('Unable to delete a "master" Theme');
 
             // If the theme is currently marked as a default for the datatype, don't delete it
-            if ($theme->getDefaultFor() > 0)
+            if ( $theme->getDefaultFor() > 0 )
                 throw new ODRBadRequestException('Unable to delete a Theme marked as "default"');
 
             // Don't delete themes for child/linked datatypes
-            if ($theme->getParentTheme()->getId() !== $theme->getId())
+            if ( $theme->getParentTheme()->getId() !== $theme->getId() )
                 throw new ODRBadRequestException('Unable to delete a Theme for a child/linked datatype');
 
 
@@ -1304,7 +1315,7 @@ class ThemeController extends ODRCustomController
                 if ($theme_element_form->isValid()) {
                     // Users need to be able to change the "hidden" property on a "master" theme
                     // Display/Edit/SearchResults/TextResults will respect this property, but most
-                    //  areas of ODR typically ignore it
+                    //  other areas of ODR ignore it
 //                    if ($theme->getThemeType() === 'master')
 //                        $submitted_data->setHidden(0);
 
@@ -1509,8 +1520,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Users need to be able to change the "hidden" property on a "master" theme
-            // Display/Edit/SearchResults/TextResults will respect this property, but most areas
-            //  of ODR typically ignore it
+            // Display/Edit/SearchResults/TextResults will respect this property, but most other
+            //  areas of ODR ignore it
 //            if ( $theme->getThemeType() === 'master' )
 //                throw new ODRBadRequestException("Unable to change hidden status of ThemeElements on a datatype's master theme");
 
@@ -1599,8 +1610,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Users need to be able to change the "hidden" property on a "master" theme
-            // Display/Edit/SearchResults/TextResults will respect this property, but most areas of
-            //  ODR typically ignore it
+            // Display/Edit/SearchResults/TextResults will respect this property, but most other
+            //  areas of ODR ignore it
 //            if ( $theme->getThemeType() === 'master' )
 //                throw new ODRBadRequestException("Unable to change hidden status of ThemeElements on a datatype's master theme");
 
@@ -2149,7 +2160,7 @@ class ThemeController extends ODRCustomController
                 if ($theme_datafield_form->isValid()) {
                     // Users need to be able to change the "hidden" property on a "master" theme
                     // Display/Edit/SearchResults/TextResults will respect this property, but most
-                    //  areas of ODR typically ignore it
+                    //  other areas of ODR ignore it
 //                    if ($theme->getThemeType() === 'master')
 //                        $submitted_data->setHidden(0);
 
@@ -2254,8 +2265,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Users need to be able to change the "hidden" property on a "master" theme
-            // Display/Edit/SearchResults/TextResults will respect this property, but most areas of
-            //  ODR typically ignore it
+            // Display/Edit/SearchResults/TextResults will respect this property, but most other
+            //  areas of ODR ignore it
 //            if ( $theme->getThemeType() === 'master' )
 //                throw new ODRBadRequestException("Unable to change hidden status of ThemeDatafields on a datatype's master theme");
 
@@ -2361,8 +2372,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Users need to be able to change the "hidden" property on a "master" theme
-            // Display/Edit/SearchResults/TextResults will respect this property, but most areas of
-            //  ODR typically ignore it
+            // Display/Edit/SearchResults/TextResults will respect this property, but most other
+            //  areas of ODR ignore it
 //            if ( $theme->getThemeType() === 'master' )
 //                throw new ODRBadRequestException("Unable to change hidden status of ThemeDatafields on a datatype's master theme");
 

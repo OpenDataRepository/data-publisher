@@ -150,6 +150,38 @@ class DatabaseInfoService
 
 
     /**
+     * Similar to {@link self::getDatatypeArray()}, but instead includes the datatypes that link to
+     * the requested datatype.  The $include_links parameter doesn't exist, as there's no reason to
+     * call this where that value would be false.
+     *
+     * The returned array is generally going to be unsuitable for {@link self::stackDatatypeArray()}
+     *
+     * @param integer $datatype_id
+     *
+     * @return array
+     */
+    public function getInverseDatatypeArray($datatype_id)
+    {
+        // Need to locate all linked datatypes for the provided datatype
+        $associated_datatypes = $this->dti_service->getInverseAssociatedDatatypes($datatype_id);
+
+        // Load the cached versions of each associated datatype, and store them all at the same
+        //  level in a single array
+        $datatype_array = array();
+        foreach ($associated_datatypes as $num => $dt_id) {
+            $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
+            if ($datatype_data == false)
+                $datatype_data = self::buildDatatypeData($dt_id);
+
+            foreach ($datatype_data as $dt_id => $data)
+                $datatype_array[$dt_id] = $data;
+        }
+
+        return $datatype_array;
+    }
+
+
+    /**
      * Gets all datatype, datafield, and their associated render plugin information...the array
      * is slightly modified, stored in the cache, and then returned.
      *

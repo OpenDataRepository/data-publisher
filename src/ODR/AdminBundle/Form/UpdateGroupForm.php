@@ -30,6 +30,8 @@ class UpdateGroupForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $is_super_admin = $options['is_super_admin'];
+
         $builder->add(
             'groupName',
             TextType::class,
@@ -47,6 +49,17 @@ class UpdateGroupForm extends AbstractType
                 'label' => 'Group Description',
             )
         );
+
+        if ( $is_super_admin ) {
+            $builder->add(
+                'datarecord_restriction',
+                TextType::class,
+                array(
+                    'required' => true,
+                    'label' => 'Restriction',
+                )
+            );
+        }
     }
 
 
@@ -80,5 +93,7 @@ class UpdateGroupForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\GroupMeta'));
+
+        $resolver->setRequired('is_super_admin');
     }
 }

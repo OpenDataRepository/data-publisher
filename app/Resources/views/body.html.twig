@@ -8,7 +8,19 @@
                 <li class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Admin&nbsp;<i class="fa fa-md fa-plus-square"></i></span>
                     {% block navigation_top %}{% endblock %}
                 </li>
-                <li id="ODRDatabaseLanding" class="pure-menu-item"><a class="pure-menu-link">Dashboard</a></li>
+
+                {% set dashboard_baseurl = site_baseurl %}
+                {% if odr_wordpress_integrated %}
+                    {% set dashboard_baseurl = wordpress_site_baseurl %}
+                {% endif %}
+
+                {% set href = dashboard_baseurl ~ path('odr_admin_homepage') %}
+                {% if target_datatype is defined %}
+                    {% set first_part = dashboard_baseurl ~ path('odr_search', {'search_slug': target_datatype.dataTypeMeta.searchSlug}) %}
+                    {% set second_part = path('odr_datatype_landing', {'datatype_id': target_datatype.id}) %}
+                    {% set href = first_part ~ '#' ~ second_part %}
+                {% endif %}
+                <li id="ODRDatabaseLanding" class="pure-menu-item"><a class="pure-menu-link" href="{{ href }}">Dashboard</a></li>
             {% endif %}
 
             {% if header_middle_title != '' %}
