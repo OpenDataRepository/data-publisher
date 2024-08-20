@@ -70,29 +70,31 @@
                class="pure-u-1">
 
             <span title="{{ description }}">{{ fieldname }}{% if field_typeclass == 'File' or field_typeclass == 'Image'%} filename{% endif %}:</span>
-        {% if field_typeclass == "Radio" %}
-            <span class="pure-u-1 ODRSelectAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Select all options">
-                <span class="ODRTristateCheckbox" rel="multiple">
-                    <i class="fa fa-check"></i>
-                </span>
-            </span>
-            <span class="pure-u-1 ODRDeselectAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Deselect all options">
-                <span class="ODRTristateCheckbox" rel="multiple">
-                    <i class="fa fa-ban"></i>
-                </span>
-            </span>
-            <span class="pure-u-1 ODRClearAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Clear all selections">
-                <span class="ODRTristateCheckbox" rel="multiple">
-                    <i class="fa"></i>
-                </span>
-            </span>
-        {% endif %}
         {% if field_typeclass == "Radio" or field_typeclass == "Tag" %}
             <input id="df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
                    title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
                    placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
                    size="10" maxlength="10" {% if design_page is defined %}readonly{% endif %}
             />
+        {% endif %}
+        {% if field_typeclass == "Radio" or field_typeclass == "Tag" %}
+            <span class="ODRSelectAllOption_span">
+                <span class="ODRSelectAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Select all {% if field_typeclass == "Tag" %}tags{% else %}options{% endif %}">
+                    <span class="ODRTristateCheckbox" rel="multiple">
+                        <i class="fa fa-check"></i>
+                    </span>
+                </span>
+                    <span class="ODRDeselectAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Deselect all {% if field_typeclass == "Tag" %}tags{% else %}options{% endif %}">
+                    <span class="ODRTristateCheckbox" rel="multiple">
+                        <i class="fa fa-ban"></i>
+                    </span>
+                </span>
+                    <span class="ODRClearAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Clear all selections">
+                    <span class="ODRTristateCheckbox" rel="multiple">
+                        <i class="fa"></i>
+                    </span>
+                </span>
+            </span>
         {% endif %}
         {% if field_typename == "DateTime" %}
             <span id="df_{{ datafield_id }}_clear" class="ODRDatePickerSearch_clear">Clear Dates</span>
@@ -187,6 +189,13 @@
         {% endif %}
         <label class="pure-u-1"></label>
         <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="df_{{ datafield_id }}_end" name="{{ key }}" value="{{ value }}" rel="df_{{ datafield_id }}" title="Find records with a value BEFORE this date" {% if design_page is defined %}readonly{% endif %} />
+
+        <label for="df_{{ datafield_id }}_no_val" class="pure-u-1">
+            <input type="checkbox" id="df_{{ datafield_id }}_no_val" class="ODRDatePicker_value ODRInput" name="{{ datafield_id }}" value='""' /> Search where {{ fieldname }} is empty.
+        </label>
+        <label for="df_{{ datafield_id }}_with_val" class="pure-u-1">
+            <input type="checkbox" id="df_{{ datafield_id }}_with_val" class="ODRDatePicker_value ODRInput" name="{{ datafield_id }}" value='!""' /> Search where {{ fieldname }} is not empty.
+        </label>
 
     {% elseif field_typeclass == "Radio" %}
         {% if preset_value == '' %}

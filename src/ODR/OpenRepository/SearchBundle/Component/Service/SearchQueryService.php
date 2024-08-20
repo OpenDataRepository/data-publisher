@@ -1293,11 +1293,12 @@ class SearchQueryService
      * datarecord ids that match the search.
      *
      * @param int $datafield_id
-     * @param array $params
+     * @param \DateTime $before
+     * @param \DateTime $after
      *
      * @return array The datarecord IDs are keys, not values
      */
-    public function searchDatetimeDatafield($datafield_id, $params)
+    public function searchDatetimeDatafield($datafield_id, $before, $after)
     {
         // ----------------------------------------
         // Convert the given params into SQL query fragments
@@ -1305,14 +1306,13 @@ class SearchQueryService
             'str' => 'e.value BETWEEN :after AND :before',
             'params' => array(
                 'datafield_id' => $datafield_id,
-                'after' => $params['after']->format('Y-m-d'),
-                'before' => $params['before']->format('Y-m-d')
+                'after' => $after->format('Y-m-d'),
+                'before' => $before->format('Y-m-d')
             )
         );
 
 
         // ----------------------------------------
-        // TODO - provide the option to search for fields without dates?
         // Define the base query for searching
         $typeclass = 'DatetimeValue';
         $query =
@@ -1334,6 +1334,50 @@ class SearchQueryService
             $datarecords[ $result['dr_id'] ] = 1;
 
         return $datarecords;
+    }
+
+
+    /**
+     * Returns two arrays of datarecord ids...one array has all the datarecords where the datetime
+     * field has a value...the other array is the opposite
+     *
+     * @param int $datafield_id
+     * @param array $all_datarecord_ids
+     *
+     * @return array The datarecord IDs are keys, not values
+     */
+    public function searchForEmptyDatetimeDatafield($datafield_id, $all_datarecord_ids)
+    {
+        // ----------------------------------------
+        // Get all datarecords of this datatype where this datetime field has a value
+        $query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN odr_datetime_value AS e ON e.data_record_fields_id = drf.id
+            WHERE e.data_field_id = :datafield_id AND e.value != "9999-12-31"
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL';
+
+        // NOTE: a value of "9999-12-31" is considered to be empty or null, whatever
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, array('datafield_id' => $datafield_id));
+
+        // The results are the datarecords which have a datetime value...
+        $datarecords_with_dates = array();
+        foreach ($results as $result)
+            $datarecords_with_dates[ $result['dr_id'] ] = 1;
+
+        // The difference between all the datarecords and the previous list gets the datarecords
+        //  without datetime values
+        $datarecords_without_dates = array_diff_key($all_datarecord_ids, $datarecords_with_dates);
+
+        return array(
+            '0' => $datarecords_without_dates,
+            '1' => $datarecords_with_dates
+        );
     }
 
 

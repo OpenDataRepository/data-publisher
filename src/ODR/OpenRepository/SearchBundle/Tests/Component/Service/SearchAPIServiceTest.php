@@ -375,6 +375,50 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
+            'IMA List: records with dates, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '64' => '!""'
+                ),
+                array(91,92,95),
+                true
+            ],
+            'IMA List: records without dates, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '64' => '""'
+                ),
+                array(93,94,96,97,322),    // NOTE: 93 was set to have a date, then cleared...the database stores the "empty" value as 9999-12-31
+                true
+            ],
+
+            'IMA List: records with date on or after 1805-06-30, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '64_s' => '1805-06-30'
+                ),
+                array(91,92,95),    // 92 is included because 'starting from 1805-06-30' includes the date
+                true
+            ],
+            'IMA List: records with date before 2017-10-01, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '64_e' => '2017-10-01'
+                ),
+                array(91,92/*,95*/),    // 95 is excluded because 'ending before 2017-10-01' excludes the date
+                                        // NOTE: this is only due to an adjustment by SearchKeyService::convertSearchKeyToCriteria()...ODR currently only stores the date, not the time
+                true
+            ],
+            'IMA List: records with date between 1805-06-30 and 2017-10-01, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '64_s' => '1805-06-30',
+                    '64_e' => '2017-10-01',
+                ),
+                array(91,92,95),    // 95 is included because users expect to include the later date when both exist
+                true
+            ],
+
             // ----------------------------------------
             // Searches involving child/linked datatypes
             'RRUFF Sample: samples where mineral_name contains "b", including non-public records' => [

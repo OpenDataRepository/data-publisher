@@ -1557,6 +1557,11 @@ pre .support.value  {
         /* font-size: 90%; */
     }
 
+    .ODRSelectAllOption_span {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+    }
     .ODRSelectAllOption {
         display: inline;
         margin-left: 6px;
@@ -4167,12 +4172,14 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: -ms-sticky;
     position: -o-sticky;
     top: 0;
-    left: 20px;
+    left: 10px;
 }
 .ODRSearchHidden {
     position: absolute;
     top: 48px !important;
     right: calc(100vw - 45px) !important;
+    max-height: 100vh;
+    overflow: hidden;
 }
 .ODRSearchHidden > .ODRThemeElement {
     position: sticky !important;
