@@ -2825,6 +2825,10 @@ class EditController extends ODRCustomController
             if ( $datarecord == null )
                 throw new ODRNotFoundException('Datarecord');
 
+            // TODO - allow rendering of child datarecords?
+            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Not allowed to directly render child datarecords');
+
             // TODO - not accurate, technically...
             if ($datarecord->getProvisioned() == true)
                 throw new ODRNotFoundException('Datarecord');

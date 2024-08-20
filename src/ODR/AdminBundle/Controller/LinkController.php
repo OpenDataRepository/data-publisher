@@ -2074,17 +2074,20 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // The page is slightly easier to use if the "local" record is available to look at...
-            $local_dt_array = $database_info_service->getDatatypeArray($local_datatype->getId());    // all of these arrays should already be cached
-            $local_dr_array = $datarecord_info_service->getDatarecordArray($local_datarecord->getId());
-            $local_dt_master_theme = $theme_info_service->getDatatypeMasterTheme($local_datatype->getId());
+            $grandparent_datatype = $local_datatype->getGrandparent();
+            $grandparent_datarecord = $local_datarecord->getGrandparent();
+
+            $local_dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // all of these arrays should already be cached
+            $local_dr_array = $datarecord_info_service->getDatarecordArray($grandparent_datarecord->getId());
+            $local_dt_master_theme = $theme_info_service->getDatatypeMasterTheme($grandparent_datatype->getId());
             $local_dt_theme_array = $theme_info_service->getThemeArray($local_dt_master_theme->getId());
 
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $permissions_service->filterByGroupPermissions($local_dt_array, $local_dr_array, $user_permissions);
 
             // Need to stack the arrays so display_ajax.html.twig works
-            $local_dt_array = array($local_datatype->getId() => $database_info_service->stackDatatypeArray($local_dt_array, $local_datatype->getId()));
-            $local_dr_array = array($local_datarecord->getId() => $datarecord_info_service->stackDatarecordArray($local_dr_array, $local_datarecord->getID()));
+            $local_dt_array = array($local_datatype->getId() => $database_info_service->stackDatatypeArray($local_dt_array, $grandparent_datatype->getId()));
+            $local_dr_array = array($local_datarecord->getId() => $datarecord_info_service->stackDatarecordArray($local_dr_array, $grandparent_datarecord->getID()));
             $local_dt_theme_array = array($local_dt_master_theme->getId() => $theme_info_service->stackThemeArray($local_dt_theme_array, $local_dt_master_theme->getId()));
 
 
