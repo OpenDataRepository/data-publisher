@@ -739,9 +739,11 @@ class SearchKeyService
                     }
                 }
                 else if ( $typeclass === 'DatetimeValue' ) {
-                    $value = $search_params['value'];
-                    if ( $value !== "\"\"" && $value !== "!\"\"" )
-                        throw new ODRBadRequestException('Invalid search key: only allowed to search on empty string in Datetime field');
+                    if ( isset($search_params['value']) ) {
+                        $value = $search_params['value'];
+                        if ( $value !== "\"\"" && $value !== "!\"\"" )
+                            throw new ODRBadRequestException('Invalid search key: only allowed to search on empty string in Datetime field');
+                    }
                 }
 
                 // Don't need to validate anything related to the other typeclasses in here

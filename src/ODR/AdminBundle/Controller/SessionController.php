@@ -213,7 +213,9 @@ class SessionController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
+            $is_super_admin = false;
+            if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
+                $is_super_admin = true;
 
             // If the user can't view the datatype, then they shouldn't be setting themes for it
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
@@ -313,7 +315,9 @@ class SessionController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
+            $is_super_admin = false;
+            if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
+                $is_super_admin = true;
 
             // If the user can't view the datatype, then they shouldn't be setting layouts for it
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
