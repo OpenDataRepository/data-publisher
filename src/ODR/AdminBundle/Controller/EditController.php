@@ -3062,7 +3062,8 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Determine the user's preferred theme
-            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');
+//            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 

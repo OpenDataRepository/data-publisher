@@ -3839,6 +3839,15 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-top: 0.4em;
 }
 
+#ODRChooseView_contextspan {
+    float: left;
+}
+#ODRChooseView_contextlabel {
+    position: relative;
+    left: 10px;
+    cursor: pointer;
+}
+
 .ODRViewOptions {
     list-style-type: none;
     -webkit-margin-before: 0;

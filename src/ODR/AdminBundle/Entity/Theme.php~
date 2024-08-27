@@ -584,6 +584,16 @@ class Theme
     }
 
     /**
+     * Get themeVisibility
+     *
+     * @return integer
+     */
+    public function getThemeVisibility()
+    {
+        return $this->getThemeMeta()->getThemeVisibility();
+    }
+
+    /**
      * Get isTableTheme
      *
      * @return bool

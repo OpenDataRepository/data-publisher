@@ -1,6 +1,6 @@
 {% spaceless %}
 
-<li data-theme-id="{{ theme_data.id }}" {% if theme_data.id == selected_theme_id %}class="ODRCurrentLayout"{% endif %}>
+<li data-theme-id="{{ theme_data.id }}" {% if theme_data.id == selected_theme_id %}class="ODRCurrentLayout"{% elseif page_type != '' and theme_data.theme_visibility == false %}class="ODRHiddenLayout ODRHidden"{% endif %}>
     <div class="pure-u-1 pure-u-md-6-24">
         <h4>
         {% if theme_data.name != "" %}

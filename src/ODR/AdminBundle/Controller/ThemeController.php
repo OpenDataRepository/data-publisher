@@ -109,6 +109,28 @@ class ThemeController extends ODRCustomController
 
             // Get all available themes for this datatype that the user can view
             $available_themes = $theme_info_service->getAvailableThemes($user, $datatype);
+            // Combine each theme's visibility flag with the current page type to determine whether
+            //  they match
+            foreach ($available_themes as $num => $theme_data) {
+                $theme_visibility = $theme_data['theme_visibility'];
+
+                // NOTE: currently the magic numbers come from UpdateThemeForm.php
+                $in_context = false;
+                if ( $theme_visibility == 0 )
+                    $in_context = true;
+                else if ( $theme_visibility == 1 && ($page_type == 'search_results' || $page_type == 'linking') )
+                    $in_context = true;
+                else if ( $theme_visibility == 2 && ($page_type == 'display' || $page_type == 'edit') )
+                    $in_context = true;
+
+                $available_themes[$num]['theme_visibility'] = $in_context;
+            }
+
+            $show_context_checkbox = false;
+            foreach ($available_themes as $num => $theme_data) {
+                if ( $theme_data['theme_visibility'] == false )
+                    $show_context_checkbox = true;
+            }
 
 
             // ----------------------------------------
@@ -136,6 +158,7 @@ class ThemeController extends ODRCustomController
                     'selected_theme_id' => $selected_theme_id,
 
                     'page_type' => $page_type,
+                    'show_context_checkbox' => $show_context_checkbox,
                     'formatted_page_type' => $formatted_page_type,
                     'available_page_types' => $available_page_types,
                 )
@@ -404,12 +427,17 @@ class ThemeController extends ODRCustomController
                 if ( $submitted_data->getTemplateName() === '' )
                     $theme_form->addError( new FormError("The Layout name can't be blank") );
 
+                // 'Master' themes should always have this value set to 0
+                if ( $theme->getThemeType() === 'master' )
+                    $submitted_data->setThemeVisibility(0);
+
                 if ($theme_form->isValid()) {
                     // Save any changes made in the form
                     $properties = array(
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
                         'disableSearchSidebar' => $submitted_data->getDisableSearchSidebar(),
+                        'themeVisibility' => $submitted_data->getThemeVisibility(),
                         'isTableTheme' => $submitted_data->getIsTableTheme(),
                         'displaysAllResults' => $submitted_data->getDisplaysAllResults(),
                         'enableHorizontalScrolling' => $submitted_data->getEnableHorizontalScrolling(),

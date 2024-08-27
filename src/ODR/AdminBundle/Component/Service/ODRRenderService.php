@@ -468,7 +468,8 @@ class ODRRenderService
                 throw new ODRBadRequestException();
         }
         else {
-            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');
+//            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
+            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
             $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
         }
 

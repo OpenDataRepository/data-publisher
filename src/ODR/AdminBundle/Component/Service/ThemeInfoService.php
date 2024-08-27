@@ -57,7 +57,7 @@ class ThemeInfoService
     const PAGE_TYPES = array(
         1 => 'search_results',
         2 => 'display',
-        4 => 'edit',
+//        4 => 'edit',
         8 => 'linking',    // TODO - differentiate between the "currently linked" table and the "linking search results"?
     );
 
@@ -210,6 +210,7 @@ class ThemeInfoService
                     'is_shared' => $theme_meta['shared'],
                     'display_order' => $theme_meta['displayOrder'],
                     'theme_type' => $theme_type,
+                    'theme_visibility' => $theme_meta['themeVisibility'],
                     'is_table_theme' => $theme_meta['isTableTheme'],
                     'created_by' => $created_by['id'],
                     'created_by_name' => $user_string,

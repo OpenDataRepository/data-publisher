@@ -58,6 +58,11 @@ class ThemeMeta
     private $sourceSyncVersion;
 
     /**
+     * @var integer
+     */
+    private $themeVisibility;
+
+    /**
      * @var boolean
      */
     private $isTableTheme;
@@ -258,6 +263,30 @@ class ThemeMeta
     public function getSourceSyncVersion()
     {
         return $this->sourceSyncVersion;
+    }
+
+    /**
+     * Set themeVisibility.
+     *
+     * @param integer $themeVisibility
+     *
+     * @return ThemeMeta
+     */
+    public function setThemeVisibility($themeVisibility)
+    {
+        $this->themeVisibility = $themeVisibility;
+
+        return $this;
+    }
+
+    /**
+     * Get themeVisibility.
+     *
+     * @return integer
+     */
+    public function getThemeVisibility()
+    {
+        return $this->themeVisibility;
     }
 
     /**
