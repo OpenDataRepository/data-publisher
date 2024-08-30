@@ -49,6 +49,7 @@
         {% set need_spacer = false %}
     {% endif %}
 
+    {% if is_datatype_admin or theme_data.default_for|length > 0 %}
         <div class="ODRViewNote ODRLayoutInfoDiv">
             <i class="fa fa-lg fa-info-circle"></i>&nbsp;Database default for...
             <div class="ODRLayoutInfo">
@@ -80,6 +81,7 @@
             {% endif %}
             </div>
         </div>
+    {% endif %}
 
     {% if user != "anon." %}
         <div class="ODRViewNote ODRLayoutInfoDiv">
@@ -96,7 +98,7 @@
                 {% for num,label in theme_data.user_preference_for %}
                 <div class="ODRViewNote">
                     <i class="ODRUnsetDefaultPersonal fa fa-unlink" title="Stop using as personal default" rel="{{ label }}"></i>&nbsp;
-                    Personal default for {{ label }} mode
+                    Stop using this layout as your personal default for {{ label }} mode
                 </div>
                 {% endfor %}
             </div>
