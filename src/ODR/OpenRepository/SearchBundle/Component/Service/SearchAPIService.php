@@ -628,8 +628,16 @@ class SearchAPIService
                             }
                         }
                         else if ($typeclass === 'DatetimeValue') {
-                            // DatetimeValue needs to worry about before/after...
-                            $dr_list = $this->search_service->searchDatetimeDatafield($entity, $search_term['before'], $search_term['after']);
+                            // DatetimeValue needs to worry about before/after or value...
+                            $before = $after = $value = null;
+                            if ( isset($search_term['before']) )
+                                $before = $search_term['before'];
+                            if ( isset($search_term['after']) )
+                                $after = $search_term['after'];
+                            if ( isset($search_term['value']) )
+                                $value = $search_term['value'];
+
+                            $dr_list = $this->search_service->searchDatetimeDatafield($entity, $before, $after, $value);
                         }
                         else {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue

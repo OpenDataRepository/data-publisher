@@ -1105,22 +1105,29 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                     // Unfortunately, this descendant datatype could have descendants of its own,
                     //  which the datarecord also wouldn't have...so this assignment could end up
                     //  needing to process multiple levels of descendants...
-                    $current_dt_info = $child_dt_filter_info;
+                    $descendants_to_process = array($child_dt_id => $child_dt_filter_info);
 
                     // ...don't want to do it recursively though
-                    do {
-                        // Due to the rules enforced by self::getFilterDatafields(), the current
-                        //  datarecord can "pretend it has" these datafields, and therefore also
-                        //  pretend that each datafield has a null value
-                        foreach ($current_dt_info['datafields'] as $child_df_id => $child_df_typeclass)
-                            $null_values[$child_df_id][] = $dr_id;
-                        // The substitution of datarecord ids later on is not affected by these
-                        //  shennanigans
+                    while ( !empty($descendants_to_process) ) {
+                        $missing_dt_info = $descendants_to_process;
+                        $descendants_to_process = array();
 
-                        // Perform the same action for every descendant of this datatype...
-                        $descendants_to_process = $current_dt_info['descendants'];
+                        foreach ($missing_dt_info as $dt_id => $dt_info) {
+                            // Due to the rules enforced by self::getFilterDatafields(), the current
+                            //  datarecord can "pretend it has" these datafields, and therefore also
+                            //  pretend that each datafield has a null value
+                            foreach ($dt_info['datafields'] as $child_df_id => $child_df_typeclass)
+                                $null_values[$child_df_id][] = $dr_id;
+                            // The substitution of datarecord ids later on is not affected by these
+                            //  shennanigans
+
+                            // If this datatype also has descendants...
+                            if ( !empty($dt_info['descendants']) ) {
+                                // ...then also perform the same process for each of them
+                                $descendants_to_process = $dt_info['descendants'];
+                            }
+                        }
                     }
-                    while ( !empty($descendants_to_process) );
                 }
             }
         }

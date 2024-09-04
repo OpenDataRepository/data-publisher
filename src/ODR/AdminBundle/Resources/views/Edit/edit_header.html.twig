@@ -91,7 +91,8 @@
                 // ...the newly selected theme will be pulled from the user's session
                 reloadPage();
             }
-            openChooseViewRemodal({{ datatype.id }}, 'edit', '{{ search_key }}');
+            {#openChooseViewRemodal({{ datatype.id }}, 'edit', '{{ search_key }}');#}    {# NOTE: apparently differentiating between 'display' and 'edit' is...'confusing' #}
+            openChooseViewRemodal({{ datatype.id }}, 'display', '{{ search_key }}');
         });
 
         $("#ODRDownloadAllFilesIcon").unbind('click').click(function() {

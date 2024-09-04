@@ -106,9 +106,11 @@ class ODRCustomController extends Controller
         $templating = $this->get('templating');
 
 
-        $logged_in = false;
-        if ($user !== 'anon.')
+        $logged_in = $is_super_admin = false;
+        if ( $user !== 'anon.' ) {
             $logged_in = true;
+            $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
+        }
 
         $user_permissions = $permissions_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
@@ -126,10 +128,10 @@ class ODRCustomController extends Controller
         if ($theme->getDataType()->getId() !== $datatype->getId())
             throw new ODRBadRequestException('The specified Theme does not belong to this Datatype');
 
-        // If the theme isn't usable by everybody...
-        if (!$theme->isShared()) {
+        // If the user is not a super admin and the theme isn't usable by everybody...
+        if ( !$is_super_admin && !$theme->isShared() ) {
             // ...and the user didn't create this theme...
-            if ($user === 'anon.' || $theme->getCreatedBy()->getId() !== $user->getId()) {
+            if ( !$logged_in || $theme->getCreatedBy()->getId() !== $user->getId()) {
                 // ...then this user can't use this theme
 
                 // Find a theme they can use

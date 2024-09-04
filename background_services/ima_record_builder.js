@@ -183,9 +183,9 @@ async function app() {
                         // Mineral Display Name -- 1
                         await findValue(record.cell_params_map.mineral_name , record_data) + '||' +
                         // Ideal IMA Formula (html) -- 2
-                        formatChemistry(await findValue(record.cell_params_map.ima_chemistry , record_data)) + '||' +
-                        // RRUFF Formula (html) -- 3
                         formatChemistry(await findValue(record.ima_record_map.rruff_formula , record_data)) + '||' +
+                        // RRUFF Formula (html) -- 3
+                        formatChemistry(await findValue(record.cell_params_map.ima_chemistry , record_data)) + '||' +
                         // Has HOM -- 4
                         await findValue(record.ima_record_map.hom_file, record_data) + '||' +
                         // await findValue('' , record_data) + '||' +
@@ -326,20 +326,24 @@ async function appendFile(file_name, content) {
     }
 }
 
-function formatChemistry(formula) {
+function formatChemistry(str) {
 
-    // $sub = preg_quote($sub);
-    let sub = '_';
-    let str = formula.replaceAll(new RegExp(sub + '([^' + sub + ']+)' + sub, 'g'), '<sub>$1</sub>');
+    // No point running regexp if there's nothing in the string
+    if (str === ' ')
+        return str;
 
     // Apply the superscripts...
-    let sup = '^';
-    str = str.replaceAll(new RegExp(sup + '([^' + sup + ']+)' + sup, 'g'), '<sup>$1</sup>');
+    str = str.replace(/_([^_]+)_/g, '<sub>$1</sub>');
 
-    // Escape single quotes
-    str = str.replace(/'/g, "\\'");
+    // Apply the superscripts...
+    str = str.replace(/\^([^\^]+)\^/g, '<sup>$1</sup>');
 
-    return str.replace(/\[box\]/g, '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>');
+    // Redo the boxes...
+    while ( str.indexOf('[box]') !== -1 )
+        str = str.replace(/\[box\]/, '&#9744;'); // <span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>');
+
+    return str;
+    // str = str.replace(/'/g, "\\'");
 
 }
 
@@ -533,7 +537,7 @@ async function findReferences(record, record_data) {
 }
 
 async function apiCall(api_url, post_data, method) {
-    // console.log('API Call: ', api_url);
+    console.log('API Call: ', api_url);
     try {
         const page = await browser.newPage();
         page.on('console', message =>

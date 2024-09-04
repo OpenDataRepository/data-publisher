@@ -87,6 +87,7 @@ async function app() {
                                 await fs.rename(data.mineral_data_include_filename, output_path + '/mineral_names.php', () => {});
 
                                 // Cell Params Data
+                                console.log('CELL PARAMS FILE: ' + data.cell_params_filename);
                                 await fs.rename(data.cell_params_filename, output_path + '/cellparams_data.js', () => {});
 
                                 // References Data
@@ -95,6 +96,8 @@ async function app() {
                                 // Master Tag Data
                                 await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data.js', () => {});
 
+                                // Delete tmp files
+                                // await deleteTmpFiles(data);
 
                                 // Overwrite existing update files with empty files
                                 await writeFile(output_path + '/mineral_data_update.js', '');
@@ -137,33 +140,7 @@ async function app() {
                         });
                     }
                     else {
-                        // Job not found - delete tmp files
-                        fs.exists(data.mineral_data_filename,(exists) => {
-                            if(exists) {
-                                fs.rm(data.mineral_data_filename);
-                            }
-                        });
-
-                        // Cell Params Data
-                        fs.exists(data.data.cell_params_filename,(exists) => {
-                            if(exists) {
-                                fs.rm(data.cell_params_filename);
-                            }
-                        });
-
-                        // References Data
-                        fs.exists(data.references_filename,(exists) => {
-                            if(exists) {
-                                fs.rm(data.references_filename);
-                            }
-                        });
-
-                        // Master Tag Data
-                        fs.exists(data.master_tag_data_filename,(exists) => {
-                            if(exists) {
-                                fs.rm(data.master_tag_data_filename);
-                            }
-                        });
+                        await deleteTmpFiles(data);
 
                         // throw Error and delete beanstalk job
                         throw Error('Job not found.');
@@ -180,6 +157,36 @@ async function app() {
             });
         }
         resJob();
+    });
+}
+
+async function deleteTmpFiles(data) {
+    // Job not found - delete tmp files
+    await fs.exists(data.mineral_data_filename,async (exists) => {
+        if (exists) {
+            await fs.rm(data.mineral_data_filename);
+        }
+    });
+
+    // Cell Params Data
+    await fs.exists(data.data.cell_params_filename,async (exists) => {
+        if (exists) {
+            await fs.rm(data.cell_params_filename);
+        }
+    });
+
+    // References Data
+    await fs.exists(data.references_filename,async (exists) => {
+        if (exists) {
+            await fs.rm(data.references_filename);
+        }
+    });
+
+    // Master Tag Data
+    await fs.exists(data.master_tag_data_filename,async (exists) => {
+        if (exists) {
+            await fs.rm(data.master_tag_data_filename);
+        }
     });
 }
 

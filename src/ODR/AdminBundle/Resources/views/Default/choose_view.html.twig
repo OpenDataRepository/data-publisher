@@ -13,6 +13,14 @@
 </div>
 {% endif %}
 
+{% if page_type != '' and show_context_checkbox %}
+<span id="ODRChooseView_contextspan">
+    <label id="ODRChooseView_contextlabel" for="ODRChooseView_context">
+        <input id="ODRChooseView_context" type="checkbox"/>&nbsp;Show all layouts
+    </label>
+</span>
+{% endif %}
+
 <ul id="ODRChooseView" class="pure-u-1">
     {% if user != "anon." %}<h4>To create a new view, copy an existing view and modify it.</h4>{% endif %}
 
@@ -51,6 +59,19 @@
 
 <script>
     $(function() {
+{% if page_type != '' and show_context_checkbox %}
+        $("#ODRChooseView_context").unbind('change').change(function() {
+            if ( $(this).prop('checked') == true ) {
+                $(".ODRHiddenLayout").removeClass('ODRHidden');
+                resetRemodalInnerHeight();
+            }
+            else {
+                $(".ODRHiddenLayout").addClass('ODRHidden');
+                resetRemodalInnerHeight();
+            }
+        });
+{% endif %}
+
         $(".ODRMakeCurrentView").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
 {% if page_type == '' %}

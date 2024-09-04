@@ -85,7 +85,7 @@
 
 {% if data_array|length > 0 %}
 <div class="pure-u-1">
-    <div id="hot_{{ datarecord.id }}_{{ datafield.id }}" class="pure-u-1"></div>
+    <div id="hot_{{ datarecord.id }}_{{ datafield.id }}" class="{#pure-u-1#}"></div>
     <script>
         // Handsontable display
         var data_{{ datarecord.id }}_{{ datafield.id }} = {% spaceless %}{{ data_array|raw }}{% endspaceless %}
@@ -96,7 +96,8 @@
             rowHeaders: true,
             colHeaders: true,
             readOnly: true,
-            height: 300,
+            height: 'auto',
+            width: '100%',
             licenseKey: 'non-commercial-and-evaluation'
         });
     </script>

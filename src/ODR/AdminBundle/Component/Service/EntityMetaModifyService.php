@@ -2815,6 +2815,7 @@ class EntityMetaModifyService
             'shared' => $old_meta_entry->getShared(),
             'sourceSyncVersion' => $old_meta_entry->getSourceSyncVersion(),
             'disableSearchSidebar' => $old_meta_entry->getDisableSearchSidebar(),
+            'themeVisibility' => $old_meta_entry->getThemeVisibility(),
             'isTableTheme' => $old_meta_entry->getIsTableTheme(),
             'displaysAllResults' => $old_meta_entry->getDisplaysAllResults(),
             'enableHorizontalScrolling' => $old_meta_entry->getEnableHorizontalScrolling(),
@@ -2865,6 +2866,8 @@ class EntityMetaModifyService
             $new_theme_meta->setSourceSyncVersion( $properties['sourceSyncVersion'] );
         if ( isset($properties['disableSearchSidebar']) )
             $new_theme_meta->setDisableSearchSidebar( $properties['disableSearchSidebar'] );
+        if ( isset($properties['themeVisibility']) )
+            $new_theme_meta->setThemeVisibility( $properties['themeVisibility'] );
         if ( isset($properties['isTableTheme']) )
             $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
         if ( isset($properties['displaysAllResults']) )

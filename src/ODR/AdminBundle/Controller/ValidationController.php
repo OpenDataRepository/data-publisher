@@ -823,6 +823,7 @@ class ValidationController extends ODRCustomController
                     $tm->setDisplayOrder(0);
                     $tm->setShared(false);
                     $tm->setSourceSyncVersion(0);
+                    $tm->setThemeVisibility(0);
                     $tm->setIsTableTheme(false);
                     $tm->setDisplaysAllResults(false);
                     $tm->setDisableSearchSidebar(false);

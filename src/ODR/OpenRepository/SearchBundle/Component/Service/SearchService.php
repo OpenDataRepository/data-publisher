@@ -1510,10 +1510,11 @@ class SearchService
      * @param DataFields $datafield
      * @param \DateTime|null $before
      * @param \DateTime|null $after
+     * @param string|null $value
      *
      * @return array
      */
-    public function searchDatetimeDatafield($datafield, $before, $after)
+    public function searchDatetimeDatafield($datafield, $before = null, $after = null, $value = null)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -1521,23 +1522,29 @@ class SearchService
         if ( $typeclass !== 'DatetimeValue' )
             throw new ODRBadRequestException('searchDatetimeDatafield() called with '.$typeclass.' datafield', 0xeb03c973);
 
+        if ( !is_null($value) && $value !== "\"\"" && $value !== "!\"\"" )
+            throw new ODRBadRequestException('searchDatetimeDatafield() only accepts "" or !"" for the value parameter', 0xeb03c973);
+
 
         // ----------------------------------------
-        // TODO - provide the option to search for fields without dates?
-        // Determine the keys used to store the lists of datarecords
-        $after_key = '>1980-01-01';
-        if ( !is_null($after) )
-            $after_key = '>'.$after->format('Y-m-d');
-        else
-            $after = new \DateTime('1980-01-01 00:00:00');
+        // Want to either search between two dates, or search for records with/without dates
+        $before_key = $after_key = null;
+        if ( is_null($value) ) {
+            // If no value provided, then search between two dates
+            $after_key = '>1800-01-01';
+            if ( !is_null($after) )
+                $after_key = '>'.$after->format('Y-m-d');
+            else
+                $after = new \DateTime('1800-01-01 00:00:00');
 
-        // Datetime fields use 9999-12-31 as their NULL value...so any search run against them
-        //  needs to stop at 9999-12-30 so those NULL values aren't included
-        $before_key = '<9999-12-30';
-        if ( !is_null($before) )
-            $before_key = '<'.$before->format('Y-m-d');
-        else
-            $before = new \DateTime('9999-12-30 00:00:00');
+            // Datetime fields use 9999-12-31 as their NULL value...so any search run against them
+            //  needs to stop at 9999-12-30 so those NULL values aren't included
+            $before_key = '<9999-12-30';
+            if ( !is_null($before) )
+                $before_key = '<'.$before->format('Y-m-d');
+            else
+                $before = new \DateTime('9999-12-30 00:00:00');
+        }
 
 
         // ----------------------------------------
@@ -1548,53 +1555,75 @@ class SearchService
             $cached_searches = array();
 
 
-        $before_ids = null;
-        if ( !isset($cached_searches[$before_key]) ) {
-            // Entry not set, run query to get current results set
-            $before_ids = $this->search_query_service->searchDatetimeDatafield(
-                $datafield->getId(),
-                array(
-                    'before' => $before,
-                    'after' => new \DateTime('1980-01-01 00:00:00')
-                )
-            );
+        if ( !is_null($value) ) {
+            // records without a date are stored under $key == 0, records with a date under $key == 1
+            $key = 0;
+            if ( $value === "!\"\"" )
+                $key = 1;
 
-            // Store the result back in the cache
-            $recached = true;
-            $cached_searches[$before_key] = array(
-                'records' => $before_ids
-            );
+            if ( !isset($cached_searches[$key]) ) {
+                // This should already be cached from earlier in the search routine
+                $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+
+                $result = $this->search_query_service->searchForEmptyDatetimeDatafield(
+                    $datafield->getId(),
+                    $datarecord_list
+                );
+
+                // Store the result back in the cache
+                $recached = true;
+                $cached_searches[0] = $result[0];
+                $cached_searches[1] = $result[1];
+            }
+
+            // Get the list of datarecords now that it's guaranteed to be cached
+            $result = $cached_searches[$key];
         }
         else {
-            // Entry set, load array of datarecords ids
-            $before_ids = $cached_searches[$before_key]['records'];
+            $before_ids = null;
+            if ( !isset($cached_searches[$before_key]) ) {
+                // Entry not set, run query to get current results set
+                $before_ids = $this->search_query_service->searchDatetimeDatafield(
+                    $datafield->getId(),
+                    $before,
+                    new \DateTime('1800-01-01 00:00:00')
+                );
+
+                // Store the result back in the cache
+                $recached = true;
+                $cached_searches[$before_key] = array(
+                    'records' => $before_ids
+                );
+            }
+            else {
+                // Entry set, load array of datarecords ids
+                $before_ids = $cached_searches[$before_key]['records'];
+            }
+
+
+            $after_ids = null;
+            if ( !isset($cached_searches[$after_key]) ) {
+                // Entry not set, run query to get current results set
+                $after_ids = $this->search_query_service->searchDatetimeDatafield(
+                    $datafield->getId(),
+                    new \DateTime('9999-12-30 00:00:00'),    // value is intentional, see above
+                    $after
+                );
+
+                // Store the result back in the cache
+                $recached = true;
+                $cached_searches[$after_key] = array(
+                    'records' => $after_ids
+                );
+            }
+            else {
+                // Entry set, load array of datarecords ids
+                $after_ids = $cached_searches[$after_key]['records'];
+            }
+
+            // The intersection between the two arrays is the set of datarecord ids that match the request
+            $result = array_intersect_key($before_ids, $after_ids);
         }
-
-
-        $after_ids = null;
-        if ( !isset($cached_searches[$after_key]) ) {
-            // Entry not set, run query to get current results set
-            $after_ids = $this->search_query_service->searchDatetimeDatafield(
-                $datafield->getId(),
-                array(
-                    'before' => new \DateTime('9999-12-30 00:00:00'),    // value is intentional, see above
-                    'after' => $after
-                )
-            );
-
-            // Store the result back in the cache
-            $recached = true;
-            $cached_searches[$after_key] = array(
-                'records' => $after_ids
-            );
-        }
-        else {
-            // Entry set, load array of datarecords ids
-            $after_ids = $cached_searches[$after_key]['records'];
-        }
-
-        // The intersection between the two arrays is the set of datarecord ids that match the request
-        $result = array_intersect_key($before_ids, $after_ids);
 
 
         // ----------------------------------------

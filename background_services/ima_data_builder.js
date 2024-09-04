@@ -184,7 +184,7 @@ async function app() {
                     }
                     await writeFile(basepath + data.cell_params_synonyms + '.' + tmp_file_extension, content);
 
-                    let cell_params_filename = data.cell_params + '.' + tmp_file_extension;
+                    let cell_params_filename = basepath + data.cell_params + '.' + tmp_file_extension;
 
                     // Initialize temp files [references]
                     if(!data.ima_update_rebuild) {
@@ -212,9 +212,9 @@ async function app() {
                     //
                     // Send jobs to IMA Tube
                     //
-                    let cell_params_headers = '';
+                    // let cell_params_headers = '';
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 30; i++) {
+                    // for(let i = 0; i < 300; i++) {
                     for(let i = 0; i < full_ima_record_data.records.length; i++) {
 
                         let record = full_ima_record_data['records'][i];
@@ -278,7 +278,8 @@ async function app() {
 
                             // Creating arrays for the Cell Parameters records using IMA Mineral UniqueIDs
                             // console.log('Mineral Name Field: ' + data.cell_params_map.mineral_name + ' ' + record.template_uuid);
-                            cell_params_headers += 'if(cellparams[\'' + record.unique_id + '\'] === undefined) { cellparams[\'' + record.unique_id + '\'] = new Array()};'
+                            // This is moved to the cell params file
+                            // cell_params_headers += 'if(cellparams[\'' + record.unique_id + '\'] === undefined) { cellparams[\'' + record.unique_id + '\'] = new Array()};'
                         }
                     }
 
@@ -286,10 +287,11 @@ async function app() {
                     content = '';
                     if(!data.ima_update_rebuild) {
                         console.log("Data IMA UPDATE REBUILD: ", data.ima_update_rebuild)
-                        content = 'var cellparams=new Array();';
+                        content = 'let cellparams=new Array();';
                         content += 'let rruff_record_exists=new Array();';
                     }
-                    await writeFile(basepath + data.cell_params + '.' + tmp_file_extension, content + cell_params_headers);
+                    // await writeFile(basepath + data.cell_params + '.' + tmp_file_extension, content + cell_params_headers);
+                    await writeFile(basepath + data.cell_params + '.' + tmp_file_extension, content);
 
                     //
                     // Send jobs to Cell Params Tube
@@ -360,7 +362,7 @@ async function app() {
                     //
                     // console.log('PD Records:', powder_diffraction_record_data.records.length);
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 60; i++) {
+                    // for(let i = 0; i < 200; i++) {
                     for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
                         let record = powder_diffraction_record_data.records[i];
                         record.cell_params_index = i;
@@ -404,7 +406,7 @@ async function app() {
                     // Get AMCSD Records & Send to Cell Params Tube
                     // TODO Implement IMA Lookup for AMCSD Cell Params
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 10; i++) {
+                    // for(let i = 0; i < 900; i++) {
                     for(let i = 0; i <  amcsd_record_data.records.length; i++) {
                         let record = amcsd_record_data.records[i];
                         record.cell_params_index = i;
@@ -428,6 +430,8 @@ async function app() {
                         record.cell_params_map = data.cell_params_map;
                         record.powder_diffraction_map = data.powder_diffraction_map;
 
+                        console.log('Powder Diffraction Job ID: ', record.internal_id);
+                        console.log('Powder Diffraction Job ID: ', record.record_uuid);
                         job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
@@ -444,9 +448,10 @@ async function app() {
                             );
                     }
 
+
                     // Get References and Build List for References Tube
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 300; i++) {
+                    // for(let i = 0; i < 900; i++) {
                     for(let i = 0; i <  reference_record_data.records.length; i++) {
                         let record = reference_record_data.records[i];
                         record.cell_params_index = i;

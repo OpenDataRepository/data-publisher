@@ -122,12 +122,17 @@ async function app() {
                             record_data['records_' + cp_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
-                        if(ima_record !== undefined && ima_record.record_uuid !== undefined) {
+                        if(
+                            ima_record !== undefined
+                            && ima_record.record_uuid !== undefined
+                            && await findValue(cp_map.a, record_data) !== ''
+                    ) {
+                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = new Array()};'
                             content += 'cellparams[\'' +
                                 ima_record.record_uuid +
                                 '\'].push("' +
                                 // Source
-                                'CP|' +
+                                'J|' +
                                 // Cell Parameter ID
                                 await findValue(cp_map.cell_parameter_id, record_data) + '|' +
                                 // Mineral Name
@@ -163,9 +168,7 @@ async function app() {
                                 // Lattice
                                 await findValue(cp_map.lattice, record_data) + '|' +
                                 // Cite_Text Reference
-                                Buffer.from(
-                                    await buildReference(cp_map, record_data)
-                                ).toString('base64') + '|' +
+                                await buildReference(cp_map, record_data) + '|' +
                                 // Cite Link 1
                                 await findValue(cp_map.cite_link , record_data) + '|' +
                                 // Cite Link 2
@@ -188,7 +191,12 @@ async function app() {
                             cp_map.ima_template_uuid
                         );
                         content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
-                        if(ima_record !== undefined && ima_record.record_uuid !== undefined) {
+                        if(
+                            ima_record !== undefined
+                            && ima_record.record_uuid !== undefined
+                            && await findValue(pd_map.a, record_data) !== ''
+                        ) {
+                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = new Array()};'
                             content += 'cellparams[\'' +
                                 ima_record.record_uuid +
                                 // await findValue(pd_map.mineral_name, record_data) +
@@ -234,12 +242,12 @@ async function app() {
                                     await findValue(pd_map.rruff_id, record_data)
                                 ).toString('base64') + '|' +
                                 // File/citation link
-                                'https://www.rruff.net/' + await findValue(pd_map.rruff_id, record_data) + '|' +
+                                '/' + await findValue(pd_map.rruff_id, record_data) + '|' +
                                 // File/citation link 2
                                 await findValue('', record_data) + '|' +
                                 // Status Notes Base64
                                 Buffer.from(
-                                    'Locality: ' + await findValue(pd_map.status_notes, record_data)
+                                    await findValue(pd_map.status_notes, record_data)
                                 ).toString('base64') +
                                 '");\n';
                         }
@@ -249,12 +257,12 @@ async function app() {
                      */
                     else if(record.cell_params_type === 'amcsd') {
                         console.log('Processing AMCSD Record');
-                        if(1) {
+                        if(await findValue(amcsd_map.a, record_data) !== '') {
                             let amcsd_mineral_name = (await findValue(amcsd_map.mineral_name, record_data)).toLowerCase();
 
-                            content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = new Array()};'
+                            content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = new Array()};';
                             content += 'cellparams[\'' +
-                                (await findValue(amcsd_map.mineral_name, record_data)).toLowerCase() +
+                                amcsd_mineral_name +
                                 '\'].push("' +
                                 // Source
                                 'A|' +
@@ -293,16 +301,14 @@ async function app() {
                                 // TODO Lattice?
                                 await findValue(amcsd_map.lattice, record_data) + '|' +
                                 // RRUFF Reference
-                                Buffer.from(
-                                    await buildReference(amcsd_map, record_data)
-                                ).toString('base64')  + '|' +
+                                await buildReference(amcsd_map, record_data) + '|' +
                                 // File/citation link
-                                'https://www.rruff.net/' + await findValue(amcsd_map.cite_link, record_data) + '|' +
+                                await findValue(amcsd_map.cite_link, record_data) + '|' +
                                 // File/citation link 2
                                 await findValue('' , record_data) + '|' +
                                 // Status Notes Base64
                                 Buffer.from(
-                                    'Locality: ' + await findValue(amcsd_map.status_notes, record_data)
+                                    await findValue(amcsd_map.status_notes, record_data)
                                 ).toString('base64') +
                             '");\n';
                         }
@@ -396,11 +402,14 @@ async function buildReference(data_map, record) {
     }
     // console.log('Target UUID: ', data_map.reference_uuid)
     if(reference_record !== null) {
+        // console.log('Reference Found');
         let ref = await findValue(data_map.cite_text_journal, reference_record) + ' ' +
             await findValue(data_map.cite_text_volume, reference_record) + ' (' +
             await findValue(data_map.cite_text_year, reference_record) + ') ' +
             await findValue(data_map.cite_text_pages, reference_record);
-        return ref;
+
+        // console.log('REF: ' + ref);
+        return Buffer.from(ref).toString('base64');
     }
     return '';
 }
@@ -436,7 +445,7 @@ async function findValue(field_uuid, record) {
     // console.log('FIND VALUE: ' + field_uuid);
     if(field_uuid === '') return '';
     if(record === undefined) return '';
-    // console.log('FIND VALUE 222');
+    // console.log('FIND VALUE 222: ', field_uuid);
     if(
         record.template_uuid !== undefined
         && record['fields_' + record.template_uuid] !== undefined
@@ -518,8 +527,9 @@ async function findValue(field_uuid, record) {
         let fields = record['fields_' + record.database_uuid];
         for(let i = 0; i < fields.length; i++) {
             let current_field = fields[i][Object.keys(fields[i])[0]];
-            // console.log('XXXXXXXXXXXXXXXXXXXXX')
+            // console.log('XXXXXXXXXXXXXXXXXXXXX: ' + record.database_uuid);
             // console.log(current_field.field_uuid + ' -- ' + field_uuid);
+            // console.log(current_field.template_field_uuid + ' -- ' + field_uuid);
             if(current_field.template_field_uuid !== undefined && current_field.template_field_uuid === field_uuid) {
                 if(current_field.files !== undefined && current_field.files[0].href !== undefined) {
                     // console.log('111')
@@ -536,7 +546,7 @@ async function findValue(field_uuid, record) {
                         output += current_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    // // console.log('333')
+                    // console.log('333')
                     return output;
                 }
                 else {
@@ -561,7 +571,7 @@ async function findValue(field_uuid, record) {
                         output += current_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    // // console.log('777')
+                    // console.log('777')
                     return output;
                 }
                 else {
@@ -571,11 +581,13 @@ async function findValue(field_uuid, record) {
             }
         }
     }
+    // console.log('*************************')
     if(
         record.template_uuid !== undefined
         && record['records_' + record.template_uuid] !== undefined
         && record['records_' + record.template_uuid].length > 0
     ) {
+        // console.log('YYYYYYYYYYYy')
         for(let i = 0; i < record['records_' + record.template_uuid].length; i++) {
             // console.log("CCCCCCCCCCCCCCCCC")
             let result = await findValue(field_uuid, record['records_' + record.template_uuid][i]);
@@ -584,11 +596,13 @@ async function findValue(field_uuid, record) {
             }
         }
     }
+    // console.log('######################')
     if(
         record.record_uuid !== undefined
         && record['records_' + record.record_uuid] !== undefined
         && record['records_' + record.record_uuid].length > 0
     ) {
+        // console.log('YYYYYYYYYYYy')
         for(let i = 0; i < record['records_' + record.record_uuid].length; i++) {
             // console.log("DDDDDDDDDDDDDDDDDDDD")
             let result = await findValue(field_uuid, record['records_' + record.record_uuid][i]);
@@ -597,6 +611,22 @@ async function findValue(field_uuid, record) {
             }
         }
     }
+    // console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&')
+    if(
+        record.database_uuid !== undefined
+        && record['records_' + record.database_uuid] !== undefined
+        && record['records_' + record.database_uuid].length > 0
+    ) {
+        // console.log('YYYYYYYYYYYy')
+        for(let i = 0; i < record['records_' + record.database_uuid].length; i++) {
+            // console.log("DDDDDDDDDDDDDDDDDDDD")
+            let result = await findValue(field_uuid, record['records_' + record.database_uuid][i]);
+            if(result !== '') {
+                return result;
+            }
+        }
+    }
+    // console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
     return '';
 }
 
@@ -632,7 +662,7 @@ async function loadPage(page_url) {
 }
 
 async function apiCall(api_url, post_data, method) {
-    // console.log('API Call: ', api_url);
+    console.log('API Call: ', api_url);
     try {
         const page = await browser.newPage();
         page.on('console', message =>
