@@ -165,18 +165,11 @@
                         {% block navigation_top %}{% endblock %}
                     </li>
 
-                    {% set dashboard_baseurl = site_baseurl %}
-                    {% if odr_wordpress_integrated %}
-                        {% set dashboard_baseurl = wordpress_site_baseurl %}
-                    {% endif %}
-
-                    {% set href = dashboard_baseurl ~ path('odr_admin_homepage') %}
+                    {% set href = path('odr_list_types', {'section': 'databases'}) %}
                     {% if target_datatype is defined %}
-                        {% set first_part = dashboard_baseurl ~ path('odr_search', {'search_slug': target_datatype.dataTypeMeta.searchSlug}) %}
-                        {% set second_part = path('odr_datatype_landing', {'datatype_id': target_datatype.id}) %}
-                        {% set href = first_part ~ '#' ~ second_part %}
+                        {% set href = path('odr_datatype_landing', {'datatype_id': target_datatype.id}) %}
                     {% endif %}
-                    <li id="ODRDatabaseLanding" class="pure-menu-item"><a class="pure-menu-link" href="{{ href }}">Dashboard</a></li>
+                    <li id="ODRDatabaseLanding" class="pure-menu-item"><a class="pure-menu-link" href="#{{ href }}">Dashboard</a></li>
                 {% endif %}
 
                 {% if header_middle_title != '' %}

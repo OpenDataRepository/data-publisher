@@ -27,7 +27,7 @@
         <div class="ODRLinkHeader ODRAccordionWrapper pure-u-1">
             <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
                 <i class="ODRLinkHeader_caret fa fa-caret-right"></i>
-                <a>View Current {{ local_datatype.shortname }} Datarecord</a>
+                <a>View Current {{ local_datatype.grandparent.shortname }} Datarecord</a>
             </h3>
         </div>
 
@@ -245,7 +245,7 @@
     function ODRLinkDatarecords_returnToPrevious() {
         var url = '{{ path('odr_record_edit', {'datarecord_id': 0} ) }}';
         url = url.substr(0, (url.length-1));
-        url += '{{ local_datarecord.id }}';
+        url += '{{ local_datarecord.grandparent.id }}';
 {% if search_key != '' %}
         url += '/' + '{{ search_theme_id }}' + '/' + '{{ search_key }}';
 {% endif %}

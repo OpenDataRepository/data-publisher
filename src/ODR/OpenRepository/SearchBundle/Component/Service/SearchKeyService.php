@@ -738,6 +738,13 @@ class SearchKeyService
                             throw new ODRBadRequestException('Invalid search key: invalid tag '.$t_id, $exception_code);
                     }
                 }
+                else if ( $typeclass === 'DatetimeValue' ) {
+                    if ( isset($search_params['value']) ) {
+                        $value = $search_params['value'];
+                        if ( $value !== "\"\"" && $value !== "!\"\"" )
+                            throw new ODRBadRequestException('Invalid search key: only allowed to search on empty string in Datetime field');
+                    }
+                }
 
                 // Don't need to validate anything related to the other typeclasses in here
             }
@@ -775,8 +782,12 @@ class SearchKeyService
                         if (!$ret)
                             throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid date', $exception_code);
 
+                        // Also ensure the user isn't trying to search for empty string and a date
+                        //  at the same time
+                        if ( isset($search_params[$df_id]) )
+                            throw new ODRBadRequestException('Invalid search key: Unable to simultaneously search for the empty string and a date in the same field');
+
                         // TODO - check that the 'end' date is later than the 'start' date?
-                        // TODO - provide the option to search for fields without dates?
                     }
                     else if ( $pieces[1] === 'pub' || $pieces[1] === 'qual' ) {
                         // This is for a File/Image...nothing to validate here
@@ -1193,14 +1204,26 @@ class SearchKeyService
                             $date_end = new \DateTime($value);
 
                             $starting_key = $pieces[0].'_s';
-                            if ( isset($search_params[$starting_key]) && $search_params[$starting_key] !== '' ) {
-                                // When a user selects a start date of...say, 2015-04-26 and an end date
-                                //  of 2015-04-28...they're under the assumption that the search will
-                                //  return everything between the "26th" and the "28th", inclusive.
+                            if ( !isset($search_params[$starting_key]) || $search_params[$starting_key] === ''  ) {
+                                // When a user only specifies an end date, then they're assuming
+                                //  that they'll only get records with a date before whatever they
+                                //  selected...because ODR only stores/shows the date portion, this
+                                //  means the actual value that's searched needs to be adjusted
+                                //  one day earlier
+                                $date_end->sub(new \DateInterval('P1D'));
 
-                                // However, to actually include results from the "28th", the end date
-                                //  needs to be incremented by 1 to 2015-04-29...
-                                $date_end->add(new \DateInterval('P1D'));
+                                // NOTE: if ODR eventually gets modified to store the time, then
+                                //  this needs to get removed
+                            }
+                            else {
+                                // If a user specifies both a start and an end date, then they're
+                                //  assuming that the search will return everything between the dates,
+                                //  including the end points...since ODR currently doesn't store the
+                                //  time portion, the actual value doesn't need to be adjusted for now
+
+                                // NOTE: if ODR eventually gets modified to store the time, then
+                                //  this may need to get uncommented
+//                                $date_end->add(new \DateInterval('P1D'));
                             }
 
                             $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;

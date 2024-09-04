@@ -654,11 +654,14 @@
             },
             onClose: function () {
                 $(this).blur();
+
+                var field_id = $(this).attr('rel');
+                $(context).find("#df_" + field_id + "_no_val").prop('checked', false);
+                $(context).find("#df_" + field_id + "_with_val").prop('checked', false);
             },
             beforeShow: function (input, inst) {
             }
         });
-
         $(context).find(".ODRDatePickerSearch_clear").unbind('click').click(function() {
             var id_data = $(this).attr('id').split(/_/);
 
@@ -666,6 +669,9 @@
             if ( id_data.length == 3 ) {
                 inputs.push( $(context).find("#df_" + id_data[1] + "_start") );
                 inputs.push( $(context).find("#df_" + id_data[1] + "_end") );
+
+                $(context).find("#df_" + id_data[1] + "_no_val").prop('checked', false);
+                $(context).find("#df_" + id_data[1] + "_with_val").prop('checked', false);
             }
             else if ( id_data.length == 4 ) {
                 inputs.push( $(context).find("#dt_" + id_data[1] + "_" + id_data[2] + "_start") );
@@ -673,6 +679,28 @@
             }
             // console.log(inputs);
 
+            // Ensure the related datepicker elements are empty
+            $.each(inputs, function(index,elem) {
+                $(elem).datepicker("setDate", null);
+                $(elem).datepicker("option", "minDate", null);
+                $(elem).datepicker("option", "maxDate", null);
+                $(elem).datepicker('refresh');
+            });
+        });
+        $(context).find(".ODRDatePicker_value").unbind('change').change(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            var df_id = id_data[1];
+
+            // Ensure the other option is unchecked
+            if ( id_data[2] === 'no' )
+                $(context).find("#df_" + df_id + "_with_val").prop('checked', false);
+            else
+                $(context).find("#df_" + df_id + "_no_val").prop('checked', false);
+
+            // Ensure the related datepicker elements are empty
+            var inputs = [];
+            inputs.push( $(context).find("#df_" + df_id + "_start") );
+            inputs.push( $(context).find("#df_" + df_id + "_end") );
             $.each(inputs, function(index,elem) {
                 $(elem).datepicker("setDate", null);
                 $(elem).datepicker("option", "minDate", null);

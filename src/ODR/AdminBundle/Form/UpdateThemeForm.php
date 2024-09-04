@@ -17,6 +17,7 @@ namespace ODR\AdminBundle\Form;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
@@ -77,6 +78,22 @@ class UpdateThemeForm extends AbstractType
             array(
                 'required' => true,
                 'label' => 'Disable the search sidebar when in use'
+            )
+        );
+
+        $builder->add(
+            'themeVisibility',
+            ChoiceType::class,
+            array(
+                'choices' => array(
+                    'Any' => 0,
+                    'Search Results Only' => 1,
+                    'Display/Edit Only' => 2,
+                ),
+                'label'  => 'Allow Layout to be used for: ',
+                'expanded' => false,
+                'multiple' => false,
+                'placeholder' => false
             )
         );
 

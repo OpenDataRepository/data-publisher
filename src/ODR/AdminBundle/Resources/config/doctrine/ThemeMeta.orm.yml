@@ -55,6 +55,11 @@ ODR\AdminBundle\Entity\ThemeMeta:
             default: false
             column: disable_search_sidebar
 
+        themeVisibility:
+            type: integer
+            nullable: false
+            default: 0
+
         isTableTheme:
             type: boolean
             nullable: false

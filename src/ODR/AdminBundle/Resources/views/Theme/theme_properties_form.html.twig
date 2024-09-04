@@ -45,6 +45,16 @@
         </div>
 
         <div class="ODRDataField pure-u-1">
+            <label class="ODRFieldLabel" for="{{ theme_form.themeVisibility.vars.id }}">
+                <strong>{{ theme_form.themeVisibility.vars.label }}&nbsp;&nbsp;</strong>
+            </label>
+            {#<div class="ODRFieldWrapper">#}
+            {{ form_errors(theme_form.themeVisibility) }}
+            {{ form_widget(theme_form.themeVisibility, { 'attr': {'class': 'pure-u-1-3', 'style': 'width:auto'} }) }}
+            {#</div>#}
+        </div>
+
+        <div class="ODRDataField pure-u-1">
             <label class="ODRFieldLabel" for="{{ theme_form.isTableTheme.vars.id }}">
                 <strong>{{ theme_form.isTableTheme.vars.label }}&nbsp;&nbsp;</strong>
             </label>

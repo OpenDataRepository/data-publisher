@@ -360,7 +360,8 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         //  expects...
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $results
+            'records' => $results,
+            'guard' => false,    // the plugin never explicitly searches on the empty string
         );
 
         // ...then return the results of the search
@@ -417,12 +418,51 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
                 $exclude_nonselected = true;
             }
             else if ( $element !== '' ) {
-                if ( strpos($element, self::AT_LEAST_ONE_CHAR) !== false )
-                    $at_least_one[] = substr($element, 1);
-                else if ( strpos($element, self::NONE_CHAR) !== false )
-                    $none[] = substr($element, 1);
-                else
-                    $all[] = $element;
+                //
+                $cat_OR = $cat_NOT = false;
+                if ( strpos($element, self::AT_LEAST_ONE_CHAR) !== false ) {
+                    $cat_OR = true;
+                    $element = substr($element, 1);
+                }
+                else if ( strpos($element, self::NONE_CHAR) !== false ) {
+                    $cat_NOT = true;
+                    $element = substr($element, 1);
+                }
+
+                // TODO - also translate REE?
+                if ( $element === 'ln' || $element === 'lanthanides' ) {
+                    // Shortcut for "Lanthanides"...due to chemisty shennanigans, these elements like
+                    //  to (kinda) freely substitute for each other...figuring out which one you
+                    //  actually have can be difficult because they're so similar.
+                    // As such, it's sometimes useful to have a shortcut to get all minerals with
+                    //  these elements
+                    if ( $cat_OR )
+                        array_push($at_least_one, "la", "ce", "pr", "nd", "pm", "sm", "eu", "gd", "tb", "dy", "ho", "er", "tm", "yb", "lu", "ree");
+                    else if ( $cat_NOT )
+                        array_push($none, "la", "ce", "pr", "nd", "pm", "sm", "eu", "gd", "tb", "dy", "ho", "er", "tm", "yb", "lu", "ree");
+                    else
+                        array_push($all, "la", "ce", "pr", "nd", "pm", "sm", "eu", "gd", "tb", "dy", "ho", "er", "tm", "yb", "lu", "ree");
+                }
+                else if ( $element === 'an' || $element === 'actinides' ) {
+                    // Shortcut for "Actinides"...they don't do chemistry shennanigans quite like
+                    //  the Lanthanides, but it can be useful to have a shortcut for them...though
+                    //  only four of them are found in natural conditions
+                    if ( $cat_OR )
+                        array_push($at_least_one, "ac", "th", "pa", "u");
+                    else if ( $cat_NOT )
+                        array_push($none, "ac", "th", "pa", "u");
+                    else
+                        array_push($all, "ac", "th", "pa", "u");
+                }
+                else {
+                    // Just a regular element, insert it into the correct array
+                    if ( $cat_OR )
+                        $at_least_one[] = $element;
+                    else if ( $cat_NOT )
+                        $none[] = $element;
+                    else
+                        $all[] = $element;
+                }
             }
         }
 

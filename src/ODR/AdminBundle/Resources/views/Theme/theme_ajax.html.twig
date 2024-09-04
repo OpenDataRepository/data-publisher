@@ -193,6 +193,11 @@
             theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
         });
 
+        $("#{{ theme_form.themeVisibility.vars.id }}").unbind('change').change(function() {
+            clearTimeout(theme_properties_change);
+            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+        });
+
         $("#{{ theme_form.isTableTheme.vars.id }}").unbind('change').change(function() {
             // If the "is_table_theme" checkbox got unselected, then ensure the other two table-specific
             //  options are also unselected

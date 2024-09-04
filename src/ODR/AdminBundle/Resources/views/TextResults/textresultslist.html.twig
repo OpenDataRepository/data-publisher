@@ -326,6 +326,41 @@
                 loadDataRecord( $(this).attr('rel'), 'view', offset );
             }
         });
+
+        // Want to override the event attached to the pagination controls...
+        var ODRPageChange_timeout = null;
+        $("#TextResults").parent().find(".paginate_input").unbind('keyup').keyup(function(e) {
+            var page = $("#TextResults").DataTable().page() + 1;
+            var total_pages = Math.ceil( {{ records_total }} / {{ page_length }} );
+
+            var arrow_keys = false;
+            // 38 = up arrow, 39 = right arrow
+            if (e.which === 38 || e.which === 39) {
+                if ( page >= total_pages )
+                    return;
+                page++;
+                arrow_keys = true;
+            }
+            // 37 = left arrow, 40 = down arrow
+            else if (e.which === 37 || e.which === 40) {
+                if ( page <= 1 )
+                    return;
+                page--;
+                arrow_keys = true;
+            }
+
+            if ( !arrow_keys ) {
+                page = this.value;
+                if ( page.match(/[^0-9]/) ) {
+                    this.value = page.replace(/[^\d]/g, '');
+                    return;
+                }
+            }
+
+            var str = "$('#TextResults').DataTable().page(" + (page - 1) + ").draw(false);";
+            clearTimeout(ODRPageChange_timeout);
+            ODRPageChange_timeout = setTimeout( str, 1000 );
+        });
     });
 
     // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...

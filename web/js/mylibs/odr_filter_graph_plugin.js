@@ -83,11 +83,13 @@ function ODRFilterGraph_updateGraphedFiles(odr_chart_obj) {
     if  ( final_dr_list !== null ) {
         final_dr_list.forEach((dr_id) => {
             var sort_order = odr_chart_obj['sort_order'][dr_id];
-            files_to_graph[sort_order] = odr_chart_obj['file_data'][dr_id];
-            file_count++;
+            if ( sort_order !== undefined ) {
+                files_to_graph[sort_order] = odr_chart_obj['file_data'][dr_id];
+                file_count++;
 
-            // Save the datarecord id in case the data section of the graph needs to be shown
-            remaining_dr_id = dr_id;
+                // Save the datarecord id in case the data section of the graph needs to be shown
+                remaining_dr_id = dr_id;
+            }
         });
 
         $('#' + odr_chart_id + '_filter').find('.ODRFilterGraphPlugin_select_div').each(function(index,div) {

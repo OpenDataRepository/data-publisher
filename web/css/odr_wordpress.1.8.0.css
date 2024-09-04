@@ -1578,6 +1578,11 @@ pre .support.value  {
         /* font-size: 90%; */
     }
 
+    .ODRSelectAllOption_span {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+    }
     .ODRSelectAllOption {
         display: inline;
         margin-left: 6px;
@@ -3834,6 +3839,15 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-top: 0.4em;
 }
 
+#ODRChooseView_contextspan {
+    float: left;
+}
+#ODRChooseView_contextlabel {
+    position: relative;
+    left: 10px;
+    cursor: pointer;
+}
+
 .ODRViewOptions {
     list-style-type: none;
     -webkit-margin-before: 0;
@@ -4207,7 +4221,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: -ms-sticky;
     position: -o-sticky;
     top: 0;
-    left: 20px;
+    left: 10px;
 }
 .ODRSearchHidden {
     position: absolute;
@@ -4215,6 +4229,8 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     right: calc(100vw - 45px) !important;
     /* transform: translateX(calc(100vs-365px));
     transition: transform 0.35s ease-in-out; */
+    max-height: 100vh;
+    overflow: hidden;
 }
 .ODRSearchHidden > .ODRThemeElement {
     position: sticky !important;

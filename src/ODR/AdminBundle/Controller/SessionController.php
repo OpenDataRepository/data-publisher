@@ -213,6 +213,9 @@ class SessionController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_super_admin = false;
+            if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
+                $is_super_admin = true;
 
             // If the user can't view the datatype, then they shouldn't be setting themes for it
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
@@ -229,10 +232,13 @@ class SessionController extends ODRCustomController
                 // Silently ignore attempts to save this preference to the database
             }
             else {
-                // If the user is logged in...then they can use shared themes, or non-shared themes
-                //  they created
-                if ( !$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId() )
-                    throw new ODRForbiddenException();
+                // Super-admins can use any layout...
+                if ( !$is_super_admin ) {
+                    // ...otherwise the layout has to be public, or the user has to have created the
+                    //  layout to use it
+                    if ( !$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId() )
+                        throw new ODRForbiddenException();
+                }
 
                 // Otherwise, set it as the session theme
                 $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
@@ -309,6 +315,9 @@ class SessionController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_super_admin = false;
+            if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
+                $is_super_admin = true;
 
             // If the user can't view the datatype, then they shouldn't be setting layouts for it
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
@@ -334,9 +343,13 @@ class SessionController extends ODRCustomController
                 // Silently ignore attempts to save this preference to the database
             }
             else {
-                // If the sidebar layout isn't public or the user doesn't own the layout...then they can't use it
-                if ( !$sidebar_layout->isShared() && $sidebar_layout->getCreatedBy()->getId() !== $user->getId() )
-                    throw new ODRForbiddenException();
+                // Super-admins can use any sidebar layout...
+                if ( !$is_super_admin ) {
+                    // ...otherwise the sidebar layout has to be public, or the user has to have
+                    //  created the layout to use it
+                    if ( !$sidebar_layout->isShared() && $sidebar_layout->getCreatedBy()->getId() !== $user->getId() )
+                        throw new ODRForbiddenException();
+                }
 
                 $search_sidebar_service->setSessionSidebarLayoutId($datatype->getId(), $intent, $sidebar_layout->getId());
 
