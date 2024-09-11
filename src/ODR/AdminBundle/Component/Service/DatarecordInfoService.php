@@ -1049,7 +1049,7 @@ class DatarecordInfoService
                 }
             }
         }
-        else if ( $typeclass === 'dateTime' ) {
+        else if ( $typeclass === 'datetimeValue' ) {
             if ( isset($drf[$typeclass][0]['value']) ) {
                 // Datetime fields need to be converted into a string...
                 return ($drf[$typeclass][0]['value'])->format('Y-m-d');
