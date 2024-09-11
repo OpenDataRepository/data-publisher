@@ -86,6 +86,29 @@
         <i class="Pointer fa fa-refresh fa-lg ODRFileRenamer_rebuild" title="Rebuild the filenames in this Datafield"></i>&nbsp;
         <span title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
     </div>
+
+    <div class="pure-u-1">
+        {% if datafield_meta.allow_multiple_uploads == 1 or has_image == false %}
+            {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
+            {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
+            {% set single_file = true %}
+            {% if datafield_meta.allow_multiple_uploads == 1 %}
+                {% set single_file = false %}
+            {% endif %}
+            {% set callback = 'ReloadEditDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
+
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+                'target': target,
+                'single_file': single_file,
+                'upload_type': 'image',
+                'datatype_id': datarecord.dataType.id,
+                'datarecord_id': datarecord.id,
+                'datafield_id': datafield.id,
+                'callback': callback
+            } %}
+        {% endif %}
+    </div>
+
     <div class="ODRSortableImage pure-u-1">
 
         {% for image in valuefield %}
@@ -120,28 +143,6 @@
             </div>
         {% endfor %}
 
-    </div>
-
-    <div class="pure-u-1">
-        {% if datafield_meta.allow_multiple_uploads == 1 or has_image == false %}
-            {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
-            {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
-            {% set single_file = true %}
-            {% if datafield_meta.allow_multiple_uploads == 1 %}
-                {% set single_file = false %}
-            {% endif %}
-            {% set callback = 'ReloadEditDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
-
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
-                'target': target,
-                'single_file': single_file,
-                'upload_type': 'image',
-                'datatype_id': datarecord.dataType.id,
-                'datarecord_id': datarecord.id,
-                'datafield_id': datafield.id,
-                'callback': callback
-            } %}
-        {% endif %}
     </div>
 
 {% endif %}

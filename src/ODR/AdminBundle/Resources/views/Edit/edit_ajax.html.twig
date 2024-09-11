@@ -1321,12 +1321,18 @@ function DeleteFile(file_id, callback) {
     if (callback === undefined)
         callback = function() {}
 
-    if ( confirm("Are you certain that you want to delete this File?") ) {
+    var file_div = $("#File_" + file_id);
+    var filename = $(file_div).find('.ODRFileDownload').text();
+
+    var str = "Are you certain that you want to delete this File?" + "\n";
+    str = str + '"' + filename + '"';
+
+    if ( confirm(str) ) {
         var url  = '{{ path('odr_record_delete_file', {'file_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
         url += file_id;
 
-        var tmp = $("#File_" + file_id).parents(".ODRDataField").first().attr('id');
+        var tmp = $(file_div).parents(".ODRDataField").first().attr('id');
         tmp = tmp.split('_');
         var datarecord_id = tmp[1];
         var datafield_id = tmp[2];
@@ -1338,10 +1344,10 @@ function DeleteFile(file_id, callback) {
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 // Going to need this
-                var anchor = $("#File_" + file_id).parent();
+                var anchor = $(file_div).parent();
 
                 // Remove file data from table area
-                $("#File_" + file_id).remove();
+                $(file_div).remove();
 
                 // If that was the last file uploaded to the field, re-add the "no files uploaded" div
                 if ( $(anchor).children(".ODRFileDatafield_file").length === 0 ) {
