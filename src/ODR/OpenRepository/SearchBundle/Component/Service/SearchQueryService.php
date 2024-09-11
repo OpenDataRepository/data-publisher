@@ -1995,19 +1995,34 @@ class SearchQueryService
                             // attempt to ignore the operator if not attached to a term
                             $pieces[] = '!';
                             break;
-                        case '>':
-                            // attempt to ignore the operator if not attached to a term
-                            $next = $i + 1;    // need to ensure $str[$i+1] doesn't go out of bounds
-                            if ( $next < $len && $str[$next] == '=' ) {
-                                $pieces[] = '>=';
-                                $i++;
-                            }
-                            else {
-                                $pieces[] = '>';
-                            }
-                            break;
+
                         case '<':
-                            // attempt to ignore the operator if not attached to a term
+                            // so there's two mutually exclusive contexts for this character...it can
+                            // indicate either an HTML tag or the "less than" operator
+
+                            // It's slightly better to assume it's an HTML tag until proven otherwise
+                            $j = $i + 1;
+                            while ( $j < $len ) {
+                                // The goal is to make $j end on a "decisive" character...
+                                if ( $str[$j] == ' ' || $str[$j] == '"' || $str[$j] == '>' )
+                                    break;
+                                $j++;
+                            }
+                            // ...if said "decisive" character is '>'...
+                            if ( $j < $len && $str[$j] == '>' ) {
+                                // ...then the look-ahead didn't run into a doublequote or a space,
+                                //  meaning that it could be an HTML tag
+
+                                // Extract the sequence and save it...
+                                $tmp = substr($str, $i, ($j-$i+1));
+                                $pieces[] = $tmp;
+                                // ...then reset so the next character checked is after the sequence
+                                $i = $j + 1;
+                                $tmp = '';
+                                break;
+                            }
+
+                            // Otherwise, it didn't match an HTML tag...treat it as an inequality
                             $next = $i + 1;    // need to ensure $str[$i+1] doesn't go out of bounds
                             if ( $next < $len && $str[$next] == '=' ) {
                                 $pieces[] = '<=';
@@ -2017,6 +2032,18 @@ class SearchQueryService
                                 $pieces[] = '<';
                             }
                             break;
+                        case '>':
+                            // This character should not directly trigger anything to do with HTML
+                            $next = $i + 1;    // need to ensure $str[$i+1] doesn't go out of bounds
+                            if ( $next < $len && $str[$next] == '=' ) {
+                                $pieces[] = '>=';
+                                $i++;
+                            }
+                            else {
+                                $pieces[] = '>';
+                            }
+                            break;
+
                         case 'o':
                         case 'O':
                             // only count this as an operator if the 'O' is part of the substring ' OR '
@@ -2130,14 +2157,20 @@ class SearchQueryService
                 $previous = $piece;
         }
 
-        // Remove trailing operators...they're unmatched by definition
         $pieces = array_values($pieces);
-        while (true) {
-            $num = count($pieces) - 1;
-            if ( $num >= 0 && (self::isLogicalOperator($pieces[$num]) || self::isInequality($pieces[$num])) )
-                unset( $pieces[$num] );
-            else
-                break;
+        // If just given a single inequality while attempting to search a text field...
+        if ( count($pieces) === 1 && self::isInequality($pieces[0]) && !($typeclass === 'IntegerValue' || $typeclass === 'DecimalValue') ) {
+            // ...then assume the user wants to search for that character sequence and do nothing
+        }
+        else {
+            // Remove trailing operators...they're unmatched by definition
+            while (true) {
+                $num = count($pieces) - 1;
+                if ( $num >= 0 && (self::isLogicalOperator($pieces[$num]) || self::isInequality($pieces[$num])) )
+                    unset( $pieces[$num] );
+                else
+                    break;
+            }
         }
 
         // If no pieces remain, then the given string could never match anything in the field
@@ -2172,33 +2205,44 @@ class SearchQueryService
             else if ($piece == '||') {
                 $str .= ' OR '.$sql_target_column;
             }
-            else if ($piece == '>') {
-                $inequality = true;
-                if ($negate)
-                    $str .= ' <= ';
-                else
-                    $str .= ' > ';
-            }
-            else if ($piece == '<') {
-                $inequality = true;
-                if ($negate)
-                    $str .= ' >= ';
-                else
-                    $str .= ' < ';
-            }
-            else if ($piece == '>=') {
-                $inequality = true;
-                if ($negate)
-                    $str .= ' < ';
-                else
-                    $str .= ' >= ';
-            }
-            else if ($piece == '<=') {
-                $inequality = true;
-                if ($negate)
-                    $str .= ' > ';
-                else
-                    $str .= ' <= ';
+            else if ($piece == '>' || $piece == '>=' || $piece == '<' || $piece == '<=') {
+                if ( !isset($pieces[$num+1]) ) {
+                    // An inequality without anything following it should be searched as a string
+                    $str .= ' LIKE :term_'.$count;
+                    $parameters['term_'.$count] = '%'.$piece.'%';
+                    $count++;
+                }
+                else {
+                    // An inequality with something following it
+                    if ( $piece == '>' ) {
+                        $inequality = true;
+                        if ($negate)
+                            $str .= ' <= ';
+                        else
+                            $str .= ' > ';
+                    }
+                    else if ($piece == '<') {
+                        $inequality = true;
+                        if ($negate)
+                            $str .= ' >= ';
+                        else
+                            $str .= ' < ';
+                    }
+                    else if ($piece == '>=') {
+                        $inequality = true;
+                        if ($negate)
+                            $str .= ' < ';
+                        else
+                            $str .= ' >= ';
+                    }
+                    else if ($piece == '<=') {
+                        $inequality = true;
+                        if ($negate)
+                            $str .= ' > ';
+                        else
+                            $str .= ' <= ';
+                    }
+                }
             }
             else {
                 if (!$inequality) {
