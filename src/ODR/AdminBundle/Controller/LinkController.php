@@ -2272,7 +2272,7 @@ class LinkController extends ODRCustomController
             if ( isset($datatype_permissions[$remote_datatype_id]) && isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
                 $can_view_remote_datarecords = true;
 
-            if (!$can_view_remote_datarecords) {
+            if ( !$can_view_remote_datarecords ) {
                 // User apparently doesn't have view permissions for the remote datatype...prevent them from touching a non-public datarecord in that datatype
                 $remote_datarecord_ids = array();
                 foreach ($datarecords as $id => $num)
@@ -2341,6 +2341,7 @@ class LinkController extends ODRCustomController
             // Need to determine whether this linking request ends up violating the "multiple_allowed"
             //  property of the datatree entry
             if ( !$datatree->getMultipleAllowed() ) {
+
                 // This only matters when the datatree allows a single link/child
                 if ( !$remove_records_not_in_post ) {
                     // The request is attempting to create a link to at least one record
@@ -2349,7 +2350,7 @@ class LinkController extends ODRCustomController
                     if ( ($existing_links_count + $new_links_count) > 1 )
                         throw new ODRBadRequestException('The relationship between "'.$ancestor_datatype->getShortName().'" and "'.$descendant_datatype->getShortName().'" only allows a single linked record, but this save request would exceed that number');
                 }
-                else {
+                else if ( $local_datarecord_is_ancestor) {
                     // Otherwise, the request could both delete existing links and create new ones
                     $datarecords_to_link = $datarecords;
                     $count_after_unlinking = count($linked_datatree);
@@ -2384,6 +2385,51 @@ class LinkController extends ODRCustomController
 
                     if ( (count($datarecords_to_link) + $count_after_unlinking) > 1 )
                         throw new ODRBadRequestException('The relationship between "'.$ancestor_datatype->getShortName().'" and "'.$descendant_datatype->getShortName().'" only allows a single linked record, but this save request would exceed that number');
+                }
+                else {
+                    // If the local datarecord is the descendant, then the fastest way to verify
+                    //  the request doesn't violate the multiple-allowed condition is to run another
+                    //  database query
+                    $ancestor_records = array_keys($datarecords);
+                    $query = $em->createQuery(
+                       'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                        FROM ODRAdminBundle:DataRecord AS ancestor
+                        LEFT JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                        LEFT JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                        WHERE ancestor IN (:datarecords) AND descendant.dataType = :datatype_id
+                        AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                    )->setParameters(
+                        array(
+                            'datarecords' => $ancestor_records,
+                            'datatype_id' => $local_datatype_id
+                        )
+                    );
+                    $results = $query->getArrayResult();
+
+                    // Determine which descendant datarecords the ancestors are already linking to
+                    $tmp = array();
+                    foreach ($results as $result) {
+                        $ancestor_id = $result['ancestor_id'];
+                        $descendant_id = $result['descendant_id'];
+
+                        if ( !isset($tmp[$ancestor_id]) )
+                            $tmp[$ancestor_id] = array();
+                        $tmp[$ancestor_id][$descendant_id] = 1;
+                    }
+
+                    // Insert the datarecords requested via post into this list...
+                    foreach ($datarecords as $ancestor_id => $num) {
+                        if ( !isset($tmp[$ancestor_id]) )
+                            $tmp[$ancestor_id] = array();
+                        $tmp[$ancestor_id][$local_datarecord_id] = 1;
+                    }
+
+                    // ...so an exception can be thrown if the multiple-allowed constraint would end
+                    //  up being violated by this request
+                    foreach ($tmp as $ancestor_id => $descendants) {
+                        if ( count($descendants) > 1 )
+                            throw new ODRBadRequestException('The relationship between "'.$ancestor_datatype->getShortName().'" and "'.$descendant_datatype->getShortName().'" only allows a single linked record, but this save request would exceed that number');
+                    }
                 }
             }
 
@@ -2459,7 +2505,8 @@ class LinkController extends ODRCustomController
                     $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
 
                 // Flush once everything is deleted
-                $em->flush();
+                if ( $change_made )
+                    $em->flush();
             }
 
 

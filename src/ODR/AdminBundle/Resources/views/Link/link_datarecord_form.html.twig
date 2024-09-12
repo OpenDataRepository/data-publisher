@@ -155,7 +155,7 @@
                 $('.dr_' + dr_id).prop('checked', false);
 
             if ( illegal_datarecords.indexOf(dr_id) !== -1 && !force_enabled )
-                $('.dr_' + dr_id).not('.ODRCurrentLink').prop('disabled', true).attr('title', 'This remote Datarecord already has a link to some other Datarecord');
+                $('.dr_' + dr_id).not('.ODRCurrentLink').prop('disabled', true).attr('title', 'This remote Datarecord already has a link to some other Datarecord of this Datatype');
             else
                 $('.dr_' + dr_id).prop('disabled', false);
         });
