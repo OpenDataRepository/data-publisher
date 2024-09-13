@@ -8,9 +8,6 @@
         <button class="pure-button" onclick="ODRCSVFileList_delete();">Delete Listed Files</button>
 {#{% endif %}#}
 
-        <div>
-            Number of Files currently uploaded: <b><span id="ODRCSVImport_filecount"></span></b>
-        </div>
         <div id="ODRCSVImport_filelist"></div>
     </div>
 
@@ -24,6 +21,9 @@
         ODRCSVFileList_refresh();
     });
 
+    /**
+     * Triggers a rebuild of the table showing files/images uploaded for CSVImport.
+     */
     function ODRCSVFileList_refresh() {
         var url = '{{ path('odr_csv_refresh_filelist') }}';
 
@@ -55,6 +55,9 @@
         });
     }
 
+    /**
+     * Triggers a deletion of all files/images uplaoded for this user for CSVImport.
+     */
     function ODRCSVFileList_delete() {
         if ( confirm('Are you sure you want to delete all the files listed in this table?') ) {
 {% if presets != null %}
@@ -94,6 +97,12 @@
         }
     }
 
+    /**
+     * Converts a json array of the files/images uploaded for this user for CSVImport into an HTML
+     * table for visualization purposes.
+     *
+     * @param {JSON} data
+     */
     function ODRCSVFileList_rebuildTable(data) {
         var str = '<table class="pure-table pure-table-striped"><thead><tr><th>Filename</th><th>Uploaded</th></tr></thead>';
 
@@ -114,7 +123,9 @@
         str += '</tbody></table>';
 
         $("#ODRCSVImport_filelist").html(str);
-        $("#ODRCSVImport_filecount").html(num_files);
+        $("#ODRCSVImport_filelist > table").dataTable({
+            "pageLength": 100,
+        });
 
         // If files exist in the table...show the table, buttons, and file count
         if ( num_files > 0 )
