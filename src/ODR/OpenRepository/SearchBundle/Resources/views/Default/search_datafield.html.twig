@@ -47,15 +47,14 @@
             </span>
             {% endif %}
         {% endif %}
-
-        <input id="textbox_general" class="pure-u-1" type="text"
-            {% if search_params is defined and search_params['gen_lim'] is defined %}name="gen_lim"{% else %}name="gen"{% endif %}
-
-            {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
-            {% if search_params is defined and search_params['gen_lim'] is defined %}value="{{ search_params['gen_lim'] }}"{% endif %}
-            {% if design_page is defined %}readonly{% endif %}
-        />
     </label>
+    <input id="textbox_general" class="ODRInput pure-u-1" type="text"
+        {% if search_params is defined and search_params['gen_lim'] is defined %}name="gen_lim"{% else %}name="gen"{% endif %}
+
+        {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
+        {% if search_params is defined and search_params['gen_lim'] is defined %}value="{{ search_params['gen_lim'] }}"{% endif %}
+        {% if design_page is defined %}readonly{% endif %}
+    />
 
 {% else %}
     {% set datafield_meta = datafield.dataFieldMeta %}
