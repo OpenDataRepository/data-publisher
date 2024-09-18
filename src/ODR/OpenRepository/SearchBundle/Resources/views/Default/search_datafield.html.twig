@@ -36,7 +36,7 @@
 {% elseif datafield_id == 0 %}
     <label for="textbox_general">
         All Fields:
-        {% if datatype_array|length > 1 %}
+        {% if design_page is defined or datatype_array|length > 1 %}
             {% if search_params is defined and search_params['gen_lim'] is defined %}
             <span id="textbox_general_blurb" title="Search each field in the current database">
                 (current database)
