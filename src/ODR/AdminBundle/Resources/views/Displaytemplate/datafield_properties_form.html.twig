@@ -205,7 +205,8 @@
         </div>
     {% endif %}
 
-    {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
+    {% if typename == 'Image' or typename == 'Multiple Select' or typename == 'Multiple Radio' %}
+        {# NOTE: intentionally only displaying this for Multiple Radio/Select...Single Radio/Select should always be 100% width #}
         <div class="">
             <label for="{{ datafield_form.children_per_row.vars.id }}">
             {% if typename == 'Image' %}
