@@ -3516,7 +3516,7 @@ a.ui-button:active,
     border: 1px solid #7fb9d8;
     border-radius: 4px;
     color: #3b8bba;
-    padding: 0 0 0 0;
+    padding: 0 !important;
     overflow: hidden;
 }
 .ODRRemodal h3 {
@@ -3566,14 +3566,17 @@ a.ui-button:active,
     /* overflow: scroll; */
     /* max-height: 1px; */
 }
-.remodal-close {
-    z-index: 100;
-    left: unset;
-    right: 5px;
+.ODRRemodalBody {
+    margin-top: 25px;
 }
 .ODRRemodalBody > div {
     padding-top: 20px;
     padding-bottom: 20px;
+}
+.remodal-close {
+    z-index: 10000;
+    left: unset !important;
+    right: 5px;
 }
 .remodal-close:hover {
     background: transparent !important;
