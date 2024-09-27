@@ -140,10 +140,19 @@ class CloneThemeService
         //  notify them that the theme is out of date...
         if ($user === 'anon.')
             return false;
-        if ( $theme->getThemeType() === 'master' && !$this->pm_service->isDatatypeAdmin($user, $theme->getDataType()) )
-            return false;
-        if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
-            return false;
+
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme->getDataType());
+        if ( $theme->getThemeType() === 'master' ) {
+            // Master themes can only be modified by admins of the local datatype
+            if ( !$is_datatype_admin )
+                return false;
+        }
+        else {
+            // Non-master themes can be modified by admins of the local datatype, or the user that
+            //  created it
+            if ( $theme->getCreatedBy()->getId() !== $user->getId() && !$is_datatype_admin )
+                return false;
+        }
 
 /*
         // ----------------------------------------
@@ -431,10 +440,21 @@ class CloneThemeService
     {
         // ----------------------------------------
         // Prevent sync attempts when the user shouldn't be allowed...
-        if ( $theme->getThemeType() === 'master' && !$this->pm_service->isDatatypeAdmin($user, $theme->getDataType()) )
+        if ($user === 'anon.')
             throw new ODRForbiddenException();
-        if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
-            throw new ODRForbiddenException();
+
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme->getDataType());
+        if ( $theme->getThemeType() === 'master' ) {
+            // Master themes can only be modified by admins of the local datatype
+            if ( !$is_datatype_admin )
+                throw new ODRForbiddenException();
+        }
+        else {
+            // Non-master themes can be modified by admins of the local datatype, or the user that
+            //  created it
+            if ( $theme->getCreatedBy()->getId() !== $user->getId() && !$is_datatype_admin )
+                throw new ODRForbiddenException();
+        }
 
 
         // ----------------------------------------
