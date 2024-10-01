@@ -1500,6 +1500,12 @@ odr_get_file_encrypt_progress:
     requirements:
         file_id: \d+
 
+odr_file_encrypt_retry:
+    path:  /view/encrypt_retry/file/{file_id}
+    defaults: { _controller: ODRAdminBundle:Reports:fileencryptretry }
+    requirements:
+        file_id: \d+
+
 odr_get_zip_archive_progress:
     path:  /view/zip_archive_progress/{archive_filename}
     defaults: { _controller: ODRAdminBundle:Reports:getziparchiveprogress }

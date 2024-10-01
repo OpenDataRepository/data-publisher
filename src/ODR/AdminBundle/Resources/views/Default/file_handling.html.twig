@@ -195,6 +195,7 @@
             success: function(data, textStatus, jqXHR) {
                 var current_value = parseFloat(data.d.current_value);   // already a percentage of max_value
                 var max_value = parseFloat(data.d.max_value);
+                var filename = data.d.filename;
 
                 // The id/class combo is needed because there's a chance of a "fake" download div
                 var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay.ODRFakeProgressBar_overlay");
@@ -230,10 +231,10 @@
                         file_decrypt_progress[ file_id ]['count'] += decrypt_check_timeout;
 
                         // If it's been stalled for more than 15 seconds...
-                        if ( file_decrypt_progress[ file_id ]['count'] > 15000 ) {
+                        if ( file_decrypt_progress[ file_id ]['count'] > 15000 ) {    // if no progress for 15+ seconds
                             // ...assume that the decryption has failed, and notify the user
                             var error_text = '<div class="ODRNotificationHeader">500 Internal Server Error -- 0xb02c7e53</div>';
-                            error_text += '<div class="ODRNotificationText">No apparent progress being made on decryption of File ' + file_id + ', aborting download</div>';
+                            error_text += '<div class="ODRNotificationText">No apparent progress being made on decryption of File ' + file_id + ' "' + filename + ', aborting download</div>';
 
                             $.jGrowl(
                                 error_text,
@@ -330,6 +331,7 @@
             success: function(data, textStatus, jqXHR) {
                 var current_value = parseInt(data.d.current_value);   // already a percentage of max_value
                 var max_value = parseInt(data.d.max_value);
+                var filename = data.d.filename;
 
                 // The id/class combo is needed because there's a chance of a "fake" download div
                 var file_encrypt_progress_div = $("#ODRFileDecrypt_" + file_id + "_overlay.ODRFakeProgressBar_overlay");
@@ -361,11 +363,12 @@
                         file_encrypt_progress[ file_id ]['count'] += encrypt_check_timeout;
 
                         // If it's been stalled for more than 15 seconds...
-                        if ( file_encrypt_progress[ file_id ]['count'] > 15000 ) {
+                        if ( file_encrypt_progress[ file_id ]['count'] > 15000 ) {    // if no progress for 15+ seconds
                             console.log('progress timeout exceeded, resetting');
                             // ...assume that the encryption has failed, and notify the user
                             var error_text = '<div class="ODRNotificationHeader">500 Internal Server Error -- 0xb02c7e54</div>';
-                            error_text += '<div class="ODRNotificationText">No apparent progress being made on encryption of File ' + file_id + '</div>';
+                            error_text += '<div class="ODRNotificationText">No apparent progress being made on encryption of File ' + file_id + ' "' + filename + '"</div>';
+                            error_text += '<div class="ODRNotificationText">Click to retry upload</div>';
 
                             $.jGrowl(
                                 error_text,
@@ -373,7 +376,46 @@
                                     theme: "ODRNotification",
                                     sticky: true,
                                     openDuration: 250,
-                                    closeDuration: 250
+                                    closeDuration: 250,
+                                    click: function(e,m,o) {
+                                        // console.log(e, m, o);
+
+                                        var url = "{{ path('odr_file_encrypt_retry', {'file_id': 0}) }}";
+                                        url = url.substr(0, url.length-1);
+                                        url += file_id;
+
+                                        $.ajax({
+                                            cache: false,
+                                            type: 'GET',
+                                            url: url,
+                                            dataType: "json",
+                                            success: function (data, textStatus, jqXHR) {
+                                                // Restart the progress checker
+                                                createFileEncryptProgressCheck(file_id, datarecord_id, datafield_id);
+                                            },
+                                            error: function (jqXHR, textStatus, errorThrown) {
+                                                // Don't need to do anything specific
+                                            },
+                                            complete: function (jqXHR, textStatus) {
+                                                // Get the xdebugToken from response headers
+                                                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                                                // If the Sfjs object exists
+                                                if (typeof Sfjs !== "undefined") {
+                                                    // Grab the toolbar element
+                                                    var currentElement = $('.sf-toolbar')[0];
+
+                                                    // Load the data of the given xdebug token into the current toolbar wrapper
+                                                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                                                }
+                                            }
+                                        });
+
+                                        // Close the growl manually, since there's no function to do it
+                                        $(e).fadeOut(250, function() {
+                                            $(e).remove();
+                                        })
+                                    }
                                 }
                             );
 

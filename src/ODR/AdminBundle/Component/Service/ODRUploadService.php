@@ -355,8 +355,9 @@ class ODRUploadService
      * @param File $existing_file
      * @param string $filepath The path to an unencrypted file on the server
      * @param ODRUser $user
+     * @param boolean $use_beanstalk If false, then directly encrypt the file without going through beanstalk
      */
-    public function replaceExistingFile($existing_file, $filepath, $user)
+    public function replaceExistingFile($existing_file, $filepath, $user, $use_beanstalk = false)
     {
         // Ensure the filepath is valid
         if ( !file_exists($filepath) )
@@ -374,10 +375,41 @@ class ODRUploadService
         $this->em->persist($existing_file);
         $this->em->persist($existing_file_meta);
 
-        // Encrypt the given file, storing its relevant information back in $existing_file
-        $this->crypto_service->encryptFile($existing_file->getId(), $filepath);
 
-        // CryptoService handles firing events for files
+        // ----------------------------------------
+        if ( !$use_beanstalk ) {
+            // Encrypt the given file, storing its relevant information back in $existing_file
+            $this->crypto_service->encryptFile($existing_file->getId(), $filepath);
+        }
+        else {
+            // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
+
+            // Generate the url for cURL to use
+            $url = $this->router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+            // Insert the new job into the queue
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    "object_type" => 'file',
+                    "object_id" => $existing_file->getId(),
+                    "crypto_type" => 'encrypt',
+
+                    "local_filename" => $filepath,
+                    "archive_filepath" => '',
+                    "desired_filename" => '',
+
+                    "redis_prefix" => $this->redis_prefix,    // debug purposes only
+                    "url" => $url,
+                    "api_key" => $this->api_key,
+                )
+            );
+
+            $delay = 1;
+            $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+
+            // CryptoService handles firing events for files
+        }
     }
 
 
