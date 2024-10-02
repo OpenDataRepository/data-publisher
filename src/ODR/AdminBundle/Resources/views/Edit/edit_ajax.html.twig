@@ -12,7 +12,7 @@
 
 {% if has_linked_datatypes > 0 %}
 <div id="ODRRecordLinkInfoWrapperDiv">
-    <button type="button" class="pure-button" onclick="OpenLinkInfoDialog({{ datarecord.id }})">View Linked Records...</button>
+{#    <button type="button" class="pure-button" onclick="OpenLinkInfoDialog({{ datarecord.id }})">View Linked Records...</button>#}
 </div>
 {% endif %}
 
@@ -84,6 +84,8 @@ $(function() {
     initPage();
     $(".MenuDesignArea").remove();
     window.scrollTo(0,0);
+
+    OpenLinkInfoDialog({{ datarecord.id }});
 
     {% if notify_of_sync is defined and notify_of_sync == true %}
     {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
@@ -1598,6 +1600,18 @@ function OpenLinkInfoDialog(local_datarecord_id) {
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             $("#ODRRecordLinkInfoWrapperDiv").html(data.d.html);
+
+            $(".ODRCurrentLinkedRecords_toggle").unbind('click').click(function() {
+                var icon_div = $(this).children('span').first();
+                if ( $(icon_div).hasClass('fa-caret-down') ) {
+                    $(icon_div).removeClass('fa-caret-down').addClass('fa-caret-right');
+                    $(".ODRRecordLinkInfoDiv,.ODRRecordLinkInfoList").addClass('ODRHidden');
+                }
+                else {
+                    $(icon_div).addClass('fa-caret-down').removeClass('fa-caret-right');
+                    $(".ODRRecordLinkInfoDiv,.ODRRecordLinkInfoList").removeClass('ODRHidden');
+                }
+            });
 
             hideSearchOverlay();
         },
