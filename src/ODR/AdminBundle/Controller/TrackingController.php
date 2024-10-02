@@ -131,7 +131,6 @@ class TrackingController extends ODRCustomController
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
             $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
-            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
@@ -172,7 +171,6 @@ class TrackingController extends ODRCustomController
 
                         'month_ago' => $month_ago->format("Y-m-d"),
                         'week_ago' => $week_ago->format("Y-m-d"),
-                        'day_ago' => $day_ago->format("Y-m-d"),
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
@@ -282,7 +280,6 @@ class TrackingController extends ODRCustomController
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
             $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
-            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
@@ -331,7 +328,6 @@ class TrackingController extends ODRCustomController
 
                         'month_ago' => $month_ago->format("Y-m-d"),
                         'week_ago' => $week_ago->format("Y-m-d"),
-                        'day_ago' => $day_ago->format("Y-m-d"),
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
@@ -409,7 +405,6 @@ class TrackingController extends ODRCustomController
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
             $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
-            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
@@ -443,7 +438,6 @@ class TrackingController extends ODRCustomController
 
                         'month_ago' => $month_ago->format("Y-m-d"),
                         'week_ago' => $week_ago->format("Y-m-d"),
-                        'day_ago' => $day_ago->format("Y-m-d"),
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
@@ -555,7 +549,6 @@ class TrackingController extends ODRCustomController
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
             $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
-            $day_ago = (new \DateTime())->sub(new \DateInterval("P1D"));
 
             // Generate the HTML required for a header
             $return['d'] = array(
@@ -567,7 +560,6 @@ class TrackingController extends ODRCustomController
 
                         'month_ago' => $month_ago->format("Y-m-d"),
                         'week_ago' => $week_ago->format("Y-m-d"),
-                        'day_ago' => $day_ago->format("Y-m-d"),
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
