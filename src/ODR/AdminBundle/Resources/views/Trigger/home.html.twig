@@ -1,0 +1,125 @@
+{% spaceless %}
+
+{% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+    'header_label': 'Database Tools',
+    'pure_sizes': 'pure-u-1',
+    'icon': 0
+} %}
+
+<div class="ODRTriggerWrapper">
+{% include 'ODRAdminBundle:Trigger:trigger_childtype.html.twig' with {
+    'datatype': stacked_datatype_array
+} %}
+</div>
+
+{% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+
+
+<script>
+$(function() {
+    $(".ODRTrigger_DatatypeClear").unbind('click').click(function() {
+
+        var datatype_id = $(this).attr('rel');
+
+        var url  = '{{ path('odr_trigger_datatype_cache_wipe', {'datatype_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += datatype_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                $.jGrowl('COMPLETE');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
+    $(".ODRTrigger_DatafieldClear").unbind('click').click(function() {
+        var datafield_id = $(this).attr('rel');
+
+        var url  = '{{ path('odr_trigger_datafield_cache_wipe', {'datafield_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                $.jGrowl('COMPLETE');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
+    $(".ODRTrigger_TagRebuild").unbind('click').click(function() {
+        var datafield_id = $(this).attr('rel');
+
+        var url  = '{{ path('odr_trigger_tag_rebuild', {'datafield_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                $.jGrowl('STARTED');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+});
+</script>
+
+{% endspaceless %}

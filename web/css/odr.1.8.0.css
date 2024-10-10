@@ -5389,3 +5389,23 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRListHeader > .ODRInlineLink_icon {
     top: 10px;
 }
+
+.ODRTriggerWrapper ul {
+    position: relative;
+    padding-left: 0;
+    margin-top: 0;
+    margin-left: 2px;
+}
+.ODRTriggerWrapper li {
+    margin: 5px;
+    list-style-type: disc;
+}
+.ODRTrigger_headerLi {
+    list-style-type: none !important;
+}
+.ODRTriggerWrapper li > ul {
+    margin-left: 14px !important;
+}
+.ODRTrigger_headerUl {
+    margin-top: 20px;
+}

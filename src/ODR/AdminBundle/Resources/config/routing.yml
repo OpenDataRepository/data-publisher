@@ -1720,6 +1720,34 @@ odr_track_get_user_selector:
 #-----------------------------------------
 
 #-----------------------------------------
+# Trigger Controller
+odr_trigger_home:
+    path: /admin/trigger/home/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Trigger:home }
+    requirements:
+        datatype_id: \d+
+
+odr_trigger_datatype_cache_wipe:
+    path: /admin/trigger/cache_wipe/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Trigger:triggerdatatypecachewipe }
+    requirements:
+        datatype_id: \d+
+
+odr_trigger_datafield_cache_wipe:
+    path: /admin/trigger/cache_wipe/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Trigger:triggerdatafieldcachewipe }
+    requirements:
+        datafield_id: \d+
+
+odr_trigger_tag_rebuild:
+    path: /admin/trigger/tag_rebuild/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Trigger:triggertagtreerebuild }
+    requirements:
+        datafield_id: \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
 # Debug Controller
 # The routes in here probably should be commented out unless actively being tested
 
