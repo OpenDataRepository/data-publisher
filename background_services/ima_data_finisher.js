@@ -55,7 +55,7 @@ async function app() {
                     // console.log(data.api_job_status_url + ' -- ' + data.tracked_job_id);
                     let status_url = data.api_job_status_url + '/' + data.tracked_job_id + '/1';
                     let tracked_job = await apiCall(status_url, '', 'GET');
-                    if(tracked_job) {
+                    if(tracked_job && tracked_job.id !== undefined) {
                         // console.log('Tracked Job Status: ', tracked_job);
                         // If total = current - process files & mark complete
                         if(tracked_job.current === tracked_job.total) {
@@ -135,22 +135,23 @@ async function app() {
                         }
                         // Delete Job - Complete or re-queued
                         client.deleteJob(job.id).onSuccess(function(del_msg) {
-                            console.log('Deleted (' + Date.now() + '): ' , job.id);
+                            console.log('Deleted 2 (' + Date.now() + '): ' , job.id);
                             resJob();
                         });
                     }
                     else {
-                        await deleteTmpFiles(data);
+			// TODO Figure out why deleting causes node.fs error/crash
+                        // await deleteTmpFiles(data);
 
                         // throw Error and delete beanstalk job
-                        throw Error('Job not found.');
+			console.log('Throwing not found error');
+                        throw('Job not found.');
                     }
                 }
                 catch (e) {
-                    // TODO need to put job as unfinished - maybe not due to errors
                     // console.log('Error occurred: ', e);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
-                        console.log('Deleted (' + Date.now() + '): ' , job);
+                        console.log('Deleted 1 (' + Date.now() + '): ' , job.id);
                         resJob();
                     });
                 }
@@ -161,33 +162,39 @@ async function app() {
 }
 
 async function deleteTmpFiles(data) {
-    // Job not found - delete tmp files
-    await fs.exists(data.mineral_data_filename,async (exists) => {
-        if (exists) {
-            await fs.rm(data.mineral_data_filename);
-        }
-    });
-
-    // Cell Params Data
-    await fs.exists(data.data.cell_params_filename,async (exists) => {
-        if (exists) {
-            await fs.rm(data.cell_params_filename);
-        }
-    });
-
-    // References Data
-    await fs.exists(data.references_filename,async (exists) => {
-        if (exists) {
-            await fs.rm(data.references_filename);
-        }
-    });
-
-    // Master Tag Data
-    await fs.exists(data.master_tag_data_filename,async (exists) => {
-        if (exists) {
-            await fs.rm(data.master_tag_data_filename);
-        }
-    });
+    // Job not found - delete tmp file
+    console.log('Deleting temp files.');
+    try {
+        await fs.exists(data.mineral_data_filename, async (exists) => {
+            if (exists) {
+                await fs.rm(data.mineral_data_filename);
+            }
+        });
+    
+        // Cell Params Data
+        await fs.exists(data.data.cell_params_filename, async (exists) => {
+            if (exists) {
+                await fs.rm(data.cell_params_filename);
+            }
+        });
+    
+        // References Data
+        await fs.exists(data.references_filename, async (exists) => {
+            if (exists) {
+                await fs.rm(data.references_filename);
+            }
+        });
+    
+        // Master Tag Data
+        await fs.exists(data.master_tag_data_filename, async (exists) => {
+            if (exists) {
+                await fs.rm(data.master_tag_data_filename);
+            }
+        });
+    }
+    catch (e) {
+        console.log('Temp file deletion error');
+    }
 }
 
 const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
