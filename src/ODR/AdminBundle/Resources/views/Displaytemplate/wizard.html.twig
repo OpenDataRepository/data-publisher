@@ -114,7 +114,7 @@
                             NOTE: this dataset is derived from a master template.  Modifications made here
                             will not propogate to other datasets also derived from the master template.
                             {% if datatype_permissions[ datatype.masterDataType.id ] is defined and datatype_permissions[ datatype.masterDataType.id ][ 'dt_admin' ] is defined %}
-                                <a href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">Click here</a>
+                                <a href="#{{ path('odr_design_master_theme', {'datatype_id': datatype.masterDataType.id}) }}">Click here</a>
                                 to modify the master template instead.
                             {% endif %}
                         </p>

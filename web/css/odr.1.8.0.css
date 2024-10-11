@@ -3356,6 +3356,7 @@ a.ui-button:active,
     max-width: 500px;
     z-index: 999;
     cursor: default;
+    top: 1.6em;
     left: 0px;
     box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
 
@@ -3471,7 +3472,7 @@ a.ui-button:active,
     border: 1px solid #7fb9d8;
     border-radius: 4px;
     color: #3b8bba;
-    padding: 0 0 0 0;
+    padding: 0;
     overflow: hidden;
 }
 .ODRRemodal h3 {
@@ -3521,19 +3522,18 @@ a.ui-button:active,
     /* overflow: scroll; */
     /* max-height: 1px; */
 }
-.remodal-close {
-    z-index: 10000;
-    left: unset;
-    right: 5px;
-}
 .ODRRemodalBody {
-    margin-top: 40px;
+    margin-top: 25px;
 }
 .ODRRemodalBody > div {
     padding-top: 20px;
     padding-bottom: 20px;
 }
-
+.remodal-close {
+    z-index: 10000;
+    left: unset;
+    right: 5px;
+}
 .remodal-close:hover {
     background: transparent !important;
 }
@@ -5388,4 +5388,24 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 
 .ODRListHeader > .ODRInlineLink_icon {
     top: 10px;
+}
+
+.ODRTriggerWrapper ul {
+    position: relative;
+    padding-left: 0;
+    margin-top: 0;
+    margin-left: 2px;
+}
+.ODRTriggerWrapper li {
+    margin: 5px;
+    list-style-type: disc;
+}
+.ODRTrigger_headerLi {
+    list-style-type: none !important;
+}
+.ODRTriggerWrapper li > ul {
+    margin-left: 14px !important;
+}
+.ODRTrigger_headerUl {
+    margin-top: 20px;
 }

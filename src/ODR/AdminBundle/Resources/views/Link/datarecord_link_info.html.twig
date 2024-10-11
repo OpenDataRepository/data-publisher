@@ -3,6 +3,10 @@
 <div class="ODRContentWrapper">
     <div class="ODRThemeElement">
         <div class="ODRInnerBox">
+            <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                <a class="ODRCurrentLinkedRecords_toggle"><span class="fa fa-caret-down"></span> Currently Linked Records...</a>
+            </h3>
+
         {% for dt_id,dt_data in linked_record_data %}
             <div class="ODRRecordLinkInfoDiv">
                 <span>{{ dt_data['direction'] }} {{ dt_data['records']|length }} {{ dt_data['dt_name'] }} {% if dt_data['records']|length == 1 %}record{% else %}records{% endif %}</span>

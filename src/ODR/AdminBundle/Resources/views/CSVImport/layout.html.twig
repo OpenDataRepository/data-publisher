@@ -375,7 +375,7 @@
             }
 
             // Want to update every datafield selector so that a mapped datafield only shows up in
-            //  the selector of the column it's mapped to...TODO
+            //  the selector of the column it's mapped to...
             updateHiddenFields();
 
             // Let the fieldtype event handler deal with updating warnings...
@@ -620,7 +620,7 @@
     }
 
     /**
-     * Creates and displays warninngs to the user about delimiters...such as the delimiter meant
+     * Creates and displays warnings to the user about delimiters...such as the delimiter meant
      * for a File/Image field can't be the same as the primary CSV delimiter.
      */
     function updateDelimiterWarnings() {
@@ -631,7 +631,7 @@
             var secondary_delimiter_field = $("#column_" + data[1] + "_delimiter");
             // If secondary delimiter is disabled, no sense doing anything
             if ( $(secondary_delimiter_field).is(':disabled') ) {
-                $(this).html('');    // TODO - this field isn't getting disabled at the right times...
+                $(this).html('');
                 return;
             }
 
@@ -644,7 +644,7 @@
                 return;
             }
             else if (secondary_delimiter.indexOf(csv_delimiter) !== -1) {
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Secondary delimiter can't contain the primary delimiter");
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Invalid delimiter selection");
                 return;
             }
             else {
@@ -663,12 +663,12 @@
                 $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
             }
             else if (hierarchy_delimiter.indexOf(csv_delimiter) !== -1) {
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the primary delimiter");
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Invalid delimiter selection");
             }
             else if (hierarchy_delimiter.indexOf(secondary_delimiter) !== -1
                 || secondary_delimiter.indexOf(hierarchy_delimiter) !== -1
             ) {
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the secondary delimiter");
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Invalid deilmiter selection");
             }
             else {
                 $(this).html('');
@@ -698,7 +698,7 @@
             $(meta_column).html('');
         }
         else if ((typename === 'File' || typename === 'Image') && datafield_id !== 'new') {
-            $(meta_column).html('<span id="unlisted_' + column_id + '_note" class="Pointer"><input id="unlisted_' + column_id + '_checkbox" class="synch_checkbox" type="checkbox" name="synch_columns[' + column_id + ']" value="1" />&nbsp;Delete files/images not listed in CSV File</span>');
+            $(meta_column).html('<label id="unlisted_' + column_id + '_note" for="unlisted_' + column_id + '_checkbox" class="Pointer"><input id="unlisted_' + column_id + '_checkbox" class="synch_checkbox" type="checkbox" name="synch_columns[' + column_id + ']" value="1" />&nbsp;Delete files/images not listed in CSV File</label>');
             $('#unlisted_' + column_id + '_note').attr('title', "The import process will always attempt to upload all files/images listed in the CSV file to this datafield, replacing the contents of any file/image that has already been uploaded.\nIf this option is checked, the import process will also delete any files/images in this datafield that are not listed in the CSV file.");
 
             if (block_changes) {

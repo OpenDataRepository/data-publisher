@@ -31,6 +31,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -61,8 +62,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -83,7 +84,7 @@ class ReportsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -386,8 +387,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -408,7 +409,7 @@ class ReportsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -528,8 +529,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -553,7 +554,7 @@ class ReportsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $parent_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $parent_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -654,8 +655,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -687,12 +688,12 @@ class ReportsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $local_datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $local_datatype) )
                 throw new ODRForbiddenException();
 
             // TODO - if this report becomes available to non-admins, then datarecord restrictions will become an issue...
-            $can_edit_local = $pm_service->canEditDatatype($user, $local_datatype);
-            $can_edit_remote = $pm_service->canEditDatatype($user, $remote_datatype);
+            $can_edit_local = $permissions_service->canEditDatatype($user, $local_datatype);
+            $can_edit_remote = $permissions_service->canEditDatatype($user, $remote_datatype);
             // --------------------
 
 
@@ -780,8 +781,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -802,7 +803,7 @@ class ReportsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -900,8 +901,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -922,7 +923,7 @@ class ReportsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1024,8 +1025,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var File $file */
@@ -1063,7 +1064,7 @@ class ReportsController extends ODRCustomController
             }
             else {
                 // Grab user's permissions
-                $datatype_permissions = $pm_service->getDatatypePermissions($user);
+                $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
                 // If user has view permissions, show non-public sections of the datarecord
                 $can_view_datarecord = false;
@@ -1072,10 +1073,10 @@ class ReportsController extends ODRCustomController
 
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$pm_service->canViewDatatype($user, $datatype) )
+                if ( !$permissions_service->canViewDatatype($user, $datatype) )
                     throw new ODRForbiddenException();
 
-                if ( !$pm_service->canViewDatafield($user, $datafield) )
+                if ( !$permissions_service->canViewDatafield($user, $datafield) )
                     throw new ODRForbiddenException();
 
                 if ( !$file->isPublic() && !$can_view_datarecord )
@@ -1085,7 +1086,7 @@ class ReportsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $progress = array('current_value' => 0, 'max_value' => 100);
+            $progress = array('current_value' => 0, 'max_value' => 100, 'filename' => $file->getOriginalFileName());
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
             if ( $file->isPublic() ) {
@@ -1159,8 +1160,8 @@ class ReportsController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var File $file */
@@ -1185,7 +1186,7 @@ class ReportsController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // If user has view permissions, show non-public sections of the datarecord
             $can_view_datarecord = false;
@@ -1195,17 +1196,17 @@ class ReportsController extends ODRCustomController
 
             // If datatype is not public and user doesn't have permissions to view anything other
             //  than public sections of the datarecord, then don't allow them to view
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            if ( !$pm_service->canViewDatafield($user, $datafield) )
+            if ( !$permissions_service->canViewDatafield($user, $datafield) )
                 throw new ODRForbiddenException();
 
             if ( !$file->isPublic() && !$can_view_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
 
-            $progress = array('current_value' => 100, 'max_value' => 100);
+            $progress = array('current_value' => 100, 'max_value' => 100, 'filename' => $file->getOriginalFileName());
 
             if ($file->getEncryptKey() !== '') {
                 // Figure out whether the cached version of this datarecord lists this file as fully
@@ -1263,6 +1264,105 @@ class ReportsController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xccdb4bcb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Restarts a file encryption attempt.
+     *
+     * @param integer $file_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fileencryptretryAction($file_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUploadService $odr_upload_service */
+            $odr_upload_service = $this->container->get('odr.upload_service');
+
+
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            if ($file->getEncryptKey() !== '') {
+                // File is already encrypted, silently return
+                $response = new Response(json_encode($return));
+                $response->headers->set('Content-Type', 'application/json');
+                return $response;
+            }
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+            // Files that haven't encrypted should still be non-public, so no sense allowing users
+            //  that aren't logged in to run this
+            if ( $user === 'anon.' )
+                throw new ODRForbiddenException();
+
+            // TODO - other restrictions on who can trigger a retry
+            // --------------------
+
+            // This particular retry attempt only works when the uploaded file still exists in
+            // the user's tmp directory in ODR
+            $em->refresh($file);
+            $file_meta = $file->getFileMeta();
+            $em->refresh($file_meta);
+            $filepath = $file->getLocalFileName().'/'.$file->getOriginalFileName();
+
+            // If the filepath is already pointing to the fully-uploaded path for some reason, then
+            //  throw an error
+            $odr_files_directory = $this->getParameter('odr_files_directory');
+            if ( strpos($filepath, $odr_files_directory) !== false )
+                throw new ODRException('File '.$file->getId().' in invalid state to retry encryption');
+            // NOTE: I don't think this can actually happen, but be safe
+
+            // If the file pointed to by the filepath doesn't exist, then throw another error
+            if ( !file_exists($filepath) )
+                throw new ODRException('Unable to retry upload...the actual file for File '.$file->getID().' no longer exists on server');
+            // TODO - this would be the ideal state to trigger a deletion of the database entries...
+
+
+            // ----------------------------------------
+            // If no obvious issues, then attempt to "replace" the file with what was already uploaded
+            // Keep the original user, and use beanstalk so the rest of the javascript works
+            $odr_upload_service->replaceExistingFile($file, $filepath, $file->getCreatedBy(), true);
+
+        }
+        catch (\Exception $e) {
+            $source = 0x8aa8c87d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

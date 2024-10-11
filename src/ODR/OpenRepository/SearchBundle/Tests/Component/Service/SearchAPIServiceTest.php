@@ -674,6 +674,69 @@ class SearchAPIServiceTest extends WebTestCase
             ],
 
             // ----------------------------------------
+            // inequality gotchas
+            'RRUFF Reference: article_title containing "<"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<'
+                ),
+                array(56),
+                false
+            ],
+            'RRUFF Reference: article_title containing ">"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '>'
+                ),
+                array(56),
+                false
+            ],
+
+            'RRUFF Reference: article_title containing "<i>"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<i>'
+                ),
+                array(56),   // this test is the entire point of this block...need to confirm that the parser can guess it's seeing HTML tags
+                false
+            ],
+
+            'RRUFF Reference: article_title containing "<i"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<i'    // this should trigger the conventional inequality stuff...though the test is of limited value since the underlying field is a string
+                ),
+                array(
+                    6,53,54,60,69,75,83,84,85,88,   // starts with 'a'
+                    26,                             // starts with 'b'
+                    2,5,10,21,28,35,49,57,59,73,    // starts with 'c'
+                    40,52,80,                       // starts with 'd'
+                    44,48,77,                       // starts with 'e'
+                    14,15,20,27,45,                 // starts with 'f'
+                                                    // starts with 'g'
+                    8,11,                           // starts with 'h'
+                    78,                             // starts with '['
+                ),
+                false
+            ],
+            'RRUFF Reference: article_title containing "<i >g"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<i >g'
+                ),
+                array(8,11),    // this should only get references with an article title that start with an 'h' or 'H'...but not trigger the title containing '<i>'
+                false
+            ],
+            'RRUFF Reference: article_title containing ">g <i"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '>g <i'
+                ),
+                array(8,11),
+                false
+            ],
+
+            // ----------------------------------------
             // mixing general and advanced searches
             'RRUFF Reference: general search of "downs" and authors contains "d"' => [
                 array(

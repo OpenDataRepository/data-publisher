@@ -24,7 +24,7 @@
                     <input id="end_date" class="ODRInput ODRDatePicker Pointer" type="text" name="end_date" value="{{ today }}"/>
 
                     Display changes from:
-                    <button id="ODRTrackingForm_day_changes" type="button" class="pure-button pure-button-secondary">...the previous day</button>
+                    <button id="ODRTrackingForm_day_changes" type="button" class="pure-button pure-button-secondary">...today</button>
                     <button id="ODRTrackingForm_week_changes" type="button" class="pure-button pure-button-secondary">...the previous week</button>
                     <button id="ODRTrackingForm_month_changes" type="button" class="pure-button pure-button-secondary">...the previous month</button>
                     <button id="ODRTrackingForm_all_changes" type="button" class="pure-button pure-button-secondary">...all time</button>
@@ -208,7 +208,7 @@
             reloadTrackingData();
         });
         $("#ODRTrackingForm_day_changes").unbind('click').click(function() {
-            $("#start_date").val("{{ day_ago }}");
+            $("#start_date").val("{{ today }}");
             $("#end_date").val("{{ today }}");
             reloadTrackingData();
         });

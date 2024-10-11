@@ -52,6 +52,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -62,7 +63,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, ExportOverrideInterface, MassEditTriggerEventInterface, SearchOverrideInterface
+class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, ExportOverrideInterface, MassEditTriggerEventInterface, SearchOverrideInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -368,6 +369,16 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 //  is the original value of this field
                 $status_notes_df_id = $relevant_fields['Status Notes']['id'];
                 $datarecord['dataRecordFields'][$status_notes_df_id]['longText'][0]['value'] = $status_notes_info['value'];
+
+                // Want to modify how the Valence Elements are displayed...
+                $valence_elements_df_id = $relevant_fields['Valence Elements']['id'];
+
+                $valence_elements_df_value = '';
+                if ( isset($datarecord['dataRecordFields'][$valence_elements_df_id]['longVarchar'][0]) )
+                    $valence_elements_df_value = $datarecord['dataRecordFields'][$valence_elements_df_id]['longVarchar'][0]['value'];
+
+                $valence_elements_df_value = self::applyValenceElementsCSS($valence_elements_df_value);
+                $datarecord['dataRecordFields'][$valence_elements_df_id]['longVarchar'][0]['value'] = $valence_elements_df_value;
 
                 $record_display_view = 'single';
                 if ( isset($rendering_options['record_display_view']) )
@@ -1305,7 +1316,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         //  point to specific records from the RRUFF Reference database
         $reference_mapping = array();
 
-        // However, it's not guaranteed the the references have been linked to...
+        // However, it's not guaranteed that the references have been linked to...
         $invalid_references = array();
         // ...or if they have been linked to, it's not guaranteed the user can see them
         $can_view_references = array();
@@ -1773,6 +1784,98 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             'dt_id' => $mineral_name_search_results['dt_id'],
             'records' => $final_dr_list,
             'guard' => $involves_empty_string,
+        );
+    }
+
+
+    /**
+     * Inserts HTML into the Valence Elements field so it looks nicer
+     *
+     * e.g. "Pb^2+ Sn^4+ In^3+ Bi^3+ S^2-" gets turned into
+     * "Pb<sup>2+</sup> Sn<sup>4+</sup> In<sup>3+</sup> Bi<sup>3+</sup> S<sup>2-</sup>"
+     *
+     * @param string $valence_elements_df_value
+     * @return string
+     */
+    private function applyValenceElementsCSS($valence_elements_df_value)
+    {
+        $pattern = '/\^([0-9][\+\-])/';
+        $replacement = '<sup>$1</sup>';
+        return preg_replace($pattern, $replacement, $valence_elements_df_value);
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
+    {
+        // Want to override four fields here...Reference A/B, Status Notes, and Valence Elements
+        $reference_a_df_id = $render_plugin_instance['renderPluginMap']['Reference A']['id'];
+        $reference_b_df_id = $render_plugin_instance['renderPluginMap']['Reference B']['id'];
+        $status_notes_df_id = $render_plugin_instance['renderPluginMap']['Status Notes']['id'];
+        $valence_elements_df_id = $render_plugin_instance['renderPluginMap']['Valence Elements']['id'];
+
+        // TODO - so reference a/b and status notes also kind of need to exist in a table-friendly format
+        // TODO - ...unfortunately, the table recaching process is *heavily* optimized against this
+        // TODO - ......compared to the rest of ODR being *merely* optimized against it.  sigh.
+
+        // TODO - would simplify other aspects of ODR if the value in the IMA cache entry had the fully formatted result
+        // TODO - ...triggering it during table things should theoretically be possible in here
+        // TODO - ...triggering it during search results could happen inside execute(), I guess...
+
+/*
+        // Unfortunately, need the cached datatype array...
+        $dt_id = $datarecord['dataType']['id'];
+        $datatype_array = $this->database_info_service->getDatatypeArray($dt_id, true);    // do need links...
+        $datatype = $this->database_info_service->stackDatatypeArray($datatype_array, $dt_id);
+
+        // ...and a theme array
+        $ima_master_theme = $this->theme_info_service->getDatatypeMasterTheme($dt_id);
+        $theme_array = $this->theme_info_service->getThemeArray($ima_master_theme->getId());
+        $theme = $this->theme_info_service->stackThemeArray($theme_array, $ima_master_theme->getId());
+
+        $relevant_fields = self::getRelevantFields($datatype, $datarecord);
+        $related_reference_info = self::getRelatedReferenceInfo($datatype, $datarecord, $theme, $relevant_fields, 'display');
+
+        // Now that the reference info has been gathered, it makes more sense to render them
+        //  here instead of having twig do it...there's likely going to be overlap between
+        //  the Reference A/B and the Status Notes fields
+        $reference_rendering_options = array(
+            'is_top_level' => false,
+            'is_link' => true,
+            'is_datatype_admin' => true,    // TODO
+            'context' => 'text'    // don't want the HTML wrappers around each reference
+        );
+
+        self::prerenderReferences(
+            $related_reference_info['prerendered_references'],
+            $related_reference_info,
+            $datarecord,
+            array(),    // $datatype_permissions,
+            array(),    // $datafield_permissions,
+            array(),    // $token_list,
+            $reference_rendering_options,
+        );
+
+        // Now that the references have been rendered, substitute them into the Status Notes
+        //  field...or create warnings specific to this field
+        $status_notes_info = self::getStatusNotesInfo($relevant_fields, $related_reference_info);
+*/
+
+        // Valence elements is easy
+        $valence_elements_df_value = '';
+        if ( isset($datarecord['dataRecordFields'][$valence_elements_df_id]['longVarchar'][0]) )
+            $valence_elements_df_value = $datarecord['dataRecordFields'][$valence_elements_df_id]['longVarchar'][0]['value'];
+        $valence_elements_df_value = self::applyValenceElementsCSS($valence_elements_df_value);
+
+
+        // Only need to return values for the datafields getting overridden
+        return array(
+//            $reference_a_df_id => $reference_a_df_value,
+//            $reference_b_df_id => $reference_b_df_value,
+//            $status_notes_df_id => $status_notes_info['value'],
+            $valence_elements_df_id => $valence_elements_df_value,
         );
     }
 }

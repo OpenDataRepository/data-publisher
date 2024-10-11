@@ -1,0 +1,44 @@
+{% spaceless %}
+
+<ul>
+    <li class="ODRTrigger_headerLi">
+        <span>{{ datatype.dataTypeMeta.shortName }} (dt {{ datatype.id }})</span>
+        <span>
+            <button class="ODRTrigger_DatatypeClear" rel="{{ datatype.id }}">Clear Cache Entries</button>
+        </span>
+        <ul>
+            <li class="ODRTrigger_headerLi">
+{#                <span class="ODRNotificationHeader">Datafields</span>#}
+                <ul>
+                {% for df_id,df in datatype['dataFields'] %}
+                    {% set datafield_meta = df.dataFieldMeta %}
+                    <li>
+                        <span>{{ datafield_meta.fieldName }} (df {{ df_id }})</span>
+                        <span>
+                            <button class="ODRTrigger_DatafieldClear" rel="{{ df_id }}">Clear Cache Entries</button>
+                            {% if datafield_meta.fieldType.typeClass == "Tag" %}
+                            <button class="ODRTrigger_TagRebuild" rel="{{ df_id }}">Rebuild Tag Field</button>
+                            {% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+                </ul>
+            </li>
+        </ul>
+        {% if datatype['descendants'] is defined and datatype['descendants']|length > 0 %}
+        <ul class="ODRTrigger_headerUl">
+            <li class="ODRTrigger_headerLi">
+                <span class="ODRNotificationHeader">Child Datatypes</span>
+                {% for child_datatype_id,dt in datatype['descendants'] %}
+                    {% set child_datatype = dt.datatype[child_datatype_id] %}
+                    {% include 'ODRAdminBundle:Trigger:trigger_childtype.html.twig' with {
+                        'datatype': child_datatype
+                    } %}
+                {% endfor %}
+            </li>
+        </ul>
+        {% endif %}
+    </li>
+</ul>
+
+{% endspaceless %}

@@ -265,8 +265,8 @@ class ThemeController extends ODRCustomController
         // Datatype admins of remote datatypes shouldn't necessarily be able to modify "local copies"
         //  made by other datatypes linking to said remote datatypes
 
-        // If the user didn't create this theme...
-        if ( $theme->getCreatedBy()->getId() !== $user->getId() ) {
+        // If the user didn't create this non-master theme...
+        if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() ) {
             // ...then they're only allowed to modify it if they're an admin of the local datatype
             if ( !$permissions_service->isDatatypeAdmin($user, $local_parent_datatype) )
                 throw new ODRForbiddenException();

@@ -455,33 +455,32 @@ class CloneTemplateService
 //            'is_master_type' => 1,
             'template_group' => 1,
 //            'datatype_type' => 1,
-//            'is_default_template' => 1,
-//            'is_metadata_template' => 1,
 //            'metadata_datatype' => 1,
 //            'metadata_for' => 1,
             'dataTypeMeta' => 1,
             'masterDataType' => 1,
             'dataFields' => 1,
             'descendants' => 1,
-//            'dataTypeSpecialFields' => 1,
+//            'nameFields' => 1,
+//            'sortFields' => 1,
 
             'copy_theme_structure' => 1,
         );
 
         $meta_keep = array(
+//            'master_revision' => 1,
+//            'master_published_revision' => 1,
+//            'tracking_master_revision' => 1,
 //            'searchSlug' => 1,
 //            'shortName' => 1,
+//            'longName' => 1,
 //            'description' => 1,
 //            'searchNotesUpper' => 1,
 //            'searchNotesLower' => 1,
 //            'publicDate' => 1,
-            'newRecordsArePublic' => 1,
+//            'newRecordsArePublic' => 1,
 //            'externalIdField' => 1,
-//            'nameField' => 1,
-//            'sortField' => 1,
 //            'backgroundImageField' => 1,
-//            'metadataNameField' => 1,
-//            'metadataDescField' => 1,
         );
 
         // NOTE - derived datatypes don't really have much of a reason to change external_id/name/sort

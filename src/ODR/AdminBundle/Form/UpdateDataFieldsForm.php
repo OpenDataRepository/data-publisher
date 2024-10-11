@@ -171,6 +171,8 @@ class UpdateDataFieldsForm extends AbstractType
 
 
         if ( $current_typeclass === 'Image' || $current_typeclass === 'Radio' ) {
+            // NOTE: this semi-intentionallydoesn't match with datafield_properties_form.html.twig
+            //  or display_datafield.html.twig...easier to control the visibiilty from either of them
             $builder->add(
                 'children_per_row',
                 ChoiceType::class,
