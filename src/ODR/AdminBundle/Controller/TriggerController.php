@@ -32,6 +32,7 @@ use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 // Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -87,7 +88,7 @@ class TriggerController extends ODRCustomController
             // ----------------------------------------
 
 
-            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());  // don't want links
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);  // don't want links
             $stacked_dt_array = $database_info_service->stackDatatypeArray($dt_array, $grandparent_datatype->getId());
 
             // ----------------------------------------
@@ -214,7 +215,7 @@ class TriggerController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataType')->find($datafield_id);
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
             if ( $datafield->getDataType()->getDeletedAt() !== null )
@@ -268,7 +269,7 @@ class TriggerController extends ODRCustomController
      *
      * @return Response
      */
-    public function triggertagtreerebuildAction($datafield_id, Request $request)
+    public function triggertagrebuildAction($datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -281,6 +282,8 @@ class TriggerController extends ODRCustomController
 
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
 
 
             /** @var DataFields $datafield */
@@ -307,10 +310,9 @@ class TriggerController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            // TODO - probably could relax this to the datatype admin
+            // TODO - probably should relax this to match TagsController::movetagAction()
             // ----------------------------------------
 
-            throw new ODRException('do not continue');
 
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
@@ -345,9 +347,6 @@ class TriggerController extends ODRCustomController
                 $additional_data = array('description' => 'Tag Rebuild of Datafield '.$datafield_id.', DataType '.$datatype->getId());
                 $restrictions = 'datatype_'.$top_level_datatype->getId();
 
-                // TODO - test restrictions
-                // TODO - create commands
-
                 $total = intval( count($results) / $records_per_job );
                 if ( $total * $records_per_job < count($results) )
                     $total += 1;
@@ -363,7 +362,7 @@ class TriggerController extends ODRCustomController
                 $api_key = $this->container->getParameter('beanstalk_api_key');
                 $pheanstalk = $this->get('pheanstalk');
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
-                $url = $this->generateUrl('odr_tag_tree_rebuild_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+                $url = $this->generateUrl('odr_tag_rebuild_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $priority = 1024;   // should be roughly default priority
                 $delay = 1;
@@ -373,6 +372,7 @@ class TriggerController extends ODRCustomController
                 foreach ($results as $result) {
                     $dr_id = $result["dr_id"];
                     $datarecord_list[] = $dr_id;
+                    $count++;
 
                     if ( ($count % $records_per_job) === 0) {
 

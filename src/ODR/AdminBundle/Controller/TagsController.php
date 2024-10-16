@@ -30,7 +30,6 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
@@ -46,6 +45,7 @@ use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Templating\EngineInterface;
 
 
@@ -78,6 +78,8 @@ class TagsController extends ODRCustomController
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -106,6 +108,7 @@ class TagsController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
@@ -151,34 +154,80 @@ class TagsController extends ODRCustomController
                     $out_of_sync = true;
             }
 
+            // ----------------------------------------
+            // The main problem with this modal is the existence of the 'tag_rebuild' tracked job
+            // Strictly speaking...if that job is active, then tags could get created/renamed, and
+            //  also moved around so long as their parent tag doesn't change...but deleting a tag
+            //  or moving a tag and changing its parent aren't allowed
+            $conflicting_job = null;
+
+            // However, making the modal smart enough to distinguish between these actions is a pain
+            // To reduce the amount of work required for what should be a pretty rare occurrence,
+            //  I'm just going to block attempts to access the modal until the job finishes
+            $job_data = $tracked_job_service->getJobDataByType('tag_rebuild', $datatype_permissions);
+
+            if ( !empty($job_data) ) {
+                foreach ($job_data as $num => $job) {
+                    if ( $job['can_delete'] === false ) {
+                        $desc = $job['description'];
+                        if ( strpos($desc, 'Tag Rebuild of Datafield') === false )
+                            throw new ODRException('Unexpected description for tag_rebuild job');
+
+                        $matches = array();
+                        preg_match('/(\d+)/', $desc, $matches);
+                        $df_id = $matches[0];
+                        if ( $datafield->getId() == $df_id ) {
+                            $conflicting_job = $job;
+                            break;
+                        }
+                    }
+                }
+            }
+
 
             // ----------------------------------------
             // Since tag design can be modified from the edit page, and by people without the
             //  "is_datatype_admin" permission, it makes more sense for tag design to be in a modal
             // This also reduces the chances that jQuery Sortable will mess something up
-            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links here
-            if ( !isset($datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()]) )
-                throw new ODRException('unable to locate the cached entry for this datafield');
-
-            $cached_df = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
-            $stacked_tag_list = array();
-            if ( isset($cached_df['tags']) )
-                $stacked_tag_list = $cached_df['tags'];
-
-            // Render and return the html for the list
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:Tags:tag_design_wrapper.html.twig',
-                    array(
-                        'datafield' => $cached_df,
-                        'stacked_tags' => $stacked_tag_list,
-
-                        'is_derived_field' => $is_derived_field,
-                        'can_modify_template' => $can_modify_template,
-                        'out_of_sync' => $out_of_sync,
+            if ( !is_null($conflicting_job) ) {
+                // If there is a conflicting job, then return a different version of the tag modal
+                //  that checks for the job to be finished
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Tags:tag_design_checker.html.twig',
+                        array(
+                            'tracked_job' => $conflicting_job,
+                            'datafield_id' => $datafield_id,
+                        )
                     )
-                )
-            );
+                );
+            }
+            else {
+                // If there's no conflicting job, then execute as normal
+                $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links here
+                if ( !isset($datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()]) )
+                    throw new ODRException('unable to locate the cached entry for this datafield');
+
+                $cached_df = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
+                $stacked_tag_list = array();
+                if ( isset($cached_df['tags']) )
+                    $stacked_tag_list = $cached_df['tags'];
+
+                // Render and return the html for the list
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Tags:tag_design_wrapper.html.twig',
+                        array(
+                            'datafield' => $cached_df,
+                            'stacked_tags' => $stacked_tag_list,
+
+                            'is_derived_field' => $is_derived_field,
+                            'can_modify_template' => $can_modify_template,
+                            'out_of_sync' => $out_of_sync,
+                        )
+                    )
+                );
+            }
         }
         catch (\Exception $e) {
             $source = 0x3a2fe831;
@@ -210,6 +259,22 @@ class TagsController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Ensure required options exist
+            $post = $request->request->all();
+            if ( !isset($post['tag_name']) || !isset($post['parent_tag_id']) )
+                throw new ODRBadRequestException();
+            if ( trim($post['tag_name']) === '' )
+                throw new ODRBadRequestException();
+
+            // Need to unescape this value if it's coming from a wordpress install...
+            $tag_name = $post['tag_name'];
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated )
+                $tag_name = stripslashes($tag_name);
+
+            $parent_tag_id = intval($post['parent_tag_id']);
+
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -235,15 +300,14 @@ class TagsController extends ODRCustomController
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
+            // This should only work on a Tag field
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRNotFoundException('Datafield');
 
             $datatype = $datafield->getDataType();
             if ( $datatype->getDeletedAt() != null )
                 throw new ODRNotFoundException('Datatype');
-
-            // This should only work on a Tag field
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ($typeclass !== 'Tag')
-                throw new ODRBadRequestException('Unable to create a new tag for a '.$typeclass.' field');
 
             // If this is a derived field, then some stuff is different
             $is_derived_field = false;
@@ -284,6 +348,9 @@ class TagsController extends ODRCustomController
             }
             // --------------------
 
+            // NOTE: don't need to check for a conflict here...creating an unselected tag has no
+            //  impact on the logic run by TagHelperService::updateSelectedTags()
+
             // If this is getting called on a derived field...
             if ( $is_derived_field ) {
                 // ...then the relevant datafields need to be in sync before continuing
@@ -291,43 +358,74 @@ class TagsController extends ODRCustomController
                     throw new ODRBadRequestException('Not allowed to create a new tag when the derived field is out of sync with its master field');
             }
 
-            // The request to create this tag can come from one of three places...
-            $master_tag = null;
-            $tag = null;
+            if ( !$datafield->getTagsAllowMultipleLevels() && $parent_tag_id !== 0 )
+                throw new ODRBadRequestException('Not allowed to specify a parent tag for a tag field that only has a single level of tags');
+
+            $master_parent_tag = null;
+            $parent_tag = null;
+
+            if ( $parent_tag_id !== 0 ) {
+                /** @var Tags|null $parent_tag */
+                $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->find($parent_tag_id);
+                if ($parent_tag == null)
+                    throw new ODRNotFoundException('Parent Tag');
+                if ( $parent_tag->getDataField()->getId() != $datafield_id )
+                    throw new ODRNotFoundException('Parent Tag');
+
+                if ( $is_derived_field ) {
+                    /** @var Tags|null $master_parent_tag */
+                    $master_parent_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                        array(
+                            'dataField' => $datafield->getMasterDataField()->getId(),
+                            'tagUuid' => $parent_tag->getTagUuid(),
+                        )
+                    );
+                    if ($master_parent_tag == null)
+                        throw new ODRNotFoundException('Master Parent Tag');
+                }
+            }
+
+            // NOTE: duplicate tag names are technically allowed, so don't need to verify that
+
+
+            // ----------------------------------------
+            // The request to create this tag could come from either a template or a derived field...
+            $new_master_tag = null;
+            $new_tag = null;
 
             if ( $is_derived_field ) {
                 // ...this is a request to create a tag for a derived field, which means two tags
                 //  need to get created
 
                 // Create the master tag first...
-                $master_tag = $entity_create_service->createTag(
+                $new_master_tag = $entity_create_service->createTag(
                     $user,
                     $datafield->getMasterDataField(),
                     true,    // always create a new tag
-                    "New Tag"
+                    $tag_name
                 );
 
                 // ...then create the derived tag
-                $tag = $entity_create_service->createTag(
+                $new_tag = $entity_create_service->createTag(
                     $user,
                     $datafield,
                     true,    // always create a new tag
-                    "New Tag",
+                    $tag_name,
                     true    // don't randomly generate a uuid for the derived tag
                 );
 
                 // The derived tag needs the UUID of its new master tag
-                $tag->setTagUuid( $master_tag->getTagUuid() );
-                $em->persist($tag);
+                $new_tag->setTagUuid( $new_master_tag->getTagUuid() );
+                $em->persist($new_tag);
             }
             else {
                 // Otherwise, this is a request to create a tag for a field which is not derived,
                 //  or a request to create a tag directly from a template
-                $tag = $entity_create_service->createTag(
+                $new_tag = $entity_create_service->createTag(
                     $user,
                     $datafield,
                     true,    // always create a new tag
-                    "New Tag"
+                    $tag_name
                 );
             }
 
@@ -335,9 +433,22 @@ class TagsController extends ODRCustomController
             $em->flush();
 
             // Should refresh after flushing...
-            if ( !is_null($master_tag) )
-                $em->refresh($master_tag);
-            $em->refresh($tag);
+            if ( !is_null($new_master_tag) )
+                $em->refresh($new_master_tag);
+            $em->refresh($new_tag);
+
+            // If the new tag was supposed to be a child of some other tag, then that needs to be
+            //  set prior to attempting a resort of the tags in the datafield
+            if ( !is_null($parent_tag) ) {
+                // ...then set that as well
+                $entity_create_service->createTagTree($user, $parent_tag, $new_tag);
+
+                // ...and also set the master tag if it's a derived field
+                if ( $is_derived_field )
+                    $entity_create_service->createTagTree($user, $master_parent_tag, $new_master_tag);
+
+                // Don't have to flush after these
+            }
 
             // If the tags are supposed to be sorted by name, then force a re-sort
             if ( $is_derived_field && $datafield->getMasterDataField()->getRadioOptionNameSort() === true )
@@ -396,7 +507,7 @@ class TagsController extends ODRCustomController
             $return['d'] = array(
                 'datafield_id' => $datafield->getId(),
                 'reload_datafield' => true,
-                'tag_id' => $tag->getId(),
+                'tag_id' => $new_tag->getId(),
             );
         }
         catch (\Exception $e) {
@@ -662,8 +773,6 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var DatabaseInfoService $database_info_service */
@@ -740,6 +849,9 @@ class TagsController extends ODRCustomController
                 // If this point is reached, then the user can also modify the master datafield
             }
             // --------------------
+
+            // NOTE: don't need to check for a conflict here...creating unselected tags has no
+            //  impact on the logic run by TagHelperService::updateSelectedTags()
 
             // If this is getting called on a derived field...
             if ( $is_derived_field ) {
@@ -837,20 +949,10 @@ class TagsController extends ODRCustomController
                 if ( $is_derived_field ) {
                     $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
-
-                    // Wipe the cached tag tree arrays, since new child tags have likely been created
-                    $grandparent_master_datatype_id = $datatype->getMasterDataType()->getGrandparent()->getId();
-                    $cache_service->delete('cached_tag_tree_'.$grandparent_master_datatype_id);
-                    $cache_service->delete('cached_template_tag_tree_'.$grandparent_master_datatype_id);
                 }
 
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
-
-                // Wipe the cached tag tree arrays, since new child tags have likely been created
-                $grandparent_datatype_id = $datatype->getGrandparent()->getId();
-                $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
-                $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype_id);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1077,8 +1179,6 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var EntityMetaModifyService $entity_modify_service */
@@ -1176,10 +1276,6 @@ class TagsController extends ODRCustomController
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to delete this Tag, as it would interfere with an already running '.$conflicting_job.' job');
 
-            // As nice as it would be to delete any/all tags derived from a template tag here, the
-            //  template synchronization needs to tell the user what will be changed, or changes
-            //  get made without the user's knowledge/consent....which is bad.
-
 
             // ----------------------------------------
             // When deleting a tag, all of its children need deleted too...
@@ -1199,6 +1295,11 @@ class TagsController extends ODRCustomController
             }
 
             $tags_to_delete = self::findTagsToDelete($relevant_tags);
+
+            // NOTE: unlike the deletion of derived tags deleting their master template tags...
+            //  ...it doesn't make sense to also delete derived tags when master template tags get
+            //  deleted...the template synchronization needs to tell the user what will be changed,
+            //  or changes get made without the user's knowledge/consent....which is bad.
 
 
             // ----------------------------------------
@@ -1299,11 +1400,11 @@ class TagsController extends ODRCustomController
             // Mark the datatype as updated
             try {
                 if ( $is_derived_field ) {
-                    $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user, true);    // need to wipe cached datarecord entries since deletion could have unselected a tag
+                    $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user, true);    // need to wipe cached datarecord entries since could've deleted a selected tag
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
 
-                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries since deletion could have unselected a tag
+                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries since could've deleted a selected tag
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
 
                 // TODO - modify the modal so that it blocks further changes until the event finishes?
@@ -1314,22 +1415,6 @@ class TagsController extends ODRCustomController
                 //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
-            }
-
-
-            // ----------------------------------------
-            // There's a couple other cache entries that still need clearing...
-            $datatypes_to_clear = array($grandparent_datatype->getId());
-            if ( $is_derived_field )
-                $datatypes_to_clear[] = $grandparent_datatype->getMasterDataType()->getId();
-
-            foreach ($datatypes_to_clear as $dt_id) {
-                // Delete the separately cached tag tree for this datatype's grandparent
-                $cache_service->delete('cached_tag_tree_'.$dt_id);
-
-                // Cross-template searches use this entry in the same way a search on a single
-                //  datatype uses 'cached_tag_tree_<dt_id>"
-                $cache_service->delete('cached_template_tag_tree_'.$dt_id);
             }
 
 
@@ -1434,8 +1519,6 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var EntityCreationService $entity_create_service */
@@ -1446,6 +1529,9 @@ class TagsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -1584,7 +1670,7 @@ class TagsController extends ODRCustomController
                     throw new ODRBadRequestException('Not allowed to move tags when the derived field is out of sync with its master field');
             }
 
-            // TODO - technically, tags should work similarly to radio options...re-ordering with their siblings doesn't change field content
+            // TODO - technically, tags should work similarly to radio options...so long as the parent tag doesn't change, then the "meaning" of the field also doesn't change
             // TODO - ...but actually implementing that doesn't seem to be trivial
 
             // Should also verify that all tags in $tag_ordering belong to this datafield
@@ -1604,6 +1690,22 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'tag_rebuild' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'tag_rebuild',
+                'target_entity' => $datafield,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to move this tag, as it would interfere with an already running '.$conflicting_job.' job');
+
+            // TODO - technically, this is overkill...this error doesn't need to happen when moving a tag doesn't change its parent
+            // TODO - however, blocking all movements means I don't have to explain to users why it makes a difference...
+
+
+            // ----------------------------------------
             // Only create/delete tag tree entries if the tag field allows child/parent tags
             $changes_made = array();
             if ( $datafield->getTagsAllowMultipleLevels() ) {
@@ -1612,7 +1714,7 @@ class TagsController extends ODRCustomController
                     // ...this is a request to move a tag for a derived field, which means the master
                     //  tag also needs to get moved
                     self::updateTagTrees($em, $entity_create_service, $user, $datafield->getMasterDataField(), $child_tag_uuid, $parent_tag_uuid);
-                    // NOTE - ignoring $changes_made here, since it'll be identical to the following call
+                    // NOTE - ignoring $changes_made here, since it'll be identical to the following call...
                 }
 
                 // The requested tag should always get moved
@@ -1624,6 +1726,9 @@ class TagsController extends ODRCustomController
                 $create_new_entry = $changes_made['create_new_entry'];
                 $delete_old_entry = $changes_made['delete_old_entry'];
                 $tag_hierarchy_changed = $changes_made['tag_hierarchy_changed'];
+
+                // TODO - if the above ODRConflictException doesn't fire 100% of the time...
+                // TODO - ...then this changeset needs to be determined before changes are made in self::updateTagTrees()
             }
 
 
@@ -1700,21 +1805,12 @@ class TagsController extends ODRCustomController
                 // Update cached version of datatype
                 try {
                     if ( $is_derived_field ) {
-                        $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user, true);    // need to wipe cached datarecord entries, see below
+                        $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);    // don't need to delete datarecord entries...neither tag parents nor sort order is stored in them
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                     }
 
-                    $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries, see below
+                    $event = new DatatypeModifiedEvent($datatype, $user);    // don't need to delete datarecord entries...neither tag parents nor sort order is stored in them
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
-
-                    // All of the cached datarecord entries of this datatype have a 'child_tagSelections'
-                    //  entry somewhere in them because otherwise Display mode can't handle the
-                    //  "display_unselected_radio_options" config option...this entry depends on
-                    //  the "cached_tag_tree_<dt_id>" entry that will get deleted, so all of the
-                    //  cached datarecord entries for this datatype also need to get deleted...
-
-                    // TODO - modify the modal so that it blocks further changes until the event finishes?
-                    // TODO - ...or modify the event to clear a subset of records?  neither is appealing...
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1723,8 +1819,7 @@ class TagsController extends ODRCustomController
 //                        throw $e;
                 }
 
-                // Don't need to update cached versions of datarecords or search results unless tag
-                //  parentage got changed...
+                // Don't need to update cached versions of search results unless tag parentage got changed...
                 if ($create_new_entry || $delete_old_entry) {
                     // Master Template Data Fields must increment Master Revision on all change requests.
                     if ( $datafield->getIsMasterField() )
@@ -1747,23 +1842,13 @@ class TagsController extends ODRCustomController
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
-
-                    // ----------------------------------------
-                    // There's a couple other cache entries that still need clearing...
-                    $grandparent_datatype = $datatype->getGrandparent();
-                    $datatypes_to_clear = array($grandparent_datatype->getId());
-                    if ( $is_derived_field )
-                        $datatypes_to_clear[] = $grandparent_datatype->getMasterDataType()->getId();
-
-                    foreach ($datatypes_to_clear as $dt_id) {
-                        // Delete the separately cached tag tree for this datatype's grandparent
-                        $cache_service->delete('cached_tag_tree_'.$dt_id);
-
-                        // Cross-template searches use this entry in the same way a search on a single
-                        //  datatype uses 'cached_tag_tree_<dt_id>"
-                        $cache_service->delete('cached_template_tag_tree_'.$dt_id);
-                    }
                 }
+            }
+
+            // If the tag changed parents...
+            if ( $tag_hierarchy_changed ) {
+                // ...then need to trigger a rebuild
+                self::triggerTagRebuild($em, $datafield, $user, $tracked_job_service);
             }
 
             // Don't need to return anything, the javascript on the page already has all the data
@@ -1883,6 +1968,132 @@ class TagsController extends ODRCustomController
             'delete_old_entry' => $delete_old_entry,
             'tag_hierarchy_changed' => $tag_hierarchy_changed,
         );
+    }
+
+
+    /**
+     * If a tag gets moved so that it has a new parent tag, then that could result in situations
+     * where parents of a selected tag are not themselves selected.  As such, there needs to be a
+     * way to trigger a tag_rebuild job after changing a tag's parent...
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataFields $datafield
+     * @param ODRUser $user
+     * @param TrackedJobService $tracked_job_service
+     *
+     * @return void
+     */
+    private function triggerTagRebuild($em, $datafield, $user, $tracked_job_service)
+    {
+        // ----------------------------------------
+        // Going to need these...
+        $datatype = $datafield->getDataType();
+        $top_level_datatype = $datatype->getGrandparent();
+
+
+        // ----------------------------------------
+        // Check whether any jobs that are currently running would interfere with a newly
+        //  created 'tag_rebuild' job for this datatype
+        $new_job_data = array(
+            'job_type' => 'tag_rebuild',
+            'target_entity' => $datafield,
+        );
+
+        $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+        if ( !is_null($conflicting_job) )
+            throw new ODRConflictException('Unable to start a new TagRebuild job, as it would interfere with an already running '.$conflicting_job.' job');
+
+
+        // ----------------------------------------
+        // Get a list of all datarecords with this datafield
+        $query = $em->createQuery(
+           'SELECT dr.id AS dr_id
+            FROM ODRAdminBundle:DataRecord dr
+            WHERE dr.dataType = :datatype_id
+            AND dr.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        $results = $query->getArrayResult();
+
+        if ( !empty($results) ) {
+            // Not entirely sure how many datarecords can be handled at once
+            $records_per_job = 100;
+
+            // Create a tracked job for this...
+            $job_type = 'tag_rebuild';
+            $target_entity = 'datafield_'.$datafield->getId();
+            $additional_data = array('description' => 'Tag Rebuild of Datafield '.$datafield->getId().', DataType '.$datatype->getId());
+            $restrictions = 'datatype_'.$top_level_datatype->getId();
+
+            $total = intval( count($results) / $records_per_job );
+            if ( $total * $records_per_job < count($results) )
+                $total += 1;
+
+            $reuse_existing = false;
+//$reuse_existing = true;
+
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
+
+
+            // Going to also need these values
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
+            $url = $this->generateUrl('odr_tag_rebuild_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+            $priority = 1024;   // should be roughly default priority
+            $delay = 1;
+
+            $datarecord_list = array();
+            $count = 0;
+            foreach ($results as $result) {
+                $dr_id = $result["dr_id"];
+                $datarecord_list[] = $dr_id;
+                $count++;
+
+                if ( ($count % $records_per_job) === 0) {
+
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = array(
+                        "job_type" => 'tag_rebuild',
+                        "tracked_job_id" => $tracked_job_id,
+
+                        "user_id" => $user->getId(),
+                        "datarecord_list" => implode(',', $datarecord_list),
+                        "datafield_id" => $datafield->getId(),
+
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    );
+                    $payload = json_encode($payload);
+
+                    $pheanstalk->useTube('tag_rebuild')->put($payload, $priority, $delay);
+
+                    // Reset for next pile of datarecords
+                    $datarecord_list = array();
+                }
+            }
+
+            // Update any remaining datarecords
+            if ( !empty($datarecord_list) ) {
+                $payload = array(
+                    "job_type" => 'tag_rebuild',
+                    "tracked_job_id" => $tracked_job_id,
+
+                    "user_id" => $user->getId(),
+                    "datarecord_list" => implode(',', $datarecord_list),
+                    "datafield_id" => $datafield->getId(),
+
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                    "url" => $url,
+                    "api_key" => $api_key,
+                );
+                $payload = json_encode($payload);
+
+                $pheanstalk->useTube('tag_rebuild')->put($payload, $priority, $delay);
+            }
+        }
     }
 
 
@@ -2135,10 +2346,16 @@ class TagsController extends ODRCustomController
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
 
             /** @var Tags $tag */
@@ -2196,57 +2413,21 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
-/*
-            // Don't allow changing a selection if the tag has a child
-            $query = $em->createQuery(
-               'SELECT c_t
-                FROM ODRAdminBundle:Tags AS p_t
-                JOIN ODRAdminBundle:TagTree AS tt WITH tt.parent = p_t
-                JOIN ODRAdminBundle:Tags AS c_t WITH tt.child = c_t
-                WHERE p_t = :tag_id
-                AND p_t.deletedAt IS NULL AND tt.deletedAt IS NULL AND c_t.deletedAt IS NULL'
-            )->setParameters( array('tag_id' => $tag->getId()) );
-            $results = $query->getArrayResult();
-
-            if ( !empty($results) )
-                throw new ODRBadRequestException('Not allowed to select/deselect a non-leaf tag');
-*/
-
-            // This restriction would've been convenient to have...but it's technically not 100%
-            //  accurate, so the idea goes into the trash.
-            // TODO - allow user to specify non-bottom-level tags CAN'T be selected?
-            // TODO - e.g. if tag structure has array("State" => array("Alaska", "Arizona", etc)...then it never makes sense for "State" to be selected
-            // TODO - ...in other words, tags that exist as "logical containers" shouldn't be selectable...
-            // TODO - ...but tags that are both "containers" and "values" should be
-
-
-            // ----------------------------------------
             // Locate the existing datarecordfield entry, or create one if it doesn't exist
             $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
-            // Locate the existing TagSelection entry, or create one if it doesn't exist
-            $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
+            // This array entry requests that:
+            // 1) if the tag selection does not exist, then create it and set to 'selected'
+            // 2) if the tag selection does exist, then toggle between 'selected'/'unselected'
+            $selections = array($tag->getId() => '!');
 
-            // Default to a value of 'selected' if an older TagSelection entity does not exist
-            $new_value = 1;
-            if ($tag_selection !== null) {
-                // An older version does exist...toggle the existing value for the new value
-                if ($tag_selection->getSelected() == 1)
-                    $new_value = 0;
-            }
-
-            // Update the TagSelection entity to match $new_value
-            $properties = array('selected' => $new_value);
-            $entity_modify_service->updateTagSelection($user, $tag_selection, $properties);
+            // Perform the update
+            $tag_helper_service->updateSelectedTags($user, $drf, $selections);
 
 
             // ----------------------------------------
             // Mark this datarecord as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -2259,10 +2440,6 @@ class TagsController extends ODRCustomController
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }

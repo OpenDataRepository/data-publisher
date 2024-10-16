@@ -287,16 +287,19 @@ class CSVExportHelperService
         $filename_fragment = $random_id.'_'.$datatype_id.'_'.$tracked_job_id;
 
         /** @var TrackedJob $tracked_job */
-        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
-        if ($tracked_job == null)
-            throw new ODRNotFoundException('Tracked Job');
+        $tracked_job = null;
+        if ( $tracked_job_id !== -1 ) {
+            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            if ($tracked_job == null)
+                throw new ODRNotFoundException('Tracked Job');
 
-        if ( $tracked_job->getCurrent() >= $tracked_job->getTotal() )
-            throw new ODRException('Tracked Job has current >= total');
-        if ( $tracked_job->getCompleted() != null)
-            throw new ODRException('Tracked Job already marked as completed');
-        if ( $tracked_job->getFailed() )
-            throw new ODRException('Tracked Job marked as failed');
+            if ( $tracked_job->getCurrent() >= $tracked_job->getTotal() )
+                throw new ODRException('Tracked Job has current >= total');
+            if ( $tracked_job->getCompleted() != null)
+                throw new ODRException('Tracked Job already marked as completed');
+            if ( $tracked_job->getFailed() )
+                throw new ODRException('Tracked Job marked as failed');
+        }
 
 
         // ----------------------------------------
@@ -370,10 +373,7 @@ class CSVExportHelperService
         );
 
         // If tags are being exported, then additional information will be needed
-        $tag_data = array(
-            'names' => array(),
-            'tree' => array(),
-        );
+        $inversed_tag_hierarchy = array();
 
         // Ensure this datatype's external id field is going to be exported, if one exists
         $external_id_field = $dt_array[$datatype_id]['dataTypeMeta']['externalIdField'];
@@ -399,16 +399,13 @@ class CSVExportHelperService
 
                     // If exporting a tag datafield...
                     if ($typename === 'Tags' && isset($df['tags'])) {
-                        // The tags are stored in a tree structure to make rendering them easier
-                        //  ...but for export, it's easier if they're flattened
-                        $tag_data['names'] = self::getTagNames($df['tags']);
                         // The export process also needs to be able to locate the name of a
                         //  parent tag from a child tag
-                        $tag_data['tree'] = self::getTagTree($df['tagTree']);
+                        $inversed_tag_hierarchy = self::getTagTree($df['tagTree']);
                     }
 
                     // "Mark" this datafield as seen
-                    unset($flipped_datafields[$df_id]);
+                    unset( $flipped_datafields[$df_id] );
                 }
             }
         }
@@ -546,7 +543,7 @@ class CSVExportHelperService
             // Remove all datarecords and datafields from the stacked datarecord array that the
             //  user doesn't want to export
             $datarecords_to_export = array_flip($complete_datarecord_list_array[$i]);
-            $filtered_dr_array = self::filterDatarecordArray($user_permissions, $stacked_dt_array, $datafields_to_export, $stacked_dr_array, $datarecords_to_export, $tag_data, $delimiters, $plugin_executions);
+            $filtered_dr_array = self::filterDatarecordArray($user_permissions, $stacked_dt_array, $datafields_to_export, $stacked_dr_array, $datarecords_to_export, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
 
             // Unfortunately, this CSV exporter needs to be able to deal with the possibility of
             //  exporting more than one child/linked datatype that allows multiple child/linked
@@ -693,33 +690,6 @@ class CSVExportHelperService
 
     /**
      * The tag data stored in the cached datatype array is organized for display...parent tags
-     * contain their child tags.  Having to recursively dig through this array repeatedly is bad
-     * though, so the tag data should get flattened for easier lookup of tag names.
-     *
-     * @param array $df_data
-     *
-     * @return array
-     */
-    private function getTagNames($tags)
-    {
-        $tag_names = array();
-
-        foreach ($tags as $tag_id => $tag_data) {
-            $tag_names[$tag_id] = $tag_data['tagName'];
-
-            if (isset($tag_data['children'])) {
-                $tmp = self::getTagNames($tag_data['children']);
-                foreach ($tmp as $t_id => $t_name)
-                    $tag_names[$t_id] = $t_name;
-            }
-        }
-
-        return $tag_names;
-    }
-
-
-    /**
-     * The tag data stored in the cached datatype array is organized for display...parent tags
      * contain their child tags.  However, since the cached datarecord array only mentions which
      * bottom-level tags are selected, this tag hierarchy array needs to be flipped so CSV Export
      * can bulid up the "full" tag name.
@@ -749,13 +719,13 @@ class CSVExportHelperService
      * @param array $datafields_to_export
      * @param array $datarecord_data
      * @param array $datarecords_to_export
-     * @param array $tag_hierarchy
+     * @param array $inversed_tag_hierarchy
      * @param array $delimiters
      * @param array $plugin_executions
      *
      * @return array
      */
-    private function filterDatarecordArray($user_permissions, $datatype_data, $datafields_to_export, $datarecord_data, $datarecords_to_export, $tag_hierarchy, $delimiters, $plugin_executions)
+    private function filterDatarecordArray($user_permissions, $datatype_data, $datafields_to_export, $datarecord_data, $datarecords_to_export, $inversed_tag_hierarchy, $delimiters, $plugin_executions)
     {
         // Due to recursion, creating/returning a new array is easier than modifying the original
         $filtered_data = array();
@@ -824,7 +794,7 @@ class CSVExportHelperService
                                     $tmp = self::getRadioData($df_data, $delimiters);
                                     break;
                                 case 'Tag':
-                                    $tmp = self::getTagData($df_data, $tag_hierarchy, $delimiters);
+                                    $tmp = self::getTagData($df_data, $inversed_tag_hierarchy, $delimiters);
                                     break;
                                 default:
                                     $tmp = self::getOtherData($df_data, $typeclass);
@@ -848,7 +818,7 @@ class CSVExportHelperService
                     // ...then repeat the process for each of the child datarecords
                     $child_dt = $dt_data['descendants'][$child_dt_id]['datatype'];
 
-                    $tmp = self::filterDatarecordArray($user_permissions, $child_dt, $datafields_to_export, $child_dr_list, $datarecords_to_export, $tag_hierarchy, $delimiters, $plugin_executions);
+                    $tmp = self::filterDatarecordArray($user_permissions, $child_dt, $datafields_to_export, $child_dr_list, $datarecords_to_export, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
                     if ( !empty($tmp) )
                         $filtered_data[$dr_id]['children'][$child_dt_id] = $tmp;
                 }
@@ -954,49 +924,67 @@ class CSVExportHelperService
      * Extracts tag selection data for exporting from the given top-level $dr_array.
      *
      * @param array $df_data
-     * @param array $tag_data
+     * @param array $inversed_tag_hierarchy
      * @param array $delimiters
      *
      * @return string
      */
-    private function getTagData($df_data, $tag_data, $delimiters)
+    private function getTagData($df_data, $inversed_tag_hierarchy, $delimiters)
     {
-        $tags = array();
+        $tags_to_export = array();
+        $tag_chains = array();
         if ( isset($df_data['tagSelection']) ) {
-            foreach ($df_data['tagSelection'] as $tag_id => $tag_selection) {
-                // If this tag is selected...
-                if ( $tag_selection['selected'] === 1 ) {
-                    // If there's already a selected tag in the list, then insert a delimiter
-                    //  after the previous tag
-                    if (!empty($tags))
-                        $tags[] = $delimiters['tag'];
+            // Each selected tag should also have its parents selected...this means determining the
+            //  strings to export is straightforward...
+            $tag_lookup = array();
+            foreach ($df_data['tagSelection'] as $t_id => $ts)
+                $tag_lookup[$t_id] = $ts['tag']['tagName'];
 
-                    // Since tags can be arranged in a hierarchy, the export process may need to
-                    //  locate all parents of this tag
-                    $current_tag_id = $tag_id;
-                    $full_tag_name = array();
-                    $full_tag_name[] = $tag_data['names'][$current_tag_id];
-
-                    // The name of each tag in the hierarchy needs to be added to an array...
-                    while ( isset($tag_data['tree'][$current_tag_id]) ) {
-                        $full_tag_name[] = $delimiters['tag_hierarchy'];
-                        $current_tag_id = $tag_data['tree'][$current_tag_id];
-                        $full_tag_name[] = $tag_data['names'][$current_tag_id];
+            // ...but this also means the parent selections need to be filtered out of the array to
+            //  prevent duplicates in the export
+            foreach ($df_data['tagSelection'] as $t_id => $ts) {
+                $tmp = array();
+                if ( $ts['selected'] === 1 ) {
+                    // Build a "chain" of tag ids, starting with the tag in question...
+                    $tmp[] = $t_id;
+                    $tag_id = $t_id;
+                    while ( isset($inversed_tag_hierarchy[$tag_id]) ) {
+                        // ...then repeatedly appending the tag's parent id to the end of the chain
+                        $parent_tag_id = $inversed_tag_hierarchy[$tag_id];
+                        $tmp[] = $parent_tag_id;
+                        $tag_id = $parent_tag_id;
                     }
 
-                    // ...in order to reverse the array so the tag is described from the "top-down"
-                    //  instead of from the "bottom-up"
-                    $full_tag_name = array_reverse($full_tag_name);
-                    $full_tag_name = implode(" ", $full_tag_name);
-
-                    // Save the full name of this tag for the export
-                    $tags[] = $full_tag_name;
+                    // Store each chain of tag by the id of the tag that started the chain
+                    $tag_chains[$t_id] = array_reverse($tmp);
                 }
             }
+
+            // Check each chain of tag ids...
+            foreach ($tag_chains as $tag_id => $chain) {
+                foreach ($chain as $num => $t_id) {
+                    // ...if the tag being checked isn't the one that started the chain...
+                    if ( $t_id !== $tag_id ) {
+                        // ...then ensure that tag doesn't start a chain of its own
+                        unset( $tag_chains[$t_id] );
+                    }
+                }
+            }
+
+            // Now that there won't be any duplicates, convert the tag ids into tag names
+            foreach ($tag_chains as $tag_id => $chain) {
+                $tag_names = array();
+                foreach ($chain as $num => $t_id)
+                    $tag_names[] = $tag_lookup[$t_id];
+
+                // Implode the chain of tags with the hierarchy delimiter
+                $tags_to_export[] = implode(' '.$delimiters['tag_hierarchy'].' ', $tag_names);
+            }
+            natcasesort($tags_to_export);
         }
 
         // Implode the list of tags with their delimiters to make a single string
-        return implode("", $tags);
+        return implode($delimiters['tag'], $tags_to_export);
     }
 
 

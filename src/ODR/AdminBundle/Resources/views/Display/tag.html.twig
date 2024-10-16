@@ -12,23 +12,31 @@
     {% set is_selected = tag_selections[ tag.id ].selected %}
 {% endif %}
 
-<li class="ODRTagItem">
+<li class="ODRTagItem {% if is_selected == 1 %}ODRTagSelected{% endif %} {% if is_top_level != 1 and is_selected == 0 %}ODRHidden{% endif %}">
 {% if has_children %}
     {% if display_unselected %}
-        {# Have the tag tree start out collapsed if displaying all tags #}
-        <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
+        {# The user wants to display unselected tags... #}
+        {% if is_selected == 1 %}
+            {# ...since this tag is selected, it could have unselected children #}
+            <span class="ODRTagSpacer ODRTagParent ODRTagPartialCollapsed"><i class="fa fa-ellipsis-h Pointer"></i></span>
+        {% else %}
+            {# ...since this tag isn't selected, none of its descendants are selected either...hide its children by default #}
+            <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
+        {% endif %}
     {% else %}
-        {# If only selected tags are being displayed, don't collapse the tree to begin with #}
-        <span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>
+        {# The user wants to hide unselected tags... #}
+        {% if is_selected == 1 %}
+            {# ...since this tag is selected, don't collapse the tree #}
+            <span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>
+        {% else %}
+            {# ...since this tag isn't selected, none of its descendants are selected either...hide its children by default #}
+            <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
+        {% endif %}
     {% endif %}
 {% else %}
     <span class="ODRTagSpacer"></span>
 {% endif %}
-{#
-{% if has_children %}
-    <label class="ODRTagLabel">{{ tag.tagMeta.tagName|markdown }}</label>
-{% else %}
-#}
+
     <label for="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagLabel">
         <input
             id="TagForm_{{ unique_id }}_{{ tag.id }}"
@@ -39,11 +47,9 @@
         />&nbsp;
         {{ tag.tagMeta.tagName|markdown }}
     </label>
-{#
-{% endif %}
-#}
+
 {% if has_children %}
-    <ul class="ODRTagGroup {% if display_unselected %}ODRHidden{% endif %}">    {# Have the tag tree start out collapsed #}
+    <ul class="ODRTagGroup {% if is_selected == 0 %}ODRHidden{% endif %}">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
             {# Store whether this child tag is selected #}
             {% set child_is_selected = 0 %}
@@ -51,19 +57,15 @@
                 {% set child_is_selected = tag_selections[ child_tag.id ].selected %}
             {% endif %}
 
-            {# Store whether this child tag has children which are selected #}
-            {% set grandchild_is_selected = 0 %}
-            {% if child_tag_selections[ child_tag.id ] is defined %}
-                {% set grandchild_is_selected = 1 %}
-            {% endif %}
-
-            {% if display_unselected or (child_is_selected == 1 or grandchild_is_selected == 1) %}
+            {% if display_unselected or child_is_selected == 1 %}
                 {% include 'ODRAdminBundle:Display:tag.html.twig' with {
                     'display_unselected': display_unselected,
 
                     'tag_selections': tag_selections,
-                    'child_tag_selections': child_tag_selections,
                     'tag': child_tag,
+                    'is_top_level': 0,
+
+                    'unique_id': unique_id,
                 } %}
             {% endif %}
         {% endfor %}

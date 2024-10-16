@@ -4065,8 +4065,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     background-color: inherit;
 }
 
-.ODRTagAnchor, .ODRTagDelete {
-    min-width: 22px;
+.ODRTagAnchor, .ODRDeleteTag, .ODRAddChildTag {
+    min-width: 25px;
+    margin-left: 3px;
     display: inline-block;
 }
 .ODRNeighborTag {
@@ -4162,6 +4163,35 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-top: 10px;
     margin-left: 25px;
     /*vertical-align: middle;*/
+}
+
+.ODRTagCreateWrapperOverlay {
+    position: absolute;
+    top: 0;
+
+    background: gray;
+    opacity: 0.6;
+}
+.ODRTagCreateWrapper {
+    position: absolute;
+    top: 0;
+}
+.ODRTagCreateDiv {
+    position: absolute;
+    margin: 0;
+    padding: 25px;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    background: white;
+    opacity: 1;
+}
+.ODRTagCreateBlurb,.ODRTagCreateInput {
+    max-width: 400px;
+    margin-bottom: 20px;
+    color: #555;
 }
 
 .ODRSearchToggle {

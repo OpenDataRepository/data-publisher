@@ -27,7 +27,6 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
-use ODR\AdminBundle\Component\Service\TagHelperService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -52,11 +51,6 @@ class SearchService
     private $datatree_info_service;
 
     /**
-     * @var TagHelperService
-     */
-    private $tag_helper_service;
-
-    /**
      * @var SearchQueryService
      */
     private $search_query_service;
@@ -73,7 +67,6 @@ class SearchService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
-     * @param TagHelperService $tag_helper_service
      * @param SearchQueryService $search_query_service
      * @param Logger $logger
      */
@@ -81,14 +74,12 @@ class SearchService
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
-        TagHelperService $tag_helper_service,
         SearchQueryService $search_query_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->datatree_info_service = $datatree_info_service;
-        $this->tag_helper_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
     }
@@ -398,11 +389,6 @@ class SearchService
 
 
         // ----------------------------------------
-        // In order for caching to work, any non-leaf tags in the tag selections list need to get
-        //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
-        $use_tag_uuids = false;
-        $all_tag_selections = $this->tag_helper_service->expandTagSelections($datafield, $selections, $use_tag_uuids);
-
         // Since multiple options/tags can be selected, multiple sets of results are most likely
         //  going to have to be merged together to get the final result
         $AND_result = null;
@@ -416,7 +402,7 @@ class SearchService
         foreach ($datarecord_list as $dr_id => $parent_id)
             $datarecord_list[$dr_id] = 1;
 
-        foreach ($all_tag_selections as $tag_id => $value) {
+        foreach ($selections as $tag_id => $value) {
             // Attempt to find the cached result for this tag...
             $result = $this->cache_service->get('cached_search_tag_'.$tag_id);
             if ( !$result )
@@ -524,17 +510,11 @@ class SearchService
 
 
         // ----------------------------------------
-        // In order for caching to work, any non-leaf tags in the tag selections list need to get
-        //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
-        $use_tag_uuids = true;
-        $all_tag_selections = $this->tag_helper_service->expandTagSelections($template_datafield, $selections, $use_tag_uuids);
-
-
-        // Otherwise, probably going to need to run searches again...
+        // Probably going to need to run searches again...
         $end_result = null;
         $datarecord_list = self::getCachedTemplateDatarecordList($template_datafield->getDataType()->getUniqueId());
 
-        if ( count($all_tag_selections) === 0 ) {
+        if ( count($selections) === 0 ) {
             // ...if no selections got passed into this function, then we need to create and return
             //  a result where nothing matched.  This works regardless of the reason behind the
             //  "no selections" being a general search that didn't match anything, or a search on
@@ -542,7 +522,7 @@ class SearchService
             return $this->search_query_service->searchEmptyTagTemplateDatafield($datarecord_list, $template_datafield->getId());
         }
 
-        foreach ($all_tag_selections as $tag_uuid => $value) {
+        foreach ($selections as $tag_uuid => $value) {
             // Attempt to find the cached result for this tag...
             $result = $this->cache_service->get('cached_search_template_tag_'.$tag_uuid);
             if ( !$result )
@@ -724,7 +704,7 @@ class SearchService
             $value
         );
 
-        // Convert the matching tag names into an array that self::searchTagDatafield() can use
+        // Convert the matching tag names into an array of matching tag ids
         $selections = array();
         foreach ($matching_tags as $tag_id => $tag_data) {
             $selections[$tag_id] = 1;
@@ -737,8 +717,8 @@ class SearchService
         );
 
         if ( !empty($selections) ) {
-            // This function will turn any non-leaf tags that matched the original search query into
-            //  a (larger) set of leaf tags, and then search for records that have those selected
+            // ...but if at least one tag was found, then run another search based off the tag ids
+            //  to find all the matching records
             $end_result = self::searchTagDatafield(
                 $datafield,
                 $selections,

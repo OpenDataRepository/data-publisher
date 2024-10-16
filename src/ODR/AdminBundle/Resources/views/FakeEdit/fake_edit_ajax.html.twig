@@ -93,43 +93,27 @@ function initPage() {
         // Not going to actually save anything here, but the tag collapsing works better if classes
         //  get updated when the user clicks stuff
         var tag_input = $(this);
+        var tag_item = $(tag_input).parent().parent();
+        // console.log( 'tag input', tag_input, 'tag item', tag_item );
 
         if ( $(tag_input).is(':checked') ) {
-            // If this tag is now selected, then the tag showing/hiding needs to be aware of it
-            $(tag_input).parents('.ODRTagItem').addClass('ODRTagSelected');
-            // console.log('adding .ODRTagSelected');
+            // If this tag is now selected, then it needs to gain the "ODRTagSelected" class
+            $(tag_item).addClass('ODRTagSelected');
         }
         else {
-            // Tags without children should always lose the "ODRTagSelected" class...
-            var tag = $(tag_input).parent().parent();
-            if ( $(tag).children('.ODRTagGroup').length === 0 ) {
-                $(tag).removeClass('ODRTagSelected');
-                // console.log('tag has no children, removing .ODRTagSelected from', tag);
-            }
-            else {
-                // Tags with children need to check whether any of them are selected...
-                var child_is_selected = false;
-                $(tag).children('.ODRTagGroup').children('.ODRTagItem').each(function(index,elem) {
-                    if ( $(elem).hasClass('ODRTagSelected') ) {
-                        child_is_selected = true;
-                        return false;
-                    }
-                });
+            // If this tag is now deselected, then it needs to lose the "ODRTagSelected" class
+            $(tag_item).removeClass('ODRTagSelected');
 
-                // ...if not, then this tag can lose the class
-                if ( !child_is_selected ) {
-                    $(tag).removeClass('ODRTagSelected');
-                    // console.log('tag has no selected children, removing .ODRTagSelected from', tag);
-                }
-                // else {
-                //     console.log('tag has selected children, not removing .ODRTagSelected from', tag);
-                // }
+            // If the tag has descendants, then deselecting it in the Edit context means all
+            //  of its descendants should also be deselected now
+            if ( $(tag_item).children('ul.ODRTagGroup').length > 0 ) {
+                $(tag_item).find('li.ODRTagItem').removeClass('ODRTagSelected');
+                $(tag_item).find('input.ODRTagEdit').prop('checked', '');
             }
-
-            // Since this tag is now unselected, need to recursively check whether every
-            //  ancestor of this tag still needs the "ODRTagSelected" class
-            UpdateParentTagClass( $(tag) );
         }
+
+        // Need to recursively update the status of this tag's parent
+        FakeEdit_UpdateParentTagClass( $(tag_item) );
     });
 
     var context = $(".ODRRecord");
@@ -243,52 +227,46 @@ function filterFakeEditTagField(context, dr_id, df_id) {
 /**
  * Recursively checks whether every ancestor of the given tag still need the "ODRTagSelected" class.
  *
- * @param {HTMLElement} tag
+ * @param {HTMLElement} tag_item The relevant $("li.ODRTagItem") element
  */
-function UpdateParentTagClass(tag)
-{
-    // console.log('UpdateParentTagClass() called with', tag);
+function FakeEdit_UpdateParentTagClass(tag_item) {
+    // console.log('FakeEdit_UpdateParentTagClass() called with', tag_item);
     // If this is a top-level tag, do nothing
-    if ( !$(tag).parent().parent().hasClass('ODRTagItem') ) {
+    if ( !$(tag_item).parent().parent().hasClass('ODRTagItem') ) {
         // console.log('tag is top-level, exiting recursion');
-        return;
-    }
-
-    // If this tag is already selected, do nothing
-    if ( $(tag).children('.ODRTagLabel').children('input').is(':checked') ) {
-        // console.log('tag is selected, exiting recursion');
+        // notifySaved();
         return;
     }
 
     // Need to determine whether any of the given tag's siblings are still selected
-    var sibling_tags = $(tag).parent().children('li.ODRTagItem');
+    var parent_tag = $(tag_item).parent().parent();
+    var parent_tag_input = $(parent_tag).children('label.ODRTagLabel').children('input.ODRTagEdit');
+
+    var sibling_tags = $(tag_item).parent().children('li.ODRTagItem');
     // console.log('sibling tags: ', sibling_tags);
 
-    var is_selected = false;
+    var has_selection = false;
     $.each(sibling_tags, function(index,elem) {
         if ( $(elem).hasClass('ODRTagSelected') ) {
-            is_selected = true;
+            has_selection = true;
             return false;
         }
     });
-    // console.log('is_selected', is_selected);
+    // console.log('has_selection', has_selection);
 
-    // If none of this tag's siblings are selected...
-    if ( !is_selected ) {
-        // ...then the parent tag should only have the "ODRTagSelected" class if it's actually selected
-        var parent_tag = $(tag).parent().parent();
-        if ( $(parent_tag).children('.ODRTagLabel').children('input').is(':checked') ) {
-            // console.log('parent_tag is selected, exiting recursion');
-            return;
-        }
-        else {
-            $(tag).parent().parent().removeClass('ODRTagSelected');
-            // console.log('removing ODRTagSelected class from', $(tag).parent().parent());
-
-            // Check whether the parent tag needs to update its parent too
-            UpdateParentTagClass( $(tag).parent().parent() );
-        }
+    if ( has_selection ) {
+        // If this tag or its siblings is selected, then ensure the parent tag is also selected
+        $(parent_tag).addClass('ODRTagSelected');
+        $(parent_tag_input).prop('checked', 'checked');
     }
+    else {
+        // Otherwise, the parent tag should be unselected
+        $(parent_tag).removeClass('ODRTagSelected');
+        $(parent_tag_input).prop('checked', '');
+    }
+
+    // Should recursively continue checking parent tags
+    FakeEdit_UpdateParentTagClass( parent_tag );
 }
 
 /**

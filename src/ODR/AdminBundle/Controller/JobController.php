@@ -60,6 +60,7 @@ class JobController extends ODRCustomController
             //  routing file, so that only relevant jobs are shown
             $jobs = array(
                 'migrate' => 'DataField Migration',
+                'tag_rebuild' => 'Tag Rebuilds',
                 'mass_edit' => 'Mass Updates',
                 'csv_import_validate' => 'CSV Validation',
                 'csv_import' => 'CSV Imports',
@@ -203,15 +204,15 @@ class JobController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $tracked_jobs = array();
             if ($user !== 'anon.') {
                 // Get Jobs as array and pass to interface
-                $tracked_jobs = $tj_service->getJobDataByUserId($user->getId());
+                $tracked_jobs = $tracked_job_service->getJobDataByUserId($user->getId());
             }
 
             $return['d'] = $tracked_jobs;
@@ -246,23 +247,30 @@ class JobController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
 
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // if ($job_type !== '')
+            $ret = null;
             if ($job_id < 1)
-                $return['d'] = $tj_service->getJobDataByType($job_type, $datatype_permissions);
+                $ret = $tracked_job_service->getJobDataByType($job_type, $datatype_permissions);
             else
-                $return['d'] = $tj_service->getJobDataById(intval($job_id), $datatype_permissions);
+                $ret = $tracked_job_service->getJobDataById(intval($job_id), $datatype_permissions);
+
+            // datatables will complain if it receives a null back from this function
+            if ( !is_null($ret) )
+                $return['d'] = $ret;
+            else
+                $return['d'] = '';
         }
         catch (\Exception $e) {
             $source = 0xbafc9425;
@@ -299,12 +307,12 @@ class JobController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // ----------------------------------------
@@ -318,7 +326,7 @@ class JobController extends ODRCustomController
                 // Where the datatype id is stored depends on which type of job it is    TODO - fix that
                 $job_type = $tracked_job->getJobType();
                 $tmp = '';
-                if ($job_type == 'migrate')
+                if ($job_type == 'migrate' || $job_type == 'tag_rebuild')
                     $tmp = $tracked_job->getRestrictions();
                 else
                     $tmp = $tracked_job->getTargetEntity();
@@ -328,7 +336,7 @@ class JobController extends ODRCustomController
 
                 // Since child datatypes can't have the is_admin permission, and this job could be for a child datatype
                 // Load this datatype's grandparent to access the is_admin permission
-                $datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
+                $datatype_id = $datatree_info_service->getGrandparentDatatypeId($datatype_id);
 
                 // If the Datatype is deleted, there's no point to this job...skip the permissions check and delete the job
                 /** @var DataType $datatype */
@@ -340,7 +348,7 @@ class JobController extends ODRCustomController
                     // Since the Job and the Datatype still exist, check whether the user has permission to delete this Job
                     /** @var ODRUser $user */
                     $user = $this->container->get('security.token_storage')->getToken()->getUser();
-                    $datatype_permissions = $pm_service->getDatatypePermissions($user);
+                    $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
                     if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin'])) )   // TODO - change from is_admin permission?
                         throw new ODRForbiddenException();
@@ -348,7 +356,7 @@ class JobController extends ODRCustomController
             }
 
             // Delete the job and all of its associated entities
-            $tj_service->deleteJob($job_id);
+            $tracked_job_service->deleteJob($job_id);
         }
         catch (\Exception $e) {
             $source = 0x8501ab5c;

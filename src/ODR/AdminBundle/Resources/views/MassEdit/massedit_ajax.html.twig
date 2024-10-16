@@ -416,6 +416,28 @@ function doMassUpdate() {
     });
 
     // Multiple Radio/Select and Tags
+    var warn = false;
+    $("#MassEditForm .ODRSearchParentTag").each(function() {
+        if ( $(this).val() === '0' ) {
+            // If this tag is marked as deselected...
+            var tag_item = $(this).parents('.ODRTagItem').first();
+            if ( $(tag_item).find('.fa-check').length == 0 ) {
+                // ...then warn about potentially deselecting multiple tags UNLESS one of its
+                //  descendants is also selected
+                warn = true;
+                return false;
+
+                // It's easier to just silently let the selection of the descendant tag override the
+                //  deselection of the ancestor tag, rather than attempt to explain why...
+            }
+        }
+    });
+    if ( warn ) {
+        var okay = confirm("You have requested deselection of a tag that has children...this will deselect all of that tag's descendants.  Are you sure?");
+        if ( !okay )
+            return;
+    }
+
     $("#MassEditForm .ODRTristateCheckbox > input").each(function() {
         // Grab the ID of the field
         var datafield_id = $(this).attr('name');

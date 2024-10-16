@@ -264,6 +264,19 @@
             {% endif %}
         </fieldset>
 
+        <script>
+            $(function() {
+                // Due to potentially having multiple tag fields with different values for display_unselected...
+                // Need to separately initialize the tag tree for each field
+                {% if datafield_meta.radio_option_display_unselected == 1 %}
+                setupTagTree( $("#Field_{{ unique_id }}"), 3);
+                {% else %}
+                setupTagTree( $("#Field_{{ unique_id }}"), 2);
+                {% endif %}
+                {# TODO - will need to figure out another solution if something reloads a tag field in Display #}
+            });
+        </script>
+
     {% elseif field_typename == "DateTime" %}
         <fieldset>
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>

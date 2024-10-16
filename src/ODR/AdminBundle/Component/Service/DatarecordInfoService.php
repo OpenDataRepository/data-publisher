@@ -383,7 +383,6 @@ class DatarecordInfoService
             'dataField',
             'id', 'created',
             'file', 'image',       // keeping these for now because multiple pieces of code assume they exist
-            'child_tagSelections', // this property will only be created if 'tagSelection' exists
         );
 
         // If this datarecord has tag datafields, then a list of "child tag selections" needs to be
@@ -654,29 +653,6 @@ class DatarecordInfoService
 
                     // otherwise, delete it
                     unset( $drf[$k] );
-                }
-
-                // If tag selections exist for this drf entry...
-                if ( isset($drf['tagSelection']) ) {
-                    // ...then for each tag that is selected...
-                    $selections = array();
-                    foreach ($drf['tagSelection'] as $t_id => $ts) {
-                        if ( $ts['selected'] === 1 ) {
-                            // ...ODR needs to find all ancestors of the selected tag...
-                            $current_tag_id = $t_id;
-                            while ( isset($inversed_tag_id_tree[$current_tag_id]) ) {
-                                // ...so it can store that they have a descendant tag that is selected
-                                $parent_tag_id = $inversed_tag_id_tree[$current_tag_id];
-                                $selections[$parent_tag_id] = '';
-
-                                // Continue looking for parent tags
-                                $current_tag_id = $parent_tag_id;
-                            }
-                        }
-                    }
-
-                    // Store the array of which tags
-                    $drf['child_tagSelections'] = $selections;
                 }
 
                 // Store the resulting $drf array by its datafield id if the storage entity exists

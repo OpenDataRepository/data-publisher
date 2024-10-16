@@ -256,7 +256,7 @@ class ValidUtility
 
 
     /**
-     * Flattens a stacked tag hierarchy for areValidTags()
+     * Flattens a stacked tag hierarchy for {@link self::areValidTags()}
      *
      * @param array $tag_array
      * @param array $available_tags

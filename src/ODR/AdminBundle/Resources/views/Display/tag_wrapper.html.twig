@@ -10,11 +10,6 @@
     {% set tag_selections = drf.tagSelection %}
 {% endif %}
 
-{% set child_tag_selections = [] %}
-{% if drf.child_tagSelections is defined %}
-    {% set child_tag_selections = drf.child_tagSelections %}
-{% endif %}
-
 <div class="ODRTagWrapper ODRTagWrapper_view">
     <ul class="ODRTagGroup">
         {% for tag_id, tag in stacked_tags %}
@@ -24,19 +19,13 @@
                 {% set is_selected = tag_selections[ tag.id ].selected %}
             {% endif %}
 
-            {# Store whether this top-level tag has children which are selected #}
-            {% set child_is_selected = 0 %}
-            {% if child_tag_selections[ tag.id ] is defined %}
-                {% set child_is_selected = 1 %}
-            {% endif %}
-
-            {% if display_unselected or (is_selected == 1 or child_is_selected == 1) %}
+            {% if display_unselected or is_selected == 1 %}
                 {% include 'ODRAdminBundle:Display:tag.html.twig' with {
                     'display_unselected': display_unselected,
 
                     'tag_selections': tag_selections,
-                    'child_tag_selections': child_tag_selections,
                     'tag': tag,
+                    'is_top_level': 1,
 
                     'unique_id': unique_id,
                 } %}

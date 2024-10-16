@@ -12,8 +12,8 @@
 <div id="ODRTagEditDialogWrapper">
     <div id="odr_tag_design_modal">
         <div class="ODRThemeElement">
-            <button class="ODRAddTag pure-button pure-button-primary{% if disable_controls %} pure-button-disabled{% endif %}">Create single tag</button>
-            <button class="ODRTagCreationMode pure-button{% if disable_controls %} pure-button-disabled{% endif %}">Import tags</button>
+            <button class="ODRAddTag pure-button pure-button-primary{% if disable_controls %} pure-button-disabled{% endif %}">Create new {% if allow_multiple_levels %}top-level{% endif %} tag</button>
+            <button class="ODRTagCreationMode pure-button{% if disable_controls %} pure-button-disabled{% endif %}">Import multiple tags</button>
         </div>
 
         <input type="hidden" id="tag_order_hash" value="" />
@@ -41,11 +41,23 @@
                 {# do nothing #}
             {% else %}
                 <div class="ODRTagMoveHelpDiv">
-                    To begin moving a tag, click on the <i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Cursor"></i> icon.  The currently selected tag is highlighted in green.<br>
-                    The up/down arrow keys will change the order of the tag{% if sort_by_name %}, but the tags will be re-sorted to be in alphabetical order when the dialog is closed{% endif %}.<br>
-                    {% if allow_multiple_levels %}The right arrow key will change the selected tag to be a child of the tag above it, while the left arrow key does the opposite.{% endif %}<br>
-                    When finished moving, click somewhere else in the box to save any changes, or press escape to close without saving.
+                {% if allow_multiple_levels %}
+                    Clicking the <i class="fa fa-plus Cursor"></i> icon to the right of the tag's name is a shortcut to creating a child of the relevant tag.<br>
+                {% endif %}
+                    To delete a tag, click on the <i class="fa fa-trash Cursor"></i> icon to the right of the tag's name.
                 </div>
+
+                {# TODO - so technically there's two different types of tag moving...a "safe" one where the parents don't change... #}
+                {# TODO - ...and an "unsafe" one when the tag parents change, because the latter has to trigger background processes to check/rebuild tag selections #}
+                {# TODO - going to pretend there's no difference for the moment, though...having to explain the difference is likely going to be a real pain #}
+                {% if not sort_by_name or allow_multiple_levels %}
+                <div class="ODRTagMoveHelpDiv">
+                    To begin moving a tag, click on the <i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Cursor"></i> icon to the left of the name.  The currently selected tag is highlighted in green.<br>
+                    {% if allow_multiple_levels %}The right arrow key will change the selected tag to be a child of the tag above it, while the left arrow key does the opposite.{% endif %}<br>
+                    The up/down arrow keys will change the order of the tag{% if sort_by_name %}, but the tags will be re-sorted to be in alphabetical order when the dialog is closed{% endif %}.<br>
+                    When finished moving the tag, click somewhere else in the box to save any changes or press escape to close without saving.
+                </div>
+                {% endif %}
             {% endif %}
             </div>
 
@@ -99,6 +111,21 @@
                 </form>
             </div>
             <div class="pure-u-1-2 ODRTagWrapper_import">
+            </div>
+        </div>
+
+        <div id="odr_tag_create_wrapper_overlay" class="pure-form ODRTagCreateWrapperOverlay ODRHidden"></div>
+        <div id="odr_tag_create_wrapper" class="pure-form ODRTagCreateWrapper ODRHidden">
+            <div id="odr_tag_create" class="ODRTagCreateDiv">
+                <div class="ODRTagCreateBlurb"></div>
+                <form id="odr_tag_create_form" class="pure-form">
+                    <input id="odr_tag_parent_id" type="hidden" name="parent_tag_id" value="" />
+                    <input class="ODRTagCreateInput" type="text" name="tag_name" placeholder="Enter new tag name" />
+                </form>
+                <div class="ODRTagCreateButtons">
+                    <button class="ODRTagCreateSubmit pure-button-primary">Create</button>
+                    <button class="ODRTagCreateCancel pure-button">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
@@ -162,7 +189,11 @@
                 $(".ODRTagWrapper_import").html('');
 
                 $(".ODRTagCreationMode").html("Import tags");
-                $(".ODRAddTag").html("Create single tag");
+                {% if allow_multiple_levels %}
+                $(".ODRAddTag").html("Create new top-level tag");
+                {% else %}
+                $(".ODRAddTag").html("Create new tag");
+                {% endif %}
             }
 
             resetRemodalInnerHeight();
@@ -203,11 +234,11 @@
         initTags();
 {% endif %}
 
-        // Probably should locate/warn about duplicate tags regardless
+        // Should locate/warn about duplicate tags regardless of whether the user can make changes
         FindDuplicateTagNames();
 
         // Also want tag tree collapsing/expanding
-        setupTagTree($("#ODRTagForm"));
+        setupTagTree( $("#ODRTagForm") );
 
         // Need to set #ODRTagForm to have a max-height, but have to wait for resetRemodalInnerHeight()
         //  to finish first...
@@ -328,9 +359,35 @@
             clearTagHighlights();
 
             if ( $("#odr_tag_import").hasClass('ODRHidden') )
-                AddTag({{ datafield.id }});
+                OpenNewTagUI(0);
             else
                 ValidateTags({{ datafield.id }});
+        });
+
+        {% if allow_multiple_levels %}
+        $(".ODRAddChildTag").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
+
+            var parent_tag_id = $(this).attr('rel');
+            OpenNewTagUI(parent_tag_id);
+        });
+        {% endif %}
+
+        $(".ODRTagCreateSubmit").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
+
+            CreateTag({{ datafield.id }})
+        });
+        $(".ODRTagCreateCancel").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
+
+            CloseNewTagUI();
         });
 
         $(".ODRDeleteTag").unbind('click').click(function(event) {
@@ -660,30 +717,64 @@
     }
 
     /**
+     * Opens the "dialog" for entering a new tag's info.
+     *
+     * @param {number} parent_tag_id
+     */
+    function OpenNewTagUI(parent_tag_id) {
+        var modal_height = $("#ODRRemodal").height();
+        var modal_width = $("#ODRRemodal").width();
+        $("#odr_tag_create_wrapper_overlay").height(modal_height).width(modal_width).removeClass('ODRHidden');
+        $("#odr_tag_create_wrapper").height(modal_height).width(modal_width).removeClass('ODRHidden');
+
+        $("#odr_tag_parent_id").val(parent_tag_id);
+        if (parent_tag_id != 0) {
+            var parent_tag_name = $("#ODRTag_" + parent_tag_id + "_name").val();
+            $(".ODRTagCreateBlurb").html("Creating a new child of the \"" + parent_tag_name + "\" tag...");
+        }
+        else {
+            $(".ODRTagCreateBlurb").html("Creating a new top-level tag...");
+        }
+    }
+
+    /**
+     * Closes/resets the "dialog" for entering a new tag's info.
+     */
+    function CloseNewTagUI() {
+        $("#odr_tag_create_wrapper_overlay").addClass('ODRHidden');
+        $("#odr_tag_create_wrapper").addClass('ODRHidden');
+    }
+
+    /**
      * Creates a new tag.
      *
      * @param {number} datafield_id
      */
-    function AddTag(datafield_id) {
+    function CreateTag(datafield_id) {
         var url = '{{ path('odr_create_tag', { 'datafield_id': 0 }) }}';
-        // Load display template menu
         url = url.substring(0,(url.length - 1));
         url += datafield_id;
         // alert(url);  return;
 
+        // Need to extract the form data prior to wiping it...
+        var form_data = $("#odr_tag_create_form").serialize();
+
+        // ...going to need to reload everything in case of tag sorting
         updateODRRemodalBody('', 'full');
 
         $.ajax({
             cache: false,
-            type: 'GET',
+            type: 'POST',
             url: url,
             dataType: "json",
+            data: form_data,
             success: function(data) {
                 // Reload parts of the page so that the new tag shows up
                 loadTagEditDialogContents(data.d.datafield_id, data.d.tag_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
+                // Should close the remodal on error...
+                closeODRTagRemodal();
             },
             complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
@@ -743,7 +834,8 @@
                 hideODRRemodalLoading();
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
+                // Should close the remodal on error...
+                closeODRTagRemodal();
             },
             complete: function(jqXHR) {
                 // Get the xdebugToken from response headers

@@ -29,6 +29,8 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -41,6 +43,8 @@ use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Component\Service\AMCSDUpdateService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
@@ -51,6 +55,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class WorkerController extends ODRCustomController
@@ -1144,6 +1149,221 @@ $ret .= '  Set current to '.$count."\n";
         return $response;
     }
 
+
+    /**
+     * Ensure all selected tags for a set of datarecords also have selected parents.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function tagrebuildworkerAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_list']) || !isset($post['datafield_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            $tracked_job_id = $post['tracked_job_id'];
+            $user_id = $post['user_id'];
+            $datarecord_list = trim($post['datarecord_list']);
+            $datafield_id = $post['datafield_id'];
+
+            $api_key = $post['api_key'];
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+
+            /** @var ODRUser $user */
+            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ( is_null($datafield) )
+                throw new ODRNotFoundException('Datafield');
+            if ( $datafield->getFieldType()->getTypeClass() !== 'Tag' )
+                throw new ODRBadRequestException('Invalid Datafield');
+            if ( !$datafield->getTagsAllowMultipleLevels() )
+                throw new ODRBadRequestException('Tag Field does not need rebuilding');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype->getDeletedAt() != null )
+                throw new ODRNotFoundException('Datatype');
+
+            $top_level_datatype = $datatype->getGrandparent();
+            if ( $top_level_datatype->getDeletedAt() != null )
+                throw new ODRNotFoundException('Grandparent Datatype');
+
+            /** @var TrackedJob $tracked_job */
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            if ($tracked_job == null)
+                throw new ODRNotFoundException('TrackedJob');
+
+
+            // ----------------------------------------
+            // Verify that the datarecord list is legitimate
+            if ( $datarecord_list === '' || $datarecord_list === ',' )
+                throw new ODRBadRequestException('Empty Datarecord list');
+
+            $datarecord_list = explode(',', $datarecord_list);
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dr.id AS dr_id, ts.selected, t.id AS tag_id
+                FROM ODRAdminBundle:DataType dt
+                LEFT JOIN ODRAdminBundle:DataRecord dr WITH dr.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataRecordFields drf WITH drf.dataRecord = dr
+                LEFT JOIN ODRAdminBundle:TagSelection ts WITH ts.dataRecordFields = drf
+                LEFT JOIN ODRAdminBundle:Tags t WITH ts.tag = t
+                WHERE dr.id IN (:datarecord_ids) AND drf.dataField = :datafield_id
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datarecord_ids' => $datarecord_list,
+                    'datafield_id' => $datafield->getId(),
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $current_selections = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dr_id = $result['dr_id'];
+                $selected = $result['selected'];
+                $tag_id = $result['tag_id'];
+
+                if ( $dt_id !== $datatype->getId() )
+                    throw new ODRBadRequestException('Invalid Datarecord '.$dr_id);
+
+                if ( !isset($current_selections[$dr_id]) )
+                    $current_selections[$dr_id] = array();
+
+                // Only want selected tags...building up an array of those and then submitting it
+                //  to the TagHelperService will end up ensuring all the tag parents get selected
+                if ( $selected === 1 )
+                    $current_selections[$dr_id][$tag_id] = 1;
+            }
+
+
+            // ----------------------------------------
+            // Load/precompute both the tag hierarchy and its inverse to slightly reduce the amound
+            //  of work the tag helper service has to do
+            $tag_hierarchy = $tag_helper_service->getTagHierarchy($top_level_datatype->getId());
+            // Want to cut the datatype/datafield levels out of the hierarchy if they're in there
+            if ( !isset($tag_hierarchy[$datatype->getId()][$datafield->getId()]) )
+                throw new ODRBadRequestException('Invalid tag hierarchy for TagHelperService::updateSelectedTags()', 0x2078e3a4);
+            $tag_hierarchy = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
+
+            // Need to invert the provided hierarchies so that the code can look up the parent
+            //  tag when given a child tag
+            $inversed_tag_hierarchy = array();
+            foreach ($tag_hierarchy as $parent_tag_id => $children) {
+                foreach ($children as $child_tag_id => $tmp)
+                    $inversed_tag_hierarchy[$child_tag_id] = $parent_tag_id;
+            }
+
+
+            // Keep track of which datarecords need events fired
+            $datarecord_lookup = array();
+            foreach ($current_selections as $dr_id => $selections) {
+                /** @var DataRecordFields $drf */
+                $drf = $repo_datarecordfields->findOneBy(
+                    array(
+                        'dataRecord' => $dr_id,
+                        'dataField' => $datafield_id
+                    )
+                );
+                if ( is_null($drf) ) {
+                    // This shouldn't happen at this point
+                    throw new ODRNotFoundException('DataRecordFields for dr '.$dr_id.', df '.$datafield_id.' not found', true);
+                }
+
+                // Resubmit the list of selections
+                $change_made = $tag_helper_service->updateSelectedTags($user, $drf, $selections, true, $tag_hierarchy, $inversed_tag_hierarchy);    // delay flush...
+                if ($change_made)
+                    $datarecord_lookup[$dr_id] = $drf->getDataRecord();
+            }
+
+            // Update the job tracker if necessary
+            $ret = '';
+            if ($tracked_job_id !== -1) {
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total && $total != -1)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $ret .= '  Set current to '.$count."\n";
+            }
+
+            $em->flush();
+            $return['d'] = $ret;
+
+
+            // ----------------------------------------
+            // In an attempt to delay flushing...fire the events off here at the end
+            if ( !empty($datarecord_lookup) ) {
+                try {
+                    $event = new DatafieldModifiedEvent($datafield, $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+
+                foreach ($datarecord_lookup as $dr_id => $dr) {
+                    try {
+                        $event = new DatarecordModifiedEvent($dr, $user);
+                        $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+                }
+            }
+        }
+        catch (\Exception $e) {
+            // This is only ever called from command-line...
+            $request->setRequestFormat('json');
+
+            $source = 0x33462c05;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 
     /**
      * Triggers the AMCSD Update process chain

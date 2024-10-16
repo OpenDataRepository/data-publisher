@@ -55,8 +55,12 @@
         // Setup File Downloader
         setupFileDownloader();
 
-        // Attach click handlers to tags
-        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // Attach standard click handlers to tags in the search sidebar...    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        setupTagTree( $("#ODRSearchSidebar"), 2);
+        // Due to potentially having multiple tag fields with different values for display_unselected...
+        // Can't initialize all of the tag fields here with a single call
+        {# TODO - will need to figure out another solution if something reloads a tag field in Display #}
+
 
 {% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) or search_key == '' %}
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}

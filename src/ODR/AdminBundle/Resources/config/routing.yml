@@ -892,6 +892,7 @@ odr_get_tag_modal:
 odr_create_tag:
     path:  /design/tags/create/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Tags:createtag }
+    methods: [ POST ]
     requirements:
         datafield_id: \d+
 
@@ -1232,6 +1233,11 @@ odr_storage_entity_cleanup_worker:
     defaults: { _controller: ODRAdminBundle:Worker:storageentitycleanup }
     methods: [ POST ]
 
+odr_tag_rebuild_worker:
+    path: /beanstalk/tag_rebuild
+    defaults: { _controller: ODRAdminBundle:Worker:tagrebuildworker }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1403,7 +1409,7 @@ odr_job_list:
     path:  /jobs/list/{section}
     defaults: { _controller: ODRAdminBundle:Job:list, section: '' }
     requirements:
-        section: '|migrate|mass_edit|csv_import_validate|csv_import|csv_export'
+        section: '|migrate|tag_rebuild|mass_edit|csv_import_validate|csv_import|csv_export'
 
 odr_my_jobs:
     path:  /jobs/my
@@ -1413,7 +1419,7 @@ odr_job_refresh:
     path:  /jobs/refresh/{job_type}/{job_id}
     defaults: { _controller: ODRAdminBundle:Job:refresh, job_id: 0 }
     requirements:
-        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export|clone_and_link'
+        job_type: '|recache|migrate|tag_rebuild|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export|clone_and_link'
         job_id: \d+
 
 #odr_get_job_errors:
@@ -1728,20 +1734,20 @@ odr_trigger_home:
         datatype_id: \d+
 
 odr_trigger_datatype_cache_wipe:
-    path: /admin/trigger/cache_wipe/{datatype_id}
+    path: /admin/trigger/datatype_cache_wipe/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Trigger:triggerdatatypecachewipe }
     requirements:
         datatype_id: \d+
 
 odr_trigger_datafield_cache_wipe:
-    path: /admin/trigger/cache_wipe/{datafield_id}
+    path: /admin/trigger/datafield_cache_wipe/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Trigger:triggerdatafieldcachewipe }
     requirements:
         datafield_id: \d+
 
 odr_trigger_tag_rebuild:
     path: /admin/trigger/tag_rebuild/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Trigger:triggertagtreerebuild }
+    defaults: { _controller: ODRAdminBundle:Trigger:triggertagrebuild }
     requirements:
         datafield_id: \d+
 

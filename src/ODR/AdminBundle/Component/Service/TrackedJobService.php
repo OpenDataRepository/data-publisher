@@ -59,6 +59,7 @@ class TrackedJobService
 //        'xml_import_validate',
         'mass_edit',
         'migrate',
+        'tag_rebuild',
         'clone_and_link',
 //        'rebuild_thumbnails',
     );
@@ -193,7 +194,7 @@ class TrackedJobService
             $target_entity = $tracked_job->getTargetEntity();
             $job_type = $tracked_job->getJobType();
 
-            if ($job_type == 'migrate')
+            if ($job_type == 'migrate' || $job_type == 'tag_rebuild')
                 $target_entity = $tracked_job->getRestrictions();
 
             $tmp = explode('_', $target_entity);
@@ -348,6 +349,10 @@ class TrackedJobService
 
                 $job['description'] = 'Migration of DataField "'.$datafield->getFieldName().'" from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
 
+                if ($can_delete)
+                    $job['can_delete'] = true;
+            }
+            else if ($job_type == 'tag_rebuild') {
                 if ($can_delete)
                     $job['can_delete'] = true;
             }
@@ -586,6 +591,7 @@ class TrackedJobService
         // Most jobs run on datatypes, but a few run on datafields or datarecords instead...
         $datafield_jobs = array(
             'migrate' => 1,
+            'tag_rebuild' => 1,
 
             // The rest of these aren't "real" job, but have the potential for breaking in-progress jobs
             'delete_datafield' => 1,
@@ -623,7 +629,8 @@ class TrackedJobService
 
 
         // ----------------------------------------
-        // These jobs can't interfere with any other background job
+        // These jobs merely copy to new database entries...they can't interfere with any other
+        //  background job
         $always_allowed_jobs = array(
             'clone_theme' => 1,
             'clone_and_link' => 1,
@@ -640,7 +647,7 @@ class TrackedJobService
         // Since $allowed_jobs['csv_import'] does not exist, that means no new job can be created
         //  when a 'csv_import' job is currently in progress for the datatype
         // Since $allowed_jobs['migrate']['migrate'] exists, this means that a new 'migrate'
-        //  job could potentially be allowed even if a 'migrate' job is already in progress...and ODR
+        //  job could potentially be allowed even if a 'migrate' job is already in progress...but ODR
         //  should call the given function name "self::requireDifferentDatafield()" to verify
 
         // If $allowed_jobs['migrate']['mass_edit'] existed, then that would indicate a new
@@ -653,6 +660,8 @@ class TrackedJobService
             'migrate' => array(
                 // New migrations are allowed, but only when the datafield isn't already being migrated
                 'migrate' => 'self::requireDifferentDatafield',
+                // Shouldn't migrate a datafield that's being rebuilt
+                'tag_rebuild' => 'self::requireDifferentDatafield',
 
                 // Renaming is allowed, but only when the datafield isn't already being migrated
                 'rename_radio_option' => 'self::requireDifferentDatafield',
@@ -662,24 +671,39 @@ class TrackedJobService
                 'delete_tag' => 'self::requireDifferentDatafield',
             ),
 
+            'tag_rebuild' => array(
+                // New migrations are allowed, but only when the datafield isn't already being migrated
+                'migrate' => 'self::requireDifferentDatafield',
+                // Should be able to run more than one of these jobs at a time so long as they're
+                //  operating on different fields
+                'tag_rebuild' => 'self::requireDifferentDatafield',
+
+                // Doing stuff with radio options shouldn't affect rebuilding a tag list
+                'rename_radio_option' => 'self::alwaysAllowed',
+                'delete_radio_option' => 'self::alwaysAllowed',
+                // Renaming tags should also work
+                'rename_tag' => 'self::alwaysAllowed',
+                // Deleting a tag should only be allowed when it belongs to a different datafield
+                'delete_tag' => 'self::requireDifferentDatafield',
+            ),
+
             'csv_export' => array(
                 // Since export filenames include which tracked job they're for, a user can run
                 //  multiple exports at the same time
                 'csv_export' => 'self::alwaysAllowed',
+
+                // None of the other jobs are allowed, since changing/deleting stuff in the middle
+                //  of exporting is bad
             ),
-
-//            'csv_export' => array(
-//                'csv_export' => '',    // TODO - technically, could run if the background jobs got changed so the "random" filename includes a tracked job id
-
-                // Unable to start new CSVExport jobs if any of the others job types are running
-//            ),
-
-
             'mass_edit' => array(
                 // Renaming these has no effect on mass edit doing any selecting/deselecting
                 'rename_radio_option' => 'self::alwaysAllowed',
                 'rename_tag' => 'self::alwaysAllowed',
+
+                // None of the other jobs are allowed, since they're changing stuff mass edit needs
             ),
+
+            // Only allowed to have one csv import job running at a time
 //            'csv_import' => array(),
 //            'csv_import_validate' => array(),
         );
@@ -706,7 +730,7 @@ class TrackedJobService
 
             // ...and which datatype it's currently modifying
             $affected_datatype_id = null;
-            if ( $current_job_type === 'migrate' ) {
+            if ( $current_job_type === 'migrate' || $current_job_type === 'tag_rebuild' ) {
                 $pieces = explode('_', $tj->getRestrictions());
                 $affected_datatype_id = intval($pieces[1]);
             }
