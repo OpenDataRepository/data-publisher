@@ -131,7 +131,7 @@ class EntityMetaModifyService
      *
      * @param ODRUser $user
      * @param DataFields $datafield
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      */
     public function incrementDatafieldMasterRevision($user, $datafield, $delay_flush = false)
     {
@@ -189,7 +189,7 @@ class EntityMetaModifyService
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      */
     public function incrementDatatypeMasterRevision($user, $datatype, $delay_flush = false)
     {
@@ -273,7 +273,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataFieldsMeta
@@ -621,7 +621,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param DataRecord $datarecord
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataRecordMeta
@@ -707,7 +707,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param DataTree $datatree
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTreeMeta
@@ -802,7 +802,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTypeMeta
@@ -1052,7 +1052,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param DataTypeSpecialFields $dtsf
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTypeSpecialFields
@@ -1125,7 +1125,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param File $file
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return FileMeta
@@ -1223,7 +1223,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param GroupDatatypePermissions $permission
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return GroupDatatypePermissions
@@ -1313,7 +1313,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param GroupDatafieldPermissions $permission
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return GroupDatafieldPermissions
@@ -1386,7 +1386,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param Group $group
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return GroupMeta
@@ -1482,7 +1482,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param Image $image
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ImageMeta
@@ -1582,7 +1582,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param RadioOptions $radio_option
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioOptionsMeta
@@ -1690,7 +1690,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param RadioSelection $radio_selection
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioSelection
@@ -1762,6 +1762,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param RenderPluginMap $render_plugin_map
      * @param array $properties
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return bool
@@ -1865,7 +1866,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param RenderPluginOptionsMap $render_plugin_options_map
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return bool
@@ -1939,7 +1940,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param SidebarLayout $sidebar_layout
      * @param array $properties
-     * @param boolean|null $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \Datetime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayoutMeta
@@ -2039,7 +2040,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param SidebarLayoutMap $sidebar_layout_map
      * @param array $properties
-     * @param boolean|null $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayoutMap
@@ -2116,7 +2117,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $entity
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param bool $fire_event  If false, then don't fire the PostUpdateEvent
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
@@ -2261,7 +2262,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param StoredSearchKey $ssk
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime $created If provided, then the created/updated dates are set to this
      *
      * @return StoredSearchKey
@@ -2344,7 +2345,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param Tags $tag
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return TagMeta
@@ -2446,10 +2447,14 @@ class EntityMetaModifyService
      * Modifies a given tag selection entity by copying the old value into a new storage entity,
      * then deleting the old entity.
      *
+     * IMPORTANT: You probably should be using {@link TagHelperService::updateSelectedTags()} instead of this.
+     * Selecting or deselecting a tag may affect the selected status of its parent, which the linked
+     * function above handles...this specific function does not.
+     *
      * @param ODRUser $user
      * @param TagSelection $tag_selection
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return TagSelection
@@ -2521,7 +2526,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param ThemeDataField $theme_datafield
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeDataField
@@ -2619,7 +2624,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param ThemeDataType $theme_datatype
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeDataType
@@ -2692,7 +2697,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param ThemeElement $theme_element
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeElementMeta
@@ -2790,7 +2795,7 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param Theme $theme
      * @param array $properties
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeMeta

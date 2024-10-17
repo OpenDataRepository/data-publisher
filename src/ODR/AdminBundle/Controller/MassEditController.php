@@ -31,8 +31,6 @@ use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\Tags;
-use ODR\AdminBundle\Entity\TagSelection;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -58,6 +56,7 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
@@ -470,6 +469,7 @@ class MassEditController extends ODRCustomController
 
                 // Ensure the datafield belongs to the top-level datatype or one of its descendants
                 $df_array = self::getDatafieldArray($dt_array, $df_id);
+                $cached_df_entry = $df_array['cached_df'];
 
                 if ( $df->getIsUnique() || $df->getPreventUserEdits() ) {
                     // Silently ignore datafields that are marked as unique, or as not editable by
@@ -511,10 +511,10 @@ class MassEditController extends ODRCustomController
                             break;
 
                         case 'Radio':
-                            $is_valid = ValidUtility::areValidRadioOptions($df_array, $value);
+                            $is_valid = ValidUtility::areValidRadioOptions($cached_df_entry, $value);
                             break;
                         case 'Tag':
-                            $is_valid = ValidUtility::areValidTags($df_array, $value);
+                            $is_valid = ValidUtility::areValidTags($cached_df_entry, $value);
                             break;
 
                         case 'File':
@@ -1105,8 +1105,6 @@ class MassEditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
-            $repo_tag = $em->getRepository('ODRAdminBundle:Tags');
-            $repo_tag_selection = $em->getRepository('ODRAdminBundle:TagSelection');
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
@@ -1116,6 +1114,8 @@ class MassEditController extends ODRCustomController
             $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var Logger $logger */
@@ -1244,43 +1244,13 @@ class MassEditController extends ODRCustomController
                 $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                 if ( !is_null($value) ) {
-                    // Load all selection objects attached to this tag object
-                    $tag_selections = array();
-                    /** @var TagSelection[] $tmp */
-                    $tmp = $repo_tag_selection->findBy( array('dataRecordFields' => $drf->getId()) );
-                    foreach ($tmp as $ts)
-                        $tag_selections[ $ts->getTag()->getId() ] = $ts;
-                    /** @var TagSelection[] $tag_selections */
+                    // Need to ensure the values are numeric
+                    $selections = array();
+                    foreach ($value as $tag_id => $val)
+                        $selections[$tag_id] = intval($val);
 
-                    // Set tag_selection objects to the desired state
-                    foreach ($value as $tag_id => $selected) {
-                        if ( isset($tag_selections[$tag_id]) && $tag_selections[$tag_id]->getSelected() != $selected ) {
-                            // Ensure the TagSelection has the correct value
-                            $tag_selection = $tag_selections[$tag_id];
-
-                            $properties = array('selected' => $selected);
-                            $entity_modify_service->updateTagSelection($user, $tag_selection, $properties);
-
-                            $ret .= 'updated existing tag_selection object for tag '.$tag_id.' ("'.$tag_selection->getTag()->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
-                        }
-                        else if ( !isset($tag_selections[$tag_id]) && $selected != 0 ) {
-                            // Ensure a TagSelection entity exists
-                            /** @var Tags $tag */
-                            $tag = $repo_tag->find($tag_id);
-                            $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
-
-                            // Ensure it has the correct selected value
-                            $properties = array('selected' => $selected);
-                            $entity_modify_service->updateTagSelection($user, $tag_selection, $properties);
-
-                            $ret .= 'created new tag_selection object for tag '.$tag_id.' ("'.$tag->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
-                        }
-                        else {
-                            // Do nothing...current tag selections in entity already match desired
-                            //  values
-                            $ret .= 'ignoring tag '.$tag_id.' of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...current value does not need to change'."\n";
-                        }
-                    }
+                    // Perform the update
+                    $tag_helper_service->updateSelectedTags($user, $drf, $selections);
                 }
 
                 // $event_trigger will only have an entry for this datafield if the event is supposed

@@ -19,14 +19,10 @@
         <span class="ODRTagSpacer"></span>
     {% endif %}
 
-    {% if not disable_controls %}
-        <span class="ODRDeleteTag" rel="{{ tag.id }}"><i class="fa fa-trash Pointer"></i></span>
-    {% endif %}
-
     {% if disable_controls or (not allow_multiple_levels and sort_by_name) %}
         {# Don't allow re-ordering if only a single level of tags is permitted, and they're sorted by name #}
     {% else %}
-        <span class="ODRTagAnchor"><i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Pointer"></i></span>
+        <span class="ODRTagAnchor" title="Move this tag"><i class="fa {% if allow_multiple_levels %}fa-arrows{% else %}fa-arrows-v{% endif %} Pointer"></i></span>
     {% endif %}
 
         <input id="ODRTag_{{ tag.id }}_name"
@@ -42,6 +38,11 @@
             title="Not allowed to modify this tag's name"
         {% endif %}
         />
+
+        {% if not disable_controls %}
+            {% if allow_multiple_levels %}<span class="ODRAddChildTag" rel="{{ tag.id }}" title="Create a child tag"><i class="fa fa-plus Pointer"></i></span>{% endif %}
+            <span class="ODRDeleteTag" rel="{{ tag.id }}" title="Delete this tag"><i class="fa fa-trash Pointer"></i></span>
+        {% endif %}
 
         <span class="ODRInputError ODRHidden">&nbsp;&nbsp;<i class="fa fa-warning"></i><span>Duplicate Tag name</span></span>
     </div>

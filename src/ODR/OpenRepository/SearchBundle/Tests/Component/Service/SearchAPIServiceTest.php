@@ -222,7 +222,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,95),
                 false
             ],
-            'IMA List: tags containing "Grandfathered", including non-public records' => [
+            'IMA List: records where the tag "Grandfathered" is selected, including non-public records' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19",
@@ -230,7 +230,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,96,97),
                 true
             ],
-            'IMA List: tags containing "Abiotic", including non-public records' => [
+            'IMA List: records where the tag "Abiotic" is selected, including non-public records' => [
                 array(
                     'dt_id' => 2,
                     '28' => "41",
@@ -238,7 +238,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,94,97),
                 true
             ],
-            'IMA List: tags containing "Grandfathered AND Abiotic", including non-public records' => [
+            'IMA List: records where the tags "Grandfathered" and "Abiotic" are both selected, including non-public records' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19,41",    // field is set to merge_by_AND by default, so no prefix needed
@@ -246,7 +246,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,97),
                 true
             ],
-            'IMA List: tags containing "Grandfathered AND Abiotic" (alternate), including non-public records' => [
+            'IMA List: records with the tag "Grandfathered" and AT LEAST ONE OF the tags "Abiotic" (yes, only one tag in the category), including non-public records' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19,~41",    // ...however, one of them having the prefix shouldn't change the results, as it's in the "AT LEAST ONE OF" category by itself
@@ -254,7 +254,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,97),
                 true
             ],
-            'IMA List: tags containing "Grandfathered OR Abiotic", including non-public records' => [
+            'IMA List: records with AT LEAST ONE OF the tags "Grandfathered" or "Abiotic", including non-public records' => [
                 array(
                     'dt_id' => 2,
                     '28' => "~19,~41",    // ...both of them need to have the prefix to do a proper merge_by_OR
@@ -262,12 +262,39 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,94,96,97),
                 true
             ],
-            'IMA List: tags containing "Grandfathered AND NOT Abiotic", including non-public records' => [
+            'IMA List: records where the tag "Grandfathered" selected and the tag "Abiotic" is not selected, including non-public records' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19,-41",
                 ),
                 array(96),
+                true
+            ],
+
+            'IMA List: records where the tag "Fleischers Glossary 2008" is selected, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '28' => "16",
+                ),
+                array(92,93,94,96,97),
+                true
+            ],
+
+            // these two general searches need to hit the biotic/abiotic tag names
+            'IMA List: records with the string "biotic", including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "biotic",    // will also match "abiotic"
+                ),
+                array(91,92,93,94,96,97,),
+                true
+            ],
+            'IMA List: records with the string "\"biotic\"", including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "\"biotic\"",
+                ),
+                array(91,96),
                 true
             ],
 

@@ -600,6 +600,7 @@ class SearchCacheService implements EventSubscriberInterface
         $datafield = $event->getDatafield();
         $datafield_id = $datafield->getId();
         $datatype_id = $datafield->getDataType()->getId();
+        $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
         $typeclass = $datafield->getFieldType()->getTypeClass();
 
         $master_datafield_uuid = null;
@@ -610,6 +611,7 @@ class SearchCacheService implements EventSubscriberInterface
         self::clearDatafieldEntries(
             $datafield_id,
             $datatype_id,
+            $grandparent_datatype_id,
             $typeclass,
             $master_datafield_uuid
         );
@@ -628,6 +630,7 @@ class SearchCacheService implements EventSubscriberInterface
 
         $datafield_id = $event->getDatafieldId();
         $datatype_id = $event->getDatatype()->getId();
+        $grandparent_datatype_id = $event->getDatatype()->getGrandparent()->getId();
 
         // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
         //  confident it works properly when dealing with potentially async situations
@@ -652,6 +655,7 @@ class SearchCacheService implements EventSubscriberInterface
         self::clearDatafieldEntries(
             $datafield_id,
             $datatype_id,
+            $grandparent_datatype_id,
             $typeclass,
             $master_datafield_uuid
         );
@@ -667,10 +671,11 @@ class SearchCacheService implements EventSubscriberInterface
      *
      * @param int $datafield_id
      * @param int $datatype_id
+     * @param int $grandparent_datatype_id
      * @param string $typeclass
      * @param string|null $master_datafield_uuid
      */
-    private function clearDatafieldEntries($datafield_id, $datatype_id, $typeclass, $master_datafield_uuid = null)
+    private function clearDatafieldEntries($datafield_id, $datatype_id, $grandparent_datatype_id, $typeclass, $master_datafield_uuid = null)
     {
         // While it's technically possible to selectively delete portions of the cached entry, it's
         //  really not worthwhile
@@ -688,8 +693,13 @@ class SearchCacheService implements EventSubscriberInterface
         //  all of the cached radio options or tags associated with this datafield
         if ($typeclass === 'Radio')
             self::clearCachedRadioOptionsByDatafield( array($datafield_id) );
-        else if ($typeclass === 'Tag')
+        else if ($typeclass === 'Tag') {
             self::clearCachedTagsByDatafield( array($datafield_id) );
+
+            // Should also ensure these are cleared...
+            $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+            $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype_id);
+        }
     }
 
 

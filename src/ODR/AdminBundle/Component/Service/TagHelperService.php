@@ -13,13 +13,17 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\Tags;
+use ODR\AdminBundle\Entity\TagSelection;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Services
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-// Utility
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -37,6 +41,21 @@ class TagHelperService
     private $cache_service;
 
     /**
+     * @var EntityCreationService
+     */
+    private $entity_create_service;
+
+    /**
+     * @var EntityMetaModifyService
+     */
+    private $entity_modify_service;
+
+    /**
+     * @var LockService
+     */
+    private $lock_service;
+
+    /**
      * @var CsrfTokenManager
      */
     private $token_manager;
@@ -52,17 +71,26 @@ class TagHelperService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param EntityCreationService $entity_creation_service
+     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param LockService $lock_service
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        EntityCreationService $entity_creation_service,
+        EntityMetaModifyService $entity_meta_modify_service,
+        LockService $lock_service,
         CsrfTokenManager $token_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->entity_create_service = $entity_creation_service;
+        $this->entity_modify_service = $entity_meta_modify_service;
+        $this->lock_service = $lock_service;
         $this->token_manager = $token_manager;
         $this->logger = $logger;
     }
@@ -84,7 +112,6 @@ class TagHelperService
      */
     public function getTagHierarchy($grandparent_datatype_id, $use_tag_uuids = false)
     {
-        // TODO We need to stop making arrays like this - completely untenable long term
         // Attempt to load this from the cache first...
         $tag_hierarchy = null;
         if (!$use_tag_uuids)
@@ -149,72 +176,6 @@ class TagHelperService
         }
 
         return $tag_hierarchy;
-    }
-
-
-    /**
-     * Takes the given array of tag selections and returns an array that also contains all children
-     * of the given tags.  Tags which aren't already bottom-level pass their currently "selected"
-     * value down to their children, but any defined values for the child tags take priority.
-     *
-     * As an example, assume there's a tag structure of  Country => State/Province => City.
-     * If the given array defined a value of 1 for a Country and a value of 0 for a City within that
-     * Country...then in the returned array, that City would still have a value of 0, while every
-     * other City in the Country would have a value of 1.
-     *
-     * This theory works on both single datafield and template datafield searches.
-     *
-     * @param DataFields $datafield
-     * @param array $selections
-     * @param bool $use_tag_uuids If true, organize by tag_uuids instead of tag_ids
-     *
-     * @return array
-     */
-    public function expandTagSelections($datafield, $selections, $use_tag_uuids = false)
-    {
-        // Load the tag hierarchy for this datatype
-        $datatype = $datafield->getDataType();
-        $grandparent_datatype = $datatype->getGrandparent();
-        $tag_hierarchy = self::getTagHierarchy($grandparent_datatype->getId(), $use_tag_uuids);
-
-        // A datafield may not necessarily have a tag hierarchy...
-        $tag_tree = array();
-        if ( isset($tag_hierarchy[$datatype->getId()])
-            && isset($tag_hierarchy[$datatype->getId()][$datafield->getId()])
-        ) {
-            $tag_tree = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
-        }
-
-        // It's easier for people to understand that values explictly defined for lower-level tags
-        //  take precedence over values defined for higher-level tags...therefore, it's easiest to
-        //  insert new entries into the tag selection array
-        $selections_to_process = $selections;
-        while ( !empty($selections_to_process) ) {
-            $tmp = $selections_to_process;
-            $selections_to_process = array();
-
-            // For each of the tags that were added last iteration...
-            foreach ($tmp as $t_id => $val) {
-                // ...if the tag was not leaf-level...
-                if ( isset($tag_tree[$t_id]) ) {
-                    // ...then for each of its child tags...
-                    foreach ($tag_tree[$t_id] as $child_tag_id => $num) {
-                        // ...insert a value into the selections array if it doesn't already have one
-                        if ( !isset($selections[$child_tag_id]) ) {
-                            $selections[$child_tag_id] = $val;
-
-                            // ...and processs the child tag in the next iteration
-                            $selections_to_process[$child_tag_id] = $val;
-                        }
-                    }
-
-                    // The tags which aren't leaf-level can't remain in the array to be searched on
-                    unset( $selections[$t_id] );
-                }
-            }
-        }
-
-        return $selections;
     }
 
 
@@ -496,5 +457,362 @@ class TagHelperService
         }
 
         return $existing_tag_array;
+    }
+
+
+    /**
+     * ODR's original implementation of tags was designed so modifying tags was simple...selecting
+     * or deselecting a tag had zero effect on any other tag in the datafield.  Parents of selected
+     * tags were "assumed" to also be selected, requiring ODR to "fill in" the blanks when rendering,
+     * searching, or exporting.  Unfortunately, exporting quirks made this "filling in" too complicated
+     * to understand, so the spec was changed...
+     *
+     * The current ruleset states:
+     * 1) selecting a tag needs to ensure its parent (and its parent's parent, etc) are selected
+     * 2) deselecting a tag needs to ensure its descendants are unselected
+     * 3) deselecting a tag might also make its parent unselected, if none of this tag's siblings
+     * are selected
+     *
+     * Due to the rules, it makes more sense to have a function that can update multiple tags at
+     * once...Edit mode will only request a change to one tag at a time (though it could end up
+     * changing multiple tags), but FakeEdit/MassEdit/CSVImport/API all benefit from being able to
+     * specify multiple tags.
+     *
+     * While delaying a flush is allowed, this shouldn't be used if possible...changesets are computed
+     * based on the contents of the database, which can easily get out of date if flushes are delayed.
+     *
+     *
+     * @param ODRUser $user
+     * @param DataRecordFields $drf
+     * @param array $desired_selections An array of (tag_id => desired_value)...desired_value can be
+     *                                  0, 1, or '!'...the '!' value requests the inverse of the
+     *                                  current selection.
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param array|null $tag_hierarchy
+     * @param array|null $inversed_tag_hierarchy Both the tag hierarchies can be passed in to reduce
+     *                                           the work done by this function
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return bool True if a change was made, false otherwise
+     */
+    public function updateSelectedTags($user, $drf, $desired_selections, $delay_flush = false, $tag_hierarchy = null, $inversed_tag_hierarchy = null, $created = null)
+    {
+        $datafield = $drf->getDataField();
+        $datatype = $datafield->getDataType();
+        if ( $datafield->getFieldType()->getTypeClass() !== 'Tag' )
+            throw new ODRBadRequestException('Not allowed to call TagHelperService::updateSelectedTags() on a non-Tag field', 0x2078e3a4);
+
+
+        if ( !is_null($tag_hierarchy) && !is_array($tag_hierarchy) )
+            throw new ODRBadRequestException('$tag_hierarchy must be an array', 0x2078e3a4);
+        if ( !is_null($inversed_tag_hierarchy) && !is_array($inversed_tag_hierarchy) )
+            throw new ODRBadRequestException('$inversed_tag_hierarchy must be an array', 0x2078e3a4);
+
+
+        // ----------------------------------------
+        // If the tag field allows multiple levels...
+        if ( $datafield->getTagsAllowMultipleLevels() ) {
+            // ...then ensure the tag hierarcy array exists
+            if ( is_null($tag_hierarchy) ) {
+                $grandparent_datatype = $datafield->getDataType()->getGrandparent();
+                $tag_hierarchy = self::getTagHierarchy($grandparent_datatype->getId());
+
+                // Want to cut the datatype/datafield levels out of the hierarchy if they're in there
+                if ( !isset($tag_hierarchy[$datatype->getId()][$datafield->getId()]) )
+                    throw new ODRBadRequestException('Invalid tag hierarchy for TagHelperService::updateSelectedTags()', 0x2078e3a4);
+                $tag_hierarchy = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
+            }
+
+            // Need to invert the provided hierarchies so that the code can look up the parent
+            //  tag when given a child tag
+            if ( is_null($inversed_tag_hierarchy) ) {
+                $inversed_tag_hierarchy = array();
+                foreach ($tag_hierarchy as $parent_tag_id => $children) {
+                    foreach ($children as $child_tag_id => $tmp)
+                        $inversed_tag_hierarchy[$child_tag_id] = $parent_tag_id;
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        // Due to reading and potentially creating/modifying multiple tags...using a lock is
+        //  unavoidable
+        $lockHandler = $this->lock_service->createLock('tag_update_for_drf_'.$drf->getId().'.lock'/*, 5*/);    // Need to lower this if debugging
+        if ( !$lockHandler->acquire() ) {
+            // Another process is attempting to create this entity...wait for it to finish...
+            $lockHandler->acquire(true);
+        }
+        // Now that the lock is acquired, continue...
+
+        // Need to determine what the current tag selections are...
+        $query = $this->em->createQuery(
+           'SELECT t.id AS t_id, ts.id AS ts_id, ts.selected AS ts_value
+            FROM ODRAdminBundle:TagSelection ts
+            JOIN ODRAdminBundle:Tags t WITH ts.tag = t
+            WHERE ts.dataRecordFields = :drf_id
+            AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'
+        )->setParameters( array('drf_id' => $drf->getId()) );
+        $results = $query->getArrayResult();
+
+        $current_selections = array();
+        foreach ($results as $result) {
+            $tag_id = $result['t_id'];
+            $tag_selection_id = $result['ts_id'];
+            $value = $result['ts_value'];
+
+            $current_selections[$tag_id] = array(
+                'ts_id' => $tag_selection_id,
+                'value' => $value,
+            );
+        }
+
+        // ...in order to tweak the array of desired selections to get rid of the '!' character
+        foreach ($desired_selections as $tag_id => $value) {
+            if ( $value === '!' ) {
+                if ( !isset($current_selections[$tag_id]) ) {
+                    // If the tag selection doesn't exist, then this value should result in creating
+                    //  a new selected tag
+                    $desired_selections[$tag_id] = 1;
+                }
+                else {
+                    // If the tag selection already exists, then this value should invert the tag's
+                    //  current selection
+                    if ( $current_selections[$tag_id]['value'] === 0 )
+                        $desired_selections[$tag_id] = 1;
+                    else
+                        $desired_selections[$tag_id] = 0;
+                }
+            }
+        }
+
+        // Now that the '!' character has been eliminated, we have an "actual" changeset...
+        $this->logger->debug('attempting tag update for dr '.$drf->getDataRecord()->getId().', df '.$datafield->getId().' ("'.$datafield->getFieldName().'")...');
+//        $this->logger->debug('-- desired selections: '.print_r($desired_selections, true));
+
+        // ...though if a tag hierarchy is involved...
+        $cascade_deselections = array();
+        if ( !is_null($tag_hierarchy) ) {
+            // ...but if a tag hierarcy is involved then we're not quite done yet...the desired
+            //  changes might need to cascade up/down/around to other tags in the hierarchy
+
+            // Any tag that the user wants selected...
+            foreach ($desired_selections as $tag_id => $value) {
+                if ( $value === 1 ) {
+                    // ...should recursively ensure each of its parent tags are selected
+                    $t_id = $tag_id;
+                    while ( isset($inversed_tag_hierarchy[$t_id]) ) {
+                        $parent_tag_id = $inversed_tag_hierarchy[$t_id];
+                        $desired_selections[$parent_tag_id] = 1;
+
+                        // NOTE: this intentionally overrules the user wanting $parent_tag_id to
+                        //  be deselected
+
+                        $t_id = $parent_tag_id;
+                    }
+                }
+            }
+
+            // Need to do two different steps for tags that the user wants deselected
+
+            // The first step is to locate and also deselect all of the tag's descendants
+            foreach ($desired_selections as $tag_id => $value) {
+                if ( $value === 0 && isset($tag_hierarchy[$tag_id]) ) {
+
+                    $descendant_tag_ids = array();
+                    $current_parent_tags = array($tag_id => '');
+                    while ( !empty($current_parent_tags) ) {
+                        $tmp = array();
+                        foreach ($current_parent_tags as $t_id => $str) {
+                            if ( isset($tag_hierarchy[$t_id]) ) {
+                                foreach ($tag_hierarchy[$t_id] as $child_tag_id => $str) {
+                                    $descendant_tag_ids[$child_tag_id] = '';
+                                    $tmp[$child_tag_id] = '';
+                                }
+                            }
+                        }
+
+                        // Reset for next loop
+                        $current_parent_tags = $tmp;
+                    }
+
+                    // These extra deletions are stored in a different array for the moment
+                    foreach ($descendant_tag_ids as $t_id => $num)
+                        $cascade_deselections[$t_id] = 0;
+                }
+            }
+
+            // The second step is to determine whether the deselection of this tag should also
+            //  trigger the deselection of this tag's parent
+            foreach ($desired_selections as $tag_id => $value) {
+                if ( $value === 0 && isset($inversed_tag_hierarchy[$tag_id]) ) {
+                    // Need to get this tag's parent...
+                    $parent_tag_id = $inversed_tag_hierarchy[$tag_id];
+                    while ( $parent_tag_id !== false ) {
+                        // ...so that each of this tag's siblings can be found
+                        $deselect_parent = true;
+                        foreach ($tag_hierarchy[$parent_tag_id] as $sibling_tag_id => $str) {
+                            if ( isset($desired_selections[$sibling_tag_id]) ) {
+                                // If this sibling tag is being modified...
+                                if ( $desired_selections[$sibling_tag_id] === 1 ) {
+                                    // ...and it's being modified to be selected, then the parent
+                                    //  tag should not be deselected
+                                    $deselect_parent = false;
+                                    break;
+                                }
+
+                                // Continue looking when this sibling tag is being unselected
+                            }
+                            else {
+                                // If this sibling tag is not being modified...
+                                if ( isset($current_selections[$sibling_tag_id]) && $current_selections[$sibling_tag_id]['value'] === 1 ) {
+                                    // ...and it's already selected, then the parent tag should not
+                                    //  be deselected
+                                    $deselect_parent = false;
+                                    break;
+                                }
+
+                                // Continue looking when this sibling tag is unselected
+                            }
+                        }
+
+                        if ( $deselect_parent ) {
+                            // If the parent tag needs to get deselected, then store that...
+                            $desired_selections[$parent_tag_id] = 0;
+                            // ...and check this tag's parent too if it exists
+                            if ( isset($inversed_tag_hierarchy[$parent_tag_id]) )
+                                $parent_tag_id = $inversed_tag_hierarchy[$parent_tag_id];
+                            else
+                                break;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Tags which get deselected by this third loop do not need to cascade the deselection
+        }
+
+        // Any cascading deselections can now be inserted into the array of desired deselections
+        foreach ($cascade_deselections as $tag_id => $num)
+            $desired_selections[$tag_id] = 0;
+
+
+        // ----------------------------------------
+        // Now that the array of desired selections covers any tag hierarcy shennanigans, split it
+        //  apart into two arrays...creating a new tag selection is different than updating an
+        //  existing one
+        $new_selections = $changed_selections = array();
+        foreach ($desired_selections as $tag_id => $value) {
+            if ( !isset($current_selections[$tag_id]) ) {
+                // If the tag selection doesn't already exist...
+                if ( $value === 1 || $value === '!' ) {
+                    // ...then either of these values should result in creating a new tag selection
+                    //  with a value of 'selected'
+                    $new_selections[$tag_id] = 1;
+                }
+
+                // Requests to create a tag selection just to make it 'unselected' are ignored
+            }
+            else {
+                if ( $value === '!' ) {
+                    // This value should invert the current selection for this tag
+                    if ( $current_selections[$tag_id]['value'] === 0 )
+                        $changed_selections[$tag_id] = 1;
+                    else
+                        $changed_selections[$tag_id] = 0;
+                }
+                else if ( $current_selections[$tag_id]['value'] !== $value ) {
+                    // Otherwise, only do something when the requested value and the current value
+                    //  are different
+                    $changed_selections[$tag_id] = $value;
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        $change_made = false;
+
+        // If new TagSelection entries need to be created...
+        if ( !empty($new_selections) ) {
+            $change_made = true;
+
+            // Need to hydrate each tag that is going to get a new tag selection
+            $tag_ids = array_keys($new_selections);
+            $query = $this->em->createQuery(
+               'SELECT t
+                FROM ODRAdminBundle:Tags t
+                WHERE t.id IN (:tag_ids)
+                AND t.deletedAt IS NULL'
+            )->setParameters( array('tag_ids' => $tag_ids ) );
+            /** @var Tags[] $results */
+            $results = $query->getResult();
+
+            /** @var Tags[] $tag_lookup */
+            $tag_lookup = array();
+            foreach ($results as $t)
+                $tag_lookup[ $t->getId() ] = $t;
+
+            foreach ($new_selections as $t_id => $value) {
+                $tag = $tag_lookup[$t_id];
+
+                $this->entity_create_service->createTagSelection($user, $tag, $drf, $value, true, $created);    // delay flush
+//                $this->logger->debug(' -- created new tag selection for "'.$tag->getTagName().'" ('.$tag->getId().')');
+            }
+        }
+
+        // If existing TagSelection entries need to be updated...
+        if ( !empty($changed_selections) ) {
+            $change_made = true;
+
+            // Need to hydrate each tag selections that will be modified
+            $tag_ids = array_keys($changed_selections);
+            $query = $this->em->createQuery(
+               'SELECT ts
+                FROM ODRAdminBundle:Tags t
+                JOIN ODRAdminBundle:TagSelection ts WITH ts.tag = t
+                WHERE t.id IN (:tag_ids) AND ts.dataRecordFields = :drf_id
+                AND t.deletedAt IS NULL AND ts.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'tag_ids' => $tag_ids,
+                    'drf_id' => $drf->getId(),
+                )
+            );
+            $results = $query->getResult();
+
+            /** @var TagSelection[] $tag_selection_lookup */
+            $tag_selection_lookup = array();
+            foreach ($results as $ts) {
+                /** @var TagSelection $ts */
+                $tag_selection_lookup[ $ts->getTag()->getId() ] = $ts;
+            }
+
+            // Perform the modifications
+            foreach ($changed_selections as $t_id => $value) {
+                $tag_selection = $tag_selection_lookup[$t_id];
+                $props = array('selected' => $value);
+
+                $this->entity_modify_service->updateTagSelection($user, $tag_selection, $props, true, $created);    // delay flush
+
+                $tag = $tag_selection->getTag();
+//                $this->logger->debug(' -- ensuring existing tag selection for "'.$tag->getTagName().'" ('.$tag->getId().') has the value '.$value);
+            }
+        }
+
+        if ( !$delay_flush && (!empty($new_selections) || !empty($changed_selections)) ) {
+            // Flush now that everything is set to the correct value
+            $this->em->flush();
+        }
+
+        // Now that the modifications are complete, release the lock
+        $lockHandler->release();
+
+        // Return whether a change was made
+        return $change_made;
+        // TODO - probably need to return something other than boolean for the API...
     }
 }

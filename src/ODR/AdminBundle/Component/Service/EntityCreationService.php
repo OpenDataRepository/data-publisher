@@ -156,7 +156,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param FieldType $fieldtype
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataFields
@@ -601,7 +601,7 @@ class EntityCreationService
      * @param DataType $descendant The child datatype (or the datatype getting linked to) in this relationship
      * @param bool $is_link
      * @param bool $multiple_allowed If true, this relationship permits more than one child/linked datarecord
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTree
@@ -647,7 +647,7 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param string $datatype_name
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataType
@@ -734,7 +734,7 @@ class EntityCreationService
      * @param DataFields $datafield
      * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}
      * @param int $display_order
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTypeSpecialFields
@@ -780,7 +780,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param string $initial_purpose One of 'admin', 'edit_all', 'view_all', 'view_only', or ''
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Group
@@ -1164,7 +1164,7 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataFields $datafield
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      */
     public function createGroupsForDatafield($user, $datafield, $delay_flush = false, $created = null)
@@ -1743,7 +1743,7 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataFields $datafield
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      */
     public function createImageSizes($user, $datafield, $delay_flush = false, $created = null)
@@ -2027,7 +2027,7 @@ class EntityCreationService
      * @param RenderPlugin $render_plugin
      * @param DataType|null $datatype
      * @param DataFields|null $datafield
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RenderPluginInstance
@@ -2081,7 +2081,7 @@ class EntityCreationService
      * @param RenderPluginFields $rpf
      * @param DataType|null $dt
      * @param DataFields|null $df
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RenderPluginMap
@@ -2119,7 +2119,7 @@ class EntityCreationService
      * @param RenderPluginInstance $render_plugin_instance
      * @param RenderPluginOptionsDef $render_plugin_option TODO - rename to RenderPluginOptions
      * @param string $option_value
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RenderPluginOptionsMap
@@ -2153,7 +2153,7 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param boolean $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayout
@@ -2205,7 +2205,7 @@ class EntityCreationService
      * @param DataFields|null $datafield If null, then this will be the placeholder for the "general search" input
      * @param DataType $datatype The datatype of $datafield (which isn't necessarily the datatype of $sidebar_layout)
      * @param integer $category {@link SidebarLayoutMap::ALWAYS_DISPLAY}, {@link SidebarLayoutMap::EXTENDED_DISPLAY}
-     * @param boolean $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return SidebarLayoutMap
@@ -2388,7 +2388,7 @@ class EntityCreationService
      * @param DataType $datatype
      * @param string $search_key
      * @param string $label
-     * @param boolean $delay_flush If provided, then the created/updated dates are set to this
+     * @param bool $delay_flush If true, then don't flush prior to returning
      *
      * @return StoredSearchKey
      */
@@ -2611,16 +2611,20 @@ class EntityCreationService
      * Creates a new TagSelection entity for the specified Tag/Datarecordfield pair if one doesn't
      * already exist.
      *
-     * This function doesn't permit delaying flushes, because it's impossible to lock properly.
+     * IMPORTANT: You really should be using {@link TagHelperService::updateSelectedTags()} instead of this.
+     * If you do use this, then you MUST perform your own locking outside this function in order to
+     * ensure there's at most one tag selection entity per (tag,drf) pair.
      *
      * @param ODRUser $user
      * @param Tags $tag
      * @param DataRecordFields $drf
+     * @param int $initial_value
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return TagSelection
      */
-    public function createTagSelection($user, $tag, $drf, $created = null)
+    public function createTagSelection($user, $tag, $drf, $initial_value = 1, $delay_flush = false, $created = null)
     {
         /** @var TagSelection $tag_selection */
         $tag_selection = $this->em->getRepository('ODRAdminBundle:TagSelection')->findOneBy(
@@ -2631,48 +2635,29 @@ class EntityCreationService
         );
         if ($tag_selection == null) {
             // Need to create a new tag selection entry...
+            if ( is_null($created) )
+                $created = new \DateTime();
 
-            // Bad Things (tm) happen if there's more than one tag selection entry for this
-            //  tag/drf pair, so use a locking service to prevent that...
-            $lockHandler = $this->lock_service->createLock('tag_'.$tag->getId().'_'.$drf->getId().'.lock');
-            if ( !$lockHandler->acquire() ) {
-                // Another process is attempting to create this entity...wait for it to finish...
-                $lockHandler->acquire(true);
+            if ( $initial_value !== 0 )
+                $initial_value = 1;
 
-                // ...then reload and return the tag selection that the other process created
-                /** @var TagSelection $tag_selection */
-                $tag_selection = $this->em->getRepository('ODRAdminBundle:TagSelection')->findOneBy(
-                    array(
-                        'dataRecordFields' => $drf->getId(),
-                        'tag' => $tag->getId()
-                    )
-                );
-                return $tag_selection;
-            }
-            else {
-                if ( is_null($created) )
-                    $created = new \DateTime();
+            $tag_selection = new TagSelection();
+            $tag_selection->setTag($tag);
 
-                // Got the lock, create the tag selection
-                $tag_selection = new TagSelection();
-                $tag_selection->setTag($tag);
+            $tag_selection->setDataRecord($drf->getDataRecord());
+            $tag_selection->setDataRecordFields($drf);
 
-                $tag_selection->setDataRecord($drf->getDataRecord());
-                $tag_selection->setDataRecordFields($drf);
+            $tag_selection->setSelected($initial_value);
 
-                $tag_selection->setSelected(0);    // defaults to not selected
+            $tag_selection->setCreated($created);
+            $tag_selection->setUpdated($created);
+            $tag_selection->setCreatedBy($user);
+            $tag_selection->setUpdatedBy($user);
 
-                $tag_selection->setCreated($created);
-                $tag_selection->setUpdated($created);
-                $tag_selection->setCreatedBy($user);
-                $tag_selection->setUpdatedBy($user);
-
-                $this->em->persist($tag_selection);
+            $this->em->persist($tag_selection);
+            if ( !$delay_flush ) {
                 $this->em->flush();
                 $this->em->refresh($tag_selection);
-
-                // Now that the tag selection is is created, release the lock on it
-                $lockHandler->release();
             }
         }
 
@@ -2685,7 +2670,7 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Theme
@@ -2802,7 +2787,7 @@ class EntityCreationService
      * @param ThemeElement $theme_element
      * @param DataType $datatype
      * @param Theme $child_theme
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeDataType
@@ -2842,7 +2827,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param ThemeElement $theme_element
      * @param RenderPluginInstance $render_plugin_instance
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeRenderPluginInstance
@@ -2878,7 +2863,7 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param Theme $theme
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeElement
@@ -2929,7 +2914,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param Group $group
      * @param ODRUser $admin_user
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return UserGroup

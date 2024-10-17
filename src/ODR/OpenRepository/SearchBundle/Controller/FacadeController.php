@@ -185,8 +185,7 @@ class FacadeController extends Controller
                 'ODRAdminBundle:API:getDatarecordExport',
                 array(
                     'version' => 'v1',
-                    'datatype_id' => $datatype->getId(),
-                    'datarecord_id' => $datarecord->getId(),
+                    'record_uuid' => $datarecord->getUniqueId(),
                     '_format' => $request->getRequestFormat(),
                 ),
                 $request->query->all()

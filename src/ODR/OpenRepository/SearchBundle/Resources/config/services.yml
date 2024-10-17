@@ -69,7 +69,6 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
-            $tag_helper_service: "@odr.tag_helper_service"
             $search_query_service: "@odr.search_query_service"
             $logger: "@logger"
 

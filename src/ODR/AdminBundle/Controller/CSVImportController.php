@@ -3330,7 +3330,6 @@ print_r($new_mapping);
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
             /** @var DatarecordInfoService $datarecord_info_service */
@@ -3345,6 +3344,8 @@ print_r($new_mapping);
             $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var ODRUploadService $upload_service */
             $upload_service = $this->container->get('odr.upload_service');
             /** @var Logger $logger */
@@ -4114,28 +4115,18 @@ exit();
 
                         // Convert the contents of this field into individual tags
                         $tags = explode($column_delimiters[$column_num], $column_data);
+                        $selections = array();
 
                         if ( !isset($hierarchy_delimiters[$column_num]) ) {
                             // This datafield only allows a single level of tags
-                            foreach ($tags as $num => $tag_name)
+                            foreach ($tags as $num => $tag_name) {
                                 $tags[$num] = trim($tag_name);
 
-                            // For each tag that needs to be selected...
-                            foreach ($tags as $num => $tag_name) {
-                                // ...locate the tag that this string is referencing
+                                // Locate the tag this string is referencing if possible...
                                 foreach ($stacked_tag_array as $tag_id => $tag_data) {
                                     if ( $tag_name === $tag_data['tagName'] ) {
-                                        /** @var Tags $tag */
-                                        $tag = $repo_tags->find($tag_id);
-
-                                        // Ensure a tagSelection entity exists
-                                        $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
-
-                                        // Mark it as selected
-                                        $properties = array('selected' => 1);
-                                        $entity_modify_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
-
-                                        $status .= '      >> tag_selection for tag ("'.$tag_name.'") now selected'."\n";
+                                        // ...found it, store so the selections can be batch updated
+                                        $selections[$tag_id] = 1;
 
                                         // Stop trying to locate this tag, move on to the next one
                                         break;
@@ -4156,39 +4147,30 @@ exit();
 
                             // Need to locate the bottom-level tag being selected...
                             foreach ($tags as $num => $tag_chain) {
-                                // ...locate the tag this array is referencing
+                                // ...locate the tag this array is referencing if possible
                                 $tag = null;
                                 $tag_id = self::locateTagForCSVSelection($stacked_tag_array, $tag_chain);
 
                                 if ( is_null($tag_id) ) {
-                                    // If null, then this tag chain referenced a mid-level tag or
-                                    //  some sort of unexpected error occured...do nothing
+                                    // If null, then there was some sort of unexpected error...do nothing
 
                                     $full_tag_name = implode(' '.$hierarchy_delimiters[$column_num].' ', $tag_chain);
                                     $status .= '      ** unable to locate tag ("'.$full_tag_name.'")'."\n";
                                 }
                                 else {
-                                    // Otherwise, load the bottom-level tag
-                                    /** @var Tags $tag */
-                                    $tag = $repo_tags->find($tag_id);
-
-                                    // Ensure a tagSelection entity exists
-                                    $tag_selection = $entity_create_service->createTagSelection($user, $tag, $drf);
-
-                                    // Mark it as selected
-                                    $properties = array('selected' => 1);
-                                    $entity_modify_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
-
-                                    $full_tag_name = implode(' '.$hierarchy_delimiters[$column_num].' ', $tag_chain);
-                                    $status .= '      >> tag_selection for tag ("'.$full_tag_name.'") now selected'."\n";
+                                    // ...found it, store so the selections can be batch updated
+                                    $selections[$tag_id] = 1;
 
                                     // Move on to the next tag
                                 }
                             }
                         }
 
+                        // Update all the tags at once
+                        $tag_helper_service->updateSelectedTags($user, $drf, $selections);
+
                         // Flush now that all the tags have been marked as selected
-                        $em->flush();
+//                        $em->flush();
                     }
                 }
             }
@@ -4386,9 +4368,9 @@ exit();
                     return null;
                 }
                 else if ( isset($tag['children']) && count($tag_chain) === 1 ) {
-                    // This tag does have children, but the tag chain doesn't continue...since it
-                    //  doesn't make sense to select a mid-level tag, return null
-                    return null;
+                    // This tag does have children, but the tag chain doesn't continue...interpret
+                    //  this as wanting to select a non-leaf tag
+                    return intval($tag_id);
                 }
             }
         }

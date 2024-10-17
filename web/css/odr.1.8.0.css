@@ -4065,8 +4065,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     background-color: inherit;
 }
 
-.ODRTagAnchor, .ODRTagDelete {
-    min-width: 22px;
+.ODRTagAnchor, .ODRDeleteTag, .ODRAddChildTag {
+    min-width: 25px;
+    margin-left: 3px;
     display: inline-block;
 }
 .ODRNeighborTag {
@@ -4162,6 +4163,35 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-top: 10px;
     margin-left: 25px;
     /*vertical-align: middle;*/
+}
+
+.ODRTagCreateWrapperOverlay {
+    position: absolute;
+    top: 0;
+
+    background: gray;
+    opacity: 0.6;
+}
+.ODRTagCreateWrapper {
+    position: absolute;
+    top: 0;
+}
+.ODRTagCreateDiv {
+    position: absolute;
+    margin: 0;
+    padding: 25px;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    background: white;
+    opacity: 1;
+}
+.ODRTagCreateBlurb,.ODRTagCreateInput {
+    max-width: 400px;
+    margin-bottom: 20px;
+    color: #555;
 }
 
 .ODRSearchToggle {
@@ -4637,6 +4667,40 @@ i {
 .ODRChemistryPlugin_insert {
     height: 25px;
     width: 25px;
+}
+
+.ODRChemistryElementsPlugin_div {
+    position: relative;
+    float: right;
+
+    cursor: pointer;
+    /*padding-left: 8px;*/
+    padding-right: 8px;
+    display: inline-block;
+}
+.ODRChemistryElementsPlugin_info {
+    background-color: white;
+    border: 1px solid #EEEEFF;
+    padding: 5px;
+    position: absolute;
+    visibility: hidden;
+    max-width: 500px;
+    z-index: 999;
+    cursor: default;
+    top: 1.3em;
+    left: 0px;
+    box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+    color: #555;
+    line-height: 1.6em;
+    font-weight: normal;
+}
+.ODRChemistryElementsPlugin_div:hover + .ODRChemistryElementsPlugin_info, .ODRChemistryElementsPlugin_info:hover {
+    visibility: visible;
+}
+
+.ODRChemistryElementsPlugin_info > p {
+    margin-top: 0;
+    margin-bottom: 15px;
 }
 
 .ODRCellparamPlugin_button {

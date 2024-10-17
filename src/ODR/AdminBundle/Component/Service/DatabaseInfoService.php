@@ -379,7 +379,7 @@ class DatabaseInfoService
                     else {
                         // Tags exist, attempt to locate any tag hierarchy data
                         $tag_tree = array();
-                        if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) )
+                        if ( isset($tag_hierarchy[$dt_id][$df_id]) )
                             $tag_tree = $tag_hierarchy[$dt_id][$df_id];
 
                         // Stack/order the tags before saving them in the array
@@ -388,7 +388,7 @@ class DatabaseInfoService
 
                         // Also save the tag hierarchy in here for convenience
                         $df['tags'] = $tag_list;
-                        $df['tagTree'] = $tag_tree;
+                        $df['tagTree'] = $tag_tree;    // TODO - this kind of duplicates the data in 'tags'...but it's used by template cloning, so don't want to touch it right now...
                     }
                 }
 

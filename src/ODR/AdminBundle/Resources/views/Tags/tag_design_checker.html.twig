@@ -1,0 +1,115 @@
+{% spaceless %}
+
+<div class="ODRTagCreateDiv">
+    <div class="ODRTagCreateBlurb">Tag Rebuild job in progress...ETA <span id="ODRTagCreateETA">{{ tracked_job.eta }}</span></div>
+    <div class="ODRProgressBar" max_value="{{ tracked_job.progress.total }}" current_value="{{ tracked_job.progress.current }}"><div class="ODRProgressBarLabel"></div></div>
+</div>
+
+<script>
+    var tag_rebuild_timeout = null;
+    var tag_rebuild_interval = 5000;
+    $(function() {
+        tag_rebuild_timeout = window.setTimeout("checkTagRebuildJob()", tag_rebuild_interval);
+        doTagRebuildProgressBars();
+
+        // Override each of the three ways to close this tag remodal so they go through ODR's javascript
+        //  instead of the remodal.js source file
+        $("button.remodal-close").removeAttr('onclick').on('click', function() {
+            window.clearTimeout( tag_rebuild_timeout );
+            closeODRRemodal();
+        });
+        $(document).off('keydown.remodal').on('keydown.remodal', function(e) {
+            var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+            var state = inst.getState();
+
+            if (inst /*&& current.settings.closeOnEscape*/ && state === 'opened' && e.keyCode === 27) {
+                window.clearTimeout( tag_rebuild_timeout );
+                closeODRRemodal();
+            }
+        });
+        $("div.remodal-wrapper").off('click.remodal').on('click.remodal', function(e) {
+            if ( $(e.target).hasClass('remodal-wrapper') ) {
+                window.clearTimeout( tag_rebuild_timeout );
+                closeODRRemodal();
+            }
+        });
+    });
+
+    /**
+     * Fires off an AJAX request to check the status of a tag rebuild job.
+     */
+    function checkTagRebuildJob() {
+        var url = '{{ path('odr_job_refresh', { 'job_type': 'tag_rebuild', 'job_id': tracked_job.tracked_job_id }) }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                var tracked_job = data.d[0];
+                var current_value = tracked_job.progress.current;
+                var max_value = tracked_job.progress.total;
+
+                if ( current_value == max_value ) {
+                    window.clearTimeout( tag_rebuild_timeout );
+                    openTagEditDialog({{ datafield_id }});
+                }
+                else {
+                    $(".ODRProgressBar").attr('current_value', current_value);
+                    $("#ODRTagCreateETA").html(tracked_job.eta);
+                    doTagRebuildProgressBars();
+
+                    tag_rebuild_timeout = window.setTimeout("checkTagRebuildJob()", tag_rebuild_interval);
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Should close the remodal on error...
+                window.clearTimeout( tag_rebuild_timeout );
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Updates the progress bars on the active jobs page.
+     */
+    function doTagRebuildProgressBars() {
+        $(".ODRProgressBar").each(function() {
+            var current_value = parseInt( $(this).attr('current_value') );
+            var max_value = $(this).attr('max_value');
+
+            var progress_label = $(this).children(".ODRProgressBarLabel").first();
+
+            if ( $(this).progressbar('instance') !== undefined )
+                $(this).progressbar('destroy');
+
+            $(this).progressbar({
+                value: current_value,
+                max: max_value,
+                create: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                },
+                change: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                }
+            });
+        });
+    }
+</script>
+
+{% endspaceless %}

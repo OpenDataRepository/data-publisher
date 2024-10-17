@@ -29,11 +29,13 @@
         <ul class="ODRTrigger_headerUl">
             <li class="ODRTrigger_headerLi">
                 <span class="ODRNotificationHeader">Child Datatypes</span>
-                {% for child_datatype_id,dt in datatype['descendants'] %}
-                    {% set child_datatype = dt.datatype[child_datatype_id] %}
-                    {% include 'ODRAdminBundle:Trigger:trigger_childtype.html.twig' with {
-                        'datatype': child_datatype
-                    } %}
+                {% for child_datatype_id,tmp in datatype['descendants'] %}
+                    {% if tmp['datatype'][child_datatype_id] is defined and tmp['datatype'][child_datatype_id]|length > 0 %}
+                        {% set child_datatype = tmp['datatype'][child_datatype_id] %}
+                        {% include 'ODRAdminBundle:Trigger:trigger_childtype.html.twig' with {
+                            'datatype': child_datatype
+                        } %}
+                    {% endif %}
                 {% endfor %}
             </li>
         </ul>
