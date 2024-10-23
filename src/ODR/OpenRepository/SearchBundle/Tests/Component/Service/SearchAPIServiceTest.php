@@ -1351,10 +1351,18 @@ class SearchAPIServiceTest extends WebTestCase
 
         return [
             // ----------------------------------------
-            'RRUFF Reference: default inverse search, including non-public records' => [
+            'RRUFF Reference: inverse search towards RRUFF Reference, including non-public records' => [
                 array(
                     'dt_id' => 1,
-                    'inverse' => 1
+                    'inverse' => 1,    // targetting RRUFF Reference should work
+                ),
+                range(1, 90),
+                true
+            ],
+            'RRUFF Reference: inverse search towards IMA List, including non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 2,    // targetting IMA List should still return all references
                 ),
                 range(1, 90),
                 true
@@ -1363,7 +1371,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: inverse search, references with the mineral_name "Bournonite"' => [
                 array(
                     'dt_id' => 1,
-                    'inverse' => 1,
+                    'inverse' => 2,    // target IMA list
                     '18' => "Bournonite",
                 ),
                 array(5,13,22,26,34,41,80),
@@ -1372,7 +1380,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: inverse search, references with the rruff_id "R050111"' => [
                 array(
                     'dt_id' => 1,
-                    'inverse' => 1,
+                    'inverse' => 3,    // target RRUFF Sample
                     '30' => "R050111",
                 ),
                 array(5,13,22,26,34,41,80),    // should be no difference from previous...this sample doesn't link to a reference
@@ -1381,7 +1389,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: inverse search, references with the rruff_id "R050364"' => [
                 array(
                     'dt_id' => 1,
-                    'inverse' => 1,
+                    'inverse' => 3,    // target RRUFF Sample
                     '30' => "R050364",
                 ),
                 array(5,13,22,26,34,41,80, 1),  // should have the Bournonite references, plus the one linked to directly by this sample
@@ -1392,7 +1400,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: inverse search, references with a mineral_name "Abelsonite" and a wavelength "532"' => [
                 array(
                     'dt_id' => 1,
-                    'inverse' => 1,
+                    'inverse' => 3,    // targetting RRUFF Sample should also get IMA List
                     '18' => "Abelsonite",
                     '41' => "532",
                 ),
@@ -1403,7 +1411,7 @@ class SearchAPIServiceTest extends WebTestCase
             'RRUFF Reference: inverse search, references with a article_title of "Abelsonite" and a wavelength "532"' => [
                 array(
                     'dt_id' => 1,
-                    'inverse' => 1,
+                    'inverse' => 3,    // targetting RRUFF Sample should also get IMA List
                     '2' => "Abelsonite",
                     '41' => "532",
                 ),

@@ -441,9 +441,9 @@
      * Reloads and reinitializes the content of the search sidebar.
      *
      * @param {string} search_key
-     * @param {string} intent
+     * @param {string} intent The type of page the sidebar resides on
      * @param {boolean} force_reload If true, then the sidebar will always be reloaded
-     * @param {function} callback
+     * @param {function|undefined} callback
      */
     function updateSearchSidebar(search_key, intent, force_reload, callback) {
         if (callback == undefined)

@@ -199,19 +199,35 @@ class SearchSidebarController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Need to build everything used by the sidebar...
-            $sidebar_array = array();
-            if ( $intent !== 'stored_search_keys' ) {
-                // Typically want the reload the preferred sidebar layout...
+            // If this is a reload for the StoredSearchKey UI, then ensure the 'inverse' parameter
+            //  never exists
+            if ( $intent === 'stored_search_keys' )
+                unset( $search_params['inverse'] );
+
+            // Need to determine whether the user is targetting a particular datatype id for inverse
+            //  searching...
+            $inverse_target_datatype_id = -1;
+            if ( isset($search_params['inverse']) )
+                $inverse_target_datatype_id = intval($search_params['inverse']);
+
+            if ( $inverse_target_datatype_id === $target_datatype->getId() ) {
+                $inverse_target_datatype_id = -1;
+                unset( $search_params['inverse'] );
+            }
+
+            // Load the preferred sidebar layout unless dealing with StoredSearchKeys or the 'inverse'
+            //  parameter
+            $sidebar_layout_id = null;
+            if ( !($intent === 'stored_search_keys' || $inverse_target_datatype_id !== -1) )
                 $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($user, $target_datatype->getId(), $intent);
-                $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $sidebar_layout_id);
-            }
-            else {
-                // ...but the StoredSearchKey UI expects the "master" sidebar layout at all times
-                $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params);
-            }
+
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
 
+            // No sense getting the inverse datatype names if dealing with StoredSearchKeys
+            $inverse_dt_names = array();
+            if ( $intent !== 'stored_search_keys' && $intent !== 'linking' )
+                $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $target_datatype->getId());
 
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
@@ -238,6 +254,7 @@ class SearchSidebarController extends ODRCustomController
                         // datatype/datafields to search
                         'target_datatype' => $target_datatype,
                         'sidebar_array' => $sidebar_array,
+                        'inverse_dt_names' => $inverse_dt_names,
 
                         // theme selection
                         'preferred_theme' => $preferred_theme,
@@ -247,6 +264,71 @@ class SearchSidebarController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xaf1f4a0f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Don't want to deal with base64 encoding/decoding inside javascript, so using this to trigger
+     * a reload of a search key for inverse searching.
+     *
+     * @param integer $search_theme_id
+     * @param string $search_key
+     * @param integer $inverse_datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadinversesearchkeyAction($search_theme_id, $search_key, $inverse_datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'json';
+        $return['d'] = '';
+
+        try {
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+            // Convert the given search key into an array of parameters
+            $search_params = $search_key_service->decodeSearchKey($search_key);
+
+            // Not going to attempt to validate this here, since it'll be modified and forwarded to
+            //  a controller action that will immediately validate the new search key
+            $inverse_datatype_id = intval($inverse_datatype_id);
+
+            if ( $inverse_datatype_id === -1 ) {
+                // A value of '-1' means disable inverse searching
+                unset( $search_params['inverse'] );
+            }
+            else {
+                // Any other value means enable inverse searching...insert the parameter into the array
+                $search_params['inverse'] = $inverse_datatype_id;
+            }
+
+            // Convert the array back into a base64encoded string...
+            $new_search_key = $search_key_service->encodeSearchKey($search_params);
+
+            // ...and generate/return a URL to run a new search with/without the 'inverse' param
+            $path_str = $this->generateUrl(
+                'odr_search_render',
+                array(
+                    'search_theme_id' => $search_theme_id,
+                    'search_key' => $new_search_key
+                )
+            );
+            $return['d'] = $path_str;
+        }
+        catch (\Exception $e) {
+            $source = 0xa84a72f8;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

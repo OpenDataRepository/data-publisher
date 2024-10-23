@@ -620,6 +620,7 @@ class CloneThemeService
         //  datatypes won't show up
         $this->cache_service->delete('cached_datatype_'.$theme->getDataType()->getId());
         $this->cache_service->delete('associated_datatypes_for_'.$theme->getDataType()->getId());   // this is already a top-level theme for a grandparent datatype
+        $this->cache_service->delete('inverse_associated_datatypes_for_'.$theme->getDataType()->getId());
 
         $this->logger->info('CloneThemeService: finished synchronizing theme '.$theme->getId().' with its source theme '.$theme->getSourceTheme()->getId());
         $this->logger->info('----------------------------------------');

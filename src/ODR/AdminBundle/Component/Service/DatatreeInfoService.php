@@ -183,7 +183,7 @@ class DatatreeInfoService
         // Only want to load the cached datatree array once...
         $datatree_array = null;
 
-        // Need to locate all linked datatypes for the provided datatype
+        // Need to locate all datatypes that the given datatype links to
         $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$top_level_datatype_id);
         if ($associated_datatypes == false) {
             $datatree_array = self::getDatatreeArray();
@@ -237,22 +237,24 @@ class DatatreeInfoService
 
     /**
      * This function is similar to {@link getAssociatedDatatypes()}, but it goes from "descendants"
-     * to "ancestors" instead.  Due to only being used in extremely specific situations, the result
-     * is currently uncached.
+     * to "ancestors" instead.
      *
-     * @param int $bottom_level_datatype_id
+     * @param integer $bottom_level_datatype_id
+     * @param integer $target_top_level_datatype_id If provided, then the returned array will only
+     *                                               contain datatypes "on the path" from the bottom
+     *                                               level datatype to the provided top-level datatype
      * @param boolean $deep If true, then all children of the associated datatypes are also returned
      *
      * @return array
      */
-    public function getInverseAssociatedDatatypes($bottom_level_datatype_id, $deep = false)
+    public function getInverseAssociatedDatatypes($bottom_level_datatype_id, $target_top_level_datatype_id = 0, $deep = false)
     {
         // Only want to load the cached datatree array once...
         $datatree_array = null;
 
-        // Need to locate all linked datatypes for the provided datatype
-//        $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$top_level_datatype_id);
-//        if ($associated_datatypes == false) {
+        // Need to locate all datatypes that link to the given datatype
+        $associated_datatypes = $this->cache_service->get('inverse_associated_datatypes_for_'.$bottom_level_datatype_id);
+        if ($associated_datatypes == false) {
             $datatree_array = self::getDatatreeArray();
 
             // The end result should always contain the requested top-level datatype id
@@ -280,11 +282,44 @@ class DatatreeInfoService
 
             // Save the list of associated datatypes back into the cache
             $associated_datatypes = array_keys($associated_datatypes);
-//            $this->cache_service->set('associated_datatypes_for_'.$top_level_datatype_id, $associated_datatypes);
-//        }
+            $this->cache_service->set('inverse_associated_datatypes_for_'.$bottom_level_datatype_id, $associated_datatypes);
+        }
+
+        // A value of '0' means the list of associated datatypes shouldn't be filtered...
+        if ( $target_top_level_datatype_id !== 0 ) {
+            // ...but if it is non-zero, then that means the user only wants the list of datatypes
+            //  required to traverse from the bottom-level to the top-level datatype
+            if ( !in_array($target_top_level_datatype_id, $associated_datatypes) )
+                throw new ODRException('Invalid $target_top_level_datatype_id passed to DatatreeInfoService::getInverseAssociatedDatatypes()', 400, 0x0b4d0f4f);
+
+            // The fastest way to figure out the traversal path should be to intersect this array
+            //  with the array of associated datatypes from the target top-level...
+            $tmp = self::getAssociatedDatatypes($target_top_level_datatype_id);
+            // NOTE: don't want to use $deep == true here...only want top-level datatypes by the
+            //  end of this if block.  If the user wants child datatypes, then the next if block
+            //  will add them
+
+            // ...but due to actually wanting the descendants of the target top-level datatype in
+            //  the returned array, it's better to "manually" perform the intersection...
+            $associated_datatypes = array_flip($associated_datatypes);
+            $tmp = array_flip($tmp);
+
+            foreach ($associated_datatypes as $dt_id => $num) {
+                if ( !isset($tmp[$dt_id]) )
+                    unset( $associated_datatypes[$dt_id] );
+            }
+
+            // ...because doing it this way makes it easier to add the descendants of the top-level
+            //  datatype back in
+            foreach ($tmp as $dt_id => $num)
+                $associated_datatypes[$dt_id] = 0;
+
+            // The array needs to be returned with the datatype ids as values, however
+            $associated_datatypes = array_keys($associated_datatypes);
+        }
 
         // If the caller also needs the ids of the children of these top-level datatypes...
-        if ($deep) {
+        if ( $deep ) {
             // ...ensure the datatree array exists...
             if ( is_null($datatree_array) )
                 $datatree_array = self::getDatatreeArray();

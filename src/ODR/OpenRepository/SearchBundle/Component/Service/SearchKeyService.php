@@ -531,18 +531,26 @@ class SearchKeyService
         if ( isset($search_params['gen']) && isset($search_params['gen_lim']) )
             throw new ODRBadRequestException('Invalid search key: only allowed to have at most one of "gen" or "gen_lim"', $exception_code);
 
-        $inverse = false;
-        if ( isset($search_params['inverse']) )
-            $inverse = true;
+        // Extract the inverse target datatype, if it exists
+        $inverse_target_datatype_id = null;
+        if ( isset($search_params['inverse']) ) {
+            $inverse_target_datatype_id = intval($search_params['inverse']);
+
+            // values less than 0 disable this feature
+            if ( $inverse_target_datatype_id < 0 ) {
+                unset( $search_params['inverse'] );
+                $inverse_target_datatype_id = null;
+            }
+        }
 
         $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id);
         $datatype_array = array();
-        if ( !$inverse )
+        if ( is_null($inverse_target_datatype_id) )
             $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id);
         else
-            $datatype_array = $this->database_info_service->getInverseDatatypeArray($grandparent_datatype_id);
+            $datatype_array = $this->database_info_service->getInverseDatatypeArray($grandparent_datatype_id, $inverse_target_datatype_id);
 
-        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id, $inverse);
+        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id, $inverse_target_datatype_id);
         $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
@@ -911,6 +919,18 @@ class SearchKeyService
         // Want the search key in array format...
         $search_params = self::decodeSearchKey($search_key);
         $datatype_id = intval($search_params['dt_id']);
+
+        // Extract the inverse target datatype, if it exists
+        $inverse_target_datatype_id = null;
+        if ( isset($search_params['inverse']) ) {
+            $inverse_target_datatype_id = intval($search_params['inverse']);
+
+            // values less than 0 disable this feature
+            if ( $inverse_target_datatype_id < 0 ) {
+                unset( $search_params['inverse'] );
+                $inverse_target_datatype_id = null;
+            }
+        }
 
         foreach ($search_params as $key => $value) {
 
@@ -1332,10 +1352,10 @@ class SearchKeyService
         $criteria['affected_datatypes'] = $affected_datatypes;
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
-        if ( !isset($search_params['inverse']) )
+        if ( is_null($inverse_target_datatype_id) )
             $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
         else
-            $criteria['all_datatypes'] = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, true);
+            $criteria['all_datatypes'] = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, $inverse_target_datatype_id, true);
 
         return $criteria;
     }
@@ -1991,7 +2011,7 @@ class SearchKeyService
         $readable_search_key = array();
         foreach ($search_params as $key => $value) {
             // Ignore these keys
-            if ( $key === 'dt_id' || $key === 'sort_by' )
+            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' )
                 continue;
 
             if ( $key === 'gen' || $key === 'gen_lim' ) {

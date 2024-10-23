@@ -879,10 +879,16 @@ class EntityMetaModifyService
             $existing_values['backgroundImageField'] = $old_meta_entry->getBackgroundImageField();
 
 
+        $delete_datatype_names = false;
         foreach ($existing_values as $key => $value) {
             // array_key_exists() is used because the datafield entries could legitimately be null
-            if ( array_key_exists($key, $properties) && $properties[$key] != $value )
+            if ( array_key_exists($key, $properties) && $properties[$key] != $value ) {
                 $changes_made = true;
+
+                // Might need to delete an additional cache entry if these keys change
+                if ( $key === 'shortName' || $key === 'longName' || $key === 'publicDate' )
+                    $delete_datatype_names = true;
+            }
         }
 
         // Need to do an additional check incase the name/sort/etc datafields were originally null
@@ -972,6 +978,11 @@ class EntityMetaModifyService
 
         if ( isset($properties['newRecordsArePublic']) )
             $new_datatype_meta->setNewRecordsArePublic( $properties['newRecordsArePublic'] );
+
+        // Only need to actually delete the cache entry for top-level datatype names (and their
+        //  public status) if this datatype is actually top-level
+        if ( $delete_datatype_names && $datatype->getId() === $datatype->getGrandparent()->getId() )
+            $this->cache_service->delete('top_level_datatype_names');
 
         // If the "master_revision" property is set...
         if ( isset($properties['master_revision']) ) {

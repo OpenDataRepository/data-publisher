@@ -26,6 +26,7 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $user_manager: "@fos_user.user_manager"
             $session: "@session"

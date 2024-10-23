@@ -24,6 +24,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -62,6 +63,11 @@ class SearchSidebarService
     private $database_info_service;
 
     /**
+     * @var DatatreeInfoService
+     */
+    private $datatree_info_service;
+
+    /**
      * @var PermissionsManagementService
      */
     private $permissions_service;
@@ -88,6 +94,7 @@ class SearchSidebarService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param UserManager $user_manager
      * @param Session $session
@@ -97,6 +104,7 @@ class SearchSidebarService
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatabaseInfoService $database_info_service,
+        DatatreeInfoService $datatree_info_service,
         PermissionsManagementService $permissions_service,
         UserManager $user_manager,
         Session $session,
@@ -105,6 +113,7 @@ class SearchSidebarService
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->database_info_service = $database_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->permissions_service = $permissions_service;
         $this->user_manager = $user_manager;
         $this->session = $session;
@@ -132,16 +141,33 @@ class SearchSidebarService
      */
     public function getSidebarDatatypeArray($user, $target_datatype_id, &$search_params, $sidebar_layout_id = null, $fallback = true)
     {
-        // Need to load the cached version of this datatype, along with any linked datatypes it has
-        if ( !isset($search_params['inverse']) )
-            $datatype_array = $this->database_info_service->getDatatypeArray($target_datatype_id);
-        else
-            $datatype_array = $this->database_info_service->getInverseDatatypeArray($target_datatype_id);
+        // By default, the sidebar renders $target_datatype_id and its child/linked descendants...
+        //  the presence of the 'inverse' parameter, however, means the sidebar should get rendered
+        //  with some subset of the datatypes that end up linking to $target_datatype_id instead
+        $inverse_target_datatype_id = -1;
+        if ( isset($search_params['inverse']) )
+            $inverse_target_datatype_id = intval($search_params['inverse']);
+
+        $sidebar_datatype_array = array();
+        if ( $inverse_target_datatype_id === -1 ) {
+            // A value of -1 indicates "not in inverse mode"...load the target datatype and any of
+            //  its linked descendants
+            $sidebar_datatype_array = $this->database_info_service->getDatatypeArray($target_datatype_id);
+        }
+        else {
+            // Any other value indicates "inverse mode"...a value of 0 will get every possible
+            //  linked ancestor datatype, while a non-zero value will instead get the minimum of
+            //  datatypes required to traverse from the target datatype to the inverse target datatype
+            $sidebar_datatype_array = $this->database_info_service->getInverseDatatypeArray($target_datatype_id, $inverse_target_datatype_id);
+
+            // TODO - allow sidebar layouts to use inverse datatypes?
+            $sidebar_layout_id = null;
+        }
 
         // ...then filter the array to just what the user can see
         $datarecord_array = array();
         $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
-        $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $this->permissions_service->filterByGroupPermissions($sidebar_datatype_array, $datarecord_array, $user_permissions);
 
         $sidebar_array = array();
         if ( !is_null($sidebar_layout_id) ) {
@@ -173,14 +199,14 @@ class SearchSidebarService
             }
             else {
                 // In every other situation, build an array to use for the sidebar
-                $sidebar_array = self::constructSidebarLayoutArray($datatype_array, $sidebar_layout_array, $search_params);
+                $sidebar_array = self::constructSidebarLayoutArray($sidebar_datatype_array, $sidebar_layout_array, $search_params);
             }
         }
 
         if ( empty($sidebar_array) ) {
             // If a sidebar layout was not specified, or the user was unable to use the requested
             //  layout, then fall back to the default for the datatype
-            $sidebar_array = self::constructDefaultSidebarArray($datatype_array);
+            $sidebar_array = self::constructDefaultSidebarArray($sidebar_datatype_array);
         }
 
         if ( !empty($search_params) ) {
@@ -585,6 +611,78 @@ class SearchSidebarService
         }
 
         return $user_list;
+    }
+
+
+    /**
+     * In order for users to activate 'inverse' searching, they need a list of datatype names to
+     * select from...
+     *
+     * @param ODRUser $user
+     * @param int $bottom_level_datatype_id
+     *
+     * @return array
+     */
+    public function getSidebarInverseDatatypeNames($user, $bottom_level_datatype_id)
+    {
+        // Using a cache entry since this is going to get hit a lot...
+        $top_level_datatype_names = $this->cache_service->get('top_level_datatype_names');
+        if ($top_level_datatype_names == false) {
+            // Only top-level datatypes are eligible for 'inverse' searching...
+            $top_level_datatype_ids = $this->datatree_info_service->getTopLevelDatatypes();
+
+            $query = $this->em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.shortName AS shortName, dtm.publicDate
+                FROM ODRAdminBundle:DataType dt
+                LEFT JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $top_level_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $top_level_datatype_names = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dt_name = $result['shortName'];
+                $dt_public_date = $result['publicDate'];
+
+                $is_public = true;
+                if ( $dt_public_date->format('Y-m-d H:i:s') === '2200-01-01 00:00:00')
+                    $is_public = false;
+
+                $top_level_datatype_names[$dt_id] = array($dt_name, $is_public);
+            }
+
+            $this->cache_service->set('top_level_datatype_names', $top_level_datatype_names);
+        }
+
+        // Get all possible datatypes that could be used by this datatype for 'inverse' searching
+        $inverse_associated_datatypes = $this->datatree_info_service->getInverseAssociatedDatatypes($bottom_level_datatype_id);
+        // Need to verify which datatypes the user can see...
+        $datatype_permissions = $this->permissions_service->getDatatypePermissions($user);
+
+        // If the user is a superadmin, then they automatically have all permissions
+        $is_super_admin = false;
+        if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
+            $is_super_admin = true;
+
+        $sidebar_datatype_names = array();
+        foreach ($inverse_associated_datatypes as $num => $dt_id) {
+            // Don't need to return the name for the requested bottom-level datatype
+            if ($dt_id === $bottom_level_datatype_id)
+                continue;
+
+            $dt_data = $top_level_datatype_names[$dt_id];
+            $dt_name = $dt_data[0];
+            $dt_is_public = $dt_data[1];
+
+            // Only return this datatype's name if the user can see it
+            if ( $dt_is_public || $is_super_admin || isset($datatype_permissions[$dt_id]['dt_view']) )
+                $sidebar_datatype_names[$dt_id] = $dt_name;
+        }
+
+        asort($sidebar_datatype_names);
+        return $sidebar_datatype_names;
     }
 
 

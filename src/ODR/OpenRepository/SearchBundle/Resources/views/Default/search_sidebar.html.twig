@@ -32,6 +32,11 @@
     {% endfor %}
 {% endfor %}
 
+{% set current_inverse_dt_id = -1 %}
+{% if search_params['inverse'] is defined %}
+    {% set current_inverse_dt_id = search_params['inverse'] %}
+{% endif %}
+
 <div class="ODRThemeElement">
     <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
     <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
@@ -53,7 +58,18 @@
 
         <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
 
-{#            <input type="hidden" name="inverse" value="1" />      #}{# TODO #}
+            {# TODO - move this
+            {% if intent != 'stored_search_keys' and intent != 'linking' and inverse_dt_names is defined and inverse_dt_names|length > 0 %}
+            <label for="inverse_dt_select">Search By:</label>
+            <select id="inverse_dt_select" name="inverse">
+                <option value="-1">none</option>
+                {% for dt_id,dt_name in inverse_dt_names %}
+                <option value="{{ dt_id }}" {% if current_inverse_dt_id == dt_id %}selected{% endif %}>{{ dt_name }}</option>
+                {% endfor %}
+                <option value="0" {% if current_inverse_dt_id == '0' %}selected{% endif %}>all</option>
+            </select>
+            {% endif %}
+            #}
 
             <input type="hidden" id="search_type" value="collapsed" />
             <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
@@ -202,6 +218,46 @@
             {% endif %}
         });
 
+{% if intent != 'stored_search_keys' and intent != 'linking' %}
+        $(context).find("#inverse_dt_select").unbind('change').change(function() {
+            var current_search_key = $("#ODRSidebarSearchKey").val();
+            var search_theme_id = $("#selected_theme_id").val();
+            var inverse_datatype_id = $(this).val();
+
+            var url = '{{ path('odr_reload_inverse_search_key', {'search_theme_id': 0, 'search_key': '', 'inverse_datatype_id': 0}) }}';
+            url = url.substr(0, url.length - 4);
+            url += search_theme_id + '/' + current_search_key;
+            if (inverse_datatype_id != '-1')
+                url += '/' + inverse_datatype_id;
+            // alert(url); return;
+
+            $.ajax({
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function (data) {
+                    UpdateURL(data.d);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Shouldn't need to do anything specific on error?
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+{% endif %}
+
         // Toggle general search between only searching in the immediate datatype, or searching in
         //  all descendants
         $(context).find("#textbox_general_blurb").unbind('click').click(function() {
@@ -236,8 +292,9 @@
                     var empty = true;
 
                     $(df).find('.ODRInput').each(function (index,elem) {
-                        if ( $(elem).hasClass("ODRFileDatafieldName") ) {
-                            // do nothing... .ODRFileDatafieldExist will handle this file/image field
+                        if ( $(elem).hasClass("ODRFileDatafieldName") || $(elem).hasClass("ODRDateDatafieldExist") ) {
+                            // ignore this input for the purpose of visibility checking...a different
+                            //  element will handle it
                         }
                         else if ( $(elem).hasClass("ODRFileDatafieldExist") ) {
                             // The file/image inputs need to be checked simultaneously
@@ -255,18 +312,28 @@
 
                             var start_id = '';
                             var end_id = '';
+                            var no_val_id = '';
+                            var has_val_id = '';
                             if (id_data.length == 3) {
                                 start_id = '#' + id_data[0] + '_' + id_data[1] + '_start';
                                 end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
+                                no_val_id = '#df_' + id_data[1] + '_no_val';
+                                has_val_id = '#df_' + id_data[1] + '_with_val';
                             }
                             else if (id_data.length == 4) {
                                 start_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_start';
                                 end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
                             }
 
-                            // If either start or end has something, then dno't hide this datafield
+                            // If either start or end has something, then don't hide this datafield
                             if ( $(start_id).val() !== '' || $(end_id).val() !== '' )
                                 empty = false;
+                            // If this is a conventional datetime field, then also don't hide this
+                            //  datafield when the "has_val" or "no_val" related checkboxes are checked
+                            if ( no_val_id !== '' ) {
+                                if ( $(no_val_id).is(':checked') || $(has_val_id).is(':checked') )
+                                    empty = false;
+                            }
                         }
                         else if ( $(elem).parent().hasClass('ODRRadioSearchDiv') ) {
                             // Search for a selection made in this radio field

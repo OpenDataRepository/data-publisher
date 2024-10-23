@@ -450,6 +450,7 @@ class SearchCacheService implements EventSubscriberInterface
 
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
             $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
 
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
@@ -552,14 +553,16 @@ class SearchCacheService implements EventSubscriberInterface
         if ( $this->debug )
             $this->logger->debug('SearchCacheService::onDatatypeLinkStatusChange()', $event->getErrorInfo());
 
-//        $ancestor_datatype = $event->getAncestorDatatype();
+        $ancestor_datatype = $event->getAncestorDatatype();
 //        $new_descendant_datatype = $event->getNewDescendantDatatype();
         $previous_descendant_datatype = $event->getPreviousDescendantDatatype();
 
-        // If the ancestor datatype was unlinked from a descendant datatype...
-        if ( !is_null($previous_descendant_datatype) )
-            // ...then need to clear this cache entry
-            $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
+        // ...not entirely sure if running all four of these is overkill or not
+        $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_children');
+
+        $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_children');
 
         // Don't need to clear anything for the new descendant datatype
 
@@ -719,6 +722,7 @@ class SearchCacheService implements EventSubscriberInterface
         // If a datarecord was created, then this needs to be rebuilt
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
         $this->cache_service->delete('cached_dt_'.$datatype->getId().'_dr_uuid_list');
 
         if ( !is_null($datatype->getMasterDataType()) ) {
@@ -788,6 +792,7 @@ class SearchCacheService implements EventSubscriberInterface
             //  deleted datarecord...faster to just wipe all of them
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
             $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
 
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
@@ -886,6 +891,7 @@ class SearchCacheService implements EventSubscriberInterface
         // If something now (or no longer) links to $descendant_datatype, then these cache entries
         //  need to be deleted
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
 
         // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
         // It doesn't contain any information about linking
