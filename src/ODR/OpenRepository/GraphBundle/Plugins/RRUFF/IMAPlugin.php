@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * AMCSD Plugin
+ * IMA Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -364,7 +364,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // Otherwise, output depends on which context the plugin is being executed from
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
-                // Because the Status Notes field needs to run plugins of its own, .modify the
+                // Because the Status Notes field needs to run plugins of its own, modify the
                 //  datarecord array so twig thinks the version with the pre-rendered references
                 //  is the original value of this field
                 $status_notes_df_id = $relevant_fields['Status Notes']['id'];

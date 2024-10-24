@@ -561,8 +561,10 @@ class SearchCacheService implements EventSubscriberInterface
         $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_parents');
         $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_children');
 
-        $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
-        $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_children');
+        if ( !is_null($previous_descendant_datatype) ) {
+            $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_children');
+        }
 
         // Don't need to clear anything for the new descendant datatype
 
