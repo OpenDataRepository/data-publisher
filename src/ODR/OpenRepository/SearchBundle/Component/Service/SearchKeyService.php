@@ -543,6 +543,7 @@ class SearchKeyService
             }
         }
 
+        // Going to need the datatype array to verify the given parameters...
         $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id);
         $datatype_array = array();
         if ( is_null($inverse_target_datatype_id) )
@@ -550,7 +551,16 @@ class SearchKeyService
         else
             $datatype_array = $this->database_info_service->getInverseDatatypeArray($grandparent_datatype_id, $inverse_target_datatype_id);
 
+        // ...and the list of searchable datafields
         $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id, $inverse_target_datatype_id);
+
+        // Want to ignore metadata requests for datatypes without datafields
+        $hidden_datatype_ids = array();
+        foreach ($searchable_datafields as $dt_id => $dt_data) {
+            if ( count($dt_data['datafields']) === 1 && empty($dt_data['datafields']['non_public']) )
+                $hidden_datatype_ids[$dt_id] = 1;
+        }
+
         $sortable_typenames = null;
 
         foreach ($search_params as $key => $value) {
@@ -812,6 +822,8 @@ class SearchKeyService
                     $dt_id = intval($pieces[1]);
                     if ( !isset($searchable_datafields[$dt_id]) )
                         throw new ODRBadRequestException('Invalid search key: invalid datatype '.$dt_id, $exception_code);
+                    if ( isset($hidden_datatype_ids[$dt_id]) )
+                        throw new ODRBadRequestException('Invalid search key: parameter "'.$key.'" is not valid because datatype '.$dt_id.' has no datafields', $exception_code);
 
 
                     if (count($pieces) === 3) {

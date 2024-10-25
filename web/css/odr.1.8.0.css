@@ -2743,6 +2743,7 @@ form .row {
     padding: 0.2em;
     transition: border 0.3s linear 0s;
     cursor: default;
+    min-height: 23px;
 }
 .ODRPad {
     padding-left: 10px;

@@ -83,17 +83,22 @@
                         {% if problem_fields[datafield.id] is defined %}
                             <script>
                                 $(function() {
-                                    var input = $("#Input_{{ datarecord.id }}_{{ datafield.id }}").children('input').first();
+                                    var input_div = $("#Input_{{ datarecord.id }}_{{ datafield.id }}");
+
+                                    {% if not is_valence_element_field %}
+                                    var input = $(input_div).children('input').first();
+                                    {% else %}
+                                    var input = $(input_div).children('div').first();
+                                    {% endif %}
                                     var input_id = $(input).attr('id');
+
                                     $(input).addClass('ODRInputError').attr('style', "border: 1px solid red;");
                                     $('<label>', {
                                         id: input_id + '-error',
                                         class: 'ODRInputError',
                                         for: input_id,
                                         style: "color: red",    {# NOTE - the ".ODRInputError" css rule is overridden by the ".ODRResults label" css rule #}
-                                    })
-                                        .html("{{ problem_fields[datafield.id] }}")
-                                        .appendTo("#Input_{{ datarecord.id }}_{{ datafield.id }}");
+                                    }).html("{{ problem_fields[datafield.id] }}").appendTo(input_div);
                                 });
                             </script>
                         {% endif %}

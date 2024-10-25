@@ -506,19 +506,23 @@ class SearchSidebarService
         if ( $user == 'anon.' )
             return array();
 
+        $is_super_admin = false;
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+            $is_super_admin = true;
+
         // Otherwise, the user needs to be able to edit/add/delete datarecords from at least one of
         //  the datatypes in the array...
         $datatype_permissions = $this->permissions_service->getDatatypePermissions($user);
+        $dt_array = $datatype_array['datatype_array'];
 
         $editable_datatypes = array();
-        foreach ($datatype_array as $dt_id => $dt_data) {
-            if ( isset($datatype_permissions[$dt_id]) ) {
-                if ( isset($datatype_permissions[$dt_id]['dr_edit'])
-                    || isset($datatype_permissions[$dt_id]['dr_add'])
-                    || isset($datatype_permissions[$dt_id]['dr_delete'])
-                ) {
+        foreach ($dt_array as $dt_id => $dt_data) {
+            if ( $is_super_admin
+                || isset($datatype_permissions[$dt_id]['dr_edit'])
+                || isset($datatype_permissions[$dt_id]['dr_add'])
+                || isset($datatype_permissions[$dt_id]['dr_delete'])
+            ) {
                     $editable_datatypes[] = $dt_id;
-                }
             }
         }
 
