@@ -1,0 +1,106 @@
+{% spaceless %}
+
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
+{% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
+
+{% set df_rendering_options = {'context': 'text', 'is_datatype_admin': is_datatype_admin, 'is_top_level': is_top_level, 'is_link': is_link} %}
+{% set dt_rendering_options = {'context': 'html', 'is_datatype_admin': is_datatype_admin, 'is_top_level': is_top_level, 'is_link': is_link} %}
+
+{% set display_order_df_id = '' %}
+{% set notes_df_id = '' %}
+{% for df_id, rpf in plugin_fields %}
+    {% if rpf['rpf_name'] == 'Display Order' %}
+        {% set display_order_df_id = df_id %}
+    {% elseif rpf['rpf_name'] == 'Note' %}
+        {% set notes_df_id = df_id %}
+    {% endif %}
+{% endfor %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+<div class="ODRRenderPluginContent">
+    <form class="pure-u-1">
+        <fieldset>
+            <label class="ODRFieldLabel">Status Notes</label>
+            <div class="ODRFieldWrapper">
+                <div class="ODRRenderPluginField">
+
+                {% for dr_id,datarecord in datarecord_array %}
+
+                    {% set notes_df_content = '' %}
+                    {% if datarecord['dataRecordFields'][notes_df_id] is defined %}
+                        {% set notes_drf = datarecord['dataRecordFields'][notes_df_id] %}
+                        {% set notes_df = datatype['dataFields'][notes_df_id] %}
+
+                        {# Attempt to run any plugin on the notes datafield first #}
+                        {% set render_plugin_instance = null %}
+                        {% set can_execute_plugin = false %}
+                        {% for rpi_num,rpi in notes_df.renderPluginInstances %}
+                            {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+                                {% set can_execute_plugin = rpi|can_execute_datafield_plugin(notes_df, datarecord, df_rendering_options) %}
+
+                                {# Only want to save the render_plugin_instance if it's render-able #}
+                                {% if can_execute_plugin %}
+                                    {% set render_plugin_instance = rpi %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+
+                        {% if can_execute_plugin %}
+                            {% set notes_df_content = notes_df|datafield_plugin(datarecord, render_plugin_instance, df_rendering_options) %}
+                        {% endif %}
+
+                        {# If it doesn't have a plugin, or said plugin declined to execute...then fallback to the value stored in the field #}
+                        {% if notes_df_content == '' and notes_drf['longText'][0]['value'] is defined %}
+                            {% set notes_df_content = notes_drf['longText'][0]['value'] %}
+                        {% endif %}
+                    {% endif %}
+
+                    {% set ref_content = '' %}
+                    {% if rruff_reference_dt_id is not null and datarecord['children'][rruff_reference_dt_id] is defined %}
+                        {% for dr_id, rruff_reference_dr in datarecord['children'][rruff_reference_dt_id] %}
+                            {# Since this datatype is using the RRUFF Reference plugin, checking whether the plugin will run is more of a formality... #}
+                            {% set render_plugin_instance = null %}
+                            {% set can_execute_plugin = false %}
+                            {% for rpi_num,rpi in rruff_reference_dt.renderPluginInstances %}
+                                {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+                                    {% set can_execute_plugin = rpi|can_execute_datatype_plugin(rruff_reference_dt, dt_rendering_options) %}
+
+                                    {% if can_execute_plugin %}
+                                        {# Only want to save the render_plugin_instance if it's render-able #}
+                                        {% set render_plugin_instance = rpi %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if can_execute_plugin %}
+                                {# [datarecord] converts datarecord into a single-element array #}
+                                {% set ref_content = [rruff_reference_dr]|datatype_plugin(rruff_reference_dt, render_plugin_instance, rruff_reference_theme_array, dt_rendering_options, datarecord) %}
+                            {% endif %}
+
+                            {# If the plugin failed to execute, then dump out an error instead of attempting to render the datarecord #}
+                            {% if ref_content == '' and is_datatype_admin %}
+                                {% set ref_content = '<div class="ODRInputError">Failed to render datarecord ' ~ dr_id ~ ' with the RRUFF Reference Plugin</div>' %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+
+                    {% if notes_df_content != '' or ref_content != '' %}
+                    <div class="ODRIMAStatusNotesPlugin_wrapper">
+                        {{ notes_df_content|raw }}
+                        {% if notes_df_content != '' and ref_content != '' %}<br>{% endif %}{{ ref_content|raw }}
+                        {% if notes_df_content != '' and ref_content == '' and can_edit_datarecord %}<br><div class="ODRInputError">No linked reference</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                {% endfor %}
+                </div>
+            </div>
+        </fieldset>
+    </form>
+</div>
+
+{% endspaceless %}

@@ -34,19 +34,25 @@ services:
     odr_plugins.rruff.ima:
         class: '%odr_plugin_base_classpath%\RRUFF\IMAPlugin'
         arguments:
-            $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
-            $theme_info_service: "@odr.theme_info_service"
             $entity_create_service: "@odr.entity_creation_service"
             $entity_modify_service: "@odr.entity_meta_modify_service"
-            $permissions_service: "@odr.permissions_management_service"
             $lock_service: "@odr.lock_service"
             $search_service: "@odr.search_service"
-            $sort_service: "@odr.sort_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
+            $templating: "@templating"
+            $logger: "@logger"
+
+    odr_plugins.rruff.ima_status_notes:
+        class: '%odr_plugin_base_classpath%\RRUFF\IMAStatusNotesPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $entity_create_service: "@odr.entity_creation_service"
+            $lock_service: "@odr.lock_service"
+            $event_dispatcher: "@event_dispatcher"
             $templating: "@templating"
             $logger: "@logger"
 

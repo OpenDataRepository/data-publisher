@@ -4733,21 +4733,8 @@ i {
     top: 8px !important;
 }
 
-
-.ODRIMAPlugin_StatusNotesTools {
-    margin: 0px 5px 5px;
-}
-.ODRIMAPlugin_StatusNotesButton {
-    min-width: 0 !important;
-    padding: 3px !important;
-    margin: 5px 5px 0 5px !important;
-}
-.ODRIMAPlugin_StatusNotesSelect {
-    width: 80%;
-
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.ODRIMAStatusNotesPlugin_wrapper:not(:first-child) {
+    margin-top: 20px;
 }
 
 

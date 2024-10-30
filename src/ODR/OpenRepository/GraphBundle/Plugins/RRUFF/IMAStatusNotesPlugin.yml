@@ -1,0 +1,33 @@
+odr_plugins.rruff.ima_status_notes:
+    name: IMA Status Notes Plugin
+    category: RRUFF
+    plugin_type: datatype
+    render: odr_plugins.rruff.ima_status_notes
+    version: 1.0.0
+    override_fields: true
+    override_field_reload: false
+    override_child: true
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: This plugin overrides the construction of the Status Notes for the International Mineralogical Association's (IMA) list of minerals.
+    registered_events:
+        DatarecordCreatedEvent: onDatarecordCreate
+
+    required_fields:
+        display_order:
+            name: Display Order
+            description: TODO
+            type: IntegerValue
+            properties:
+                - autogenerate_values
+#                - must_be_unique
+
+        note:
+            name: Note
+            description: TODO
+            type: LongText
+
+    config_options:

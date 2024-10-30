@@ -1444,4 +1444,84 @@ $ret .= '  Set current to '.$count."\n";
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
+
+    public function asdfAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+//            $lookup = 'reference';
+            $lookup = 'mineral';
+
+            // ----------------------------------------
+            $query = '';
+            if ( $lookup === 'reference' ) {
+                $query =
+                   'SELECT dr.unique_id, e.value AS ref_id
+                    FROM odr_data_record dr
+                    LEFT JOIN odr_data_record_fields drf ON dr.id = drf.data_record_id
+                    LEFT JOIN odr_integer_value e ON e.data_record_fields_id = drf.id
+                    WHERE dr.data_type_id = 734 AND e.data_field_id = 7049
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+            }
+            else if ( $lookup === 'mineral' ) {
+                $query =
+                   'SELECT dr.unique_id, e.value AS ref_id
+                    FROM odr_data_record dr
+                    LEFT JOIN odr_data_record_fields drf ON dr.id = drf.data_record_id
+                    LEFT JOIN odr_integer_value e ON e.data_record_fields_id = drf.id
+                    WHERE dr.data_type_id = 736 AND e.data_field_id = 7050
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+            }
+            else
+                throw new ODRException('Unknown lookup type');
+
+            $results = $conn->executeQuery($query);
+
+            print '<table border="1">';
+            print '<tr><th>ref_id</th><th>unique_id</th></tr>';
+            foreach ($results as $result) {
+                $unique_id = $result['unique_id'];
+                $ref_id = $result['ref_id'];
+
+                print '<tr>';
+                print '<td>'.$ref_id.'</td>';
+                print '<td>'.$unique_id.'</td>';
+                print '</tr>';
+            }
+            print '</table>';
+
+        }
+        catch (\Exception $e) {
+            $source = 0xffffffff;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }
