@@ -60,57 +60,67 @@
 {# Render all other datatypes afterwards #}
 {% for dt_id, dt in datatype_array %}
     {% if dt_id != target_datatype_id %}
-    <fieldset class="ODRSearchSidebar_extended ODRHidden">
-        <div class="ODRAdvSearch_header">
-            <span>{{ dt['dataTypeMeta']['shortName'] }}</span>
-            <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
-        </div>
 
-        <div class="ODRAdvSearch_default">
+        {% set df_count = 0 %}
         {% for df_id,df in dt['dataFields'] %}
             {% if df['dataFieldMeta']['searchable'] != NOT_SEARCHABLE %}
-            <div class="ODRAdvSearch_datafield pure-u-1">
-                {% set content = '' %}
-                {% set rpi_df_lookup_id = 'df_' ~ df_id %}
-                {% if rpi_lookup[rpi_df_lookup_id] is defined %}
-                    {% set rpi = rpi_lookup[rpi_df_lookup_id] %}
-
-                    {% set preset_value = '' %}
-                    {% if search_params[df_id] is defined %}
-                        {% set preset_value = search_params[df_id] %}
-                    {% endif %}
-
-                    {% set content = rpi|search_plugin(dt, df, preset_value, rendering_options) %}
-                {% endif %}
-
-                {% if content|length > 0 %}
-                    {# If a datatype plugin wanted to override this field, then execute that... #}
-                    {{ content|raw }}
-                {% else %}
-                    {# ...otherwise, render the datafield as normal #}
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                        'search_params': search_params,
-                        'datatype': dt,
-                        'datafield': df
-                    } %}
-                {% endif %}
-            </div>
+                {% set df_count = df_count + 1 %}
             {% endif %}
         {% endfor %}
 
-        {% if intent != 'stored_search_keys' %}
-            {# created/modified by, created/modified date, public status of child datarecord #}
-            {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                'search_params': search_params,
+        {% if df_count > 0 %}
+        <fieldset class="ODRSearchSidebar_extended ODRHidden">
+            <div class="ODRAdvSearch_header">
+                <span>{{ dt['dataTypeMeta']['shortName'] }}</span>
+                <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
+            </div>
 
-                'datatype_id': target_datatype_id,
-                'user_list': user_list,
-                'datatype_permissions': datatype_permissions,
-                'is_top_level': 0
-            } %}
+            <div class="ODRAdvSearch_default">
+            {% for df_id,df in dt['dataFields'] %}
+                {% if df['dataFieldMeta']['searchable'] != NOT_SEARCHABLE %}
+                <div class="ODRAdvSearch_datafield pure-u-1">
+                    {% set content = '' %}
+                    {% set rpi_df_lookup_id = 'df_' ~ df_id %}
+                    {% if rpi_lookup[rpi_df_lookup_id] is defined %}
+                        {% set rpi = rpi_lookup[rpi_df_lookup_id] %}
+
+                        {% set preset_value = '' %}
+                        {% if search_params[df_id] is defined %}
+                            {% set preset_value = search_params[df_id] %}
+                        {% endif %}
+
+                        {% set content = rpi|search_plugin(dt, df, preset_value, rendering_options) %}
+                    {% endif %}
+
+                    {% if content|length > 0 %}
+                        {# If a datatype plugin wanted to override this field, then execute that... #}
+                        {{ content|raw }}
+                    {% else %}
+                        {# ...otherwise, render the datafield as normal #}
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                            'search_params': search_params,
+                            'datatype': dt,
+                            'datafield': df
+                        } %}
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+
+            {% if intent != 'stored_search_keys' %}
+                {# created/modified by, created/modified date, public status of child datarecord #}
+                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                    'search_params': search_params,
+
+                    'datatype_id': dt_id,
+                    'user_list': user_list,
+                    'datatype_permissions': datatype_permissions,
+                    'is_top_level': 0
+                } %}
+            {% endif %}
+            </div>
+        </fieldset>
         {% endif %}
-        </div>
-    </fieldset>
     {% endif %}
 {% endfor %}
 

@@ -16,6 +16,8 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 interface ExportOverrideInterface
 {
 
+    // TODO - this works for individual fields, but probably should have an option to make it work for entire datatypes
+
     /**
      * Returns an array of datafields where CSVExport needs to call this plugin instead of just
      * using the value from the database.

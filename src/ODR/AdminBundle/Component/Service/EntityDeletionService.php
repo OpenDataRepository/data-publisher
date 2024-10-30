@@ -1410,9 +1410,11 @@ class EntityDeletionService
             foreach ($datatypes_to_reset_order as $dt_id => $dt)
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
 
-            // This cache entry also needs to be deleted when linked datatypes are changed
+            // This cache entries should also be deleted when linked datatypes are changed
             foreach ($linked_ancestor_datatypes as $dt_id => $dt)
                 $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+            foreach ($datatypes_to_delete as $dt_id => $dt)
+                $this->cache_service->delete('inverse_associated_datatypes_for_'.$dt_id);
 
 
             // ----------------------------------------

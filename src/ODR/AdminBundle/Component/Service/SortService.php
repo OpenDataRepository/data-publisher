@@ -142,6 +142,8 @@ class SortService
      * contents of those datafields are used to sort in ascending order.  Otherwise, the list is
      * sorted by datarecord ids.
      *
+     * TODO - special handling for sorting child datatypes?  not sure it's strictly necessary...
+     *
      * @param integer $datatype_id    The id of the datatype being sorted
      * @param null|string $subset_str If specified, the returned string will only contain datarecord ids from $subset_str
      *
@@ -1218,6 +1220,11 @@ class SortService
         if ( !is_null($datarecord) && $datarecord->getDataType()->getId() !== $datafield->getDataType()->getId() )
             throw new ODRBadRequestException("Datafield and Datarecord don't belong to the same Datatype", 0xdd175c30);
 
+        // Determine whether this is a request for a child datarecord...
+        $is_child_record = false;
+        if ( !is_null($datarecord) && $datarecord->getId() !== $datarecord->getParent()->getId() )
+            $is_child_record = true;
+
 
         // ----------------------------------------
         // MYSQL's collation treats certain "special" characters as equivalent to certain ASCII characters
@@ -1226,11 +1233,34 @@ class SortService
 
         // Therefore, need to get a list of the existing values in this datafield...
         $dr_list = self::sortDatarecordsByDatafield($datafield->getId());
-        // ...then check to see if the requested value already exists in this list
-        // NOTE - array_search() is faster than array_flip()+isset() when looking up a single string
-        $dr_id = array_search($value, $dr_list);
 
+        if ( !$is_child_record ) {
+            // If this isn't a child record, or no record was specified, then only need to check
+            //  whether the requested value already exists in this list
+
+            // Don't need to do anything here
+        }
+        else {
+            // If this is a child record, then we have to check against its sibling records, and not
+            //  every single record of this childtype
+            $sibling_records = array();
+            $parent_datarecord_id = $datarecord->getParent()->getId();
+
+            // SearchService is the faster way to get the parents of the child records
+            $search_dr_list = $this->search_service->getCachedSearchDatarecordList($datafield->getDataType()->getId());
+            foreach ($search_dr_list as $child_dr_id => $parent_dr_id) {
+                // The "sibling" records are all records with the same parent
+                if ( $parent_dr_id === $parent_datarecord_id )
+                    $sibling_records[$child_dr_id] = $dr_list[$child_dr_id];
+            }
+
+            // Replace the list of all datarecords of this childtype with just the siblings
+            $dr_list = $sibling_records;
+        }
+
+        // NOTE - array_search() is faster than array_flip()+isset() when looking up a single string
         // NOTE - array_search() is case sensitive...this is acceptable for ODR's purposes, at the moment
+        $dr_id = array_search($value, $dr_list);
 
 
         // ----------------------------------------

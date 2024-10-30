@@ -29,19 +29,6 @@
                 {% else %}
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                    {% set is_reference_field = false %}
-                    {% if plugin_fields[ datafield.id ] is defined and
-                        (plugin_fields[ datafield.id ]['rpf_name'] == "Reference A"
-                        or plugin_fields[ datafield.id ]['rpf_name'] == "Reference B")
-                    %}
-                        {% set is_reference_field = true %}
-                    {% endif %}
-
-                    {% set is_status_notes_field = false %}
-                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "Status Notes" %}
-                        {% set is_status_notes_field = true %}
-                    {% endif %}
-
                     {% set is_valence_element_field = false %}
                     {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "Valence Elements" %}
                         {% set is_valence_element_field = true %}
@@ -51,21 +38,6 @@
                     <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                             {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
-                        {% elseif is_reference_field %}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_reference_datafield.html.twig' with {
-                                'datatype': datatype,
-                                'datarecord': datarecord,
-                                'datafield': datafield,
-
-                                'related_reference_info': related_reference_info,
-                            } %}
-                        {% elseif is_status_notes_field %}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_status_notes_datafield.html.twig' with {
-                                'datarecord': datarecord,
-                                'datafield': datafield,
-
-                                'status_notes_info': status_notes_info,
-                            } %}
                         {% elseif is_valence_element_field %}
                             {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_valence_elements_display_datafield.html.twig' with {
                                 'datarecord': datarecord,
@@ -83,17 +55,22 @@
                         {% if problem_fields[datafield.id] is defined %}
                             <script>
                                 $(function() {
-                                    var input = $("#Input_{{ datarecord.id }}_{{ datafield.id }}").children('input').first();
+                                    var input_div = $("#Input_{{ datarecord.id }}_{{ datafield.id }}");
+
+                                    {% if not is_valence_element_field %}
+                                    var input = $(input_div).children('input').first();
+                                    {% else %}
+                                    var input = $(input_div).children('div').first();
+                                    {% endif %}
                                     var input_id = $(input).attr('id');
+
                                     $(input).addClass('ODRInputError').attr('style', "border: 1px solid red;");
                                     $('<label>', {
                                         id: input_id + '-error',
                                         class: 'ODRInputError',
                                         for: input_id,
                                         style: "color: red",    {# NOTE - the ".ODRInputError" css rule is overridden by the ".ODRResults label" css rule #}
-                                    })
-                                        .html("{{ problem_fields[datafield.id] }}")
-                                        .appendTo("#Input_{{ datarecord.id }}_{{ datafield.id }}");
+                                    }).html("{{ problem_fields[datafield.id] }}").appendTo(input_div);
                                 });
                             </script>
                         {% endif %}

@@ -2094,8 +2094,8 @@ class SearchService
         $list = array();
 
         if (!$search_as_linked_datatype) {
-            // The given $datatype_id is either the datatype being searched on, or some child
-            //  datatype
+            // The given $datatype_id is either the target datatype being searched on, or some other
+            //  datatype that isn't top-level
             $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_dr_parents');
             if (!$list) {
                 $list = $this->search_query_service->getParentDatarecords($datatype_id);
@@ -2104,7 +2104,7 @@ class SearchService
         }
         else {
             // The datatype being searched on (irrelevant to this function) somehow links to the
-            //  given $datatype_id...since a datarecord could be linked to from multiple ancestor
+            //  target datatype...since a datarecord could be linked to from multiple ancestor
             //  datarecords (instead of having a single "ancestor" in the case of a child datarecord),
             //  the returned array has a different structure
             $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_linked_dr_parents');
@@ -2112,6 +2112,8 @@ class SearchService
                 $list = $this->search_query_service->getLinkedParentDatarecords($datatype_id);
                 $this->cache_service->set('cached_search_dt_'.$datatype_id.'_linked_dr_parents', $list);
             }
+
+            // NOTE: this array entry goes from descendant to ancestor
         }
 
         return $list;
@@ -2119,7 +2121,10 @@ class SearchService
 
 
     /**
-     * TODO
+     * Works on a similar idea to {@link getCachedSearchDatarecordList()}, but gets called when
+     * the search system is trying to do an "inverse" search instead.
+     *
+     * TODO - is this also a candidate for hunting down instances where datarecord loading happens?
      *
      * @param integer $datatype_id
      * @param bool $is_linked_type
@@ -2127,10 +2132,34 @@ class SearchService
      */
     public function getInverseSearchDatarecordList($datatype_id, $is_linked_type)
     {
-        if ( $is_linked_type )
-            return $this->search_query_service->getLinkedChildDatarecords($datatype_id);
-        else
-            return $this->search_query_service->getParentDatarecords($datatype_id);
+        // In order to properly build the "inverse" search arrays, child/linked datarecords with
+        //  some connection to the datatype being searched on need to be located...
+        $list = array();
+
+        if ( $is_linked_type ) {
+            // The datatype being searched on (irrelevant to this function) somehow links to the
+            //  target datatype...since this is an "inverse" search, then the methodology employed
+            //  by getCachedSearchDatarecordList() needs to be inverted
+            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_linked_dr_children');
+            if (!$list) {
+                $list = $this->search_query_service->getLinkedChildDatarecords($datatype_id);
+                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_linked_dr_children', $list);
+            }
+
+            // NOTE: this array entry goes from ancestor to descendant
+        }
+        else {
+            // The given $datatype_id is either the target datatype being searched on, or some other
+            //  datatype that isn't top-level...an "inverse" search handles child datatypes the same
+            //  way a "regular" search does
+            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_dr_parents');
+            if (!$list) {
+                $list = $this->search_query_service->getParentDatarecords($datatype_id);
+                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
+            }
+        }
+
+        return $list;
     }
 
 
@@ -2250,19 +2279,20 @@ class SearchService
      * indicating a "searchable" datafield.
      *
      * @param int $datatype_id
-     * @param bool $inverse If false, then the array contains the searchable datafields from descendant
-     *                      datatypes...if true, then it comes from the ancestor datatypes instead
+     * @param int|null $inverse_target_datatype_id If null, then the array contains the searchable
+     *                                             datafields from descendant datatypes...otherwise,
+     *                                             it comes from the ancestor datatypes instead
      * @return array
      */
-    public function getSearchableDatafields($datatype_id, $inverse = false)
+    public function getSearchableDatafields($datatype_id, $inverse_target_datatype_id = null)
     {
         // ----------------------------------------
         // Going to need all the datatypes related to this given datatype...
         $datatype_id = intval($datatype_id);
-        if ( !$inverse )
+        if ( is_null($inverse_target_datatype_id) )
             $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
         else
-            $related_datatypes = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, true);
+            $related_datatypes = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, $inverse_target_datatype_id, true);
 
         // The resulting array depends on the contents of each of the related datatypes
         $searchable_datafields = array();

@@ -57,7 +57,7 @@ class ODREventSubscriber implements EventSubscriberInterface
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var SearchService
@@ -99,7 +99,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         $this->container = $container;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatree_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->logger = $logger;
 
@@ -307,6 +307,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             // These cache entries should be cleared only if the new datatype is top-level
             if ( $datatype->getId() === $datatype->getParent()->getId() ) {
                 $this->cache_service->delete('top_level_datatypes');
+                $this->cache_service->delete('top_level_datatype_names');
                 $this->cache_service->delete('top_level_themes');
             }
         }
@@ -442,6 +443,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Might need to delete these entries too
             if ( $was_top_level ) {
                 $this->cache_service->delete('top_level_datatypes');
+                $this->cache_service->delete('top_level_datatype_names');
                 $this->cache_service->delete('top_level_themes');
             }
 
@@ -589,22 +591,26 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Since a link between datatypes got created/deleted, delete the cached datatree array
             $this->cache_service->delete('cached_datatree_array');
             // The datatree array needs to be rebuilt with the new link data anyways
-            $datatree_array = $this->dti_service->getDatatreeArray();
+            $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
 
             // Locate all datatypes that end up needing to load cache entries for the datatypes in
             //  $datatype_ids...
             $datatype_ids = array($ancestor_datatype->getId());
-            $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
+            $all_linked_ancestors = $this->datatree_info_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
+            $all_linked_descendants = $this->datatree_info_service->getLinkedDescendants($datatype_ids, $datatree_array, true);
 
             // Ensure the datatype that were originally passed in get the cache entry cleared
-            foreach ($datatype_ids as $num => $dt_id)
+            foreach ($datatype_ids as $num => $dt_id) {
                 $all_linked_ancestors[] = $dt_id;
+                $all_linked_descendants[] = $dt_id;
+            }
 
-            // Clearing this cache entry for each of the ancestor datatypes found ensures that the
-            //  newly linked/unlinked datarecords show up (or not) when they should
+            // Clearing these cache entries is required
             foreach ($all_linked_ancestors as $num => $dt_id)
                 $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+            foreach ($all_linked_descendants as $num => $dt_id)
+                $this->cache_service->delete('inverse_associated_datatypes_for_'.$dt_id);
 
         }
         catch (\Throwable $e) {

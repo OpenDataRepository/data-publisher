@@ -1777,5 +1777,9 @@ odr_amcsd_update_trigger:
     path: /admin/amcsd/trigger
     defaults: { _controller: ODRAdminBundle:Worker:amcsdupdatetrigger }
 
+odr_asdf:
+    path: /admin/asdf
+    defaults: { _controller: ODRAdminBundle:Worker:asdf }
+
 imports:
     resource: api.yml

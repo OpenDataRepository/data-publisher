@@ -11,6 +11,13 @@ odr_reload_search_sidebar:
     requirements:
         search_key: '[a-zA-Z0-9\-\_]*'
         intent: 'searching|linking|stored_search_keys|'
+odr_reload_inverse_search_key:
+    path:  /search/reload_inverse_search_key/{search_theme_id}/{search_key}/{inverse_datatype_id}
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinversesearchkey, inverse_datatype_id: '-1' }
+    requirements:
+        search_theme_id: \d+
+        search_key: '[a-zA-Z0-9\-\_]*'
+        inverse_datatype_id: \d+|
 
 odr_get_available_sidebar_layouts:
     path:  /view/getlayouts/{datatype_id}/{intent}/{search_key}

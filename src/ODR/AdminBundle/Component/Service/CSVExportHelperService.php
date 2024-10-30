@@ -229,7 +229,7 @@ class CSVExportHelperService
 
         // Going to need these two arrays to be able to accurately determine which datarecords
         //  end up matching the query
-        $search_arrays = $this->search_api_service->getSearchArrays(array($datatype->getId()), $search_permissions);
+        $search_arrays = $this->search_api_service->getSearchArrays($datatype->getId(), $search_permissions);
 //        $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
         // The top-level of $inflated_list is wrapped in the top-level datatype id...get rid of it

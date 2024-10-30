@@ -8,7 +8,7 @@ odr_plugins.rruff.ima:
     override_field_reload: true
     override_child: false
     override_table_fields: true
-    override_export: true
+    override_export: false
     override_search: true
     override_sort: false
     suppress_no_fields_note: false
@@ -74,20 +74,6 @@ odr_plugins.rruff.ima:
 
         # NOTE - rruff.info also had Fleischer, Handbook of Mineralogy, and End Member chemistry, but those aren't being imported
         # NOTE - ...it also had End Member Elements (derived from the RRUFF formula for some reason)
-
-        status_notes:
-            name: Status Notes
-            description:
-            type: LongText
-
-        reference_a:
-            name: Reference A    # TODO - this is like the "initial" reference, right?
-            description:
-            type: IntegerValue
-        reference_b:
-            name: Reference B    # TODO - this is like the "most recent redefinition" reference, right?
-            description:
-            type: IntegerValue
 
         # Required by the "RRUFF Sample Links" plugin
         tags:

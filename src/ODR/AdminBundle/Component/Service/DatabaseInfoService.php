@@ -43,7 +43,7 @@ class DatabaseInfoService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var TagHelperService
@@ -74,7 +74,7 @@ class DatabaseInfoService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatree_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
         $this->logger = $logger;
     }
@@ -126,7 +126,7 @@ class DatabaseInfoService
         $associated_datatypes = array();
         if ($include_links) {
             // Need to locate all linked datatypes for the provided datatype
-            $associated_datatypes = $this->dti_service->getAssociatedDatatypes($grandparent_datatype_id);
+            $associated_datatypes = $this->datatree_info_service->getAssociatedDatatypes($grandparent_datatype_id);
         }
         else {
             // Don't want any datatypes that are linked to from the given grandparent datatype
@@ -154,16 +154,19 @@ class DatabaseInfoService
      * the requested datatype.  The $include_links parameter doesn't exist, as there's no reason to
      * call this where that value would be false.
      *
-     * The returned array is generally going to be unsuitable for {@link self::stackDatatypeArray()}
+     * The returned array is generally only useful for the inverse searching system.
      *
-     * @param integer $datatype_id
+     * @param integer $bottom_level_datatype_id
+     * @param integer $target_top_level_datatype_id If provided, then the returned array will only
+     *                                              contain datatypes "on the path" from the bottom
+     *                                              level datatype to the provided top-level datatype
      *
      * @return array
      */
-    public function getInverseDatatypeArray($datatype_id)
+    public function getInverseDatatypeArray($bottom_level_datatype_id, $target_top_level_datatype_id = 0)
     {
         // Need to locate all linked datatypes for the provided datatype
-        $associated_datatypes = $this->dti_service->getInverseAssociatedDatatypes($datatype_id);
+        $associated_datatypes = $this->datatree_info_service->getInverseAssociatedDatatypes($bottom_level_datatype_id, $target_top_level_datatype_id);
 
         // Load the cached versions of each associated datatype, and store them all at the same
         //  level in a single array
@@ -194,7 +197,7 @@ class DatabaseInfoService
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
         // Going to need any tag hierarchy data for this datatype
         $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype_id);

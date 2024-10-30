@@ -204,7 +204,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
 
                 // Want to locate the values for most of the mapped datafields
                 $optional_fields = array(
-                    'Reference ID' => 0
+//                    'Reference ID' => 0
                 );
 
                 $datafield_mapping = array();

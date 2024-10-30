@@ -1994,6 +1994,7 @@ class CloneTemplateService
                                 /** @var ThemeDataField $tdf */
                                 // Locate the new datafield
                                 $master_df_id = $tdf->getDataField()->getId();
+                                $this->logger->debug('CloneTemplateService:'.$indent_text.' ** ** attempting to locate field derived from datafield '.$master_df_id.' "'.$tdf->getDataField()->getFieldName().'"');
                                 $derived_df = $this->created_datafields[$master_df_id];
 
                                 if($derived_df !== null) {
@@ -2228,17 +2229,24 @@ class CloneTemplateService
 
                     // ...and also set the name/sort fields for the new datatype
                     foreach ($this->created_dtsf_entries as $dtsf) {
-                        // This entry should have the correct datatype already, but it won't have the
-                        //  correct datafield
-                        $old_df = $dtsf->getDataField();
+                        // This is a global array, meaning it triggers for every single datatype that
+                        //  got created...need to ensure the loop only attempts to update dtsf
+                        //  entries that belong to the chrrent child/linked datatype being modified
+                        if ( $derived_child_datatype->getId() === $dtsf->getDataType()->getId() ) {
+                            // This entry should have the correct datatype already, but it won't have the
+                            //  correct datafield
+                            $old_df = $dtsf->getDataField();
 
-                        // So if we locate its derived counterpart...
-                        $derived_df = $this->created_datafields[ $old_df->getId() ];
-                        // ...then we can set this entry to use it
-                        $dtsf->setDataField($derived_df);
+                            $this->logger->debug('CloneTemplateService:'.$indent_text.' ** fixing dtsf entries for dt '.$dtsf->getDataType()->getId().' "'.$dtsf->getDataType()->getShortName().'", attempting to locate datafield derived from df '.$old_df->getId().' "'.$old_df->getFieldName().'" ...');
 
-                        // Don't need to flush right this minute, technically
-                        $this->em->persist($dtsf);
+                            // So if we locate its derived counterpart...
+                            $derived_df = $this->created_datafields[ $old_df->getId() ];
+                            // ...then we can set this entry to use it
+                            $dtsf->setDataField($derived_df);
+
+                            // Don't need to flush right this minute, technically
+                            $this->em->persist($dtsf);
+                        }
                     }
                 }
             }
@@ -2373,6 +2381,9 @@ class CloneTemplateService
 
             // Find the analogous datafield in the derived datatype, if it exists
             if ( !is_null($parent_rpfm->getDataField()) ) {
+
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' ** ** ** attempting to locate field derived from df '.$parent_rpfm->getDataField()->getId().' "'.$parent_rpfm->getDataField()->getFieldName().'" in created_datafields...');
+
                 /** @var DataFields $matching_df */
                 $matching_df = $this->created_datafields[ $parent_rpfm->getDataField()->getId() ];
                 $new_rpfm->setDataField($matching_df);
@@ -2476,6 +2487,8 @@ class CloneTemplateService
             // Store for later
             $this->created_dtsf_entries[ $dtsf->getId() ] = $new_dtsf;
             $this->em->persist($new_dtsf);
+
+            $this->logger->debug('CloneTemplateService:'.$indent_text.' ** ** added special field derived from old dtsf ('.$dtsf->getId().', type '.$dtsf->getFieldPurpose().'), df '.$dtsf->getDataField()->getId().' "'.$dtsf->getDataField()->getFieldName().'" from child datatype');
         }
 
         $this->em->flush();
@@ -2576,6 +2589,8 @@ class CloneTemplateService
             // Store for later
             $this->created_dtsf_entries[ $dtsf->getId() ] = $new_dtsf;
             $this->em->persist($new_dtsf);
+
+            $this->logger->debug('CloneTemplateService:'.$indent_text.' ** ** added special field derived from old dtsf ('.$dtsf->getId().', type '.$dtsf->getFieldPurpose().'), df '.$dtsf->getDataField()->getId().' "'.$dtsf->getDataField()->getFieldName().'" from linked datatype');
         }
 
         $this->em->flush();

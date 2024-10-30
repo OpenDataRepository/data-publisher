@@ -25,7 +25,7 @@
         <fieldset>
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-                <div class="ODRRenderPluginField">{{ valuefield_value|raw }}</div>
+                <div id="Input_{{ unique_id }}_div" class="ODRRenderPluginField pure-u-1">{{ valuefield_value|raw }}</div>
             </div>
         </fieldset>
 

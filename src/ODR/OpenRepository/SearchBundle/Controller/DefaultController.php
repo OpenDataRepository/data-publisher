@@ -241,6 +241,7 @@ class DefaultController extends Controller
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
             $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
+            $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 
 
             // ----------------------------------------
@@ -257,6 +258,7 @@ class DefaultController extends Controller
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -289,6 +291,7 @@ class DefaultController extends Controller
 //                    'search_params' => array(),
                     'target_datatype' => $target_datatype,
                     'sidebar_array' => $sidebar_array,
+                    'inverse_dt_names' => $inverse_dt_names,
 
                     // defaults if needed
                     'search_key' => $default_search_key,
@@ -503,13 +506,11 @@ class DefaultController extends Controller
             if ( $search_string !== '' )
                 $default_search_params['gen'] = $search_string;
 
-//            $default_search_params['inverse'] = 1;    // TODO
-
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
             $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
-
+            $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 
 
             // ----------------------------------------
@@ -526,6 +527,7 @@ class DefaultController extends Controller
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -564,6 +566,7 @@ class DefaultController extends Controller
                         // datatype/datafields to search
                         'target_datatype' => $target_datatype,
                         'sidebar_array' => $sidebar_array,
+                        'inverse_dt_names' => $inverse_dt_names,
 
                         // defaults if needed
                         'search_key' => $default_search_key,
@@ -603,6 +606,7 @@ class DefaultController extends Controller
                         // datatype/datafields to search
                         'target_datatype' => $target_datatype,
                         'sidebar_array' => $sidebar_array,
+                        'inverse_dt_names' => $inverse_dt_names,
 
                         // defaults if needed
                         'search_key' => $default_search_key,

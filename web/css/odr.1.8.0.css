@@ -2743,6 +2743,7 @@ form .row {
     padding: 0.2em;
     transition: border 0.3s linear 0s;
     cursor: default;
+    min-height: 23px;
 }
 .ODRPad {
     padding-left: 10px;
@@ -4623,7 +4624,7 @@ i {
 }
 .ODRChemistryPlugin_popup {
     position: absolute;
-    z-index: 100;
+    z-index: 10000;
     background: white;
     border: 2px solid black;
     border-radius: 4px;
@@ -4732,21 +4733,8 @@ i {
     top: 8px !important;
 }
 
-
-.ODRIMAPlugin_StatusNotesTools {
-    margin: 0px 5px 5px;
-}
-.ODRIMAPlugin_StatusNotesButton {
-    min-width: 0 !important;
-    padding: 3px !important;
-    margin: 5px 5px 0 5px !important;
-}
-.ODRIMAPlugin_StatusNotesSelect {
-    width: 80%;
-
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.ODRIMAStatusNotesPlugin_wrapper:not(:first-child) {
+    margin-top: 20px;
 }
 
 

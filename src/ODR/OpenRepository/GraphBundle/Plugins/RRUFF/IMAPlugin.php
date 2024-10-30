@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * AMCSD Plugin
+ * IMA Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -25,9 +25,7 @@ use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
@@ -43,13 +41,9 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
-use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\SortService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
@@ -58,18 +52,12 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, ExportOverrideInterface, MassEditTriggerEventInterface, SearchOverrideInterface, TableResultsOverrideInterface
+class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, MassEditTriggerEventInterface, SearchOverrideInterface, TableResultsOverrideInterface
 {
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
 
     /**
      * @var EntityManager
@@ -87,11 +75,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private $datarecord_info_service;
 
     /**
-     * @var ThemeInfoService
-     */
-    private $theme_info_service;
-
-    /**
      * @var EntityCreationService
      */
     private $entity_create_service;
@@ -102,11 +85,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private $entity_modify_service;
 
     /**
-     * @var PermissionsManagementService
-     */
-    private $permissions_service;
-
-    /**
      * @var LockService
      */
     private $lock_service;
@@ -115,11 +93,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @var SearchService
      */
     private $search_service;
-
-    /**
-     * @var SortService
-     */
-    private $sort_service;
 
     /**
      * @var EventDispatcherInterface
@@ -148,50 +121,38 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * IMAPlugin constructor.
      *
-     * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
-     * @param ThemeInfoService $theme_info_service
      * @param EntityCreationService $entity_create_service
      * @param EntityMetaModifyService $entity_modify_service
-     * @param PermissionsManagementService $permissions_service
      * @param LockService $lock_service
      * @param SearchService $search_service
-     * @param SortService $sort_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
-        ContainerInterface $container,
         EntityManager $entity_manager,
         DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
-        ThemeInfoService $theme_info_service,
         EntityCreationService $entity_create_service,
         EntityMetaModifyService $entity_modify_service,
-        PermissionsManagementService $permissions_service,
         LockService $lock_service,
         SearchService $search_service,
-        SortService $sort_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
     ) {
-        $this->container = $container;
         $this->em = $entity_manager;
         $this->database_info_service = $database_info_service;
         $this->datarecord_info_service = $datarecord_info_service;
-        $this->theme_info_service = $theme_info_service;
         $this->entity_create_service = $entity_create_service;
         $this->entity_modify_service = $entity_modify_service;
-        $this->permissions_service = $permissions_service;
         $this->lock_service = $lock_service;
         $this->search_service = $search_service;
-        $this->sort_service = $sort_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
@@ -253,7 +214,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $rpf_df_id = $rpf_df['id'];
 
                 $df = null;
-                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                if ( isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null) {
@@ -298,12 +259,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
             // ----------------------------------------
-            // Going to gather and render RRUFF References, and also likely change the contents
-            //  of the Status Notes field
-            $related_reference_info = array();
-            $status_notes_info = array();
-
-
             // Need to check the derived fields so that any problems with them can get displayed
             //  to the user
             $relevant_fields = self::getRelevantFields($datatype, $datarecord);
@@ -316,60 +271,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $problem_fields = array();
                 foreach ($derivation_problems as $df_id => $problem)
                     $problem_fields[$df_id] = $problem;
-
-
-                // Locate the info required to run the RRUFF Reference plugin, if possible
-                $related_reference_info = self::getRelatedReferenceInfo($datatype, $datarecord, $theme, $relevant_fields, $rendering_options['context']);
-
-                // Now that the reference info has been gathered, it makes more sense to render them
-                //  here instead of having twig do it...there's likely going to be overlap between
-                //  the Reference A/B and the Status Notes fields
-                $reference_rendering_options = array(
-                    'is_top_level' => false,
-                    'is_link' => true,
-                    'is_datatype_admin' => $is_datatype_admin,
-                    'context' => 'text'    // don't want the HTML wrappers around each reference
-                );
-
-                self::prerenderReferences(
-                    $related_reference_info['prerendered_references'],
-                    $related_reference_info,
-                    $datarecord,
-                    $datatype_permissions,
-                    $datafield_permissions,
-                    $token_list,
-                    $reference_rendering_options,
-                );
-
-                // Now that the references have been rendered, substitute them into the Status Notes
-                //  field...or create warnings specific to this field
-                $status_notes_info = self::getStatusNotesInfo($relevant_fields, $related_reference_info);
-
-
-                // Need to determine whether the status notes field uses the chemistry plugin...
-                $status_notes_df_id = $relevant_fields['Status Notes']['id'];
-                $status_notes_df = $datatype['dataFields'][$status_notes_df_id];
-                foreach ($status_notes_df['renderPluginInstances'] as $rpi_id => $rpi) {
-                    $rp_classname = $rpi['renderPlugin']['pluginClassName'];
-                    if ( $rp_classname === 'odr_plugins.base.chemistry' ) {
-                        // Fortunately, the chemistry plugin is primarily javascript, so it can more
-                        //  or less co-exist with a plugin that primarily changes HTML...
-                        $status_notes_info['chemistry_plugin_rpi'] = $rpi;
-                        break;
-                    }
-                }
             }
 
 
             // Otherwise, output depends on which context the plugin is being executed from
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
-                // Because the Status Notes field needs to run plugins of its own, .modify the
-                //  datarecord array so twig thinks the version with the pre-rendered references
-                //  is the original value of this field
-                $status_notes_df_id = $relevant_fields['Status Notes']['id'];
-                $datarecord['dataRecordFields'][$status_notes_df_id]['longText'][0]['value'] = $status_notes_info['value'];
-
                 // Want to modify how the Valence Elements are displayed...
                 $valence_elements_df_id = $relevant_fields['Valence Elements']['id'];
 
@@ -406,9 +313,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
-
-                        'related_reference_info' => $related_reference_info,
-                        'status_notes_info' => $status_notes_info,
                     )
                 );
             }
@@ -440,9 +344,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
-
-                        'related_reference_info' => $related_reference_info,
-                        'status_notes_info' => $status_notes_info,
                     )
                 );
             }
@@ -508,10 +409,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             'IMA Formula' => array(),
             'Valence Elements' => array(),
             'RRUFF Formula' => array(),
-
-            'Reference A' => array(),
-            'Reference B' => array(),
-            'Status Notes' => array(),
         );
 
         // Locate the relevant render plugin instance
@@ -1203,38 +1100,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             }
         }
 
-        if ( $relevant_rpf === 'Reference A' || $relevant_rpf === 'Reference B' ) {
-            // Unlike the derived/unique fields, all reloads of the Reference A/B fields need to
-            //  get overridden
-
-            // Going to also need the theme array so the RRUFF Reference plugin can get rendered
-            $theme_array = $this->theme_info_service->getThemeArray($theme->getParentTheme()->getId());
-
-            // Need to filter the cached arrays so the plugin doesn't reveal non-public references
-            $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
-            $this->permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
-            // Then need to stack the cached arrays so getRelatedReferenceInfo() can determine whether
-            //  the database with the IMA plugin links to the database with the RRUFF Reference plugin
-            $dt_array = $this->database_info_service->stackDatatypeArray($dt_array, $datatype->getId());
-            $dr_array = $this->datarecord_info_service->stackDatarecordArray($dr_array, $datarecord->getId());
-            $theme_array = $this->theme_info_service->stackThemeArray($theme_array, $theme->getId());
-
-            $related_reference_info = self::getRelatedReferenceInfo($dt_array, $dr_array, $theme_array, $relevant_fields, $rendering_context);
-
-            $template_name = 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_reference_datafield.html.twig';
-            if ( $rendering_context === 'display' )
-                $template_name = 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_reference_datafield.html.twig';
-
-            return array(
-                'token_list' => array(),    // so ODRRenderService generates CSRF tokens
-                'template_name' => $template_name,
-
-                'datatype' => $dt_array,
-                'rpf_name' => $relevant_rpf,
-                'related_reference_info' => $related_reference_info,
-            );
-        }
-
         // Otherwise, don't want to override the default reloading for this field
         return array();
     }
@@ -1264,319 +1129,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         return array(
             $chemistry_elements_df_id => array($ima_formula_df_id),
             $valence_elements_df_id => array($rruff_formula_df_id),
-        );
-    }
-
-
-    /**
-     * Given the cached datatype/datarecord/theme arrays for a datarecord using the IMA Plugin, this
-     * function attempts to locate the datarecords pointed to by the Reference A/B datafields in a
-     * linked RRUFF Reference database.
-     *
-     * The arrays are expected to already be filtered by user permissions and stacked.
-     *
-     * @param array $datatype_array
-     * @param array $datarecord_array
-     * @param array $theme_array
-     * @param array $relevant_fields
-     * @param string $context
-     *
-     * @return array
-     */
-    private function getRelatedReferenceInfo($datatype_array, $datarecord_array, $theme_array, $relevant_fields, $context)
-    {
-        // Need to determine whether the database using this IMA plugin links to a database that
-        //  uses the RRUFF Reference plugin...
-        $rruff_reference_dt = null;
-        $rruff_reference_dt_id = null;
-        $rruff_reference_rpi = null;
-        $rruff_reference_id_field = null;
-        $rruff_reference_theme = null;
-
-        if ( isset($datatype_array['descendants']) ) {
-            foreach ($datatype_array['descendants'] as $dt_id => $tmp) {
-                if ( isset($tmp['datatype'][$dt_id]) ) {
-                    $dt = $tmp['datatype'][$dt_id];
-                    foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
-                        $rp = $rpi['renderPlugin'];
-                        if ( $rp['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
-                            // ...it does, so save some useful pieces of data
-                            $rruff_reference_dt = $dt;
-                            $rruff_reference_dt_id = $dt['id'];
-                            $rruff_reference_rpi = $rpi;
-                            $rruff_reference_id_field = $rruff_reference_rpi['renderPluginMap']['Reference ID']['id'];
-                        }
-                    }
-                }
-            }
-        }
-
-        // Since this database is properly linked to a RRUFF Reference database, the values in the
-        //  'Reference A', 'Reference B', and 'Status Notes' fields of the IMA database hopefully
-        //  point to specific records from the RRUFF Reference database
-        $reference_mapping = array();
-
-        // However, it's not guaranteed that the references have been linked to...
-        $invalid_references = array();
-        // ...or if they have been linked to, it's not guaranteed the user can see them
-        $can_view_references = array();
-
-        // If the reference exists and can be seen, then this plugin should execute the RRUFF
-        //  References plugin itself, so that twig doesn't have to render the same reference more
-        //  than once
-        $prerendered_references = array();
-
-
-        if ( !is_null($rruff_reference_rpi) ) {
-            // In order to allow the plugin to tell users that "you can't see this related reference",
-            //  it needs to look for the related reference in an unfiltered version of the datarecord
-            $ima_dr_id = $datarecord_array['id'];
-            $unfiltered_datarecord_array = $this->datarecord_info_service->getDatarecordArray($ima_dr_id);    // do want links here
-
-            // If the IMA record links to at least one RRUFF Reference...
-            if ( isset($unfiltered_datarecord_array[$ima_dr_id]['children'][$rruff_reference_dt_id]) ) {
-                // ...then stack the unfiltered datarecord array to make it easier to use
-                $unfiltered_datarecord_array = $this->datarecord_info_service->stackDatarecordArray($unfiltered_datarecord_array, $ima_dr_id);
-
-                foreach ($unfiltered_datarecord_array['children'][$rruff_reference_dt_id] as $dr_id => $dr) {
-                    // Each of these RRUFF Reference records should have a Reference ID field...
-                    if ( isset($dr['dataRecordFields'][$rruff_reference_id_field]) ) {
-                        // ...so extract the Reference ID value from the relevant field...
-                        $df_ref_id = $dr['dataRecordFields'][$rruff_reference_id_field];
-                        $ref_id = $df_ref_id['integerValue'][0]['value'];
-
-                        // ...and save it for later processing
-                        $reference_mapping[$ref_id] = $dr_id;
-                        $can_view_references[$ref_id] = false;
-                    }
-                }
-            }
-
-            // Determine which references the IMA record refers to...the Reference A/B fields are
-            //  supposed to point to references...
-            $reference_a_value = $relevant_fields['Reference A']['value'];
-            $reference_b_value = $relevant_fields['Reference B']['value'];
-
-            if ( !is_null($reference_a_value) && $reference_a_value !== 0 )
-                $prerendered_references[$reference_a_value] = 0;
-            if ( !is_null($reference_b_value) && $reference_b_value !== 0 )
-                $prerendered_references[$reference_b_value] = 0;
-
-            // ...and the Status Notes field is supposed to be able to support them as well
-            $status_notes_value = $relevant_fields['Status Notes']['value'];
-            $status_notes_references = self::parseStatusNotesFieldValue($status_notes_value);
-            foreach ($status_notes_references as $ref_id => $num)
-                $prerendered_references[$ref_id] = 0;
-
-            // Determine whether the desired RRUFF References are in $unfiltered_datarecord_array...
-            foreach ($prerendered_references as $ref_id => $num) {
-                if ( !isset($reference_mapping[$ref_id]) ) {
-                    // ...if not, then the user should be notified of this problem...
-                    $invalid_references[$ref_id] = true;
-                    // ...and the IMA Plugin shouldn't attempt to render it
-                    unset( $prerendered_references[$ref_id] );
-                }
-            }
-
-
-            // The RRUFF References are supposed to be in the 'children' section of the IMA record,
-            //  but the Linked Descendent Merger plugin might have "moved" them somewhere else...
-            //  if so, then it will have left a copy behind under 'original_children'
-            $key = 'children';
-            if ( isset($datarecord_array['original_children']) )
-                $key = 'original_children';
-
-            // Determine which RRUFF References the user is allowed to view by cross-referencing
-            //  the unfiltered and filtered datarecord lists...a reference they're not allowed to
-            //  view will be in the unfiltered datarecord list, but not the filtered list
-            if ( isset($datarecord_array[$key][$rruff_reference_dt_id]) ) {
-                foreach ($datarecord_array[$key][$rruff_reference_dt_id] as $dr_id => $dr) {
-                    // Each of these RRUFF Reference records should have a Reference ID field...
-                    if ( isset($dr['dataRecordFields'][$rruff_reference_id_field]) ) {
-                        // ...so extract the Reference ID value from the relevant field
-                        $df_ref_id = $dr['dataRecordFields'][$rruff_reference_id_field];
-                        $ref_id = $df_ref_id['integerValue'][0]['value'];
-
-                        // Since the reference exists in the already-filtered $datarecord_array, the
-                        //  user can see this record
-                        $can_view_references[$ref_id] = true;
-
-                        // If the IMA plugin is being called from the Edit context, then the plugin
-                        //  should also render all the references this IMA record links to
-                        if ( $context === 'edit' )
-                            $prerendered_references[$ref_id] = 0;
-                    }
-                }
-            }
-
-            // Also need to extract the theme for the RRUFF Reference datatype so that the render
-            //  plugin for that datatype can be executed correctly
-            foreach ($theme_array['themeElements'] as $num => $te) {
-                if ( isset($te['themeDataType']) ) {
-                    $tdt = $te['themeDataType'][0];
-                    if ( $tdt['dataType']['id'] === $rruff_reference_dt_id )
-                        $rruff_reference_theme = $tdt['childTheme']['theme'];
-                }
-            }
-        }
-
-        return array(
-            'datatype' => $rruff_reference_dt,
-            'id_field' => $rruff_reference_id_field,
-            'theme' => $rruff_reference_theme,
-            'renderPluginInstance' => $rruff_reference_rpi,
-
-            'reference_mapping' => $reference_mapping,
-            'invalid_references' => $invalid_references,
-            'can_view_references' => $can_view_references,
-            'prerendered_references' => $prerendered_references,
-        );
-    }
-
-
-    /**
-     * Extracts reference IDs from the value of the Status Notes field.
-     *
-     * @param string $value
-     * @return array reference_ids are keys
-     */
-    private function parseStatusNotesFieldValue($value)
-    {
-        $reference_ids = array();
-
-        // TODO - turn the placeholder '?:' into a renderPluginOption?
-        $pattern = '/\?:([\d]+)/';
-        $matches = array();
-        if ( preg_match_all($pattern, $value, $matches) !== false ) {
-            foreach ($matches[1] as $num => $reference_id)
-                $reference_ids[$reference_id] = 0;
-        }
-
-        return $reference_ids;
-    }
-
-
-    /**
-     * Renders a subset of the RRUFF Reference records that the given IMA datarecord links to, so
-     * that twig doesn't have to potentially render the same reference more than once.
-     *
-     * @param array $prerendered_references
-     * @param array $related_reference_info {@link self::getRelatedReferenceInfo()}
-     * @param array $ima_datarecord
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param array $token_list
-     * @param array $rendering_options
-     */
-    private function prerenderReferences(&$prerendered_references, $related_reference_info, $ima_datarecord, $datatype_permissions, $datafield_permissions, $token_list, $rendering_options)
-    {
-        // The RRUFF References are supposed to be in the 'children' section of the IMA record,
-        //  but the Linked Descendent Merger plugin might have "moved" them somewhere else...
-        //  if so, then it will have left a copy behind under 'original_children'
-        $key = 'children';
-        if ( isset($ima_datarecord['original_children']) )
-            $key = 'original_children';
-
-        // The IMA record may not link to any RRUFF References...
-        if ( !isset($related_reference_info['datatype']['id']) ) {
-            // ...if it doesn't, then there's nothing to pre-render
-            return;
-        }
-        $rruff_reference_dt_id = $related_reference_info['datatype']['id'];
-        if ( !isset($ima_datarecord[$key][$rruff_reference_dt_id]) )
-            return;
-
-        // ...but if it does, then going to attempt to pre-render the references
-        $can_view_references = $related_reference_info['can_view_references'];
-        $rruff_reference_records = $ima_datarecord[$key][$rruff_reference_dt_id];
-
-        foreach ($prerendered_references as $ref_id => $num) {
-            // Determine which ODR record this reference ID is referring to
-            $reference_dr_id = $related_reference_info['reference_mapping'][$ref_id];
-
-            // If the user can view the requested reference...
-            if ( $can_view_references[$ref_id] ) {
-                // ...then render it...
-                $reference_dr = $rruff_reference_records[$reference_dr_id];
-
-                /** @var DatatypePluginInterface $rruff_reference_plugin */
-                $rruff_reference_plugin = $this->container->get('odr_plugins.rruff.rruff_references');
-                $content = $rruff_reference_plugin->execute(
-                    array($reference_dr_id => $reference_dr),
-                    $related_reference_info['datatype'],
-                    $related_reference_info['renderPluginInstance'],
-                    $related_reference_info['theme'],
-                    $rendering_options,
-                    $ima_datarecord,
-                    $datatype_permissions,
-                    $datafield_permissions,
-                    $token_list
-                );
-
-                // ...and store it for later use
-                $prerendered_references[$ref_id] = $content;
-            }
-            else {
-                // ...if the user can't view the requested reference, then get rid of the array entry
-                //  so twig can inform the user of their lack of permissions
-                unset( $prerendered_references[$ref_id] );
-            }
-        }
-    }
-
-
-    /**
-     * Attempts to substitute any reference placeholders in the Status Notes value with the
-     * rendered form of the RRUFF Reference, and creates warning blurbs if it can't.
-     *
-     * @param array $relevant_fields {@link self::getRelevantFields()}
-     * @param array $related_reference_info {@link self::getRelatedReferenceInfo()}
-     *
-     * @return array
-     */
-    private function getStatusNotesInfo($relevant_fields, $related_reference_info)
-    {
-        // The value of the status notes field has already been found...
-        $status_notes = $relevant_fields['Status Notes'];
-        $status_notes_value = $status_notes['value'];
-        $status_notes_warnings = array();
-
-        // Locate any reference ids in the status notes
-        $reference_ids = self::parseStatusNotesFieldValue($status_notes_value);
-
-        // The field may not have any references in it
-        if ( !empty($reference_ids) ) {
-            // ...but if it does, then they need to be replaced with the pre-rendered reference text
-            $prerendered_references = $related_reference_info['prerendered_references'];
-
-            // Sort the reference ids in descending order to ensure a placeholder like '?:1' doesn't
-            //  clobber a placeholder like '?:100'
-            krsort($reference_ids);
-            foreach ($reference_ids as $ref_id => $num) {
-                // The pre-rendered references aren't guaranteed to have this reference...the user
-                //  might not be able to see this reference, or they could've entered an id for a
-                //  reference that the IMA record doesn't link to
-                if ( isset($prerendered_references[$ref_id]) ) {
-                    // If they can see the reference, then replace the placeholder in the Status
-                    //  Notes field with the pre-rendered reference
-                    // TODO - turn the placeholder '?:' into a renderPluginOption?
-                    $placeholder = '?:'.$ref_id;
-                    $status_notes_value = str_replace($placeholder, $prerendered_references[$ref_id], $status_notes_value);
-                }
-                else {
-                    // ...otherwise, generate a warning depending on whether the reference is missing
-                    //  due to not being linked, or "missing" because they can't see it
-                    if ( isset($related_reference_info['invalid_references'][$ref_id]) )
-                        $status_notes_warnings[] = 'The RRUFF Reference with the ID '.$ref_id.' is not linked to this IMA Record.';
-                    else
-                        $status_notes_warnings[] = 'You are not permitted to view the RRUFF Reference with the ID '.$ref_id.'.';
-                }
-            }
-        }
-
-        return array(
-            'value' => $status_notes_value,
-            'warnings' => $status_notes_warnings,
         );
     }
 
@@ -1632,99 +1184,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * @inheritDoc
      */
-    public function getExportOverrideFields($render_plugin_instance)
-    {
-        // Three different fields need to have be overridden, assuming they're getting exported...
-        $relevant_datafields = array(
-            'Status Notes' => 1,
-            'Reference A' => 1,
-            'Reference B' => 1,
-        );
-
-        $override_fields = array();
-        foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
-            if ( isset($relevant_datafields[$rpf_name]) )
-                $override_fields[] = $rpf['id'];
-        }
-
-        return $override_fields;
-    }
-
-
-    /**
-     * @inheritDoc
-     */
-    public function getExportOverrideValues($datafield_ids, $render_plugin_instance, $datatype_array, $datarecord_array, $user_permissions)
-    {
-        // Need the master theme so twig can render the references...
-        $master_theme = $this->theme_info_service->getDatatypeMasterTheme($datatype_array['id']);
-        $theme_array = $this->theme_info_service->getThemeArray($master_theme->getId());
-        $theme_array = $this->theme_info_service->stackThemeArray($theme_array, $master_theme->getId());
-
-        // Locate all the information that's required to get twig to render the references...
-        $relevant_fields = self::getRelevantFields($datatype_array, $datarecord_array);
-        $related_reference_info = self::getRelatedReferenceInfo($datatype_array, $datarecord_array, $theme_array, $relevant_fields, 'csv_export');
-
-        // ...get twig to render the references
-        $reference_rendering_options = array(
-            'is_top_level' => false,
-            'is_link' => true,
-            'is_datatype_admin' => false,
-            'context' => 'text'    // don't want the HTML wrappers around each reference
-        );
-
-        self::prerenderReferences(
-            $related_reference_info['prerendered_references'],
-            $related_reference_info,
-            $datarecord_array,
-            $user_permissions['datatypes'],
-            $user_permissions['datafields'],
-            array(),
-            $reference_rendering_options,
-        );
-
-        // Also substitute any placeholders in the Status Notes field with the correct reference
-        $status_notes_info = self::getStatusNotesInfo($relevant_fields, $related_reference_info);
-
-
-        // ----------------------------------------
-        // Only return values for the datafields that are getting exported, falling back to the
-        //  empty string if there was any issue rendering the reference
-        $override_values = array();
-        foreach ($datafield_ids as $num => $df_id) {
-            if ( $relevant_fields['Reference A']['id'] === $df_id ) {
-                $df_value = $relevant_fields['Reference A']['value'];
-                if ( isset($related_reference_info['prerendered_references'][$df_value]) )
-                    $override_values[$df_id] = $related_reference_info['prerendered_references'][$df_value];
-                else
-                    $override_values[$df_id] = '';
-            }
-            if ( $relevant_fields['Reference B']['id'] === $df_id ) {
-                $df_value = $relevant_fields['Reference B']['value'];
-                if ( isset($related_reference_info['prerendered_references'][$df_value]) )
-                    $override_values[$df_id] = $related_reference_info['prerendered_references'][$df_value];
-                else
-                    $override_values[$df_id] = '';
-            }
-            if ( $relevant_fields['Status Notes']['id'] === $df_id ) {
-                if ( empty($status_notes_info['warnings']) )
-                    $override_values[$df_id] = $status_notes_info['value'];
-                else
-                    $override_values[$df_id] = '';
-            }
-        }
-
-        return $override_values;
-    }
-
-    /**
-     * @inheritDoc
-     */
     public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
     {
         // Don't want to override any part of the search sidebar specifically
         return array();
     }
+
 
     /**
      * @inheritDoc
@@ -1734,6 +1199,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         // Don't want to override any part of the search sidebar specifically
         return '';
     }
+
 
     /**
      * @inheritDoc
@@ -1747,6 +1213,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         else
             return array();
     }
+
 
     /**
      * @inheritDoc
@@ -1810,58 +1277,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      */
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
-        // Want to override four fields here...Reference A/B, Status Notes, and Valence Elements
-        $reference_a_df_id = $render_plugin_instance['renderPluginMap']['Reference A']['id'];
-        $reference_b_df_id = $render_plugin_instance['renderPluginMap']['Reference B']['id'];
-        $status_notes_df_id = $render_plugin_instance['renderPluginMap']['Status Notes']['id'];
+        // Want to override the Valence Elements field
         $valence_elements_df_id = $render_plugin_instance['renderPluginMap']['Valence Elements']['id'];
-
-        // TODO - so reference a/b and status notes also kind of need to exist in a table-friendly format
-        // TODO - ...unfortunately, the table recaching process is *heavily* optimized against this
-        // TODO - ......compared to the rest of ODR being *merely* optimized against it.  sigh.
-
-        // TODO - would simplify other aspects of ODR if the value in the IMA cache entry had the fully formatted result
-        // TODO - ...triggering it during table things should theoretically be possible in here
-        // TODO - ...triggering it during search results could happen inside execute(), I guess...
-
-/*
-        // Unfortunately, need the cached datatype array...
-        $dt_id = $datarecord['dataType']['id'];
-        $datatype_array = $this->database_info_service->getDatatypeArray($dt_id, true);    // do need links...
-        $datatype = $this->database_info_service->stackDatatypeArray($datatype_array, $dt_id);
-
-        // ...and a theme array
-        $ima_master_theme = $this->theme_info_service->getDatatypeMasterTheme($dt_id);
-        $theme_array = $this->theme_info_service->getThemeArray($ima_master_theme->getId());
-        $theme = $this->theme_info_service->stackThemeArray($theme_array, $ima_master_theme->getId());
-
-        $relevant_fields = self::getRelevantFields($datatype, $datarecord);
-        $related_reference_info = self::getRelatedReferenceInfo($datatype, $datarecord, $theme, $relevant_fields, 'display');
-
-        // Now that the reference info has been gathered, it makes more sense to render them
-        //  here instead of having twig do it...there's likely going to be overlap between
-        //  the Reference A/B and the Status Notes fields
-        $reference_rendering_options = array(
-            'is_top_level' => false,
-            'is_link' => true,
-            'is_datatype_admin' => true,    // TODO
-            'context' => 'text'    // don't want the HTML wrappers around each reference
-        );
-
-        self::prerenderReferences(
-            $related_reference_info['prerendered_references'],
-            $related_reference_info,
-            $datarecord,
-            array(),    // $datatype_permissions,
-            array(),    // $datafield_permissions,
-            array(),    // $token_list,
-            $reference_rendering_options,
-        );
-
-        // Now that the references have been rendered, substitute them into the Status Notes
-        //  field...or create warnings specific to this field
-        $status_notes_info = self::getStatusNotesInfo($relevant_fields, $related_reference_info);
-*/
 
         // Valence elements is easy
         $valence_elements_df_value = '';
@@ -1872,9 +1289,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Only need to return values for the datafields getting overridden
         return array(
-//            $reference_a_df_id => $reference_a_df_value,
-//            $reference_b_df_id => $reference_b_df_value,
-//            $status_notes_df_id => $status_notes_info['value'],
             $valence_elements_df_id => $valence_elements_df_value,
         );
     }
