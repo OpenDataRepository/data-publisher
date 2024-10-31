@@ -648,6 +648,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datatype = $event->getDatatype();
+            $clear_datarecord_caches = $event->getClearDatarecordCaches();
 
             // This event currently isn't allowed to fire for render plugins
 //            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
@@ -661,6 +662,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Should ensure that these cache entries are cleared
             $this->cache_service->delete('cached_datatype_'.$datatype->getId());
             $this->cache_service->delete('associated_datatypes_for_'.$datatype->getId());
+            $this->cache_service->delete('inverse_associated_datatypes_for_'.$datatype->getId());
 
             // Instead of firing off DatafieldModified events for every single datafield that
             //  might've been changed...locate all other datatypes that use this datatype's fields
@@ -689,6 +691,20 @@ class ODREventSubscriber implements EventSubscriberInterface
             // ...and then reset the sort order for each of the other datatypes
             foreach ($datatypes_to_reset_order as $dt_id)
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+            if ($clear_datarecord_caches) {
+                // ...also need to delete the datarecord entries here...usually due to modifying
+                //  external id/name/sort fields, or changing radio/tag names, but there are others
+                $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                foreach ($dr_list as $dr_id => $parent_dr_id) {
+                    $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                    $this->cache_service->delete('cached_table_data_'.$dr_id);
+                }
+
+                $dr_list = $this->search_service->getCachedDatarecordUUIDList($datatype->getGrandparent()->getId());
+                foreach ($dr_list as $dr_id => $dr_uuid)
+                    $this->cache_service->delete('json_record_'.$dr_uuid);
+            }
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {

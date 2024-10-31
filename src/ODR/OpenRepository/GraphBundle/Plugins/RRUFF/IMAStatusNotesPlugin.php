@@ -279,9 +279,6 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
      */
     public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
-        // Don't run this
-        return;
-
         // Pull some required data from the event
         $user = $event->getUser();
         $datarecord = $event->getDatarecord();
