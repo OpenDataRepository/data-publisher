@@ -525,7 +525,7 @@ class SearchKeyService
         // Search keys should always have the "dt_id" key...
         if ( !isset($search_params['dt_id']) || !is_numeric($search_params['dt_id']) )
             throw new ODRBadRequestException('Invalid search key: missing "dt_id"', $exception_code);
-        $dt_id = $search_params['dt_id'];
+        $datatype_id = $search_params['dt_id'];
 
         // ...they should not have both "gen" and "gen_lim"..."gen_lim" is a subset of "gen"
         if ( isset($search_params['gen']) && isset($search_params['gen_lim']) )
@@ -544,7 +544,7 @@ class SearchKeyService
         }
 
         // Going to need the datatype array to verify the given parameters...
-        $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($dt_id);
+        $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($datatype_id);
         $datatype_array = array();
         if ( is_null($inverse_target_datatype_id) )
             $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id);
@@ -552,7 +552,7 @@ class SearchKeyService
             $datatype_array = $this->database_info_service->getInverseDatatypeArray($grandparent_datatype_id, $inverse_target_datatype_id);
 
         // ...and the list of searchable datafields
-        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id, $inverse_target_datatype_id);
+        $searchable_datafields = $this->search_service->getSearchableDatafields($datatype_id, $inverse_target_datatype_id);
 
         // Want to ignore metadata requests for datatypes without datafields
         $hidden_datatype_ids = array();
@@ -605,7 +605,7 @@ class SearchKeyService
 
                     // First part of this is ensuring the given field is related to the datatype
                     //  being searched...
-                    $dt = $datatype_array[$dt_id];
+                    $dt = $datatype_array[$datatype_id];
                     if ( isset($dt['dataFields'][$sort_df_id]) ) {
                         // ...it belongs to the top-level datatype, so it's related by default
                         $df = $dt['dataFields'][$sort_df_id];

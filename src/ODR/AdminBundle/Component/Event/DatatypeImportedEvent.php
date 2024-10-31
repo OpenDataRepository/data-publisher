@@ -37,19 +37,27 @@ class DatatypeImportedEvent extends Event implements ODREventInterface
      */
     private $user;
 
+    /**
+     * @var bool
+     */
+    private $clear_datarecord_caches;
+
 
     /**
      * DatatypeImportedEvent constructor.
      *
      * @param DataType $datatype
      * @param ODRUser $user
+     * @param bool $clear_datarecord_caches
      */
     public function __construct(
         DataType $datatype,
-        ODRUser $user
+        ODRUser $user,
+        bool $clear_datarecord_caches = false
     ) {
         $this->datatype = $datatype;
         $this->user = $user;
+        $this->clear_datarecord_caches = $clear_datarecord_caches;
     }
 
 
@@ -76,6 +84,15 @@ class DatatypeImportedEvent extends Event implements ODREventInterface
 
 
     /**
+     * Returns whether the event needs to also clear all datarecord cache entries
+     */
+    public function getClearDatarecordCaches()
+    {
+        return $this->clear_datarecord_caches;
+    }
+
+
+    /**
      * {@inheritDoc}
      */
     public function getEventName()
@@ -89,9 +106,18 @@ class DatatypeImportedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
-            self::NAME,
-            'dt '.$this->datatype->getId(),
-        );
+        if ( $this->clear_datarecord_caches ) {
+            return array(
+                self::NAME,
+                'dt '.$this->datatype->getId(),
+                'clear_datarecord_entries'
+            );
+        }
+        else {
+            return array(
+                self::NAME,
+                'dt '.$this->datatype->getId(),
+            );
+        }
     }
 }

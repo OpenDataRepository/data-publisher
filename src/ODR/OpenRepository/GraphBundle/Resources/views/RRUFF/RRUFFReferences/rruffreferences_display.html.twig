@@ -13,10 +13,11 @@
 {% endif %}
 
 {% if mapping is defined %}
+{#
     {% if mapping.reference_id is defined %}
     [{{ mapping.reference_id }}]&nbsp;
     {% endif %}
-
+#}
     {% set author = '' %}
     {% if mapping.authors is defined %}
         {% if mapping.authors is iterable and mapping.authors|length > 0 %}

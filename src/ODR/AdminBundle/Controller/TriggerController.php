@@ -164,7 +164,7 @@ class TriggerController extends ODRCustomController
             // Easiest way to trigger a complete cache wipe for a given datatype is to fire off
             //  a datatype imported event
             try {
-                $event = new DatatypeImportedEvent($datatype, $user);
+                $event = new DatatypeImportedEvent($datatype, $user, true);
                 $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
             }
             catch (\Exception $e) {
