@@ -280,29 +280,41 @@
                             // A non-zero value means this was a render plugin for a datafield
                             // Usually don't need to reload, but it indicates saving is finished
                             ReloadDatafield(datafield_id);
+
+                            // Reloading the datafield also means the page will reset the datafield
+                            //  properties
                         }
                         else {
                             // Don't want to reload the page...but need to ensure the javascript
                             //  array of datafield properties is kept up to date
                             var tmp = data.d.datafield_properties;
-                            // console.log('datafield properties', tmp);
                             tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
-                            $.each(tmp, function(df_id, df_props) {
-                                datafield_properties[df_id] = df_props;
+                            $.each(tmp, function(df_id, returned_df_props) {
+                                var df_props = datafield_properties.get( parseInt(df_id) );
+                                // console.log('df_id', df_id, 'current_df_props', df_props);
+                                // console.log('returned_df_props', returned_df_props);
+                                $.each(returned_df_props, function(key, value) {
+                                    df_props.set(key, value);
+                                });
                             });
+                            // console.log('datafield properties', datafield_properties);
 
                             // Since the page isn't being reloaded, the themeElement properties
                             //  also need to be checked
                             var tmp = data.d.affected_theme_elements;
                             // console.log('affected themeElements', tmp);
                             $.each(tmp, function(num, te_id) {
-                                if ( theme_element_properties[te_id] !== undefined )
-                                    theme_element_properties[te_id].has_render_plugin_instance = 0;
+                                var te_id = parseInt(te_id);
+                                if ( theme_element_properties.has(te_id) ) {
+                                    var te_props = theme_element_properties.get(te_id);
+                                    te_props.set('has_render_plugin_instance', false);
+                                }
 
                                 // Delete any placeholder text inside the themeElement
                                 if ( $("#ThemeElement_" + te_id).length > 0 )
                                     $("#ThemeElement_" + te_id).children(".ODRInnerBox").first().html('');
                             });
+                            // console.log('theme_element properties', theme_element_properties);
 
                             // The javascript array of datatype properties won't have changed, but should
                             //  reset the left panel just in case

@@ -180,7 +180,7 @@ class DatafieldInfoService
                         $render_plugin_name = $rpi['renderPlugin']['pluginName'];
                         return array(
                             'can_delete' => false,
-                            'delete_message' => "This Datafield can't be deleted because it's currently required by the \"".$render_plugin_name."\" this Datatype is using"
+                            'delete_message' => "This Datafield can't be deleted because it's currently required by the ".$render_plugin_name." this Datatype is using"
                         );
                     }
                 }

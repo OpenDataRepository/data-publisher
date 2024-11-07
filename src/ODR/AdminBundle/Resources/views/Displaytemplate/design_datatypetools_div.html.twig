@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set datatype_id = datatype.id %}
+{% set datatype_meta = datatype.dataTypeMeta %}
 
 {# Convert this to JSON Data so we can use it in the toolbox #}
 <script>
@@ -18,7 +19,13 @@
     dt_theme_ids = dt_props.get('theme_ids');
     dt_theme_ids.set({{ containing_theme_element_id }}, {{ theme_id }});
 
+    {# this value is not guaranteed to be true for linked datatypes... #}
+    dt_props.set('is_datatype_admin', {% if is_datatype_admin %}true{% else %}false{% endif %});
+
+    dt_props.set('is_top_level', {% if is_top_level %}true{% else %}false{% endif %});
+    dt_props.set('is_link', {% if is_link %}true{% else %}false{% endif %});
+    dt_props.set('is_public', {% if datatype_meta.publicDate|is_public  %}true{% else %}false{% endif %});
+
     {#console.log('datatype {{ datatype_id }}', $("#DataType_{{ datatype_id }}"), datatype_properties.get({{ datatype_id }}));#}
 </script>
-
 {% endspaceless %}

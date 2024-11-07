@@ -16,7 +16,7 @@
             {% if is_datatype_admin %}
                 <i id="ODRDatatype_{{datatype.id }}_publicStatus"
                    class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
-                   title="Field {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
+                   title="Dataset {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
                    rel="{{ datatype.id }}"
                 ></i>
             {% endif %}
@@ -28,9 +28,10 @@
                 {{ datatype_meta.shortName }}
             </a>
         </h3>
-        {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
+        {% include 'ODRAdminBundle:Displaytemplate:design_datatypetools_div.html.twig' with {
             'datatype': datatype,
             'theme_id': theme.id,
+            'containing_theme_element_id': containing_theme_element_id,
 
             'is_datatype_admin': is_datatype_admin,
 
@@ -69,15 +70,16 @@
                 >
                     <i id="ODRDatatype_{{datatype.id }}_publicStatus"
                        class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
-                       title="Field {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
+                       title="Dataset {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
                        rel="{{ datatype.id }}"
                     ></i>
                     <span id="Datatype_{{ datatype.id }}_ShortName">{{ datatype_meta.shortName }}</span>
                 </h3>
-                {# current datatype is top-level #}
-                {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
+                {# current datatype is top-level...no containing theme_element #}
+                {% include 'ODRAdminBundle:Displaytemplate:design_datatypetools_div.html.twig' with {
                     'datatype': datatype,
                     'theme_id': theme.id,
+                    'containing_theme_element_id': 0,
 
                     'is_datatype_admin': is_datatype_admin,
 

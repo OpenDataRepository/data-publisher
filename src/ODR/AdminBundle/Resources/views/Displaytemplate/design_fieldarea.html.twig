@@ -9,7 +9,8 @@
 
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}">
     <div class="ODRInnerBox">
-        {% include 'ODRAdminBundle:Displaytemplate:theme_element_properties.html.twig' with {
+        {% include 'ODRAdminBundle:Displaytemplate:design_themeelementtools_div.html.twig' with {
+            'theme': theme,
             'theme_element': theme_element,
         } %}
 
@@ -87,6 +88,7 @@
 
                         'target_datatype_id': child_datatype_id,
                         'target_theme_id': child_theme_id,
+                        'containing_theme_element_id': theme_element.id,
 
                         'datatype_permissions': datatype_permissions,
                         'is_datatype_admin': child_is_datatype_admin,

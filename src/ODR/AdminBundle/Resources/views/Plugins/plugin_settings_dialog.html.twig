@@ -79,6 +79,8 @@
                     // A non-zero value means this was a render plugin for a datafield
                     // Usually don't need to reload, but it indicates saving is finished
                     ReloadDatafield(datafield_id);
+                    // Reloading the datafield also means the page will reset the datafield
+                    //  properties
                 }
                 else {
                     // This is a render plugin for a datatype
@@ -87,14 +89,22 @@
                         // The render plugin added at least one field or themeElement...reload the
                         //  datatype so everything shows up
                         ReloadChild(datatype_id);
+
+                        // Reloading the datafield also means the page will reset the datatype
+                        //  properties
                     }
                     else {
                         // Don't want to reload the page...but need to ensure the javascript array
                         //  of datafield properties is kept up to date
                         var tmp = data.d.datafield_properties;
                         tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
-                        $.each(tmp, function(df_id, df_props) {
-                            datafield_properties[df_id] = df_props;
+                        $.each(tmp, function(df_id, returned_df_props) {
+                            var df_props = datafield_properties.get( parseInt(df_id) );
+                            // console.log('df_id', df_id, 'current_df_props', df_props);
+                            // console.log('returned_df_props', returned_df_props);
+                            $.each(returned_df_props, function(key, value) {
+                                df_props.set(key, value);
+                            });
                         });
                         // console.log('datafield properties', datafield_properties);
 
