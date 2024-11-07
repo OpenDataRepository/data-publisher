@@ -1,0 +1,39 @@
+{% spaceless %}
+
+{% set has_datafields = false %}
+{% set has_childtype = false %}
+{% set child_is_link = false %}
+{% set has_render_plugin_instance = false %}
+
+{% if theme_element.themeDataFields is defined %}
+    {% set has_datafields = true %}
+{% elseif theme_element.themeDataType is defined %}
+    {% set has_childtype = true %}
+
+    {% if theme_element.themeDataType[0].is_link == 1 %}
+        {% set child_is_link = true %}
+    {% endif %}
+{% elseif theme_element.themeRenderPluginInstance is defined %}
+    {% set has_render_plugin_instance = true %}
+{% endif %}
+
+{% set theme_element_id = theme_element.id %}
+
+<script>
+    if ( theme_element_properties === undefined || theme_element_properties === null )
+        var theme_element_properties = new Map();
+
+    if ( !theme_element_properties.has({{ theme_element_id }}))
+        theme_element_properties.set({{ theme_element_id }}, new Map());
+    var te_props = theme_element_properties.get({{ theme_element_id }});
+
+    te_props.set('theme_id', {{ theme.id }});
+    te_props.set('has_childtype', {% if has_childtype %}true{% else %}false{% endif %});
+    te_props.set('has_datafields', {% if has_datafields %}true{% else %}false{% endif %});
+    te_props.set('child_is_link', {% if child_is_link %}true{% else %}false{% endif %});
+    te_props.set('has_render_plugin_instance', {% if has_render_plugin_instance %}true{% else %}false{% endif %});
+
+    {#console.log('theme_element {{ theme_element_id }}', $("#ThemeElement_{{ theme_element_id }}"), theme_element_properties.get({{ theme_element_id }}));#}
+</script>
+
+{% endspaceless %}

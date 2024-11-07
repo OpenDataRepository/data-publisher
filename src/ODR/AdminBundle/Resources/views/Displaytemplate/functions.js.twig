@@ -330,7 +330,9 @@ function setupSortableDatafields(elem) {
                 var ending_theme_element = jQuery(ui.item).parent().parent().attr('id');
                 var ending_theme_element_id = ending_theme_element.split(/_/)[1];
 
-                if ( theme_element_properties[ending_theme_element_id].has_render_plugin_instance === 1 ) {
+                {#console.log('starting_theme_element', starting_theme_element, 'ending_theme_element', ending_theme_element, theme_element_properties);#}
+                var te_props = theme_element_properties.get( parseInt(ending_theme_element_id) );
+                if ( te_props.get('has_render_plugin_instance') ) {
                     // If the datafield ended up in a themeElement reserved for a renderPlugin, then
                     //  don't save the change and revert the layout
                     jQuery(this).sortable("cancel");

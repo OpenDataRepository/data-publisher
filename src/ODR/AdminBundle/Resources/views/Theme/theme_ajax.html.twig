@@ -1,4 +1,9 @@
 {% spaceless %}
+    <script>
+        var datatype_properties = null;
+        var theme_element_properties = null;
+        var datafield_properties = null;
+    </script>
 
     {% set datatype = datatype_array[initial_datatype_id] %}
 
@@ -166,36 +171,36 @@
                 $(".ODRThemeVisibleHiddenElement").addClass("ODRThemeHiddenElement").removeClass("ODRThemeVisibleHiddenElement");
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         // Attach handlers to the elements used to change the theme name/description
         $("#ThemePropertiesForm input:text").unbind('keyup').keyup(function() {
             // Only want to execute this save once
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
         $("#ThemePropertiesForm textarea").unbind('keyup').keyup(function() {
             // Only want to execute this save once
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
 {# NOTE: want more control over the checkboxes here, so not using a generic handler
         $("#ThemePropertiesForm input:checkbox").unbind('change').change(function() {
             // Only want to execute this save once
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
 #}
         {# Actually have access to the form variables here... #}
         $("#{{ theme_form.disableSearchSidebar.vars.id }}").unbind('change').change(function() {
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
 
         $("#{{ theme_form.themeVisibility.vars.id }}").unbind('change').change(function() {
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
 
         $("#{{ theme_form.isTableTheme.vars.id }}").unbind('change').change(function() {
@@ -207,7 +212,7 @@
             }
 
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
 
         $("#{{ theme_form.displaysAllResults.vars.id }}").unbind('change').change(function() {
@@ -217,7 +222,7 @@
                 $("#{{ theme_form.isTableTheme.vars.id }}").prop('checked', true);
 
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
 
         $("#{{ theme_form.enableHorizontalScrolling.vars.id }}").unbind('change').change(function() {
@@ -227,11 +232,11 @@
                 $("#{{ theme_form.isTableTheme.vars.id }}").prop('checked', true);
 
             clearTimeout(theme_properties_change);
-            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+            theme_properties_change = setTimeout("ODRTheme_SaveThemeProperties()", SaveTimeout);
         });
 
         // Ensure multiple-allowed child/linked datatypes never appear for a table theme
-        updateChildtypeVisibility();
+        ODRTheme_UpdateChildtypeVisibility();
 
         $(".ODRReturn").unbind('click').click(function() {
 {# NOTE: whether ThemeController::modifythemAction() gets a search key depends on the page_type...Display/Edit modes don't pass one in #}
@@ -248,7 +253,7 @@
 {% endif %}
         });
 
-        initPage();
+        ODRTheme_InitPage();
     });
 
     /**
@@ -257,11 +262,11 @@
      * @param {HTMLElement} elem
      * @param {string} element_type
      */
-    function setupElement(elem, element_type) {
+    function ODRTheme_SetupElement(elem, element_type) {
         if (element_type === undefined)
             return;
 
-        // console.log('setupElement()', elem, element_type);
+        // console.log('ODRTheme_SetupElement()', elem, element_type);
 
         // Fade out all elements other than this one....
         var actual_parent = null;
@@ -270,7 +275,7 @@
             $(elem).hasClass('ODRDataField')  // Data fields
             || $(elem).parent().hasClass('ODRDataType')  // Child or linked data types
         ) {
-            // console.log('setupElement(), datafield selected');
+            // console.log('ODRTheme_SetupElement(), datafield selected');
             // Set opacity to this TED to 1
             clearAllFields(false);
             var isChildOrLink = true;
@@ -321,7 +326,7 @@
             }
         }
         else {
-            // console.log('setupElement(), opacity switch');
+            // console.log('ODRTheme_SetupElement(), opacity switch');
             clearAllFields(false);
             $(elem).fadeTo(100, '1.0');
 
@@ -376,12 +381,12 @@
     /**
      * Resets the various toolset links on the left side of the master layout design page.
      */
-    function ResetToolSet() {
+    function ODRTheme_ResetToolSet() {
         // Clear the theme form
         $("#ThemeDesignForm").html("");
         $("#ThemeDatafieldDesignForm").html("");
 
-        // console.log('ResetToolSet()');
+        // console.log('ODRTheme_ResetToolSet()');
 
         var tools = [];
         tools.add_te     = $("#ODRDatatype_addTE");
@@ -394,7 +399,7 @@
             obj.addClass('faded');
             obj.find('i').removeClass('ODRActiveIcon');
             obj.unbind('click').click(function () {
-                sidebarDefaultClick();
+                ODRTheme_SidebarDefaultClick();
             });
         }
 
@@ -419,7 +424,7 @@
      * @param {string} tool_type
      * @param {number} [theme_element_id]
      */
-    function RenderToolSet(entity_id, tool_type, theme_element_id) {
+    function ODRTheme_RenderToolSet(entity_id, tool_type, theme_element_id) {
 
         var tools = [];
         tools.add_te     = $("#ODRDatatype_addTE");
@@ -427,15 +432,18 @@
         tools.border_te  = $("#ODRDatatype_visibleTEBorder");
         tools.delete_te  = $("#ODRDatatype_deleteTE");
 
-        ResetToolSet();
+        ODRTheme_ResetToolSet();
 
-        // console.log('RenderToolSet()', entity_id, tool_type, theme_element_id);
+        entity_id = parseInt(entity_id);
+        if ( theme_element_id !== undefined && theme_element_id !== '' )
+            theme_element_id = parseInt(theme_element_id);
+        // console.log('ODRTheme_RenderToolSet()', tool_type, entity_id, 'theme_element_id:', theme_element_id);
 
         switch(tool_type) {
             case 'datatype':
                 var datatype_id = entity_id;
-                var props = datatype_properties[datatype_id];
-                // console.log('RenderToolSet() Dataset ' + datatype_id + ' Props: ', props);
+                var dt_props = datatype_properties.get(datatype_id);
+                // console.log('ODRTheme_RenderToolSet() datatype', datatype_id, ' Props:', dt_props);
 
                 // ----------------------------------------
                 // Add ThemeElement/Group Box is always available...the user has admin permissions
@@ -445,9 +453,13 @@
                 tools.add_te.find('i').addClass('ODRActiveIcon');
 
                 tools.add_te.unbind('click').click(function () {
-                    var theme_id = props.theme_id;
-                    // console.log('adding theme_element to theme ' + theme_id);
-                    addThemeElement(theme_id);
+                    if ( theme_element_id === undefined || theme_element_id === '' )
+                        theme_element_id = 0;
+
+                    var dt_theme_ids = dt_props.get('theme_ids');
+                    var theme_id = dt_theme_ids.get(theme_element_id);
+                    // console.log('adding theme_element to theme ' + theme_id + ', contained inside theme_element_id ' + theme_element_id);
+                    ODRTheme_AddThemeElement(theme_id, theme_element_id);
                 });
 
                 // ----------------------------------------
@@ -457,8 +469,8 @@
 
             case 'theme_element':
                 var theme_element_id = entity_id;
-                var props = theme_element_properties[theme_element_id];
-                // console.log('RenderToolSet() theme_element ' + theme_element_id + ' Props: ', props);
+                var te_props = theme_element_properties.get(theme_element_id);
+                // console.log('ODRTheme_RenderToolSet() theme_element', theme_element_id, ' Props:', te_props);
 
                 var theme_element = $("#ThemeElement_" + theme_element_id);
                 var theme_element_is_visible = true;
@@ -493,7 +505,7 @@
                 }
 
                 tools.visible_te.unbind('click').click(function () {
-                    toggleThemeElementVisibility(theme_element_id);
+                    ODRTheme_ToggleThemeElementVisibility(theme_element_id);
                 });
 
                 // ----------------------------------------
@@ -513,7 +525,7 @@
                     }
 
                     tools.border_te.unbind('click').click(function () {
-                        toggleThemeElementBorderVisibility(theme_element_id);
+                        ODRTheme_ToggleThemeElementBorderVisibility(theme_element_id);
                     });
                 }
 
@@ -522,14 +534,19 @@
                 // Permissions aren't a factor here, because the user always has permissions to delete
                 //  from the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
-                if ( !props.has_render_plugin_instance && !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
+                var has_render_plugin_instance = te_props.get('has_render_plugin_instance');
+                var child_is_link = te_props.get('child_is_link');
+                var has_childtype = te_props.get('has_childtype');
+                var has_datafields = te_props.get('has_datafields');
+
+                if ( !has_render_plugin_instance && !child_is_link && !has_childtype && !has_datafields ) {
                     tools.delete_te.removeClass('faded');
                     tools.delete_te.find('i').addClass('ODRActiveIcon');
                     tools.delete_te.find('.link-text').html('Delete Group Box');
                     tools.delete_te.attr('title', 'Click to delete this group box.');
 
                     tools.delete_te.unbind('click').click(function () {
-                        deleteThemeElement(theme_element_id);
+                        ODRTheme_DeleteThemeElement(theme_element_id);
                     });
                 }
                 else {
@@ -568,7 +585,7 @@
                 }
 
                 tools.visible_te.unbind('click').click(function () {
-                    toggleThemeDatafieldVisibility(theme_element_id, datafield_id);
+                    ODRTheme_ToggleThemeDatafieldVisibility(theme_element_id, datafield_id);
                 });
 
                 // ----------------------------------------
@@ -592,7 +609,7 @@
                     }
 
                     tools.border_te.unbind('click').click(function () {
-                        toggleThemeDatafieldHeaderVisibility(theme_element_id, datafield_id);
+                        ODRTheme_ToggleThemeDatafieldHeaderVisibility(theme_element_id, datafield_id);
                     });
                 }
 
@@ -611,7 +628,7 @@
      * datafield/datatype on the page...such as attempting to add a child datatype while a datafield
      * is selected, or attempting to delete a datafield that's marked as unique.
      */
-    function sidebarDefaultClick() {
+    function ODRTheme_SidebarDefaultClick() {
         // console.log('default click');
         if ( $(".ODRFieldSelected").length > 0 )
             $.jGrowl('Unable to perform this action on this element.');
@@ -622,7 +639,7 @@
     /**
      * Helper function to ensure multiple-allowed child/linked datatypes never appear for a table theme.
      */
-    function updateChildtypeVisibility() {
+    function ODRTheme_UpdateChildtypeVisibility() {
         // Table themes can't use anything from child/linked datatypes that allow multiple
         //  child/linked datarecords
 
@@ -644,19 +661,19 @@
      *
      * @param {boolean} [reset_tools]
      */
-    function initPage(reset_tools) {
+    function ODRTheme_InitPage(reset_tools) {
         if (reset_tools === undefined)
             reset_tools = true;
 
         // Setup Data Fields
-        SetupDataFields();
+        ODRTheme_SetupDataFields();
 
         // Resets the sidebar tool set
         if (reset_tools)
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
 
         // Sets up the object click handlers
-        InitDatatypeTools();
+        ODRTheme_InitDatatypeTools();
 
         // Attach click handlers to tags
         setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
@@ -667,7 +684,7 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         $("#left-spacer").click(function(e) {
@@ -675,7 +692,7 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         $("#ODRDatatypeToolsBlock p").click(function(e) {
@@ -683,7 +700,7 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         $("#ThemeDesignForm").click(function(e) {
@@ -691,7 +708,7 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         $("#ThemeDesignWrapper").click(function(e) {
@@ -699,7 +716,7 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         $("#ThemeLeftColumn .ODRInnerBox").click(function(e) {
@@ -707,7 +724,7 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         $(".ODRDesignTitle").click(function(e) {
@@ -715,7 +732,7 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         $("#right-spacer").click(function(e) {
@@ -723,13 +740,13 @@
                 return;
 
             clearAllFields();
-            ResetToolSet();
+            ODRTheme_ResetToolSet();
         });
 
         // Don't want to be able to highlight everything...
         $("#odr_content").find(".ODRInnerBox").disableSelection();
 
-        // Need InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
+        // Need ODRTheme_InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
         //  setup for introJS is run...
         ODRTheme_setupIntroJS();
     }
@@ -738,7 +755,7 @@
      * Attaches selection handles to every ThemeElement on the page, and attaches click events to
      * each datatype header so the datatype properties form can be loaded.
      */
-    function InitDatatypeTools() {
+    function ODRTheme_InitDatatypeTools() {
         // Attach a selection handle to all ThemeElements on the page
         $("#ThemeDesignArea .ODRThemeElement").each(function() {
             // Only attach this handle to theme elements in the design area
@@ -759,12 +776,12 @@
         $(".ODRThemeElementHandle").unbind('click').click(function() {
             // Highlight and setup element properties
             if(!$(this).parent().hasClass('ODRFieldSelected')) {
-                setupElement($(this).parent(), 'theme_element');
+                ODRTheme_SetupElement($(this).parent(), 'theme_element');
 
                 var theme_element_id_data = $(this).parent().attr("id").split(/_/);
                 var theme_element_id = theme_element_id_data[1];
                 // Prepare the Sidebar Tools
-                RenderToolSet(theme_element_id, 'theme_element');
+                ODRTheme_RenderToolSet(theme_element_id, 'theme_element');
             }
         });
 
@@ -774,7 +791,7 @@
         // Binding for clicking a datatype header
         $(".ODRDatatypeProperties").unbind('click').click(function() {
             // Highlight and setup element properties
-            setupElement(this, 'datatype');
+            ODRTheme_SetupElement(this, 'datatype');
 
             // Locate this datatype's id
             var datatype = $(this).parents('.ODRDataType').first();
@@ -800,12 +817,11 @@
 
             // Prepare the Sidebar Tools
             // console.log('.ODRDatatypeProperties clicked', datatype_id, theme_element_id);
-            RenderToolSet(datatype_id, 'datatype', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datatype
-            // console.log('Datatype Props 1:', datatype_properties[datatype_id]);
+            ODRTheme_RenderToolSet(datatype_id, 'datatype', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datatype
 
             // Load the ThemeDatatype properties form if the user clicked on a child/linked datatype
             if ( theme_element_id !== '' )
-                LoadThemeDatatypeProperties(theme_element_id, datatype_id);
+                ODRTheme_LoadThemeDatatypeProperties(theme_element_id, datatype_id);
         });
     }
 
@@ -813,7 +829,7 @@
      * Attaches a click handler to every Datafield element on the page, so that a properties form
      * can be loaded.
      */
-    function SetupDataFields() {
+    function ODRTheme_SetupDataFields() {
         // There are several elements on the page that aren't datafields but have the "ODRDataField"
         //  class...so ensure the event only fires on the ones in the layout designer
         $("#ODRDatatypeDesign").find(".ODRDataField").unbind('click').click(function() {
@@ -826,10 +842,10 @@
 
             // Setup Resizeable
             // console.log('.ODRDatafield clicked', datafield_id, theme_element_id);
-            setupElement(this, 'datafield');
+            ODRTheme_SetupElement(this, 'datafield');
 
             // Render Tool Set
-            RenderToolSet(datafield_id, 'datafield', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datafield
+            ODRTheme_RenderToolSet(datafield_id, 'datafield', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datafield
         });
     }
 
@@ -838,7 +854,7 @@
     /**
      * Saves the name/description/etc properties for the currently loaded Theme.
      */
-    function SaveThemeProperties() {
+    function ODRTheme_SaveThemeProperties() {
         // Clear the save timeout for this action
         window.clearInterval(theme_properties_change);
 
@@ -852,7 +868,7 @@
                 notifySaved();
 
                 // Ensure multiple-allowed child/linked datatypes never appear for a table theme
-                updateChildtypeVisibility();
+                ODRTheme_UpdateChildtypeVisibility();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -875,6 +891,8 @@
 
     /**
      * Saves the width and hidden properties of a theme_element
+     *
+     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
      *
      * @param {number} theme_element_id
      */
@@ -920,7 +938,7 @@
      * @param {number} theme_element_id
      * @param {number} datatype_id
      */
-    function LoadThemeDatatypeProperties(theme_element_id, datatype_id) {
+    function ODRTheme_LoadThemeDatatypeProperties(theme_element_id, datatype_id) {
 
         var url = '{{ path('odr_design_load_theme_datatype', { 'theme_element_id': 0, 'datatype_id': 0 } ) }}';
         url = url.substring(0, (url.length - 3));
@@ -937,7 +955,7 @@
                 $("#ThemeDesignForm").html(data.d);
                 $("#ThemeDesignForm").fadeIn('fast');
 
-                InitThemeDatatypePropertiesForm();
+                ODRTheme_InitThemeDatatypePropertiesForm();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -961,7 +979,7 @@
     /**
      * Attaches event handlers to the elements in a ThemeDatatype properties form.
      */
-    function InitThemeDatatypePropertiesForm() {
+    function ODRTheme_InitThemeDatatypePropertiesForm() {
         var tdf_otdpf = $("#ThemeDesignForm .ODRThemeDatatypePropertiesForm");
         tdf_otdpf.find("select").each(function() {
             var id_data = tdf_otdpf.attr('id').split(/_/);
@@ -969,7 +987,7 @@
             var datatype_id = id_data[2];
 
             $(this).unbind('change').change(function() {
-                SaveThemeDatatypeProperties(theme_element_id, datatype_id);
+                ODRTheme_SaveThemeDatatypeProperties(theme_element_id, datatype_id);
             });
         });
     }
@@ -981,14 +999,14 @@
      * @param {number} theme_element_id
      * @param {number} datatype_id
      */
-    function SaveThemeDatatypeProperties(theme_element_id, datatype_id) {
+    function ODRTheme_SaveThemeDatatypeProperties(theme_element_id, datatype_id) {
 
         var url = '{{ path('odr_design_save_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}';
         url = url.substring(0, (url.length - 3));
         url += theme_element_id + '/' + datatype_id;
 
         var form_data = $("#ThemeDatatypePropertiesForm_" + theme_element_id + "_" + datatype_id).serialize();
-        // console.log('SaveThemeDatatypeProperties()', form_data);
+        // console.log('ODRTheme_SaveThemeDatatypeProperties()', form_data);
 
         $.ajax({
             type: 'POST',
@@ -1020,6 +1038,8 @@
 
     /**
      * Saves the width of a theme_datafield entity
+     *
+     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
      *
      * @param {number} theme_element_id
      * @param {number} datafield_id
@@ -1065,7 +1085,7 @@
      *
      * @param {number} theme_element_id
      */
-    function toggleThemeElementVisibility(theme_element_id) {
+    function ODRTheme_ToggleThemeElementVisibility(theme_element_id) {
         var show_hidden_elements = false;
         if ($("#ODRThemeShowHidden").is(":checked"))
             show_hidden_elements = true;
@@ -1089,13 +1109,13 @@
                     $(element).toggleClass('ODRThemeVisibleHiddenElement');
 
                     // Re-render the tools section
-                    RenderToolSet(theme_element_id, 'theme_element');
+                    ODRTheme_RenderToolSet(theme_element_id, 'theme_element');
                 } else {
                     $(element).toggleClass('ODRThemeHiddenElement');
 
                     // Clear the selected element
                     clearAllFields();
-                    ResetToolSet();
+                    ODRTheme_ResetToolSet();
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
@@ -1122,7 +1142,7 @@
      *
      * @param {number} theme_element_id
      */
-    function toggleThemeElementBorderVisibility(theme_element_id) {
+    function ODRTheme_ToggleThemeElementBorderVisibility(theme_element_id) {
 
         var url = '{{ path('odr_design_theme_element_border_visibility', {'theme_element_id': 0} ) }}';
         url = url.substring(0, (url.length - 1));
@@ -1140,7 +1160,7 @@
                 $("#ThemeElement_" + theme_element_id + " > .ODRInnerBox").toggleClass("ODRInnerBox_HideBorder");
 
                 // Re-render the tools section
-                RenderToolSet(theme_element_id, 'theme_element');
+                ODRTheme_RenderToolSet(theme_element_id, 'theme_element');
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1167,7 +1187,7 @@
      * @param {number} theme_element_id
      * @param {number} datafield_id
      */
-    function toggleThemeDatafieldVisibility(theme_element_id, datafield_id) {
+    function ODRTheme_ToggleThemeDatafieldVisibility(theme_element_id, datafield_id) {
         var show_hidden_elements = false;
         if ($("#ODRThemeShowHidden").is(":checked"))
             show_hidden_elements = true;
@@ -1191,14 +1211,14 @@
                     $(element).toggleClass('ODRThemeVisibleHiddenElement');
 
                     // Re-render the tools section
-                    RenderToolSet(datafield_id, 'datafield', theme_element_id);
+                    ODRTheme_RenderToolSet(datafield_id, 'datafield', theme_element_id);
                 }
                 else {
                     $(element).toggleClass('ODRThemeHiddenElement');
 
                     // Clear the selected element
                     clearAllFields();
-                    ResetToolSet();
+                    ODRTheme_ResetToolSet();
                 }
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1226,7 +1246,7 @@
      * @param {number} theme_element_id
      * @param {number} datafield_id
      */
-    function toggleThemeDatafieldHeaderVisibility(theme_element_id, datafield_id) {
+    function ODRTheme_ToggleThemeDatafieldHeaderVisibility(theme_element_id, datafield_id) {
         // var show_hidden_elements = false;
         // if ($("#ODRThemeShowHidden").is(":checked"))
         //     show_hidden_elements = true;
@@ -1252,7 +1272,7 @@
 
                 // Clear the selected element
                 clearAllFields();
-                ResetToolSet();
+                ODRTheme_ResetToolSet();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1276,9 +1296,13 @@
     /**
      * Saves the results of moving a theme_element inside a datatype.
      *
+     * This function is called by setupSortableThemeElements() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     *
      * @param {HTMLElement} container - The .ODRFieldArea element that is the direct parent of the theme_element being moved
      */
     function SaveThemeElementOrder(container) {
+        // console.log('(ODRTheme) SaveThemeElementOrder() target fieldarea', container);
+
         var i = 0;
         var theme_element_ids = {};
         $(container).children(".ODRThemeElement").each(function() {
@@ -1330,12 +1354,16 @@
     /**
      * Saves the results of moving a datafield inside a theme_element, or to a different theme_element.
      *
+     * This function is called by setupSortableDatafields() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     *
      * @param {HTMLElement} container - The .ODRInnerBox element that is the direct parent of the datafields in the destination theme_element
      * @param {number} datafield_id - The id of the datafield that triggered this function by being moved
      * @param {number} source_theme_element_id - The id of the theme_element that the moved datafield started in
      * @param {number} dest_theme_element_id - The id of the theme_element that the moved datafield ended in
      */
     function SaveDatafieldOrder(container, datafield_id, source_theme_element_id, dest_theme_element_id) {
+
+        // console.log('SaveDatafieldOrder(), datafield_id: ' + datafield_id + ' source theme_element: ' + source_theme_element_id + ' dest theme_element: ' + dest_theme_element_id);
 
         var i = 0;
         var datafield_ids = {};
@@ -1345,13 +1373,11 @@
             i++;
         });
 
-        // console.log('SaveDatafieldOrder(), datafield_id: ' + datafield_id + ' source theme_element: ' + source_theme_element_id + ' dest theme_element: ' + dest_theme_element_id);
-
         // Get the id numbers of the passed-in theme elements
         var theme_element = source_theme_element_id.split(/_/);
-        var initial_theme_element_id = theme_element[1];
+        var initial_theme_element_id = parseInt(theme_element[1]);
         theme_element = dest_theme_element_id.split(/_/);
-        var ending_theme_element_id = theme_element[1];
+        var ending_theme_element_id = parseInt(theme_element[1]);
 
         var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
         url = url.substring(0, url.length-3);
@@ -1367,7 +1393,7 @@
 
             // Also throw up an overlay so the user can't attempt to resize a datafield until the
             //  themeDatafield entry exists
-            insertLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
+            ODRTheme_InsertLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
         }
 
         $.ajax({
@@ -1381,17 +1407,27 @@
 
                 // Ensure the properties of both the source and the destination theme elements are
                 //  kept up to date
-                var initial_te_length = $("#ThemeElement_" + initial_theme_element_id).children(".ODRDataField").length;
-                if ( initial_te_length > 0 )
-                    theme_element_properties[initial_theme_element_id].has_datafields = 1;
-                else
-                    theme_element_properties[initial_theme_element_id].has_datafields = 0;
+                // console.log('initial_theme_element_id', initial_theme_element_id, 'ending_theme_element_id', ending_theme_element_id);
+                // console.log('theme_element_properties before', theme_element_properties);
 
-                var ending_te_length = $("#ThemeElement_" + ending_theme_element_id).children(".ODRDataField").length;
-                if (ending_te_length > 0)
-                    theme_element_properties[ending_theme_element_id].has_datafields = 1;
+                var initial_te_props = theme_element_properties.get(initial_theme_element_id);
+                var ending_te_props = theme_element_properties.get(ending_theme_element_id);
+
+                var initial_te_length = $("#ThemeElement_" + initial_theme_element_id).children(".ODRInnerBox").children(".ODRDataField").length;
+                if ( initial_te_length > 0 )
+                    initial_te_props.set('has_datafields', true);
                 else
-                    theme_element_properties[ending_theme_element_id].has_datafields = 0;
+                    initial_te_props.set('has_datafields', false);
+
+                var ending_te_length = $("#ThemeElement_" + ending_theme_element_id).children(".ODRInnerBox").children(".ODRDataField").length;
+                if (ending_te_length > 0)
+                    ending_te_props.set('has_datafields', true);
+                else
+                    ending_te_props.set('has_datafields', false);
+
+                theme_element_properties.set(initial_theme_element_id, initial_te_props);
+                theme_element_properties.set(ending_theme_element_id, ending_te_props);
+                // console.log('theme_element_properties after', theme_element_properties);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1405,7 +1441,7 @@
                     // console.log('SaveDatafieldOrder() complete', load_themeDatafield_delay);
 
                     // Also get rid of the overlay div
-                    removeLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
+                    ODRTheme_RemoveLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
                 }
 
                 // Get the xdebugToken from response headers
@@ -1428,15 +1464,17 @@
      * Creates and attaches a new theme_element to the given datatype.
      *
      * @param {number} theme_id
+     * @param {number} containing_theme_element_id
      * @param {function} [callback]
      */
-    function addThemeElement(theme_id, callback) {
+    function ODRTheme_AddThemeElement(theme_id, containing_theme_element_id, callback) {
         if (callback === undefined) {
             callback = function() {}
         }
 
         var url = '{{ path('odr_design_add_theme_element', { 'theme_id': 0 }) }}';
         url = url.substring(0, url.length-1) + theme_id;
+        // alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -1451,15 +1489,32 @@
                 var theme_element_id = data.d.theme_element_id;
                 var datatype_id = data.d.datatype_id;
 
+                // Need slightly different behavior based on whether this is adding to the top-level
+                //  datatype or a descendant...
+                var fieldarea = null;
+                if ( containing_theme_element_id == 0 ) {
+                    // This is the top-level, so there should only be one element matching
+                    //  #FieldArea_<datatype_id>
+                    fieldarea = $("#FieldArea_" + datatype_id);
+                    // console.log('adding theme_element to top-level datatype...ODRTheme_AddThemeElement() target fieldarea', fieldarea);
+                }
+                else {
+                    // This is a descendant, so there could be multiple elements matching
+                    //  #FieldArea_<datatype_id>...need to use containing_theme_element_id to get
+                    //  the right one
+                    fieldarea = $("#ThemeElement_" + containing_theme_element_id).find("#FieldArea_" + datatype_id);
+                    // console.log('adding theme_element to descendant datatype inside theme_element ' + containing_theme_element_id + '...ODRTheme_AddThemeElement() target fieldarea', fieldarea);
+                }
+
                 // The server has returned HTML for a blank theme_element...when appended,
                 //  the theme_element_properties array will be updated
-                $("#FieldArea_" + datatype_id).append(data.d.html);
+                $(fieldarea).append(data.d.html);
 
                 // Ensure the theme thinks the new theme_element is at the end of the list
-                SaveThemeElementOrder("#FieldArea_" + datatype_id);
+                SaveThemeElementOrder(fieldarea);
 
                 // Init the page
-                initPage();
+                ODRTheme_InitPage();
 
                 // Show the element
                 ScrollHighlight("#ThemeElement_" + theme_element_id);
@@ -1492,7 +1547,7 @@
      *
      * @param {number} theme_element_id
      */
-    function deleteThemeElement(theme_element_id) {
+    function ODRTheme_DeleteThemeElement(theme_element_id) {
         // Don't allow deletion of a theme element that has datafields or a child/linked datatype attached to it
         // if ( $(this).hasClass('fa-muted') )
         // return;
@@ -1500,6 +1555,7 @@
         var url = '{{ path('odr_design_delete_theme_element', { 'theme_element_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
         url += theme_element_id;
+        // alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -1511,7 +1567,7 @@
                 $("#ThemeElement_" + theme_element_id).fadeOut('slow').remove();
 
                 // Update the sidebar so it no longer references the now-deleted theme element
-                ResetToolSet();
+                ODRTheme_ResetToolSet();
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1534,6 +1590,8 @@
 
     /**
      * Loads the properties form for the given theme_element.
+     *
+     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
      *
      * @param {number} theme_element_id
      */
@@ -1571,6 +1629,8 @@
 
     /**
      * Loads the properties form for the given theme_datafield.
+     *
+     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
      *
      * @param {number} theme_element_id
      * @param {number} datafield_id
@@ -1625,7 +1685,7 @@
      *
      * @param {number} theme_element_id
      */
-    function ReloadThemeElement(theme_element_id) {
+    function ODRTheme_ReloadThemeElement(theme_element_id) {
         var url = '{{ path('odr_theme_reload_theme_element', { 'theme_element_id': 0 }) }}';
         url = url.substring(0, url.length-1);
         url += theme_element_id;
@@ -1639,7 +1699,7 @@
         }
 
         // Create a loading div to block off the datafield?
-        insertLoadingDiv(theme_element);
+        ODRTheme_InsertLoadingDiv(theme_element);
 
         $.ajax({
             cache: false,
@@ -1663,7 +1723,7 @@
                     $(".ODRThemeHiddenElement").addClass("ODRThemeVisibleHiddenElement").removeClass("ODRThemeHiddenElement");
                 }
 
-                initPage();
+                ODRTheme_InitPage();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1690,7 +1750,7 @@
      *
      * @param {HTMLElement} target_div
      */
-    function insertLoadingDiv(target_div) {
+    function ODRTheme_InsertLoadingDiv(target_div) {
         // Need dimensions of parent div...
         var height = $(target_div).css('height');
         var width = $(target_div).css('width');
@@ -1709,7 +1769,7 @@
      *
      * @param {HTMLElement} target_div
      */
-    function removeLoadingDiv(target_div) {
+    function ODRTheme_RemoveLoadingDiv(target_div) {
         // Locate loading div...
         var loading_div_id = $(target_div).attr('id') + '_loading_div';
         var loading_div = $("#" + loading_div_id);

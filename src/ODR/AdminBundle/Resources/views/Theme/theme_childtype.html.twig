@@ -7,7 +7,7 @@
 
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
-        <h3 class="102 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <a id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
                 {{ datatype.dataTypeMeta.shortName }}
             </a>
@@ -15,6 +15,7 @@
         {% include 'ODRAdminBundle:Theme:theme_datatypetools_div.html.twig' with {
             'datatype': datatype,
             'theme_id': theme.id,
+            'containing_theme_element_id': containing_theme_element_id,
 
             'is_top_level': is_top_level,
             'is_link': is_link,
@@ -47,10 +48,11 @@
                 <h3 class="ODRHeader ODRDatatypeProperties" id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
                     {{ datatype.dataTypeMeta.shortName }}
                 </h3>
-                {# current datatype is top-level #}
+                {# current datatype is top-level...no containing theme_element #}
                 {% include 'ODRAdminBundle:Theme:theme_datatypetools_div.html.twig' with {
                     'datatype': datatype,
                     'theme_id': theme.id,
+                    'containing_theme_element_id': 0,
 
                     'is_top_level': is_top_level,
                     'is_link': is_link,
