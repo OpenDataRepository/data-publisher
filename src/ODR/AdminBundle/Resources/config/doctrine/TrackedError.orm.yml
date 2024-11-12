@@ -18,7 +18,11 @@ ODR\AdminBundle\Entity\TrackedError:
             length: 32
             nullable: false
             fixed: false
-
+        error_category:
+            type: string
+            length: 64
+            nullable: false
+            fixed: false
         error_body:
             type: text
             nullable: false

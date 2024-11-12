@@ -29,12 +29,17 @@ class TrackedError
     /**
      * @var string
      */
-    private $error_body;
+    private $error_level;
 
     /**
      * @var string
      */
-    private $error_level;
+    private $error_category;
+
+    /**
+     * @var string
+     */
+    private $error_body;
 
     /**
      * @var \DateTime
@@ -68,29 +73,6 @@ class TrackedError
     }
 
     /**
-     * Set error_body
-     *
-     * @param string $errorBody
-     * @return TrackedError
-     */
-    public function setErrorBody($errorBody)
-    {
-        $this->error_body = $errorBody;
-
-        return $this;
-    }
-
-    /**
-     * Get error_body
-     *
-     * @return string 
-     */
-    public function getErrorBody()
-    {
-        return $this->error_body;
-    }
-
-    /**
      * Set error_level
      *
      * @param string $errorLevel
@@ -111,6 +93,53 @@ class TrackedError
     public function getErrorLevel()
     {
         return $this->error_level;
+    }
+
+    /**
+     * Set errorCategory.
+     *
+     * @param string $errorCategory
+     *
+     * @return TrackedError
+     */
+    public function setErrorCategory($errorCategory)
+    {
+        $this->error_category = $errorCategory;
+
+        return $this;
+    }
+
+    /**
+     * Get errorCategory.
+     *
+     * @return string
+     */
+    public function getErrorCategory()
+    {
+        return $this->error_category;
+    }
+
+    /**
+     * Set error_body
+     *
+     * @param string $errorBody
+     * @return TrackedError
+     */
+    public function setErrorBody($errorBody)
+    {
+        $this->error_body = $errorBody;
+
+        return $this;
+    }
+
+    /**
+     * Get error_body
+     *
+     * @return string
+     */
+    public function getErrorBody()
+    {
+        return $this->error_body;
     }
 
     /**

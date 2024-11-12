@@ -690,8 +690,13 @@ class ODRCustomController extends Controller
 
         /** @var TrackedError[] $tracked_errors */
         $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
-        foreach ($tracked_errors as $error)
-            $job_errors[ $error->getId() ] = array('error_level' => $error->getErrorLevel(), 'error_body' => json_decode( $error->getErrorBody(), true ));
+        foreach ($tracked_errors as $error) {
+            $job_errors[ $error->getId() ] = array(
+                'error_level' => $error->getErrorLevel(),
+                'error_category' => $error->getErrorCategory(),
+                'error_body' => json_decode($error->getErrorBody(), true)
+            );
+        }
 
         return $job_errors;
     }
