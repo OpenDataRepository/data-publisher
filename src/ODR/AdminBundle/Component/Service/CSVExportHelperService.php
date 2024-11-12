@@ -796,6 +796,9 @@ class CSVExportHelperService
                                 case 'Tag':
                                     $tmp = self::getTagData($df_data, $inversed_tag_hierarchy, $delimiters);
                                     break;
+                                case 'XYZData':
+                                    $tmp = self::getXYZData($df_data, $delimiters);
+                                    break;
                                 default:
                                     $tmp = self::getOtherData($df_data, $typeclass);
                                     break;
@@ -844,11 +847,11 @@ class CSVExportHelperService
     private function getFileData($df_data, $delimiters)
     {
         $files = array();
-        if (isset($df_data['file'])) {
+        if ( isset($df_data['file']) ) {
             foreach ($df_data['file'] as $num => $file) {
                 // If there's already a file in the list, then insert a delimiter after the
                 //  previous file
-                if (!empty($files))
+                if ( !empty($files) )
                     $files[] = $delimiters['file'];
 
                 // Save the original filename for each file uploaded into this datafield
@@ -872,11 +875,11 @@ class CSVExportHelperService
     private function getImageData($df_data, $delimiters)
     {
         $images = array();
-        if (isset($df_data['image'])) {
+        if ( isset($df_data['image']) ) {
             foreach ($df_data['image'] as $num => $thumbnail_image) {
                 // If there's already an image in the list, then insert a delimiter after the
                 //  previous image
-                if (!empty($images))
+                if ( !empty($images) )
                     $images[] = $delimiters['file'];
 
                 // Don't want the thumbnails...want the filename of the corresponding full-size image
@@ -901,10 +904,10 @@ class CSVExportHelperService
     private function getRadioData($df_data, $delimiters)
     {
         $selections = array();
-        if (isset($df_data['radioSelection'])) {
+        if ( isset($df_data['radioSelection']) ) {
             foreach ($df_data['radioSelection'] as $ro_id => $rs) {
                 // Only save radio option names when the radio option is selected
-                if ($rs['selected'] === 1) {
+                if ( $rs['selected'] === 1 ) {
                     // If there's already a selected radio option in the list, then insert a delimiter
                     //  after the previous radio option
                     if (!empty($selections))

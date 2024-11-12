@@ -589,6 +589,7 @@ class DataRecord
     {
         return $this->getDataRecordMeta()->getPublicDate();
     }
+
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
@@ -649,6 +650,10 @@ class DataRecord
      */
     private $tagSelection;
 
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $XYZData;
 
     /**
      * Add boolean.
@@ -1080,5 +1085,41 @@ class DataRecord
     public function getTagSelection()
     {
         return $this->tagSelection;
+    }
+
+    /**
+     * Add xYZDatum.
+     *
+     * @param \ODR\AdminBundle\Entity\XYZData $xYZDatum
+     *
+     * @return DataRecord
+     */
+    public function addXYZDatum(\ODR\AdminBundle\Entity\XYZData $xYZDatum)
+    {
+        $this->XYZData[] = $xYZDatum;
+
+        return $this;
+    }
+
+    /**
+     * Remove xYZDatum.
+     *
+     * @param \ODR\AdminBundle\Entity\XYZData $xYZDatum
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeXYZDatum(\ODR\AdminBundle\Entity\XYZData $xYZDatum)
+    {
+        return $this->XYZData->removeElement($xYZDatum);
+    }
+
+    /**
+     * Get xYZData.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getXYZData()
+    {
+        return $this->XYZData;
     }
 }

@@ -187,6 +187,7 @@
         or typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar'
         or typeclass == 'LongVarchar' or typeclass == 'LongText'
         or typeclass == 'IntegerValue' or typeclass == 'DecimalValue'
+        or typeclass == 'XYZData'
     %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.prevent_user_edits) }}
@@ -351,6 +352,20 @@
         </div>
     {% endif %}
 
+    {% if typeclass == 'XYZData' %}
+        <div class="">
+            <label for="{{ datafield_form.xyz_data_column_names.vars.id }}">
+                {{ datafield_form.xyz_data_column_names.vars.label }}
+            </label>
+            {{ form_errors(datafield_form.xyz_data_column_names) }}
+            {{ form_widget(datafield_form.xyz_data_column_names, {
+                'attr': {
+                    'class': 'pure-u-1',
+                    'data-error-type': 'inline'
+                }
+            }) }}
+        </div>
+    {% endif %}
 
     {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}
         <div class="">

@@ -689,6 +689,12 @@ odr_record_save:
     requirements:
         datarecord_id:  \d+
         datafield_id_id:  \d+
+odr_record_save_xyzdata:
+    path:  /edit/save_xyzdata/{datarecord_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Edit:updatexyzdata }
+    requirements:
+        datarecord_id:  \d+
+        datafield_id_id:  \d+
 
 odr_record_public:
     path:  /edit/publicdatarecord/{datarecord_id}

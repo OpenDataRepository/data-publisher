@@ -33,6 +33,7 @@ use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
@@ -618,7 +619,7 @@ class MassEditController extends ODRCustomController
             //  allowed to do that
             foreach ($public_status as $dt_id => $status) {
                 $can_change_public_status = false;
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_public']) )
+                if ( isset($datatype_permissions[$dt_id]['dr_public']) )
                     $can_change_public_status = true;
 
                 if ( !$can_change_public_status )
@@ -714,7 +715,7 @@ class MassEditController extends ODRCustomController
             foreach ($datafield_list as $df_id => $dt_id) {
                 // Ensure user has the permisions to modify values of this datafield
                 $can_edit_datafield = false;
-                if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id][ 'edit' ]) )
+                if ( isset($datafield_permissions[$df_id][ 'edit' ]) )
                     $can_edit_datafield = true;
 
                 if (!$can_edit_datafield)
@@ -722,7 +723,7 @@ class MassEditController extends ODRCustomController
 
                 // Determine whether user can view non-public datarecords for this datatype
                 $can_view_datarecord = false;
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id][ 'dr_view' ]) )
+                if ( isset($datatype_permissions[$dt_id][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
 
@@ -943,6 +944,11 @@ class MassEditController extends ODRCustomController
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -995,10 +1001,6 @@ class MassEditController extends ODRCustomController
                 // Fire off a DatarecordPublicStatusChanged event...this will also end up triggering
                 //  the database changes and cache clearing that a DatarecordModified event would cause
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
                 }

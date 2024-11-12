@@ -40,27 +40,27 @@ class TableThemeHelperService
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var DatarecordInfoService
      */
-    private $dri_service;
+    private $datarecord_info_service;
 
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var PermissionsManagementService
      */
-    private $pm_service;
+    private $permissions_service;
 
     /**
      * @var ThemeInfoService
      */
-    private $theme_service;
+    private $theme_info_service;
 
     /**
      * @var Router
@@ -104,11 +104,11 @@ class TableThemeHelperService
     ) {
         $this->container = $container;
         $this->cache_service = $cache_service;
-        $this->dbi_service = $database_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatree_info_service;
-        $this->pm_service = $permissions_service;
-        $this->theme_service = $theme_info_service;
+        $this->database_info_service = $database_info_service;
+        $this->datarecord_info_service = $datarecord_info_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->permissions_service = $permissions_service;
+        $this->theme_info_service = $theme_info_service;
         $this->router = $router;
         $this->logger = $logger;
 
@@ -263,13 +263,13 @@ class TableThemeHelperService
 
         // Going to need to know whether the user has the can_view_datarecord permission for each
         //  datatype that's going to be rendered...
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
         $can_view_datarecord = array();
         // ...and also need to know whether any of the datatypes that are going to be rendered are
         //  a linked datatype, since that means linked datarecords need to be loaded as well...
         $needs_linked_data = false;
 
-        // Not using  $this->dti_service->getAssociatedDatatypes($datatype_id)  here, since that
+        // Not using  $this->datatree_info_service->getAssociatedDatatypes($datatype_id)  here, since that
         //  includes datatypes which allow multiple descendant records...
         $associated_datatypes = array_keys($table_dt_array);
         foreach ($table_df_array as $num => $df) {
@@ -305,7 +305,7 @@ class TableThemeHelperService
             $table_dr_data = $this->cache_service->get('cached_table_data_'.$search_dr_id);
             if ($table_dr_data == false) {
                 // ...if it doesn't exist, rebuild it
-                $table_dr_array = $this->dri_service->getDatarecordArray($search_dr_id);    // do want links...not for this record specifically, but for any associated records
+                $table_dr_array = $this->datarecord_info_service->getDatarecordArray($search_dr_id);    // do want links...not for this record specifically, but for any associated records
                 $table_dr_data = self::buildTableData($table_dr_array, $search_dr_id);
             }
             $datarecord_array[$search_dr_id] = $table_dr_data;
@@ -313,7 +313,7 @@ class TableThemeHelperService
             // If linked datarecords need to be loaded to complete the table data...
             if ( $needs_linked_data ) {
                 // ...then determine which ones to load
-                $associated_datarecords = $this->dti_service->getAssociatedDatarecords($search_dr_id, "table");
+                $associated_datarecords = $this->datatree_info_service->getAssociatedDatarecords($search_dr_id, "table");
                 // This call will only return records from a link which only allows single records,
                 //  due to passing in the value "table"
 
@@ -332,7 +332,7 @@ class TableThemeHelperService
                                 // ...but if it doesn't for some reason (most likely due to being
                                 //  called from LinkController::getlinkabledatarecordsAction()), then
                                 //  need to make an additional call to getDatarecordArray()
-                                $associated_dr_array = $this->dri_service->getDatarecordArray($tmp_dr_id, false);    // don't want links here
+                                $associated_dr_array = $this->datarecord_info_service->getDatarecordArray($tmp_dr_id, false);    // don't want links here
                                 $table_dr_data = self::buildTableData($associated_dr_array, $tmp_dr_id);
                             }
                         }
@@ -432,7 +432,7 @@ class TableThemeHelperService
 
         // Also need the datatype info in order to determine whether any render plugins need to run
         $dt_id = $dr_data[$datarecord_id]['dataType']['id'];
-        $dt_data = $this->dbi_service->getDatatypeArray($dt_id, false);    // don't want links
+        $dt_data = $this->database_info_service->getDatatypeArray($dt_id, false);    // don't want links
         $dt = $dt_data[$dt_id];
 
 
@@ -578,6 +578,7 @@ class TableThemeHelperService
                         }
                         break;
 
+                    // No other fieldtype is valid for a table layout
                     default:
                         $save_value = false;
                         break;
@@ -612,9 +613,9 @@ class TableThemeHelperService
         $datatype_array = self::getDatatypeArrayForTableTheme($datatype_id);
 
         // Filter out everything the user isn't allowed to see
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
         $datarecord_array = array();
-        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // Load a version of the cached theme array that matches the filtered datatype array
         $theme_array = self::getThemeArrayForTableTheme($theme_id, $datatype_array);
@@ -624,7 +625,7 @@ class TableThemeHelperService
             //  datafields/datatypes...
 
             // So, attempt to fallback to the datatype's master theme
-            $master_theme = $this->theme_service->getDatatypeMasterTheme($datatype_id);
+            $master_theme = $this->theme_info_service->getDatatypeMasterTheme($datatype_id);
             $theme_id = $master_theme->getId();
 
             // See if this user will have any better luck with the master layout
@@ -639,7 +640,7 @@ class TableThemeHelperService
         // Now that we have a theme where the user can see something, it needs to be stacked so
         //  datafields are guaranteed to be in the correct order.  If table themes weren't required
         //  to be able to display fields from child/linked datatypes, then this wouldn't be needed
-        $stacked_theme_array = $this->theme_service->stackThemeArray($theme_array, $theme_id);
+        $stacked_theme_array = $this->theme_info_service->stackThemeArray($theme_array, $theme_id);
 
         // Since the theme array is stacked, building a list of the datafields inside it needs to
         //  be done recursively
@@ -739,7 +740,7 @@ class TableThemeHelperService
     private function getDatatypeArrayForTableTheme($top_level_datatype_id)
     {
         // Might as well load layout data for linked datatypes here
-        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype_id);    // do want links here
+        $datatype_array = $this->database_info_service->getDatatypeArray($top_level_datatype_id);    // do want links here
 
         // The array needs to be filtered to only contain what a table layout can display...
         foreach ($datatype_array as $dt_id => $dt) {
@@ -779,7 +780,7 @@ class TableThemeHelperService
      */
     private function getThemeArrayForTableTheme($theme_id, $filtered_datatype_array)
     {
-        $theme_array = $this->theme_service->getThemeArray($theme_id);
+        $theme_array = $this->theme_info_service->getThemeArray($theme_id);
 
         // The array needs to be filtered to match the datatype array
         foreach ($theme_array as $t_id => $t) {

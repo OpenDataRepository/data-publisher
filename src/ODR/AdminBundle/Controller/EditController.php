@@ -34,6 +34,7 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
@@ -2068,6 +2069,10 @@ class EditController extends ODRCustomController
      * by EditController::radioselectionAction(), and changes to Tags are handled by
      * TagsController::tagselectionAction()
      *
+     * The XYZData fieldtype is rendered like a textarea (for now)...but because it's not actually
+     * stored as a string in the database, it's just easier to handle changes to the contents in
+     * Edit::updatexyzdataAction() instead
+     *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
      * @param Request $request
@@ -2346,6 +2351,294 @@ class EditController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x294a59c5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Parses a $_POST request to update the contents of an XYZData field.
+     *
+     * This is separate from updateAction() because the field isn't stored as a string, despite being
+     * rendered as a textarea (for now)...it's just easier to handle it separately.
+     *
+     * @param integer $datarecord_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function updatexyzdataAction($datarecord_id, $datafield_id, Request $request)
+    {
+        // TODO - This should be changed to a transaction....
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+            if ( !isset($post['XYZDataForm']['_token']) || !isset($post['XYZDataForm']['value']) )
+                throw new ODRBadRequestException('Invalid Form');
+
+            $csrf_token = $post['XYZDataForm']['_token'];
+            $new_value = $post['XYZDataForm']['value'];
+
+            // Get the Entity Manager
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
+            // --------------------
+
+            // ----------------------------------------
+            // The XYZData fieldtype is technically compound...each datarecordfield can point to
+            //  multiple entries in the XYZData table in the database.  Rather than create an edit
+            //  UI to "correctly" interact with the underlying field, and in the interest of not
+            //  screwing with Symfony form components/transformers/etc to convert a string into the
+            //  "correct" underlying structure...this is all going to be done manually
+
+            /** @var CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+
+            $token_id = 'XYZDataForm_'.$datarecord->getId().'_'.$datafield->getId();
+            $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
+            if ( $csrf_token !== $expected_csrf_token )
+                throw new ODRBadRequestException('Invalid Form');
+
+            // Now that the token is valid, parse the field contents
+            $expected_num_columns = count( explode(',', $datafield->getXyzDataColumnNames()) );
+
+            $new_data = array();
+            $points = explode('|', $new_value);
+            $count = 1;
+            foreach ($points as $point) {
+                $pieces = explode(',', substr($point, 1, -1));
+                $x_value = null;
+
+                if ( !isset($pieces[0]) )
+                    throw new ODRBadRequestException('Missing x_value for point #'.$count);
+                else if ( !ValidUtility::isValidDecimal($pieces[0]) )
+                    throw new ODRBadRequestException('Invalid x_value for point #'.$count);
+                else {
+                    $x_value = strval(floatval($pieces[0]));
+                    $new_data[$x_value]['x_value'] = $x_value;
+                }
+
+                if ( $expected_num_columns > 1 ) {
+                    if ( !isset($pieces[1]) )
+                        throw new ODRBadRequestException('Missing y_value for point #'.$count);
+                    else if ( !ValidUtility::isValidDecimal($pieces[1]) )
+                        throw new ODRBadRequestException('Invalid y_value for point #'.$count);
+                    else
+                        $new_data[$x_value]['y_value'] = strval(floatval($pieces[1]));
+                }
+
+                if ( $expected_num_columns > 2 ) {
+                    if ( !isset($pieces[2]) )
+                        throw new ODRBadRequestException('Missing z_value for point #'.$count);
+                    else if ( !ValidUtility::isValidDecimal($pieces[2]) )
+                        throw new ODRBadRequestException('Invalid z_value for point #'.$count);
+                    else
+                        $new_data[$x_value]['z_value'] = strval(floatval($pieces[2]));
+                }
+
+                $count++;
+            }
+
+            // Now that the new data is valid, it makes sense to get the existing data...
+            /** @var XYZData[] $xyz_data_values */
+            $xyz_data_values = $em->getRepository('ODRAdminBundle:XYZData')->findBy(
+                array(
+                    'dataRecord' => $datarecord_id,
+                    'dataField' => $datafield_id
+                )
+            );
+
+            $xyz_lookup = array();
+            $old_data = array();
+            foreach ($xyz_data_values as $xyz_data) {
+                // This field should always have an x_value...use it as the key of the array
+                $x_value = strval($xyz_data->getXValue());
+                $old_data[$x_value]['x_value'] = $x_value;
+                $xyz_lookup[$x_value] = $xyz_data;
+
+                if ( $expected_num_columns > 1 )
+                    $old_data[$x_value]['y_value'] = strval($xyz_data->getYValue());
+                if ( $expected_num_columns > 2 )
+                    $old_data[$x_value]['z_value'] = strval($xyz_data->getZValue());
+            }
+
+
+            // ----------------------------------------
+            // Go through both old and new arrays to determine if there's any difference
+            $entries_to_create = $entries_to_modify = $entries_to_delete = array();
+            foreach ($old_data as $x_value => $data) {
+                if ( !isset($new_data[$x_value]) ) {
+                    $entries_to_delete[$x_value] = 1;
+                    unset( $old_data[$x_value] );
+                }
+            }
+            foreach ($new_data as $x_value => $data) {
+                if ( !isset($old_data[$x_value]) ) {
+                    $entries_to_create[$x_value] = array();
+                    if ( isset($data['y_value']) )
+                        $entries_to_create[$x_value]['y_value'] = $data['y_value'];
+                    if ( isset($data['z_value']) )
+                        $entries_to_create[$x_value]['z_value'] = $data['z_value'];
+                    unset( $new_data[$x_value] );
+                }
+            }
+
+            // At this point, old and new data should have an identical set of x_value keys...
+            foreach ($old_data as $x_value => $data) {
+                $old_y_value = $old_z_value = null;
+                $new_y_value = $new_z_value = null;
+
+                if ( $expected_num_columns > 1 ) {
+                    $old_y_value = $data['y_value'];
+                    $new_y_value = $new_data[$x_value]['y_value'];
+                }
+
+                if ( $expected_num_columns > 2 ) {
+                    $old_z_value = $data['z_value'];
+                    $new_z_value = $new_data[$x_value]['z_value'];
+                }
+
+                if ( !($old_y_value == $new_y_value && $old_z_value == $new_z_value) ) {
+                    $entries_to_modify[$x_value] = array();
+                    if ( !is_null($new_y_value) )
+                        $entries_to_modify[$x_value]['y_value'] = $new_y_value;
+                    if ( !is_null($new_z_value) )
+                        $entries_to_modify[$x_value]['z_value'] = $new_z_value;
+                }
+            }
+
+
+            // ----------------------------------------
+            // Use the three arrays of changes to modify the database
+            $created = $modified = $deleted = false;
+            foreach ($entries_to_create as $x_value => $data) {
+                // ...new entries get created with default values
+                $created = true;
+
+                if ($expected_num_columns == 1 )
+                    $entity_create_service->createXYZValue($user, $datarecord, $datafield, $x_value, false);
+                else if ($expected_num_columns == 2 )
+                    $entity_create_service->createXYZValue($user, $datarecord, $datafield, $x_value, false, $data['y_value']);
+                else if ($expected_num_columns == 3 )
+                    $entity_create_service->createXYZValue($user, $datarecord, $datafield, $x_value, false, $data['y_value'], $data['z_value']);
+
+                // TODO - should PostUpdateEvent fire?  it's only listened to by render plugins...
+            }
+
+            foreach ($entries_to_modify as $x_value => $data) {
+                // ...existing entries get modified
+                $modified = true;
+
+                $entity = $xyz_lookup[$x_value];
+                $props = array('x_value' => $x_value);
+                if ( isset($data['y_value']) )
+                    $props['y_value'] = $data['y_value'];
+                if ( isset($data['z_value']) )
+                    $props['z_value'] = $data['z_value'];
+
+                $entity_modify_service->updateXYZData($user, $entity, $props, true, false);
+                // TODO - should PostUpdateEvent fire?  it's only listened to by render plugins...
+            }
+
+            foreach ($entries_to_delete as $x_value => $data) {
+                // ...and deleted entries are directly dealt with via doctrine
+                $deleted = true;
+
+                $entity = $xyz_lookup[$x_value];
+                $em->remove($entity);
+            }
+
+            // If any of these changes happened, then the database should be flushed
+            if ( $modified || $deleted )
+                $em->flush();
+
+
+            // ----------------------------------------
+            if ( $created || $modified || $deleted ) {
+                // Fire off an event notifying that the modification of the datafield is done
+                try {
+                    $event = new DatafieldModifiedEvent($datafield, $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+
+                // Mark this datarecord as updated
+                try {
+                    $event = new DatarecordModifiedEvent($datarecord, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+            }
+
+            // Notify whether a change was made or not
+            $return['d'] = array('change_made' => $created || $modified || $deleted);
+        }
+        catch (\Exception $e) {
+            $source = 0x74a1294a;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

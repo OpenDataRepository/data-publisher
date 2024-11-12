@@ -1003,7 +1003,7 @@ class TrackingController extends ODRCustomController
 
             // The user making this request might not be a datatype admin, so they need to be
             //  prevented from viewing changes to datafields they can't edit
-            if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['edit']) ) {
+            if ( isset($datafield_permissions[$df_id]['edit']) ) {
                 // Ignore typeclasses that aren't listed above (e.g. Markdown)
                 if ( isset($datafields_by_typeclass[$typeclass]) )
                     $datafields_by_typeclass[$typeclass][] = $df_id;

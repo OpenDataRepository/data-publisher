@@ -212,6 +212,19 @@
             </div>
         </fieldset>
 
+    {% elseif field_typename == "XYZ Data" %}
+        <fieldset>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">
+                {% if is_datatype_admin %}
+                    <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                {% endif %}
+
+                <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+            </label>
+
+            <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
+        </fieldset>
+
     {% endif %}
 </form>
 

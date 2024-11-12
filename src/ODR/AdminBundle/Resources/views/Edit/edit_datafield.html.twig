@@ -45,6 +45,23 @@
     {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
         {% set valuefield = datarecordfield.datetimeValue[0] %}
         {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "XYZ Data" %}
+        {% set valuefield = datarecordfield.xyzData %}
+
+        {% set labels = datafield_meta.xyz_data_column_names|split(',') %}
+        {% for num,xyz_data in valuefield %}
+            {% if labels|length == 1 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ')' %}
+            {% elseif labels|length == 2 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ',' ~ xyz_data.y_value ~ ')' %}
+            {% elseif labels|length == 3 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ',' ~ xyz_data.y_value ~ ',' ~ xyz_data.z_value ~ ')' %}
+            {% endif %}
+
+            {% if not loop.last %}
+                {% set valuefield_value = valuefield_value ~ '|' %}
+            {% endif %}
+        {% endfor %}
     {% elseif field_typename == "Markdown" %}
         {% set valuefield = '' %}
     {% endif %}
@@ -75,7 +92,11 @@
 
     <form
         autocomplete="off"
+        {% if field_typename != "XYZ Data" %}
         action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+        {% else %}
+        action="{{ path('odr_record_save_xyzdata', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+        {% endif %}
         class="pure-u-1"
         id="EditForm_{{ unique_id }}"
         method="POST"
@@ -465,11 +486,35 @@
             <div style="margin-bottom:5px;"><label class="Pointer ODRDatePicker_clear"><u>Clear Date</u></label></div>
         </fieldset>
 
+    {% elseif field_typename == "XYZ Data" %}
+        <fieldset>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {% if is_datatype_admin %}
+                    <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                {% endif %}
+                {{ datafield_meta.fieldName }}
+            </label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <textarea
+                    id="{{ input_id }}"
+                    class="pure-u-1"
+                    name="{{ input_name }}"
+                    {% if datafield_meta.required == 1 %}required="required"{% endif %}
+                    data-error-type="inline"
+                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                >{{ valuefield_value }}</textarea>
+                <i class="fa fa-save ODRSaveIndicator"></i>
+            </div>
+        </fieldset>
+
     {% endif %}
     </form>
 
 {# Only output save javascript when a plugin was not run #}
 {% if not can_execute_plugin or content|length == 0 %}
+    {# Markdown fields can't be changed...File/Image fields are handled by flow.js #}
+    {# Radio/Tag/XYZData fields have their own controller actions #}
+
     {% if field_typename == "Boolean" %}
     <script>
         var {{ field_typeclass }}Interval_{{ unique_id }} = null;
@@ -487,8 +532,15 @@
             }
         });
     </script>
-    {% elseif field_typename == "File" or field_typename == "Image" %}
-        {# handled elsewhere by flow.js #}
+    {% elseif field_typename == "XYZ Data" %}
+        <script>
+            var {{ field_typeclass }}Interval_{{ unique_id }} = null;
+            $("#EditForm_{{ unique_id }}").find("textarea[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+                clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+                {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "SaveRecordData('#EditForm_{{ unique_id }}', {{ field_typeclass }}Interval_{{ unique_id }})", 2000 );
+                {# Reusing SaveRecordData() here...but since the form's action attribute is different, it'll go to a different controller action #}
+            });
+        </script>
     {% elseif
         field_typename == "Integer"
         or field_typename == "Decimal"

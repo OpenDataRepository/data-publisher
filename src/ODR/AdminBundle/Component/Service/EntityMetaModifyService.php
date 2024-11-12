@@ -58,6 +58,7 @@ use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -323,6 +324,7 @@ class EntityMetaModifyService
             'search_can_request_both_merges' => $old_meta_entry->getSearchCanRequestBothMerges(),
             'tags_allow_multiple_levels' => $old_meta_entry->getTagsAllowMultipleLevels(),
             'tags_allow_non_admin_edit' => $old_meta_entry->getTagsAllowNonAdminEdit(),
+            'xyz_column_names' => $old_meta_entry->getXyzDataColumnNames(),
             'searchable' => $old_meta_entry->getSearchable(),
             'publicDate' => $old_meta_entry->getPublicDate(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
@@ -367,6 +369,7 @@ class EntityMetaModifyService
             case 'ShortVarchar':
             case 'Radio':
             case 'Tag':
+            case 'XYZData':
                 // All of these fieldtypes can have any value for searchable
                 break;
 
@@ -427,6 +430,10 @@ class EntityMetaModifyService
             // These properties are only used by tags
             $properties['tags_allow_multiple_levels'] = false;
             $properties['tags_allow_non_admin_edit'] = false;
+        }
+        if ($relevant_typeclass !== 'XYZData') {
+            // This property is only used by XYZData fields
+            $properties['xyz_column_names'] = '';
         }
 
 
@@ -511,6 +518,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setTagsAllowMultipleLevels( $properties['tags_allow_multiple_levels'] );
         if ( isset($properties['tags_allow_non_admin_edit']) )
             $new_datafield_meta->setTagsAllowNonAdminEdit( $properties['tags_allow_non_admin_edit'] );
+        if ( isset($properties['xyz_column_names']) )
+            $new_datafield_meta->setXyzDataColumnNames( $properties['xyz_column_names'] );
         if ( isset($properties['searchable']) )
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['publicDate']) )
@@ -2922,5 +2931,167 @@ class EntityMetaModifyService
 
         // Return the new entry
         return $new_theme_meta;
+    }
+
+
+    /**
+     * Modifies a given XYZData by copying the old value into a new storage entity, then
+     * deleting the old entity.
+     *
+     * This only modifies a single XYZData, just like the update functions for File/Image/Radio/Tag
+     * only update one of the attached entities for the datarecordfield.
+     *
+     * @param ODRUser $user
+     * @param XYZData $entity
+     * @param array $properties
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param bool $fire_event  If false, then don't fire the PostUpdateEvent
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return XYZData
+     */
+    public function updateXYZData($user, $entity, $properties, $delay_flush = false, $fire_event = true, $created = null)
+    {
+        // Determine which type of entity to create if needed
+        $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
+        $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
+
+        // No point making new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array();
+
+        // These entries could all be null to begin with
+        if ( !is_null($entity->getXValue()) )
+            $existing_values['x_value'] = strval( $entity->getXValue() );
+        if ( !is_null($entity->getYValue()) )
+            $existing_values['y_value'] = strval( $entity->getYValue() );
+        if ( !is_null($entity->getZValue()) )
+            $existing_values['z_value'] = strval( $entity->getZValue() );
+
+        // Intentionally changing current values to strings...all values in $properties are already
+        //  strings, and php does odd compares between strings and numbers
+
+        foreach ($existing_values as $key => $value) {
+            // array_key_exists() is used because the datafield entries could legitimately be null
+            if ( array_key_exists($key, $properties) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        // Need to do an additional check incase the values were originally null and changed to be
+        //  non-null.  Can use isset() here because the value in $properties won't be null in this case
+        if ( !isset($existing_values['x_value']) && isset($properties['x_value']) )
+            $changes_made = true;
+        if ( !isset($existing_values['y_value']) && isset($properties['y_value']) )
+            $changes_made = true;
+        if ( !isset($existing_values['z_value']) && isset($properties['z_value']) )
+            $changes_made = true;
+
+        if ( !$changes_made ) {
+            if ( $fire_event ) {
+                // ----------------------------------------
+                // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+                //  event subscribers will prevent file encryption otherwise...
+                try {
+                    $event = new PostUpdateEvent($entity, $user);
+                    $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+
+                    // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
+                }
+                catch (\Exception $e) {
+                    // ...the event stuff is likely going to "disappear" any error it encounters, but
+                    //  might as well rethrow anything caught here since there shouldn't be a critical
+                    //  process downstream anyways
+//                    if ( $this->env === 'dev' )
+//                        throw $e;
+                }
+            }
+
+            return $entity;
+        }
+
+        // Ensure values are saved as either floats or nulls
+        foreach ( $properties as $key => $value ) {
+            if ( $value === '' )
+                $properties[$key] = null;
+            else
+                $properties[$key] = floatval( $value );
+        }
+
+
+        // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $remove_old_entry = false;
+        $new_entity = null;
+        if ( self::createNewMetaEntry($user, $entity, $created) ) {
+            // Create a new entry and copy the previous one's data over
+            $remove_old_entry = true;
+
+            /** @var XYZData $new_entity */
+            $new_entity = new $classname();
+            $new_entity->setDataRecord( $entity->getDataRecord() );
+            $new_entity->setDataField( $entity->getDataField() );
+            $new_entity->setDataRecordFields( $entity->getDataRecordFields() );
+            $new_entity->setFieldType( $entity->getFieldType() );
+
+            $new_entity->setXValue( $entity->getXValue() );
+            $new_entity->setYValue( $entity->getYValue() );
+            $new_entity->setZValue( $entity->getZValue() );
+
+            $new_entity->setCreated($created);
+            $new_entity->setCreatedBy($user);
+        }
+        else {
+            $new_entity = $entity;
+        }
+
+        // Set any new properties...not checking isset() because it couldn't reach this point
+        //  without being isset()...also,  isset( array[key] ) == false  when  array(key => null)
+        $new_entity->setXValue( $properties['x_value'] );
+
+        if ( isset($properties['y_value']) )
+            $new_entity->setYValue( $properties['y_value'] );
+        else
+            $new_entity->setYValue(null);
+
+        if ( isset($properties['z_value']) )
+            $new_entity->setZValue( $properties['z_value'] );
+        else
+            $new_entity->setZValue(null);
+
+        $new_entity->setUpdated($created);
+        $new_entity->setUpdatedBy($user);
+
+
+        // Delete the old entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($entity);
+
+        // Save the new meta entry
+        $this->em->persist($new_entity);
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        if ( $fire_event ) {
+            // ----------------------------------------
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+            //  event subscribers will prevent file encryption otherwise...
+            try {
+                $event = new PostUpdateEvent($new_entity, $user);
+                $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+
+                // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
+            }
+            catch (\Exception $e) {
+                // ...the event stuff is likely going to "disappear" any error it encounters, but
+                //  might as well rethrow anything caught here since there shouldn't be a critical
+                //  process downstream anyways
+//                if ( $this->env === 'dev' )
+//                    throw $e;
+            }
+        }
+
+        return $new_entity;
     }
 }

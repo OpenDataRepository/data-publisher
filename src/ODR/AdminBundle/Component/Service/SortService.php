@@ -56,7 +56,7 @@ class SortService
     /**
      * @var EntityMetaModifyService
      */
-    private $emm_service;
+    private $entity_modify_service;
 
     /**
      * @var SearchService
@@ -90,7 +90,7 @@ class SortService
         $this->container = $container;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->emm_service = $entity_meta_modify_service;
+        $this->entity_modify_service = $entity_meta_modify_service;
         $this->search_service = $search_service;
         $this->logger = $logger;
     }
@@ -422,6 +422,7 @@ class SortService
             case 'Multiple Select':
             case 'Markdown':
             case 'Tag':
+            case 'XYZ Data':
             default:
                 throw new ODRBadRequestException('Unable to sort a "'.$typename.'" datafield', $exception_code);
         }
@@ -709,6 +710,7 @@ class SortService
             case 'Multiple Select':
             case 'Markdown':
             case 'Tag':
+            case 'XYZ Data':
             default:
                 throw new ODRBadRequestException('Unable to sort a "'.$typename.'" datafield', $exception_code);
         }
@@ -1081,7 +1083,7 @@ class SortService
                 $properties = array(
                     'displayOrder' => $index,
                 );
-                $this->emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
+                $this->entity_modify_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
                 $changes_made = true;
             }
 
@@ -1170,7 +1172,7 @@ class SortService
                     $properties = array(
                         'displayOrder' => $index
                     );
-                    $this->emm_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
+                    $this->entity_modify_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
                     $changes_made = true;
                 }
 

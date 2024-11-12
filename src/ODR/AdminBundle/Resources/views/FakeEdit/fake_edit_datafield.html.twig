@@ -44,6 +44,23 @@
     {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
         {% set valuefield = datarecordfield.datetimeValue[0] %}
         {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "XYZ Data" %}
+        {% set valuefield = datarecordfield.xyzData %}
+
+        {% set labels = datafield_meta.xyz_data_column_names|split(',') %}
+        {% for num,xyz_data in valuefield %}
+            {% if labels|length == 1 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ')' %}
+            {% elseif labels|length == 2 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ',' ~ xyz_data.y_value ~ ')' %}
+            {% elseif labels|length == 3 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ',' ~ xyz_data.y_value ~ ',' ~ xyz_data.z_value ~ ')' %}
+            {% endif %}
+
+            {% if not loop.last %}
+                {% set valuefield_value = valuefield_value ~ '|' %}
+            {% endif %}
+        {% endfor %}
     {% elseif field_typename == "Markdown" %}
         {% set valuefield = '' %}
     {% endif %}
@@ -356,10 +373,23 @@
             <div style="margin-bottom:5px;"><label class="Pointer ODRDatePicker_clear"><u>Clear Date</u></label></div>
         </fieldset>
 
+    {% elseif field_typename == "XYZ Data" %}
+        <fieldset>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {{ datafield_meta.fieldName }}
+            </label>
+            {# Block anything to do with image datafields since this is a fake record #}
+            <div class="pure-u-1 Info" title="Record must be saved before this field can be modified" style="opacity: 45%;">
+                <a class="Info">Record must be saved before this field can be modified</a>
+            </div>
+        </fieldset>
+
     {% endif %}
     </form>
 
 
+    {# Markdown fields can't be changed...File/Image fields are handled by flow.js #}
+    {# Radio/Tag/XYZData fields have their own controller actions #}
     {% if field_typename == "Boolean" %}
     <script>
         var {{ field_typeclass }}Interval_{{ unique_id }} = null;
@@ -374,8 +404,6 @@
             }
         });
     </script>
-    {% elseif field_typename == "File" or field_typename == "Image" %}
-        {# handled elsewhere by flow.js #}
     {% elseif
         field_typename == "Integer"
         or field_typename == "Decimal"

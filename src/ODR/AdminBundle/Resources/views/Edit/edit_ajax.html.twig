@@ -1118,7 +1118,6 @@ function initPage() {
             SaveRecordData('#' + form_id, '');
         }
     });
-
     $(".ODRDatePicker_clear").unbind('click').click(function() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
 
@@ -1933,7 +1932,6 @@ function SaveRecordData(form_id, interval, callback) {
     // If form is in "autocomplete" - do nothing
     // Only check DataFields that are part of this FieldArea and one level deep
     var autocomplete = $(form_id).find('.ui-autocomplete-input');
-
     if (autocomplete.length > 0) {
         // console.log('autocomplete active.');
         return;

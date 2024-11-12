@@ -466,6 +466,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setShortenFilename(false);
                     $dfm->setNewFilesArePublic(false);
                     $dfm->setQualityStr('');
+                    $dfm->setXyzDataColumnNames('');
 
 
                     $dfm->setCreatedBy($user);
@@ -2790,7 +2791,7 @@ class ValidationController extends ODRCustomController
                 throw new ODRForbiddenException();
 
             // TODO - needs to be able to define existing fieldtypes?
-            // Define what the fieldtype table should have...arrays is [typeclass] => typename
+            // Define what the fieldtype table should have...arrays is [typename] => typeclass
             $config = array(
                 'Boolean' => 'Boolean',
                 'File' => 'File',
@@ -2807,7 +2808,8 @@ class ValidationController extends ODRCustomController
                 'Multiple Select' => 'Radio',
                 'DateTime' => 'DatetimeValue',
                 'Markdown' => 'Markdown',
-                'Tags' => 'Tag'
+                'Tags' => 'Tag',
+                'XYZ Data' => 'XYZData',
             );
 
             $can_be_unique = array(
@@ -2826,7 +2828,8 @@ class ValidationController extends ODRCustomController
 //                'Multiple Select' => 'Radio',
 //                'DateTime' => 'DatetimeValue',
 //                'Markdown' => 'Markdown',
-//                'Tags' => 'Tag'
+//                'Tags' => 'Tag',
+//                'XYZ Data' => 'XYZData',
             );
             $can_be_sort_field = array(
 //                'Boolean' => 'Boolean',
@@ -2844,7 +2847,8 @@ class ValidationController extends ODRCustomController
 //                'Multiple Select' => 'Radio',
                 'DateTime' => 'DatetimeValue',
 //                'Markdown' => 'Markdown',
-//                'Tags' => 'Tag'
+//                'Tags' => 'Tag',
+//                'XYZ Data' => 'XYZData',
             );
 
             // Get the same set of data from the database...
@@ -2858,12 +2862,6 @@ class ValidationController extends ODRCustomController
             // Check whether the two arrays are the same
             $changes = array();
             print '<pre>';
-
-            // These aren't strictly related to the fieldtype table...but they shouldn't exist either
-            print "DROP TABLE IF EXISTS odr_checkbox, odr_file_storage, odr_image_storage, odr_radio, odr_xyz_value;\n";
-            print "DROP TABLE IF EXISTS odr_user_layout_permissions, odr_user_layout_preferences, odr_layout_meta, odr_layout_data, odr_layout;\n";
-            print "DROP TABLE IF EXISTS odr_theme_element_field;\n";
-            print "DROP TABLE IF EXISTS odr_user_field_permissions, odr_user_permissions;\n";
 
             foreach ($results as $ft) {
                 $id = $ft['id'];
@@ -2905,14 +2903,29 @@ class ValidationController extends ODRCustomController
                 unset( $config[$typename] );
             }
 
-            foreach ($config as $typename => $typeclass)
+            $new_fieldtypes = array();
+            foreach ($config as $typename => $typeclass) {
                 print "The fieldtype \"".$typename."\" (\"".$typeclass."\") is not defined in the database\n";
+                $new_fieldtypes[] = '("'.$typename.'", "'.$typeclass.'", "", NOW(), '.$user->getId().', 0, 0, 0, 0)';
+            }
 
             print '</pre>';
 
             print '<pre>';
+            // These aren't strictly related to the fieldtype table...but they shouldn't exist either
+            print "DROP TABLE IF EXISTS odr_checkbox, odr_file_storage, odr_image_storage, odr_radio, odr_xyz_value;\n";
+            print "DROP TABLE IF EXISTS odr_user_layout_permissions, odr_user_layout_preferences, odr_layout_meta, odr_layout_data, odr_layout;\n";
+            print "DROP TABLE IF EXISTS odr_theme_element_field;\n";
+            print "DROP TABLE IF EXISTS odr_user_field_permissions, odr_user_permissions;\n";
+            print "\n";
             foreach ($changes as $change)
                 print $change."\n";
+            if ( !empty($new_fieldtypes) ) {
+                print 'INSERT INTO odr_field_type (type_name, type_class, description, created, createdBy, can_be_unique, can_be_sort_field, allow_multiple, insert_on_create) VALUES'."\n";
+
+                $new_fieldtypes = implode(",\n", $new_fieldtypes);
+                print $new_fieldtypes.";\n";
+            }
             print '</pre>';
         }
         catch (\Exception $e) {
