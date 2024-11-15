@@ -2965,22 +2965,24 @@ class EntityCreationService
 
 
     /**
-     * Creates, persists, and flushes a new XYZData entity.
+     * Creates, persists, and flushes a new XYZData entity.   This function doesn't permit delaying
+     * flushes, because it's impossible to lock properly.
      *
-     * This function doesn't permit delaying flushes, because it's impossible to lock properly.
+     * IMPORTANT: $created is not optional.  It's required to ensure that dozens/hundreds of XYZData
+     *  entities are created/modified "at the same time"...otherwise tracking doesn't work correctly.
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
      * @param DataFields $datafield
+     * @param \DateTime $created
      * @param float $x_value This is not optional, as it's part of identification
      * @param boolean $fire_event If false, then don't fire the PostUpdateEvent
      * @param float|null $initial_y_value
      * @param float|null $initial_z_value
-     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return XYZData
      */
-    public function createXYZValue($user, $datarecord, $datafield, $x_value, $fire_event = true, $initial_y_value = null, $initial_z_value = null, $created = null)
+    public function createXYZValue($user, $datarecord, $datafield, $created, $x_value, $fire_event = true, $initial_y_value = null, $initial_z_value = null)
     {
         // Locate the table name that will be inserted into if the storage entity doesn't exist
         $fieldtype = $datafield->getFieldType();
@@ -3022,8 +3024,14 @@ class EntityCreationService
                 // Got the lock, locate/create the datarecordfield entity for this
                 $drf = self::createDatarecordField($user, $datarecord, $datafield, $created);
 
-                if ( is_null($created) )
-                    $created = new \DateTime();
+                // Unlike other entities, there could be dozens/hundreds of XYZData entries for a
+                //  given datarecordfield entry...creating/modifying a pile of them could easily
+                //  require multiple seconds to save, which would break tracking and field history
+                // Rather than also save a "tracking_id" or "transaction_id", it's simpler to force
+                //  the caller to provide a DateTime object...with the hope that they reuse that
+                //  object when creating/updating multiple XYZData entries
+//                if ( is_null($created) )
+//                    $created = new \DateTime();
 
                 if ( !is_null($x_value) )
                     $x_value = floatval($x_value);

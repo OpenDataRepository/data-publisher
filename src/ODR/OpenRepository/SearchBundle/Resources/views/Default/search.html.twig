@@ -145,7 +145,7 @@
                 datafield.val(str);
         });
 
-        // Same for tag datafields
+        // ...same for tag datafields
         $(context).find(".ODRTagSearchDiv").each(function () {
             var data = $(this).attr('id').split(/_/);
             var datafield_id = data[1];
@@ -176,6 +176,38 @@
 
             if (has_selections)
                 $(datafield).val(str);
+        });
+
+        // ...and for XYZData
+        $(context).find(".ODRXYZData_select").each(function() {
+            // Reset the input's value since this is rebuilding the search value from scratch
+            var datafield_id = $(this).attr('id').split(/_/)[1];
+            var input = $("#datafield_" + datafield_id + "_input");
+
+            // Reset the input's value since this is rebuilding the search value from scratch
+            $(input).val('');
+
+            var str = '';
+            var first_entry = true;
+            var has_entries = false;
+
+            $(this).children('option').each(function () {
+                var value = $(this).val().trim();
+                if (value == '')
+                    return;
+
+                has_entries = true;
+                if ( !first_entry ) {
+                    str += '|' + value;
+                }
+                else {
+                    first_entry = false;
+                    str += value;
+                }
+            });
+
+            if (has_entries)
+                $(input).val(str);
         });
 
         // Ensure the two parts of the search criteria for a file/image match

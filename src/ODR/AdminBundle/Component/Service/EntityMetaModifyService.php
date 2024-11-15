@@ -2941,16 +2941,19 @@ class EntityMetaModifyService
      * This only modifies a single XYZData, just like the update functions for File/Image/Radio/Tag
      * only update one of the attached entities for the datarecordfield.
      *
+     * IMPORTANT: $created is not optional.  It's required to ensure that dozens/hundreds of XYZData
+     *  entities are created/modified "at the same time"...otherwise tracking doesn't work correctly.
+     *
      * @param ODRUser $user
      * @param XYZData $entity
+     * @param \DateTime $created
      * @param array $properties
      * @param bool $delay_flush If true, then don't flush prior to returning
      * @param bool $fire_event  If false, then don't fire the PostUpdateEvent
-     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return XYZData
      */
-    public function updateXYZData($user, $entity, $properties, $delay_flush = false, $fire_event = true, $created = null)
+    public function updateXYZData($user, $entity, $created, $properties, $delay_flush = false, $fire_event = true)
     {
         // Determine which type of entity to create if needed
         $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
@@ -3018,9 +3021,14 @@ class EntityMetaModifyService
         }
 
 
-        // Determine whether to create a new entry or modify the previous one
-        if ( is_null($created) )
-            $created = new \DateTime();
+        // Unlike other entities, there could be dozens/hundreds of XYZData entries for a
+        //  given datarecordfield entry...creating/modifying a pile of them could easily
+        //  require multiple seconds to save, which would break tracking and field history
+        // Rather than also save a "tracking_id" or "transaction_id", it's simpler to force
+        //  the caller to provide a DateTime object...with the hope that they reuse that
+        //  object when creating/updating multiple XYZData entries
+//        if ( is_null($created) )
+//            $created = new \DateTime();
 
         $remove_old_entry = false;
         $new_entity = null;

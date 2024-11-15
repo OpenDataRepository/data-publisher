@@ -63,11 +63,29 @@
     {% set field_typename = datafield_meta['fieldType']['typeName'] %}
     {% set field_typeclass = datafield_meta['fieldType']['typeClass'] %}
 
-    <span class="pure-u-1">
-        <label {% if field_typename != "DateTime" and field_typeclass != "Radio" and field_typeclass != "Tag"%}for="datafield_{{ datafield_id }}"{% endif %}
-               class="pure-u-1">
+    {% set xyz_data_columns = [] %}
+    {% if field_typeclass == 'XYZData' %}
+        {% set xyz_data_columns = datafield_meta.xyz_data_column_names|split(',') %}
+    {% endif %}
 
-            <span title="{{ description }}">{{ fieldname }}{% if field_typeclass == 'File' or field_typeclass == 'Image'%} filename{% endif %}:</span>
+    {% if field_typeclass != 'XYZData' %}
+    <span class="pure-u-1">
+        <label class="pure-u-1"
+        {% if field_typename != "DateTime" and field_typeclass != "Radio" and field_typeclass != "Tag" %}
+            for="datafield_{{ datafield_id }}"
+        {% endif %}
+        >
+
+            <span title="{{ description }}">
+            {% if field_typeclass == 'File' or field_typeclass == 'Image'%}
+                {{ fieldname }} filename:
+            {% elseif field_typeclass == 'XYZData' %}
+                {{ fieldname }} ({{ xyz_data_columns[0] }}):
+            {% else %}
+                {{ fieldname }}:
+            {% endif %}
+            </span>
+
         {% if field_typeclass == "Radio" or field_typeclass == "Tag" %}
             <input id="df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
                    title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
@@ -99,6 +117,7 @@
         {% endif %}
         </label>
     </span>
+    {% endif %}
 
     {% if field_typename == "Boolean" %}
         <select class="ODRInput pure-u-1 Pointer" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}" {% if design_page is defined %}disabled{% endif %}>
@@ -292,6 +311,66 @@
                 'fa_alt_selected_class': fa_alt_selected_class,
             } %}
         {% endif %}
+        </span>
+
+    {% elseif field_typeclass == "XYZData" and not design_page is defined %}    {# TODO #}
+        {% set key = datafield_id ~ '_x' %}
+        {% set x_value = '' %}
+        {% if search_params[key] is defined %}
+            {% set x_value = search_params[key] %}
+        {% endif %}
+
+        {% set key = datafield_id ~ '_y' %}
+        {% set y_value = '' %}
+        {% if search_params[key] is defined %}
+            {% set y_value = search_params[key] %}
+        {% endif %}
+
+        {% set key = datafield_id ~ '_z' %}
+        {% set z_value = '' %}
+        {% if search_params[key] is defined %}
+            {% set z_value = search_params[key] %}
+        {% endif %}
+
+        <span class="pure-u-1">
+            <label class="pure-u-1" title="{{ description }}">{{ fieldname }}:</label>
+            <label for="datafield_{{ datafield_id }}_x" class="ODRXYZData_label pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}">{{ xyz_data_columns[0] }}</label>
+            {% if xyz_data_columns|length > 1 %}
+            <label for="datafield_{{ datafield_id }}_y" class="ODRXYZData_label pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}">{{ xyz_data_columns[1] }}</label>
+            {% endif %}
+            {% if xyz_data_columns|length > 2 %}
+            <label for="datafield_{{ datafield_id }}_z" class="ODRXYZData_label pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}">{{ xyz_data_columns[2] }}</label>
+            {% endif %}
+
+            <input type="text" class="ODRInput ODRXYZData pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}" id="datafield_{{ datafield_id }}_x" {% if design_page is defined %}readonly{% endif %} />
+            {% if xyz_data_columns|length > 1 %}
+            <input type="text" class="ODRInput ODRXYZData pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}" id="datafield_{{ datafield_id }}_y" {% if design_page is defined %}readonly{% endif %} />
+            {% endif %}
+            {% if xyz_data_columns|length > 2 %}
+            <input type="text" class="ODRInput ODRXYZData pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}" id="datafield_{{ datafield_id }}_z" {% if design_page is defined %}readonly{% endif %} />
+            {% endif %}
+
+            <span id="datafield_{{ datafield_id }}_x-error" class="ODRInputError ODRHidden pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}">Invalid Character</span>
+            {% if xyz_data_columns|length > 1 %}
+            <span id="datafield_{{ datafield_id }}_y-error" class="ODRInputError ODRHidden pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}">Invalid Character</span>
+            {% endif %}
+            {% if xyz_data_columns|length > 2 %}
+            <span id="datafield_{{ datafield_id }}_z-error" class="ODRInputError ODRHidden pure-u-1{% if xyz_data_columns|length > 1 %}-{{ xyz_data_columns|length }}{% endif %}">Invalid Character</span>
+            {% endif %}
+        </span>
+        <span class="pure-u-1">
+            <select id="datafield_{{ datafield_id }}_select" class="ODRInput ODRXYZData_select pure-u-1" readonly multiple>
+            {% if preset_value != '' %}
+                {% set options = preset_value|split('|') %}
+                {% for option in options %}
+                <option>{{ option }}</option>
+                {% endfor %}
+            {% endif %}
+            </select>
+            <input type="hidden" id="datafield_{{ datafield_id }}_input" name="{{ datafield_id }}" />
+            <button id="datafield_{{ datafield_id }}_add" class="ODRXYZData_add">Add</button>
+            <button id="datafield_{{ datafield_id }}_remove" class="ODRXYZData_remove">Remove Highlighted</button>
+            <button id="datafield_{{ datafield_id }}_clear" class="ODRXYZData_clear">Remove All</button>
         </span>
 
     {% else %}    {# text/number fieldtypes #}

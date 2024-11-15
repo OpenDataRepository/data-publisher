@@ -877,21 +877,22 @@ class TrackingController extends ODRCustomController
                 $text_number_changes = self::getTextNumberChanges($em, $datafields_by_typeclass, $criteria, $row_count);
                 $file_image_changes = self::getFileImageChanges($em, $datafields_by_typeclass, $criteria, $row_count);
                 $radio_tag_changes = self::getRadioTagChanges($em, $datafields_by_typeclass, $criteria, $row_count);
+                $xyz_changes = self::getXYZValueChanges($em, $datafields_by_typeclass, $criteria, $row_count);
 
                 // Also need to get a list of datarecords that were created/deleted under this criteria
                 $dr_created_deleted_history = self::getDatarecordChanges($em, $criteria, $row_count);
 
                 // Combine all of the datafield-level changes...
 //                if ( $simple )
-//                    $history = self::combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes);
+//                    $history = self::combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes);
 //                else
-                    $history = self::combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes);
+                    $history = self::combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes);
 
                 // Need to convert all the ids into names...
                 $names = self::getNames($em, $history, $dr_created_deleted_history);
 
                 if ( $simple )
-                    $history = self::combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes);
+                    $history = self::combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes);
             }
 
 
@@ -964,6 +965,7 @@ class TrackingController extends ODRCustomController
             'Image' => array(),
             'Radio' => array(),
             'Tag' => array(),
+            'XYZData' => array(),
         );
 
         // Load all datafields in the datafield/datatype list, excluding those which belong to
@@ -1529,6 +1531,123 @@ class TrackingController extends ODRCustomController
 
 
     /**
+     * Executes a series of queries on ODR's XYZData fields to find all changes made to them,
+     * filtered by the given criteria.  (i.e. changes within this date range, changes made by a
+     * specific user, etc)
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param array $datafields_by_typeclass
+     * @param array $criteria
+     * @param int $row_count
+     *
+     * @return array
+     */
+    private function getXYZValueChanges($em, $datafields_by_typeclass, $criteria, &$row_count)
+    {
+        $conn = $em->getConnection();
+
+        $history = array();
+        foreach ($datafields_by_typeclass as $typeclass => $df_list) {
+            // Don't do anything if no datafields are listed...
+            if ( empty($df_list) )
+                continue;
+
+            // Don't do anything if this isn't the correct query for the typeclass...
+            if ( $typeclass !== 'XYZData' )
+                continue;
+
+            $query =
+               'SELECT dr.data_type_id AS dt_id, dr.id AS dr_id, e.data_field_id AS df_id, e.id AS id,
+                    e.x_value, e.y_value, e.z_value,
+                    e.created AS updated, e.createdBy AS updatedBy
+                FROM odr_xyz_data AS e
+                JOIN odr_data_record_fields AS drf ON e.data_record_fields_id = drf.id
+                JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+                WHERE dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+                AND e.data_field_id IN (:datafield_ids)';
+            if (isset($criteria['start_date']))
+                $query .= ' AND e.created BETWEEN :start_date AND :end_date';
+            if (isset($criteria['target_user_ids']))
+                $query .= ' AND e.createdBy IN (:target_user_ids)';
+            if (isset($criteria['grandparent_datarecord_ids']))
+                $query .= ' AND dr.grandparent_id IN (:grandparent_datarecord_ids)';
+            $query .= ' ORDER BY e.created';
+
+
+            // ----------------------------------------
+            // Always going to have a list of datafield ids...
+            $params = array(
+                'datafield_ids' => $df_list,
+            );
+            $types = array(
+                'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
+            );
+
+            if ( isset($criteria['start_date']) ) {
+                $params['start_date'] = ($criteria['start_date'])->format("Y-m-d H:i:s");
+                $params['end_date'] = ($criteria['end_date'])->format("Y-m-d H:i:s");
+            }
+
+            if ( isset($criteria['target_user_ids']) ) {
+                $params['target_user_ids'] = $criteria['target_user_ids'];
+                $types['target_user_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+            }
+
+            if ( isset($criteria['grandparent_datarecord_ids']) ) {
+                $params['grandparent_datarecord_ids'] = $criteria['grandparent_datarecord_ids'];
+                $types['grandparent_datarecord_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+            }
+
+
+            // ----------------------------------------
+            // Don't execute this query if the previous queries have processed more than the soft
+            //  limit placed on rows
+            if ( $row_count > self::ROWS_SOFT_LIMIT )
+                continue;
+
+            $results = $conn->executeQuery($query, $params, $types);
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dr_id = $result['dr_id'];
+                $df_id = $result['df_id'];
+                $e_id = $result['id'];
+
+                $x_value = $result['x_value'];
+                $y_value = $result['y_value'];
+                $z_value = $result['z_value'];
+                $updated = $result['updated'];        // NOTE: these two are actually created/createdBy
+                $updatedBy = $result['updatedBy'];
+
+                if ( !isset($history[$dt_id]) )
+                    $history[$dt_id] = array();
+                if ( !isset($history[$dt_id][$dr_id]) )
+                    $history[$dt_id][$dr_id] = array();
+                if ( !isset($history[$dt_id][$dr_id][$df_id]) )
+                    $history[$dt_id][$dr_id][$df_id] = array();
+                if ( !isset($history[$dt_id][$dr_id][$df_id][$e_id]) )
+                    $history[$dt_id][$dr_id][$df_id][$e_id] = array();
+
+                $history[$dt_id][$dr_id][$df_id][$e_id][$updated] = array(
+                    'x_value' => $x_value,
+                    'y_value' => $y_value,
+                    'z_value' => $z_value,
+                    'updated' => $updated,
+                    'updatedBy' => $updatedBy,
+                );
+
+                // Increment the number of rows that have been processed
+                $row_count++;
+                if ( $row_count > self::ROWS_SOFT_LIMIT )
+                    break;
+            }
+        }
+
+        // Filter out entries where there's not actually any difference and return the final array
+        return self::filterXYZDataChanges($history);
+    }
+
+
+    /**
      * Executes a series of queries to locate datarecords created/deleted based on the given
      * criteria (i.e. created/deleted within this date range, or by a specific user, etc)
      *
@@ -1818,6 +1937,70 @@ class TrackingController extends ODRCustomController
 
 
     /**
+     * Takes an XYZData change array, and filters out both empty initial values and sequential
+     *  duplicate values.
+     *
+     * @param array $history
+     *
+     * @return array
+     */
+    private function filterXYZDataChanges($history)
+    {
+        // Due to XYZData having a pile of entities for a single datarecordfield, the array structure
+        //  kind of becomes excessive...
+        $new_history = array();
+
+        foreach ($history as $dt_id => $dt_data) {
+            foreach ($dt_data as $dr_id => $dr_data) {
+                foreach ($dr_data as $df_id => $entities) {
+                    // There isn't really a "previous entity" to keep track against, since there's
+                    //  a pile of them...
+//                    $prev_entity = null;
+                    foreach ($entities as $entity_id => $changes) {
+                        foreach ($changes as $updated => $data) {
+                            if ( is_null($data['x_value']) && is_null($data['y_value']) && is_null($data['z_value']) ) {
+                                // Oldest entry has all the values being set to null...no point
+                                //  preserving this entry
+//                                unset( $history[$dt_id][$dr_id][$df_id][$entity_id][$date] );
+                            }
+                            else {
+                                // First entry is not all null, save it
+                                if ( !isset($new_history[$dt_id]) )
+                                    $new_history[$dt_id] = array();
+                                if ( !isset($new_history[$dt_id][$dr_id]) )
+                                    $new_history[$dt_id][$dr_id] = array();
+                                if ( !isset($new_history[$dt_id][$dr_id][$df_id]) )
+                                    $new_history[$dt_id][$dr_id][$df_id] = array(0 => array());  // not saving entity ids, so automatically create an entry
+                                if ( !isset($new_history[$dt_id][$dr_id][$df_id][0][$updated]) )
+                                    $new_history[$dt_id][$dr_id][$df_id][0][$updated] = array('updatedBy' => $data['updatedBy']);
+                            }
+                        }
+
+//                        // No point preserving the entity if nothing has ever changed in it
+//                        if ( empty($history[$dt_id][$dr_id][$df_id][$entity_id]) )
+//                            unset( $history[$dt_id][$dr_id][$df_id][$entity_id] );
+                    }
+
+//                    // No point preserving the datafield if nothing has ever changed in it
+//                    if ( empty($history[$dt_id][$dr_id][$df_id]) )
+//                        unset( $history[$dt_id][$dr_id][$df_id] );
+                }
+
+//                // No point preserving the datarecord if nothing has ever changed in it
+//                if ( empty($history[$dt_id][$dr_id]) )
+//                    unset( $history[$dt_id][$dr_id] );
+            }
+
+//            // No point preserving the datatype if nothing has ever changed in it
+//            if ( empty($history[$dt_id]) )
+//                unset( $history[$dt_id] );
+        }
+
+        return $new_history;
+    }
+
+
+    /**
      * Takes a datarecord change array, and filters out initial "non-public" values.
      *
      * @param array $history
@@ -1887,15 +2070,16 @@ class TrackingController extends ODRCustomController
 
 
     /**
-     * Combines the text/number, file/image, and radio/tag arrays into a single array.
+     * Combines the text/number, file/image, radio/tag, and xyzdata arrays into a single array.
      *
      * @param array $text_number_changes
      * @param array $file_image_changes
      * @param array $radio_tag_changes
+     * @param array $xyz_changes
      *
      * @return array
      */
-    private function combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes)
+    private function combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes)
     {
         $history = array();
 
@@ -1930,6 +2114,21 @@ class TrackingController extends ODRCustomController
             }
         }
         foreach ($radio_tag_changes as $dt_id => $dt_data) {
+            // Create an entry for the datatype if it doesn't exist...
+            if ( !isset($history[$dt_id]) )
+                $history[$dt_id] = array();
+
+            foreach ($dt_data as $dr_id => $dr_data) {
+                // Create an entry for the datarecord if it doesn't exist...
+                if ( !isset($history[$dt_id][$dr_id]) )
+                    $history[$dt_id][$dr_id] = array();
+
+                // Copy all the history data into this datarecord entry
+                foreach ($dr_data as $df_id => $data)
+                    $history[$dt_id][$dr_id][$df_id] = $data;
+            }
+        }
+        foreach ($xyz_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
                 $history[$dt_id] = array();
@@ -1950,16 +2149,17 @@ class TrackingController extends ODRCustomController
 
 
     /**
-     * Combines the text/number, file/image, and radio/tag arrays into a single array, but ignores
-     * the individual datafields in favor of one entry per datarecord
+     * Combines the text/number, file/image, radio/tag, and xyzdata arrays into a single array, but
+     * ignores the individual datafields in favor of one entry per datarecord
      *
      * @param array $text_number_changes
      * @param array $file_image_changes
      * @param array $radio_tag_changes
+     * @param array $xyz_changes
      *
      * @return array
      */
-    private function combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes)
+    private function combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes)
     {
         $history = array();
 
@@ -2006,6 +2206,27 @@ class TrackingController extends ODRCustomController
             }
         }
         foreach ($radio_tag_changes as $dt_id => $dt_data) {
+            // Create an entry for the datatype if it doesn't exist...
+            if ( !isset($history[$dt_id]) )
+                $history[$dt_id] = array();
+
+            foreach ($dt_data as $dr_id => $dr_data) {
+                // Create an entry for the datarecord if it doesn't exist...
+                if ( !isset($history[$dt_id][$dr_id]) )
+                    $history[$dt_id][$dr_id] = array();
+
+                // Copy just the date into the history entry
+                foreach ($dr_data as $df_id => $df_data) {
+                    foreach ($df_data as $entity_id => $entity_data) {
+                        foreach ($entity_data as $date => $data) {
+                            $date = explode(' ', $date)[0];
+                            $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($xyz_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
                 $history[$dt_id] = array();

@@ -292,7 +292,10 @@
                     var empty = true;
 
                     $(df).find('.ODRInput').each(function (index,elem) {
-                        if ( $(elem).hasClass("ODRFileDatafieldName") || $(elem).hasClass("ODRDateDatafieldExist") ) {
+                        if ( $(elem).hasClass("ODRFileDatafieldName")
+                            || $(elem).hasClass("ODRDateDatafieldExist")
+                            || $(elem).hasClass('ODRXYZData')
+                        ) {
                             // ignore this input for the purpose of visibility checking...a different
                             //  element will handle it
                         }
@@ -365,6 +368,11 @@
 
                             // If something is selected, then don't hide this datafield
                             if (selected)
+                                empty = false;
+                        }
+                        else if ( $(elem).hasClass('ODRXYZData_select') ) {
+                            // XYZData shouldn't be hidden when there's at least one "option" in there
+                            if ( $(elem).find('option').length > 0 )
                                 empty = false;
                         }
                         else if ( $(elem).val() !== '' ) {
@@ -774,6 +782,72 @@
                 $(elem).datepicker("option", "maxDate", null);
                 $(elem).datepicker('refresh');
             });
+        });
+
+        // Set up XYZData controls
+        {# TODO - the "!" character is currently ignored because proper negation is actually difficult... #}
+        $(context).find(".ODRXYZData").unbind('change keyup paste').on('keyup paste', function() {
+            var value = $(this).val();
+            var warn_span = $('#' + $(this).attr('id') + '-error');
+
+            if ( value.match(/[^0-9\.\>\<\=\s]/) ) {
+                $(this).addClass('ODRInputError').attr('style', "border: 1px solid red;");
+                $(warn_span).removeClass('ODRHidden');
+            }
+            else {
+                $(this).removeClass('ODRInputError').attr('style', '');
+                $(warn_span).addClass('ODRHidden');
+            }
+        });
+        $(context).find(".ODRXYZData_add").unbind('click').click(function(event) {
+            event.preventDefault();
+
+            var df_id = $(this).attr('id').split(/_/)[1];
+            var x_input = $("#datafield_" + df_id + "_x");
+            var y_input = $("#datafield_" + df_id + "_y");
+            var z_input = $("#datafield_" + df_id + "_z");
+            // console.log(x_input,y_input,z_input);
+
+            {# TODO - the regex currently complains when doing anything other than digits or inequalities...should it be stricter? #}
+            var x_val = $(x_input).val().trim().replaceAll(/[^0-9\.\>\<\=\s]/g, '');
+            var y_val = '';
+            if ( $(y_input).length > 0 )
+                y_val = $(y_input).val().trim().replaceAll(/[^0-9\.\>\<\=\s]/g, '');
+            var z_val = '';
+            if ( $(z_input).length > 0 )
+                z_val = $(z_input).val().trim().replaceAll(/[^0-9\.\>\<\=\s]/g, '');
+            // console.log(x_val, y_val, z_val);
+
+            if ( x_val == '' && y_val == '' && z_val == '' )
+                return false;
+
+            var str = '(' + x_val;
+            if ( $(y_input).length > 0 )
+                str += ',' + y_val;
+            if ( $(z_input).length > 0 )
+                str += ',' + z_val;
+            str += ')';
+            // console.log(str);
+
+            $('<option>', {}).html(str).appendTo( $("#datafield_" + df_id + "_select") );
+        });
+        $(context).find(".ODRXYZData_remove").unbind('click').click(function(event) {
+            event.preventDefault();
+
+            var df_id = $(this).attr('id').split(/_/)[1];
+            var selected = $("#datafield_" + df_id + "_select").find(':selected');
+
+            if ( selected.length > 0 ) {
+                $.each(selected, function(index,elem) {
+                    $(elem).remove();
+                });
+            }
+        });
+        $(context).find(".ODRXYZData_clear").unbind('click').click(function(event) {
+            event.preventDefault();
+
+            var df_id = $(this).attr('id').split(/_/)[1];
+            $("#datafield_" + df_id + "_select").empty();
         });
 
         // Slide out the help menu

@@ -4564,6 +4564,10 @@ i {
     padding-right: 6px;
 }
 
+.ODRXYZData_label, .ODRXYZData {
+    display: inline-block !important;
+}
+
 #textbox_general_blurb {
     cursor: pointer;
     color: rgb(85, 85, 85);

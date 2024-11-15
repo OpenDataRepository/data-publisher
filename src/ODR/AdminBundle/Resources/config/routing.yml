@@ -794,6 +794,12 @@ odr_record_get_field_history:
     requirements:
         datarecord_id:  \d+
         datafield_id:  \d+
+odr_record_get_xyzdata_field_history:
+    path:  /edit/history/xyz_data/{datarecord_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Edit:getxyzdatafieldhistory }
+    requirements:
+        datarecord_id:  \d+
+        datafield_id:  \d+
 
 #-----------------------------------------
 

@@ -1449,6 +1449,139 @@ class SearchQueryService
 
 
     /**
+     * Searches the specified DatetimeValue datafield for the given values, returning an array of
+     * datarecord ids that match the search.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     *
+     * TODO - implement logic so 'guard' is correct/used?
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchXYZDatafield($datatype_id, $datafield_id, $value)
+    {
+        // ----------------------------------------
+        // $value is allowed to be surrounded by parenthesis
+        $value = str_replace(array('(', ')'), '', $value);
+
+        // $value could contain up to three different search terms, and they all need to be inserted
+        //  into the same mysql query
+        $x_params = $y_params = $z_params = array();
+        $search_params = array('str' => '', 'params' => array('datafield_id' => $datafield_id/*, 'datatype_id' => $datatype_id*/));
+
+        $pieces = explode(',', $value);
+        if ( isset($pieces[0]) && trim($pieces[0]) !== '' ) {
+            $x_params = self::parseField($pieces[0], 'XYZData');
+            $x_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.x_value', ':xterm_'), $x_params['str']).')';
+        }
+        if ( isset($pieces[1]) && trim($pieces[1]) !== '' ) {
+            $y_params = self::parseField($pieces[1], 'XYZData');
+            $y_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.y_value', ':yterm_'), $y_params['str']).')';
+        }
+        if ( isset($pieces[2]) && trim($pieces[2]) !== '' ) {
+            $z_params = self::parseField($pieces[2], 'XYZData');
+            $z_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.z_value', ':zterm_'), $z_params['str']).')';
+        }
+
+        $search_strs = array();
+        if ( !empty($x_params) ) {
+            foreach ($x_params['params'] as $key => $value)
+                $search_params['params']['x'.$key] = $value;
+            $search_strs[] = $x_params['str'];
+        }
+        if ( !empty($y_params) ) {
+            foreach ($y_params['params'] as $key => $value)
+                $search_params['params']['y'.$key] = $value;
+            $search_strs[] = $y_params['str'];
+        }
+        if ( !empty($z_params) ) {
+            foreach ($z_params['params'] as $key => $value)
+                $search_params['params']['z'.$key] = $value;
+            $search_strs[] = $z_params['str'];
+        }
+
+        $search_params['str'] = implode(' AND ', $search_strs);
+
+
+        // ----------------------------------------
+//        // Determine whether this query's search parameters contain an empty string...if so, may
+//        //  have to to run an additional query because of how ODR is designed...
+//        $involves_empty_string = false;
+//        if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+//            // ...but only when the query actually has a logical chance of returning results...
+//            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+//                $search_params['params']['datatype_id'] = $datatype_id;
+//
+//                // Need to inform callers that this query can matches the empty string
+//                // This is important because if this search is on a descendant datatype, then the
+//                //  ancestor datatype needs to take records without descendants and merge_by_OR with
+//                //  the descendant datatype's records that match the query
+//                $involves_empty_string = true;
+//            }
+//        }
+        // TODO - so this fieldtype has the same problem as the text/number fields...searches that hit the empty string require a separate query
+        // TODO - ...unlike the text/number fields, I'm pretty sure it can't be solved by tacking on a UNIONed query
+        // TODO - Ignoring how the UNIONed query is likely going to interfere with the parameter searching...
+        // TODO - ...there's also the problem that if you have a set of points (1,1), (2,2), and (3,3)...then naively searching for records with xyzdata where "x != 2" still returns true here
+        // TODO - ...in order for negation to work as expected, "x != 2" actually means "the set {all possible records} minus the set {records which have x == 2}"
+        // TODO - this wouldn't be a huge deal, except you don't really do a simple search like that...it almost always involves a pile of other parameters
+
+
+        // ----------------------------------------
+        // Define the base query for searching
+        $query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN odr_xyz_data AS e ON e.data_record_fields_id = drf.id
+            WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+
+//        // Also define the query used when one of the search parameters is the empty string
+//        $null_query =
+//           'SELECT dr.id AS dr_id
+//            FROM odr_data_record AS dr
+//            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+//            LEFT JOIN odr_xyz_data AS e ON e.data_record_fields_id = drf.id
+//            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
+//        // This query won't pick up cases where the drf exists and the storage entity was deleted,
+//        //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
+//        //  migration, or a change to the contents of a storage entity didn't complete properly
+
+
+        // ----------------------------------------
+        // Activate the query for finding nulls if needed
+//        if ( $involves_empty_string )
+//            $query .= "\nUNION\n".$null_query;
+
+        // Execute and return the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, $search_params['params']);
+
+        $datarecords = array();
+        foreach ($results as $result)
+            $datarecords[ $result['dr_id'] ] = 1;
+
+        return array(
+            'records' => $datarecords,
+//            'guard' => $involves_empty_string,    // NOTE: not needed until negation is implemented
+        );
+    }
+
+
+    /**
      * Searches the specified datafield for the specified value, returning an array of
      * datarecord ids that match the search.
      *
@@ -1917,7 +2050,7 @@ class SearchQueryService
         // ----------------------------------------
         // Most of the database fields that are searched can't have null values...
         $can_be_null = false;
-        if ($typeclass === 'IntegerValue' || $typeclass === 'DecimalValue')
+        if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' || $typeclass === 'XYZData' )
             // ...but the number-based datafields can, so their queries might need to be different
             $can_be_null = true;
 
@@ -2097,7 +2230,7 @@ class SearchQueryService
 
         // If this parsing is for a numerical field, then non-numerical values need to be removed
         // Strings tend to match numerical values of zero in the backend database
-        if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' ) {
+        if ( $can_be_null ) {
             foreach ($pieces as $num => $piece) {
                 if ( self::isLogicalOperator($piece) || self::isInequality($piece) ) {
                     // Ignore the logical operators
@@ -2159,7 +2292,7 @@ class SearchQueryService
 
         $pieces = array_values($pieces);
         // If just given a single inequality while attempting to search a text field...
-        if ( count($pieces) === 1 && self::isInequality($pieces[0]) && !($typeclass === 'IntegerValue' || $typeclass === 'DecimalValue') ) {
+        if ( count($pieces) === 1 && self::isInequality($pieces[0]) && !$can_be_null ) {
             // ...then assume the user wants to search for that character sequence and do nothing
         }
         else {
@@ -2191,6 +2324,8 @@ class SearchQueryService
             $sql_target_column = 'e_m.original_file_name';
         else if ( $search_converted )
             $sql_target_column = 'e.converted_value';
+        // XYZData has different column names, but not going to use them here to make things slightly
+        //  easier on parsing, isNullDrfPossible(), and canQueryReturnResults()
 
         $str = $sql_target_column;
 
@@ -2254,7 +2389,7 @@ class SearchQueryService
 
                     if ( $piece === "\"\"" ) {
                         if ( $can_be_null ) {
-                            // Integer/Decimal fields have null values instead of the empty string
+                            // Integer/Decimal/XYZData fields have null values instead of the empty string
                             if ($negate)
                                 $str .= ' IS NOT NULL ';
                             else
@@ -2312,6 +2447,14 @@ class SearchQueryService
                         else
                             $str .= ' = ';
                     }
+                    /* Integer/Decimal/XYZData need to trigger LIKE when they're unquoted, otherwise weird inputs fail
+                    else if ( $can_be_null ) {
+                        if ($negate)
+                            $str .= ' != ';
+                        else
+                            $str .= ' = ';
+                    }
+                    */
                     else {
                         // MYSQL escape characters due to use of LIKE
                         $piece = str_replace("\\", '\\\\', $piece);     // replace backspace character with double backspace
@@ -2329,10 +2472,10 @@ class SearchQueryService
                     }
                 }
                 else if ( is_numeric($piece) ) {
-                    if ( strpos($piece, '.') === false )
-                        $piece = intval($piece);
-                    else
+                    if ( strpos($piece, '.') === true || $typeclass === 'XYZData' )
                         $piece = floatval($piece);
+                    else
+                        $piece = intval($piece);
                 }
                 $negate = false;
                 $inequality = false;

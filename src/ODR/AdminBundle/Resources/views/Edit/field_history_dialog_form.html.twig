@@ -4,9 +4,21 @@
 <div id="ODRFieldHistoryDialogWrapper">
 
     <!-- Field History Dialog Form -->
-    <form action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}" class="pure-u-1" id="DatafieldHistoryForm" method="POST">
+    <form
+    {% if current_typeclass != "XYZData" %}
+        action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+    {% else %}
+        action="{{ path('odr_record_save_xyzdata', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+    {% endif %}
+        class="pure-u-1"
+        id="DatafieldHistoryForm"
+        method="POST"
+    >
         <input type="hidden" id="{{ current_typeclass }}Form__token" name="{{ current_typeclass }}Form[_token]" value="{{ csrf_token }}" />
         <input type="hidden" value="" required="required" name="{{ current_typeclass }}Form[value]" id="{{ current_typeclass }}Form_revert" />
+        {% if current_typeclass == "XYZData" %}
+        <input type="hidden" required="required" name="replace_all" value="1" />
+        {% endif %}
     </form>
 
     <div class="pure-control-group" id="ODRFieldHistoryDialogTable">
