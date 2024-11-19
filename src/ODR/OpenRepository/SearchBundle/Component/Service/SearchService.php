@@ -1319,6 +1319,81 @@ class SearchService
 
 
     /**
+     * Searches the given XYZData field, and returns an array of datarecord ids that match the
+     * given criteria.
+     *
+     * @param DataFields $template_datafield
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchXYZTemplateDatafield($template_datafield, $value)
+    {
+        throw new ODRNotImplementedException("Not allowing this to run without an example to work from first", 0xd303af76);
+
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $template_datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'XYZData' )
+            throw new ODRBadRequestException('searchXYZDatafield() called with '.$typeclass.' datafield', 0xd303af76);
+        if ( !$template_datafield->getIsMasterField() )
+            throw new ODRBadRequestException('searchTextOrNumberTemplateDatafield() called with non-master datafield', 0xd303af76);
+
+
+        // ----------------------------------------
+        // Going to need to get any cached entries first...
+        $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        // The search for this field is rather complicated...it's usually going to be searched as
+        //  a series of "ranges" in 1/2/3D space.  Multiple series are separated by the '|' character...
+        $entries = array(0 => $value);
+        if ( strpos($value, '|') !== false )
+            $entries = explode('|', $value);
+
+
+        // ...they're separated in the search term because they need to be searched separately
+        // e.g.  can't search for the ranges (x > 2 AND x < 3) and (x > 5 AND x < 6) in the same query,
+        //  because you can't have a value that's simultaneously less than 3 and greater than 5
+        $end_result = array();
+
+        foreach ($entries as $entry) {
+            if ( !isset($cached_searches[$entry]) ) {
+                // If the search for this entry isn't cached, then need to run it again...
+                $result = $this->search_query_service->searchXYZTemplateDatafield(
+                    $template_datafield->getFieldUuid(),
+                    $entry
+                );
+
+                // ...and store it in the cache for later
+                $cached_searches[$entry] = $result;
+                $this->cache_service->set('cached_search_template_df_'.$template_datafield->getId(), $cached_searches);
+            }
+
+            // Pull it out of the cache now that it's guaranteed to exist
+            $result = $cached_searches[$entry];
+
+            // If first run, then use the first set of results to start off with
+            if ( is_null($end_result) ) {
+                $end_result = $result[$value];
+            }
+            else {
+                // Otherwise, only save the datarecord ids that are in both arrays
+                $end_result = self::templateResultsIntersect($end_result, $result[$value]);
+            }
+
+            // If nothing in the array, then no results are possible
+            if ( count($end_result) == 0 )
+                break;
+        }
+
+        // ...then return the search result
+        return $end_result;
+    }
+
+
+    /**
      * Searches the specified datafield for the specified value, returning an array of
      * datarecord ids that match the search.
      *

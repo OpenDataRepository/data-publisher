@@ -797,7 +797,8 @@ class CSVExportHelperService
                                     $tmp = self::getTagData($df_data, $inversed_tag_hierarchy, $delimiters);
                                     break;
                                 case 'XYZData':
-                                    $tmp = self::getXYZData($df_data, $delimiters);
+                                    $xyz_column_names = $datatype_data[$dt_id]['dataFields'][$df_id]['dataFieldMeta']['xyz_data_column_names'];
+                                    $tmp = self::getXYZData($df_data, $xyz_column_names, $delimiters);
                                     break;
                                 default:
                                     $tmp = self::getOtherData($df_data, $typeclass);
@@ -890,6 +891,47 @@ class CSVExportHelperService
 
         // Implode the list of images with their delimiters to make a single string
         return implode("", $images);
+    }
+
+
+    /**
+     * Extracts xyz data for exporting.
+     *
+     * @param array $df_data
+     * @param string $xyz_column_names
+     * @param array $delimiters TODO - define a new delimiter or two for this?
+     *
+     * @return string
+     */
+    private function getXYZData($df_data, $xyz_column_names, $delimiters)
+    {
+        $num_columns = count( explode(',', $xyz_column_names) );
+        $xyz_data = array();
+        if ( isset($df_data['xyzData']) ) {
+            $points = array();
+
+            // Pull the values from the cached datarecord...
+            foreach ($df_data['xyzData'] as $num => $data) {
+                $tmp = array($data['x_value']);
+                if ( $num_columns > 1 )
+                    $tmp[] = $data['y_value'];
+                if ( $num_columns > 2 )
+                    $tmp[] = $data['z_value'];
+
+                $points[] = $tmp;
+            }
+
+            // ...then sort by x_value...
+            usort($points, function($a, $b) {
+                return $a[0] <=> $b[0];
+            });
+
+            // ...before finally converting back into a string for export
+            foreach ($points as $point)
+                $xyz_data[] = '('.implode(',', $point).')';
+        }
+
+        return implode('|', $xyz_data);
     }
 
 
@@ -1274,9 +1316,18 @@ class CSVExportHelperService
                         $typename = $df['dataFieldMeta']['fieldType']['typeName'];
                         $fieldname = $df['dataFieldMeta']['fieldName'];
 
-                        // All fieldtypes except for Markdown can be exported
-                        if ($typename !== 'Markdown')
+                        if ($typename === 'Markdown') {
+                            // Markdown fields can't be exported, so do nothing here
+                        }
+                        else if ($typename === 'XYZ Data') {
+                            // XYZData fields should have the column names as part of the fieldname
+                            $xyz_column_names = $df['dataFieldMeta']['xyz_data_column_names'];
+                            $header_line[$df_id] = $fieldname.' ('.$xyz_column_names.')';
+                        }
+                        else {
+                            // All other fieldtypes just use the fieldname
                             $header_line[$df_id] = $fieldname;
+                        }
                     }
                 }
             }

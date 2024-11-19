@@ -1470,6 +1470,10 @@ class SearchAPIService
                         // DatetimeValue needs to worry about before/after...
                         $results = $this->search_service->searchDatetimeTemplateDatafield($entity, $search_term['before'], $search_term['after']);
                     }
+                    else if ($typeclass === 'XYZData') {
+                        // XYZData requires a mess of processing
+                        $dr_list = $this->search_service->searchXYZTemplateDatafield($entity, $search_term['value']);
+                    }
                     else {
                         // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
                         $results = $this->search_service->searchTextOrNumberTemplateDatafield($entity, $search_term['value']);

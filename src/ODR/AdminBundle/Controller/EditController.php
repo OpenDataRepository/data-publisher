@@ -3662,12 +3662,13 @@ class EditController extends ODRCustomController
 
             $em->getFilters()->disable('softdeleteable');    // Need to load deleted rows
 
-            // Grab all values that the datafield has had across all fieldtypes
+            // Grab all values that the datafield has had
             $historical_values = array();
             $query = $em->createQuery(
                'SELECT e.id AS id, e.x_value AS x_value, e.y_value AS y_value, e.z_value AS z_value,
                     ft.typeClass AS typeclass, ft.typeName AS typeName,
-                    e.created AS created, created_by.firstName, created_by.lastName, created_by.username
+                    e.created AS created, created_by.firstName, created_by.lastName, created_by.username,
+                    e.deletedAt AS deletedAt
                 FROM ODRAdminBundle:XYZData AS e
                 JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
                 JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
@@ -3680,49 +3681,117 @@ class EditController extends ODRCustomController
             );
             $results = $query->getArrayResult();
 
+            // So the problem here is that 1) the field has multiple "values" at once, and 2) it's
+            //  permitted to only add/modify/delete a couple of them at a time.  This means that each
+            //  row isn't a "snapshot" of the field's state...that needs to be manually constructed
+            //  by digging through each row
+            foreach ($results as $result) {
+                $typeclass = $result['typeclass'];
+                $typename = $result['typeName'];
+
+                $user_string = $result['username'];
+                if ( $result['firstName'] !== '' && $result['lastName'] !== '' )
+                    $user_string = $result['firstName'].' '.$result['lastName'];
+
+                // Insert an entry when something got created...
+                $created = ($result['created'])->format('Y-m-d H:i:s');
+                $historical_values[$created] = array(
+                    'values' => array(),
+                    'user' => $user_string,
+                    'created' => $result['created'],
+                    'typeclass' => $typeclass,
+                    'typename' => $typename,
+                );
+
+                // Also insert an entry if something got deleted
+                if ( !is_null($result['deletedAt']) ) {
+                    $deleted = ($result['deletedAt'])->format('Y-m-d H:i:s');
+                    $historical_values[$deleted] = array(
+                        'values' => array(),
+                        'user' => $user_string,
+                        'created' => $result['deletedAt'],
+                        'typeclass' => $typeclass,
+                        'typename' => $typename,
+                    );
+                }
+            }
+            ksort($historical_values);
+
+
+            // $historical_values now has a entry for everytime "something happened" to the field's
+            //  value, but it's currently a bit excessive...because of how the field works, there's
+            //  a good chance that creating/modifying entries happens before entries are deleted
+            $prev_timestamp = $prev_created = null;
+            foreach ($historical_values as $timestamp => $tmp) {
+                if ( is_null($prev_timestamp) ) {
+                    // First change, save for the next loop
+                    $prev_timestamp = $timestamp;
+                    $prev_created = $tmp['created'];
+                }
+                else {
+                    // Determine how much time elapsed between this change and the previous
+                    $interval = date_diff($tmp['created'], $prev_created);
+                    if ( $interval->y == 0 && $interval->m == 0 && $interval->d == 0
+                        && $interval->h == 0 && $interval->i == 0 && $interval->s < 30
+                    ) {
+                        // ...if less than 30 seconds elapsed...consider the current and the previous
+                        //  timestamp as "referring to the same event", and delete the previous
+                        //  entry
+                        unset( $historical_values[$prev_timestamp] );
+
+                        // Doing it this way will ensure that only the "most recent" entry that
+                        //  "refers to the same event" exists in the end...if it was done the other
+                        //  way around, then the display would get clogged up by entries that were
+                        //  seconds away from being deleted
+                    }
+
+                    // Continue checking the array
+                    $prev_timestamp = $timestamp;
+                    $prev_created = $tmp['created'];
+                }
+            }
+
+
+            // At this point, $historical_values now theoretically has one timestamp per "event"...so
+            //  we can now go back through the results and determine which values were "active" at
+            //  each of those timestamps
             foreach ($results as $result) {
                 $id = $result['id'];
                 $x_value = $result['x_value'];
                 $y_value = $result['y_value'];
                 $z_value = $result['z_value'];
 
-                $typeclass = $result['typeclass'];
-                $typename = $result['typeName'];
-
                 $created = ($result['created'])->format('Y-m-d H:i:s');
+                $deleted = null;
+                if ( !is_null($result['deletedAt']) )
+                    $deleted = ($result['deletedAt'])->format('Y-m-d H:i:s');
 
-                $user_string = $result['username'];
-                if ( $result['firstName'] !== '' && $result['lastName'] !== '' )
-                    $user_string = $result['firstName'].' '.$result['lastName'];
-
-                if ( !isset($historical_values[$created]) ) {
-                    $historical_values[$created] = array(
-                        'values' => array(),
-                        'user' => $user_string,
-                        'created' => $created,
-                        'typeclass' => $typeclass,
-                        'typename' => $typename,
-                    );
+                foreach ($historical_values as $timestamp => $tmp) {
+                    // If the value was created before/on this date...
+                    if ( $created <= $timestamp ) {
+                        // ...and it hasn't been deleted yet...
+                        if ( is_null($deleted) || $deleted > $timestamp ) {
+                            // ...then it was "active" at this time
+                            $historical_values[$timestamp]['values'][$id] = array(
+                                'x_value' => $x_value,
+                                'y_value' => $y_value,
+                                'z_value' => $z_value,
+                            );
+                        }
+                        else {
+                            // If the entry was deleted by "now", then don't continue looking...because
+                            //  the array is sorted, it can't match anything
+                            break;
+                        }
+                    }
                 }
-
-                $historical_values[$created]['values'][$id] = array(
-                    'x_value' => $x_value,
-                    'y_value' => $y_value,
-                    'z_value' => $z_value,
-                );
             }
-
 
             $em->getFilters()->enable('softdeleteable');    // Don't need to load deleted rows anymore
 
 
             // ----------------------------------------
-            // Sort array from earliest date to latest date
-            usort($historical_values, function ($a, $b) {
-                return strcmp($a['created'], $b['created']);
-            });
-
-            // Convert the collection of values into a single string
+            // Convert each "event" into a single string
             $xyz_column_names = $datafield->getDataFieldMeta()->getXyzDataColumnNames();
             $xyz_column_names = explode(',', $xyz_column_names);
 

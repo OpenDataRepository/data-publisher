@@ -190,6 +190,14 @@
             <div style="margin-bottom:5px;"><label class="ODRDatePicker_clear"><u>Clear Date</u></label></div>
         </fieldset>
 
+        {% elseif field_typename == "XYZ Data" %}
+        <fieldset>
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+                <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+            </label>
+            <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
+        </fieldset>
+
         {% elseif field_typename == "Markdown" %}
             {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
         {% endif %}

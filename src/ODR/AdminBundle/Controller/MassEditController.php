@@ -520,7 +520,9 @@ class MassEditController extends ODRCustomController
 
                         case 'File':
                         case 'Image':
-                            // Nothing to validate here...MassEdit can currently only change public status for these
+                        case 'XYZData':
+                            // Nothing to validate here...MassEdit can currently only change public
+                            //  status or activate the MassEditTrigger event for these
                             break;
 
                         default:
@@ -1490,13 +1492,37 @@ class MassEditController extends ODRCustomController
                     }
                 }
             }
-            else {
-                // For every other fieldtype...ensure the storage entity exists
-                /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-                $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
-                $old_value = $storage_entity->getValue();
+            else if ($field_typeclass === 'XYZData') {
+                // XYZData entities only respond to MassEditTrigger requests  TODO - change this?
+                if ( !empty($event_trigger) ) {
+                    // $event_trigger will only have an entry for this datafield if the event is
+                    //  supposed to be triggered
 
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
+
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
+                    }
+                }
+            }
+            else {
+                // For every other fieldtype...
                 if ( !is_null($value) ) {
+                    // Ensure the storage entity exists, since it'll get a value anyways
+                    /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+                    $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
+                    $old_value = $storage_entity->getValue();
+
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
                         $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
@@ -1509,15 +1535,20 @@ class MassEditController extends ODRCustomController
                     }
                 }
 
-                // $event_trigger will only have an entry for this datafield if the event is supposed
-                //  to be triggered
                 if ( !empty($event_trigger) ) {
+                    // $event_trigger will only have an entry for this datafield if the event is
+                    //  supposed to be triggered
+
                     foreach ($event_trigger as $rp_id => $rp_classname) {
                         try {
+                            /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+                            $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
                             $drf = $storage_entity->getDataRecordFields();
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
                             $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+
+                            $ret .= 'dispatching MassEditTriggerEvent for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt

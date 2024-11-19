@@ -1582,6 +1582,21 @@ class SearchQueryService
 
 
     /**
+     * TODO - implement this
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchXYZTemplateDatafield($datatype_id, $datafield_id, $value)
+    {
+        throw new ODRNotImplementedException("need an example to work from", 0xbc71d1e3);
+    }
+
+
+    /**
      * Searches the specified datafield for the specified value, returning an array of
      * datarecord ids that match the search.
      *
