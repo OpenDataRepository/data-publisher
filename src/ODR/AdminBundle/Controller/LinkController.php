@@ -1983,6 +1983,9 @@ class LinkController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
             if ( !$permissions_service->canViewDatatype($user, $ancestor_datatype) )
                 throw new ODRForbiddenException();
@@ -2122,7 +2125,8 @@ class LinkController extends ODRCustomController
                         'initial_datarecord_id' => $local_datarecord->getId(),
                         'initial_theme_id' => $local_dt_master_theme->getId(),
 
-                        'is_datatype_admin' => $permissions_service->isDatatypeAdmin($user, $local_datatype),
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
 
                         'is_top_level' => 1,
                         'record_display_view' => 'multiple',    // disable the display javascript

@@ -40,7 +40,7 @@
 
     {% set content = '' %}
     {% if can_execute_plugin %}
-        {% set content = datafield|datafield_plugin(datarecord, render_plugin_instance, rendering_options) %}
+        {% set content = datafield|datafield_plugin([], render_plugin_instance, rendering_options) %}
     {% endif %}
 
     {% if can_execute_plugin and content|length > 0 %}
@@ -294,13 +294,14 @@
     {% endif %}
 </form>
 
-
-{% if field_typename == "Integer"
-    or field_typename == "Decimal"
-    or field_typename == "Long Text"
-    or field_typename == "Medium Text"
-    or field_typename == "Short Text"
-%}
+{# Only output save javascript when a plugin was not run #}
+{% if not can_execute_plugin or content|length == 0 %}
+    {% if field_typename == "Integer"
+        or field_typename == "Decimal"
+        or field_typename == "Long Text"
+        or field_typename == "Medium Text"
+        or field_typename == "Short Text"
+    %}
     <script>
 
         var {{ field_typeclass }}Interval_{{ datafield.id }} = null;
@@ -342,6 +343,7 @@
             // focusInvalid: false
         });
     </script>
+    {% endif %}
 {% endif %}
 
 {% endspaceless %}

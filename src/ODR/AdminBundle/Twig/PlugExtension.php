@@ -550,7 +550,7 @@ class PlugExtension extends \Twig_Extension
             if ( $render_plugin['plugin_type'] !== RenderPlugin::DATAFIELD_PLUGIN )
                 return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
 
-            if ( !is_null($datarecord) ) {
+            if ( !is_null($datarecord) && isset($datarecord['dataRecordFields']) ) {
                 // Prune $datarecord so the render plugin service can't get values of other datafields
                 foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
                     if ( $datafield['id'] !== $df_id )

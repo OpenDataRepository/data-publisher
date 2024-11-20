@@ -3,6 +3,12 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
 {# Need to get the sortvalue in the table... #}
 <td>
     {{ datarecord.sortField_value }}
@@ -24,6 +30,8 @@
                     {% include 'ODRAdminBundle:Display:display_datafield_table.html.twig' with {
                         'datarecord': datarecord,
                         'datafield': datafield,
+
+                        'is_datatype_admin': is_datatype_admin,
                     } %}
                 </td>
                 {% endif %}

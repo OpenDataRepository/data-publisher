@@ -1,0 +1,45 @@
+odr_plugins.base.url_button:
+    name: URL Button Field
+    category: Base
+    plugin_type: datafield
+    render: odr_plugins.base.url_button
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    description: The datafield will get turned into a button that will take the user to a specific URL.  Both strings must be filled out.
+    suppress_no_fields_note: false
+    registered_events:
+
+    required_fields:
+        url_field:
+            name: URL Field
+            description: TODO
+            type: ShortVarchar
+
+    config_options:
+        button_label:
+            name: Button Label
+            type: string
+            default:
+            description: The label for the button
+        target_url:
+            name: Target URL
+            type: string
+            default:
+            description: The URL to visit when clicked
+
+        render_in_display:
+            name: Render in Display Mode?
+            default: no
+            choices: no||No,yes||Yes
+            description: Whether to render the button in Display mode
+        render_in_edit:
+            name: Render in Edit Mode?
+            default: no
+            choices: no||No,yes||Yes
+            description: Whether to render the button in Edit mode

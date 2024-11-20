@@ -358,7 +358,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $derivation_problems = self::findDerivationProblems($relevant_fields);
 
                 // Can't use array_merge() since that destroys the existing keys
-                $problem_fields = array();
                 foreach ($derivation_problems as $df_id => $problem)
                     $problem_fields[$df_id] = $problem;
             }
@@ -401,12 +400,13 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         'target_datarecord_id' => $datarecord['id'],
                         'target_theme_id' => $initial_theme_id,
 
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
                         'record_display_view' => $record_display_view,
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
-
-                        'is_datatype_admin' => $is_datatype_admin,
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,

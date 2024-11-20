@@ -211,6 +211,9 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
                         'target_datarecord_id' => $datarecord['id'],
                         'target_theme_id' => $initial_theme_id,
 
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
                         'record_display_view' => $record_display_view,
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],

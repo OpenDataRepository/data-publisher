@@ -7,8 +7,15 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
 {% set rendering_options = {
     'record_display_view': record_display_view,
+
     'is_top_level': is_top_level,
     'is_link': is_link,
     'display_type': display_type,
@@ -73,7 +80,7 @@
             'parent_datarecord': parent_datarecord,
             'datarecord_list': datarecord_array,
 
-            'datatype_permissions': [],
+            'datatype_permissions': datatype_permissions,
 
             'is_top_level': is_top_level,
             'is_link': is_link,
@@ -117,7 +124,8 @@
                             'target_datarecord_id': datarecord.id,
                             'target_theme_id': target_theme_id,
 
-                            'is_datatype_admin': is_datatype_admin,
+                            'datatype_permissions': datatype_permissions,
+                            'datafield_permissions': datafield_permissions,
 
                             'record_display_view': record_display_view,
                             'is_top_level': is_top_level,
@@ -139,6 +147,9 @@
                 'parent_datarecord': parent_datarecord,
                 'target_datatype_id': target_datatype_id,
                 'target_theme_id': target_theme_id,
+
+                'datatype_permissions': datatype_permissions,
+                'datafield_permissions': datafield_permissions,
 
                 'is_top_level': is_top_level,
                 'is_link': is_link,

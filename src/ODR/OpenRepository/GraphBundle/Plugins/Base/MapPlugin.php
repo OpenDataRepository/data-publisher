@@ -205,13 +205,14 @@ class MapPlugin implements DatatypePluginInterface
                     'parent_datarecord' => $parent_datarecord,
                     'target_theme_id' => $theme['id'],
 
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
                     'record_display_view' => $record_display_view,
                     'is_top_level' => $rendering_options['is_top_level'],
                     'is_link' => $rendering_options['is_link'],
                     'display_type' => $rendering_options['display_type'],
                     'multiple_allowed' => $rendering_options['multiple_allowed'],
-
-                    'is_datatype_admin' => $is_datatype_admin,
 
                     'plugin_options' => $options,
 

@@ -8,12 +8,6 @@
     {% set can_edit_child_record = true %}
 {% endif %}
 
-{% set is_datatype_admin = false %}
-{% if datatype_permissions[ childtype.id ] is defined
-    and datatype_permissions[ childtype.id ][ 'dt_admin' ] is defined %}
-    {% set is_datatype_admin = true %}
-{% endif %}
-
 {% if insert_fake_datarecord is not defined %}
     {% set insert_fake_datarecord = false %}
 {% endif %}
@@ -39,7 +33,8 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
         'parent_datarecord': parent_datarecord,
         'target_theme_id': target_theme_id,
 
-        'is_datatype_admin': is_datatype_admin,
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
 
         'record_display_view': 'single',
         'is_top_level': 0,

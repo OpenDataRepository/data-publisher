@@ -5,13 +5,9 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set theme = theme_array[initial_theme_id] %}
 
-{% set is_datatype_admin = false %}
-{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
-    {% set is_datatype_admin = true %}
-{% endif %}
-
 {% set can_edit_datatype = false %}
-{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
     {% set can_edit_datatype = true %}
 {% endif %}
 
@@ -38,7 +34,8 @@
             'initial_theme_id': initial_theme_id,
             'editable_datarecord_list': editable_datarecord_list,
 
-            'is_datatype_admin': is_datatype_admin,
+            'datatype_permissions': datatype_permissions,
+            'datafield_permissions': datafield_permissions,
 
             'offset': offset,
             'page_length': page_length,
