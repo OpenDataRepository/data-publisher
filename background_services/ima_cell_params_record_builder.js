@@ -191,6 +191,9 @@ async function app() {
                             cp_map.ima_template_uuid
                         );
                         content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
+                        // TODO Add RRUFF ID to "rruff_record_exists" and
+                        // ensure all RRUFF records get that value even if they don't
+                        // have a PD alpha value.
                         if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined

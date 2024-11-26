@@ -214,8 +214,9 @@ async function app() {
                         // Mineral ID -- 16
                         await findValue(record.ima_record_map.mineral_id , record_data) + '||' +
                         // Status Notes Base64 -- 17
+                        // TODO Make this build status notes array
                         Buffer.from(
-                            await findValue(record.ima_record_map.status_notes , record_data)
+                            await buildStatusNotes(record.ima_record_map, record_data)
                         ).toString('base64') + '||' +
                         // Chemistry Elements -- 18
                         await findValue('' , record_data) + '||' +
@@ -349,6 +350,66 @@ function formatChemistry(str) {
 
 async function loadPage(page_url) {
     return await apiCall(page_url, '', 'GET');
+}
+
+/**
+ * Build status notes by finding Status Notes Child Record
+ * and parsing for appropriate values
+ */
+async function buildStatusNotes(ima_record_map, record) {
+    try {
+        // console.log('Checking for status notes v2');
+        let status_notes = '';
+       // Parse child records to see if a status notes record is found
+        // Only checking by template UUID - may
+        if(
+            record !== undefined
+            && record['records_' + record.template_uuid] !== undefined
+            && record['records_' + record.template_uuid].length > 0
+        ) {
+            let counter = 0;
+            for(let i = 0; i < record['records_' + record.template_uuid].length; i++) {
+                // If we have a status notes record, start looking for fields
+                // display order, status_notes_field, reference...
+                // records_block = records_[this_status_notes_dt]
+
+                let child_record = record['records_' + record.template_uuid][i];
+                if(child_record.template_uuid === ima_record_map.status_notes_dt_uuid) {
+                    // console.log('Status notes record found')
+                    if(counter > 0) {
+                        // Status Notes Array Divider
+                        status_notes += '^*^';
+                    }
+                    // This should be a status notes record
+                    status_notes += await findValue(ima_record_map.status_notes_display_order, child_record);
+                    status_notes += '~~';
+                    status_notes += await findValue(ima_record_map.status_notes_field, child_record);
+                    status_notes += '~~';
+                    // Find child reference id
+                    if(
+                        child_record['records_' + child_record.template_uuid] !== undefined
+                        && child_record['records_' + child_record.template_uuid].length > 0
+                    ) {
+                        // console.log('Checking for status notes reference record');
+                        for (let j = 0; j < child_record['records_' + child_record.template_uuid].length; j++) {
+                            // console.log('Status notes reference record found');
+                            let reference_record = child_record['records_' + child_record.template_uuid][j];
+                            if(reference_record.template_uuid === ima_record_map.status_notes_reference_uuid) {
+                                status_notes += await findValue(ima_record_map.status_notes_reference_id, reference_record);
+                            }
+                        }
+                    }
+                    counter++;
+                }
+            }
+        }
+        // console.log('Status NOTE: ' + status_notes);
+        return status_notes;
+    }
+    catch (e) {
+        console.log('Status NOTE ERROR: ' + e);
+        return ''
+    }
 }
 
 async function findValue(field_uuid, record) {

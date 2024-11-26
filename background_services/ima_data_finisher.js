@@ -72,7 +72,7 @@ async function app() {
                                 await fs.rename(data.references_filename, output_path + '/references_update.js', () => {});
 
                                 // Master Tag Data
-                                await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data_update.js', () => {});
+                                await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data.js', () => {});
                             }
                             else {
                                 // replace base files with new ones

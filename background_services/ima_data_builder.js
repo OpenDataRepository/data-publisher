@@ -193,6 +193,7 @@ async function app() {
                     let references_filename = basepath + data.references + '.' + tmp_file_extension;
                     await writeFile(references_filename, content);
 
+
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
                     content = 'var master_tag_data = new Array();';
@@ -762,17 +763,23 @@ async function buildTagTree(tagTree, tag_data, parent_tag) {
        let tag = tagTree[x];
        let tag_string = 'master_tag_data[' + tag.id + '] = "' + tag.id + '||' + tag.name + '|| ||mineral||1||' + tag.name;
        if(parent_tag !== null && parent_tag.id !== undefined) {
-           tag_string += '||' + parent_tag.id + '";\n';
+           tag_string += '||' + parent_tag.id;
        }
        else {
-           tag_string += '||0";\n';
+           tag_string += '||0';
+       }
+       if(tag.display_order !== undefined) {
+           tag_string +=  '||' + tag.display_order + '";\n';
+       }
+       else {
+           tag_string +=  '||0";\n';
        }
        // console.log(tag_string);
        tag_data.push(tag_string);
 
        if(tag.tags !== undefined) {
            // console.log('Child tags found');
-           await buildTagTree(tag.tags, tag_data, tag)
+           await buildTagTree(tag.tags, tag_data, tag);
        }
     }
     // console.log('Tag Data XX', tag_data);
