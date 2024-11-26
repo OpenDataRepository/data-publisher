@@ -3,6 +3,12 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
 {% include 'ODRAdminBundle:Display:display_datatypetools.html.twig' with {
     'datatype': datatype,
     'datarecord': datarecord,
@@ -44,6 +50,8 @@
                                             'datarecord': datarecord,
                                             'datafield': datafield,
                                             'themeDatafield': theme_datafield,
+
+                                            'is_datatype_admin': is_datatype_admin,
                                         } %}
                                     {% endif %}
                                 </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
@@ -86,7 +94,8 @@
                                     'parent_datarecord': datarecord,
                                     'target_theme_id': child_theme_id,
 
-                                    'is_datatype_admin': is_datatype_admin,
+                                    'datatype_permissions': datatype_permissions,
+                                    'datafield_permissions': datafield_permissions,
 
                                     'record_display_view': record_display_view,
                                     'is_top_level': 0,

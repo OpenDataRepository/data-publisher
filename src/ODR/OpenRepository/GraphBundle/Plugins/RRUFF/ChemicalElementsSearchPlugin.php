@@ -520,6 +520,12 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         //  also currently have everything with "Si", "Sn", etc...this is the entire issue the plugin
         //  is meant to solve
         $selected_datarecords = array();
+        // There is one other caveat though...a search for something like "Nb^" should match any
+        //  valence state for the element "Nb"
+        $has_open_valence = false;
+        if ( strpos($element, '^') !== false )
+            $has_open_valence = true;
+
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
             $element_str = mb_strtolower($result['element_str']);
@@ -529,6 +535,10 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
             foreach ($elements as $e) {
                 // ...and the datarecord should only be saved if the list contains an exact match
                 if ( $element === $e ) {
+                    $selected_datarecords[$dr_id] = 1;
+                    break;
+                }
+                else if ($has_open_valence && strpos($e, $element) === 0 ) {
                     $selected_datarecords[$dr_id] = 1;
                     break;
                 }

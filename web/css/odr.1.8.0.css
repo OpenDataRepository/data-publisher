@@ -5461,3 +5461,9 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRTrigger_headerUl {
     margin-top: 20px;
 }
+
+.ODRURLButtonPlugin_div {
+    position: relative;
+    width: 99%;
+    top: 0.5em;
+}

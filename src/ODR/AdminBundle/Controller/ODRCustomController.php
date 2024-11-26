@@ -114,7 +114,7 @@ class ODRCustomController extends Controller
 
         $user_permissions = $permissions_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
-//        $datafield_permissions = $user_permissions['datafields'];
+        $datafield_permissions = $user_permissions['datafields'];
 
         // Store whether the user is permitted to edit at least one datarecord for this datatype
         $can_edit_datatype = $permissions_service->canEditDatatype($user, $datatype);
@@ -410,10 +410,12 @@ class ODRCustomController extends Controller
                     'initial_datatype_id' => $datatype->getId(),
                     'initial_theme_id' => $theme->getId(),
 
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
                     'has_datarecords' => $has_datarecords,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
-                    'user_permissions' => $datatype_permissions,
                     'odr_tab_id' => $odr_tab_id,
 
                     'logged_in' => $logged_in,
@@ -690,8 +692,13 @@ class ODRCustomController extends Controller
 
         /** @var TrackedError[] $tracked_errors */
         $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
-        foreach ($tracked_errors as $error)
-            $job_errors[ $error->getId() ] = array('error_level' => $error->getErrorLevel(), 'error_body' => json_decode( $error->getErrorBody(), true ));
+        foreach ($tracked_errors as $error) {
+            $job_errors[ $error->getId() ] = array(
+                'error_level' => $error->getErrorLevel(),
+                'error_category' => $error->getErrorCategory(),
+                'error_body' => json_decode($error->getErrorBody(), true)
+            );
+        }
 
         return $job_errors;
     }
