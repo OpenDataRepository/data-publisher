@@ -37,7 +37,7 @@
                 {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
                 {% if can_execute_plugin %}
-                    {% set content = [datarecord]|datatype_plugin(datatype, rpi, theme_array, rendering_options, parent_datarecord) %}
+                    {% set content = [datarecord]|datatype_plugin(datatype, rpi, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions) %}
                     {% if content|length > 0 %}
                         <!-- html for {{ rpi.renderPlugin.pluginName }} -->
                         {{ content|raw }}

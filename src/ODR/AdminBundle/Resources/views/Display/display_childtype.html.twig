@@ -61,8 +61,7 @@
 
 {% set content = '' %}
 {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideChild %}
-    {# Display mode doesn't have datatype_permissions, datafield_permissions, or a token_list #}
-    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord) %}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions) %}
     {% if content|length > 0 %}
         <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
         {{ content|raw }}
@@ -104,7 +103,7 @@
                     {% set content = '' %}
                     {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
                         {# [datarecord] converts datarecord into a single-element array #}
-                        {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord) %}
+                        {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions) %}
                         {% if content|length > 0 %}
                             <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
                             {{ content|raw }}

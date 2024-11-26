@@ -1060,7 +1060,6 @@ class ODRRenderService
      * @param ThemeElement $theme_element
      * @param DataRecord $parent_datarecord
      * @param DataRecord $top_level_datarecord
-     * @param bool $insert_fake_datarecord
      * @oaram string $fake_datarecord_id
      *
      * @return string
