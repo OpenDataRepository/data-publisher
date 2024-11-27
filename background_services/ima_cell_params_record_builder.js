@@ -190,7 +190,25 @@ async function app() {
                             record_data['records_' + pd_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
-                        content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
+
+                        // "_record_metadata": {
+                        // "_create_date": "2016-05-12 13:23:56",
+                        // "_update_date": "2024-02-16 07:15:36",
+                        // "_create_auth": "Tommy Yong",
+                        // "_public_date": "2200-01-01 00:00:00"
+
+                        if(
+                            ima_record !== undefined
+                            && ima_record.record_uuid !== undefined
+                            && record_data._record_metadata !== undefined
+                            && record_data._record_metadata._public_date !== undefined
+                            && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
+                        ) {
+                            content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
+                        }
+                        else {
+                            content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'false\';';
+                        }
                         // TODO Add RRUFF ID to "rruff_record_exists" and
                         // ensure all RRUFF records get that value even if they don't
                         // have a PD alpha value.

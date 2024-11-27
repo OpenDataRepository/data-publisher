@@ -3955,7 +3955,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     padding-right: 14px;
     padding-left: 14px;
     position: relative;
-    top: 8px;
+    float: right;
+    margin-right: 10px;
+    top: 0;
 }
 
 .ODRJobList_header {

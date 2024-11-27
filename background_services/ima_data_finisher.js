@@ -65,6 +65,9 @@ async function app() {
                                 // Mineral Data
                                 await fs.rename(data.mineral_data_filename, output_path + '/mineral_data_update.js', () => {});
 
+                                // Mineral Name List
+                                await fs.rename(data.mineral_data_include_filename, output_path + '/mineral_names_update.php', () => {});
+
                                 // Cell Params Data
                                 await fs.rename(data.cell_params_filename, output_path + '/cellparams_data_update.js', () => {});
 
