@@ -57,6 +57,10 @@
     {% if can_add_record and is_top_level and datatype.isMasterType == 0 %}
         <i id="ODRAddRecord" class="fa fa-plus Pointer tooltip ODRAddRecord" title="Click to add a record"></i>
     {% endif %}
+
+        <label for="edit_shows_all_fields_toggle" class="Pointer" title="If checked, then all fields will be displayed regardless of the layout settings" style="padding-left: 15px">
+            <input type="checkbox" id="edit_shows_all_fields_toggle" /> Display All fields
+        </label>
     </div>
 
     {% if search_key != '' %}
@@ -223,6 +227,49 @@
         document.location = url;
     }
 #}
+
+    {% if edit_shows_all_fields == true %}
+    $("#edit_shows_all_fields_toggle").prop('checked', true);
+    {% endif %}
+
+    $("#edit_shows_all_fields_toggle").unbind('click').click(function(event) {
+
+        var toggle_data = {
+            'odr_tab_id': window.sessionStorage.getItem('odr_tab_id'),
+            'datatype_id': {{ datatype.id }}
+        };
+
+        var url = '{{ path('odr_session_toggle_edit_shows_all') }}';
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: toggle_data,
+            // data: encodeURIComponent(toggle_data),
+            success: function (data, textStatus, jqXHR) {
+                // Have to reload the page here
+                reloadPage();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything on error
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    });
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

@@ -1642,6 +1642,10 @@ odr_session_toggle_show_editable:
     path:  /session/toggle/show_editable
     defaults: { _controller: ODRAdminBundle:Session:toggleshoweditable }
     methods: [ POST ]
+odr_session_toggle_edit_shows_all:
+    path:  /session/toggle/edit_shows_all
+    defaults: { _controller: ODRAdminBundle:Session:editshowsall }
+    methods: [ POST ]
 
 odr_apply_sidebar_layout:
     path:  /session/apply_sidebar_layout/{datatype_id}/{intent}/{sidebar_layout_id}/{persist}

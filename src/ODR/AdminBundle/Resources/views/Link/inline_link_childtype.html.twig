@@ -12,7 +12,15 @@
 {% endif %}
 
 {# The record created for Inline linking won't use a render plugin, but any other existing records in this childtype might #}
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'edit', 'is_datatype_admin': is_datatype_admin} %}
+{% set rendering_options = {
+    'is_top_level': is_top_level,
+    'is_link': is_link,
+    'display_type': display_type,
+    'multiple_allowed': multiple_allowed,
+    'context': 'edit',
+    'is_datatype_admin': is_datatype_admin,
+    'edit_shows_all_fields': edit_shows_all_fields
+} %}
 
 {# Ignore array render plugins here for the moment...there's nothing for them to modify in FakeEdit mode #}
 
@@ -112,6 +120,7 @@
 
                         'datatype_permissions': datatype_permissions,
                         'datafield_permissions': datafield_permissions,
+                        'edit_shows_all_fields': edit_shows_all_fields,
 
                         'is_top_level': is_top_level,
                         'is_link': is_link,
@@ -152,6 +161,7 @@
 
                             'datatype_permissions': datatype_permissions,
                             'datafield_permissions': datafield_permissions,
+                            'edit_shows_all_fields': edit_shows_all_fields,
 
                             'is_top_level': is_top_level,
                             'is_link': is_link,

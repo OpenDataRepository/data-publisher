@@ -17,7 +17,8 @@
     'display_type': display_type,
     'multiple_allowed': multiple_allowed,
     'context': 'edit',
-    'is_datatype_admin': is_datatype_admin
+    'is_datatype_admin': is_datatype_admin,
+    'edit_shows_all_fields': edit_shows_all_fields,
 } %}
 
 {# Ignore array render plugins here...their modifications are pretty much guaranteed to screw up Edit mode #}
@@ -114,6 +115,7 @@
 
                         'datatype_permissions': datatype_permissions,
                         'datafield_permissions': datafield_permissions,
+                        'edit_shows_all_fields': edit_shows_all_fields,
 
                         'is_top_level': is_top_level,
                         'is_link': is_link,

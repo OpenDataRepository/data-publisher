@@ -434,10 +434,11 @@ class ODRRenderService
      * @param string $search_key Can be the empty string
      * @param int $search_theme_id Can be 0, only used to correctly set a redirect
      * @param Theme|null $theme If not null, which Theme to render the datarecord with
+     * @param bool $edit_shows_all_fields
      *
      * @return string
      */
-    public function getEditHTML($user, $datarecord, $search_key = '', $search_theme_id = 0, $theme = null)
+    public function getEditHTML($user, $datarecord, $search_key = '', $search_theme_id = 0, $theme = null, $edit_shows_all_fields = false)
     {
         $datatype = $datarecord->getDataType();
         $datatype_id = $datatype->getId();
@@ -445,11 +446,12 @@ class ODRRenderService
         $template_name = 'ODRAdminBundle:Edit:edit_ajax.html.twig';
         $extra_parameters = array(
             'is_top_level' => 1,    // TODO - get rid of this requirement
+
+            'search_theme_id' => $search_theme_id,    // TODO - refactor to get rid of this?
             'search_key' => $search_key,
 
             'token_list' => array(),
-
-            'search_theme_id' => $search_theme_id,    // TODO - refactor to get rid of this?
+            'edit_shows_all_fields' => $edit_shows_all_fields,
 
             'has_linked_datatypes' => 0,
         );
@@ -1000,15 +1002,18 @@ class ODRRenderService
      * @param ThemeElement $theme_element
      * @param DataRecord $parent_datarecord
      * @param DataRecord $top_level_datarecord
+     * @param bool $edit_shows_all_fields
      *
      * @return string
      */
-    public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord)
+    public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $edit_shows_all_fields)
     {
         $template_name = 'ODRAdminBundle:Edit:edit_childtype_reload.html.twig';
 
         $extra_parameters = array(
             'token_list' => array(),
+
+            'edit_shows_all_fields' => $edit_shows_all_fields,
         );
 
         // TODO - is this needed?
@@ -1060,11 +1065,12 @@ class ODRRenderService
      * @param ThemeElement $theme_element
      * @param DataRecord $parent_datarecord
      * @param DataRecord $top_level_datarecord
-     * @oaram string $fake_datarecord_id
+     * @param string $fake_datarecord_id
+     * @param bool $edit_shows_all_fields
      *
      * @return string
      */
-    public function loadInlineLinkChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $fake_datarecord_id = '')
+    public function loadInlineLinkChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $fake_datarecord_id, $edit_shows_all_fields)
     {
         $template_name = 'ODRAdminBundle:Link:inline_link_childtype_reload.html.twig';
 
@@ -1072,6 +1078,8 @@ class ODRRenderService
             'token_list' => array(),
             'inline_link' => true,
             'fake_dr_id' => $fake_datarecord_id,
+
+            'edit_shows_all_fields' => $edit_shows_all_fields,
         );
 
         // TODO - is this needed?
