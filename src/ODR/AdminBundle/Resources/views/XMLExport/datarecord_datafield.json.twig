@@ -105,9 +105,10 @@
         {{ datafield.templateFieldUuid|json_encode|raw }},
         {% endif %}
         "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
-        {% endif %}
+{% endif %}
         "id":
         {{ datafield.id }},
+
         {% if field_typename == "File" %}
 
         "files": [
