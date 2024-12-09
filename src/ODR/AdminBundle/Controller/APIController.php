@@ -2627,67 +2627,6 @@ class APIController extends ODRCustomController
                                 }
                             }
                         }
-                    } else if ($typename === 'Boolean') {
-                        /** @var DataRecordFields $drf */
-                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                            array(
-                                'dataRecord' => $dataset['internal_id'],
-                                'dataField' => $data_field->getId()
-                            )
-                        );
-
-                        if (!$drf) {
-                            // If drf entry doesn't exist, create new
-                            $drf = new DataRecordFields();
-                            $drf->setCreatedBy($user);
-                            self::setDates($drf, $field['created']);
-                            $drf->setDataField($data_field);
-                            $drf->setDataRecord($data_record);
-                            $em->persist($drf);
-                        }
-
-                        // Lookup Boolean by DRF & Field ID
-                        /** @var Boolean $bool */
-                        $bool = $em->getRepository('ODRAdminBundle:Boolean')->findOneBy(
-                            array(
-                                'dataRecordFields' => $drf->getId()
-                            )
-                        );
-
-                        if ($bool) {
-                            // check if value matches field->selected
-                            if ($bool->getValue() !== $field['selected']) {
-                                // remove old entity
-                                $em->remove($bool);
-                                /** @var Boolean $new_field */
-                                $new_field = new Boolean();
-                                $new_field->setDataField($data_field);
-                                $new_field->setDataRecord($data_record);
-                                $new_field->setDataRecordFields($drf);
-                                $new_field->setFieldType($data_field->getFieldType());
-                                $new_field->setCreatedBy($user);
-                                $new_field->setUpdatedBy($user);
-                                self::setDates($new_field, $field['created']);
-                                $new_field->setValue($field['selected']);
-                                $em->persist($new_field);
-                                $fields_updated = true;
-                            }
-                        } else {
-                            /** @var Boolean $new_field */
-                            $new_field = new Boolean();
-                            $new_field->setDataField($data_field);
-                            $new_field->setDataRecord($data_record);
-                            $new_field->setDataRecordFields($drf);
-                            $new_field->setFieldType($data_field->getFieldType());
-                            $new_field->setCreatedBy($user);
-                            $new_field->setUpdatedBy($user);
-                            self::setDates($new_field, $field['created']);
-                            $new_field->setValue($field['selected']);
-                            $em->persist($new_field);
-                            $fields_updated = true;
-                        }
-                        self::fieldMeta($field, $data_field, $new_field);
-                        $dataset['fields'][$i] = $field;
                     }
                     else if ( isset($field['tags']) && is_array($field['tags']) ) {
 
@@ -3709,9 +3648,12 @@ class APIController extends ODRCustomController
             $em->refresh($new_storage_entity);
 
             // Assign the updated field back to the dataset
-            $field['value'] = $new_storage_entity->getValue();
             if ( $typeclass === 'DatetimeValue' )
                 $field['value'] = $new_storage_entity->getValue()->format('Y-m-d');
+            else if ( $typeclass === 'Boolean' )
+                $field['selected'] = $new_storage_entity->getValue();
+            else
+                $field['value'] = $new_storage_entity->getValue();
 
             // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
             self::fieldMeta($field, $datafield, $new_storage_entity);

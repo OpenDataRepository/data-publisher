@@ -847,6 +847,8 @@ class APIControllerTest_alt extends WebTestCase
 
         $response = $curl->post($post_data);
         $code = $response['code'];
+
+        // Boolean needs to use 'selected' instead of 'value'
         $this->assertEquals(400, $code);
 
 
