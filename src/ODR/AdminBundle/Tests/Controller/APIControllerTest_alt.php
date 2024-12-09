@@ -2,12 +2,14 @@
 
 namespace ODR\AdminBundle\Tests\Controller;
 
+use ODR\AdminBundle\Component\Service\CacheService;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use ODR\AdminBundle\Component\Utility\CurlUtility;
 
 class APIControllerTest_alt extends WebTestCase
 {
     public static $debug = false;
+    public static $force_skip = false;
 
     public static $api_baseurl = '';
     public static $api_username = '';
@@ -38,6 +40,9 @@ class APIControllerTest_alt extends WebTestCase
     {
         foreach ($expected as $key => $value)
         {
+            if ( $key === '_record_metadata' || $key === '_field_metadata' )
+                continue;
+
             // Intentionally only asserting when it would fail...
             if ( !isset($actual[$key]) )
                 $this->assertArrayHasKey($key, $actual, 'Failed asserting that $actual['.$key.'] exists for path "'.implode(" > ", $rootPath).'"');
@@ -56,6 +61,9 @@ class APIControllerTest_alt extends WebTestCase
         // ...and need to run the inverse for when $actual has a key $expected doesn't
         foreach ($actual as $key => $value)
         {
+            if ( $key === '_record_metadata' || $key === '_field_metadata' )
+                continue;
+
             // Intentionally only asserting when it would fail...
             if ( !isset($expected[$key]) )
                 $this->assertArrayHasKey($key, $actual, 'Failed asserting that $expected['.$key.'] exists for path "'.implode(" > ", $rootPath).'"');
@@ -85,6 +93,13 @@ class APIControllerTest_alt extends WebTestCase
         self::$api_user_password = getenv('API_USER_PASSWORD');
 
         self::$headers = array('Content-type: application/json');
+
+        $client = static::createClient();
+        /** @var CacheService $cache_service */
+        $cache_service = $client->getContainer()->get('odr.cache_service');
+
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            self::$force_skip = true;
     }
 
     public static function tearDownAfterClass()
@@ -95,6 +110,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testLogin()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $post_data = json_encode(
             array(
                 'username' => self::$api_username,
@@ -133,6 +151,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testUser()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $post_data = array(
             'user_email' => self::$api_username,
             'first_name' => 'foo',
@@ -161,6 +182,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testGetDatabaseList()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $curl = new CurlUtility(
             self::$api_baseurl.'/v1/search/databases',
             self::$headers
@@ -187,6 +211,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testGetDatabaseStructure()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $curl = new CurlUtility(
             self::$api_baseurl.'/v3/search/database/'.self::$database_uuid,
             self::$headers
@@ -216,6 +243,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testGetRecordList()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $curl = new CurlUtility(
             self::$api_baseurl.'/v1/search/database/'.self::$database_uuid.'/records',
             self::$headers
@@ -238,6 +268,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testGetRecord()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $curl = new CurlUtility(
             self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
             self::$headers
@@ -268,6 +301,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testRecordSave_Missing()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $tmp_dataset = self::$record_structure;
         $tmp_dataset['record_uuid'] = '';
 
@@ -294,6 +330,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testRecordSave_NoModification()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $post_data = json_encode(
             array(
                 'user_email' => self::$api_username,
@@ -322,6 +361,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testFieldSave_Missing()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         // ----------------------------------------
         // Entries without a uuid identifier are invalid...
         $tmp_dataset = self::$record_structure;
@@ -402,6 +444,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testSingleSelect_OneSelection()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $option_uuids = array();
         foreach (self::$database_structure['fields'] as $df_num => $df) {
             if ( $df['name'] === 'Single Select' ) {
@@ -440,7 +485,6 @@ class APIControllerTest_alt extends WebTestCase
         $code = $response['code'];
         $this->assertEquals(200, $code);
         $api_response_content = json_decode($response['response'], true);
-        unset( $api_response_content['_record_metadata'] );
 //        if ( self::$debug )
 //            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
 
@@ -455,7 +499,6 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertEquals(200, $code);
 
         $content = json_decode($response['response'], true);
-        unset( $content['_record_metadata'] );
         self::$record_structure = $content;
 //        if ( self::$debug )
 //            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
@@ -493,7 +536,6 @@ class APIControllerTest_alt extends WebTestCase
         $code = $response['code'];
         $this->assertEquals(200, $code);
         $api_response_content = json_decode($response['response'], true);
-        unset( $api_response_content['_record_metadata'] );
 //        if ( self::$debug )
 //            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
 
@@ -508,7 +550,6 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertEquals(200, $code);
 
         $content = json_decode($response['response'], true);
-        unset( $content['_record_metadata'] );
         self::$record_structure = $content;
 //        if ( self::$debug )
 //            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
@@ -518,6 +559,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testSingleSelect_MoreThanOneSelection()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $option_uuids = array();
         foreach (self::$database_structure['fields'] as $df_num => $df) {
             if ( $df['name'] === 'Single Select' ) {
@@ -618,6 +662,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testMultipleSelect()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $option_uuids = array();
         foreach (self::$database_structure['fields'] as $df_num => $df) {
             if ( $df['name'] === 'Multiple Select' ) {
@@ -654,7 +701,6 @@ class APIControllerTest_alt extends WebTestCase
         $code = $response['code'];
         $this->assertEquals(200, $code);
         $api_response_content = json_decode($response['response'], true);
-        unset( $api_response_content['_record_metadata'] );
 //        if ( self::$debug )
 //            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
 
@@ -669,7 +715,6 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertEquals(200, $code);
 
         $content = json_decode($response['response'], true);
-        unset( $content['_record_metadata'] );
         self::$record_structure = $content;
 //        if ( self::$debug )
 //            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
@@ -707,7 +752,6 @@ class APIControllerTest_alt extends WebTestCase
         $code = $response['code'];
         $this->assertEquals(200, $code);
         $api_response_content = json_decode($response['response'], true);
-        unset( $api_response_content['_record_metadata'] );
 //        if ( self::$debug )
 //            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
 
@@ -722,7 +766,176 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertEquals(200, $code);
 
         $content = json_decode($response['response'], true);
-        unset( $content['_record_metadata'] );
+        self::$record_structure = $content;
+//        if ( self::$debug )
+//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
+
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+    }
+
+    public function testShortText()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][2] = array(    // 'Multiple Select' is occupying index 1...
+            'field_uuid' => self::$field_uuids['Short Text'],
+            'value' => 'foobar',
+        );
+
+        $post_data = json_encode(
+            array(
+                'user_email' => self::$api_username,
+                'dataset' => $tmp_dataset,
+            )
+        );
+
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record',
+            self::$headers
+        );
+
+        $response = $curl->post($post_data);
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+        $api_response_content = json_decode($response['response'], true);
+//        if ( self::$debug )
+//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+
+        // Compare against the new version of the actual record...
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
+            self::$headers
+        );
+
+        $response = $curl->get();
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+
+        $content = json_decode($response['response'], true);
+        self::$record_structure = $content;
+//        if ( self::$debug )
+//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
+
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+    }
+
+    public function testBoolean()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        // Boolean should use 'selected', not 'value'...
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][3] = array(    // 'Short Text' is occupying index 2...
+            'field_uuid' => self::$field_uuids['Boolean'],
+            'value' => '1',
+        );
+
+        $post_data = json_encode(
+            array(
+                'user_email' => self::$api_username,
+                'dataset' => $tmp_dataset,
+            )
+        );
+
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record',
+            self::$headers
+        );
+
+        $response = $curl->post($post_data);
+        $code = $response['code'];
+        $this->assertEquals(400, $code);
+
+
+        // ----------------------------------------
+        // Submit it with the correct key this time
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][3] = array(    // 'Short Text' is occupying index 2...
+            'field_uuid' => self::$field_uuids['Boolean'],
+            'selected' => '1',
+        );
+
+        $post_data = json_encode(
+            array(
+                'user_email' => self::$api_username,
+                'dataset' => $tmp_dataset,
+            )
+        );
+
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record',
+            self::$headers
+        );
+
+        $response = $curl->post($post_data);
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+        $api_response_content = json_decode($response['response'], true);
+//        if ( self::$debug )
+//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+
+        // Compare against the new version of the actual record...
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
+            self::$headers
+        );
+
+        $response = $curl->get();
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+
+        $content = json_decode($response['response'], true);
+        self::$record_structure = $content;
+//        if ( self::$debug )
+//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
+
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+    }
+
+    public function testDatetime()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][4] = array(    // 'Boolean' is occupying index 3...
+            'field_uuid' => self::$field_uuids['Datetime'],
+            'value' => '2024-01-01',
+        );
+
+        $post_data = json_encode(
+            array(
+                'user_email' => self::$api_username,
+                'dataset' => $tmp_dataset,
+            )
+        );
+
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record',
+            self::$headers
+        );
+
+        $response = $curl->post($post_data);
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+        $api_response_content = json_decode($response['response'], true);
+//        if ( self::$debug )
+//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+
+        // Compare against the new version of the actual record...
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
+            self::$headers
+        );
+
+        $response = $curl->get();
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+
+        $content = json_decode($response['response'], true);
         self::$record_structure = $content;
 //        if ( self::$debug )
 //            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");

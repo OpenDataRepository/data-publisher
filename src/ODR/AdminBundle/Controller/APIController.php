@@ -1752,38 +1752,6 @@ class APIController extends ODRCustomController
                                 }
                             }
                         }
-                    } else if ($typename === 'Boolean') {
-                        /** @var DataRecordFields $drf */
-                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                            array(
-                                'dataRecord' => $dataset['internal_id'],
-                                'dataField' => $data_field->getId()
-                            )
-                        );
-
-                        // TODO This is a field creation event - needs permissions check
-                        if (!$drf) {
-                            // TODO Permissions Check
-                            $fields_updated = true;
-                        } else {
-                            // Lookup Boolean by DRF & Field ID
-                            /** @var Boolean $bool */
-                            $bool = $em->getRepository('ODRAdminBundle:Boolean')->findOneBy(
-                                array(
-                                    'dataRecordFields' => $drf->getId()
-                                )
-                            );
-
-                            if ($bool) {
-                                // check if value matches field->selected
-                                if ($bool->getValue() !== $field['selected']) {
-                                    // remove old entity
-                                    $fields_updated = true;
-                                }
-                            } else {
-                                $fields_updated = true;
-                            }
-                        }
                     }
                     else if ( isset($field['tags']) && is_array($field['tags']) ) {
 
@@ -1922,45 +1890,26 @@ class APIController extends ODRCustomController
                                 throw new ODRBadRequestException('Structure for Radio fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
-                    else if (isset($field['value'])) {
-                        // Field is singular data field
-                        $drf = false;
-                        $field_changes = true;
-                        if ($orig_dataset) {
-                            foreach ($orig_dataset['fields'] as $o_field) {
-                                // If we find a matching field....
-                                if (isset($o_field['value']) && !is_array($o_field['value'])
-                                    && (
-                                        (
-                                            isset($o_field['template_field_uuid'])
-                                            && isset($field['template_field_uuid'])
-                                            && $o_field['template_field_uuid'] !== null
-                                            && $o_field['template_field_uuid'] == $field['template_field_uuid']
-                                        )
-                                        || (
-                                            isset($field['field_uuid']) && $o_field['field_uuid'] == $field['field_uuid']
-                                        )
-                                    )
-                                ) {
-                                    if ($o_field['value'] !== $field['value']) {
-                                        // Update value to new value (delete and enter new data)
-                                        /** @var DataRecordFields $drf */
-                                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                            array(
-                                                'dataRecord' => $dataset['internal_id'],
-                                                'dataField' => $data_field->getId()
-                                            )
-                                        );
-                                    } else {
-                                        // No changes necessary - field values match
-                                        $field_changes = false;
-                                    }
-                                }
-                            }
-                        }
-                        if ($field_changes) {
-                            // Changes are required or a field needs to be added.
-                            $fields_updated = true;
+                    else if ( isset($field['value']) || isset($field['selected']) ) {
+                        // Need to verify this only gets run on boolean/text/number/date fields
+                        switch ($typeclass) {
+                            case 'Boolean':
+                            case 'IntegerValue':
+                            case 'DecimalValue':
+                            case 'LongText':
+                            case 'LongVarchar':
+                            case 'MediumVarchar':
+                            case 'ShortVarchar':
+                            case 'DatetimeValue':
+                                // Determine whether the user is allowed to make the changes they're
+                                //  requesting to this field...
+                                $ret = self::checkStorageFieldPermissions($em, $pm_service, $user, $data_record, $data_field, $orig_dataset, $field);
+                                if ($ret)
+                                    $fields_updated = true;
+                                break;
+
+                            default:
+                                throw new ODRBadRequestException('Structure for boolean/text/number/date fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
                 }
@@ -2277,6 +2226,122 @@ class APIController extends ODRCustomController
 
             // Note that ValidUtility has functions to check whether radio options or tags are
             //  valid...but those aren't needed because the API will create them if they don't exist
+        }
+
+        // If this point is reached, either the user has permissions, or no changes are being made
+        return $changed;
+    }
+
+
+    /**
+     * Determines whether the user is allowed to make the requested changes to this field...Boolean,
+     * Integer, Decimal, DateTime, and all four Varchar fields use the same logic.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param PermissionsManagementService $pm_service
+     * @param ODRUser $user
+     * @param DataRecord $datarecord The datarecord the user might be modifying
+     * @param DataFields $datafield The datafield the user might be modifying
+     * @param array $orig_dataset The array version of the current record
+     * @param array $field An array of the state the user wants to field to be in after datasetDiff()
+     * @throws ODRException
+     * @return bool
+     */
+    private function checkStorageFieldPermissions($em, $pm_service, $user, $datarecord, $datafield, $orig_dataset, $field)
+    {
+        // Going to need these
+        $exception_source = 0x215bb2e9;
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        // Each of the text/number/datetime fields use 'value', while Boolean fields use 'selected'
+        //  instead
+        $key = 'value';
+        if ( $typeclass === 'Boolean' )
+            $key = 'selected';
+
+        if ( !isset($field[$key]) ) {
+            if ( $typeclass === 'Boolean' )
+                throw new ODRBadRequestException('Dataset attempted to use "value" instead of "selected" for '.$typeclass.' Field '.$datafield->getFieldUuid(), $exception_source);
+            else
+                throw new ODRBadRequestException('Dataset attempted to use "selected" instead of "value" for '.$typeclass.' Field '.$datafield->getFieldUuid(), $exception_source);
+        }
+
+
+        // The field may not necessarily have a value in the datarecord
+        $changed = false;
+
+        $orig_field = array();
+        if ($orig_dataset) {
+            foreach ($orig_dataset['fields'] as $o_field) {
+                if ( isset($o_field[$key]) && !is_array($o_field[$key]) ) {
+                    // The field can be matched by either template_field_uuid...
+                    if ( isset($o_field['template_field_uuid'])
+                        && isset($field['template_field_uuid'])
+                        && $o_field['template_field_uuid'] === $field['template_field_uuid']
+                    ) {
+                        // Found the field, don't need to keep looking
+                        $orig_field = $o_field;
+                        break;
+                    }
+
+                    // ...or by field_uuid
+                    if ( isset($o_field['field_uuid'])
+                        && isset($field['field_uuid'])
+                        && $o_field['field_uuid'] === $field['field_uuid']
+                    ) {
+                        // Found the field, don't need to keep looking
+                        $orig_field = $o_field;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // If the field doesn't have a value, or the value changed...
+        if ( empty($orig_field) || $orig_field[$key] !== $field[$key]) {
+            // ...then ensure that the user is allowed to change this field
+            $changed = true;
+            if ( !$pm_service->canEditDatafield($user, $datafield) )
+                throw new ODRForbiddenException('Not allowed to make changes to the Field '.$datafield->getFieldUuid(), $exception_source);
+
+            // Each of these fieldtypes also has a "prevent user edits" property that can be
+            //  activated by an admin of the related datatype
+            // TODO - should API users be able to bypass this?
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRBadRequestException('The contents of the Field '.$datafield->getFieldUuid().' cannot be changed via API', $exception_source);
+
+            // Ensure the value being saved is valid for this fieldtype...no dissertations in
+            //  DecimalValue fields, for instance
+            $is_valid = true;
+            switch ($typeclass) {
+                case 'Boolean':
+                    $is_valid = ValidUtility::isValidBoolean($field[$key]);
+                    break;
+                case 'IntegerValue':
+                    $is_valid = ValidUtility::isValidInteger($field[$key]);
+                    break;
+                case 'DecimalValue':
+                    $is_valid = ValidUtility::isValidDecimal($field[$key]);
+                    break;
+                case 'LongText':    // paragraph text, can accept any value
+                    break;
+                case 'LongVarchar':
+                    $is_valid = ValidUtility::isValidLongVarchar($field[$key]);
+                    break;
+                case 'MediumVarchar':
+                    $is_valid = ValidUtility::isValidMediumVarchar($field[$key]);
+                    break;
+                case 'ShortVarchar':
+                    $is_valid = ValidUtility::isValidShortVarchar($field[$key]);
+                    break;
+                case 'DatetimeValue':
+                    if ( $field[$key] !== '' )    // empty string is valid MassEdit or API entry, but isn't valid datetime technically
+                        $is_valid = ValidUtility::isValidDatetime($field[$key]);
+                    break;
+            }
+
+            if ( !$is_valid )
+                throw new ODRBadRequestException('Invalid '.$typeclass.' value given for the Field '.$datafield->getFieldUuid(), $exception_source);
         }
 
         // If this point is reached, either the user has permissions, or no changes are being made
@@ -2894,381 +2959,27 @@ class APIController extends ODRCustomController
                                 throw new ODRBadRequestException('Structure for Radio fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
-                    else if (isset($field['value'])) {
-                        // Field is singular data field
-                        $drf = false;
-                        $field_changes = true;
-                        if ($orig_dataset) {
-                            foreach ($orig_dataset['fields'] as $o_field) {
-                                // If we find a matching field....
-                                if (isset($o_field['value']) && !is_array($o_field['value'])
-                                    && (
-                                        (
-                                            isset($o_field['template_field_uuid'])
-                                            && isset($field['template_field_uuid'])
-                                            && $o_field['template_field_uuid'] !== null
-                                            && $o_field['template_field_uuid'] == $field['template_field_uuid']
-                                        )
-                                        || (
-                                            isset($field['field_uuid']) && $o_field['field_uuid'] == $field['field_uuid']
-                                        )
-                                    )
-                                ) {
-                                    if ($o_field['value'] !== $field['value']) {
-                                        // print $o_field['template_field_uuid'] . ' ';
-                                        // print $o_field['field_uuid'] . ' ';
-                                        // print $field['field_uuid'] . ' ';
-                                        // print $data_field->getFieldUuid() . ' ';
-                                        // print $field['value'] . " ";
-                                        // print $data_field->getFieldType()->getId(); exit();
-                                        // Update value to new value (delete and enter new data)
-                                        /** @var DataRecordFields $drf */
-                                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                            array(
-                                                'dataRecord' => $dataset['internal_id'],
-                                                'dataField' => $data_field->getId()
-                                            )
-                                        );
-                                    } else {
-                                        // No changes necessary - field values match
-                                        $field_changes = false;
-                                    }
-                                }
-                            }
-                        }
-                        if ($field_changes) {
-                            // Changes are required or a field needs to be added.
+                    else if ( isset($field['value']) || isset($field['selected']) ) {
 
-                            $existing_field = null;
-                            if (!$drf) {
-                                // If drf entry doesn't exist, create new
-                                $drf = new DataRecordFields();
-                                $drf->setCreatedBy($user);
-                                self::setDates($drf, $field['created']);
-                                $drf->setDataField($data_field);
-                                $drf->setDataRecord($data_record);
-                                $em->persist($drf);
-                            } else {
-                                switch ($typename) {
-                                    case 'Integer':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:IntegerValue')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'Paragraph Text':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:LongText')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'Long Text':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:LongVarchar')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'Medium Text':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:MediumVarchar')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'Short Text':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:ShortVarchar')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'Decimal':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:DecimalValue')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'DateTime':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:DatetimeValue')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                }
+                        switch ($typeclass) {
+                            case 'Boolean':
+                            case 'IntegerValue':
+                            case 'DecimalValue':
+                            case 'LongText':
+                            case 'LongVarchar':
+                            case 'MediumVarchar':
+                            case 'ShortVarchar':
+                            case 'DatetimeValue':
+                                $ret = self::updateStorageField($em, $user, $data_record, $data_field, $orig_dataset, $field);
 
-                            }
-
-                            switch ($typename) {
-                                // IntegerValue
-                                case 'Integer':
-                                    /** @var IntegerValue $new_field */
-                                    $new_field = new IntegerValue();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
+                                if ( $ret['fields_updated'] )
                                     $fields_updated = true;
 
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
+                                $dataset['fields'][$i] = $ret['new_json'];
+                                break;
 
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                // Paragraph Text
-                                case 'Paragraph Text':
-                                    /** @var LongText $new_field */
-                                    $new_field = new LongText();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                // LongVarchar
-                                case 'Long Text':
-                                    /** @var LongVarchar $new_field */
-                                    $new_field = new LongVarchar();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                // MediumVarchar
-                                case 'Medium Text':
-                                    /** @var MediumVarchar $new_field */
-                                    $new_field = new MediumVarchar();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                // ShortVarchar
-                                case 'Short Text':
-                                    /** @var ShortVarchar $new_field */
-                                    $new_field = new ShortVarchar();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-                                    $new_field->setConvertedValue('');    // TODO - need converted value
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                // DecimalValue
-                                case 'Decimal':
-                                    /** @var DecimalValue $new_field */
-                                    $new_field = new DecimalValue();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                // DatetimeValue
-                                case 'DateTime':
-                                    /** @var DatetimeValue $new_field */
-                                    $new_field = new DatetimeValue();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-
-                                    if (is_null($field['value'])
-                                        || $field['value'] === '0000-00-00'
-                                        || $field['value'] === '0000-00-00 00:00:00'
-                                    ) {
-                                        $field['value'] = new \DateTime('9999-12-31 00:00:00');    // matches EditController::updateAction()
-                                    } else {
-                                        $field['value'] = new \DateTime($field['value']);
-                                    }
-
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                default:
-                                    break;
-                            }
-
-
-                            // Check if field is "name" field for datatype
-                            /*
-                            if(
-                                $data_record->getDataType()->getNameField()->getId() == $data_field->getId()
-                                && $data_record->getDataType()->getMetadataFor() !== null
-                            ) {
-                                // This is the name field so update database name
-                                // TODO Update database name
-
-                            }
-                            */
+                            default:
+                                throw new ODRBadRequestException('Structure for boolean/text/number/date fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
 
@@ -3857,6 +3568,158 @@ class APIController extends ODRCustomController
         return array(
             'fields_updated' => $fields_updated,
             'radio_option_created' => $radio_option_created,
+            'new_json' => $field,
+        );
+    }
+
+
+    /**
+     * Most of the storage fields use the same logic to save changes.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param ODRUser $user
+     * @param DataRecord $datarecord The datarecord the user might be modifying
+     * @param DataFields $datafield The datafield the user might be modifying
+     * @param array $orig_dataset The array version of the current record
+     * @param array $field An array of the state the user wants to field to be in after datasetDiff()
+     * @throws ODRException
+     * @return array
+     */
+    private function updateStorageField($em, $user, $datarecord, $datafield, $orig_dataset, $field)
+    {
+
+        $created = null;
+        if ( isset($field['created']) )
+            $created = $field['created'];
+
+        // Field is singular data field
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        $fields_updated = true;
+
+        if ($orig_dataset) {
+            $orig_field = null;
+
+            foreach ($orig_dataset['fields'] as $o_field) {
+                // The field can be matched by either template_field_uuid...
+                if ( isset($o_field['template_field_uuid'])
+                    && isset($field['template_field_uuid'])
+                    && $o_field['template_field_uuid'] === $field['template_field_uuid']
+                ) {
+                    // Found the field, don't need to keep looking
+                    $orig_field = $o_field;
+                    break;
+                }
+
+                // ...or by field_uuid
+                if ( isset($o_field['field_uuid'])
+                    && isset($field['field_uuid'])
+                    && $o_field['field_uuid'] === $field['field_uuid']
+                ) {
+                    // Found the field, don't need to keep looking
+                    $orig_field = $o_field;
+                    break;
+                }
+            }
+
+            if ( !is_null($orig_field) ) {
+                if ( $typeclass === 'Boolean' ) {
+                    if ( $orig_field['selected'] === $field['selected'] )
+                        $fields_updated = false;
+                }
+                else {
+                    if ($orig_field['value'] === $field['value'])
+                        $fields_updated = false;
+                }
+            }
+        }
+
+        if ($fields_updated) {
+            // Changes are required or a field needs to be added.
+            /** @var DataRecordFields $drf */
+            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                array(
+                    'dataRecord' => $datarecord->getId(),
+                    'dataField' => $datafield->getId()
+                )
+            );
+
+            if ( is_null($drf) ) {
+                // If drf entry doesn't exist, create one
+                $drf = new DataRecordFields();
+                $drf->setCreatedBy($user);
+                self::setDates($drf, $created);
+                $drf->setDataField($datafield);
+                $drf->setDataRecord($datarecord);
+                $em->persist($drf);
+            }
+
+            /** @var Boolean|IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|longVarchar|LongText|DateTimeValue $existing_storage_entity */
+            $existing_storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+                array(
+                    'dataRecordFields' => $drf->getId()
+                )
+            );
+
+            $new_storage_entity = null;
+            if ( !is_null($existing_storage_entity) ) {
+                $new_storage_entity = clone $existing_storage_entity;
+            }
+            else {
+                // Create the storage entity
+                $class = "ODR\\AdminBundle\\Entity\\".$typeclass;
+                $new_storage_entity = new $class();
+                $new_storage_entity->setDataRecord($datarecord);
+                $new_storage_entity->setDataField($datafield);
+                $new_storage_entity->setDataRecordFields($drf);
+                $new_storage_entity->setFieldType($datafield->getFieldType());
+
+                if ( $typeclass === 'ShortVarchar' )
+                    $new_storage_entity->setConvertedValue('');
+            }
+
+            $new_storage_entity->setCreatedBy($user);
+            $new_storage_entity->setUpdatedBy($user);
+            self::setDates($new_storage_entity, $created);
+
+            if ( $typeclass === 'DatetimeValue' ) {
+                if ( is_null($field['value'])
+                    || $field['value'] === ''
+                    || $field['value'] === '0000-00-00'
+                    || $field['value'] === '0000-00-00 00:00:00'
+                ) {
+                    $new_storage_entity->setValue( new \DateTime('9999-12-31 00:00:00') );    // matches EditController::updateAction()
+                } else {
+                    $new_storage_entity->setValue( new \DateTime($field['value']) );
+                }
+            }
+            else if ( $typeclass === 'Boolean' ) {
+                $new_storage_entity->setValue($field['selected']);
+            }
+            else {
+                $new_storage_entity->setValue($field['value']);
+            }
+
+            $em->persist($new_storage_entity);
+            if ( !is_null($existing_storage_entity) )
+                $em->remove($existing_storage_entity);
+
+            // Trying to do everything realtime - no waiting forever stuff
+            $em->flush();
+            $em->refresh($new_storage_entity);
+
+            // Assign the updated field back to the dataset
+            $field['value'] = $new_storage_entity->getValue();
+            if ( $typeclass === 'DatetimeValue' )
+                $field['value'] = $new_storage_entity->getValue()->format('Y-m-d');
+
+            // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+            self::fieldMeta($field, $datafield, $new_storage_entity);
+//            $dataset['fields'][$i] = $field;
+        }
+
+        return array(
+            'fields_updated' => $fields_updated,
             'new_json' => $field,
         );
     }
