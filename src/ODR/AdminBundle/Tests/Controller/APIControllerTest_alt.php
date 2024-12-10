@@ -8,6 +8,9 @@ use ODR\AdminBundle\Component\Utility\CurlUtility;
 
 class APIControllerTest_alt extends WebTestCase
 {
+    /** @var CacheService $cache_service */
+    private static $cache_service;
+
     public static $debug = false;
     public static $force_skip = false;
 
@@ -23,6 +26,8 @@ class APIControllerTest_alt extends WebTestCase
     public static $template_uuid = '';
     public static $database_structure = array();
     public static $field_uuids = array();
+    public static $descendant_database_uuids = array();
+    public static $descendant_datarecord_uuids = array();
     public static $record_list = array();
     public static $record_uuid = '';
     public static $record_structure = array();
@@ -80,6 +85,79 @@ class APIControllerTest_alt extends WebTestCase
         }
     }
 
+    /**
+     * Might as well have this in its own function since it's going to be used so much...
+     *
+     * @param string $record_uuid
+     * @return array
+     */
+    public function getRecord($record_uuid)
+    {
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record/'.$record_uuid,
+            self::$headers
+        );
+
+        $response = $curl->get();
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+
+        $content = json_decode($response['response'], true);
+        if ( self::$debug )
+            fwrite(STDERR, 'modified dr structure: '.print_r($content, true)."\n");
+
+        return $content;
+    }
+
+    /**
+     * Might as well have this in its own function since it's going to be used so much...
+     *
+     * @param array $data
+     * @return array
+     */
+    public function submitRecord_valid($data)
+    {
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record',
+            self::$headers
+        );
+
+        $post_data = json_encode($data);
+        $response = $curl->post($post_data);
+        $response_code = $response['code'];
+        if ( $response_code !== 200 )
+            fwrite(STDERR, 'response: '.print_r($response, true)."\n");
+
+        $this->assertEquals(200, $response_code);
+
+        $content = json_decode($response['response'], true);
+        return $content;
+    }
+
+
+    /**
+     * Might as well have this in its own function since it's going to be used so much...
+     *
+     * @param array $data
+     * @param int $expected_code
+     * @return void
+     */
+    public function submitRecord_invalid($data, $expected_code)
+    {
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/dataset/record',
+            self::$headers
+        );
+
+        $post_data = json_encode($data);
+        $response = $curl->post($post_data);
+        $response_code = $response['code'];
+        if ( $response_code !== $expected_code )
+            fwrite(STDERR, 'response: '.print_r($response, true)."\n");
+
+        $this->assertEquals($expected_code, $response_code);
+    }
+
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
@@ -95,8 +173,7 @@ class APIControllerTest_alt extends WebTestCase
         self::$headers = array('Content-type: application/json');
 
         $client = static::createClient();
-        /** @var CacheService $cache_service */
-        $cache_service = $client->getContainer()->get('odr.cache_service');
+        self::$cache_service = $client->getContainer()->get('odr.cache_service');
 
         if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
             self::$force_skip = true;
@@ -230,15 +307,23 @@ class APIControllerTest_alt extends WebTestCase
         if ( self::$debug )
             fwrite(STDERR, 'database structure: '.print_r(self::$database_structure, true)."\n");
 
-        foreach (self::$database_structure['fields'] as $num => $df)
-            self::$field_uuids[ $df['name'] ] = $df['field_uuid'];
-        if ( self::$debug )
-            fwrite(STDERR, 'fields: '.print_r(self::$field_uuids, true)."\n");
 
         // Going to be using these fields...
-        $this->assertArrayHasKey('Single Select', self::$field_uuids);
-        $this->assertArrayHasKey('Multiple Select', self::$field_uuids);
-        $this->assertArrayHasKey('Short Text', self::$field_uuids);
+        foreach (self::$database_structure['fields'] as $num => $df)
+            self::$field_uuids[ $df['name'] ] = $df['field_uuid'];
+
+        // Also going to be using several descendant datatypes...
+        foreach (self::$database_structure['related_databases'] as $num => $dt) {
+            self::$descendant_database_uuids[ $dt['name'] ] = $dt['template_uuid'];
+
+            foreach ($dt['fields'] as $num => $df)
+                self::$field_uuids[ $df['name'] ] = $df['field_uuid'];
+        }
+
+        if ( self::$debug )
+            fwrite(STDERR, 'fields: '.print_r(self::$field_uuids, true)."\n");
+        if ( self::$debug )
+            fwrite(STDERR, 'descendant datatypes: '.print_r(self::$descendant_database_uuids, true)."\n");
     }
 
     public function testGetRecordList()
@@ -271,27 +356,11 @@ class APIControllerTest_alt extends WebTestCase
         if ( self::$force_skip )
             $this->markTestSkipped('Wrong database');
 
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
-        );
-
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-        if ( self::$debug )
-            fwrite(STDERR, 'dr structure: '.print_r(self::$record_structure, true)."\n");
+        // Get the current version of the record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
 
         // Don't want any selections at this point...
         $this->assertEmpty(self::$record_structure['fields']);
-    }
-
-    public function testRecordSave_Invalid()
-    {
-        $this->markTestSkipped('no verification implemented yet...');
     }
 
     public function testRecordSave_NoPerms()
@@ -299,33 +368,32 @@ class APIControllerTest_alt extends WebTestCase
         $this->markTestSkipped('multiple different ways a user could have no permissions...');
     }
 
-    public function testRecordSave_Missing()
+    public function testRecordSave_InvalidUUIDs()
     {
         if ( self::$force_skip )
             $this->markTestSkipped('Wrong database');
 
+        // Submitting a top-level record without a uuid should result in a 404 error
         $tmp_dataset = self::$record_structure;
         $tmp_dataset['record_uuid'] = '';
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
+        self::submitRecord_invalid($post_data, 404);
 
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
+
+        // ----------------------------------------
+        // Submitting a top-level record with an invalid uuid should also result in a 404 error
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['record_uuid'] = substr($tmp_dataset['record_uuid'], 0, -1);
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $response = $curl->post($post_data);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'response: '.print_r($response, true)."\n");
-        $code = $response['code'];
-
-        // Submitting a record with an invalid uuid should result in a 404 error
-        $this->assertEquals(404, $code);
+        self::submitRecord_invalid($post_data, 404);
     }
 
     public function testRecordSave_NoModification()
@@ -333,23 +401,12 @@ class APIControllerTest_alt extends WebTestCase
         if ( self::$force_skip )
             $this->markTestSkipped('Wrong database');
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => self::$record_structure,
-            )
+        // Submitting a record without modifications should result in no modifications
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => self::$record_structure,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
+        $content = self::submitRecord_valid($post_data);
 
         $this->assertEqualsCanonicalizing(self::$record_structure, $content);
     }
@@ -359,7 +416,7 @@ class APIControllerTest_alt extends WebTestCase
         $this->markTestSkipped('multiple different ways a user could have no permissions...');
     }
 
-    public function testFieldSave_Missing()
+    public function testFieldSave_InvalidUUIDs()
     {
         if ( self::$force_skip )
             $this->markTestSkipped('Wrong database');
@@ -373,21 +430,11 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(400, $code, 'array is missing a field uuid');
+        self::submitRecord_invalid($post_data, 400);
 
 
         // ----------------------------------------
@@ -400,22 +447,14 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
+        self::submitRecord_invalid($post_data, 404);
 
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
 
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(404, $code, 'array has a blank field uuid');
-
+        // ----------------------------------------
         // Entries with an invalid uuid are also invalid...
         $tmp_dataset = self::$record_structure;
         $tmp_dataset['fields'] = array(
@@ -425,21 +464,11 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(404, $code, 'array has a non-existent field uuid');
+        self::submitRecord_invalid($post_data, 404);
     }
 
     public function testSingleSelect_OneSelection()
@@ -469,40 +498,14 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-        $api_response_content = json_decode($response['response'], true);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+        $api_response_content = self::submitRecord_valid($post_data);
 
         // Compare against the new version of the actual record...
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
-        );
-
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-//        if ( self::$debug )
-//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
-
+        self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
 
 
@@ -520,40 +523,14 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-        $api_response_content = json_decode($response['response'], true);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+        $api_response_content = self::submitRecord_valid($post_data);
 
         // Compare against the new version of the actual record...
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
-        );
-
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-//        if ( self::$debug )
-//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
-
+        self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
     }
 
@@ -587,22 +564,14 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
+        self::submitRecord_invalid($post_data, 400);
 
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
 
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(400, $code);
-
+        // ----------------------------------------
         // ...as should creating more than one option at a time, because they would both be
         //  selected
         $tmp_dataset = self::$record_structure;
@@ -623,21 +592,11 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(400, $code);
+        self::submitRecord_invalid($post_data, 400);
 
 
         // ----------------------------------------
@@ -685,43 +644,18 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-        $api_response_content = json_decode($response['response'], true);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+        $api_response_content = self::submitRecord_valid($post_data);
 
         // Compare against the new version of the actual record...
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
-        );
-
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-//        if ( self::$debug )
-//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
-
+        self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
 
 
+        // ----------------------------------------
         // Specifying more than one existing option should also work...
         $tmp_dataset = self::$record_structure;
         $tmp_dataset['fields'][1] = array(    // index 0 is occupied by 'Single Select' now
@@ -736,40 +670,14 @@ class APIControllerTest_alt extends WebTestCase
             )
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-        $api_response_content = json_decode($response['response'], true);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+        $api_response_content = self::submitRecord_valid($post_data);
 
         // Compare against the new version of the actual record...
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
-        );
-
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-//        if ( self::$debug )
-//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
-
+        self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
     }
 
@@ -784,40 +692,14 @@ class APIControllerTest_alt extends WebTestCase
             'value' => 'foobar',
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-        $api_response_content = json_decode($response['response'], true);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+        $api_response_content = self::submitRecord_valid($post_data);
 
         // Compare against the new version of the actual record...
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
-        );
-
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-//        if ( self::$debug )
-//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
-
+        self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
     }
 
@@ -826,6 +708,7 @@ class APIControllerTest_alt extends WebTestCase
         if ( self::$force_skip )
             $this->markTestSkipped('Wrong database');
 
+        // ----------------------------------------
         // Boolean should use 'selected', not 'value'...
         $tmp_dataset = self::$record_structure;
         $tmp_dataset['fields'][3] = array(    // 'Short Text' is occupying index 2...
@@ -833,23 +716,11 @@ class APIControllerTest_alt extends WebTestCase
             'value' => '1',
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-
-        // Boolean needs to use 'selected' instead of 'value'
-        $this->assertEquals(400, $code);
+        self::submitRecord_invalid($post_data, 400);
 
 
         // ----------------------------------------
@@ -860,40 +731,14 @@ class APIControllerTest_alt extends WebTestCase
             'selected' => '1',
         );
 
-        $post_data = json_encode(
-            array(
-                'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
-            )
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
         );
-
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
-        );
-
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-        $api_response_content = json_decode($response['response'], true);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+        $api_response_content = self::submitRecord_valid($post_data);
 
         // Compare against the new version of the actual record...
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
-        );
-
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-//        if ( self::$debug )
-//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
-
+        self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
     }
 
@@ -908,40 +753,417 @@ class APIControllerTest_alt extends WebTestCase
             'value' => '2024-01-01',
         );
 
-        $post_data = json_encode(
-            array(
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+    }
+
+    public function testCreateRecord()
+    {
+        $count = 0;
+        for ($i = 0; $i < 4; $i++) {
+            if ( $count < 2 )
+                $database_uuid = self::$descendant_database_uuids['API Test Single-allowed Link'];
+            else
+                $database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Link'];
+
+            $post_data = array(
                 'user_email' => self::$api_username,
-                'dataset' => $tmp_dataset,
+            );
+
+            $curl = new CurlUtility(
+                self::$api_baseurl.'/v3/dataset/'.$database_uuid.'/record',
+                self::$headers
+            );
+
+            $response = $curl->post($post_data);
+            $code = $response['code'];
+            $this->assertEquals(200, $code);
+            $api_response_content = json_decode($response['response'], true);
+//            if ( self::$debug )
+//                fwrite(STDERR, 'api response: '.print_r($api_response_content, true)."\n");
+
+            // Response should be a properly formed datarecord, though can't check everything due
+            //  to it being new
+            $this->assertArrayHasKey('database_uuid', $api_response_content);
+            $this->assertEquals($database_uuid, $api_response_content['database_uuid']);
+            $this->assertArrayHasKey('record_uuid', $api_response_content);
+
+            // Store the uuids for later
+            if ( !isset(self::$descendant_datarecord_uuids[$database_uuid]) )
+                self::$descendant_datarecord_uuids[$database_uuid] = array();
+            self::$descendant_datarecord_uuids[$database_uuid][] = $api_response_content['record_uuid'];
+            $count++;
+        }
+
+        if ( self::$debug )
+            fwrite(STDERR, 'descendant datarecords: '.print_r(self::$descendant_datarecord_uuids, true)."\n");
+    }
+
+    public function testMultipleAllowed_SingleChild()
+    {
+        $database_uuid = self::$descendant_database_uuids['API Test Single-allowed Child'];
+
+        // ----------------------------------------
+        // Should fail due to attempting to create two records in a single-allowed child descendant
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][0] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => '',    // Empty record uuid means create a new child record
+        );
+        $tmp_dataset['records'][2] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => '',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+
+
+        // ----------------------------------------
+        // Should succeed due to only creating a single child record
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][0] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => '',
+        );
+//        $tmp_dataset['records'][1] = array(
+//            'database_uuid' => $database_uuid,
+//            'record_uuid' => '',
+//        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+
+        // ----------------------------------------
+        // Should fail due to attempting to create a second records in a single-allowed child descendant
+        $tmp_dataset = self::$record_structure;
+//        $tmp_dataset['records'][0] = array(
+//            'database_uuid' => $database_uuid,
+//            'record_uuid' => '',
+//        );
+        $tmp_dataset['records'][1] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => '',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+    }
+
+    public function testMultipleAllowed_MultipleChild()
+    {
+        // ----------------------------------------
+        // Going to use this first one to also test
+        // 1) adding a field value directly into a new child record
+        // 2) setting the 'created' parameter for both a record and a field change
+        $database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Child'];
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][1] = array(    // index 0 is occupied by the single-allowed child record
+            'database_uuid' => $database_uuid,
+            'record_uuid' => '',    // Empty record uuid means create a new child record
+            'created' => '1970-01-01 00:00:00',
+            'fields' => array(
+                0 => array(
+                    'field_uuid' => self::$field_uuids['Multiple Child Field'],
+                    'value' => 'asdf',
+                    'created' => '2070-01-01 00:00:00'    // the actual date is irrelevant
+                )
+            )
+        );
+//        $tmp_dataset['records'][2] = array(
+//            'database_uuid' => $database_uuid,
+//            'record_uuid' => '',
+//        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        if ( $api_response_content['records'][1]['_record_metadata']['_create_date'] !== '1970-01-01 00:00:00' )
+            $this->fail('Attempt to create a record with create_date "1970-01-01 00:00:00" failed');
+        if ( self::$record_structure['records'][1]['_record_metadata']['_create_date'] !== '1970-01-01 00:00:00' )
+            $this->fail('Attempt to create a record with create_date "1970-01-01 00:00:00" failed');
+
+        // Might as well ensure the new record's public_date is default, since it wasn't set
+        if ( $api_response_content['records'][1]['_record_metadata']['_public_date'] !== '2200-01-01 00:00:00' )
+            $this->fail('Creating a record without specifying a public date did not result in "2200-01-01 00:00:00"');
+        if ( self::$record_structure['records'][1]['_record_metadata']['_public_date'] !== '2200-01-01 00:00:00' )
+            $this->fail('Creating a record without specifying a public date did not result in "2200-01-01 00:00:00"');
+
+        if ( $api_response_content['records'][1]['fields'][0]['_field_metadata']['_create_date'] !== '2070-01-01 00:00:00' )
+            $this->fail('Attempt to change a field with create_date "2070-01-01 00:00:00" failed');
+        if ( self::$record_structure['records'][1]['fields'][0]['_field_metadata']['_create_date'] !== '2070-01-01 00:00:00' )
+            $this->fail('Attempt to change a field with create_date "2070-01-01 00:00:00" failed');
+
+
+        // ----------------------------------------
+        // Going to use the second one to test an invalid field in a child record...
+        $database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Child'];
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][2] = array(    // index 0 is occupied by the single-allowed child record
+            'database_uuid' => $database_uuid,
+            'record_uuid' => '',    // Empty record uuid means create a new child record
+            'fields' => array(
+                0 => array(
+                    'field_uuid' => substr(self::$field_uuids['Multiple Child Field'], 0, -1),
+                    'value' => 'qwer',
+                )
             )
         );
 
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record',
-            self::$headers
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 404);
+
+
+        // ----------------------------------------
+        // The third one will actually test the multiple-allowed part, as well as testing the
+        //  public_date flag
+        $tmp_dataset = self::$record_structure;
+//        $tmp_dataset['records'][1] = array(    // index 0 is occupied by the single-allowed child record
+//            'database_uuid' => $database_uuid,
+//            'record_uuid' => '',    // Empty record uuid means create a new child record
+//        );
+        $tmp_dataset['records'][2] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => '',
+            'public_date' => '2000-01-01 00:00:00'
         );
 
-        $response = $curl->post($post_data);
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
-        $api_response_content = json_decode($response['response'], true);
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
 //        if ( self::$debug )
-//            fwrite(STDERR, 'api return structure: '.print_r($api_response_content, true)."\n");
+//            fwrite(STDERR, 'submitted dr: '.print_r($api_response_content, true)."\n");
 
         // Compare against the new version of the actual record...
-        $curl = new CurlUtility(
-            self::$api_baseurl.'/v3/dataset/record/'.self::$record_uuid,
-            self::$headers
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        if ( $api_response_content['records'][2]['_record_metadata']['_public_date'] !== '2000-01-01 00:00:00' )
+            $this->fail('Attempt to create a record with public_date "2000-01-01 00:00:00" failed');
+        if ( self::$record_structure['records'][2]['_record_metadata']['_public_date'] !== '2000-01-01 00:00:00' )
+            $this->fail('Attempt to create a record with public_date "2000-01-01 00:00:00" failed');
+    }
+
+    public function testMultipleAllowed_SingleLink()
+    {
+        $database_uuid = self::$descendant_database_uuids['API Test Single-allowed Link'];
+
+        // ----------------------------------------
+        // Should not be allowed to link to two records in a single-allowed linked descendant
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][3] = array(    // indices 1/2 are occupied by the multiple child records
+            'database_uuid' => $database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][0],
+        );
+        $tmp_dataset['records'][4] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][1],
         );
 
-        $response = $curl->get();
-        $code = $response['code'];
-        $this->assertEquals(200, $code);
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
 
-        $content = json_decode($response['response'], true);
-        self::$record_structure = $content;
-//        if ( self::$debug )
-//            fwrite(STDERR, 'modified dr structure: '.print_r(self::$record_structure, true)."\n");
 
+        // ----------------------------------------
+        // Link to just one of them for this test...
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][3] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][0],
+        );
+//        $tmp_dataset['records'][4] = array(
+//            'database_uuid' => $database_uuid,
+//            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][1],
+//        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+
+        // ----------------------------------------
+        // ...then attempt to link to a second, which should fail due to already having one
+        $tmp_dataset = self::$record_structure;
+//        $tmp_dataset['records'][3] = array(
+//            'database_uuid' => $database_uuid,
+//            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][0],
+//        );
+        $tmp_dataset['records'][4] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][1],
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+    }
+
+    public function testMultipleAllowed_MultipleLink()
+    {
+        $database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Link'];
+
+        // ----------------------------------------
+        // Should be able to link to more than one record in a multiple-allowed descendant
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][4] = array(    // index 3 is occupied by the single-allowed link record
+            'database_uuid' => $database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][0],
+        );
+        $tmp_dataset['records'][5] = array(
+            'database_uuid' => $database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$database_uuid][1],
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
     }
+
+    public function testRecordDeletion()
+    {
+        // ----------------------------------------
+        // Going to delete the single-allowed child record...
+        $tmp_dataset = self::$record_structure;
+//        if ( self::$debug )
+//            fwrite(STDERR, 'original data: '.print_r($tmp_dataset, true)."\n");
+
+        foreach ($tmp_dataset['records'] as $num => $dr) {
+            if ( $dr['database_uuid'] === self::$descendant_database_uuids['API Test Single-allowed Child'] ) {
+                unset( $tmp_dataset['records'][$num] );
+                break;
+            }
+        }
+//        if ( self::$debug )
+//            fwrite(STDERR, 'submitted data: '.print_r($tmp_dataset, true)."\n");
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+
+        // The trick here is that the "submitted" record only had indices 1 through 4, due to deleting
+        //  the child record at indice 0...while the "actual" record now has indices 0 through 3
+        //  since it got rebuilt following the modification.
+
+        // In order for self::assertArrayEquals() to not flip out, it's necessary to tweak the
+        //  indices of the response...
+        $tweaked_record_list = array();
+        foreach ($api_response_content['records'] as $submitted_num => $submitted_dr) {
+            $dr_uuid = $submitted_dr['record_uuid'];
+
+            // ...find the same record in the newly-acquired "actual" data...
+            foreach (self::$record_structure['records'] as $actual_num => $actual_dr) {
+                // ...and then set the record from the "submitted" data to have the same indice as
+                //  the "actual" data
+                if ( $dr_uuid === $actual_dr['record_uuid'] )
+                    $tweaked_record_list[$actual_num] = $submitted_dr;
+            }
+        }
+        $api_response_content['records'] = $tweaked_record_list;
+//        if ( self::$debug )
+//            fwrite(STDERR, 'tweaked content 1: '.print_r($api_response_content, true)."\n");
+
+        // Verify that the rest of the array is accurate after the fix
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+
+        // ----------------------------------------
+        // Going to also unlink the single-allowed linked record...
+        $tmp_dataset = self::$record_structure;
+        $linked_record_uuid = null;
+        foreach ($tmp_dataset['records'] as $num => $dr) {
+            if ( $dr['database_uuid'] === self::$descendant_database_uuids['API Test Single-allowed Link'] ) {
+                $linked_record_uuid = $dr['record_uuid'];
+                unset( $tmp_dataset['records'][$num] );
+                break;
+            }
+        }
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+
+        // Unlinking a record has the same issue as deleting one...the indices no longer match
+        $tweaked_record_list = array();
+        foreach ($api_response_content['records'] as $submitted_num => $submitted_dr) {
+            $dr_uuid = $submitted_dr['record_uuid'];
+
+            // ...find the same record in the newly-acquired "actual" data...
+            foreach (self::$record_structure['records'] as $actual_num => $actual_dr) {
+                // ...and then set the record from the "submitted" data to have the same indice as
+                //  the "actual" data
+                if ( $dr_uuid === $actual_dr['record_uuid'] )
+                    $tweaked_record_list[$actual_num] = $submitted_dr;
+            }
+        }
+        $api_response_content['records'] = $tweaked_record_list;
+//        if ( self::$debug )
+//            fwrite(STDERR, 'tweaked content 2: '.print_r($api_response_content, true)."\n");
+
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Ensure the linked record still exists...do not want to have deleted it
+        self::getRecord($linked_record_uuid);
+
+    }
+
 }

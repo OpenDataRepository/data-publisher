@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
@@ -29,6 +30,7 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\IntegerValue;
+use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
@@ -47,6 +49,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
@@ -144,6 +147,7 @@ class APIController extends ODRCustomController
                     'v3',
                     $metadata_record->getUniqueId(),
                     'json',
+                    true,
                     'anon.'
                 );
 
@@ -1407,6 +1411,7 @@ class APIController extends ODRCustomController
                         'v3',
                         $metadata_record->getUniqueId(),
                         'json',
+                        true,
                         $user
                     );
 
@@ -1619,7 +1624,7 @@ class APIController extends ODRCustomController
     private function checkRecord(&$record, $user, $datetime_value)
     {
         if (isset($record['_record_metadata'])) {
-            $record['_record_metadata']['_create_auth'] = $user->getEmailCanonical();
+            $record['_record_metadata']['_create_auth'] = $user->getUserString();
             $record['_record_metadata']['_create_date'] = $datetime_value->format('Y-m-d H:i:s');
         }
 
@@ -1652,11 +1657,11 @@ class APIController extends ODRCustomController
     /**
      * Checks if the changes can successfully be completed by the user.
      *
-     * @param $dataset
-     * @param $orig_dataset
-     * @param $user
-     * @param $top_level
-     * @param $changed
+     * @param array $dataset
+     * @param array $orig_dataset
+     * @param ODRUser $user
+     * @param bool $top_level
+     * @param bool $changed
      * @return bool  - true if capable, false if lacking permissions
      * @throws \Exception
      */
@@ -1684,31 +1689,79 @@ class APIController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-            // Check Fields
-            /** @var DataRecord $data_record */
-            $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-                array(
-                    'unique_id' => $dataset['record_uuid']
-                )
-            );
 
-            if ($data_record && (
-                    isset($dataset['public_date'])
-                    || isset($dataset['created'])
-                )
-            ) {
-                if (
-                    !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                    && !$pm_service->canAddDatarecord($user, $data_record->getDataType())
-                ) {
-                    return false;
+            // ----------------------------------------
+            // The database should not be null, but the datarecord is allowed to be when creating
+            //  a new child record
+            /** @var DataType $data_type */
+            $data_type = null;
+            /** @var DataRecord|null $data_record */
+            $data_record = null;
+
+            // Top-level records must have a record_uuid
+            if ( $top_level && (!isset($dataset['record_uuid']) || $dataset['record_uuid'] === '') )
+                throw new ODRBadRequestException('Top-level Records must have a record_uuid set', $exception_source);
+
+            if ( isset($dataset['record_uuid']) && $dataset['record_uuid'] !== '' ) {
+                // If a record_uuid is given, then it's supposed to refer to an existing record
+                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                    array(
+                        'unique_id' => $dataset['record_uuid']
+                    )
+                );
+                if ($data_record == null)
+                    throw new ODRNotFoundException('Unable to find the datarecord with record_uuid "'.$dataset['record_uuid'].'"', true, $exception_source);
+
+                // ...an existing datarecord has a datatype
+                $data_type = $data_record->getDataType();
+
+                // If the database_uuid isn't set for some reason, then silently set it
+                if ( !isset($dataset['database_uuid']) )
+                    $dataset['database_uuid'] = $data_type->getUniqueId();
+            }
+            else if ( isset($dataset['database_uuid']) && $dataset['database_uuid'] !== '' ) {
+                // If a record_uuid is not given, then it needs to have a database_uuid
+                $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array(
+                        'unique_id' => $dataset['database_uuid']
+                    )
+                );
+
+                if ($data_type == null)
+                    throw new ODRNotFoundException('Unable to find the database with database_uuid "'.$dataset['database_uuid'].'"', true, $exception_source);
+            }
+            else {
+                // If the datarecord/datatype can't be determined, then that's an error
+                throw new ODRBadRequestException('Record entries must have either a record_uuid or a database_uuid set', $exception_source);
+            }
+
+            // There are a couple properties of the datarecord to check here...
+            if ( isset($dataset['public_date']) ) {
+                // This is where a datarecord's public date gets changed...
+                $changed = true;
+                if ( !is_null($data_record) ) {
+                    if ( !$pm_service->canEditDatarecord($user, $data_record) )
+                        throw new ODRForbiddenException('Not allowed to change public status of the Record "'.$data_record->getUniqueId().'"', $exception_source);
+                }
+                else {
+                    if ( !$pm_service->canEditDatatype($user, $data_type) )
+                        throw new ODRForbiddenException('Not allowed to change public status of records in the database "'.$data_type->getUniqueId().'"', $exception_source);
                 }
             }
 
-            // TODO If Fields Updated, need to check if user can edit record
-            if (isset($dataset['fields'])) {
-                for ($i = 0; $i < count($dataset['fields']); $i++) {
-                    $field = $dataset['fields'][$i];
+            if ( isset($dataset['created']) ) {
+                // This is where a datarecord's created date gets changed...
+                $changed = true;
+                if ( !$pm_service->canAddDatarecord($user, $data_type) )
+                    throw new ODRForbiddenException('Not allowed to create a new Record for the database "'.$data_type->getUniqueId().'"', $exception_source);
+                // TODO - should this instead be based off whether the user can edit the record?
+            }
+
+
+            // ----------------------------------------
+            // Check Fields
+            if ( isset($dataset['fields']) ) {
+                foreach ($dataset['fields'] as $i => $field) {
 
                     // Determine field type
                     $data_field = null;
@@ -1717,27 +1770,27 @@ class APIController extends ODRCustomController
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'templateFieldUuid' => $field['template_field_uuid'],
-                                'dataType' => $data_record->getDataType()->getId()
+                                'dataType' => $data_type->getId()
                             )
                         );
 
                         if ($data_field == null)
-                            throw new ODRNotFoundException('Unable to find the datafield with template_field_uuid "'.$field['template_field_uuid'].'" for the datatype "'.$data_record->getDataType()->getUniqueId().'"', true);
+                            throw new ODRNotFoundException('Unable to find the datafield with template_field_uuid "'.$field['template_field_uuid'].'" for the database "'.$data_type->getUniqueId().'"', true, $exception_source);
                     }
                     else if ( isset($field['field_uuid']) && $field['field_uuid'] !== null ) {
                         /** @var DataFields $data_field */
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'fieldUuid' => $field['field_uuid'],
-                                'dataType' => $data_record->getDataType()->getId()
+                                'dataType' => $data_type->getId()
                             )
                         );
 
                         if ($data_field == null)
-                            throw new ODRNotFoundException('Unable to find the datafield with field_uuid "'.$field['field_uuid'].'" for the datatype "'.$data_record->getDataType()->getUniqueId().'"', true);
+                            throw new ODRNotFoundException('Unable to find the datafield with field_uuid "'.$field['field_uuid'].'" for the database "'.$data_type->getUniqueId().'"', true, $exception_source);
                     }
                     else {
-                        throw new ODRBadRequestException('Datafield entries must have either a template_field_uuid or a field_uuid set');
+                        throw new ODRBadRequestException('Datafield entries must have either a template_field_uuid or a field_uuid set', $exception_source);
                     }
 
                     $typeclass = $data_field->getFieldType()->getTypeClass();
@@ -1919,22 +1972,29 @@ class APIController extends ODRCustomController
             if ( $fields_updated ) {
                 // ...ensure the user can modify the record
                 $changed = true;
-                if ( !$pm_service->canEditDatarecord($user, $data_record) )
-                    throw new ODRForbiddenException('Not allowed to edit the Record '.$data_record->getUniqueId(), $exception_source);
+                if ( !is_null($data_record) ) {
+                    if ( !$pm_service->canEditDatarecord($user, $data_record) )
+                        throw new ODRForbiddenException('Not allowed to edit the Record "'.$data_record->getUniqueId().'"', $exception_source);
+                }
+                else {
+                    if ( !$pm_service->canEditDatatype($user, $data_type) )
+                        throw new ODRForbiddenException('Not allowed to edit records in the database "'.$data_type->getUniqueId().'"', $exception_source);
+                }
             }
 
 
+            // ----------------------------------------
             // Remove deleted [related] records
             if ($orig_dataset && isset($orig_dataset['records'])) {
                 // Check if old record exists and delete if necessary...
-                for ($i = 0; $i < count($orig_dataset['records']); $i++) {
-                    $o_record = $orig_dataset['records'][$i];
+                foreach ($orig_dataset['records'] as $i => $o_record) {
 
                     $record_found = false;
                     // Check if record_uuid and template_uuid match - if so we're differencing
-                    for ($j = 0; $j < count($dataset['records']); $j++) {
-                        $record = $dataset['records'][$j];
+                    foreach ($dataset['records'] as $j => $record) {
+
                         // New records don't have UUIDs and need to be ignored in this check
+                        // database_uuid should always be set
                         if (
                             isset($record['record_uuid'])
                             && !empty($record['record_uuid'])
@@ -1946,130 +2006,160 @@ class APIController extends ODRCustomController
                         }
                     }
 
-                    // TODO Check here if user has permission to delete
-                    if (!$record_found) {
-                        // Recursively build list of record ids
-                        $records_to_delete = [];
-                        // print var_export($o_record);exit();
-                        self::getRecordsToDelete($records_to_delete, $o_record);
+                    if ( !$record_found ) {
+                        // The dataset submitted by the user doesn't have a record that currently
+                        //  exists...
+                        /** @var DataRecord $del_record */
+                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                            array(
+                                'unique_id' => $o_record['record_uuid']
+                            )
+                        );
 
-                        foreach ($records_to_delete as $record_to_delete) {
-                            // Use delete record
-                            /** @var DataRecord $del_record */
-                            $del_record = $em->getRepository('ODRAdminBundle:DataRecord')
-                                ->findOneBy(
-                                    array(
-                                        'unique_id' => $record_to_delete
-                                    )
-                                );
+                        if ( $del_record ) {
+                            // ...which means the existing record needs to get deleted/unlinked
+                            $changed = true;
 
+                            // Need to determine whether it's a child or a linked record
+                            $grandparent_datatype = $data_record->getDataType()->getGrandparent();
+                            $del_record_grandparent_datatype = $del_record->getDataType()->getGrandparent();
 
-                            // TODO Need to recursively delete records here....
-                            if ($del_record) {
-                                $changed = true;
-                                if (
-                                    !$pm_service->isDatatypeAdmin($user, $del_record->getDataType())
-                                    && !$pm_service->canDeleteDatarecord($user, $del_record->getDataType())
-                                ) {
-                                    return false;
-                                }
+                            if ( $grandparent_datatype->getId() === $del_record_grandparent_datatype->getId() ) {
+                                // $del_record is a child record, and will be deleted
+                                if ( !$pm_service->canEditDatarecord($user, $del_record->getParent()) )
+                                    throw new ODRForbiddenException('Not allowed to delete the Record "'.$del_record->getUniqueId().'"', $exception_source);
+                                if ( !$pm_service->canDeleteDatarecord($user, $del_record->getDataType()) )
+                                    throw new ODRForbiddenException('Not allowed to delete the Record "'.$del_record->getUniqueId().'"', $exception_source);
+
+                                // Don't need to recursively locate children of this child...they'll
+                                //  get deleted by EntityDeletionService::deleteDatarecord()
                             }
+                            else {
+                                // $del_record is a linked record...going to unlink it from $data_record
+                                //  instead of deleting it
+                                if ( !$pm_service->canEditDatarecord($user, $data_record) )
+                                    throw new ODRForbiddenException('Not allowed to unlink the Record "'.$del_record->getUniqueId().'"', $exception_source);
+
+                                // TODO - might still want to delete the record if the template_group matches?
+                            }
+
+                            // Deletion of top-level records is done via a different API action
                         }
                     }
                 }
             }
 
-            // Need to check for child & linked records
-            // Create child if new one added
-            // Create link if needed (possibly creating record in link)
-            // Search for record to link??
-            if (isset($dataset['records'])) {
-
-                for ($i = 0; $i < count($dataset['records']); $i++) {
-                    $record = $dataset['records'][$i];
+            // Need to also check for new child/linked records, and differences in existing child records
+            if ( isset($dataset['records']) ) {
+                foreach ($dataset['records'] as $i => $record) {
 
                     $record_found = false;
                     if ($orig_dataset && isset($orig_dataset['records'])) {
                         // Check if record_uuid and template_uuid match - if so we're differencing
-                        for ($j = 0; $j < count($orig_dataset['records']); $j++) {
-                            $o_record = $orig_dataset['records'][$j];
+                        foreach ($orig_dataset['records'] as $j => $o_record) {
+
                             if (
                                 isset($record['record_uuid'])
-                                && (
-//                                    $record['template_uuid'] == $o_record['template_uuid']
-                                    $record['database_uuid'] == $o_record['database_uuid']
-                                    && $record['record_uuid'] == $o_record['record_uuid']
-                                )
+                                && isset($record['database_uuid'])
+//                                && $record['template_uuid'] == $o_record['template_uuid']
+                                && $record['database_uuid'] == $o_record['database_uuid']
+                                && $record['record_uuid'] == $o_record['record_uuid']
                             ) {
                                 $record_found = true;
-                                // Check for differences
-                                // Permissions will be implicit here
-                                $dataset['records'][$i] = self::checkUpdatePermissions($record, $o_record, $user, false, $changed);
+                                // Child/linked record exists, check for differences
+                                self::checkUpdatePermissions($record, $o_record, $user, false, $changed);
                             }
                         }
                     }
-                    if (!$record_found) {
-                        /** @var DataType $record_data_type */
-                        $record_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+
+                    if ( !$record_found ) {
+                        // User submitted a child/linked record that doesn't exist in the database...
+                        $changed = true;
+                        if ( !is_null($data_record) ) {
+                            if ( !$pm_service->canEditDatarecord($user, $data_record) )
+                                throw new ODRForbiddenException('Not allowed to edit the Record "'.$data_record->getUniqueId().'"', $exception_source);
+                        }
+                        else {
+                            if ( !$pm_service->canEditDatatype($user, $data_type) )
+                                throw new ODRForbiddenException('Not allowed to edit records in the database "'.$data_type->getUniqueId().'"', $exception_source);
+                        }
+
+
+                        // Need to figure out the descendant database for further permissions checking
+                        if ( !isset($record['database_uuid']) )
+                            throw new ODRBadRequestException('New descendant Records must have a database_uuid set', $exception_source);
+
+                        /** @var DataType $descendant_data_type */
+                        $descendant_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                             array(
                                 'unique_id' => $record['database_uuid']
                             )
                         );
+                        if ($descendant_data_type == null)
+                            throw new ODRNotFoundException('Unable to find the database with database_uuid "'.$record['database_uuid'].'"', true, $exception_source);
 
-                        // Determine if datatype is a link
-                        $is_link = false;
+
+                        // Need to determine whether the descendant is a child or a link
                         /** @var DataTree $datatree */
                         $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
                             array(
-                                'ancestor' => $data_record->getDataType()->getId(),
-                                'descendant' => $record_data_type->getId()
+                                'ancestor' => $data_type->getId(),
+                                'descendant' => $descendant_data_type->getId()
                             )
                         );
                         if ($datatree == null)
-                            throw new ODRNotFoundException('Datatree');
+                            throw new ODRNotFoundException('The database with database_uuid "'.$record['database_uuid'].'" is not a descendant of the database "'.$data_type->getUniqueId().'"', true, $exception_source);
 
+                        // If only allowed to have a single descendant...
+                        if ( !$datatree->getMultipleAllowed() ) {
+                            // ...then verify the request won't result in more than one descendant record
+                            // Because $dataset is supposed to be the "final" state, we don't have
+                            //  to check $orig_dataset
+                            $count = 0;
+                            foreach ($dataset['records'] as $num => $dr) {
+                                if ( $dr['database_uuid'] === $descendant_data_type->getUniqueId() )
+                                    $count++;
+                            }
 
-                        if ($datatree->getIsLink()) {
-                            $is_link = true;
+                            if ( $count > 1 )
+                                throw new ODRBadRequestException('The descendant database "'.$descendant_data_type->getUniqueId().'" is only allowed to have at most one record, but this request would result in '.$count.' records', $exception_source);
                         }
 
-                        // If the record has a record_uuid, we just need to make the link
-                        if ($is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
-                            /** @var DataRecord $data_record */
+                        // If the descendant is supposed to be a link...
+                        if ( $datatree->getIsLink() ) {
+                            // ...then the descendant record needs to have a 'record_uuid' to correctly it
+                            if ( !isset($record['record_uuid']) )
+                                throw new ODRBadRequestException();
+
+                            /** @var DataRecord $linked_data_record */
                             $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                                 array(
-                                    'unique_id' => $record['record_uuid']
+                                    'unique_id' => $record['record_uuid'],
+                                    'dataType' => $descendant_data_type->getId(),
                                 )
                             );
+                            if ($linked_data_record == null)
+                                throw new ODRNotFoundException('Unable to find the Record with the record_uuid "'.$record['record_uuid'].'"', true, $exception_source);
 
-                            if (is_null($linked_data_record))
-                                throw new ODRNotFoundException('DataRecord');
-
-                            // Need to persist and flush
-                            if (
-                                !$pm_service->isDatatypeAdmin($user, $linked_data_record->getDataType())
-                                && !$pm_service->canAddDatarecord($user, $linked_data_record->getDataType())
-                            ) {
-                                return false;
-                            }
-                        } else {
-                            // Need to persist and flush
-                            if (
-                                !$pm_service->isDatatypeAdmin($user, $record_data_type)
-                                && !$pm_service->canAddDatarecord($user, $record_data_type)
-                            ) {
-                                return false;
-                            }
-
+                            // TODO - check the permissions on the linked descendant?
                         }
+                        else {
+                            // ...otherwise, it's supposed to define a new child record
+                            if ( !$pm_service->canAddDatarecord($user, $descendant_data_type) )
+                                throw new ODRForbiddenException('Not allowed to create child records for the Database "'.$descendant_data_type->getUniqueId().'"', $exception_source);
 
+                            // Check the permissions on the new child record
+                            self::checkUpdatePermissions($record, array(), $user, false, $changed);
+                        }
                     }
                 }
             }
 
             // If we made it here, the user has permission
             return true;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
+            // Have to rethrow to preserve status codes from previous exceptions
             throw $e;
         }
     }
@@ -2082,7 +2172,7 @@ class APIController extends ODRCustomController
      * @param \Doctrine\ORM\EntityManager $em
      * @param PermissionsManagementService $pm_service
      * @param ODRUser $user
-     * @param DataRecord $datarecord The datarecord the user might be modifying
+     * @param DataRecord|null $datarecord The datarecord the user might be modifying...can technically be null, indicating a new record
      * @param DataFields $datafield The datafield the user might be modifying
      * @param array $orig_dataset The array version of the current record
      * @param array $field An array of the state the user wants to field to be in after datasetDiff()
@@ -2240,7 +2330,7 @@ class APIController extends ODRCustomController
      * @param \Doctrine\ORM\EntityManager $em
      * @param PermissionsManagementService $pm_service
      * @param ODRUser $user
-     * @param DataRecord $datarecord The datarecord the user might be modifying
+     * @param DataRecord|null $datarecord The datarecord the user might be modifying...can technically be null, indicating a new record
      * @param DataFields $datafield The datafield the user might be modifying
      * @param array $orig_dataset The array version of the current record
      * @param array $field An array of the state the user wants to field to be in after datasetDiff()
@@ -2360,7 +2450,7 @@ class APIController extends ODRCustomController
     {
         if (isset($field['_field_metadata'])) {
             if (method_exists($new_field, 'getCreatedBy')) {
-                $field['_field_metadata']['_create_auth'] = $new_field->getCreatedBy()->getEmailCanonical();
+                $field['_field_metadata']['_create_auth'] = $new_field->getCreatedBy()->getUserString();
             }
             if (method_exists($new_field, 'getCreated')) {
                 $field['_field_metadata']['_create_date'] = $new_field->getCreated()->format('Y-m-d H:i:s');
@@ -2436,12 +2526,25 @@ class APIController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
 
-            // Check Fields
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+
+            // ----------------------------------------
+            // Unlike self::checkUpdatePermissions(), the datarecord should always exist at this point
             /** @var DataRecord $data_record */
             $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                 array(
@@ -2449,65 +2552,63 @@ class APIController extends ODRCustomController
                 )
             );
 
-            // Check if record public date needs updating
-            // TODO Check User or LoggedInUser is SuperAdmin
-            if ($data_record && (
-                    isset($dataset['public_date'])
-                    || isset($dataset['created'])
-                )
-            ) {
-                if ($data_record_meta = $data_record->getDataRecordMeta()) {
-                    $new_data_record_meta = clone $data_record_meta;
-                    if (isset($dataset['public_date']) && $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") !== $dataset['public_date']) {
-                        $new_data_record_meta->setPublicDate(new \DateTime($dataset['public_date']));
-                        unset($dataset['public_date']);
-                    }
+            /** @var DataType $data_type */
+            $data_type = $data_record->getDataType();
 
-                    if (isset($dataset['created'])) {
-                        self::setDates($new_data_record_meta, $dataset['created']);
+            // ----------------------------------------
+            // Update datarecord public/created date
+            if ( isset($dataset['public_date']) || isset($dataset['created']) ) {
+                $changing_public_date = false;
+                if ( isset($dataset['public_date']) && $data_record->getDataRecordMeta()->getPublicDate()->format("Y-m-d H:i:s") !== $dataset['public_date'] )
+                    $changing_public_date = true;
+
+                $changing_create_date = false;
+                if ( isset($dataset['created']) )
+                    $changing_create_date = true;
+
+                if ( $changing_public_date ) {
+                    // Changing at least the public date...always want a new datarecord meta entry
+                    $old_datarecord_meta = $data_record->getDataRecordMeta();
+                    $new_datarecord_meta = clone $old_datarecord_meta;
+                    $em->remove($old_datarecord_meta);
+
+                    $new_datarecord_meta->setPublicDate(new \DateTime($dataset['public_date']));
+                    unset( $dataset['public_date'] );
+
+                    if ( $changing_create_date ) {
+                        // If also changing the create date, do that too
+                        self::setDates($new_datarecord_meta, $dataset['created']);
                         self::setDates($data_record, $dataset['created']);
-                    } else {
-                        self::setDates($new_data_record_meta, null);
-                    }
+                        unset( $dataset['created'] );
 
-                    if (
-                        !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                        && !$pm_service->canAddDatarecord($user, $data_record->getDataType())
-                    ) {
-                        throw new ODRForbiddenException();
-                    }
-
-                    // Need to persist and flush
-                    $em->remove($data_record_meta);
-                    if (isset($dataset['created'])) {
-                        unset($dataset['created']);
                         $em->persist($data_record);
                     }
-                    $em->persist($new_data_record_meta);
-                    $em->flush();
-                    $em->refresh($data_record);
 
-                    // Set metadata
-                    $fields_updated = true;
+                    $em->persist($new_datarecord_meta);
+                }
+                else {
+                    // changing just the create date
+                    $datarecord_meta = $data_record->getDataRecordMeta();
+                    self::setDates($datarecord_meta, $dataset['created']);
+                    self::setDates($data_record, $dataset['created']);
+                    unset( $dataset['created'] );
 
+                    $em->persist($data_record);
+                    $em->persist($datarecord_meta);
                 }
 
+                if ( $changing_public_date || $changing_create_date ) {
+                    $changed = true;
+                    $em->flush();
+                    $em->refresh($data_record);
+                }
             }
 
 
-            // TODO Need to check if user can edit record
-            if (
-                !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                && !$pm_service->canEditDatarecord($user, $data_record)
-            ) {
-                throw new ODRForbiddenException($user->getUserString());
-            }
-            if (isset($dataset['fields'])) {
-                for ($i = 0; $i < count($dataset['fields']); $i++) {
-                    $field = $dataset['fields'][$i];
-
-//                    if (!isset($field['created']))
-//                        $field['created'] = null;
+            // ----------------------------------------
+            // Update fields
+            if ( isset($dataset['fields']) ) {
+                foreach ($dataset['fields'] as $i => $field) {
 
                     // Guaranteed to have either "template_field_uuid" or "field_uuid" at this point...
                     $data_field = null;
@@ -2549,9 +2650,7 @@ class APIController extends ODRCustomController
                     // Deal with files and images here
                     if ($typename === 'File' || $typename === 'Image') {
                         if (isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
-                            for ($j = 0; $j < count($field['files']); $j++) {
-                                $file = $field['files'][$j];
-
+                            foreach ($field['files'] as $j => $file) {
                                 $new_public_date = null;
                                 $new_quality = null;
 
@@ -2932,21 +3031,25 @@ class APIController extends ODRCustomController
                         $dataset['fields'][$i]['field_uuid'] = $data_field->getFieldUuid();
                     if ( !isset($field['template_field_uuid']) )
                         $dataset['fields'][$i]['template_field_uuid'] = $data_field->getTemplateFieldUuid();
+
+                    // The "_field_metadata" key was set back inside the relevant function
                 }
             }
 
 
+            // ----------------------------------------
+            // Need to keep track of which descendant records got linked to or unlinked from
+            $link_status_changed_records = array();
+
             // Remove deleted [related] records
-            // TODO Only allow if user can delete related records
             if ($orig_dataset && isset($orig_dataset['records'])) {
                 // Check if old record exists and delete if necessary...
-                for ($i = 0; $i < count($orig_dataset['records']); $i++) {
-                    $o_record = $orig_dataset['records'][$i];
+                foreach ($orig_dataset['records'] as $i => $o_record) {
 
                     $record_found = false;
                     // Check if record_uuid and template_uuid match - if so we're differencing
-                    for ($j = 0; $j < count($dataset['records']); $j++) {
-                        $record = $dataset['records'][$j];
+                    foreach ($dataset['records'] as $j => $record) {
+
                         // New records don't have UUIDs and need to be ignored in this check
                         if (
                             isset($record['record_uuid'])
@@ -2959,62 +3062,87 @@ class APIController extends ODRCustomController
                         }
                     }
 
-                    // TODO Check here if user has permission to delete
                     if (!$record_found) {
-                        // Recursively build list of record ids
-                        $records_to_delete = [];
-                        // print var_export($o_record);exit();
-                        self::getRecordsToDelete($records_to_delete, $o_record);
+                        // The dataset submitted by the user doesn't have a record that currently
+                        //  exists...
+                        /** @var DataRecord $del_record */
+                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                            array(
+                                'unique_id' => $o_record['record_uuid']
+                            )
+                        );
 
-                        foreach ($records_to_delete as $record_to_delete) {
-                            // Use delete record
-                            /** @var DataRecord $del_record */
-                            $del_record = $em->getRepository('ODRAdminBundle:DataRecord')
-                                ->findOneBy(
+                        if ( $del_record ) {
+                            // ...which means the existing record needs to get deleted/unlinked
+                            $changed = true;
+
+                            // Need to determine whether it's a child or a linked record
+                            $grandparent_datatype = $data_record->getDataType()->getGrandparent();
+                            $del_record_grandparent_datatype = $del_record->getDataType()->getGrandparent();
+
+                            if ( $grandparent_datatype->getId() === $del_record_grandparent_datatype->getId() ) {
+                                // $del_record is a child record, and will be deleted...can't delete
+                                //  just the datarecord, there's more stuff to deal with...
+                                $entity_deletion_service->deleteDatarecord($del_record, $user);
+                            }
+                            else {
+                                // $del_record is a linked record...going to unlink it from $data_record
+                                //  instead of deleting it
+                                $query = $em->createQuery(
+                                   'SELECT ldt
+                                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                                    WHERE ldt.ancestor = :ancestor_datarecord
+                                    AND ldt.descendant = :descendant_datarecord
+                                    AND ldt.deletedAt IS NULL'
+                                )->setParameters(
                                     array(
-                                        'unique_id' => $record_to_delete
+                                        'ancestor_datarecord' => $data_record->getId(),
+                                        'descendant_datarecord' => $del_record->getId(),
                                     )
                                 );
+                                $results = $query->getResult();
+
+                                $linked_datatree = null;
+                                foreach ($results as $num => $ldt)
+                                    $linked_datatree = $ldt;
+                                /** @var LinkedDataTree $linked_datatree */
+
+                                // Delete the linked_datatree entry
+                                $linked_datatree->setDeletedBy($user);
+                                $linked_datatree->setDeletedAt(new \DateTime());
+                                $em->persist($linked_datatree);
+
+                                // Flush once everything is deleted
+                                $em->flush();
 
 
-                            // TODO Need to recursively delete records here....
-                            if ($del_record) {
-                                if (
-                                    !$pm_service->isDatatypeAdmin($user, $del_record->getDataType())
-                                    && !$pm_service->canDeleteDatarecord($user, $del_record->getDataType())
-                                ) {
-                                    throw new ODRForbiddenException();
-                                }
-                                $em->remove($del_record);
-                                $changed = true;
+                                // ----------------------------------------
+                                // Ensure the proper set of events gets fired
+                                $link_status_changed_records[] = $del_record;
+
+                                // TODO - move datarecord unlinking code into a service so it can get used by both APIController and LinkController?
                             }
+
+                            // Deletion of top-level records is done via a different API action
                         }
-                        // Commit Deletions
-                        $em->flush();
                     }
                 }
             }
 
-            // Need to check for child & linked records
-            // Create child if new one added
-            // Create link if needed (possibly creating record in link)
-            // Search for record to link??
-            if (isset($dataset['records'])) {
-                for ($i = 0; $i < count($dataset['records']); $i++) {
-                    $record = $dataset['records'][$i];
+            // Need to also check for new child/linked records, and differences in existing child records
+            if ( isset($dataset['records']) ) {
+                foreach ($dataset['records'] as $i => $record) {
 
                     $record_found = false;
                     if ($orig_dataset && isset($orig_dataset['records'])) {
                         // Check if record_uuid and template_uuid match - if so we're differencing
-                        for ($j = 0; $j < count($orig_dataset['records']); $j++) {
-                            $o_record = $orig_dataset['records'][$j];
+                        foreach ($orig_dataset['records'] as $j => $o_record) {
                             if (
                                 isset($record['record_uuid'])
-                                && (
-//                                    $record['template_uuid'] == $o_record['template_uuid']
-                                    $record['database_uuid'] == $o_record['database_uuid']
-                                    && $record['record_uuid'] == $o_record['record_uuid']
-                                )
+                                && isset($record['database_uuid'])
+//                                && $record['template_uuid'] == $o_record['template_uuid']
+                                && $record['database_uuid'] == $o_record['database_uuid']
+                                && $record['record_uuid'] == $o_record['record_uuid']
                             ) {
                                 $record_found = true;
                                 // Check for differences
@@ -3023,162 +3151,97 @@ class APIController extends ODRCustomController
                             }
                         }
                     }
-                    if (!$record_found) {
 
-                        /** @var DataType $record_data_type */
-                        $record_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    if ( !$record_found ) {
+                        // User submitted a child/linked record that doesn't exist in the database...
+                        // 'database_uuid' is guaranteed to exist due to self::checkUpdatePermissions()
+                        /** @var DataType $descendant_data_type */
+                        $descendant_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                             array(
                                 'unique_id' => $record['database_uuid']
                             )
                         );
 
-                        if (
-                            !$pm_service->isDatatypeAdmin($user, $record_data_type)
-                            && !$pm_service->canAddDatarecord($user, $record_data_type)
-                        ) {
-                            throw new ODRForbiddenException();
-                        }
-
-                        // Determine if datatype is a link
-                        $is_link = false;
+                        // Need to determine whether the descendant is a child or a link
                         /** @var DataTree $datatree */
                         $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
                             array(
-                                'ancestor' => $data_record->getDataType()->getId(),
-                                'descendant' => $record_data_type->getId()
+                                'ancestor' => $data_type->getId(),
+                                'descendant' => $descendant_data_type->getId()
                             )
                         );
 
-                        if ($datatree == null)
-                            throw new ODRNotFoundException('Datatree');
-
-                        if ($datatree->getIsLink()) {
-                            $is_link = true;
-                        }
-
-                        // If the record has a record_uuid, we just need to make the link
-                        if ($is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
-                            print 'A LINK HAS BEEN ADDED';
+                        // If the descendant is supposed to be a link...
+                        if ( $datatree->getIsLink() ) {
                             /** @var DataRecord $linked_data_record */
                             $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                                 array(
-                                    'unique_id' => $record['record_uuid']
+                                    'unique_id' => $record['record_uuid'],
+                                    'dataType' => $descendant_data_type->getId(),
                                 )
                             );
 
-                            if (is_null($linked_data_record))
-                                throw new ODRNotFoundException('DataRecord');
+                            // Create the link
+                            $entity_create_service->createDatarecordLink($user, $data_record, $linked_data_record);
 
-                            /** @var EntityCreationService $ec_service */
-                            $ec_service = $this->container->get('odr.entity_creation_service');
-                            $ec_service->createDatarecordLink($user, $data_record, $linked_data_record);
+                            // Ensure the proper set of events gets fired
+                            $link_status_changed_records[] = $linked_data_record;
+
+                            // Replace the (probably barebones) info the user provided to create the
+                            //  link with the actual linked descendant's json
+                            $linked_datarecord_json = self::getRecordData(
+                                'v3',
+                                $record['record_uuid'],
+                                'json',
+                                true,
+                                $user
+                            );
+                            $dataset['records'][$i] = json_decode($linked_datarecord_json, true);
 
                             // TODO - Should we allow changes to the record here - not practical I think
-                            $dataset['records'][$i] = $record;
+                        }
+                        else {
+                            // ...otherwise, it's supposed to define a new child record
+                            $new_child_record = $entity_create_service->createDatarecord($user, $descendant_data_type, true, false);
+                            $new_child_record->setParent($data_record);
+                            $new_child_record->setGrandparent($data_record->getGrandparent());
+                            $new_child_record->setProvisioned(false);
 
-                            // TODO - need to clear the correct cache entries
+                            $new_child_record_meta = $new_child_record->getDataRecordMeta();
 
-                        } else if (!$is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
-                            throw new ODRBadRequestException('New child records (non-linked) can not have pre-existing UUIDs.');
-                        } else {
-                            /** @var EntityCreationService $ec_service */
-                            $ec_service = $this->container->get('odr.entity_creation_service');
-                            $new_record = $ec_service->createDatarecord($user, $record_data_type, true, false);
-                            $new_record_meta = $new_record->getDataRecordMeta();
+                            if ( isset($record['created']) ) {
+                                // The API call specified the new record was created at a specific
+                                //  time in the past, so might as well do that now
+                                $new_child_record->setCreated(new \DateTime($record['created']));
+                                $new_child_record->setUpdated(new \DateTime($record['created']));
+                                $new_child_record_meta->setCreated(new \DateTime($record['created']));
+                                $new_child_record_meta->setUpdated(new \DateTime($record['created']));
 
-                            // Don't want this to remain true
-                            $new_record->setProvisioned(false);
-
-                            if (isset($record['created'])) {
-                                // The API call specified the record was created at a specific
-                                //  time in the past, so ODR needs to store that
-                                $new_record->setCreated(new \DateTime($record['created']));
-                                $new_record->setUpdated(new \DateTime($record['created']));
-                                $new_record_meta->setCreated(new \DateTime($record['created']));
-                                $new_record_meta->setUpdated(new \DateTime($record['created']));
+                                // Don't set this property again when datasetDiff() recurses into
+                                //  the new record
+                                unset( $record['created'] );
                             }
 
-                            if (isset($record['public_date'])) {
-                                // The API call specified when the record was changed to public, so
-                                //  ODR needs to also store that
-                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
+                            if ( isset($record['public_date']) ) {
+                                // The API call specified when the new record was changed to public,
+                                //  so might as well do that now
+                                $new_child_record_meta->setPublicDate(new \DateTime($record['public_date']));
+
+                                // Don't set this property again when datasetDiff() recurses into
+                                //  the new record
+                                unset( $record['public_date'] );
                             }
-
-                            if (!$is_link) {
-                                // This API call could be creating a child record...ensure its
-                                //  parents are properly set
-                                $new_record->setParent($data_record);
-                                $new_record->setGrandparent($data_record->getGrandparent());
-                            }
-
-
-//                            // TODO - this should be using entitycreationservice
-//                            /** @var UUIDService $uuid_service */
-//                            $uuid_service = $this->container->get('odr.uuid_service');
-//
-//                            // TODO Check if user can create record in DataType
-//                            /** @var DataRecord $new_record */
-//                            $new_record = new DataRecord();
-//                            $new_record->setDataType($record_data_type);
-//                            if (isset($record['created'])) {
-//                                $new_record->setCreated(new \DateTime($record['created']));
-//                                $new_record->setUpdated(new \DateTime($record['created']));
-//                            } else {
-//                                $new_record->setCreated(new \DateTime());
-//                                $new_record->setUpdated(new \DateTime());
-//                            }
-//                            $new_record->setCreatedBy($user);
-//                            $new_record->setUpdatedBy($user);
-//                            $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
-//                            $new_record->setProvisioned(0);
-//
-//                            if ($is_link) {
-//                                $new_record->setParent($new_record);
-//                                $new_record->setGrandparent($new_record);
-//                            } else {
-//                                $new_record->setParent($data_record);
-//                                $new_record->setGrandparent($data_record->getGrandparent());
-//                            }
-//
-//                            /** @var DataRecordMeta $new_record_meta */
-//                            $new_record_meta = new DataRecordMeta();
-//                            $new_record_meta->setCreatedBy($user);
-//                            $new_record_meta->setUpdatedBy($user);
-//                            if (isset($record['created'])) {
-//                                $new_record_meta->setCreated(new \DateTime($record['created']));
-//                                $new_record_meta->setUpdated(new \DateTime($record['created']));
-//                            } else {
-//                                $new_record_meta->setCreated(new \DateTime());
-//                                $new_record_meta->setUpdated(new \DateTime());
-//                            }
-//                            $new_record_meta->setDataRecord($new_record);
-//                            // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:00.0Z'));
-//                            if (isset($record['public_date'])) {
-//                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
-//                            } else {
-//                                $new_record_meta->setPublicDate(new \DateTime());
-//                            }
 
                             // Need to persist and flush
-                            $em->persist($new_record);
-                            $em->persist($new_record_meta);
+                            $em->persist($new_child_record);
+                            $em->persist($new_child_record_meta);
                             $em->flush();
-                            $em->refresh($new_record);
-
-                            if ($is_link) {
-                                $ec_service->createDatarecordLink($user, $data_record, $new_record);
-
-                                // TODO - need to clear the correct cache entries
-                            }
+                            $em->refresh($new_child_record);
 
                             // This is wrapped in a try/catch block because any uncaught exceptions will abort
                             //  creation of the new datarecord...
                             try {
-                                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                                /** @var EventDispatcherInterface $event_dispatcher */
-                                $dispatcher = $this->get('event_dispatcher');
-                                $event = new DatarecordCreatedEvent($new_record, $user);
+                                $event = new DatarecordCreatedEvent($new_child_record, $user);
                                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                             } catch (\Exception $e) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3189,60 +3252,57 @@ class APIController extends ODRCustomController
 //                                    throw $e;
                             }
 
-                            // Populate the UUID of the newly added record
-                            $record['record_uuid'] = $new_record->getUniqueId();
-                            $record['internal_id'] = $new_record->getId();
-                            $record['updated_at'] = $new_record->getUpdated()->format('Y-m-d H:i:s');
-                            $record['created_at'] = $new_record->getCreated()->format('Y-m-d H:i:s');
-                            if (!isset($record['database_uuid'])) {
-                                $record['database_uuid'] = $record_data_type->getUniqueId();
-                            }
+                            // Add properties to the newly created child record
+                            $record['database_uuid'] = $descendant_data_type->getUniqueId();
+                            $record['record_uuid'] = $new_child_record->getUniqueId();
+                            $record['internal_id'] = $new_child_record->getId();
+                            $record['record_name'] = $new_child_record->getId();
+
+                            $record['metadata_for_uuid'] = '';    // child records can't be metadata records
+                            $record['template_uuid'] = '';
+                            if ( !is_null($descendant_data_type->getMasterDataType()) )
+                                $record['template_uuid'] = $descendant_data_type->getMasterDataType()->getUniqueId();
+
+                            $record['_record_metadata'] = array(
+                                '_create_date' => $new_child_record->getCreated()->format('Y-m-d H:i:s'),
+                                '_update_date' => $new_child_record->getUpdated()->format('Y-m-d H:i:s'),
+                                '_create_auth' => $new_child_record->getCreatedBy()->getUserString(),
+                                '_public_date' => $new_child_record->getPublicDate()->format('Y-m-d H:i:s'),
+                            );
+
+                            if ( !isset($record['fields']) )
+                                $record['fields'] = array();
+                            if ( !isset($record['records']) )
+                                $record['records'] = array();
 
                             // Difference with null
-                            $null_record = false;
-                            $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, false, $changed);
+                            $dataset['records'][$i] = self::datasetDiff($record, array(), $user, false, $changed);
                         }
-
 
                         // Mark Changed
                         $changed = true;
-
-
                     }
                 }
             }
 
+
             if ($fields_updated ||
                 ($top_level && $changed)
             ) {
-                // Mark this datarecord as updated
-                if (isset($record['created'])) {
-                    $data_record->setUpdated(new \DateTime($record['created']));
-                } else {
-                    $data_record->setUpdated(new \DateTime());
-                }
-                $data_record->setUpdatedBy($user);
-
                 // Need to set changed for higher levels
                 $changed = true;
 
-                $em->flush();
-                $em->refresh($data_record);
-
                 $dataset['_record_metadata']['_public_date'] = $data_record->getDataRecordMeta()->getPublicDate()->format('Y-m-d H:i:s');
-                $dataset['_record_metadata']['_create_auth'] = $data_record->getCreatedBy()->getEmailCanonical();
+                $dataset['_record_metadata']['_create_auth'] = $data_record->getCreatedBy()->getUserString();
                 $dataset['_record_metadata']['_create_date'] = $data_record->getCreated()->format('Y-m-d H:i:s');
                 $dataset['_record_metadata']['_update_date'] = $data_record->getDataRecordMeta()->getUpdated()->format('Y-m-d H:i:s');
 
                 // TODO - does this need to distinguish between a DatarecordPublicStatusChanged event and a DatarecordModified event?
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatarecordModifiedEvent($data_record, $user);
                     $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -3253,17 +3313,61 @@ class APIController extends ODRCustomController
             if ($radio_option_created || $tag_created) {
                 // Mark the new child datatype's parent as updated
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatatypeModifiedEvent($data_record->getDataType(), $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
+                }
+            }
+
+            if ( !empty($link_status_changed_records) ) {
+                // Need to fire off one event for each descendant datatype that had linked records
+                //  added/removed...
+                $events = array();
+                foreach ($link_status_changed_records as $dr) {
+                    $dt_id = $dr->getDataType()->getId();
+                    if ( !isset($events[$dt_id]) )
+                        $events[$dt_id] = array('descendant_datatype' => $dr->getDataType(), 'records' => array());
+
+                    $events[$dt_id]['records'][] = $dr->getId();
+                }
+
+                foreach ($events as $dt_id => $data) {
+                    try {
+                        $event = new DatarecordLinkStatusChangedEvent($data['records'], $data['descendant_datatype'], $user);
+                        $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+
+                    // If the local datatype is using a sortfield that comes from the remote datatype,
+                    //  then need to wipe the local datatype's default sort ordering
+                    $query = $em->createQuery(
+                       'SELECT dtsf.id
+                        FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                        LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
+                        WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
+                        AND remote_df.dataType = :remote_datatype_id
+                        AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
+                    )->setParameters(
+                        array(
+                            'local_datatype_id' => $data_type->getId(),
+                            'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
+                            'remote_datatype_id' => ($data['descendant_datatype'])->getId(),
+                        )
+                    );
+                    $dtsf_ids = $query->getArrayResult();
+
+                    if ( !empty($dtsf_ids) )
+                        $cache_service->delete('datatype_'.$data_type->getId().'_record_order');
                 }
             }
 
@@ -3470,7 +3574,7 @@ class APIController extends ODRCustomController
             self::fieldMeta($field, $datafield, $new_selection);
 
             // Newly created radio options need to replace their value in the array
-            for ($j = 0; $j < count($field['values']); $j++) {
+            foreach ($field['values'] as $j => $val) {
                 if (
                     $field['values'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
                     || (
@@ -3657,7 +3761,15 @@ class APIController extends ODRCustomController
 
             // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
             self::fieldMeta($field, $datafield, $new_storage_entity);
-//            $dataset['fields'][$i] = $field;
+
+            if ( isset($field['created']) )
+                unset( $field['created'] );
+            $field['_field_metadata'] = array(
+                '_public_date' => $datafield->getPublicDate()->format('Y-m-d H:i:s'),
+                '_create_date' => $new_storage_entity->getCreated()->format('Y-m-d H:i:s'),
+                '_update_date' => $new_storage_entity->getUpdated()->format('Y-m-d H:i:s'),
+                '_create_auth' => $new_storage_entity->getCreatedBy()->getUserString(),
+            );
         }
 
         return array(
@@ -3721,7 +3833,6 @@ class APIController extends ODRCustomController
             if (empty($content))
                 throw new ODRException('No dataset data to update.');
 
-
             // Rebuild data array from JSON
             $dataset_data = json_decode($content, true); // 2nd param to get as array
 
@@ -3755,62 +3866,65 @@ class APIController extends ODRCustomController
             }
 
             // Record UUID
+            if ( !isset($dataset['record_uuid']) )
+                throw new ODRBadRequestException('Top-level Records must have a record_uuid set');
             $record_uuid = $dataset['record_uuid'];
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            $record = $cache_service
-                ->get('json_record_' . $record_uuid);
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
-            if (!$record) {
-                // Need to pull record using getExport...
-                $record = self::getRecordData(
-                    $version,
-                    $record_uuid,
-                    $request->getRequestFormat(),
-                    $user
-                );
-
-                if ($record) {
-                    $record = json_decode($record, true);
-                }
-            } else {
-                // Check if dataset has public attribute
-                $record = json_decode($record, true);
-            }
-
-            // Generate internal ids or database uuids as needed
-            $changed = false;
-
-            // datasetDiff Processes the record and adds updates, etc.
-            if (self::checkUpdatePermissions($dataset, $record, $user, true, $changed)) {
-                $changed = false;
-                $dataset = self::datasetDiff($dataset, $record, $user, true, $changed);
-            } else {
-                // Return invalid permissions
-                throw new ODRForbiddenException();
-            }
-
-            // Here we need to set the anon record as well...
-            // Anon metadata records will always be public...
-            // Also need a filter to filter by permissions.  Really easy
-            // if the JSON had public/not-public as a field in all datapoints.
-            $cache_service->set('json_record_' . $record_uuid, json_encode($dataset));
-
-            // ----------------------------------------
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                 array('unique_id' => $record_uuid)
             );
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
 
+
+            // ----------------------------------------
+            // Attempt to load the cached version of this record...
+            $record = $cache_service->get('json_record_'.$record_uuid);
+            if (!$record) {
+                $record = self::getRecordData(
+                    $version,
+                    $record_uuid,
+                    $request->getRequestFormat(),
+                    true,
+                    $user
+                );
+
+                if ($record)
+                    $record = json_decode($record, true);
+            }
+            else {
+                $record = json_decode($record, true);
+            }
+
+            // Check whether the user has permissions to make changes...
+            $changed = false;
+            if ( self::checkUpdatePermissions($dataset, $record, $user, true, $changed) ) {
+                // ...if they do, then actually make the changes
+                $changed = false;
+                $dataset = self::datasetDiff($dataset, $record, $user, true, $changed);
+
+                // Store the new version of the record back in the cache
+                $cache_service->set('json_record_'.$record_uuid, json_encode($dataset));
+            }
+
+            // checkUpdatePermissions() will throw an error if the user doesn't have permissions
+
+
+            // ----------------------------------------
+            // Fire off any events
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeImportedEvent($datarecord->getDataType(), $user);
                 $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
             } catch (\Exception $e) {
@@ -3820,22 +3934,22 @@ class APIController extends ODRCustomController
 //                    throw $e;
             }
 
-
             // Respond and redirect to record
             $response = new Response('Updated', 200);
-
             $response->headers->set('Content-Type', 'application/json');
             $response->setContent(json_encode($dataset));
+
             return $response;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x388847de;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
     }
+
 
     /**
      * Gets a single record for a metadata dataset or one or more records for a
@@ -4626,7 +4740,7 @@ class APIController extends ODRCustomController
                 $version,
                 $data_record->getUniqueId(),
                 'json',
-                1,
+                true,
                 $user
             );
 
@@ -4668,7 +4782,7 @@ class APIController extends ODRCustomController
                     $version,
                     $actual_data_record->getUniqueId(),
                     'json',
-                    1,
+                    true,
                     $user
                 );
 
@@ -6218,7 +6332,7 @@ class APIController extends ODRCustomController
                         $version,
                         $record['record_uuid'],
                         $request->getRequestFormat(),
-                        1, // Need to figure out how this is set
+                        true, // Need to figure out how this is set
                         $user
                     );
 
