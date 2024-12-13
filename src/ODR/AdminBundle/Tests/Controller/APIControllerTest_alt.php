@@ -32,6 +32,9 @@ class APIControllerTest_alt extends WebTestCase
     public static $record_uuid = '';
     public static $record_structure = array();
 
+    public static $other_database_uuid = '';
+    public static $other_record_uuid = '';
+
     /**
      * Since assertEqualsCanonicalizing() and assertJsonStringEqualsJsonString() can't deal with
      * the multi-dimensional arrays returned by ODR's API...
@@ -131,6 +134,8 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertEquals(200, $response_code);
 
         $content = json_decode($response['response'], true);
+//        if ( self::$debug )
+//            fwrite(STDERR, 'returned dr structure: '.print_r($content, true)."\n");
         return $content;
     }
 
@@ -177,11 +182,18 @@ class APIControllerTest_alt extends WebTestCase
 
         if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
             self::$force_skip = true;
+
+        $basepath = $client->getContainer()->getParameter('odr_tmp_directory').'/../..';
+        if ( !file_exists($basepath.'/phpunit_testing.dmp') )
+            self::$force_skip = true;
+        if ( filesize($basepath.'/phpunit_testing.dmp') === 0 )
+            self::$force_skip = true;
     }
 
     public static function tearDownAfterClass()
     {
-        exec('mysql --login-path=testing '.getenv('API_TESTING_DB').' < phpunit_testing.dmp');
+        if ( !self::$force_skip )
+            exec('mysql --login-path=testing '.getenv('API_TESTING_DB').' < phpunit_testing.dmp');
         exec('redis-cli flushall');
     }
 
@@ -277,9 +289,14 @@ class APIControllerTest_alt extends WebTestCase
         self::$database_list = $content['databases'];
         foreach (self::$database_list as $num => $dt) {
             if ( $dt['database_name'] === 'API Test' ) {
+                // This is the database we actually want to test against...
                 self::$database_uuid = $dt['unique_id'];
                 self::$template_uuid = $dt['template_id'];
-                break;
+            }
+            else if ( $dt['database_name'] === 'IMA List' ) {
+                // ...but also need another unrelated database to verify API won't create child/links
+                //  to unrelated databases
+                self::$other_database_uuid = $dt['unique_id'];
             }
         }
         if ( self::$debug )
@@ -349,6 +366,29 @@ class APIControllerTest_alt extends WebTestCase
 
         if ( self::$debug )
             fwrite(STDERR, 'dr uuid: '.self::$record_uuid."\n");
+
+
+        // ----------------------------------------
+        // Also need another record in an unrelated database to verify the API won't create
+        //  child/links in unrelated databases
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v1/search/database/'.self::$other_database_uuid.'/records',
+            self::$headers
+        );
+
+        $response = $curl->get();
+        $code = $response['code'];
+        $this->assertEquals(200, $code);
+
+        $content = json_decode($response['response'], true);
+        $this->assertArrayHasKey('records', $content);
+
+        self::$record_list = $content['records'];
+        foreach (self::$record_list as $num => $dr_info) {
+            // Only need one record
+            self::$other_record_uuid = $dr_info['unique_id'];
+            break;
+        }
     }
 
     public function testGetRecord()
@@ -740,6 +780,28 @@ class APIControllerTest_alt extends WebTestCase
         // Compare against the new version of the actual record...
         self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+
+        // ----------------------------------------
+        // Ensure it can be set to unselected as well
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][3] = array(    // 'Short Text' is occupying index 2...
+            'field_uuid' => self::$field_uuids['Boolean'],
+            'selected' => '0',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Extra assert to ensure the return is '0' instead of ''
+        $this->assertSame(0, $api_response_content['fields'][3]['selected']);
     }
 
     public function testDatetime()
@@ -850,6 +912,11 @@ class APIControllerTest_alt extends WebTestCase
         // Compare against the new version of the actual record...
         self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Save the uuid in case it's needed later...
+        self::$descendant_datarecord_uuids[$database_uuid] = array(
+            0 => $api_response_content['records'][0]['record_uuid']
+        );
 
 
         // ----------------------------------------
@@ -975,6 +1042,43 @@ class APIControllerTest_alt extends WebTestCase
             $this->fail('Attempt to create a record with public_date "2000-01-01 00:00:00" failed');
         if ( self::$record_structure['records'][2]['_record_metadata']['_public_date'] !== '2000-01-01 00:00:00' )
             $this->fail('Attempt to create a record with public_date "2000-01-01 00:00:00" failed');
+
+
+        // Save the uuids of the two newly created child records
+        self::$descendant_datarecord_uuids[$database_uuid] = array(
+            0 => $api_response_content['records'][1]['record_uuid'],
+            1 => $api_response_content['records'][2]['record_uuid'],
+        );
+
+
+        // ----------------------------------------
+        // The next test should fail because the API Test database isn't related to the IMA List
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][3] = array(
+            'database_uuid' => self::$other_database_uuid,
+            'record_uuid' => '',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 404);
+
+
+        // ----------------------------------------
+        // Should fail due to being a linked descendant instead of a child of this datatype
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][3] = array(
+            'database_uuid' => self::$descendant_database_uuids['API Test Multiple-allowed Link'],
+            'record_uuid' => '',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 404);
     }
 
     public function testMultipleAllowed_SingleLink()
@@ -1067,6 +1171,58 @@ class APIControllerTest_alt extends WebTestCase
         // Compare against the new version of the actual record...
         self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+
+        // ----------------------------------------
+        // The next test should fail because the API Test database isn't related to the IMA List
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][6] = array(
+            'database_uuid' => self::$other_database_uuid,
+            'record_uuid' => self::$other_record_uuid,
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 404);
+
+
+        // ----------------------------------------
+        // Unlike the test in testMultipleAllowed_MultipleChild(), where the user attempts to create
+        //  a linked descendant like a child...there is no sensible method to create a child record
+        //  like a linked descendant
+    }
+
+    public function testDuplicateRecords()
+    {
+        // Ensure that defining the same child record more than once fails
+        $child_database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Child'];
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][6] = array(    // index 5 was the "last good record"
+            'database_uuid' => $child_database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$child_database_uuid][0],
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+
+        // Ensure that attempting to link to the same record more than once fails
+        $linked_database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Link'];
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['records'][6] = array(
+            'database_uuid' => $linked_database_uuid,
+            'record_uuid' => self::$descendant_datarecord_uuids[$linked_database_uuid][0],
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
     }
 
     public function testRecordDeletion()

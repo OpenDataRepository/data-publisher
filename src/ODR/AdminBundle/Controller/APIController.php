@@ -2051,6 +2051,20 @@ class APIController extends ODRCustomController
 
             // Need to also check for new child/linked records, and differences in existing child records
             if ( isset($dataset['records']) ) {
+                // Prevent duplicate definitions of child records, and also prevent linking to the
+                //  same record more than once
+                $defined_record_uuids = array();
+                foreach ($dataset['records'] as $i => $record) {
+                    $record_uuid = $record['record_uuid'];
+                    if ( $record_uuid === '' )
+                        continue;
+
+                    if ( !isset($defined_record_uuids[$record_uuid]) )
+                        $defined_record_uuids[$record_uuid] = 1;
+                    else
+                        throw new ODRBadRequestException('The descendant Record "'.$record_uuid.'" is defined more than once', $exception_source);
+                }
+
                 foreach ($dataset['records'] as $i => $record) {
 
                     $record_found = false;
@@ -3752,12 +3766,18 @@ class APIController extends ODRCustomController
             $em->refresh($new_storage_entity);
 
             // Assign the updated field back to the dataset
-            if ( $typeclass === 'DatetimeValue' )
+            if ( $typeclass === 'DatetimeValue' ) {
                 $field['value'] = $new_storage_entity->getValue()->format('Y-m-d');
-            else if ( $typeclass === 'Boolean' )
-                $field['selected'] = $new_storage_entity->getValue();
-            else
+            }
+            else if ( $typeclass === 'Boolean' ) {
+                if ( $new_storage_entity->getValue() == true )
+                    $field['selected'] = 1;
+                else
+                    $field['selected'] = 0;
+            }
+            else {
                 $field['value'] = $new_storage_entity->getValue();
+            }
 
             // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
             self::fieldMeta($field, $datafield, $new_storage_entity);
