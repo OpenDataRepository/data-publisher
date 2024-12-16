@@ -19,20 +19,22 @@ const references_record_client = bs.Client('127.0.0.1:11300');
 const references_record_tube = 'odr_references_record_builder';
 const ima_data_finisher_client = bs.Client('127.0.0.1:11300');
 const ima_data_finisher_tube = 'odr_ima_data_finisher';
+const paragenetic_modes_record_client = bs.Client('127.0.0.1:11300');
+const paragenetic_modes_record_tube = 'odr_paragenetic_modes_record_builder';
 
 let browser;
 let token = '';
 
 function delay(time) {
     return new Promise(function(resolve) {
-        setTimeout(resolve, time)
+        setTimeout(resolve, time);
     });
 }
 
 async function app() {
     browser = await puppeteer.launch({headless:'new'});
     console.log('IMA Data Builder Start');
-    client.watch(tube).onSuccess(function(tubeName) {
+    client.watch(tube).onSuccess(function() {
         function resJob() {
             client.reserve().onSuccess(async function(job) {
                 // console.log('Reserved (' + Date.now() + '): ' , job);
@@ -123,20 +125,24 @@ async function app() {
                         data.references_url = data.references_url.replace(/99999999/,mtime);
                         // data.amcsd_url
                         data.amcsd_url = data.amcsd_url.replace(/99999999/,mtime);
+                        // data.paragenetic_modes_url
+                        data.paragenetic_modes_url = data.paragenetic_modes_url.replace(/99999999/,mtime);
                     }
 
 
                     // Get IMA Records
                     let full_ima_record_data = await loadPage(data.full_ima_url);
-                    console.log('RECORDS: ', full_ima_record_data.records.length);
+                    console.log('FIMA RECORDS: ', full_ima_record_data.records.length);
                     let ima_record_data = await loadPage(data.ima_url);
-                    console.log('RECORDS: ', ima_record_data.records.length);
+                    console.log('IMA RECORDS: ', ima_record_data.records.length);
                     // Get Cell Params Records
                     let cell_params_record_data = await loadPage(data.cell_params_url);
-                    console.log('RECORDS: ', cell_params_record_data.records.length);
+                    console.log('CP RECORDS: ', cell_params_record_data.records.length);
                     // Get Powder Diffraction Records
                     let powder_diffraction_record_data = await loadPage(data.powder_diffraction_url);
-                    console.log('RECORDS: ', powder_diffraction_record_data.records.length);
+                    console.log('PD RECORDS: ', powder_diffraction_record_data.records.length);
+                    let paragenetic_modes_record_data = await loadPage(data.paragenetic_modes_url);
+                    console.log('PM RECORDS: ', paragenetic_modes_record_data.records.length);
 
                     // Get reference list
                     console.log('REF: ' + data.references_url);
@@ -193,6 +199,14 @@ async function app() {
                     let references_filename = basepath + data.references + '.' + tmp_file_extension;
                     await writeFile(references_filename, content);
 
+                    if(!data.ima_update_rebuild) {
+                        content = 'let paragenetic_modes = [];\n';
+                    }
+
+                    // console.log('WriteFile Init');
+                    let paragenetic_modes_filename = basepath + data.pm_data + '.' + tmp_file_extension;
+                    console.log('writeFile: ' + basepath + data.pm_data + '.' + tmp_file_extension);
+                    await writeFile(paragenetic_modes_filename, content);
 
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
@@ -202,12 +216,25 @@ async function app() {
                     let ima_record_template = await loadPage(data.ima_template_url);
                     let ima_record_map = data.ima_record_map;
                     let tag_data = [];
-                    await buildTagData(ima_record_map.ima_template_tags_uuid, ima_record_template, tag_data);
+                    await buildTagData(ima_record_map.ima_template_tags_uuid, ima_record_template, tag_data, 'master');
                     content += tag_data.join('');
 
                     let master_tag_data_filename = basepath + data.master_tag_data + '.' + tmp_file_extension;
                     await writeFile(master_tag_data_filename, content);
 
+                    // Initialize master_tag_data
+                    // TODO Should we always rebuild this?  Not intensive.
+                    content = 'var pm_tag_data = new Array();';
+                    // Get IMA Template (for Tag Data)
+                    // console.log('IMA Template: ' + data.pm_template_url)
+                    let pm_record_template = await loadPage(data.paragenetic_modes_template_url);
+                    let pm_record_map = data.paragenetic_modes_record_map;
+                    tag_data = [];
+                    await buildTagData(pm_record_map.tags_field_uuid, pm_record_template, tag_data, 'pm');
+                    content += tag_data.join('');
+
+                    let pm_tag_data_filename = basepath + data.pm_tag_data + '.' + tmp_file_extension;
+                    await writeFile(pm_tag_data_filename, content);
 
                     let job_count = 0;
                     //
@@ -218,7 +245,7 @@ async function app() {
                     // for(let i = 0; i < 300; i++) {
                     for(let i = 0; i < full_ima_record_data.records.length; i++) {
 
-                        let record = full_ima_record_data['records'][i];
+                        let record = full_ima_record_data.records[i];
                         // console.log(record);
                         /*
                             'base_url' => $baseurl,
@@ -265,7 +292,7 @@ async function app() {
                             job_count++;
                             record_client.use(record_tube)
                                 .onSuccess(
-                                    (tubeName) => {
+                                    () => {
                                         // console.log('Tube: ', tubeName);
                                         // console.log('Record: ', record);
                                         // TODO Build Full Record Here
@@ -287,7 +314,7 @@ async function app() {
                     // Write the Cell Parameters Array File
                     content = '';
                     if(!data.ima_update_rebuild) {
-                        console.log("Data IMA UPDATE REBUILD: ", data.ima_update_rebuild)
+                        console.log('Data IMA UPDATE REBUILD: ', data.ima_update_rebuild);
                         content = 'let cellparams=new Array();';
                         content += 'let rruff_record_exists=new Array();';
                     }
@@ -303,7 +330,7 @@ async function app() {
                     // for(let i = 0; i < 1; i++) {
                     // for(let i = 0; i < 200; i++) {
                     for(let i = 0; i < cell_params_record_data.records.length; i++) {
-                        let record = cell_params_record_data['records'][i];
+                        let record = cell_params_record_data.records[i];
                         /*
                             'base_url' => $baseurl,
                             'ima_uuid' => $this->container->getParameter('ima_uuid'),
@@ -339,7 +366,7 @@ async function app() {
                         job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
-                                (tubeName) => {
+                                () => {
                                     // console.log('Tube: ' , tubeName);
                                     // console.log('Record: ', record);
                                     // TODO Build Full Record Here
@@ -353,8 +380,53 @@ async function app() {
                     }
 
 
+                    //
+                    // Paragenetic Modes Data
+                    //
+                    // console.log('PM Records:', paragenetic_modes_record_data.records.length);
+                    // for(let i = 0; i < 1; i++) {
+                    // for(let i = 0; i < 20; i++) {
+                    for(let i = 0; i <  paragenetic_modes_record_data.records.length; i++) {
+                        let record = paragenetic_modes_record_data.records[i];
+                        record.cell_params_index = i;
+                        record.cell_params_type = 'powder_diffraction';
+                        record.tracked_job_id = tracked_job.id;
+                        record.api_user = data.api_user;
+                        record.api_key = data.api_key;
+                        record.api_login_url = data.api_login_url;
+                        record.api_worker_job_url = data.api_worker_job_url;
+                        record.api_job_status_url = data.api_job_status_url;
+                        record.file_extension = tmp_file_extension;
+                        record.base_path = basepath;
+                        record.base_url = data.base_url;
+                        record.cell_params_uuid = data.cell_params_uuid;
+                        record.mineral_data = data.mineral_data;
+                        record.cell_params = data.cell_params;
+                        record.paragenetic_modes_uuid = data.paragenetic_modes_uuid;
+                        record.pm_data = data.pm_data;
+                        record.paragenetic_modes_record_map = data.paragenetic_modes_record_map;
+                        record.cell_params_range = data.cell_params_range;
+                        record.cell_params_synonyms = data.cell_params_synonyms;
+                        record.ima_record_map = data.ima_record_map;
+                        record.amcsd_record_map = data.amcsd_record_map;
+                        record.cell_params_map = data.cell_params_map;
+                        record.powder_diffraction_map = data.powder_diffraction_map;
 
-
+                        job_count++;
+                        paragenetic_modes_record_client.use(paragenetic_modes_record_tube)
+                            .onSuccess(
+                                () => {
+                                    // console.log('Tube: ' , tubeName);
+                                    // console.log('Record: ', record);
+                                    // TODO Build Full Record Here
+                                    paragenetic_modes_record_client.put(JSON.stringify(record)).onSuccess(
+                                        (jobId) => {
+                                            console.log('Paragenetic Modes Job ID: ', jobId);
+                                        }
+                                    );
+                                }
+                            );
+                    }
 
 
                     //
@@ -390,13 +462,13 @@ async function app() {
                         job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
-                                (tubeName) => {
+                                () => {
                                     // console.log('Tube: ' , tubeName);
                                     // console.log('Record: ', record);
                                     // TODO Build Full Record Here
                                     cell_params_record_client.put(JSON.stringify(record)).onSuccess(
                                         (jobId) => {
-                                            // console.log('Powder Diffraction Job ID: ', jobId);
+                                            console.log('Powder Diffraction Job ID: ', jobId);
                                         }
                                     );
                                 }
@@ -436,7 +508,7 @@ async function app() {
                         job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
-                                (tubeName) => {
+                                () => {
                                     // console.log('Tube: ' , tubeName);
                                     // console.log('Record: ', record);
                                     // TODO Build Full Record Here
@@ -480,7 +552,7 @@ async function app() {
                         job_count++;
                         references_record_client.use(references_record_tube)
                             .onSuccess(
-                                (tubeName) => {
+                                () => {
                                     references_record_client.put(
                                         JSON.stringify(record)
                                     ).onSuccess(
@@ -506,8 +578,10 @@ async function app() {
                     record.mineral_data_filename = mineral_data_filename;
                     record.mineral_data_include_filename = mineral_data_include_filename;
                     record.cell_params_filename = cell_params_filename;
+                    record.paragenetic_modes_filename = paragenetic_modes_filename;
                     record.references_filename = references_filename;
                     record.master_tag_data_filename = master_tag_data_filename;
+                    record.pm_tag_data_filename = pm_tag_data_filename;
                     record.api_user = data.api_user;
                     record.api_key = data.api_key;
                     record.api_login_url = data.api_login_url;
@@ -521,6 +595,7 @@ async function app() {
                     record.cell_params_uuid = data.cell_params_uuid;
                     record.mineral_data = data.mineral_data;
                     record.cell_params = data.cell_params;
+                    record.pm_data = data.pm_data;
                     record.cell_params_range = data.cell_params_range;
                     record.cell_params_synonyms = data.cell_params_synonyms;
                     record.ima_record_map = data.ima_record_map;
@@ -530,7 +605,7 @@ async function app() {
 
                     ima_data_finisher_client.use(ima_data_finisher_tube)
                         .onSuccess(
-                            (tubeName) => {
+                            () => {
                                 // TODO Build Full Record Here
                                 ima_data_finisher_client.put(JSON.stringify(record))
                                     .onSuccess(
@@ -544,7 +619,7 @@ async function app() {
 
                     // throw Error('Break for debugging.');
 
-                    client.deleteJob(job.id).onSuccess(function(del_msg) {
+                    client.deleteJob(job.id).onSuccess(function() {
                         // console.log('Deleted (' + Date.now() + '): ' , job);
                         resJob();
                     });
@@ -552,7 +627,7 @@ async function app() {
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
                     console.log('Error occurred: ', e);
-                    client.deleteJob(job.id).onSuccess(function(del_msg) {
+                    client.deleteJob(job.id).onSuccess(function() {
                         console.log('Deleted (' + Date.now() + '): ' , job);
                         resJob();
                     });
@@ -596,11 +671,11 @@ async function apiCall(api_url, post_data, method) {
         page.on('request', interceptedRequest => {
             let data = {
                 'method': method,
-                headers: { ...interceptedRequest.headers(), "content-type": "application/json"}
+                headers: { ...interceptedRequest.headers(), 'content-type': 'application/json'}
             };
 
             if(post_data !== '') {
-                data['postData'] = JSON.stringify(post_data);
+                data.postData = JSON.stringify(post_data);
             }
 
             // Request modified... finish sending!
@@ -756,12 +831,16 @@ async function findValue(field_uuid, record) {
     return '';
 }
 
-async function buildTagTree(tagTree, tag_data, parent_tag) {
+async function buildTagTree(tagTree, tag_data, parent_tag, tag_type) {
+    let stub = "master_tag_data";
+    if(tag_type !== "master") {
+        stub = "pm_tag_data";
+    }
     // console.log('Tag Data Length: ', tag_data.length);
     for(let x in tagTree) {
        // console.log('Adding tag')
        let tag = tagTree[x];
-       let tag_string = 'master_tag_data[' + tag.id + '] = "' + tag.id + '||' + tag.name + '|| ||mineral||1||' + tag.name;
+       let tag_string = stub + '[' + tag.id + '] = "' + tag.id + '||' + tag.name + '|| ||mineral||1||' + tag.name;
        if(parent_tag !== null && parent_tag.id !== undefined) {
            tag_string += '||' + parent_tag.id;
        }
@@ -779,13 +858,13 @@ async function buildTagTree(tagTree, tag_data, parent_tag) {
 
        if(tag.tags !== undefined) {
            // console.log('Child tags found');
-           await buildTagTree(tag.tags, tag_data, tag);
+           await buildTagTree(tag.tags, tag_data, tag, tag_type);
        }
     }
     // console.log('Tag Data XX', tag_data);
 }
 
-async function buildTagData(field_uuid, record, tag_data) {
+async function buildTagData(field_uuid, record, tag_data, tag_type) {
     // console.log('Build Tag Data: ' + field_uuid);
     let fields = [];
     if(record['fields'] !== undefined) {
@@ -818,7 +897,7 @@ async function buildTagData(field_uuid, record, tag_data) {
                 // console.log('Field found by template uuid');
                 if(fields[i][key].tags !== undefined) {
                     // console.log('Tags found')
-                    await buildTagTree(fields[i][key].tags, tag_data, null);
+                    await buildTagTree(fields[i][key].tags, tag_data, null, tag_type);
                     // console.log('TAG DATA 1: ', tag_data);
                 }
             }
@@ -829,7 +908,7 @@ async function buildTagData(field_uuid, record, tag_data) {
                 // console.log('Field found by field uuid');
                 if(fields[i][key].tags !== undefined) {
                     // console.log('Tags found')
-                    await buildTagTree(fields[i][key].tags, tag_data, null);
+                    await buildTagTree(fields[i][key].tags, tag_data, null, tag_type);
                     // console.log('TAG DATA 2: ', tag_data);
                 }
             }
@@ -858,10 +937,9 @@ async function buildTagData(field_uuid, record, tag_data) {
     if(child_records.length > 0) {
         for(let i = 0; i < child_records.length; i++) {
             // console.log('Traversing child records: ', i);
-            await buildTagData(field_uuid, child_records[i], tag_data);
+            await buildTagData(field_uuid, child_records[i], tag_data, tag_type);
         }
     }
-
 }
 
 app();

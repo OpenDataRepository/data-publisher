@@ -71,11 +71,17 @@ async function app() {
                                 // Cell Params Data
                                 await fs.rename(data.cell_params_filename, output_path + '/cellparams_data_update.js', () => {});
 
+                                // Paragenetic Modes Data
+                                await fs.rename(data.paragenetic_modes_filename, output_path + '/pm_data_update.js', () => {});
+
                                 // References Data
                                 await fs.rename(data.references_filename, output_path + '/references_update.js', () => {});
 
                                 // Master Tag Data
                                 await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data.js', () => {});
+
+                                // Paragenetic Modes Tag Data
+                                await fs.rename(data.pm_tag_data_filename, output_path + '/pm_tag_data.js', () => {});
                             }
                             else {
                                 // replace base files with new ones
@@ -93,11 +99,18 @@ async function app() {
                                 console.log('CELL PARAMS FILE: ' + data.cell_params_filename);
                                 await fs.rename(data.cell_params_filename, output_path + '/cellparams_data.js', () => {});
 
+                                // Cell Params Data
+                                console.log('Paragenetic Modes FILE: ' + data.cell_params_filename);
+                                await fs.rename(data.paragenetic_modes_filename, output_path + '/pm_data.js', () => {});
+
                                 // References Data
                                 await fs.rename(data.references_filename, output_path + '/references.js', () => {});
 
                                 // Master Tag Data
                                 await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data.js', () => {});
+
+                                // Paragenetic Modes Tag Data
+                                await fs.rename(data.pm_tag_data_filename, output_path + '/pm_tag_data.js', () => {});
 
                                 // Delete tmp files
                                 // await deleteTmpFiles(data);
@@ -143,16 +156,16 @@ async function app() {
                         });
                     }
                     else {
-			// TODO Figure out why deleting causes node.fs error/crash
+			            // TODO Figure out why deleting causes node.fs error/crash
                         // await deleteTmpFiles(data);
 
                         // throw Error and delete beanstalk job
-			console.log('Throwing not found error');
+			            console.log('Throwing not found error');
                         throw('Job not found.');
                     }
                 }
                 catch (e) {
-                    // console.log('Error occurred: ', e);
+                    console.log('Error occurred: ', e);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         console.log('Deleted 1 (' + Date.now() + '): ' , job.id);
                         resJob();

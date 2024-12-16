@@ -609,6 +609,8 @@ class APIController extends ODRCustomController
             if ($type === 'master_template' && $version !== 'v4' && $version !== 'v5')
                 $is_master_type = 1;
 
+            // print $datatype_uuid . ' -- ' . $is_master_type; exit();
+            $is_master_type = 0;
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -631,9 +633,11 @@ class APIController extends ODRCustomController
             );
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+
             $datatype_id = $datatype->getId();
 
 
+            // TODO Not sure why we need to restrict to Top Level Datatypes
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             if (!in_array($datatype_id, $top_level_datatypes))
                 throw new ODRBadRequestException('Only permitted on top-level datatypes');

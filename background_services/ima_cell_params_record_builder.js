@@ -206,7 +206,10 @@ async function app() {
                         ) {
                             content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
                         }
-                        else {
+                        else if(
+                            ima_record !== undefined
+                            && ima_record.record_uuid !== undefined
+                        ) {
                             content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'false\';';
                         }
                         // TODO Add RRUFF ID to "rruff_record_exists" and
@@ -368,7 +371,7 @@ async function app() {
                 }
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
-                    // console.log('Error occurred: ', e);
+                    console.log('Error occurred: ', e);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         // console.log('Deleted (' + Date.now() + '): ' , job);
                         console.log('Deleted (' + Date.now() + '): ' , job.id);
