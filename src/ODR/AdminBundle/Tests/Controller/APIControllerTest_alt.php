@@ -21,6 +21,8 @@ class APIControllerTest_alt extends WebTestCase
     public static $token = '';
     public static $headers = array();
 
+    public static $file_upload_basepath = '';
+
     public static $database_list = array();
     public static $database_uuid = '';
     public static $template_uuid = '';
@@ -48,7 +50,7 @@ class APIControllerTest_alt extends WebTestCase
     {
         foreach ($expected as $key => $value)
         {
-            if ( $key === '_record_metadata' || $key === '_field_metadata' )
+            if ( $key === '_record_metadata' || $key === '_field_metadata' || $key === '_file_metadata' )
                 continue;
 
             // Intentionally only asserting when it would fail...
@@ -69,7 +71,7 @@ class APIControllerTest_alt extends WebTestCase
         // ...and need to run the inverse for when $actual has a key $expected doesn't
         foreach ($actual as $key => $value)
         {
-            if ( $key === '_record_metadata' || $key === '_field_metadata' )
+            if ( $key === '_record_metadata' || $key === '_field_metadata' || $key === '_file_metadata' )
                 continue;
 
             // Intentionally only asserting when it would fail...
@@ -163,6 +165,61 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertEquals($expected_code, $response_code);
     }
 
+    /**
+     * Might as well have file uploading in its own function, since it's used at least half a dozen
+     * times...
+     *
+     * @param string $filepath
+     * @param string $database_uuid
+     * @param string $field_uuid
+     * @param string $record_uuid
+     * @param string $uploaded_by
+     * @param string $create_date
+     * @param string $public_date
+     * @param string $quality
+     * @param string $display_order
+     * @return array
+     */
+    public function uploadFile($filepath, $database_uuid, $field_uuid, $record_uuid, $uploaded_by, $create_date = '', $public_date = '', $quality = '', $display_order = '')
+    {
+        $curl = new CurlUtility(
+            self::$api_baseurl.'/v3/file',
+            self::$headers
+        );
+
+        $data = array(
+            'name' => '',
+            'dataset_uuid' => $database_uuid,
+            'template_field_uuid' => '',
+            'field_uuid' => $field_uuid,
+            'record_uuid' => $record_uuid,
+            'user_email' => $uploaded_by,
+        );
+        if ( $create_date !== '' )
+            $data['created'] = $create_date;
+        if ( $public_date !== '' )
+            $data['public_date'] = $public_date;
+        if ( $quality !== '' )
+            $data['quality'] = $quality;
+        if ( $display_order !== '' )
+            $data['display_order'] = $display_order;
+
+        $response = $curl->post($data, $filepath);
+        $code = $response['code'];
+        if ( $code !== 200 )
+            fwrite(STDERR, 'response: '.print_r($response, true)."\n");
+        $this->assertEquals(200, $code);
+
+        $content = json_decode($response['response'], true);
+//        if ( self::$debug )
+//            fwrite(STDERR, 'file upload return: '.print_r($content, true)."\n");
+
+        return $content;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
@@ -188,8 +245,13 @@ class APIControllerTest_alt extends WebTestCase
             self::$force_skip = true;
         if ( filesize($basepath.'/phpunit_testing.dmp') === 0 )
             self::$force_skip = true;
+
+        self::$file_upload_basepath = $basepath.'/src/ODR/AdminBundle/TestResources/';
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public static function tearDownAfterClass()
     {
         if ( !self::$force_skip )
@@ -826,6 +888,428 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
     }
 
+    public function testFileImageUpload_Single()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        // ----------------------------------------
+        // Test basic file upload...
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Single File'],
+            self::$record_uuid,
+            self::$api_username,
+            '',   // not testing create date here
+            '',   // not testing public date here
+            0,    // quality of 0, to distinguish when the uploader overwrites later on
+            ''    // files don't have display order
+        );
+
+        // Don't need to compare against the new version of the actual record, since that's what
+        //  ODR returned...verify that the file exists instead
+        $first_file_uuid = '';
+        foreach ($api_response_content['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Single File'] ) {
+                if ( !isset($df['files'][0]['file_uuid']) )
+                    $this->fail('File upload attempt #1 failed');
+                $first_file_uuid = $df['files'][0]['file_uuid'];
+
+                // Don't continue to look
+                break;
+            }
+        }
+
+        // Test file upload overwriting the file in a field that doesn't allow multiple uploads
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Single File'],
+            self::$record_uuid,
+            self::$api_username,
+            '',   // not testing create date here
+            '',   // not testing public date here
+            1,    // quality of 1, to distinguish when the uploader overwrites later on
+            ''    // files don't have display order
+        );
+
+        // Don't need to compare against the new version of the actual record, since that's what
+        //  ODR returned...verify that the file exists instead
+        $second_file_uuid = '';
+        foreach ($api_response_content['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Single File'] ) {
+                if ( !isset($df['files'][0]['file_uuid']) )
+                    $this->fail('File upload attempt #2 failed');
+                $second_file_uuid = $df['files'][0]['file_uuid'];
+
+                if ( !isset($df['files'][0]['_file_metadata']['_quality']) || $df['files'][0]['_file_metadata']['_quality'] != 1 )
+                    $this->fail('File upload #2 did not change quality value');
+
+                // Don't continue to look
+                break;
+            }
+        }
+        if ( $first_file_uuid === $second_file_uuid )
+            $this->fail('File upload #2 did not replace upload #1');
+
+
+        // ----------------------------------------
+        // Test basic image upload...
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Single Image'],
+            self::$record_uuid,
+            self::$api_username,
+            '',   // not testing create date here
+            '',   // not testing public date here
+            0,    // quality of 0, to distinguish when the uploader overwrites later on
+            ''    // not testing display order here
+        );
+
+        // Don't need to compare against the new version of the actual record, since that's what
+        //  ODR returned...verify that the file exists instead
+        $first_image_uuid = '';
+        foreach ($api_response_content['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Single Image'] ) {
+                if ( !isset($df['files'][0]['file_uuid']) )
+                    $this->fail('Image upload attempt #1 failed');
+                $first_image_uuid = $df['files'][0]['file_uuid'];
+
+                if ( !isset($df['files'][1]['parent_image_id']) || $df['files'][1]['parent_image_id'] != $df['files'][0]['id'] )
+                    $this->fail('Image upload attempt #1 did not create a thumbnail');
+
+                // Don't continue to look
+                break;
+            }
+        }
+
+        // Test file upload overwriting the file in a field that doesn't allow multiple uploads
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Single Image'],
+            self::$record_uuid,
+            self::$api_username,
+            '',   // not testing create date here
+            '',   // not testing public date here
+            1,    // quality of 1, to distinguish when the uploader overwrites later on
+            ''    // not testing display order here
+        );
+
+        // Don't need to compare against the new version of the actual record, since that's what
+        //  ODR returned...verify that the file exists instead
+        $second_image_uuid = '';
+        foreach ($api_response_content['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Single Image'] ) {
+                if ( !isset($df['files'][0]['file_uuid']) )
+                    $this->fail('Image upload attempt #2 failed');
+                $second_image_uuid = $df['files'][0]['file_uuid'];
+
+                if ( !isset($df['files'][1]['parent_image_id']) || $df['files'][1]['parent_image_id'] != $df['files'][0]['id'] )
+                    $this->fail('Image upload attempt #2 did not create a thumbnail');
+
+                // Don't continue to look
+                break;
+            }
+        }
+        if ( $first_image_uuid === $second_image_uuid )
+            $this->fail('Image upload #2 did not replace upload #1');
+    }
+
+    public function testFileImageUpload_Multiple()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $early_date = '1970-01-01 00:00:00';
+        $late_date = '2100-01-01 00:00:00';
+
+        // ----------------------------------------
+        // Upload two files to the Multiple File field...
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Multiple File'],
+            self::$record_uuid,
+            self::$api_username,
+            $early_date,   // might as well test create/public date here
+            $early_date,
+            '',    // already effectively tested quality
+            0      // files should silently ignore display order
+        );
+
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Multiple File'],
+            self::$record_uuid,
+            self::$api_username,
+            $late_date,   // might as well test create/public date here
+            $late_date,
+            '',    // already effectively tested quality
+            0      // files should silently ignore display order
+        );
+
+        // Don't need to compare against the new version of the actual record, since that's what
+        //  ODR returned...verify that the file and its properties match instead
+        foreach ($api_response_content['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Multiple File'] ) {
+                if ( !isset($df['files'][0]['file_uuid']) )
+                    $this->fail('File upload attempt #3 failed');
+                if ( !isset($df['files'][1]['file_uuid']) )
+                    $this->fail('File upload attempt #4 failed');
+
+                if ( !isset($df['files'][0]['_file_metadata']['_create_date']) || $df['files'][0]['_file_metadata']['_create_date'] !== $early_date )
+                    $this->fail('File upload #3 has wrong create date');
+                if ( !isset($df['files'][0]['_file_metadata']['_public_date']) || $df['files'][0]['_file_metadata']['_public_date'] !== $early_date )
+                    $this->fail('File upload #3 has wrong public date');
+
+                if ( !isset($df['files'][1]['_file_metadata']['_create_date']) || $df['files'][1]['_file_metadata']['_create_date'] !== $late_date )
+                    $this->fail('File upload #4 has wrong create date');
+                if ( !isset($df['files'][1]['_file_metadata']['_public_date']) || $df['files'][1]['_file_metadata']['_public_date'] !== $late_date )
+                    $this->fail('File upload #4 has wrong public date');
+
+                // Don't continue to look
+                break;
+            }
+        }
+
+
+        // ----------------------------------------
+        // Upload two files to the Multiple Image field...
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Multiple Image'],
+            self::$record_uuid,
+            self::$api_username,
+            $early_date,   // might as well test create/public date here
+            $early_date,
+            '',    // already effectively tested quality
+            1      // images should not silently ignore display order
+        );
+
+        $api_response_content = $this->uploadFile(
+            self::$file_upload_basepath.'Image_14044.jpeg',
+            self::$database_uuid,
+            self::$field_uuids['Multiple Image'],
+            self::$record_uuid,
+            self::$api_username,
+            $late_date,   // might as well test create/public date here
+            $late_date,
+            '',    // already effectively tested quality
+            2      // images should not silently ignore display order
+        );
+
+        // Don't need to compare against the new version of the actual record, since that's what
+        //  ODR returned...verify that the file and its properties match instead
+        foreach ($api_response_content['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Multiple Image'] ) {
+                if ( !isset($df['files'][0]['file_uuid']) )
+                    $this->fail('Image upload attempt #3 failed');
+                if ( !isset($df['files'][2]['file_uuid']) )    // thumbnail for the first image occupies indice 1
+                    $this->fail('Image upload attempt #4 failed');
+
+                if ( !isset($df['files'][0]['_file_metadata']['_create_date']) || $df['files'][0]['_file_metadata']['_create_date'] !== $early_date )
+                    $this->fail('Image upload #3 has wrong create date');
+                if ( !isset($df['files'][0]['_file_metadata']['_public_date']) || $df['files'][0]['_file_metadata']['_public_date'] !== $early_date )
+                    $this->fail('Image upload #3 has wrong public date');
+                if ( !isset($df['files'][0]['_file_metadata']['_display_order']) || $df['files'][0]['_file_metadata']['_display_order'] != 1 )
+                    $this->fail('Image upload #3 has wrong display order');
+
+                if ( !isset($df['files'][2]['_file_metadata']['_create_date']) || $df['files'][2]['_file_metadata']['_create_date'] !== $late_date )
+                    $this->fail('Image upload #4 has wrong create date');
+                if ( !isset($df['files'][2]['_file_metadata']['_public_date']) || $df['files'][2]['_file_metadata']['_public_date'] !== $late_date )
+                    $this->fail('Image upload #4 has wrong public date');
+                if ( !isset($df['files'][2]['_file_metadata']['_display_order']) || $df['files'][2]['_file_metadata']['_display_order'] != 2 )
+                    $this->fail('Image upload #4 has wrong display order');
+
+                // Don't continue to look
+                break;
+            }
+        }
+    }
+
+    public function testFileModify()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        // ----------------------------------------
+        // The file uploading tests didn't have a modified structure to save...so update it now
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $tmp_dataset = self::$record_structure;
+
+        $field_num = null;
+        foreach ($tmp_dataset['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Single File'] ) {
+                $field_num = $num;
+                break;
+            }
+        }
+
+        // Might as well just change all three properties at once
+        $tmp_dataset['fields'][$field_num]['files'][0]['created'] = '2222-02-22 22:22:22';
+        $tmp_dataset['fields'][$field_num]['files'][0]['public_date'] = '2222-02-22 22:22:22';
+        $tmp_dataset['fields'][$field_num]['files'][0]['quality'] = 0;    // was uploaded with a 1
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // ...also check inside _file_metadata, since that doesn't get checked by assertArrayEquals()
+        if ( $api_response_content['fields'][$field_num]['files'][0]['_file_metadata']['_create_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('Attempt to update a file with create_date "2222-02-22 22:22:22" failed');
+        if ( $api_response_content['fields'][$field_num]['files'][0]['_file_metadata']['_public_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('Attempt to update a file with public_date "2222-02-22 22:22:22" failed');
+        if ( $api_response_content['fields'][$field_num]['files'][0]['_file_metadata']['_quality'] != 0 )
+            $this->fail('Attempt to update the quality of a file failed');
+
+        if ( self::$record_structure['fields'][$field_num]['files'][0]['_file_metadata']['_create_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('API call did not update a file to create_date "2222-02-22 22:22:22"');
+        if ( self::$record_structure['fields'][$field_num]['files'][0]['_file_metadata']['_public_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('API call did not update a file to public_date "2222-02-22 22:22:22"');
+        if ( self::$record_structure['fields'][$field_num]['files'][0]['_file_metadata']['_quality'] != 0 )
+            $this->fail('API call did not update a file to quality 0');
+
+
+        // ----------------------------------------
+        // Files aren't allowed to set the display_order property
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][$field_num]['files'][0]['display_order'] = 999;
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+    }
+
+    public function testImageModify()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        // ----------------------------------------
+        // Ensure a valid version of the record structure exists
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $tmp_dataset = self::$record_structure;
+
+        $field_num = null;
+        foreach ($tmp_dataset['fields'] as $num => $df) {
+            if ( $df['field_uuid'] == self::$field_uuids['Single Image'] ) {
+                $field_num = $num;
+                break;
+            }
+        }
+
+        // ----------------------------------------
+        // Not allowed to change the thumbnail's properties
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][$field_num]['files'][1]['display_order'] = 0;
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+
+
+        // ----------------------------------------
+        // Going to test two different uploads for images...
+        $tmp_dataset = self::$record_structure;
+
+        // The first is with the thumbnail in there...it won't be getting changed, so should have
+        //  no error...
+        $tmp_dataset['fields'][$field_num]['files'][0]['created'] = '2222-02-22 22:22:22';
+        $tmp_dataset['fields'][$field_num]['files'][0]['public_date'] = '2222-02-22 22:22:22';
+//        $tmp_dataset['fields'][$field_num]['files'][0]['quality'] = 0;    // was uploaded with a 1
+//        $tmp_dataset['fields'][$field_num]['files'][0]['display_order'] = 999;
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // ...also check inside _file_metadata, since that doesn't get checked by assertArrayEquals()
+        if ( $api_response_content['fields'][$field_num]['files'][0]['_file_metadata']['_create_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('Attempt to update an image with create_date "2222-02-22 22:22:22" failed');
+        if ( $api_response_content['fields'][$field_num]['files'][0]['_file_metadata']['_public_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('Attempt to update an image with public_date "2222-02-22 22:22:22" failed');
+        if ( $api_response_content['fields'][$field_num]['files'][1]['_file_metadata']['_create_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('Attempt to update an image with create_date "2222-02-22 22:22:22" failed in the thumbnail');
+        if ( $api_response_content['fields'][$field_num]['files'][1]['_file_metadata']['_public_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('Attempt to update an image with public_date "2222-02-22 22:22:22" failed in the thumbnail');
+
+        if ( self::$record_structure['fields'][$field_num]['files'][0]['_file_metadata']['_create_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('API call did not update an image to create_date "2222-02-22 22:22:22"');
+        if ( self::$record_structure['fields'][$field_num]['files'][0]['_file_metadata']['_public_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('API call did not update an image to public_date "2222-02-22 22:22:22"');
+        if ( self::$record_structure['fields'][$field_num]['files'][1]['_file_metadata']['_create_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('API call did not update an image thumbnail to create_date "2222-02-22 22:22:22"');
+        if ( self::$record_structure['fields'][$field_num]['files'][1]['_file_metadata']['_public_date'] !== '2222-02-22 22:22:22' )
+            $this->fail('API call did not update an image thumbnail to public_date "2222-02-22 22:22:22"');
+
+
+        // ----------------------------------------
+        // ...the second test will be to submit with the thumbnail removed
+        unset( $tmp_dataset['fields'][$field_num]['files'][1] );
+
+//        $tmp_dataset['fields'][$field_num]['files'][0]['created'] = '2222-02-22 22:22:22';
+//        $tmp_dataset['fields'][$field_num]['files'][0]['public_date'] = '2222-02-22 22:22:22';
+        $tmp_dataset['fields'][$field_num]['files'][0]['quality'] = 0;    // was uploaded with a 1
+        $tmp_dataset['fields'][$field_num]['files'][0]['display_order'] = 999;
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+
+        // ...but locally tweaked to also remove the thumbnail so the assertion doesn't complain
+        $tmp_dataset = self::$record_structure;
+        unset( $tmp_dataset['fields'][$field_num]['files'][1] );
+
+        $this->assertArrayEquals($tmp_dataset, $api_response_content);
+
+        // ...also check inside _file_metadata, since that doesn't get checked by assertArrayEquals()
+        if ( $api_response_content['fields'][$field_num]['files'][0]['_file_metadata']['_quality'] != 0 )
+            $this->fail('Attempt to update an image with quality 0 failed');
+        if ( $api_response_content['fields'][$field_num]['files'][0]['_file_metadata']['_display_order'] != 999 )
+            $this->fail('Attempt to update an image with display_order 999 failed');
+        // No thumbnail to check
+//        if ( $api_response_content['fields'][$field_num]['files'][1]['_file_metadata']['_quality'] != 0 )
+//            $this->fail('Attempt to update an image with quality 0 failed for the thumbnail');
+//        if ( $api_response_content['fields'][$field_num]['files'][1]['_file_metadata']['_display_order'] != 999 )
+//            $this->fail('Attempt to update an image with display_order 999 failed for the thumbnail');
+
+        if ( self::$record_structure['fields'][$field_num]['files'][0]['_file_metadata']['_quality'] != 0 )
+            $this->fail('API call did not update an image to quality 0');
+        if ( self::$record_structure['fields'][$field_num]['files'][0]['_file_metadata']['_display_order'] != 999 )
+            $this->fail('API call did not update an image to display_order 999');
+        // A fresh call will get the thumbnail though
+        if ( self::$record_structure['fields'][$field_num]['files'][1]['_file_metadata']['_quality'] != 0 )
+            $this->fail('API call did not update an image thumbnail to quality 0');
+        if ( self::$record_structure['fields'][$field_num]['files'][1]['_file_metadata']['_display_order'] != 999 )
+            $this->fail('API call did not update an image thumbnail to display_order 999');
+    }
+
     public function testCreateRecord()
     {
         $count = 0;
@@ -973,21 +1457,22 @@ class APIControllerTest_alt extends WebTestCase
         self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
 
+        // ...also check inside _record_metadata, since that doesn't get checked by assertArrayEquals()
         if ( $api_response_content['records'][1]['_record_metadata']['_create_date'] !== '1970-01-01 00:00:00' )
             $this->fail('Attempt to create a record with create_date "1970-01-01 00:00:00" failed');
         if ( self::$record_structure['records'][1]['_record_metadata']['_create_date'] !== '1970-01-01 00:00:00' )
-            $this->fail('Attempt to create a record with create_date "1970-01-01 00:00:00" failed');
+            $this->fail('API call did not change a record to create_date "1970-01-01 00:00:00"');
 
         // Might as well ensure the new record's public_date is default, since it wasn't set
         if ( $api_response_content['records'][1]['_record_metadata']['_public_date'] !== '2200-01-01 00:00:00' )
             $this->fail('Creating a record without specifying a public date did not result in "2200-01-01 00:00:00"');
         if ( self::$record_structure['records'][1]['_record_metadata']['_public_date'] !== '2200-01-01 00:00:00' )
-            $this->fail('Creating a record without specifying a public date did not result in "2200-01-01 00:00:00"');
+            $this->fail('API call did not change a record to public_date "2200-01-01 00:00:00"');
 
         if ( $api_response_content['records'][1]['fields'][0]['_field_metadata']['_create_date'] !== '2070-01-01 00:00:00' )
-            $this->fail('Attempt to change a field with create_date "2070-01-01 00:00:00" failed');
+            $this->fail('Attempt to change a field to create_date "2070-01-01 00:00:00" failed');
         if ( self::$record_structure['records'][1]['fields'][0]['_field_metadata']['_create_date'] !== '2070-01-01 00:00:00' )
-            $this->fail('Attempt to change a field with create_date "2070-01-01 00:00:00" failed');
+            $this->fail('API call did not change a field to create_date "2070-01-01 00:00:00"');
 
 
         // ----------------------------------------
@@ -1038,10 +1523,11 @@ class APIControllerTest_alt extends WebTestCase
         self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
 
+        // ...also check inside _record_metadata, since that doesn't get checked by assertArrayEquals()
         if ( $api_response_content['records'][2]['_record_metadata']['_public_date'] !== '2000-01-01 00:00:00' )
             $this->fail('Attempt to create a record with public_date "2000-01-01 00:00:00" failed');
         if ( self::$record_structure['records'][2]['_record_metadata']['_public_date'] !== '2000-01-01 00:00:00' )
-            $this->fail('Attempt to create a record with public_date "2000-01-01 00:00:00" failed');
+            $this->fail('API call did not create a record with public_date "2000-01-01 00:00:00"');
 
 
         // Save the uuids of the two newly created child records

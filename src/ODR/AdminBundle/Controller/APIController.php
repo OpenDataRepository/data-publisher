@@ -93,6 +93,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\Router;
 
 
 class APIController extends ODRCustomController
@@ -1796,14 +1798,18 @@ class APIController extends ODRCustomController
                     $typeclass = $data_field->getFieldType()->getTypeClass();
                     $typename = $data_field->getFieldType()->getTypeName();
 
-                    // Deal with files and images here
-                    if ($typename === 'File' || $typename === 'Image') {
-                        if (isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
-                            foreach ($field['files'] as $file) {
-                                if (isset($file['public_date']) || isset($file['quality'])) {
-                                    $fields_updated = true;
-                                }
-                            }
+                    if (isset( $field['files']) && is_array($field['files']) && count($field['files']) > 0 ) {
+                        // Need to verify this only gets run on file/image fields
+                        switch ($typeclass) {
+                            case 'File':
+                            case 'Image':
+                                // Determine whether the user is allowed to make the changes they're
+                                //  requesting to this field...
+                                self::checkFileImageFieldPermissions($em, $pm_service, $user, $data_record, $data_field, $orig_dataset, $field);
+                                break;
+
+                            default:
+                                throw new ODRBadRequestException('Structure for File/Image fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
                     else if ( isset($field['tags']) && is_array($field['tags']) ) {
@@ -1926,7 +1932,7 @@ class APIController extends ODRCustomController
                         }
                     }
                     else if ( isset($field['values']) && is_array($field['values']) ) {
-
+                        // Need to verify this only gets run on radio fields
                         switch ( $typename ) {
                             case 'Single Radio':
                             case 'Multiple Radio':
@@ -2176,6 +2182,100 @@ class APIController extends ODRCustomController
             // Have to rethrow to preserve status codes from previous exceptions
             throw $e;
         }
+    }
+
+
+    /**
+     * The file/image typeclasses requires the same steps to determine whether the user is allowed
+     * to make any changes to them.
+     *
+     * File/image uploads are done with a different controller action...datasetDiff() only updates
+     * properties of existing files/images.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param PermissionsManagementService $pm_service
+     * @param ODRUser $user
+     * @param DataRecord|null $datarecord The datarecord the user might be modifying...can technically be null, indicating a new record
+     * @param DataFields $datafield The datafield the user might be modifying
+     * @param array $orig_dataset The array version of the current record
+     * @param array $field An array of the state the user wants to field to be in after datasetDiff()
+     * @throws ODRException
+     * @return bool
+     */
+    private function checkFileImageFieldPermissions($em, $pm_service, $user, $datarecord, $datafield, $orig_dataset, $field)
+    {
+        $exception_source = 0xfb3f0989;
+
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        // ----------------------------------------
+        // Need to determine whether a change is taking place
+        $changed = false;
+
+        foreach ($field['files'] as $j => $file) {
+            $new_created_date = null;
+            if ( isset($file['created']) )
+                $new_created_date = new \DateTime($file['created']);
+
+            $new_public_date = null;
+            if ( isset($file['public_date']) )
+                $new_public_date = new \DateTime($file['public_date']);
+
+            $new_quality = null;
+            if ( isset($file['quality']) )
+                $new_quality = intval($file['quality']);
+
+            $new_display_order = null;
+            // The 'display_order' property is only valid for an image, but let it go through here
+            //  so a more informative error can be thrown a bit later
+            if ( /*$typeclass === 'Image' &&*/ isset($file['display_order']) )
+                $new_display_order = intval($file['display_order']);
+
+
+            if ( !is_null($new_created_date) || !is_null($new_public_date) || !is_null($new_quality) || !is_null($new_display_order) ) {
+                // Since the controller actions only work on already uploaded files/images, the
+                //  datarecord must already exist...
+                if ( is_null($datarecord) )
+                    throw new ODRBadRequestException('Files/Images must have a file_uuid set to be able to modify them', $exception_source);
+                // ...same with the identifier for the file/image
+                if ( !isset($file['file_uuid']) )
+                    throw new ODRBadRequestException('Files/Images must have a file_uuid set to be able to modify them', $exception_source);
+
+                /** @var File|Image $file_obj */
+                $file_obj = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+                    array(
+                        'unique_id' => $file['file_uuid'],
+                        'dataRecord' => $datarecord->getId(),
+                        'dataField' => $datafield->getId(),
+                    )
+                );
+                if ($file_obj == null)
+                    throw new ODRNotFoundException('Unable to find the '.$typeclass.' with file_uuid "'.$file['file_uuid'].'"', true, $exception_source);
+
+                if ( $typeclass !== 'Image' && !is_null($new_display_order) )
+                    throw new ODRBadRequestException('The "display_order" parameter is only valid for Image fields, not the File "'.$file['file_uuid'].'"', $exception_source);
+
+                // This should only trigger when the user tries to changes something
+                if ($typeclass === 'Image' && $file_obj->getOriginal() == false)
+                    throw new ODRBadRequestException('Not allowed to directly modify the thumbnail image "'.$file['file_uuid'].'".  Modify its parent image "'.$file_obj->getParent()->getUniqueId().'" instead', true, $exception_source);
+
+
+                // ----------------------------------------
+                // Verify whether something is actually getting changed...self::checkUpdatePermissions()
+                //  will check the "canEditDatafield" permissions later if needed
+                if ( ( !is_null($new_created_date) && $file_obj->getCreated()->format('Y-m-d H:i:s') !== $new_created_date->format('Y-m-d H:i:s') )
+                    || ( !is_null($new_public_date) && $file_obj->getPublicDate()->format('Y-m-d H:i:s') !== $new_public_date->format('Y-m-d H:i:s') )
+                    || ( !is_null($new_quality) && $file_obj->getQuality() !== $new_quality )
+                    || ( !is_null($new_display_order) && $typeclass === 'Image' && $file_obj->getDisplayorder() !== $new_display_order )  // only check this if an image field
+                ) {
+                    // Something got changed for this file
+                    $changed = true;
+                }
+            }
+        }
+
+        // If this point is reached, either the user has permissions, or no changes are being made
+        return $changed;
     }
 
 
@@ -2551,6 +2651,9 @@ class APIController extends ODRCustomController
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
 
+            /** @var Router $router */
+            $router = $this->get('router');
+
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
@@ -2661,84 +2764,25 @@ class APIController extends ODRCustomController
                     //  any data in it
 
 
-                    // Deal with files and images here
-                    if ($typename === 'File' || $typename === 'Image') {
-                        if (isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
-                            foreach ($field['files'] as $j => $file) {
-                                $new_public_date = null;
-                                $new_quality = null;
+                    // ----------------------------------------
+                    // Update field content
+                    if (isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
 
-                                if (isset($file['public_date']))
-                                    $new_public_date = new \DateTime($file['public_date']);
-                                if (isset($file['quality']))
-                                    $new_quality = intval($file['quality']);
+                        switch ( $typeclass ) {
+                            case 'File':
+                            case 'Image':
+                                $ret = self::updateFileImageField($em, $router, $user, $data_record, $data_field, $orig_dataset, $field);
 
-                                if (!is_null($new_public_date) || !is_null($new_quality)) {
-                                    switch ($typename) {
-                                        case 'File':
-                                            /** @var File $file_obj */
-                                            $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
-                                                array(
-                                                    'unique_id' => $file['file_uuid']
-                                                )
-                                            );
-                                            if ($file_obj == null)
-                                                throw new ODRNotFoundException('File');
+                                if ( $ret['fields_updated'] )
+                                    $fields_updated = true;
 
-                                            $new_file_meta = clone $file_obj->getFileMeta();
-                                            if (!is_null($new_public_date))
-                                                $new_file_meta->setPublicDate($new_public_date);
-                                            if (!is_null($new_quality))
-                                                $new_file_meta->setQuality($new_quality);
+                                $dataset['fields'][$i] = $ret['new_json'];
+                                break;
 
-                                            $em->remove($file_obj->getFileMeta());
-                                            $em->persist($new_file_meta);
-                                            $fields_updated = true;
-
-                                            unset($file['public_date']);
-                                            unset($file['quality']);
-
-                                            $field['files'][$j] = $file;
-                                            $dataset['fields'][$i] = $field;
-
-                                            break;
-
-                                        case 'Image':
-                                            /** @var Image $image_obj */
-                                            $image_obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
-                                                array(
-                                                    'unique_id' => $file['file_uuid']
-                                                )
-                                            );
-                                            if ($image_obj == null)
-                                                throw new ODRNotFoundException('Image');
-
-                                            // Only act on items with image meta
-                                            if ($image_meta = $image_obj->getImageMeta()) {
-                                                $new_image_meta = clone $image_meta;
-
-                                                if (!is_null($new_public_date))
-                                                    $new_image_meta->setPublicDate($new_public_date);
-                                                if (!is_null($new_quality))
-                                                    $new_image_meta->setQuality($new_quality);
-
-                                                $em->remove($image_meta);
-                                                $em->persist($new_image_meta);
-                                                $fields_updated = true;
-                                            }
-
-                                            // Set this for all?  How do we know if it updated the parent
-                                            $file['_file_metadata']['_public_date'] = date_format($new_public_date, "Y-m-d H:i:s");
-                                            unset($file['public_date']);
-                                            unset($file['quality']);
-
-                                            $field['files'][$j] = $file;
-                                            $dataset['fields'][$i] = $field;
-
-                                            break;
-                                    }
-                                }
-                            }
+                            default:
+                                // This should never happen because checkUpdatePermissions() should've
+                                //  caught it already
+                                throw new ODRBadRequestException('Structure for Radio fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
                     else if ( isset($field['tags']) && is_array($field['tags']) ) {
@@ -3008,6 +3052,8 @@ class APIController extends ODRCustomController
                                 break;
 
                             default:
+                                // This should never happen because checkUpdatePermissions() should've
+                                //  caught it already
                                 throw new ODRBadRequestException('Structure for Radio fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
@@ -3031,6 +3077,8 @@ class APIController extends ODRCustomController
                                 break;
 
                             default:
+                                // This should never happen because checkUpdatePermissions() should've
+                                //  caught it already
                                 throw new ODRBadRequestException('Structure for boolean/text/number/date fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
@@ -3394,10 +3442,276 @@ class APIController extends ODRCustomController
 
 
     /**
+     * The File/Image typeclasses require the same steps to update
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param Router $router
+     * @param ODRUser $user
+     * @param DataRecord $datarecord The datarecord the user might be modifying
+     * @param DataFields $datafield The datafield the user might be modifying
+     * @param array $orig_dataset The array version of the current record
+     * @param array $field An array of the state the user wants to field to be in after datasetDiff()
+     * @throws ODRException
+     * @return array
+     */
+    private function updateFileImageField($em, $router, $user, $datarecord, $datafield, $orig_dataset, $field)
+    {
+        // Keep track of whether any file in the field was modified or not
+        $field_updated = false;
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        // Because the submitted dataset could have thumbnail images in it, we can't just update
+        //  the entry for the "original" image...
+        $images_to_update = array();
+
+        foreach ($field['files'] as $j => $file) {
+            // Keep track of whether each file was modified or not
+            $file_modified = false;
+
+            $new_created_date = null;
+            if ( isset($file['created']) )
+                $new_created_date = new \DateTime($file['created']);
+
+            $new_public_date = null;
+            if ( isset($file['public_date']) )
+                $new_public_date = new \DateTime($file['public_date']);
+
+            $new_quality = null;
+            if ( isset($file['quality']) )
+                $new_quality = intval($file['quality']);
+
+            $new_display_order = null;
+            // Silently ignore this property if not an image field
+            if ( $typeclass === 'Image' && isset($file['display_order']) )
+                $new_display_order = intval($file['display_order']);
+
+            if ( !is_null($new_created_date) || !is_null($new_public_date) || !is_null($new_quality) || !is_null($new_display_order) ) {
+                $file_obj = null;
+                $file_obj_meta = null;
+
+                if ( $typeclass === 'File' ) {
+                    /** @var File $file_obj */
+                    $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+                        array(
+                            'unique_id' => $file['file_uuid'],
+                            'dataRecord' => $datarecord->getId(),
+                            'dataField' => $datafield->getId(),
+                        )
+                    );
+//                    if ($file_obj == null)
+//                        throw new ODRException('unable to locate file "'.$file['file_uuid'].'", dr "'.$datarecord->getId().'", df "'.$datafield->getId().'"');
+
+                    $file_obj_meta = $file_obj->getFileMeta();
+                }
+                else {
+                    /** @var Image $file_obj */
+                    $file_obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
+                        array(
+                            'unique_id' => $file['file_uuid'],
+                            'dataRecord' => $datarecord->getId(),
+                            'dataField' => $datafield->getId(),
+                            'original' => 1
+                        )
+                    );
+//                    if ($file_obj == null)
+//                        throw new ODRException('unable to locate image "'.$file['file_uuid'].'", dr "'.$datarecord->getId().'", df "'.$datafield->getId().'"');
+
+                    $file_obj_meta = $file_obj->getImageMeta();
+                }
+                // The file/image is guaranteed to exist due to checkUpdatePermissions()
+
+                if ( !is_null($new_created_date) && $file_obj->getCreated()->format('Y-m-d H:i:s') != $new_created_date->format('Y-m-d H:i:s') ) {
+                    $file_modified = $field_updated = true;
+
+                    // Unlike the other three possible changes, this one requires a change to the
+                    //  file/image object...not the meta entry
+                    $file_obj->setCreated($new_created_date);
+                    $em->persist($file_obj);
+
+                    if ($typeclass === 'Image') {
+                        foreach ($file_obj->getChildren() as $thumbnail) {
+                            /** @var Image $thumbnail */
+                            $thumbnail->setCreated($new_created_date);
+                            $em->persist($thumbnail);
+                        }
+                    }
+                }
+
+                // Since the created date has already been dealt with, deal with the other three
+                //  properties...
+                if ( ( !is_null($new_public_date) && $file_obj->getPublicDate()->format('Y-m-d H:i:s') !== $new_public_date->format('Y-m-d H:i:s') )
+                    || ( !is_null($new_quality) && $file_obj->getQuality() !== $new_quality )
+                    || ( !is_null($new_display_order) && $typeclass === 'Image' && $file_obj->getDisplayorder() !== $new_display_order )  // only check this if an image field
+                ) {
+                    $file_modified = $field_updated = true;
+
+                    // Going to replace the meta object for these changes...
+                    $new_file_obj_meta = clone $file_obj_meta;
+
+                    if ( !is_null($new_public_date) )
+                        $new_file_obj_meta->setPublicDate($new_public_date);
+                    if ( !is_null($new_quality) )
+                        $new_file_obj_meta->setQuality($new_quality);
+                    if ( !is_null($new_display_order) )
+                        $new_file_obj_meta->setDisplayorder($new_display_order);
+
+                    $new_file_obj_meta->setUpdatedBy($user);
+
+                    $em->remove($file_obj_meta);
+                    $em->persist($new_file_obj_meta);
+
+                    if ( $typeclass === 'File' ) {
+                        $file_obj->removeFileMetum($file_obj_meta);
+                        $file_obj->addFileMetum($new_file_obj_meta);
+                    }
+                    else {
+                        $file_obj->removeImageMetum($file_obj_meta);
+                        $file_obj->addImageMetum($new_file_obj_meta);
+                    }
+                    $em->persist($file_obj);
+                }
+
+                // If any of the four properties got changed...
+                if ( $file_modified ) {
+                    // ...then flush the changes
+                    $fields_updated = true;
+                    $em->flush();
+
+                    // Need to refresh to get changes to the meta entry
+                    $em->refresh($file_obj);
+                    $em->refresh($new_file_obj_meta);
+                }
+
+                // Don't want these in the array anymore
+                unset( $file['created'] );
+                unset( $file['public_date'] );
+                unset( $file['quality'] );
+                unset( $file['display_order'] );
+
+
+                // ----------------------------------------
+                // Update/add any missing metadata
+                $file['id'] = $file_obj->getId();
+                $file['original_name'] = $file_obj->getOriginalFileName();
+
+                if ( $typeclass === 'File' ) {
+                    $file['href'] = $router->generate('odr_file_download', array('file_id' => $file_obj->getId()), UrlGeneratorInterface::ABSOLUTE_URL);
+                    $file['file_size'] = $file_obj->getFilesize();
+
+                    $file['_file_metadata'] = array(
+                        '_external_id' => $file_obj->getExternalId(),
+                        '_create_date' => $file_obj->getCreated()->format('Y-m-d H:i:s'),
+                        '_create_auth' => $file_obj->getCreatedBy()->getUserString(),
+                        '_public_date' => $file_obj->getPublicDate()->format('Y-m-d H:i:s'),
+                        '_quality' => $file_obj->getQuality(),
+                    );
+                }
+                else {
+                    // Because the submitted dataset could have thumbnail images in it, we can't
+                    //  just update the entry for the "original" image...
+                    $images_to_update[] = $file_obj;
+                }
+
+                // Assign the updated field back to the dataset
+                $field['files'][$j] = $file;
+            }
+        }
+
+        // Update the metadata for all the images at once
+        if ( $typeclass === 'Image' )
+            self::updateImageMetadata($field, $images_to_update, $router);
+
+        return array(
+            'fields_updated' => $field_updated,
+            'new_json' => $field,
+        );
+    }
+
+
+    /**
+     * Because thumbnail images in ODR derive most of their properties from their parent image,
+     * and the API doesn't stop thumbnails from being in submitted datasets...any changes made to the
+     * parent image need to cascade down to any of its thumbnail entries that are also in the array.
+     *
+     * @param array &$field
+     * @param Image[] $parent_images_to_update
+     * @param Router $router
+     * @return array
+     */
+    private function updateImageMetadata(&$field, $parent_images_to_update, $router)
+    {
+        // Each image in ODR tends to have at least one thumbnail...
+        $relevant_images = array();
+        foreach ($parent_images_to_update as $img) {
+            $relevant_images[$img->getUniqueId()] = $img;
+
+            // ...but outside of one or two exceptions, thumbnails don't really have properties of
+            //  their own
+            $thumbnails = $img->getChildren();
+            foreach ($thumbnails as $thumbnail)
+                $relevant_images[$thumbnail->getUniqueId()] = $thumbnail;
+        }
+
+        // NOTE: it's not guaranteed for thumbnails to be in the user-submitted dataset...though
+        //  checkUpdatePermissions() would throw an error if the user attempted to actually change
+        //  any of them
+
+        // For each image in the provided dataset...
+        foreach ($field['files'] as $i => $img) {
+            // ...if it was an image that got changed...
+            $img_uuid = $img['file_uuid'];
+            if ( isset($relevant_images[$img_uuid]) ) {
+                // ...then fill in or update all of its properties
+                $relevant_img = $relevant_images[$img_uuid];
+
+                // Both types of images have the same properties...
+                $new_image_data = array(
+                    'id' => $relevant_img->getId(),
+                    'file_uuid' => $relevant_img->getUniqueId(),
+                    'original_name' => $relevant_img->getOriginalFileName(),
+                    'href' => $router->generate('odr_image_download', array('image_id' => $relevant_img->getId()), UrlGeneratorInterface::ABSOLUTE_URL),
+                    'caption' => $relevant_img->getCaption(),
+                    'width' => $relevant_img->getImageWidth(),
+                    'height' => $relevant_img->getImageHeight(),
+
+                    '_file_metadata' => array(
+                        '_external_id' => $relevant_img->getExternalId(),
+                        '_create_date' => $relevant_img->getCreated()->format('Y-m-d H:i:s'),
+                        '_create_auth' => $relevant_img->getCreatedBy()->getUserString(),
+                        '_public_date' => $relevant_img->getPublicDate()->format('Y-m-d H:i:s'),
+                        '_display_order' => $relevant_img->getDisplayorder(),
+                        '_quality' => $relevant_img->getQuality(),
+                    )
+                );
+
+                // ...but thumbnails use their parent's values for these values
+                if ( $relevant_img->getOriginal() == false ) {
+                    $parent_img = $relevant_img->getParent();
+
+                    $new_image_data['parent_image_id'] = $parent_img->getId();
+                    $new_image_data['caption'] = $parent_img->getCaption();
+                    $new_image_data['_file_metadata'] = array(
+                        '_external_id' => $parent_img->getExternalId(),
+                        '_create_date' => $parent_img->getCreated()->format('Y-m-d H:i:s'),
+                        '_create_auth' => $parent_img->getCreatedBy()->getUserString(),
+                        '_public_date' => $parent_img->getPublicDate()->format('Y-m-d H:i:s'),
+                        '_display_order' => $parent_img->getDisplayorder(),
+                        '_quality' => $parent_img->getQuality(),
+                    );
+                }
+
+                $field['files'][$i] = $new_image_data;
+            }
+        }
+
+        return $field;
+    }
+
+
+    /**
      * Each of the four radio typeclasses requires the same steps to update
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param PermissionsManagementService $pm_service
      * @param UUIDService $uuid_service
      * @param ODRUser $user
      * @param DataRecord $datarecord The datarecord the user might be modifying
@@ -5250,8 +5564,6 @@ class APIController extends ODRCustomController
                         break;
                 }
             }
-
-            // TODO - need to build image and file arrays here and fix into JSON....
 
             // Don't need to fire off any more events...the services have already done so
 
