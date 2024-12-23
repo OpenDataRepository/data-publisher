@@ -19,10 +19,10 @@ TAG.TAGID: {{ tag.tag.id }}
 
 "tags": [
     {% set field_block %}
-        {% for tag_id, tag in tag_selections %}
+        {% for tag_id, tag_selection in tag_selections %}
             {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
-                'tag_selections': tag_selections,
-                'tag': tag.tag
+                'tag_selection': tag_selection,
+                'tag': tag_selection.tag
             } %}
         {% endfor %}
     {% endset %}

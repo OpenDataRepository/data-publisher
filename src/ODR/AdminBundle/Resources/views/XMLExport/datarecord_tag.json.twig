@@ -3,10 +3,11 @@
 {
     "id": {{ tag.id }},
     "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
+    "name": "{{ tag.tagName }}",
     {% if tag.userCreated %}
         "user_created": "1",
     {% endif %}
-    "name": "{{ tag.tagName }}",
-    "updated_at": "{{ tag.created|date('Y-m-d H:i:s') }}",
+    "tag_created": "{{ tag.created|date('Y-m-d H:i:s') }}",
+    "tag_selected": "{{ tag_selection.created|date('Y-m-d H:i:s') }}",
     "selected": 1
 },

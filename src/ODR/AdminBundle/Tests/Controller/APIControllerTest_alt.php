@@ -870,6 +870,50 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
     }
 
+    public function testSelect_Created()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $option_uuids = array();
+        foreach (self::$database_structure['fields'] as $df_num => $df) {
+            if ( $df['name'] === 'Multiple Select' ) {
+                foreach ($df['radio_options'] as $ro_num => $ro)
+                    $option_uuids[ $ro['name'] ] = $ro['template_radio_option_uuid'];
+                break;
+            }
+        }
+
+        // ----------------------------------------
+        // Select an option at a particular time...past/future doesn't matter
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][1] = array(    // index 0 is occupied by 'Single Select' now
+            'field_uuid' => self::$field_uuids['Multiple Select'],
+            'values' => array(
+                0 => array(
+                    'template_radio_option_uuid' => $option_uuids['Existing Option B'],
+                ),
+            ),
+            'created' => "2220-03-04 11:22:33",    // TODO - should this be per-option instead of field-level?
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        if ( $api_response_content['fields'][1]['values'][0]['option_selected'] !== '2220-03-04 11:22:33' )
+            $this->fail('Attempt to update an option at "2220-03-04 11:22:33" failed');
+
+        if ( self::$record_structure['fields'][1]['values'][0]['option_selected'] !== '2220-03-04 11:22:33' )
+            $this->fail('API call did not update an option at "2220-03-04 11:22:33"');
+    }
+
     public function testShortText()
     {
         if ( self::$force_skip )
@@ -890,6 +934,36 @@ class APIControllerTest_alt extends WebTestCase
         // Compare against the new version of the actual record...
         self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
+    }
+
+    public function testField_Created()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][2] = array(    // 'Short Text' occupies index 2...
+            'field_uuid' => self::$field_uuids['Short Text'],
+            'value' => 'foobarbaz',
+            'created' => '2121-12-21 12:21:12'
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // ...also check inside _field_metadata, since that doesn't get checked by assertArrayEquals()
+        if ( $api_response_content['fields'][2]['_field_metadata']['_create_date'] !== '2121-12-21 12:21:12' )
+            $this->fail('Attempt to update a field with create_date "2121-12-21 12:21:12" failed');
+
+        if ( self::$record_structure['fields'][2]['_field_metadata']['_create_date'] !== '2121-12-21 12:21:12' )
+            $this->fail('API call did not update a field to create_date "2121-12-21 12:21:12"');
     }
 
     public function testBoolean()
@@ -1326,6 +1400,51 @@ class APIControllerTest_alt extends WebTestCase
         }
         if ( $found )
             $this->fail('"Existing Tag BB" should not be selected, since its parent got deselected');
+    }
+
+    public function testTags_Created()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $tag_uuids = array();
+        foreach (self::$database_structure['fields'] as $df_num => $df) {
+            if ( $df['name'] === 'Flat Tags' ) {
+                foreach ($df['tags'] as $t_num => $t)
+                    $tag_uuids[ $t['name'] ] = $t['template_tag_uuid'];
+                break;
+            }
+        }
+
+        // ----------------------------------------
+        // Select a tag at a particular time...past/future doesn't matter
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][5] = array(    // 'DateTime' is occupying index 4...
+            'field_uuid' => self::$field_uuids['Flat Tags'],
+            'tags' => array(
+                0 => array(
+                    'template_tag_uuid' => 'New Tag E'
+                ),
+            ),
+            'created' => '1987-06-05 04:03:02'    // TODO - should this be per-tag instead of field-level?
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+
+        if ( $api_response_content['fields'][5]['tags'][0]['tag_selected'] !== '1987-06-05 04:03:02' )
+            $this->fail('Attempt to update a tag at "1987-06-05 04:03:02" failed');
+
+        if ( self::$record_structure['fields'][5]['tags'][0]['tag_selected'] !== '1987-06-05 04:03:02' )
+            $this->fail('API call did not update a tag at "1987-06-05 04:03:02"');
     }
 
     public function testFileImageUpload_Single()

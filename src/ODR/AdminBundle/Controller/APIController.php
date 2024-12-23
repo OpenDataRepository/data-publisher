@@ -3664,6 +3664,7 @@ class APIController extends ODRCustomController
         // Going to need these
         $selected_tags = $field['tags'];
 
+        // TODO - should this instead be "inside" each option?
         $created = null;
         if ( isset($field['created']) )
             $created = $field['created'];
@@ -3900,6 +3901,11 @@ class APIController extends ODRCustomController
 
             // Now that the desired selections have been identified, it needs to get converted into
             //  a unified changeset...it's a pain to make, so better to use a service for it
+
+            // Need to also convert the created date into a datetime for this function
+            if ( !is_null($created) )
+                $created = new \DateTime($created);
+
             /** @var TagHelperService $tag_helper_service */
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
             $tag_helper_service->updateSelectedTags(
@@ -3919,7 +3925,7 @@ class APIController extends ODRCustomController
         // ----------------------------------------
         // Should fill out any missing properties of the tags in the array
         $query = $em->createQuery(
-           'SELECT t
+           'SELECT ts
             FROM ODRAdminBundle:TagSelection ts
             JOIN ODRAdminBundle:Tags t WITH ts.tag = t
             WHERE ts.selected = 1
@@ -3932,7 +3938,9 @@ class APIController extends ODRCustomController
         //  prior to returning
         foreach ($field['tags'] as $j => $val) {
             $found = false;
-            foreach ($results as $tag) {
+            foreach ($results as $tag_selection) {
+                /** @var TagSelection $tag_selection */
+                $tag = $tag_selection->getTag();
                 if ( $field['tags'][$j]['template_tag_uuid'] == $tag->getTagUuid() )
                     $found = true;
             }
@@ -3946,8 +3954,9 @@ class APIController extends ODRCustomController
         //  array prior to returning
         $num = 0;
         $extra_tags = array();
-        foreach ($results as $tag) {
-            /** @var Tags $tag */
+        foreach ($results as $tag_selection) {
+            /** @var TagSelection $tag_selection */
+            $tag = $tag_selection->getTag();
 
             $found = false;
             foreach ($field['tags'] as $j => $val) {
@@ -3958,16 +3967,16 @@ class APIController extends ODRCustomController
                         && $field['tags'][$j]['template_tag_uuid'] == $tag->getTagName()
                     )
                 ) {
-                    // replace this block
                     $found = true;
 
-                    $field['tags'][$j]['template_tag_uuid'] = $tag->getTagUuid();
                     $field['tags'][$j]['id'] = $tag->getId();
-                    $field['tags'][$j]['selected'] = 1;
-                    // Using the option's created date is intentional here
-                    $field['tags'][$j]['updated_at'] = $tag->getCreated()->format('Y-m-d H:i:s');
-
+                    $field['tags'][$j]['template_tag_uuid'] = $tag->getTagUuid();
                     $field['tags'][$j]['name'] = $tag->getTagName();
+
+                    $field['tags'][$j]['tag_created'] = $tag->getCreated()->format('Y-m-d H:i:s');
+                    $field['tags'][$j]['tag_selected'] = $tag_selection->getCreated()->format('Y-m-d H:i:s');
+                    $field['tags'][$j]['selected'] = 1;
+
                     if ( $tag->getUserCreated() > 0 )
                         $field['tags'][$j]['user_created'] = $tag->getUserCreated();
                 }
@@ -3980,8 +3989,9 @@ class APIController extends ODRCustomController
                     'id' => $tag->getId(),
                     'template_tag_uuid' => $tag->getTagUuid(),
                     'name' => $tag->getTagName(),
+                    'tag_created' => $tag->getCreated()->format('Y-m-d H:i:s'),
+                    'tag_selected' => $tag_selection->getCreated()->format('Y-m-d H:i:s'),
                     'selected' => 1,
-                    'updated_at' => $tag->getCreated()->format('Y-m-d H:i:s'),
                 );
                 if ( $tag->getUserCreated() > 0 )
                     $extra_tags[$num]['user_created'] = $tag->getUserCreated();
@@ -3993,6 +4003,7 @@ class APIController extends ODRCustomController
         // Splice any additional tags into the existing array
         foreach ($extra_tags as $num => $t)
             $field['tags'][] = $t;
+        $field['tags'] = array_values( $field['tags'] );
 
         // Don't want this in the array still
         if ( isset($field['created']) )
@@ -4024,6 +4035,7 @@ class APIController extends ODRCustomController
         // Going to need these
         $selected_options = $field['values'];
 
+        // TODO - should this instead be "inside" each option?
         $created = null;
         if ( isset($field['created']) )
             $created = $field['created'];
@@ -4219,7 +4231,7 @@ class APIController extends ODRCustomController
         // ----------------------------------------
         // Should fill out any missing properties of the radio options in the array
 
-        // If any tags got created, then they need to be flushed so the rest of the database can
+        // If any options got created, then they need to be flushed so the rest of the database can
         //  pick up on it
         if ( $radio_option_created ) {
             foreach ($new_option_lookup as $ro)
@@ -4227,7 +4239,7 @@ class APIController extends ODRCustomController
         }
 
         $query = $em->createQuery(
-           'SELECT ro
+           'SELECT rs
             FROM ODRAdminBundle:RadioSelection rs
             JOIN ODRAdminBundle:RadioOptions ro WITH rs.radioOption = ro
             WHERE rs.selected = 1
@@ -4236,8 +4248,9 @@ class APIController extends ODRCustomController
         )->setParameters( array('drf_id' => $drf->getId()) );
         $results = $query->getResult();
 
-        foreach ($results as $option) {
-            /** @var RadioOptions $option */
+        foreach ($results as $selection) {
+            /** @var RadioSelection $selection */
+            $option = $selection->getRadioOption();
 
             foreach ($field['values'] as $j => $val) {
                 if (
@@ -4247,14 +4260,15 @@ class APIController extends ODRCustomController
                         && $field['values'][$j]['template_radio_option_uuid'] == $option->getOptionName()
                     )
                 ) {
-                    // replace this block
-                    $field['values'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                    $field['values'][$j]['id'] = $option->getId();
-                    $field['values'][$j]['selected'] = 1;
-                    // Using the option's created date is intentional here
-                    $field['values'][$j]['updated_at'] = $option->getCreated()->format('Y-m-d H:i:s');
 
+                    $field['values'][$j]['id'] = $option->getId();
+                    $field['values'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
                     $field['values'][$j]['name'] = $option->getOptionName();
+
+                    $field['values'][$j]['option_created'] = $option->getCreated()->format('Y-m-d H:i:s');
+                    $field['values'][$j]['option_selected'] = $selection->getCreated()->format('Y-m-d H:i:s');
+                    $field['values'][$j]['selected'] = 1;
+
                     if ( $option->getUserCreated() > 0 )
                         $field['values'][$j]['user_created'] = $option->getUserCreated();
                 }
