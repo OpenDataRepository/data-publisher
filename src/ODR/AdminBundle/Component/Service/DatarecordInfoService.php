@@ -716,11 +716,14 @@ class DatarecordInfoService
             // Don't want to keep this entry
             unset( $result['dataRecordFields'] );
 
-            if ( !isset($radio_selections[$dr_id]) )
-                $radio_selections[$dr_id] = array();
-            if ( !isset($radio_selections[$dr_id][$df_id]) )
-                $radio_selections[$dr_id][$df_id] = array();
-            $radio_selections[$dr_id][$df_id][$ro_id] = $result;
+            // Only want selected options in the array
+            if ( $result['selected'] == 1 ) {
+                if ( !isset($radio_selections[$dr_id]) )
+                    $radio_selections[$dr_id] = array();
+                if ( !isset($radio_selections[$dr_id][$df_id]) )
+                    $radio_selections[$dr_id][$df_id] = array();
+                $radio_selections[$dr_id][$df_id][$ro_id] = $result;
+            }
         }
 
         return $radio_selections;
@@ -763,11 +766,14 @@ class DatarecordInfoService
             // Don't want to keep this entry
             unset( $result['dataRecordFields'] );
 
-            if ( !isset($tag_selections[$dr_id]) )
-                $tag_selections[$dr_id] = array();
-            if ( !isset($tag_selections[$dr_id][$df_id]) )
-                $tag_selections[$dr_id][$df_id] = array();
-            $tag_selections[$dr_id][$df_id][$t_id] = $result;
+            // Only want selected tags in the cached array
+            if ( $result['selected'] == 1 ) {
+                if ( !isset($tag_selections[$dr_id]) )
+                    $tag_selections[$dr_id] = array();
+                if ( !isset($tag_selections[$dr_id][$df_id]) )
+                    $tag_selections[$dr_id][$df_id] = array();
+                $tag_selections[$dr_id][$df_id][$t_id] = $result;
+            }
         }
 
         return $tag_selections;

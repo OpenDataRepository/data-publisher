@@ -813,6 +813,6 @@ class TagHelperService
 
         // Return whether a change was made
         return $change_made;
-        // TODO - probably need to return something other than boolean for the API...
+        // TODO - does it help the API if something other than boolean is returned?
     }
 }

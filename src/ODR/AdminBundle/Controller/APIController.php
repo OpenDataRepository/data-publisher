@@ -77,6 +77,7 @@ use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
@@ -1638,23 +1639,6 @@ class APIController extends ODRCustomController
         return $record;
     }
 
-    /**
-     * @param array $tag_tree
-     * @param array $selected_tags
-     */
-    private function selectedTags($tag_tree, &$selected_tags = array())
-    {
-        foreach ($tag_tree as $tag) {
-            if (isset($tag['selected']) && $tag['selected'] == 1) {
-                array_push($selected_tags, $tag['template_tag_uuid']);
-            }
-
-            if (isset($tag['children']) && is_array($tag['children']) && count($tag['children']) > 0) {
-                self::selectedTags($tag['children'], $selected_tags);
-            }
-        }
-    }
-
 
     /**
      * Checks if the changes can successfully be completed by the user.
@@ -1813,122 +1797,18 @@ class APIController extends ODRCustomController
                         }
                     }
                     else if ( isset($field['tags']) && is_array($field['tags']) ) {
-
+                        // Need to verify this only gets run on tag fields
                         switch ($typename) {
-
-                            // Tag field - need to difference hierarchy
                             case 'Tags':
-                                // Determine selected tags in original dataset
-                                // Determine selected tags in current
-                                // print $field['template_field_uuid']."\n";
-
-                                $selected_tags = array();
-                                self::selectedTags($field['value'], $selected_tags);
-
-                                $orig_selected_tags = array();
-                                $orig_tag_field = array();
-                                if ($orig_dataset) {
-                                    foreach ($orig_dataset['fields'] as $o_field) {
-                                        if (
-                                            isset($o_field['value']) &&
-                                            isset($field['field_uuid']) &&
-                                            $o_field['field_uuid'] == $field['field_uuid']
-                                        ) {
-                                            $orig_tag_field = $o_field['value'];
-                                            self::selectedTags($o_field['value'], $orig_selected_tags);
-                                        }
-                                    }
-                                }
-
-                                $new_tags = array();
-                                $deleted_tags = array();
-
-                                // check for new tags
-                                foreach ($selected_tags as $tag) {
-                                    $found = false;
-                                    foreach ($orig_selected_tags as $o_tag) {
-                                        if ($tag == $o_tag) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($new_tags, $tag);
-                                    }
-                                }
-
-                                // Check for deleted tags
-                                foreach ($orig_selected_tags as $o_tag) {
-                                    $found = false;
-                                    foreach ($selected_tags as $tag) {
-                                        if ($tag == $o_tag) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($deleted_tags, $o_tag);
-                                    }
-                                }
-
-                                /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')
-                                    ->findOneBy(
-                                        array(
-                                            'dataRecord' => $dataset['internal_id'],
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-
-                                // Delete deleted tags
-                                foreach ($deleted_tags as $tag_uuid) {
-                                    /** @var Tags $tag */
-                                    $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                                        array(
-                                            'tagUuid' => $tag_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-                                    /** @var TagSelection $tag_selection */
-                                    $tag_selection = $em->getRepository('ODRAdminBundle:TagSelection')
-                                        ->findOneBy(
-                                            array(
-                                                'tag' => $tag->getId(),
-                                                'dataRecordFields' => $drf->getId()
-                                            )
-                                        );
-
+                                // Determine whether the user is allowed to make the changes they're
+                                //  requesting to this field...
+                                $tag_field_changed = self::checkTagFieldPermissions($em, $pm_service, $user, $data_record, $data_field, $orig_dataset, $field);
+                                if ($tag_field_changed)
                                     $fields_updated = true;
-                                }
-
-
-                                // Check if new tag exists in template
-                                // Add to template if not exists
-                                foreach ($new_tags as $tag_uuid) {
-                                    // Lookup Tag by UUID
-                                    /** @var Tags $tag */
-                                    $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                                        array(
-                                            'tagUuid' => $tag_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-
-                                    if (!$tag) {
-                                        // We need Datatype Admin Perms
-                                        if (
-                                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                            && !$pm_service->canEditDatatype($user, $data_record->getDataType())
-                                        ) {
-                                            return false;
-                                        }
-                                    }
-
-
-                                    // User Added Options
-                                    $fields_updated = true;
-
-                                }
-
                                 break;
+
+                            default:
+                                throw new ODRBadRequestException('Structure for Tag field used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
                     else if ( isset($field['values']) && is_array($field['values']) ) {
@@ -2209,6 +2089,26 @@ class APIController extends ODRCustomController
         $typeclass = $datafield->getFieldType()->getTypeClass();
 
         // ----------------------------------------
+        /* Keys in the 'files' sub-array must be numeric...e.g.:
+         * 'field_uuid' => '...',
+         * 'files' => array(
+         *      0 => array(
+         *          'file_uuid' => '...'
+         *      ),
+         *      1 => array(
+         *          'file_uuid' => '...',
+         *          'created' => '...',
+         *      ),
+         *      ...
+         * )
+         */
+        foreach ($field['files'] as $key => $value) {
+            if ( !is_numeric($key) )
+                throw new ODRBadRequestException('Field "'.$datafield->getFieldUuid().'" submitted with invalid files structure...needs to be "files" => array(0 => array(<file_1 data>), 1 => array<file_2 data>), etc)', $exception_source);
+        }
+
+
+        // ----------------------------------------
         // Need to determine whether a change is taking place
         $changed = false;
 
@@ -2236,10 +2136,10 @@ class APIController extends ODRCustomController
                 // Since the controller actions only work on already uploaded files/images, the
                 //  datarecord must already exist...
                 if ( is_null($datarecord) )
-                    throw new ODRBadRequestException('Files/Images must have a file_uuid set to be able to modify them', $exception_source);
+                    throw new ODRBadRequestException('Files/Images for the Field "'.$datafield->getFieldUuid().'" must be uploaded before they can be modified', $exception_source);
                 // ...same with the identifier for the file/image
                 if ( !isset($file['file_uuid']) )
-                    throw new ODRBadRequestException('Files/Images must have a file_uuid set to be able to modify them', $exception_source);
+                    throw new ODRBadRequestException('Files/Images in the Field "'.$datafield->getFieldUuid().'" must have a file_uuid set to be able to modify them', $exception_source);
 
                 /** @var File|Image $file_obj */
                 $file_obj = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
@@ -2250,14 +2150,14 @@ class APIController extends ODRCustomController
                     )
                 );
                 if ($file_obj == null)
-                    throw new ODRNotFoundException('Unable to find the '.$typeclass.' with file_uuid "'.$file['file_uuid'].'"', true, $exception_source);
+                    throw new ODRNotFoundException('Unable to find the '.$typeclass.' with file_uuid "'.$file['file_uuid'].'" for the Field "'.$datafield->getFieldUuid().'"', true, $exception_source);
 
                 if ( $typeclass !== 'Image' && !is_null($new_display_order) )
-                    throw new ODRBadRequestException('The "display_order" parameter is only valid for Image fields, not the File "'.$file['file_uuid'].'"', $exception_source);
+                    throw new ODRBadRequestException('The "display_order" parameter is only valid for Image fields, not the File "'.$file['file_uuid'].'" submitted for the Field "'.$datafield->getFieldUuid().'"', $exception_source);
 
                 // This should only trigger when the user tries to changes something
                 if ($typeclass === 'Image' && $file_obj->getOriginal() == false)
-                    throw new ODRBadRequestException('Not allowed to directly modify the thumbnail image "'.$file['file_uuid'].'".  Modify its parent image "'.$file_obj->getParent()->getUniqueId().'" instead', true, $exception_source);
+                    throw new ODRBadRequestException('Not allowed to directly modify the thumbnail image "'.$file['file_uuid'].'" in the for the Field "'.$datafield->getFieldUuid().'".  Modify its parent image "'.$file_obj->getParent()->getUniqueId().'" instead', $exception_source);
 
 
                 // ----------------------------------------
@@ -2272,6 +2172,236 @@ class APIController extends ODRCustomController
                     $changed = true;
                 }
             }
+        }
+
+        // If this point is reached, either the user has permissions, or no changes are being made
+        return $changed;
+    }
+
+
+    /**
+     * Tags are mostly similar to Radio fields, but they can have parent/child tags to deal with...
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param PermissionsManagementService $pm_service
+     * @param ODRUser $user
+     * @param DataRecord|null $datarecord The datarecord the user might be modifying...can technically be null, indicating a new record
+     * @param DataFields $datafield The datafield the user might be modifying
+     * @param array $orig_dataset The array version of the current record
+     * @param array $field An array of the state the user wants to field to be in after datasetDiff()
+     * @throws ODRException
+     * @return bool
+     */
+    private function checkTagFieldPermissions($em, $pm_service, $user, $datarecord, $datafield, $orig_dataset, $field)
+    {
+        $exception_source = 0x02d6e861;
+
+        // Going to need these
+        $selected_tags = $field['tags'];
+
+        $repo_dataRecordFields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+        $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
+        $repo_tagSelections = $em->getRepository('ODRAdminBundle:TagSelection');
+
+        $allow_multiple_levels = $datafield->getTagsAllowMultipleLevels();
+        $allow_non_admin_tags_edits = $datafield->getTagsAllowNonAdminEdit();
+
+        // ----------------------------------------
+        /* Keys in the 'tags' sub-array must be numeric...e.g.:
+         * 'field_uuid' => '...',
+         * 'tags' => array(
+         *      0 => array(
+         *          'template_tag_uuid' => '...'
+         *      ),
+         *      1 => array(
+         *          'template_tag_uuid' => '...',
+         *          'parent_tag_uuid' => '...',
+         *      ),
+         *      ...
+         * )
+         */
+        foreach ($selected_tags as $key => $value) {
+            if ( !is_numeric($key) )
+                throw new ODRBadRequestException('Field "'.$datafield->getFieldUuid().'" submitted with invalid tag structure...needs to be "tags" => array(0 => array(<tag_1 data>), 1 => array<tag_2 data>), etc)', $exception_source);
+        }
+
+        // If the tag field does not allow multiple levels, then immediately prevent the
+        //  existence of 'tag_parent_uuid'
+        if ( !$allow_multiple_levels ) {
+            foreach ($selected_tags as $t) {
+                if ( isset($t['tag_parent_uuid']) )
+                    throw new ODRBadRequestException('Field "'.$datafield->getFieldUuid().'" is not allowed to have multiple levels of tags', $exception_source);
+            }
+        }
+
+
+        // ----------------------------------------
+        // Locate the currently selected options in the dataset
+        $orig_selected_tags = array();
+        if ($orig_dataset) {
+            foreach ($orig_dataset['fields'] as $o_field) {
+                if (
+                    isset($o_field['tags']) &&
+                    isset($field['field_uuid']) &&
+                    $o_field['field_uuid'] == $field['field_uuid']
+                ) {
+                    $orig_selected_tags = $o_field['tags'];
+                    break;
+                }
+            }
+        }
+
+        // Determine whether the submitted dataset will select/create any tags, or unselect an tag
+        $new_tags = array();
+        $new_tags_parents = array();
+        $deselected_tags = array();
+
+        // Check for new tags
+        foreach ($selected_tags as $tag) {
+            $found = false;
+
+            // Tags are matched via their uuids...
+            if ( !isset($tag['template_tag_uuid']) )
+                throw new ODRBadRequestException('A submitted tag for Field "'.$datafield->getFieldUuid().'" does not have a "template_tag_uuid"', $exception_source);
+            $tag_uuid = $tag['template_tag_uuid'];
+
+            foreach ($orig_selected_tags as $o_tag) {
+                // Tags are matched via their uuids...
+                if ( !isset($o_tag['template_tag_uuid']) )
+                    throw new ODRBadRequestException('An existing tag for Field "'.$datafield->getFieldUuid().'" does not have a "template_tag_uuid"', $exception_source);
+                $o_tag_uuid = $o_tag['template_tag_uuid'];
+
+                if ($tag_uuid == $o_tag_uuid)
+                    $found = true;
+            }
+
+            if (!$found) {
+                $new_tags[] = $tag_uuid;
+
+                // A new tag isn't guaranteed to have a parent...
+                if ( isset($tag['parent_tag_uuid']) )
+                    $new_tags_parents[ $tag_uuid ] = $tag['parent_tag_uuid'];
+            }
+        }
+
+        // Check for deselected tags
+        foreach ($orig_selected_tags as $o_tag) {
+            $found = false;
+
+            // Tags are matched via their uuids...
+            if ( !isset($o_tag['template_tag_uuid']) )
+                throw new ODRBadRequestException('An existing tag for Field "'.$datafield->getFieldUuid().'" does not have a "template_tag_uuid"', $exception_source);
+            $o_tag_uuid = $o_tag['template_tag_uuid'];
+
+            foreach ($selected_tags as $tag) {
+                // Tags are matched via their uuids...
+                if ( !isset($tag['template_tag_uuid']) )
+                    throw new ODRBadRequestException('A submitted tag for Field "'.$datafield->getFieldUuid().'" does not have a "template_tag_uuid"', $exception_source);
+                $tag_uuid = $tag['template_tag_uuid'];
+
+                if ($tag_uuid == $o_tag_uuid)
+                    $found = true;
+            }
+
+            if (!$found)
+                $deselected_tags[] = $o_tag_uuid;
+        }
+
+
+        // ----------------------------------------
+        // Need to determine whether a change is taking place
+        $changed = false;
+        $drf = null;
+
+        // Determine whether a tag got deselected
+        foreach ($deselected_tags as $tag_uuid) {
+            if ( is_null($drf) ) {
+                /** @var DataRecordFields $drf */
+                $drf = $repo_dataRecordFields->findOneBy(
+                    array(
+                        'dataRecord' => $datarecord->getId(),
+                        'dataField' => $datafield->getId()
+                    )
+                );
+            }
+            // In order for the API call to be able to deselect a tag, the drf entry must exist
+            //  beforehand...so there's no need to check for whether it does or not
+
+            /** @var Tags $tag */
+            $tag = $repo_tags->findOneBy(
+                array(
+                    'tagUuid' => $tag_uuid,
+                    'dataField' => $datafield->getId()
+                )
+            );
+            /** @var TagSelection $tag_selection */
+            $tag_selection = $repo_tagSelections->findOneBy(
+                array(
+                    'tag' => $tag->getId(),
+                    'dataRecordFields' => $drf->getId()
+                )
+            );
+
+            if ($tag_selection) {
+                // The tag exists, so it will get deselected...determine whether the user
+                //  has the permissions to do so
+                $changed = true;
+                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                    throw new ODRForbiddenException('Not allowed to deselect tags in the Field "'.$datafield->getFieldUuid().'"', $exception_source);
+            }
+        }
+
+
+        // Determine whether an existing tag got selected, or a new tag needs to get created
+        foreach ($new_tags as $tag_uuid) {
+            $changed = true;
+
+            // Lookup Tag by UUID
+            /** @var Tags $tag */
+            $tag = $repo_tags->findOneBy(
+                array(
+                    'tagUuid' => $tag_uuid,
+                    'dataField' => $datafield->getId(),
+                )
+            );
+
+            if (!$tag) {
+                // The tag doesn't exist, so it will get created...determine whether the user
+                //  has the permissions to do so
+                if ( !$allow_non_admin_tags_edits ) {
+                    if ( !$pm_service->isDatatypeAdmin($user, $datafield->getDataType()) )
+                        throw new ODRForbiddenException('Not allowed to create tags for the Field "'.$datafield->getFieldUuid().'"', $exception_source);
+                }
+                else {
+                    if ( !$pm_service->canEditDatafield($user, $datafield) )
+                        throw new ODRForbiddenException('Not allowed to create tags in the Field "'.$datafield->getFieldUuid().'"', $exception_source);
+                }
+
+                // New tags can only be created a level at a time...if it exists, tag_parent_uuid
+                //  must refer to an existing tag
+                if ( isset($new_tags_parents[$tag_uuid]) ) {
+                    $parent_tag_uuid = $new_tags_parents[$tag_uuid];
+                    /** @var Tags $tag_parent */
+                    $tag_parent = $repo_tags->findOneBy(
+                        array(
+                            'tagUuid' => $parent_tag_uuid,
+                            'dataField' => $datafield->getId(),
+                        )
+                    );
+
+                    if (!$tag_parent)
+                        throw new ODRNotFoundException('Unable to find the Parent Tag with tag_uuid "'.$parent_tag_uuid.'" for the Field "'.$datafield->getFieldUuid().'"', true, $exception_source);
+                }
+            }
+            else {
+                // The tag exists, so it will get selected...determine whether the user has the
+                //  permissions to do so
+                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                    throw new ODRForbiddenException('Not allowed to select tags in the Field "'.$datafield->getFieldUuid().'"', $exception_source);
+            }
+
+            // Note that ValidUtility has functions to check whether radio options or tags are
+            //  valid...but those aren't needed because the API will create them if they don't exist
         }
 
         // If this point is reached, either the user has permissions, or no changes are being made
@@ -2303,13 +2433,31 @@ class APIController extends ODRCustomController
         $repo_radioOptions = $em->getRepository('ODRAdminBundle:RadioOptions');
         $repo_radioSelections = $em->getRepository('ODRAdminBundle:RadioSelection');
 
+        // ----------------------------------------
+        /* Keys in the 'files' sub-array must be numeric...e.g.:
+         * 'field_uuid' => '...',
+         * 'values' => array(
+         *      0 => array(
+         *          'template_radio_option_uuid' => '...'
+         *      ),
+         *      1 => array(
+         *          'template_radio_option_uuid' => '...',
+         *      ),
+         *      ...
+         * )
+         */
+        foreach ($selected_options as $key => $value) {
+            if ( !is_numeric($key) )
+                throw new ODRBadRequestException('Field "'.$datafield->getFieldUuid().'" submitted with invalid radio structure...needs to be "values" => array(0 => array(<option_1 data>), 1 => array<option_2 data>), etc)', $exception_source);
+        }
+
         // If the datafield only allows a single radio selection...
         $typename = $datafield->getFieldType()->getTypeName();
         if ( $typename === 'Single Radio' || $typename === 'Single Select' ) {
             // ...then need to throw an error if the user wants to leave the field in a state where
             //  it has multiple radio options selected
             if ( count($selected_options) > 1 )
-                throw new ODRBadRequestException('Field '.$datafield->getFieldUuid().' is not allowed to have multiple options selected', $exception_source);
+                throw new ODRBadRequestException('Field "'.$datafield->getFieldUuid().'" is not allowed to have multiple options selected', $exception_source);
         }
 
 
@@ -2331,30 +2479,52 @@ class APIController extends ODRCustomController
 
         // Determine whether the submitted dataset will select/create any options, or unselect an option
         $new_options = array();
-        $deleted_options = array();
+        $deselected_options = array();
 
         // Check for new options
         foreach ($selected_options as $option) {
             $found = false;
+
+            // Radio Options are matched via their uuids...
+            if ( !isset($option['template_radio_option_uuid']) )
+                throw new ODRBadRequestException('An existing option for Field "'.$datafield->getFieldUuid().'" does not have a "template_radio_option_uuid"', $exception_source);
+            $option_uuid = $option['template_radio_option_uuid'];
+
             foreach ($orig_selected_options as $o_option) {
-                if ($option == $o_option)
+                // Radio Options are matched via their uuids...
+                if ( !isset($o_option['template_radio_option_uuid']) )
+                    throw new ODRBadRequestException('A submitted option for Field "'.$datafield->getFieldUuid().'" does not have a "template_radio_option_uuid"', $exception_source);
+                $o_option_uuid = $o_option['template_radio_option_uuid'];
+
+                if ($option_uuid == $o_option_uuid)
                     $found = true;
             }
 
             if (!$found)
-                array_push($new_options, $option['template_radio_option_uuid']);
+                $new_options[] = $option_uuid;
         }
 
         // Check for deleted options
         foreach ($orig_selected_options as $o_option) {
             $found = false;
+
+            // Radio Options are matched via their uuids...
+            if ( !isset($o_option['template_radio_option_uuid']) )
+                throw new ODRBadRequestException('A submitted option for Field "'.$datafield->getFieldUuid().'" does not have a "template_radio_option_uuid"', $exception_source);
+            $o_option_uuid = $o_option['template_radio_option_uuid'];
+
             foreach ($selected_options as $option) {
-                if ($option == $o_option)
+                // Radio Options are matched via their uuids...
+                if ( !isset($option['template_radio_option_uuid']) )
+                    throw new ODRBadRequestException('An existing option for Field "'.$datafield->getFieldUuid().'" does not have a "template_radio_option_uuid"', $exception_source);
+                $option_uuid = $option['template_radio_option_uuid'];
+
+                if ($option_uuid == $o_option_uuid)
                     $found = true;
             }
 
             if (!$found)
-                array_push($deleted_options, $o_option['template_radio_option_uuid']);
+                $deselected_options[] = $o_option_uuid;
         }
 
 
@@ -2364,7 +2534,7 @@ class APIController extends ODRCustomController
         $drf = null;
 
         // Determine whether an option got deselected
-        foreach ($deleted_options as $option_uuid) {
+        foreach ($deselected_options as $option_uuid) {
             if ( is_null($drf) ) {
                 /** @var DataRecordFields $drf */
                 $drf = $repo_dataRecordFields->findOneBy(
@@ -2752,22 +2922,11 @@ class APIController extends ODRCustomController
                     $typeclass = $data_field->getFieldType()->getTypeClass();
                     $typename = $data_field->getFieldType()->getTypeName();
 
-                    // Probably going to end up needing this
-                    /** @var DataRecordFields $drf */
-                    $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                        array(
-                            'dataRecord' => $dataset['internal_id'],
-                            'dataField' => $data_field->getId()
-                        )
-                    );
-                    // NOTE: $drf might legitimately be null...i.e. a newly created record without
-                    //  any data in it
-
 
                     // ----------------------------------------
                     // Update field content
                     if (isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
-
+                        // Ensure this only gets run on the correct fieldtypes
                         switch ( $typeclass ) {
                             case 'File':
                             case 'Image':
@@ -2782,260 +2941,31 @@ class APIController extends ODRCustomController
                             default:
                                 // This should never happen because checkUpdatePermissions() should've
                                 //  caught it already
-                                throw new ODRBadRequestException('Structure for Radio fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
+                                throw new ODRBadRequestException('Structure for File/Image fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
                     else if ( isset($field['tags']) && is_array($field['tags']) ) {
+                        // Ensure this only gets run on the correct fieldtypes
+                        switch ( $typeclass ) {
+                            case 'Tag':
+                                $ret = self::updateTagField($em, $uuid_service, $user, $data_record, $data_field, $orig_dataset, $field);
 
-                        switch ($typename) {
-
-                            // Tag field - need to difference hierarchy
-                            case 'Tags':
-                                // Determine selected tags in original dataset
-                                // Determine selected tags in current
-                                // print $field['template_field_uuid']."\n";
-
-                                $selected_tags = array();
-                                self::selectedTags($field['value'], $selected_tags);
-
-                                $orig_selected_tags = array();
-                                $orig_tag_field = array();
-                                if ($orig_dataset) {
-                                    foreach ($orig_dataset['fields'] as $o_field) {
-                                        if (
-                                            isset($o_field['value']) &&
-                                            isset($field['field_uuid']) &&
-                                            $o_field['field_uuid'] == $field['field_uuid']
-                                        ) {
-                                            $orig_tag_field = $o_field['value'];
-                                            self::selectedTags($o_field['value'], $orig_selected_tags);
-                                        }
-                                    }
-                                }
-
-                                $new_tags = array();
-                                $deleted_tags = array();
-
-                                // check for new tags
-                                foreach ($selected_tags as $tag) {
-                                    $found = false;
-                                    foreach ($orig_selected_tags as $o_tag) {
-                                        if ($tag == $o_tag) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($new_tags, $tag);
-                                    }
-                                }
-
-                                // Check for deleted tags
-                                foreach ($orig_selected_tags as $o_tag) {
-                                    $found = false;
-                                    foreach ($selected_tags as $tag) {
-                                        if ($tag == $o_tag) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($deleted_tags, $o_tag);
-                                    }
-                                }
-
-                                /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')
-                                    ->findOneBy(
-                                        array(
-                                            'dataRecord' => $dataset['internal_id'],
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-
-                                // Delete deleted tags
-                                foreach ($deleted_tags as $tag_uuid) {
-                                    /** @var Tags $tag */
-                                    $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                                        array(
-                                            'tagUuid' => $tag_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-                                    /** @var TagSelection $tag_selection */
-                                    $tag_selection = $em->getRepository('ODRAdminBundle:TagSelection')
-                                        ->findOneBy(
-                                            array(
-                                                'tag' => $tag->getId(),
-                                                'dataRecordFields' => $drf->getId()
-                                            )
-                                        );
-
-                                    if ($tag_selection) {
-                                        $em->remove($tag_selection);
-                                        $fields_updated = true;
-                                    }
-                                }
-
-
-                                // Check if new tag exists in template
-                                // Add to template if not exists
-                                foreach ($new_tags as $tag_uuid) {
-                                    // Lookup Tag by UUID
-                                    /** @var Tags $tag */
-                                    $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                                        array(
-                                            'tagUuid' => $tag_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-
-                                    // User Added Options
-                                    if (!$tag) {
-                                        if (!$tag) {
-                                            // We need Datatype Admin Perms
-                                            if (
-                                                !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                                && !$pm_service->canEditDatatype($user, $data_record->getDataType())
-                                            ) {
-                                                throw new ODRForbiddenException();
-                                            }
-                                        }
-                                        // Create tag and set as user created
-                                        $tag = new Tags();
-                                        $tag_created = true;
-
-                                        // Option UUID gets overloaded with the name if a user created tag
-                                        $tag->setTagName($tag_uuid);
-
-                                        /** @var UUIDService $uuid_service */
-                                        $uuid_service = $this->container->get('odr.uuid_service');
-                                        $tag->setTagUuid($uuid_service->generateTagUniqueId());
-                                        $tag->setCreatedBy($user);
-                                        self::setDates($tag, $field['created']);
-                                        $tag->setUserCreated(1);
-                                        $tag->setDataField($data_field);
-                                        $em->persist($tag);
-
-                                        // Search $field['value'] for tag and find parent
-                                        $tag_parent_uuid = null;
-                                        foreach ($field['value'] as $field_tag) {
-                                            if ($field_tag['template_tag_uuid'] == $tag_uuid) {
-                                                // This is our tag
-                                                $tag_parent_uuid = $field_tag['tag_parent_uuid'];
-                                            }
-                                        }
-
-                                        if ($tag_parent_uuid == null)
-                                            throw new \Exception('Tag parent UUID is required when adding user-created tags');
-
-                                        // Look up parent tag
-                                        /** @var Tags $tag_parent */
-                                        $tag_parent = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                                            array(
-                                                'tagUuid' => $tag_parent_uuid,
-                                                'dataField' => $data_field->getId()
-                                            )
-                                        );
-
-                                        if (!$tag_parent)
-                                            throw new \Exception('The parent tag is invalid or not found.');    // TODO - not all tags will have parents...
-
-                                        /** @var TagTree $tag_tree */
-                                        $tag_tree = new TagTree();
-                                        $tag_tree->setChild($tag);
-                                        $tag_tree->setParent($tag_parent);
-                                        $tag_tree->setCreatedBy($user);
-                                        self::setDates($tag_tree, $field['created']);
-                                        $em->persist($tag_tree);
-
-                                        /** @var TagMeta $tag_meta */
-                                        $tag_meta = new TagMeta();
-                                        $tag_meta->setTag($tag);
-                                        $tag_meta->setTagName($tag_uuid);
-                                        $tag_meta->setXmlTagName($tag_uuid);
-                                        $tag_meta->setDisplayOrder(0);
-                                        $tag_meta->setCreatedBy($user);
-                                        self::setDates($tag_meta, $field['created']);
-                                        $tag_meta->setUpdatedBy($user);
-                                        $em->persist($tag_meta);
-                                    }
-
-                                    if (!$drf) {
-                                        // If drf entry doesn't exist, create new
-                                        $drf = new DataRecordFields();
-                                        $drf->setCreatedBy($user);
-                                        self::setDates($drf, $field['created']);
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
-                                        $em->persist($drf);
-                                    }
-
-                                    /** @var TagSelection $new_field */
-                                    $new_field = new TagSelection();
-                                    $new_field->setTag($tag);
-                                    $new_field->setDataRecordFields($drf);
-                                    $new_field->setDataRecord($data_record);
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setSelected(1);
-                                    $em->persist($new_field);
-
-                                    self::fieldMeta($field, $data_field, $new_field);
+                                if ( $ret['fields_updated'] )
                                     $fields_updated = true;
+                                if ( $ret['tag_created'] )
+                                    $tag_created = true;
 
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    // Maybe the references will be stored in the variable anyway?
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Added tags need to replace their value in the array
-                                    for ($j = 0; $j < count($field['value']); $j++) {
-                                        if (
-                                            $field['value'][$j]['template_tag_uuid'] == $tag->getTagUuid()
-                                            || (
-                                                $tag->getUserCreated()
-                                                && $field['value'][$j]['template_tag_uuid'] == $tag_uuid
-                                            )
-                                        ) {
-                                            // replace this block
-                                            $field['value'][$j]['test'] = 1;
-                                            $field['value'][$j]['template_tag_uuid'] = $tag->getTagUuid();
-                                            $field['value'][$j]['id'] = $new_field->getId();
-                                            $field['value'][$j]['selected'] = 1;
-                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
-
-                                            if ($tag_created) {
-                                                $field['value'][$j]['name'] = $tag_uuid;
-                                                $field['value'][$j]['user_created'] = 1;
-                                            }
-                                            else {
-                                                $field['value'][$j]['name'] = $tag->getTagName();
-                                                $field['value'][$j]['user_created'] = $tag->getUserCreated();
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Get full definitions for fields from original dataset
-                                for ($j = 0; $j < count($orig_tag_field); $j++) {
-                                    for ($k = 0; $k < count($field['value']); $k++) {
-                                        if ($field['value'][$k]['template_tag_uuid'] == $orig_tag_field[$j]['template_tag_uuid']) {
-                                            $field['value'][$k] = $orig_tag_field[$j];
-                                            break;
-                                        }
-                                    }
-                                }
-                                // Assign the updated field back to the dataset.
-                                $dataset['fields'][$i] = $field;
-
+                                $dataset['fields'][$i] = $ret['new_json'];
                                 break;
 
+                            default:
+                                // This should never happen because checkUpdatePermissions() should've
+                                //  caught it already
+                                throw new ODRBadRequestException('Structure for Tag fields used on '.$typeclass.' Field '.$data_field->getFieldUuid(), $exception_source);
                         }
                     }
                     else if ( isset($field['values']) && is_array($field['values']) ) {
-
+                        // Ensure this only gets run on the correct fieldtypes
                         switch ( $typename ) {
                             case 'Single Radio':
                             case 'Multiple Radio':
@@ -3058,7 +2988,7 @@ class APIController extends ODRCustomController
                         }
                     }
                     else if ( isset($field['value']) || isset($field['selected']) ) {
-
+                        // Ensure this only gets run on the correct fieldtypes
                         switch ($typeclass) {
                             case 'Boolean':
                             case 'IntegerValue':
@@ -3084,17 +3014,25 @@ class APIController extends ODRCustomController
                     }
 
 
-                    // Fill out any missing values in the submitted data
-                    if ( !isset($field['id']) )
-                        $dataset['fields'][$i]['id'] = $data_field->getId();
-                    if ( !isset($field['field_name']) )
-                        $dataset['fields'][$i]['field_name'] = $data_field->getFieldName();
-                    if ( !isset($field['field_uuid']) )
-                        $dataset['fields'][$i]['field_uuid'] = $data_field->getFieldUuid();
-                    if ( !isset($field['template_field_uuid']) )
-                        $dataset['fields'][$i]['template_field_uuid'] = $data_field->getTemplateFieldUuid();
+                    if ( (isset($dataset['fields'][$i]['values']) && empty($dataset['fields'][$i]['values']))
+                        || (isset($dataset['fields'][$i]['tags']) && empty($dataset['fields'][$i]['tags']))
+                    ) {
+                        // If the field has no more selected options or tags, then get rid of it
+                        unset( $dataset['fields'][$i] );
+                    }
+                    else {
+                        // Otherwise, fill out any missing values in the submitted data
+                        if ( !isset($field['id']) )
+                            $dataset['fields'][$i]['id'] = $data_field->getId();
+                        if ( !isset($field['field_name']) )
+                            $dataset['fields'][$i]['field_name'] = $data_field->getFieldName();
+                        if ( !isset($field['field_uuid']) )
+                            $dataset['fields'][$i]['field_uuid'] = $data_field->getFieldUuid();
+                        if ( !isset($field['template_field_uuid']) )
+                            $dataset['fields'][$i]['template_field_uuid'] = $data_field->getTemplateFieldUuid();
 
-                    // The "_field_metadata" key was set back inside the relevant function
+                        // The "_field_metadata" key was set back inside the relevant function
+                    }
                 }
             }
 
@@ -3709,6 +3647,366 @@ class APIController extends ODRCustomController
 
 
     /**
+     * The tag typeclass is rather complicated to update...
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param UUIDService $uuid_service
+     * @param ODRUser $user
+     * @param DataRecord $datarecord The datarecord the user might be modifying
+     * @param DataFields $datafield The datafield the user might be modifying
+     * @param array $orig_dataset The array version of the current record
+     * @param array $field An array of the state the user wants to field to be in after datasetDiff()
+     * @throws ODRException
+     * @return array
+     */
+    private function updateTagField($em, $uuid_service, $user, $datarecord, $datafield, $orig_dataset, $field)
+    {
+        // Going to need these
+        $selected_tags = $field['tags'];
+
+        $created = null;
+        if ( isset($field['created']) )
+            $created = $field['created'];
+
+        $repo_dataRecordFields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+        $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
+        $repo_tagSelections = $em->getRepository('ODRAdminBundle:TagSelection');
+
+        // This function shouldn't be throwing errors, otherwise the database gets left in some
+        //  unknown state...it's up to checkTagFieldPermissions() to throw any errors
+//        if ( !$allow_multiple_levels ) {
+//            foreach ($selected_tags as $t) {
+//                if ( isset($t['tag_parent_uuid']) )
+//                    throw new ODRBadRequestException('Field "'.$datafield->getFieldUuid().'" is not allowed to have multiple levels of tags', $exception_source);
+//            }
+//        }
+
+
+        // ----------------------------------------
+        // Locate the currently selected tags in the dataset
+        $orig_selected_tags = array();
+        if ($orig_dataset) {
+            foreach ($orig_dataset['fields'] as $o_field) {
+                if (
+                    isset($o_field['tags']) &&
+                    isset($field['field_uuid']) &&
+                    $o_field['field_uuid'] == $field['field_uuid']
+                ) {
+                    $orig_selected_tags = $o_field['tags'];
+                    break;
+                }
+            }
+        }
+
+        // Determine whether the submitted dataset will select/create any tags, or unselect a tag
+        $new_tags = array();
+        $new_tags_parents = array();
+        $deselected_tags = array();
+
+        // Check for new options
+        foreach ($selected_tags as $tag) {
+            $found = false;
+
+            // UUIDs are guaranteed to exist at this point
+            $tag_uuid = $tag['template_tag_uuid'];
+
+            foreach ($orig_selected_tags as $o_tag) {
+                // UUIDs are guaranteed to exist at this point
+                $o_tag_uuid = $o_tag['template_tag_uuid'];
+
+                if ($tag_uuid == $o_tag_uuid)
+                    $found = true;
+            }
+
+            if (!$found) {
+                $new_tags[] = $tag_uuid;
+
+                // A new tag isn't guaranteed to have a parent...
+                if ( isset($tag['parent_tag_uuid']) )
+                    $new_tags_parents[ $tag_uuid ] = $tag['parent_tag_uuid'];
+            }
+        }
+
+        // Check for deselected tags
+        foreach ($orig_selected_tags as $o_tag) {
+            $found = false;
+
+            // UUIDs are guaranteed to exist at this point
+            $o_tag_uuid = $o_tag['template_tag_uuid'];
+
+            foreach ($selected_tags as $tag) {
+                // UUIDs are guaranteed to exist at this point
+                $tag_uuid = $tag['template_tag_uuid'];
+
+                if ($tag_uuid == $o_tag_uuid)
+                    $found = true;
+            }
+
+            if (!$found)
+                $deselected_tags[] = $o_tag_uuid;
+        }
+
+
+        // ----------------------------------------
+        // Need to perform the changes
+        $fields_updated = false;
+        $tags_created = false;
+
+        /** @var DataRecordFields $drf */
+        $drf = $repo_dataRecordFields->findOneBy(
+            array(
+                'dataRecord' => $datarecord->getId(),
+                'dataField' => $datafield->getId()
+            )
+        );
+
+        // ----------------------------------------
+        // Because of the requirement where selecting a child tag also selects its parent, we can't
+        //  just deselect some tags, then select others...it needs to be a unified changeset
+        $tag_selections = array();
+
+        // If the user wanted a tag to be deselected...
+        foreach ($deselected_tags as $tag_uuid) {
+            $fields_updated = true;
+            $tag_selections[$tag_uuid] = 0;
+        }
+
+        // If the user wanted to create a tag, then that needs to happen before a changeset is
+        //  computed
+        $cache_service = null;
+        $new_tag_lookup = array();
+
+        foreach ($new_tags as $tag_uuid) {
+            $fields_updated = true;
+
+            // Lookup Tag by UUID
+            /** @var Tags $tag */
+            $tag = $repo_tags->findOneBy(
+                array(
+                    'tagUuid' => $tag_uuid,
+                    'dataField' => $datafield->getId(),
+                )
+            );
+
+            if (!$tag) {
+                // The tag doesn't exist, so create it
+                $tag = new Tags();
+                $tags_created = true;
+                $new_tag_lookup[] = $tag;
+
+                // Since this is a new tag, $tag_uuid is actually its name
+                $tag->setTagName($tag_uuid);
+
+                $new_uuid = $uuid_service->generateTagUniqueId();
+                $tag->setTagUuid($new_uuid);
+                $tag->setCreatedBy($user);
+                self::setDates($tag, $created);
+                $tag->setUserCreated(1);
+                $tag->setDataField($datafield);
+                $em->persist($tag);
+
+                /** @var TagMeta $tag_meta */
+                $tag_meta = new TagMeta();
+                $tag_meta->setTag($tag);
+                $tag_meta->setCreatedBy($user);
+                self::setDates($tag_meta, $created);
+                $tag_meta->setDisplayOrder(0);
+                $tag_meta->setXmlTagName('');
+                $tag_meta->setTagName($tag_uuid);
+                $em->persist($tag_meta);
+
+                // If this newly created tag has a parent...
+                if ( isset($new_tags_parents[$tag_uuid]) ) {
+                    // Look up parent tag
+                    $tag_parent_uuid = $new_tags_parents[$tag_uuid];
+
+                    /** @var Tags $tag_parent */
+                    $tag_parent = $repo_tags->findOneBy(
+                        array(
+                            'tagUuid' => $tag_parent_uuid,
+                            'dataField' => $datafield->getId()
+                        )
+                    );
+
+                    /** @var TagTree $tag_tree */
+                    $tag_tree = new TagTree();
+                    $tag_tree->setChild($tag);
+                    $tag_tree->setParent($tag_parent);
+                    $tag_tree->setCreatedBy($user);
+                    self::setDates($tag_tree, $field['created']);
+                    $em->persist($tag_tree);
+
+                    // Since a new tag tree entry was created, there's a few cache entries that need
+                    //  to be deleted prior to selecting tags...
+                    if ( is_null($cache_service) ) {
+                        /** @var CacheService $cache_service */
+                        $cache_service = $this->container->get('odr.cache_service');
+                    }
+                    $cache_service->delete('cached_tag_tree_'.$datafield->getDataType()->getGrandparent()->getId());
+                }
+
+                // A newly created tag in this array should be marked as 'selected'
+                $tag_selections[$new_uuid] = 1;
+            }
+            else {
+                // An existing tag in this array should be marked as 'selected'
+                $tag_selections[$tag_uuid] = 1;
+            }
+        }
+
+
+        // ----------------------------------------
+        if ( !empty($tag_selections) ) {
+            // If drf entry doesn't exist at this point, create it
+            $drf_created = false;
+            if ( is_null($drf) ) {
+                $drf = new DataRecordFields();
+                $drf->setCreatedBy($user);
+                self::setDates($drf, $created);
+                $drf->setDataField($datafield);
+                $drf->setDataRecord($datarecord);
+                $em->persist($drf);
+
+                $drf_created = true;
+            }
+
+            // If any tags got created, then they need to be flushed so the rest of the database can
+            //  pick up on it
+            if ( $tags_created || $drf_created ) {
+                $em->flush();
+
+                // Apparently need to refresh the new tags so their name can be accessed
+                foreach ($new_tag_lookup as $t)
+                    $em->refresh($t);
+            }
+
+            // Need to convert tag uuids of this array into tag ids so the service can work
+            $query = $em->createQuery(
+               'SELECT t.id, t.tagUuid
+                FROM ODRAdminBundle:Tags t
+                WHERE t.tagUuid IN (:unique_ids)
+                AND t.deletedAt IS NULL'
+            )->setParameters( array('unique_ids' => array_keys($tag_selections) ) );
+            $results = $query->getResult();
+
+            $desired_selections = array();
+            foreach ($results as $result) {
+                $tag_id = $result['id'];
+                $tag_uuid = $result['tagUuid'];
+
+                $selection = $tag_selections[$tag_uuid];
+                $desired_selections[$tag_id] = $selection;
+            }
+
+            // Now that the desired selections have been identified, it needs to get converted into
+            //  a unified changeset...it's a pain to make, so better to use a service for it
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service->updateSelectedTags(
+                $user,
+                $drf,
+                $desired_selections,
+                false,   // don't delay flush
+                null,    // not passing in either tag hierarchy, since this only gets called
+                null,    //  once per field
+                $created // use the given created date
+            );
+
+            // Shouldn't need to modify the tag selections further
+        }
+
+
+        // ----------------------------------------
+        // Should fill out any missing properties of the tags in the array
+        $query = $em->createQuery(
+           'SELECT t
+            FROM ODRAdminBundle:TagSelection ts
+            JOIN ODRAdminBundle:Tags t WITH ts.tag = t
+            WHERE ts.selected = 1
+            AND ts.dataRecordFields = :drf_id
+            AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'
+        )->setParameters( array('drf_id' => $drf->getId()) );
+        $results = $query->getResult();
+
+        // Due to cascading deselection, there could be tags that have to be removed from the array
+        //  prior to returning
+        foreach ($field['tags'] as $j => $val) {
+            $found = false;
+            foreach ($results as $tag) {
+                if ( $field['tags'][$j]['template_tag_uuid'] == $tag->getTagUuid() )
+                    $found = true;
+            }
+
+            if ( !$found )
+                unset( $field['tags'][$j] );
+        }
+
+
+        // Due to cascading selection , there could also be extra tags that have to be added to the
+        //  array prior to returning
+        $num = 0;
+        $extra_tags = array();
+        foreach ($results as $tag) {
+            /** @var Tags $tag */
+
+            $found = false;
+            foreach ($field['tags'] as $j => $val) {
+                if (
+                    $field['tags'][$j]['template_tag_uuid'] == $tag->getTagUuid()
+                    || (
+                        $tag->getUserCreated()
+                        && $field['tags'][$j]['template_tag_uuid'] == $tag->getTagName()
+                    )
+                ) {
+                    // replace this block
+                    $found = true;
+
+                    $field['tags'][$j]['template_tag_uuid'] = $tag->getTagUuid();
+                    $field['tags'][$j]['id'] = $tag->getId();
+                    $field['tags'][$j]['selected'] = 1;
+                    // Using the option's created date is intentional here
+                    $field['tags'][$j]['updated_at'] = $tag->getCreated()->format('Y-m-d H:i:s');
+
+                    $field['tags'][$j]['name'] = $tag->getTagName();
+                    if ( $tag->getUserCreated() > 0 )
+                        $field['tags'][$j]['user_created'] = $tag->getUserCreated();
+                }
+            }
+
+            // If not found in the existing array...
+            if ( !$found ) {
+                // ...then this is probably one of those parent tags that also got selected
+                $extra_tags[$num] = array(
+                    'id' => $tag->getId(),
+                    'template_tag_uuid' => $tag->getTagUuid(),
+                    'name' => $tag->getTagName(),
+                    'selected' => 1,
+                    'updated_at' => $tag->getCreated()->format('Y-m-d H:i:s'),
+                );
+                if ( $tag->getUserCreated() > 0 )
+                    $extra_tags[$num]['user_created'] = $tag->getUserCreated();
+
+                $num++;
+            }
+        }
+
+        // Splice any additional tags into the existing array
+        foreach ($extra_tags as $num => $t)
+            $field['tags'][] = $t;
+
+        // Don't want this in the array still
+        if ( isset($field['created']) )
+            unset( $field['created'] );
+
+        return array(
+            'fields_updated' => $fields_updated,
+            'tag_created' => $tags_created,
+            'new_json' => $field,
+        );
+    }
+
+
+    /**
      * Each of the four radio typeclasses requires the same steps to update
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -3763,30 +4061,44 @@ class APIController extends ODRCustomController
 
         // Determine whether the submitted dataset will select/create any options, or unselect an option
         $new_options = array();
-        $deleted_options = array();
+        $deselected_options = array();
 
         // Check for new options
         foreach ($selected_options as $option) {
             $found = false;
+
+            // UUIDs are guaranteed to exist at this point
+            $option_uuid = $option['template_radio_option_uuid'];
+
             foreach ($orig_selected_options as $o_option) {
-                if ($option == $o_option)
+                // UUIDs are guaranteed to exist at this point
+                $o_option_uuid = $o_option['template_radio_option_uuid'];
+
+                if ($option_uuid == $o_option_uuid)
                     $found = true;
             }
 
             if (!$found)
-                array_push($new_options, $option['template_radio_option_uuid']);
+                $new_options[] = $option_uuid;
         }
 
         // Check for deleted options
         foreach ($orig_selected_options as $o_option) {
             $found = false;
+
+            // UUIDs are guaranteed to exist at this point
+            $o_option_uuid = $o_option['template_radio_option_uuid'];
+
             foreach ($selected_options as $option) {
-                if ($option == $o_option)
+                // UUIDs are guaranteed to exist at this point
+                $option_uuid = $option['template_radio_option_uuid'];
+
+                if ($option_uuid == $o_option_uuid)
                     $found = true;
             }
 
             if (!$found)
-                array_push($deleted_options, $o_option['template_radio_option_uuid']);
+                $deselected_options[] = $o_option_uuid;
         }
 
 
@@ -3804,7 +4116,7 @@ class APIController extends ODRCustomController
         );
 
         // Determine whether an option got deselected
-        foreach ($deleted_options as $option_uuid) {
+        foreach ($deselected_options as $option_uuid) {
             // In order for the API call to be able to deselect a radio option, the drf entry must
             //  exist beforehand...so there's no need to check whether it does or not
 
@@ -3831,10 +4143,10 @@ class APIController extends ODRCustomController
 
 
         // Determine whether an existing option got selected, or a new option needs to get created
+        $new_option_lookup = array();
+
         foreach ($new_options as $option_uuid) {
             $fields_updated = true;
-            $new_option = false;    // $radio_option_created is the 'global' flag for this field
-                                    // $new_option is the 'local' flag for this radio option
 
             // Lookup Option by UUID
             /** @var RadioOptions $option */
@@ -3849,7 +4161,7 @@ class APIController extends ODRCustomController
                 // The option doesn't exist, so create it
                 $option = new RadioOptions();
                 $radio_option_created = true;
-                $new_option = true;
+                $new_option_lookup[] = $option;
 
                 // Since this is a new option, $option_uuid is actually its name
                 $option->setOptionName($option_uuid);
@@ -3901,13 +4213,38 @@ class APIController extends ODRCustomController
 
             self::fieldMeta($field, $datafield, $new_selection);
 
-            // Newly created radio options need to replace their value in the array
+            // Do not assign modified field back to dataset here
+        }
+
+        // ----------------------------------------
+        // Should fill out any missing properties of the radio options in the array
+
+        // If any tags got created, then they need to be flushed so the rest of the database can
+        //  pick up on it
+        if ( $radio_option_created ) {
+            foreach ($new_option_lookup as $ro)
+                $em->refresh($ro);
+        }
+
+        $query = $em->createQuery(
+           'SELECT ro
+            FROM ODRAdminBundle:RadioSelection rs
+            JOIN ODRAdminBundle:RadioOptions ro WITH rs.radioOption = ro
+            WHERE rs.selected = 1
+            AND rs.dataRecordFields = :drf_id
+            AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
+        )->setParameters( array('drf_id' => $drf->getId()) );
+        $results = $query->getResult();
+
+        foreach ($results as $option) {
+            /** @var RadioOptions $option */
+
             foreach ($field['values'] as $j => $val) {
                 if (
                     $field['values'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
                     || (
                         $option->getUserCreated()
-                        && $field['values'][$j]['template_radio_option_uuid'] == $option_uuid
+                        && $field['values'][$j]['template_radio_option_uuid'] == $option->getOptionName()
                     )
                 ) {
                     // replace this block
@@ -3917,19 +4254,11 @@ class APIController extends ODRCustomController
                     // Using the option's created date is intentional here
                     $field['values'][$j]['updated_at'] = $option->getCreated()->format('Y-m-d H:i:s');
 
-                    if ($new_option) {
-                        $field['values'][$j]['name'] = $option_uuid;    // Since this is a new option, $option_uuid is actually its name
-                        $field['values'][$j]['user_created'] = 1;
-                    }
-                    else {
-                        $field['values'][$j]['name'] = $option->getOptionName();
-                        if ( $option->getUserCreated() > 0 )
-                            $field['values'][$j]['user_created'] = $option->getUserCreated();
-                    }
+                    $field['values'][$j]['name'] = $option->getOptionName();
+                    if ( $option->getUserCreated() > 0 )
+                        $field['values'][$j]['user_created'] = $option->getUserCreated();
                 }
             }
-
-            // Do not assign modified field back to dataset here
         }
 
         // Don't want this in the array still

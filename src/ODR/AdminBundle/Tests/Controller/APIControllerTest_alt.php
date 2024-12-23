@@ -8,9 +8,6 @@ use ODR\AdminBundle\Component\Utility\CurlUtility;
 
 class APIControllerTest_alt extends WebTestCase
 {
-    /** @var CacheService $cache_service */
-    private static $cache_service;
-
     public static $debug = false;
     public static $force_skip = false;
 
@@ -50,8 +47,21 @@ class APIControllerTest_alt extends WebTestCase
     {
         foreach ($expected as $key => $value)
         {
+            // Ignore the metadata blocks, because created/updated dates rarely match
             if ( $key === '_record_metadata' || $key === '_field_metadata' || $key === '_file_metadata' )
                 continue;
+
+            // These subarrays should be canonicalized beforehand...
+            if ( $key === 'fields' || $key === 'records' || $key === 'files' || $key === 'tags' || $key === 'values' ) {
+                $tmp = array();
+                foreach ($value as $num => $item) {
+                    if ( $key === 'records' )
+                        $tmp[ $item['internal_id'] ] = $item;
+                    else
+                        $tmp[ $item['id'] ] = $item;
+                }
+                $value = $tmp;
+            }
 
             // Intentionally only asserting when it would fail...
             if ( !isset($actual[$key]) )
@@ -61,18 +71,45 @@ class APIControllerTest_alt extends WebTestCase
             $keyPath[] = $key;
 
             if ( isset($actual[$key]) ) {
-                if ( is_array($value) )
+                if ( is_array($value) ) {
+                    // These subarrays should be canonicalized beforehand...
+                    if ( $key === 'fields' || $key === 'records' || $key === 'files' || $key === 'tags' || $key === 'values' ) {
+                        $tmp = array();
+                        foreach ($actual[$key] as $num => $item) {
+                            if ( $key === 'records' )
+                                $tmp[ $item['internal_id'] ] = $item;
+                            else
+                                $tmp[ $item['id'] ] = $item;
+                        }
+                        $actual[$key] = $tmp;
+                    }
+
                     $this->assertArrayEquals($value, $actual[$key], $keyPath);
+                }
                 else if ( $value != $actual[$key] )
                     $this->assertEquals($value, $actual[$key], 'Failed asserting that $actual value "'.$actual[$key].'" matches expected "'.$value.'" for path "'.implode(" > ", $keyPath).'"');
             }
         }
 
+
         // ...and need to run the inverse for when $actual has a key $expected doesn't
         foreach ($actual as $key => $value)
         {
+            // Ignore the metadata blocks, because created/updated dates rarely match
             if ( $key === '_record_metadata' || $key === '_field_metadata' || $key === '_file_metadata' )
                 continue;
+
+            // These subarrays should be canonicalized beforehand...
+            if ( $key === 'fields' || $key === 'records' || $key === 'files' || $key === 'tags' || $key === 'values' ) {
+                $tmp = array();
+                foreach ($value as $num => $item) {
+                    if ( $key === 'records' )
+                        $tmp[ $item['internal_id'] ] = $item;
+                    else
+                        $tmp[ $item['id'] ] = $item;
+                }
+                $value = $tmp;
+            }
 
             // Intentionally only asserting when it would fail...
             if ( !isset($expected[$key]) )
@@ -82,8 +119,21 @@ class APIControllerTest_alt extends WebTestCase
             $keyPath[] = $key;
 
             if ( isset($expected[$key]) ) {
-                if ( is_array($value) )
+                if ( is_array($value) ) {
+                    // These subarrays should be canonicalized beforehand...
+                    if ( $key === 'fields' || $key === 'records' || $key === 'files' || $key === 'tags' || $key === 'values' ) {
+                        $tmp = array();
+                        foreach ($expected[$key] as $num => $item) {
+                            if ( $key === 'records' )
+                                $tmp[ $item['internal_id'] ] = $item;
+                            else
+                                $tmp[ $item['id'] ] = $item;
+                        }
+                        $expected[$key] = $tmp;
+                    }
+
                     $this->assertArrayEquals($value, $expected[$key], $keyPath);
+                }
                 else if ( $value != $expected[$key] )
                     $this->assertEquals($value, $expected[$key], 'Failed asserting that $expected value "'.$expected[$key].'" matches $actual value "'.$value.'" for path "'.implode(" > ", $keyPath).'"');
             }
@@ -122,6 +172,9 @@ class APIControllerTest_alt extends WebTestCase
      */
     public function submitRecord_valid($data)
     {
+        if ( self::$debug )
+            fwrite(STDERR, 'submitting valid dr structure: '.print_r($data, true)."\n");
+
         $curl = new CurlUtility(
             self::$api_baseurl.'/v3/dataset/record',
             self::$headers
@@ -136,8 +189,8 @@ class APIControllerTest_alt extends WebTestCase
         $this->assertEquals(200, $response_code);
 
         $content = json_decode($response['response'], true);
-//        if ( self::$debug )
-//            fwrite(STDERR, 'returned dr structure: '.print_r($content, true)."\n");
+        if ( self::$debug )
+            fwrite(STDERR, 'returned dr structure: '.print_r($content, true)."\n");
         return $content;
     }
 
@@ -151,6 +204,9 @@ class APIControllerTest_alt extends WebTestCase
      */
     public function submitRecord_invalid($data, $expected_code)
     {
+        if ( self::$debug )
+            fwrite(STDERR, 'submitting invalid dr structure: '.print_r($data, true)."\n");
+
         $curl = new CurlUtility(
             self::$api_baseurl.'/v3/dataset/record',
             self::$headers
@@ -235,8 +291,6 @@ class APIControllerTest_alt extends WebTestCase
         self::$headers = array('Content-type: application/json');
 
         $client = static::createClient();
-        self::$cache_service = $client->getContainer()->get('odr.cache_service');
-
         if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
             self::$force_skip = true;
 
@@ -587,6 +641,23 @@ class APIControllerTest_alt extends WebTestCase
             }
         }
 
+        // ----------------------------------------
+        // Ensure that an invalid array is an error
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][0] = array(
+            'field_uuid' => self::$field_uuids['Single Select'],
+            'values' => array(
+                'template_radio_option_uuid' => $option_uuids['Existing Option A'],
+            )
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+
+        // ----------------------------------------
         // Specifying one existing option should work...
         $tmp_dataset = self::$record_structure;
         $tmp_dataset['fields'] = array(
@@ -735,6 +806,7 @@ class APIControllerTest_alt extends WebTestCase
             }
         }
 
+        // ----------------------------------------
         // Specifying one existing option should work...
         $tmp_dataset = self::$record_structure;
         $tmp_dataset['fields'][1] = array(    // index 0 is occupied by 'Single Select' now
@@ -771,6 +843,21 @@ class APIControllerTest_alt extends WebTestCase
                 )
             )
         );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // ----------------------------------------
+        // Deselecting an existing option should also work...
+        $tmp_dataset = self::$record_structure;
+        unset( $tmp_dataset['fields'][1]['values'][1] );
 
         $post_data = array(
             'user_email' => self::$api_username,
@@ -886,6 +973,359 @@ class APIControllerTest_alt extends WebTestCase
         // Compare against the new version of the actual record...
         self::$record_structure = self::getRecord( self::$record_uuid );
         $this->assertArrayEquals(self::$record_structure, $api_response_content);
+    }
+
+    public function testTags_Flat()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $tag_uuids = array();
+        foreach (self::$database_structure['fields'] as $df_num => $df) {
+            if ( $df['name'] === 'Flat Tags' ) {
+                foreach ($df['tags'] as $t_num => $t)
+                    $tag_uuids[ $t['name'] ] = $t['template_tag_uuid'];
+                break;
+            }
+        }
+
+        // ----------------------------------------
+        // 'value' isn't a valid key to use with tag fields
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][5] = array(    // 'DateTime' is occupying index 4...
+            'field_uuid' => self::$field_uuids['Flat Tags'],
+            'value' => '2024-01-01',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+
+        // Ensure that an invalid array is an error
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][5] = array(
+            'field_uuid' => self::$field_uuids['Flat Tags'],
+            'tags' => array(
+                'template_tag_uuid' => 'New Tag AA',
+                'tag_parent_uuid' => $tag_uuids['Existing Tag A'],
+            )
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+
+        // ----------------------------------------
+        // Ensure that a tag field that does not allow multiple levels won't accept a tag with a parent
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][5] = array(
+            'field_uuid' => self::$field_uuids['Flat Tags'],
+            'tags' => array(
+                0 => array(
+                    'template_tag_uuid' => 'New Tag AA',
+                    'tag_parent_uuid' => $tag_uuids['Existing Tag A'],
+                )
+            )
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
+
+        // ----------------------------------------
+        // Tag fields should allow selections...
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][5] = array(    // 'DateTime' is occupying index 4...
+            'field_uuid' => self::$field_uuids['Flat Tags'],
+            'tags' => array(
+                0 => array(
+                    'template_tag_uuid' => $tag_uuids['Existing Tag A']
+                ),
+            ),
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Tag fields should always allow multiple selections
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][5] = array(    // 'DateTime' is occupying index 4...
+            'field_uuid' => self::$field_uuids['Flat Tags'],
+            'tags' => array(
+                0 => array(
+                    'template_tag_uuid' => $tag_uuids['Existing Tag A']
+                ),
+                1 => array(
+                    'template_tag_uuid' => $tag_uuids['Existing Tag B']
+                ),
+            ),
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // ----------------------------------------
+        // Should also be able to create new tags
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][5]['tags'][2] = array(
+            'template_tag_uuid' => 'New Tag C'
+        );
+        $tmp_dataset['fields'][5]['tags'][3] = array(
+            'template_tag_uuid' => 'New Tag D'
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // ----------------------------------------
+        // Should also be able to deselect tags
+        $tmp_dataset = self::$record_structure;
+        unset( $tmp_dataset['fields'][5]['tags'][3] );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+    }
+
+    public function testTags_Stacked()
+    {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
+        $tag_uuids = array();
+        $other_tag_uuids = array();
+        foreach (self::$database_structure['fields'] as $df_num => $df) {
+            if ( $df['name'] === 'Stacked Tags' ) {
+                foreach ($df['tags'] as $t_num => $t) {
+                    $tag_uuids[ $t['name'] ] = $t['template_tag_uuid'];
+                    // Need to get this tag's children too
+                    foreach ($t['tags'] as $t2_num => $t2)
+                        $tag_uuids[ $t2['name'] ] = $t2['template_tag_uuid'];
+                }
+                break;
+            }
+            else if ( $df['name'] === 'Flat Tags' ) {
+                foreach ($df['tags'] as $t_num => $t)
+                    $other_tag_uuids[ $t['name'] ] = $t['template_tag_uuid'];
+            }
+        }
+
+        // ----------------------------------------
+        // Tag fields should allow selections...
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][6] = array(    // 'Flat Tags' is occupying index 5...
+            'field_uuid' => self::$field_uuids['Stacked Tags'],
+            'tags' => array(
+                0 => array(
+                    'template_tag_uuid' => $tag_uuids['Existing Tag A']
+                ),
+            ),
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Should be able to select a child tag now that the parent is selected...
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][6]['tags'][] = array(
+            'template_tag_uuid' => $tag_uuids['Existing Tag AA']
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Should be able to select a child tag without having its parent selected first...
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][6]['tags'][] = array(
+            'template_tag_uuid' => $tag_uuids['Existing Tag BB']
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+
+        // ----------------------------------------
+        // Should be able to create a top-level tag
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][6]['tags'][] = array(
+            'template_tag_uuid' => 'New Tag C',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Should be able to create a new child tag
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][6]['tags'][] = array(
+            'template_tag_uuid' => 'New Tag AB',
+            'parent_tag_uuid' => $tag_uuids['Existing Tag A']
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Should not be able to create a new child tag with an invalid uuid
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][6]['tags'][] = array(
+            'template_tag_uuid' => 'New Tag X',
+            'parent_tag_uuid' => $other_tag_uuids['Existing Tag A']
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 404);
+
+
+        // ----------------------------------------
+        // Should be able to deselect a child tag...
+        $tmp_dataset = self::$record_structure;
+        foreach ($tmp_dataset['fields'][6]['tags'] as $t_num => $t) {
+            if ( $t['name'] === 'Existing Tag AA' )
+                unset( $tmp_dataset['fields'][6]['tags'][$t_num] );
+        }
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Ensure 'Existing Tag A' is still selected
+        $found = false;
+        foreach (self::$record_structure['fields'][6]['tags'] as $t_num => $t) {
+            if ( $t['name'] === 'Existing Tag A' )
+                $found = true;
+        }
+        if ( !$found )
+            $this->fail('"Existing Tag A" should still be selected, since "New Tag AB" is still selected');
+
+        // Deselecting all child tags should also deselect the parent
+        $tmp_dataset = self::$record_structure;
+        foreach ($tmp_dataset['fields'][6]['tags'] as $t_num => $t) {
+            if ( $t['name'] === 'New Tag AB' )
+                unset( $tmp_dataset['fields'][6]['tags'][$t_num] );
+        }
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Ensure 'Existing Tag A' got unselected
+        $found = false;
+        foreach (self::$record_structure['fields'][6]['tags'] as $t_num => $t) {
+            if ( $t['name'] === 'Existing Tag A' )
+                $found = true;
+        }
+        if ( $found )
+            $this->fail('"Existing Tag A" should not be selected, since none of its children are selected');
+
+
+        // ----------------------------------------
+        // Should also be able to deselect a parent tag, triggering deselection of its children
+        $tmp_dataset = self::$record_structure;
+        foreach ($tmp_dataset['fields'][6]['tags'] as $t_num => $t) {
+            if ( $t['name'] === 'Existing Tag B' )
+                unset( $tmp_dataset['fields'][6]['tags'][$t_num] );
+        }
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        $api_response_content = self::submitRecord_valid($post_data);
+
+        // Compare against the new version of the actual record...
+        self::$record_structure = self::getRecord( self::$record_uuid );
+        $this->assertArrayEquals(self::$record_structure, $api_response_content);
+
+        // Ensure 'Existing Tag BB' got unselected
+        $found = false;
+        foreach (self::$record_structure['fields'][6]['tags'] as $t_num => $t) {
+            if ( $t['name'] === 'Existing Tag BB' )
+                $found = true;
+        }
+        if ( $found )
+            $this->fail('"Existing Tag BB" should not be selected, since its parent got deselected');
     }
 
     public function testFileImageUpload_Single()
@@ -1191,6 +1631,19 @@ class APIControllerTest_alt extends WebTestCase
             'dataset' => $tmp_dataset,
         );
         self::submitRecord_invalid($post_data, 400);
+
+        // Also ensure the structure is correct
+        $tmp_dataset = self::$record_structure;
+        $tmp_dataset['fields'][$field_num]['files'] = array(
+            'file_uuid' => 'asdf',
+            'created' => 'zxcv',
+        );
+
+        $post_data = array(
+            'user_email' => self::$api_username,
+            'dataset' => $tmp_dataset,
+        );
+        self::submitRecord_invalid($post_data, 400);
     }
 
     public function testImageModify()
@@ -1312,6 +1765,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testCreateRecord()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $count = 0;
         for ($i = 0; $i < 4; $i++) {
             if ( $count < 2 )
@@ -1354,6 +1810,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testMultipleAllowed_SingleChild()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $database_uuid = self::$descendant_database_uuids['API Test Single-allowed Child'];
 
         // ----------------------------------------
@@ -1424,6 +1883,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testMultipleAllowed_MultipleChild()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         // ----------------------------------------
         // Going to use this first one to also test
         // 1) adding a field value directly into a new child record
@@ -1569,6 +2031,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testMultipleAllowed_SingleLink()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $database_uuid = self::$descendant_database_uuids['API Test Single-allowed Link'];
 
         // ----------------------------------------
@@ -1634,6 +2099,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testMultipleAllowed_MultipleLink()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         $database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Link'];
 
         // ----------------------------------------
@@ -1682,6 +2150,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testDuplicateRecords()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         // Ensure that defining the same child record more than once fails
         $child_database_uuid = self::$descendant_database_uuids['API Test Multiple-allowed Child'];
         $tmp_dataset = self::$record_structure;
@@ -1713,6 +2184,9 @@ class APIControllerTest_alt extends WebTestCase
 
     public function testRecordDeletion()
     {
+        if ( self::$force_skip )
+            $this->markTestSkipped('Wrong database');
+
         // ----------------------------------------
         // Going to delete the single-allowed child record...
         $tmp_dataset = self::$record_structure;

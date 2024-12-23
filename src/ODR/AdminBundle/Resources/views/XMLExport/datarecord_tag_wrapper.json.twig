@@ -17,22 +17,11 @@ TAG.TAGID: {{ tag.tag.id }}
 {% endfor %}
 #}
 
-{% set child_tag_selections = [] %}
-{% if drf.child_tagSelections is defined %}
-    {% set child_tag_selections = drf.child_tagSelections %}
-{% endif %}
-{#
-{% for tag_id, tag in child_tag_selections %}
-CHILD TAG FOUND: tag_id {{ tag_id }}
-{% endfor %}
- #}
-
 "tags": [
     {% set field_block %}
         {% for tag_id, tag in tag_selections %}
             {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
                 'tag_selections': tag_selections,
-                'child_tag_selections': child_tag_selections,
                 'tag': tag.tag
             } %}
         {% endfor %}

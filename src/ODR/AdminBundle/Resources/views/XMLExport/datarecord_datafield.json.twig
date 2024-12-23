@@ -206,24 +206,12 @@
             {{ radio_block|comma|raw }}
             {% endif %}
         ]
-        {#
-        {% include 'ODRAdminBundle:XMLExport:datarecord_radio_selections.json.twig' with {
-            'datafield': datafield,
-            'drf': datarecordfield,
-        } %}
-        #}
 
         {% elseif field_typename == "Tags" %}
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
             'datafield': datafield,
             'drf': datarecordfield,
         } %}
-        {#
-                {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
-                    'datafield': datafield,
-                    'drf': datarecordfield,
-                } %}
-        #}
 
         {% else %}
 
