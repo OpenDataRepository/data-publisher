@@ -409,8 +409,11 @@ function ODRGraph_getErrorMessages(error_messages) {
 }
 
 /**
- * Attempts to locate the delimiter and the number of columns from the first several lines of the
+ * Attempts to guess the delimiter and the number of columns from the first several lines of the
  * given file.
+ *
+ * /src/ODR/OpenRepository/GraphBundle/Plugins/Base/CSVTable/CSVTablePlugin.php has a PHP version
+ * of this logic...changes or fixes made here should also be made there.
  *
  * @param {string[]} lines
  * @return {object}
@@ -418,7 +421,7 @@ function ODRGraph_getErrorMessages(error_messages) {
 function ODRGraph_guessFileProperties(lines) {
     // Since these are (hopefully) scientific data files, the set of valid delimiters is (hopefully)
     //  pretty small
-    var valid_delimiters = ["\t", ","];
+    var valid_delimiters = ["\t", ",", ";"];
     // NOTE: do not put the space character in there...if the file is using the space character as
     //  a delimiter, then it's safer for the graph code to split the line apart into "words" instead
     //  of splitting by a specific character sequence
@@ -426,51 +429,55 @@ function ODRGraph_guessFileProperties(lines) {
     // Read the first couple non-comment lines in the file...
     var max_line_count = 10;
     var current_line = 0;
-    var characters = {};
+    var delimiters_by_line = {};
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i];
-        if ( !line.match(/^#/) ) {
-            characters[current_line] = {};
+        if ( line.match(/^#/) ) {
+            // Ignore comment lines
+            continue;
+        }
+        else {
+            delimiters_by_line[current_line] = {};
 
             // ...and count how many of each character is encountered
             for (var j = 0; j < line.length; j++) {
                 var char = line.charAt(j);
                 // If the line contains a valid delimiter, then store how many times it occurs
                 if ( valid_delimiters.indexOf(char) !== -1 ) {
-                    if (characters[current_line][char] === undefined)
-                        characters[current_line][char] = 0;
-                    characters[current_line][char]++;
+                    if (delimiters_by_line[current_line][char] === undefined)
+                        delimiters_by_line[current_line][char] = 0;
+                    delimiters_by_line[current_line][char]++;
                 }
                 else if ( char === "\"" || char === "\'" ) {
                     // If the line contained a singlequote or a doublequote, then ignore it completely
-                    delete characters[current_line];
+                    delete delimiters_by_line[current_line];
                     break;
                 }
             }
 
             current_line++;
             if ( current_line >= max_line_count ) {
-                characters.length = Object.keys(characters).length;
+                delimiters_by_line.length = Object.keys(delimiters_by_line).length;
                 break;
             }
         }
     }
 
 
-    // Filter out the invalid delimiters
+    // Filter out delimiters that don't occur the same number of times on each line
     var delimiter_count = {};
     for (var i = 0; i < valid_delimiters.length; i++) {
         var delimiter = valid_delimiters[i];
         delimiter_count[delimiter] = undefined;
 
-        for (var j = 0; j < characters.length; j++) {
-            if ( characters[j] !== undefined && characters[j][delimiter] !== undefined ) {
+        for (var j = 0; j < delimiters_by_line.length; j++) {
+            if ( delimiters_by_line[j] !== undefined && delimiters_by_line[j][delimiter] !== undefined ) {
                 if ( delimiter_count[delimiter] === undefined ) {
                     // Store how many times this delimiter occurs on the first valid line of data
                     //  in the file
-                    delimiter_count[delimiter] = characters[j][delimiter];
+                    delimiter_count[delimiter] = delimiters_by_line[j][delimiter];
                 }
-                else if ( delimiter_count[delimiter] !== characters[j][delimiter] ) {
+                else if ( delimiter_count[delimiter] !== delimiters_by_line[j][delimiter] ) {
                     // This line has a different number of this delimiter than the earlier lines in
                     //  the file...it's probably not safe to call this a delimiter
                     delimiter_count[delimiter] = null;
@@ -490,13 +497,13 @@ function ODRGraph_guessFileProperties(lines) {
             continue;
 
         lines_with_delimiters[delimiter] = 0;
-        for (var j = 0; j < characters.length; j++) {
-            if ( characters[j] !== undefined && characters[j][delimiter] !== undefined )
+        for (var j = 0; j < delimiters_by_line.length; j++) {
+            if ( delimiters_by_line[j] !== undefined && delimiters_by_line[j][delimiter] !== undefined )
                 lines_with_delimiters[delimiter] += 1;
         }
     }
 
-    // Determine which of the remaining delimiters is most likely for the file
+    // Guess which of the remaining delimiters is most likely for the file
     var delimiter_guess = null;
     var columns_guess = null;
     for (var i = 0; i < valid_delimiters.length; i++) {
@@ -520,9 +527,8 @@ function ODRGraph_guessFileProperties(lines) {
                 }
             }
 
-            // Currently only consider tab and comma as valid delimiters...if for some reason both
-            //  are "valid" at this point, then ignore comma and use tab
-            // TODO - ...if additional characters become considered as valid delimiters, then this logic probably needs changed
+            // I think the "earlier" delimiters in valid_delimiters will be preferred over "later"
+            //  delimiters in the case of a tie...TODO
         }
     }
 
