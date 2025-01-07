@@ -3,6 +3,9 @@
 {
     "id": {{ tag.id }},
     "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
+    {% if tag.parent_tagUuid is defined %}
+        "parent_template_tag_uuid": {{ tag.parent_tagUuid|json_encode|raw }},
+    {% endif %}
     "name": "{{ tag.tagName }}",
     {% if tag.userCreated %}
         "user_created": "1",

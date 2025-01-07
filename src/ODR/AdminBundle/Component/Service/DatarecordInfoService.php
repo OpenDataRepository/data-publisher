@@ -632,13 +632,12 @@ class DatarecordInfoService
                     foreach ($drf['tagSelection'] as $ts_num => $ts) {
                         $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
 
-                        if ( $ts['tag']['userCreated'] > 0 ) {
-                            // TODO - shouldn't this 'tag_parent_uuid' entry always be in the array?
-                            // TODO - ...and in the tag data, not the tagSelection data?
-                            $tag_uuid = $ts['tag']['tagUuid'];
-                            if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
-                                $ts['tag_parent_uuid'] = $inversed_tag_uuid_tree[$tag_uuid];
-                        }
+                        // Might as well store the parent tag uuid here, if it exists...
+                        $tag_uuid = $ts['tag']['tagUuid'];
+                        if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
+                            $ts['tag']['parent_tagUuid'] = $inversed_tag_uuid_tree[$tag_uuid];
+                        // Note that you're "supposed" to get this from the cached datatype array,
+                        //  but it's easier for the API to do it this way
 
                         $t_id = $ts['tag']['id'];
                         $new_ts_array[$t_id] = $ts;

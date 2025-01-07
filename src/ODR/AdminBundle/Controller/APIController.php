@@ -3663,6 +3663,10 @@ class APIController extends ODRCustomController
     {
         // Going to need these
         $selected_tags = $field['tags'];
+        $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
+
+        /** @var TagHelperService $tag_helper_service */
+        $tag_helper_service = $this->container->get('odr.tag_helper_service');
 
         // TODO - should this instead be "inside" each option?
         $created = null;
@@ -3843,7 +3847,10 @@ class APIController extends ODRCustomController
                         /** @var CacheService $cache_service */
                         $cache_service = $this->container->get('odr.cache_service');
                     }
-                    $cache_service->delete('cached_tag_tree_'.$datafield->getDataType()->getGrandparent()->getId());
+
+                    // These two cache entries need to be deleted here
+                    $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+                    $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype_id);
                 }
 
                 // A newly created tag in this array should be marked as 'selected'
@@ -3906,8 +3913,6 @@ class APIController extends ODRCustomController
             if ( !is_null($created) )
                 $created = new \DateTime($created);
 
-            /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
             $tag_helper_service->updateSelectedTags(
                 $user,
                 $drf,
@@ -3924,6 +3929,22 @@ class APIController extends ODRCustomController
 
         // ----------------------------------------
         // Should fill out any missing properties of the tags in the array
+
+        // Because the API wants to also provide the parent tag's uuid when possible, the tag
+        //  hierarchy needs to be up to date
+        $inversed_tag_uuid_tree = array();
+        $tag_uuid_hierarchy = $tag_helper_service->getTagHierarchy($grandparent_datatype_id, true);
+        foreach ($tag_uuid_hierarchy as $dt_id => $df_list) {
+            foreach ($df_list as $df_id => $tag_tree) {
+                foreach ($tag_tree as $parent_tag_uuid => $children) {
+                    foreach ($children as $child_tag_uuid => $tmp)
+                        $inversed_tag_uuid_tree[$child_tag_uuid] = $parent_tag_uuid;
+                }
+            }
+        }
+
+        // The only real way to get the correct json return is to load the current list of selected
+        //  tags
         $query = $em->createQuery(
            'SELECT ts
             FROM ODRAdminBundle:TagSelection ts
@@ -3949,8 +3970,7 @@ class APIController extends ODRCustomController
                 unset( $field['tags'][$j] );
         }
 
-
-        // Due to cascading selection , there could also be extra tags that have to be added to the
+        // Due to cascading selection, there could also be extra tags that have to be added to the
         //  array prior to returning
         $num = 0;
         $extra_tags = array();
@@ -3960,6 +3980,7 @@ class APIController extends ODRCustomController
 
             $found = false;
             foreach ($field['tags'] as $j => $val) {
+                // For each tag that already existed in the submitted dataset...
                 if (
                     $field['tags'][$j]['template_tag_uuid'] == $tag->getTagUuid()
                     || (
@@ -3969,8 +3990,11 @@ class APIController extends ODRCustomController
                 ) {
                     $found = true;
 
+                    // ...ensure the JSON has the correct properties
                     $field['tags'][$j]['id'] = $tag->getId();
                     $field['tags'][$j]['template_tag_uuid'] = $tag->getTagUuid();
+                    if ( isset($inversed_tag_uuid_tree[ $tag->getTagUuid() ]) )
+                        $field['tags'][$j]['parent_template_tag_uuid'] = $inversed_tag_uuid_tree[ $tag->getTagUuid() ];
                     $field['tags'][$j]['name'] = $tag->getTagName();
 
                     $field['tags'][$j]['tag_created'] = $tag->getCreated()->format('Y-m-d H:i:s');
@@ -3982,9 +4006,10 @@ class APIController extends ODRCustomController
                 }
             }
 
-            // If not found in the existing array...
+            // If a selected tag was not found in the submitted dataset...
             if ( !$found ) {
-                // ...then this is probably one of those parent tags that also got selected
+                // ...then this is probably one of those tags that got automatically selected when
+                //  one of its child tags got selected
                 $extra_tags[$num] = array(
                     'id' => $tag->getId(),
                     'template_tag_uuid' => $tag->getTagUuid(),
@@ -3995,6 +4020,8 @@ class APIController extends ODRCustomController
                 );
                 if ( $tag->getUserCreated() > 0 )
                     $extra_tags[$num]['user_created'] = $tag->getUserCreated();
+                if ( isset($inversed_tag_uuid_tree[ $tag->getTagUuid() ]) )
+                    $extra_tags[$num]['parent_template_tag_uuid'] = $inversed_tag_uuid_tree[ $tag->getTagUuid() ];
 
                 $num++;
             }
