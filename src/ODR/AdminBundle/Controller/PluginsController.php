@@ -395,7 +395,8 @@ class PluginsController extends ODRCustomController
         $required_keys = array(
             'name',
             'description',
-            'type'
+            'type',
+//            'display_order',    // this is optional
         );
 
         // Fields in render plugins may need to have certain properties enforced to work correctly
@@ -945,6 +946,10 @@ class PluginsController extends ODRCustomController
                     'description' => $rpf['description'],
                     'allowed_fieldtypes' => $allowed_fieldtypes,
                     'properties' => $properties,
+
+                    // The display_order property doesn't have to be defined in the yml file, but
+                    //  should exist here since this is loaded from the database
+                    'display_order' => $rpf['display_order'],
                 );
             }
 
@@ -966,7 +971,10 @@ class PluginsController extends ODRCustomController
                     }
                     $config_fieldtypes = array_keys($config_fieldtypes);
 
-                    // rpf entries aren't required to have these additional restrictions
+                    // rpf entries aren't required to have display_order or these additional restrictions
+                    $display_order = 0;
+                    if ( isset($data['display_order']) )
+                        $display_order = $data['display_order'];
                     $config_properties = array();
                     if ( isset($data['properties']) )
                         $config_properties = $data['properties'];
@@ -977,6 +985,7 @@ class PluginsController extends ODRCustomController
                             'description' => $data['description'],
                             'allowed_fieldtypes' => $config_fieldtypes,
                             'properties' => $config_properties,
+                            'display_order' => $display_order,
                         );
 
                         $readable_plugin_updates[$plugin_classname][] = 'new required_field: '.$fieldname;
@@ -1019,6 +1028,12 @@ class PluginsController extends ODRCustomController
                             $tmp[$fieldname]['properties'] = $config_properties;
                         }
 
+                        // If the plugin config doesn't define a display_order, or the defined value
+                        //  matches the database...
+                        if ( !isset($data['display_order']) || $existing_data['display_order'] == $data['display_order'] ) {
+                            // ...then there's no change to be made
+                            unset( $tmp[$fieldname]['display_order'] );
+                        }
 
                         // If there are no differences, remove the entry
                         if ( count($tmp[$fieldname]) == 0 )
@@ -1727,9 +1742,14 @@ class PluginsController extends ODRCustomController
                 foreach ($plugin_data['required_fields'] as $identifier => $data) {
                     $rpf = new RenderPluginFields();
                     $rpf->setRenderPlugin($render_plugin);
-                    $rpf->setFieldName($data['name']);
-                    $rpf->setDescription($data['description']);
+                    $rpf->setFieldName( $data['name'] );
+                    $rpf->setDescription( $data['description'] );
                     $rpf->setActive(true);
+
+                    // Display order defaults to 0, but should match the config if it's defined
+                    $rpf->setDisplayOrder(0);
+                    if ( isset($data['display_order']) )
+                        $rpf->setDisplayOrder( $data['display_order'] );
 
                     // These properties are false by default...
                     $rpf->setAutogenerateValues(false);
@@ -1798,8 +1818,8 @@ class PluginsController extends ODRCustomController
                     $rpo = new RenderPluginOptionsDef();
                     $rpo->setRenderPlugin($render_plugin);
                     $rpo->setName($option_key);
-                    $rpo->setDisplayName($data['name']);
-                    $rpo->setDescription($data['description']);
+                    $rpo->setDisplayName( $data['name'] );
+                    $rpo->setDescription( $data['description'] );
 
                     // The "default" key could have boolean values...
                     if ($data['default'] === true)
@@ -1807,21 +1827,21 @@ class PluginsController extends ODRCustomController
                     else if ($data['default'] === false)
                         $rpo->setDefaultValue("false");
                     else
-                        $rpo->setDefaultValue($data['default']);
+                        $rpo->setDefaultValue( $data['default'] );
 
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
-                        $rpo->setChoices($data['choices']);
+                        $rpo->setChoices( $data['choices'] );
 
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);
                     if ( isset($data['display_order']) )
-                        $rpo->setDisplayOrder($data['display_order']);
+                        $rpo->setDisplayOrder( $data['display_order'] );
 
                     // ...same deal with the "uses_custom_render" key needing to be set to false
                     $rpo->setUsesCustomRender(false);
                     if ( isset($data['uses_custom_render']) )
-                        $rpo->setUsesCustomRender($data['uses_custom_render']);
+                        $rpo->setUsesCustomRender( $data['uses_custom_render'] );
 
                     $rpo->setCreatedBy($user);
                     $rpo->setUpdatedBy($user);
@@ -2235,6 +2255,11 @@ class PluginsController extends ODRCustomController
                     $rpf->setDescription( $data['description'] );
                     $rpf->setActive(true);
 
+                    // Display order defaults to 0, but should match the config if it's defined
+                    $rpf->setDisplayOrder(0);
+                    if ( isset($data['display_order']) )
+                        $rpf->setDisplayOrder( $data['display_order'] );
+
                     // These properties are false by default...
                     $rpf->setAutogenerateValues(false);
                     $rpf->setMustBeUnique(false);
@@ -2348,8 +2373,8 @@ class PluginsController extends ODRCustomController
 
                     $rpo->setRenderPlugin($render_plugin);
                     $rpo->setName($option_key);
-                    $rpo->setDisplayName($data['name']);
-                    $rpo->setDescription($data['description']);
+                    $rpo->setDisplayName( $data['name'] );
+                    $rpo->setDescription( $data['description'] );
 
                     // The "default" key could have boolean values...
                     if ($data['default'] === true)
@@ -2357,21 +2382,21 @@ class PluginsController extends ODRCustomController
                     else if ($data['default'] === false)
                         $rpo->setDefaultValue("false");
                     else
-                        $rpo->setDefaultValue($data['default']);
+                        $rpo->setDefaultValue( $data['default'] );
 
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
-                        $rpo->setChoices($data['choices']);
+                        $rpo->setChoices( $data['choices'] );
 
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);
                     if ( isset($data['display_order']) )
-                        $rpo->setDisplayOrder($data['display_order']);
+                        $rpo->setDisplayOrder( $data['display_order'] );
 
                     // ...same deal with the "uses_custom_render" key needing to be set to false
                     $rpo->setUsesCustomRender(false);
                     if ( isset($data['uses_custom_render']) )
-                        $rpo->setUsesCustomRender($data['uses_custom_render']);
+                        $rpo->setUsesCustomRender( $data['uses_custom_render'] );
 
                     if ($creating) {
                         $rpo->setCreatedBy($user);
@@ -3009,8 +3034,17 @@ class PluginsController extends ODRCustomController
                 $render_plugin['renderPluginOptions'][$rpo_id]['choices'] = $choices;
             }
 
-            // Order the options by their display_order property...most useful when there's a lot
-            //  of them, such as with the graph plugin
+
+            // ----------------------------------------
+            // Order both the fields and the options by their relevant display_order property...it's
+            //  not always defined in either case though
+            uasort($render_plugin['renderPluginFields'], function($a, $b) {
+                if ( $a['display_order'] <= $b['display_order'] )
+                    return -1;
+                else
+                    return 1;
+            });
+
             uasort($render_plugin['renderPluginOptions'], function($a, $b) {
                 if ( $a['display_order'] <= $b['display_order'] )
                     return -1;

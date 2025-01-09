@@ -7,7 +7,7 @@ odr_plugins.rruff.amcsd:
     override_fields: true
     override_field_reload: false
     override_child: false
-    override_table_fields: false
+    override_table_fields: true
     override_export: false
     override_search: false
     override_sort: false
@@ -36,6 +36,7 @@ odr_plugins.rruff.amcsd:
             name: fileno
             description: An external ID used for the data
             type: ShortVarchar    # must allow leading zeros
+            display_order: 0
             properties:
                 - must_be_unique
                 - autogenerate_values    # TODO - is this correct? ...is the plugin going to have to change filenames to match this?
@@ -43,6 +44,7 @@ odr_plugins.rruff.amcsd:
             name: database_code_amcsd
             description: The value of the "database_code_amcsd" field in the AMC File
             type: ShortVarchar    # must allow leading zeros
+            display_order: 1
             properties:
                 - no_user_edits
                 - is_derived
@@ -50,6 +52,7 @@ odr_plugins.rruff.amcsd:
             name: Authors
             description: The names of the authors that published the data
             type: LongText
+            display_order: 2
             properties:
                 - no_user_edits
                 - is_derived
@@ -59,6 +62,7 @@ odr_plugins.rruff.amcsd:
             name: File Contents
             description: A copy of the AMC File's contents
             type: LongText
+            display_order: 3
             properties:
                 - no_user_edits
                 - is_derived
@@ -67,18 +71,21 @@ odr_plugins.rruff.amcsd:
             name: AMC File
             description: The AMC file for this dataset
             type: File
+            display_order: 4
             properties:
                 - single_uploads_only
         cif_file:
             name: CIF File
             description: The CIF file for this dataset
             type: File
+            display_order: 5
             properties:
                 - single_uploads_only
         dif_file:
             name: DIF File
             description: The DIF file for this dataset
             type: File
+            display_order: 6
             properties:
                 - single_uploads_only
 
@@ -86,6 +93,7 @@ odr_plugins.rruff.amcsd:
             name: Mineral
             description: The name of the mineral or compound that was examined
             type: MediumVarchar
+            display_order: 7
             properties:
                 - no_user_edits
                 - is_derived
@@ -93,6 +101,7 @@ odr_plugins.rruff.amcsd:
             name: a
             description: The value of the "a" cellparameter from the AMC File
             type: DecimalValue
+            display_order: 8
             properties:
                 - no_user_edits
                 - is_derived
@@ -100,6 +109,7 @@ odr_plugins.rruff.amcsd:
             name: b
             description: The value of the "b" cellparameter from the AMC File
             type: DecimalValue
+            display_order: 9
             properties:
                 - no_user_edits
                 - is_derived
@@ -107,6 +117,7 @@ odr_plugins.rruff.amcsd:
             name: c
             description: The value of the "c" cellparameter from the AMC File
             type: DecimalValue
+            display_order: 10
             properties:
                 - no_user_edits
                 - is_derived
@@ -114,6 +125,7 @@ odr_plugins.rruff.amcsd:
             name: alpha
             description: The value of the "alpha" cellparameter from the AMC File
             type: DecimalValue
+            display_order: 11
             properties:
                 - no_user_edits
                 - is_derived
@@ -121,6 +133,7 @@ odr_plugins.rruff.amcsd:
             name: beta
             description: The value of the "beta" cellparameter from the AMC File
             type: DecimalValue
+            display_order: 12
             properties:
                 - no_user_edits
                 - is_derived
@@ -128,6 +141,32 @@ odr_plugins.rruff.amcsd:
             name: gamma
             description: The value of the "gamma" cellparameter from the AMC File
             type: DecimalValue
+            display_order: 13
+            properties:
+                - no_user_edits
+                - is_derived
+        volume:
+            name: Volume
+            description: The value of the "volume" cellparameter from the CIF File
+            type: DecimalValue
+            display_order: 14
+            properties:
+                - no_user_edits
+                - is_derived
+
+        crystal_system:
+            name: Crystal System
+            description: For convenience, the "Crystal System" value is derived from the value of the "Space Group" field in the AMC File
+            type: ShortVarchar
+            display_order: 15
+            properties:
+                - no_user_edits
+                - is_derived
+        point_group:
+            name: Point Group
+            description: For convenience, the "Point Group" value is derived from the value of the "Space Group" field in the AMC File
+            type: ShortVarchar
+            display_order: 16
             properties:
                 - no_user_edits
                 - is_derived
@@ -135,6 +174,15 @@ odr_plugins.rruff.amcsd:
             name: Space Group
             description: The value of the "Space Group" field in the AMC File
             type: ShortVarchar
+            display_order: 17
+            properties:
+                - no_user_edits
+                - is_derived
+        lattice:
+            name: Lattice
+            description: For convenience, the "Lattice" value is derived from the value of the "Space Group" field in the AMC File
+            type: ShortVarchar
+            display_order: 18
             properties:
                 - no_user_edits
                 - is_derived
@@ -143,6 +191,7 @@ odr_plugins.rruff.amcsd:
             name: Pressure
             description: The value of the "Pressure" field in the AMC File
             type: ShortVarchar
+            display_order: 19
             properties:
                 - no_user_edits
                 - is_derived
@@ -150,6 +199,7 @@ odr_plugins.rruff.amcsd:
             name: Temperature
             description: The value of the "Temperature" field in the AMC File
             type: ShortVarchar
+            display_order: 20
             properties:
                 - no_user_edits
                 - is_derived
@@ -158,18 +208,26 @@ odr_plugins.rruff.amcsd:
             name: Chemistry
             description: The value of the "Chemistry" field in the CIF File
             type: LongVarchar
+            display_order: 21
             properties:
                 - no_user_edits    # TODO - allow editing?  On one hand, all the chemical formulas lack subscripts...on the other, the CIF File value is "official"...
+                - is_derived
+        chemistry_elements:
+            name: Chemistry Elements
+            description: The individual elements from the "Chemistry" field in the CIF File
+            type: LongVarchar
+            display_order: 22
+            properties:
+                - no_user_edits
                 - is_derived
 
         locality:
             name: Locality
             description: The value of the "compound source" field in the CIF File
             type: LongVarchar
+            display_order: 23
             properties:
                 - no_user_edits
                 - is_derived
-
-        # TODO - get the plugin to derive point group/crystal system, and calculate volume too?
 
     config_options:
