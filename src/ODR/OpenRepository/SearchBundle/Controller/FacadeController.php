@@ -684,7 +684,7 @@ class FacadeController extends Controller
      * Seeds the ElasticSearch database with data from a list of dataset_uuids
      * stored in an array in parameters.yml.  Note that only dataset_uuids and
      * not mastter type uuids should be present in the array.  If the dataset
-     * is derived from a master type, its public will automatically be added
+     * is derived from a Naster type, its public will automatically be added
      * to the master index for cross-template searching.
      *
      * @param $record_uuid
@@ -955,8 +955,11 @@ class FacadeController extends Controller
                 'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid'),
                 'reference_database_uuid' => $this->container->getParameter('reference_database_uuid'),
                 'amcsd_database_uuid' => $this->container->getParameter('amcsd_database_uuid'),
+                'paragenetic_modes_uuid' => $this->container->getParameter('paragenetic_modes_uuid'),
                 'mineral_data' => $this->container->getParameter('mineral_data'),
                 'cell_params' => $this->container->getParameter('cell_params'),
+                'pm_data' => $this->container->getParameter('pm_data'),
+                'pm_tag_data' => $this->container->getParameter('pm_tag_data'),
                 'references' => $this->container->getParameter('references'),
                 'amcsd_file' => $this->container->getParameter('amcsd_file'),
                 'cell_params_range' => $this->container->getParameter('cell_params_range'),
@@ -979,7 +982,6 @@ class FacadeController extends Controller
             );
             $full_ima_url = $baseurl . $full_ima_url;
 
-            $route_name = 'odr_api_datarecord_list';
             if($recent) {
                 $route_name = 'odr_api_recent_datarecord_list';
                 $recent = '99999999';
@@ -1045,6 +1047,30 @@ class FacadeController extends Controller
             );
             $amcsd_url = $baseurl . $amcsd_url;
 
+            // Paragenetic Modes URL
+            $paragenetic_modes_url = $this->generateUrl(
+                // 'odr_api_datarecord_list',
+                $route_name,
+                array(
+                    'datatype_uuid' => $job_data['paragenetic_modes_uuid'],
+                    'version' => 'v5',
+                    'recent' => $recent
+                )
+            );
+            $paragenetic_modes_url = $baseurl . $paragenetic_modes_url;
+
+            // Paragenetic Modes Template URL
+            $paragenetic_modes_template_url = $this->generateUrl(
+                'odr_api_get_template_single',
+                // $route_name,
+                array(
+                    'datatype_uuid' => $job_data['paragenetic_modes_uuid'],
+                    'version' => 'v5',
+                    'recent' => $recent
+                )
+            );
+            $paragenetic_modes_template_url = $baseurl . $paragenetic_modes_template_url;
+
             // API Login URL
             $api_login_url = $this->generateUrl(
                 'api_login_check',
@@ -1094,10 +1120,13 @@ class FacadeController extends Controller
             $job_data['powder_diffraction_url'] = $powder_diffraction_url;
             $job_data['references_url'] = $references_url;
             $job_data['amcsd_url'] = $amcsd_url;
+            $job_data['paragenetic_modes_url'] = $paragenetic_modes_url;
+            $job_data['paragenetic_modes_template_url'] = $paragenetic_modes_template_url;
 
             $job_data['ima_record_map'] = $this->container->getParameter('ima_record_map');
             $job_data['reference_record_map'] = $this->container->getParameter('reference_record_map');
             $job_data['amcsd_record_map'] = $this->container->getParameter('amcsd_record_map');
+            $job_data['paragenetic_modes_record_map'] = $this->container->getParameter('paragenetic_modes_record_map');
             $job_data['cell_params_map'] = $this->container->getParameter('cell_params_map');
             $job_data['powder_diffraction_map'] = $this->container->getParameter('powder_diffraction_map');
 
