@@ -4,7 +4,7 @@ odr_plugins.base.map:
     plugin_type: datatype
     render: odr_plugins.base.map
     version: 1.4.0
-    override_fields: true
+    override_fields: false
     override_field_reload: false
     override_child: true
     override_table_fields: false
@@ -37,12 +37,6 @@ odr_plugins.base.map:
 #            default: ROADMAP
 #            choices: ROADMAP||Roadmap,SATELLITE||Satellite,TERRAIN||Terrain,HYBRID||Hybrid
 #            description: Choose the default display type for the map.
-        hide_datafields:
-            name: Hide Datafields
-            type: string
-            default: false
-            choices: false||False,true||True
-            description: If false, then all datafields in the dataype will be displayed, with the map below them.  If true, then just the map will be displayed.
         scalebar_units:
             name: Scalebar Unit
             type: string

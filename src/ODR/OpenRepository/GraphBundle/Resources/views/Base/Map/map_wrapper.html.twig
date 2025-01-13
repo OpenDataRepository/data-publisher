@@ -6,7 +6,6 @@
 
 <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
-{% if plugin_options.hide_datafields == "false" %}
     <div class="ODRGraphSpacer pure-u-1">
         {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
             'context' : 'display',
@@ -85,7 +84,6 @@
             'is_top_level': is_top_level,
         } %}
     </div>
-{% endif %}
 
     <div class="ODRGraphSpacer pure-u-1">
 
