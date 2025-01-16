@@ -1526,8 +1526,8 @@ class ODRRenderService
         $initial_datatype_id = $datafield->getDataType()->getId();
         $initial_theme_id = $theme_element->getTheme()->getId();
 
-        $datatype_array = $this->database_info_service->getDatatypeArray($source_datatype->getId(), $include_links);
-        $master_theme = $this->theme_info_service->getDatatypeMasterTheme($source_datatype->getId());
+        $datatype_array = $this->database_info_service->getDatatypeArray($source_datatype->getGrandparent()->getId(), $include_links);
+        $master_theme = $this->theme_info_service->getDatatypeMasterTheme($source_datatype->getGrandparent()->getId());
         $theme_array = $this->theme_info_service->getThemeArray($master_theme->getId());
 
         // ...only get the datarecord arrays if a datarecord was specified
