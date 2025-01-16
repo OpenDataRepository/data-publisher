@@ -105,9 +105,10 @@
         {{ datafield.templateFieldUuid|json_encode|raw }},
         {% endif %}
         "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
-        {% endif %}
+{% endif %}
         "id":
         {{ datafield.id }},
+
         {% if field_typename == "File" %}
 
         "files": [
@@ -161,8 +162,7 @@
                     "_quality": "{{ oimage_meta.quality }}"
                 },
                 {% endif %}
-                "id":
-                {{ oimage.id }},
+                "id": {{ oimage.id }},
                 "file_uuid": "{{ oimage.unique_id }}",
                 "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ oimage.id }}{% endif %}",
                 "href": "{{ url('odr_image_download', {'image_id': oimage.id}) }}",
@@ -182,8 +182,8 @@
                     "_quality": "{{ oimage_meta.quality }}"
                 },
                 {% endif %}
-                "id":
-                {{ image.id }},
+                "id": {{ image.id }},
+                "parent_image_id": {{ oimage.id }},
                 "file_uuid": "{{ image.unique_id }}",
                 "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ image.id }}{% endif %}",
                 "href": "{{ url('odr_image_download', {'image_id': image.id}) }}",
@@ -206,24 +206,12 @@
             {{ radio_block|comma|raw }}
             {% endif %}
         ]
-        {#
-        {% include 'ODRAdminBundle:XMLExport:datarecord_radio_selections.json.twig' with {
-            'datafield': datafield,
-            'drf': datarecordfield,
-        } %}
-        #}
 
         {% elseif field_typename == "Tags" %}
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
             'datafield': datafield,
             'drf': datarecordfield,
         } %}
-        {#
-                {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
-                    'datafield': datafield,
-                    'drf': datarecordfield,
-                } %}
-        #}
 
         {% else %}
 

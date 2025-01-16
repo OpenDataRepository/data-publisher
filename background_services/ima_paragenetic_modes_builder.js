@@ -7,19 +7,19 @@ const fs = require('fs');
 
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
-const tube = 'odr_references_record_builder';
+const tube = 'odr_paragenetic_modes_record_builder';
 let browser;
 let token = '';
 
 function delay(time) {
     return new Promise(function(resolve) {
-        setTimeout(resolve, time);
+        setTimeout(resolve, time)
     });
 }
 
 async function app() {
     browser = await puppeteer.launch({headless:'new'});
-    console.log('References Record Builder Start');
+    console.log('IMA Paragenetic Modes Builder Start');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {
@@ -48,71 +48,28 @@ async function app() {
                     if(
                         tracked_job.error !== undefined
                         && ( tracked_job.error.code === 500
-                           || tracked_job.error.code === 404)
+                            || tracked_job.error.code === 404)
                     ) {
                         throw Error('Job canceled.');
                     }
-                     */
-                    /*
-                    {
-                        'base_url' => $baseurl,
-                        "ima_uuid":"0f59b751673686197f49f4e117e9",
-                        "mineral_index": <1023>,
-                        "cell_params_uuid":"a85a97461686ef3dfe77e14e2209",
-                        "mineral_data":"web\\/uploads\\/mineral_data.js",
-                        "cell_params":"web\\/uploads\\/cell_params.js",
-                        "cell_params_range":"web\\/uploads\\/cell_params_range.js",
-                        "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
-                        "tag_data":"web\\/uploads\\/master_tag_data.js",
-                        "ima_url":"\\/\\/www.rruff.net\\/odr_rruff",
-                        "cell_params_url":"\\/\\/www.rruff.net\\/odr_rruff"
-                     }
+
                      */
 
-                    /*
-                        path: ^/api/{version}/dataset/record/{record_uuid}
-                     */
                     let record_url = record.base_url + '/api/v5/dataset/record/' + record.unique_id;
-                    // console.log(record_url);
 
                     // Need to get token??
                     let record_data = await loadPage(record_url);
                     // console.log(record_data);
 
-                    // throw Error('Break for debug.');
+                    let content = '' +
+                        'paragenetic_modes[\'' + record_data['records_' + record_data.database_uuid][0]['record_uuid'] + '\']={ "tags": "' +
+                            await findValue(record.paragenetic_modes_record_map.tags_field_uuid, record_data) +
+                        '"};\n';
 
+                    // console.log('CONTENT: ' + content);
+                    // console.log('writeFile: ' + record.base_path + record.pm_data + '.' + record.file_extension);
+                    await appendFile( record.base_path + record.pm_data + '.' + record.file_extension, content);
 
-                    // Aarden H M, Gittins J (1974) Hiortdahlite from Kipawa River, Villedieu Township Temiscaming County, Québec, Canada. The Canadian Mineralogist 12, 241-247
-                    // authors: 'af88b9e5d2680ac5bf6dc4fc34cd'
-                    // article_title: 'dbf1b342812f12c1b750b036b201'
-                    // journal: 'b1e0f7899c4fe89fe3813251c8e0'
-                    // year: '889ce6e0f61474112e1fe8adf9da'
-                    // volume: '5efacf0643a1e8fda456e9b87e10'
-                    // pages: '98d09e2bcc2de65a4025a1eed271'
-                    // reference_id: '72a950a4705a83547020834a1ce8'
-
-                    let reference_id = await findValue(record.reference_record_map.reference_id, record_data);
-                    let reference_record = {
-                        'reference_id': await findValue(record.reference_record_map.reference_id, record_data),
-                        'author': await findValue(record.reference_record_map.authors, record_data),
-                        'year': await findValue(record.reference_record_map.year, record_data),
-                        'article_title': await findValue(record.reference_record_map.article_title, record_data),
-                        'journal': await findValue(record.reference_record_map.journal, record_data),
-                        'volume': await findValue(record.reference_record_map.pages, record_data),
-                        'record_uuid': record_data.record_uuid,
-                        'internal_id': record_data.internal_id
-                    };
-
-                    /*
-                    Buffer.from(
-                        await findValue(record.ima_record_map.status_notes , record_data)
-                    ).toString('base64') + '||' +
-                     */
-
-                    let content = 'references[' + reference_id + '] = ' + JSON.stringify(reference_record) + ';';
-                    // console.log(content)
-                    // console.log('writeFile: ' + record.base_path + record.references + '.' + record.file_extension);
-                    await appendFile( record.base_path + record.references + '.' + record.file_extension, content);
 
                     /*
                         {
@@ -128,7 +85,7 @@ async function app() {
                     let worker_job = {
                         'job': {
                             'tracked_job_id': record.tracked_job_id,
-                            'random_key': 'References_' + Math.floor(Math.random() * 99999999).toString(),
+                            'random_key': 'IMA_PM_' + job.id,
                             'job_order': 0,
                             'line_count': 1
                         }
@@ -137,15 +94,16 @@ async function app() {
                     // console.log('Worker Job: ', worker_job);
 
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
+                        // console.log('Deleted Success (' + Date.now() + ')');
                         resJob();
                     });
                 }
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
                     console.log('Error occurred: ', e);
-                    client.deleteJob(job.id).onSuccess(function(del_msg) {
+                    client.deleteJob(job.id).onSuccess(function() {
                         // console.log('Deleted (' + Date.now() + '): ' , job);
-                        console.log('Deleted (' + Date.now() + '): ' , job.id);
+                        console.log('Deleted due to Error (' + Date.now() + '): ' , job.id);
                         resJob();
                     });
                 }
@@ -164,17 +122,48 @@ async function writeFile(file_name, content) {
     }
 }
 
+async function appendFile(file_name, content) {
+    try {
+        fs.appendFileSync(file_name, content);
+        // file written successfully
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+function formatChemistry(str) {
+
+    // No point running regexp if there's nothing in the string
+    if (str === ' ')
+        return str;
+
+    // Apply the superscripts...
+    str = str.replace(/_([^_]+)_/g, '<sub>$1</sub>');
+
+    // Apply the superscripts...
+    str = str.replace(/\^([^\^]+)\^/g, '<sup>$1</sup>');
+
+    // Redo the boxes...
+    while ( str.indexOf('[box]') !== -1 )
+        str = str.replace(/\[box\]/, '&#9744;'); // <span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>');
+
+    return str;
+    // str = str.replace(/'/g, "\\'");
+
+}
+
 async function loadPage(page_url) {
     return await apiCall(page_url, '', 'GET');
 }
 
 async function findValue(field_uuid, record) {
+    /*
     if(
-        record['fields_' + record.template_uuid] !== undefined
+        record !== undefined
+        && record['fields_' + record.template_uuid] !== undefined
         && record['fields_' + record.template_uuid].length > 0
     ) {
         let fields = record['fields_' + record.template_uuid];
-
         // Using V5 we can directly access the field
 
         for(let i = 0; i < fields.length; i++) {
@@ -187,7 +176,7 @@ async function findValue(field_uuid, record) {
                     && the_field.files[0] !== undefined
                     && the_field.files[0].href !== undefined
                 ) {
-                    // console.log('Getting file: ', the_field.files[0])
+                    // console.log('Getting file: ', the_field.files[0].href)
                     return the_field.files[0].href;
                 }
                 if(the_field.value !== undefined) {
@@ -231,7 +220,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.tags[j].id + ' ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output;
+                    return output.trim();
                 }
                 else if(the_field.values !== undefined) {
                     let output = '';
@@ -239,7 +228,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output;
+                    return output.trim();
                 }
                 else {
                     return '';
@@ -247,14 +236,16 @@ async function findValue(field_uuid, record) {
             }
         }
     }
+     */
     if(
-        record['fields_' + record.record_uuid] !== undefined
-        && record['fields_' + record.record_uuid].length > 0
+        record !== undefined
+        && record['fields_' + record.database_uuid] !== undefined
+        && record['fields_' + record.database_uuid].length > 0
     ) {
-        let fields = record['fields_' + record.record_uuid];
+        let fields = record['fields_' + record.database_uuid];
         for(let i = 0; i < fields.length; i++) {
             let the_field = fields[i][Object.keys(fields[i])[0]];
-            if(the_field.template_field_uuid !== undefined && the_field.template_field_uuid == field_uuid) {
+            if(the_field.field_uuid !== undefined && the_field.field_uuid == field_uuid) {
                 if(the_field.files !== undefined && the_field.files[0].href !== undefined) {
                     return the_field.files[0].href;
                 }
@@ -267,7 +258,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.tags[j].id + ' ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output;
+                    return output.trim();
                 }
                 else if(the_field.values !== undefined) {
                     let output = '';
@@ -275,7 +266,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output;
+                    return output.trim();
                 }
                 else {
                     return '';
@@ -294,7 +285,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.tags[j].id + ' ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output;
+                    return output.trim();
                 }
                 else if(the_field.values !== undefined) {
                     let output = '';
@@ -302,7 +293,7 @@ async function findValue(field_uuid, record) {
                         output += the_field.values[j].name + ', ';
                     }
                     output = output.replace(/,\s$/, '');
-                    return output;
+                    return output.trim();
                 }
                 else {
                     return '';
@@ -311,7 +302,8 @@ async function findValue(field_uuid, record) {
         }
     }
     if(
-        record['records_' + record.template_uuid] !== undefined
+        record !== undefined
+        && record['records_' + record.template_uuid] !== undefined
         && record['records_' + record.template_uuid].length > 0
     ) {
         for(let i = 0; i < record['records_' + record.template_uuid].length; i++) {
@@ -322,11 +314,12 @@ async function findValue(field_uuid, record) {
         }
     }
     if(
-        record['records_' + record.record_uuid] !== undefined
-        && record['records_' + record.record_uuid].length > 0
+        record !== undefined
+        && record['records_' + record.database_uuid] !== undefined
+        && record['records_' + record.database_uuid].length > 0
     ) {
-        for(let i = 0; i < record['records_' + record.record_uuid].length; i++) {
-            let result = await findValue(field_uuid, record['records_' + record.record_uuid][i]);
+        for(let i = 0; i < record['records_' + record.database_uuid].length; i++) {
+            let result = await findValue(field_uuid, record['records_' + record.database_uuid][i]);
             if(result !== '') {
                 return result;
             }
@@ -335,9 +328,8 @@ async function findValue(field_uuid, record) {
     return '';
 }
 
-
 async function apiCall(api_url, post_data, method) {
-    // console.log('API Call: ', api_url);
+    console.log('API Call: ', api_url);
     try {
         const page = await browser.newPage();
         page.on('console', message =>
@@ -386,14 +378,6 @@ async function apiCall(api_url, post_data, method) {
     }
 }
 
-async function appendFile(file_name, content) {
-    try {
-        fs.appendFileSync(file_name, content);
-        // file written successfully
-    } catch (err) {
-        console.log(err);
-    }
-}
 
 
 app();

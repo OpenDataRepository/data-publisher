@@ -2221,10 +2221,15 @@ class EditController extends ODRCustomController
                         // ----------------------------------------
                         // If saving to a datetime field, ensure it's a datetime object?
                         if ($typeclass == 'DatetimeValue') {
-                            if ($new_value == '')
-                                $new_value = new \DateTime('9999-12-31 00:00:00');
-                            else
+                            if ( is_null($new_value)
+                                || $new_value === ''
+                                || $new_value === '0000-00-00'
+                                || $new_value === '0000-00-00 00:00:00'
+                            ) {
+                                $new_value = new \DateTime('9999-12-31 00:00:00');    // matches APIController::updateStorageField()
+                            } else {
                                 $new_value = new \DateTime($new_value);
+                            }
                         }
                         else if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
                             // DecimalValue::setValue() already does its own thing, and parent::ODR_copyStorageEntity() will set $new_value back to NULL for an IntegerValue

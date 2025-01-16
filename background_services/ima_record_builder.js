@@ -296,7 +296,7 @@ async function app() {
                 }
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
-                    // console.log('Error occurred: ', e);
+                    console.log('Error occurred: ', e);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         // console.log('Deleted (' + Date.now() + '): ' , job);
                         console.log('Deleted (' + Date.now() + '): ' , job.id);
