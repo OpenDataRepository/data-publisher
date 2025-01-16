@@ -93,6 +93,7 @@
         var hot_container_{{ datarecord.id }}_{{ datafield.id }} = document.getElementById('hot_{{ datarecord.id }}_{{ datafield.id }}');
         var hot_{{ datarecord.id }}_{{ datafield.id }} = new Handsontable(hot_container_{{ datarecord.id }}_{{ datafield.id }}, {
             data: data_{{ datarecord.id }}_{{ datafield.id }},
+            minCols: {{ num_columns }},
             rowHeaders: true,
             colHeaders: true,
             readOnly: true,

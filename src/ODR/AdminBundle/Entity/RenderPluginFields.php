@@ -40,6 +40,11 @@ class RenderPluginFields
     private $description;
 
     /**
+     * @var int
+     */
+    private $display_order;
+
+    /**
      * @var boolean
      */
     private $active;
@@ -182,6 +187,30 @@ class RenderPluginFields
     public function getDescription()
     {
         return $this->description;
+    }
+
+    /**
+     * Set displayOrder.
+     *
+     * @param int $displayOrder
+     *
+     * @return RenderPluginFields
+     */
+    public function setDisplayOrder($displayOrder)
+    {
+        $this->display_order = $displayOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayOrder.
+     *
+     * @return int
+     */
+    public function getDisplayOrder()
+    {
+        return $this->display_order;
     }
 
     /**

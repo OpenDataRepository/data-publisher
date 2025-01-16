@@ -49,7 +49,7 @@
 {% set render_plugin_instance = null %}
 {% set can_execute_plugin = false %}
 {% for rpi_num,rpi in datatype.renderPluginInstances %}
-    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.overrideChild and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
         {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
         {% if can_execute_plugin %}
@@ -99,41 +99,25 @@
                 } %}
 
                 <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+                    {% include 'ODRAdminBundle:Display:display_childtype_fieldarea.html.twig' with {
+                        'datatype_array': datatype_array,
+                        'datarecord': datarecord,
+                        'theme_array': theme_array,
 
-                    {% set content = '' %}
-                    {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
-                        {# [datarecord] converts datarecord into a single-element array #}
-                        {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions) %}
-                        {% if content|length > 0 %}
-                            <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
-                            {{ content|raw }}
-                        {% endif %}
-                    {% endif %}
+                        'parent_datarecord': parent_datarecord,
+                        'target_datatype_id': target_datatype_id,
+                        'target_datarecord_id': datarecord.id,
+                        'target_theme_id': target_theme_id,
 
-                    {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
-                        {# If using render plugin and it overrides datafield display, do nothing here #}
-                    {% else %}
-                        {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
-                            'datatype_array': datatype_array,
-                            'datarecord': datarecord,
-                            'theme_array': theme_array,
+                        'datatype_permissions': datatype_permissions,
+                        'datafield_permissions': datafield_permissions,
 
-                            'parent_datarecord': parent_datarecord,
-                            'target_datatype_id': target_datatype_id,
-                            'target_datarecord_id': datarecord.id,
-                            'target_theme_id': target_theme_id,
-
-                            'datatype_permissions': datatype_permissions,
-                            'datafield_permissions': datafield_permissions,
-
-                            'record_display_view': record_display_view,
-                            'is_top_level': is_top_level,
-                            'is_link': is_link,
-                            'display_type': display_type,
-                            'multiple_allowed': multiple_allowed,
-                        } %}
-                    {% endif %}
-
+                        'record_display_view': record_display_view,
+                        'is_top_level': is_top_level,
+                        'is_link': is_link,
+                        'display_type': display_type,
+                        'multiple_allowed': multiple_allowed,
+                    } %}
                 </div><!-- End of #FieldArea_{{ datarecord.id }} -->
             {% endfor %}
 

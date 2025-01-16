@@ -411,7 +411,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         $exclude_nonselected = false;
         foreach ($elements as $element) {
             $element = trim($element);
-            if ( $element === 'all' || $element === '!all' || $element === '~all' ) {
+            if ( $element === 'all' || $element === '!all' || $element === '~all' || $element === '-' ) {
                 // This is a special value indicating every element not in $all or $at_least_one
                 //  ends up in $none...but since this plugin doesn't enforce a list of elements,
                 //  actually using it won't be entirely straightforward...

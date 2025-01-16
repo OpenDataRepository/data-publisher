@@ -30,6 +30,7 @@ odr_plugins.rruff.cell_parameters:
             description: An external ID used for the data
             type: IntegerValue
             properties:
+                - is_optional    # optional because this plugin is also used for RRUFF X-Ray Diffraction, which doesn't need this...
                 - autogenerate_values
                 - must_be_unique
 
@@ -113,17 +114,25 @@ odr_plugins.rruff.cell_parameters:
             name: Chemistry
             description:
             type: LongVarchar
+            properties:
+                - is_optional
         pressure:
             name: Pressure
             description:
             type: ShortVarchar
+            properties:
+                - is_optional
         temperature:
             name: Temperature
             description:
             type: ShortVarchar
+            properties:
+                - is_optional
         notes:
             name: Notes
             description:
             type: LongText
+            properties:
+                - is_optional
 
     config_options:

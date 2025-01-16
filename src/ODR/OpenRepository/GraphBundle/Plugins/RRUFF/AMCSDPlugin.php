@@ -44,9 +44,11 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
+use ODR\OpenRepository\GraphBundle\Plugins\CrystallographyDef;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -55,7 +57,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, MassEditTriggerEventInterface
+class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, MassEditTriggerEventInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -160,13 +162,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $rendering_options
-     *
-     * @return bool
+     * @inheritDoc
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
@@ -193,20 +189,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Executes the AMCSD Plugin on the provided datarecords
-     *
-     * @param array $datarecords
-     * @param array $datatype
-     * @param array $render_plugin_instance
-     * @param array $theme_array
-     * @param array $rendering_options
-     * @param array $parent_datarecord
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param array $token_list
-     *
-     * @return string
-     * @throws \Exception
+     * @inheritDoc
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
@@ -295,12 +278,19 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'alpha':
                     case 'beta':
                     case 'gamma':
+                    case 'Volume':
+
+                    case 'Crystal System':
+                    case 'Point Group':
                     case 'Space Group':
+                    case 'Lattice':
+
                     case 'Pressure':
                     case 'Temperature':
                         // None of these fields can be edited, since they're from the AMC file
 
                     case 'Chemistry':
+                    case 'Chemistry Elements':
                     case 'Locality':
                         // These fields also can't be edited, since they're from the CIF file
                         break;
@@ -400,6 +390,20 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 );
             }
             else if ( $rendering_options['context'] === 'display' ) {
+                // Point Groups and Space Groups should be modified with CSS for display mode
+                $field_values = array('Point Group' => '', 'Space Group' => '');
+
+                $point_group_df_id = $fields['Point Group']['id'];
+                if ( isset($datarecord['dataRecordFields'][$point_group_df_id]['shortVarchar'][0]['value']) ) {
+                    $pg = $datarecord['dataRecordFields'][$point_group_df_id]['shortVarchar'][0]['value'];
+                    $field_values['Point Group'] = self::applySymmetryCSS($pg);
+                }
+                $space_group_df_id = $fields['Space Group']['id'];
+                if ( isset($datarecord['dataRecordFields'][$space_group_df_id]['shortVarchar'][0]['value']) ) {
+                    $sg = $datarecord['dataRecordFields'][$space_group_df_id]['shortVarchar'][0]['value'];
+                    $field_values['Space Group'] = self::applySymmetryCSS($sg);
+                }
+
                 $record_display_view = 'single';
                 if ( isset($rendering_options['record_display_view']) )
                     $record_display_view = $rendering_options['record_display_view'];
@@ -425,6 +429,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'display_type' => $rendering_options['display_type'],
 
                         'plugin_fields' => $plugin_fields,
+                        'field_values' => $field_values,
                     )
                 );
             }
@@ -468,6 +473,29 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
                         array(
                             'rpf_name' => 'CIF File',
+                            'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
+                        )
+                    );
+
+                    $output = $error_div . $output;
+                }
+
+                // ...there's also a chance that there was a problem deriving the Point Group and/or
+                //  Crystal System from the Space group
+                if ( self::symmetryHasProblem($plugin_fields, $datarecord) ) {
+                    // Determine whether the user can edit the "CIF File" datafield
+                    $can_edit_relevant_datafield = false;
+                    if ( $is_datatype_admin )
+                        $can_edit_relevant_datafield = true;
+
+                    $df_id = array_search('CIF File', $editable_datafields);
+                    if ( isset($datafield_permissions[$df_id]['edit']) )
+                        $can_edit_relevant_datafield = true;
+
+                    $error_div = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        array(
+                            'rpf_name' => 'Space Group',
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
                         )
                     );
@@ -562,10 +590,17 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         return true;
                     break;
 
+                // These three fields are derived from the Space Group...while they're supposed to
+                //  exist, it's also possible for there to be an error in the Space Group
+//                case 'Point Group':
+//                case 'Crystal System':
+//                case 'Lattice':
+//                    break;
+
+                // These two fields are optional...the AMC file may not have them
 //                case 'Pressure':
 //                case 'Temperature':
-                    // These two fields are optional...the AMC file may not have them
-//                break;
+//                    break;
 
                 default:
                     // Every other field the plugin specifies doesn't matter when trying to determine
@@ -591,16 +626,22 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function cifFileHasProblem($plugin_fields, $datarecord)
     {
-        // Due to only needing to touch three fields, it's more efficient to use a slightly different
+        // Due to only needing to touch five fields, it's slightly more efficient to use a different
         //  access method when dealing with the CIF File
         $cif_file_df_id = null;
+        $volume_df_id = null;
         $chemistry_df_id = null;
+        $chemistry_elements_df_id = null;
         $locality_df_id = null;
         foreach ($plugin_fields as $df_id => $rpf_df) {
             if ( $rpf_df['rpf_name'] === 'CIF File' )
                 $cif_file_df_id = $df_id;
+            else if ( $rpf_df['rpf_name'] === 'Volume' )
+                $volume_df_id = $df_id;
             else if ( $rpf_df['rpf_name'] === 'Chemistry' )
                 $chemistry_df_id = $df_id;
+            else if ( $rpf_df['rpf_name'] === 'Chemistry Elements' )
+                $chemistry_elements_df_id = $df_id;
             else if ( $rpf_df['rpf_name'] === 'Locality' )
                 $locality_df_id = $df_id;
         }
@@ -610,21 +651,95 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         if ( empty($datarecord['dataRecordFields'][$cif_file_df_id]['file']) )
             return false;
 
-        // If there's no storage entity for the "Chemistry" field, then there's a problem
+        // If there's no storage entity for the "Volume", "Chemistry" or "Chemistry Elements"
+        //  fields, then there's a problem
+        if ( !isset($datarecord['dataRecordFields'][$volume_df_id]) )
+            return true;
         if ( !isset($datarecord['dataRecordFields'][$chemistry_df_id]) )
+            return true;
+        if ( !isset($datarecord['dataRecordFields'][$chemistry_elements_df_id]) )
             return true;
         // The "Locality" field is technically allowed to be blank
 //        if ( !isset($datarecord['dataRecordFields'][$locality_df_id]) )
 //            return true;
 
-        // If the "Chemistry" field has a blank value, then there's a problem
+        // If any of the fields are blank, then that's also a problem
+        $drf = $datarecord['dataRecordFields'][$volume_df_id];
+        if ( empty($drf['decimalValue']) || $drf['decimalValue'][0]['value'] === '' )
+            return true;
         $drf = $datarecord['dataRecordFields'][$chemistry_df_id];
+        if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
+            return true;
+        $drf = $datarecord['dataRecordFields'][$chemistry_elements_df_id];
         if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
             return true;
         // The "Locality" field is technically allowed to be blank
 //        $drf = $datarecord['dataRecordFields'][$locality_df_id];
 //        if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
 //            return true;
+
+
+        // Otherwise, there are no problems
+        return false;
+    }
+
+
+    /**
+     * The contents of the "Space Group" field gets used to derive the contents for the "Lattice",
+     * "Point Group", and "Crystal System" fields...but this isn't necessarily guaranteed to work
+     * because of the flexibility permitted in defining "Space Group" fields...
+     *
+     * @param array $plugin_fields
+     * @param array $datarecord
+     *
+     * @return bool
+     */
+    private function symmetryHasProblem($plugin_fields, $datarecord)
+    {
+        // Due to only needing to touch four fields, it's faster to do it this way
+        $crystal_system_df_id = null;
+        $point_group_df_id = null;
+        $space_group_df_id = null;
+        $lattice_df_id = null;
+
+        foreach ($plugin_fields as $df_id => $rpf_df) {
+            if ( $rpf_df['rpf_name'] === 'Crystal System' )
+                $crystal_system_df_id = $df_id;
+            else if ( $rpf_df['rpf_name'] === 'Point Group' )
+                $point_group_df_id = $df_id;
+            else if ( $rpf_df['rpf_name'] === 'Space Group' )
+                $space_group_df_id = $df_id;
+            else if ( $rpf_df['rpf_name'] === 'Lattice' )
+                $lattice_df_id = $df_id;
+        }
+
+
+        // No sense complaining if the "Space Group" field is empty...it'll complain about the
+        //  CIF File instead
+        if ( !isset($datarecord['dataRecordFields'][$space_group_df_id]) )
+            return false;
+        $drf = $datarecord['dataRecordFields'][$space_group_df_id];
+        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
+            return false;
+
+        // If there is a "Space Group" field, however, then the other three fields should not be blank
+        if ( !isset($datarecord['dataRecordFields'][$point_group_df_id]) )
+            return true;
+        $drf = $datarecord['dataRecordFields'][$point_group_df_id];
+        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
+            return true;
+
+        if ( !isset($datarecord['dataRecordFields'][$crystal_system_df_id]) )
+            return true;
+        $drf = $datarecord['dataRecordFields'][$crystal_system_df_id];
+        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
+            return true;
+
+        if ( !isset($datarecord['dataRecordFields'][$lattice_df_id]) )
+            return true;
+        $drf = $datarecord['dataRecordFields'][$lattice_df_id];
+        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
+            return true;
 
 
         // Otherwise, there are no problems
@@ -1087,10 +1202,19 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'alpha':
                 case 'beta':
                 case 'gamma':
+                case 'Volume':
+
+                case 'Crystal System':
+                case 'Point Group':
                 case 'Space Group':
+                case 'Lattice':
+
                 case 'Pressure':
                 case 'Temperature':
+
                 case 'Chemistry':
+                case 'Chemistry Elements':
+
                 case 'Locality':
                     $datafield_mapping[$rpf_name] = $rpf_df_id;
                     break;
@@ -1128,14 +1252,34 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $df_ids = array();
         foreach ($datafield_mapping as $rpf_name => $df_id) {
             if ( $relevant_rpf_name === 'AMC File' ) {
-                // When called on an "AMC File", the "Chemistry" and "Locality" fields should not be hydrated
-                if ( $rpf_name === 'Chemistry' || $rpf_name === 'Locality' )
-                    unset( $datafield_mapping[$rpf_name] );
+                switch ($rpf_name) {
+                    case 'Volume':
+                    case 'Chemistry':
+                    case 'Chemistry Elements':
+                    case 'Locality':
+                        // When called on an "AMC File", none of these fields should be hydrated
+                        unset( $datafield_mapping[$rpf_name] );
+                        break;
+
+                    default:
+                        // ...any other field should be hydrated
+                        break;
+                }
             }
             else if ( $relevant_rpf_name === 'CIF File' ) {
-                // When called on a "CIF File", only the "Chemistry" and "Locality" fields should be hydrated
-                if ( $rpf_name !== 'Chemistry' && $rpf_name !== 'Locality' )
-                    unset( $datafield_mapping[$rpf_name] );
+                switch ($rpf_name) {
+                    case 'Volume':
+                    case 'Chemistry':
+                    case 'Chemistry Elements':
+                    case 'Locality':
+                        // When called on a "CIF File", all of these fields should be hydrated
+                        break;
+
+                    default:
+                        // ...any other field should not
+                        unset( $datafield_mapping[$rpf_name] );
+                        break;
+                }
             }
         }
 
@@ -1310,7 +1454,26 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $value_mapping['alpha'] = $pieces[3];
                 $value_mapping['beta'] = $pieces[4];
                 $value_mapping['gamma'] = $pieces[5];
-                $value_mapping['Space Group'] = $pieces[6];
+
+                // For historical reasons, AMC files might have a '*' before the space group...this
+                //  apparently meant that the calculated x/y/z coords of the atoms in the file were
+                //  shifted, compared to would be "expected" based on the space group
+                $sg = trim($pieces[6]);
+
+                // Since the AMC files are kind of a...cliff notes...version of the CIF file, the
+                //  '*' character is unique to them.  It shouldn't be saved to the Space Group field
+                if ( strpos($sg, '*') === 0 )
+                    $sg = substr($sg, 1);
+
+                // The Lattice, Point Group, and Crystal System are then derived from the Space Group
+                $lattice = substr($sg, 0, 1);
+                $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
+                $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
+
+                $value_mapping['Crystal System'] = $cs;
+                $value_mapping['Point Group'] = $pg;
+                $value_mapping['Space Group'] = $sg;
+                $value_mapping['Lattice'] = $lattice;
             }
             else if ( $line_num > 2 && $database_code_line === -999 ) {
                 // The pressure/temperature are usually before the "_database_code_amcsd" (I think)
@@ -1366,12 +1529,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
 
-        $has_chemistry = false;
+        $has_chemistry = $has_volume = false;
         while ( !feof($handle) ) {
             $line = fgets($handle);
 
-            // The only requirement this plugin cares about is that the CIF file has a chemistry
+            // There are two requirements for the CIF File...
             if ( strpos($line, '_chemical_formula_sum') === 0 ) {
+                // ...it needs to have a line for the chemistry
                 $pieces = explode(' ', $line);
 
                 // Need to have at least 2 values in this line
@@ -1380,14 +1544,26 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 $has_chemistry = true;
             }
+            else if ( strpos($line, '_cell_volume') === 0 ) {
+                // ...and it needs to have a line for the volume
+                $pieces = explode(' ', $line);
+
+                // Need to have 2 values in this line
+                if ( count($pieces) !== 2 )
+                    throw new \Exception("Invalid line starting with '_cell_volume'");
+
+                $has_volume = true;
+            }
 
             // While the "Locality" field is also read from the CIF file, not all of the CIFs have
             //  the _chemical_compound_source line...can't throw an exception if it's missing
         }
 
-        // If it didn't find the chemistry line, then it can't be valid
+        // If it didn't find the chemistry or volume lines, then it can't be valid
         if ( !$has_chemistry )
             throw new \Exception("Couldn't find _chemical_formula_sum in CIF File");
+        if ( !$has_volume )
+            throw new \Exception("Couldn't find _cell_volume in CIF File");
 
         // Can't technically tell if the file is a valid CIF file or not, but at least it's close
         //  enough that self::readCIFFile() shouldn't throw an error
@@ -1419,6 +1595,20 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // The formula *should* have single quotes around it...get rid of them
                 $formula = substr($formula, 1, -1);
                 $value_mapping['Chemistry'] = $formula;
+
+                // The value for the "Chemistry Elements" field is derived from this field, using
+                //  pretty much the same process as the IMA List
+                $ima_pattern = '/(REE|[A-Z][a-z]?)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter
+                $ima_matches = array();
+                preg_match_all($ima_pattern, $formula, $ima_matches);
+
+                // Create a unique list of tokens from the array of elements
+                $chemistry_elements = array();
+                foreach ($ima_matches[1] as $num => $elem)
+                    $chemistry_elements[$elem] = 1;
+                $chemistry_elements = array_keys($chemistry_elements);
+
+                $value_mapping['Chemistry Elements'] = implode(" ", $chemistry_elements);
             }
             else if ( strpos($line, '_chemical_compound_source') === 0 ) {
                 // This (optional) line has either 'Synthetic', or the locality of the physical sample
@@ -1428,6 +1618,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // The locality *should* have single quotes around it...get rid of them
                 $locality = substr($locality, 1, -1);
                 $value_mapping['Locality'] = $locality;
+            }
+            else if ( strpos($line, '_cell_volume') === 0 ) {
+                // This line should have a decimal value for the volume
+                $pieces = explode(' ', $line);
+                $value_mapping['Volume'] = $pieces[1];
             }
             else if ( strpos($line, '_space_group_symop_operation_xyz') === 0 ) {
                 // The formula and locality should be considerably earlier in the file than here,
@@ -1641,12 +1836,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Returns an array of which datafields are derived from which source datafields, with everything
-     * identified by datafield id.
-     *
-     * @param array $render_plugin_instance
-     *
-     * @return array
+     * @inheritDoc
      */
     public function getDerivationMap($render_plugin_instance)
     {
@@ -1662,19 +1852,29 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $authors_df_id = $render_plugin_map['Authors']['id'];
         $database_code_amcsd_df_id = $render_plugin_map['database_code_amcsd']['id'];
         $file_contents_df_id = $render_plugin_map['File Contents']['id'];
+
         $a_df_id = $render_plugin_map['a']['id'];
         $b_df_id = $render_plugin_map['b']['id'];
         $c_df_id = $render_plugin_map['c']['id'];
         $alpha_df_id = $render_plugin_map['alpha']['id'];
         $beta_df_id = $render_plugin_map['beta']['id'];
         $gamma_df_id = $render_plugin_map['gamma']['id'];
+
+        $crystal_system_df_id = $render_plugin_map['Crystal System']['id'];
+        $point_group_df_id = $render_plugin_map['Point Group']['id'];
         $space_group_df_id = $render_plugin_map['Space Group']['id'];
+        $lattice_df_id = $render_plugin_map['Lattice']['id'];
+
         $pressure_df_id = $render_plugin_map['Pressure']['id'];
         $temperature_df_id = $render_plugin_map['Temperature']['id'];
 
-        // ...but there are two fields that are supposed to come from the "CIF File" field
+        // ...but there are several fields that are supposed to come from the "CIF File" field
         $cif_file_df_id = $render_plugin_map['CIF File']['id'];
+        $volume_df_id = $render_plugin_map['Volume']['id'];
+
         $chemistry_df_id = $render_plugin_map['Chemistry']['id'];
+        $chemistry_elements_df_id = $render_plugin_map['Chemistry Elements']['id'];
+
         $locality_df_id = $render_plugin_map['Locality']['id'];
 
 
@@ -1691,22 +1891,25 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $alpha_df_id => array($amc_file_df_id),
             $beta_df_id => array($amc_file_df_id),
             $gamma_df_id => array($amc_file_df_id),
+            $volume_df_id => array($cif_file_df_id),
+
+            $crystal_system_df_id => array($amc_file_df_id), // crystal system, point group, and lattice are technically derived from the space group...
+            $point_group_df_id => array($amc_file_df_id),    // ...but doesn't matter since you can't edit space group directly anyways
             $space_group_df_id => array($amc_file_df_id),
+            $lattice_df_id => array($amc_file_df_id),
+
             $pressure_df_id => array($amc_file_df_id),
             $temperature_df_id => array($amc_file_df_id),
 
             $chemistry_df_id => array($cif_file_df_id),
+            $chemistry_elements_df_id => array($cif_file_df_id),
             $locality_df_id => array($cif_file_df_id),
         );
     }
 
 
     /**
-     * Returns an array of datafields where MassEdit should enable the abiilty to run a background
-     * job without actually changing their values.
-     *
-     * @param array $render_plugin_instance
-     * @return array An array where the values are datafield ids
+     * @inheritDoc
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1734,16 +1937,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
-     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
-     * may not want to activate if the user has also entered a value in the relevant field.
-     *
-     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
-     * should always be activated, or false if it should only be activated when the user didn't
-     * also enter a value into the field.
-     *
-     * @param array $render_plugin_instance
-     * @return array
+     * @inheritDoc
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {
@@ -1767,5 +1961,66 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
 
         return $trigger_fields;
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
+    {
+        // This render plugin might need to modify two different fields...
+        $values = array();
+        $current_values = array();
+
+        foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
+            switch ($rpf_name) {
+                case 'Point Group':
+                case 'Space Group':
+                    // This is a field of interest...
+                    $df_id = $rpf['id'];
+                    $current_values[$rpf_name] = array(
+                        'id' => $df_id,
+                        'value' => ''
+                    );
+
+                    // Need to look through the datarecord to find the current value...both of these
+                    //  are ShortVarchar fields
+                    if ( isset($datarecord['dataRecordFields'][$df_id]['shortVarchar'][0]['value']) )
+                        $current_values[$rpf_name]['value'] = $datarecord['dataRecordFields'][$df_id]['shortVarchar'][0]['value'];
+                    break;
+            }
+        }
+
+        // The Point Group and the Space Group need to have some CSS applied to them
+        if ( $current_values['Point Group']['value'] !== '' ) {
+            $point_group_df_id = $current_values['Point Group']['id'];
+            $values[$point_group_df_id] = self::applySymmetryCSS( $current_values['Point Group']['value'] );
+        }
+        if ( $current_values['Space Group']['value'] !== '' ) {
+            $space_group_df_id = $current_values['Space Group']['id'];
+            $values[$space_group_df_id] = self::applySymmetryCSS( $current_values['Space Group']['value'] );
+        }
+
+        // Return all modified values
+        return $values;
+    }
+
+
+    /**
+     * Applies some CSS to a point group or space group value for Display mode.
+     *
+     * @param string $value
+     *
+     * @return string
+     */
+    private function applySymmetryCSS($value)
+    {
+        if ( strpos($value, '-') !== false )
+            $value = preg_replace('/-(\d)/', '<span class="overbar">$1</span>', $value);
+        if ( strpos($value, '_') !== false )
+            $value = preg_replace('/_(\d)/', '<sub>$1</sub>', $value);
+
+        return $value;
     }
 }
