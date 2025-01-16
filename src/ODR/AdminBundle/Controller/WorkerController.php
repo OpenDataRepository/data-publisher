@@ -1470,32 +1470,44 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
-//            $lookup = 'reference';
-            $lookup = 'mineral';
+            $lookup = 'reference';
+//            $lookup = 'mineral';
+//            $lookup = 'instrument';
 
-            // ----------------------------------------
-            $query = '';
+            $props = array();
             if ( $lookup === 'reference' ) {
-                $query =
-                   'SELECT dr.unique_id, e.value AS ref_id
-                    FROM odr_data_record dr
-                    LEFT JOIN odr_data_record_fields drf ON dr.id = drf.data_record_id
-                    LEFT JOIN odr_integer_value e ON e.data_record_fields_id = drf.id
-                    WHERE dr.data_type_id = 734 AND e.data_field_id = 7049
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+                $props = array(
+                    'table' => 'odr_integer_value',
+                    'datatype_id' => 734,
+                    'datafield_id' => 7049,
+                );
             }
             else if ( $lookup === 'mineral' ) {
-                $query =
-                   'SELECT dr.unique_id, e.value AS ref_id
-                    FROM odr_data_record dr
-                    LEFT JOIN odr_data_record_fields drf ON dr.id = drf.data_record_id
-                    LEFT JOIN odr_integer_value e ON e.data_record_fields_id = drf.id
-                    WHERE dr.data_type_id = 736 AND e.data_field_id = 7050
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+                $props = array(
+                    'table' => 'odr_integer_value',
+                    'datatype_id' => 736,
+                    'datafield_id' => 7050,
+                );
+            }
+            else if ( $lookup === 'instrument' ) {
+                $props = array(
+                    'table' => 'odr_short_varchar',
+                    'datatype_id' => 741,
+                    'datafield_id' => 7080,
+                );
             }
             else
                 throw new ODRException('Unknown lookup type');
 
+
+            // ----------------------------------------
+            $query =
+               'SELECT dr.unique_id, e.value AS ref_id
+                FROM odr_data_record dr
+                LEFT JOIN odr_data_record_fields drf ON dr.id = drf.data_record_id
+                LEFT JOIN '.$props['table'].' e ON e.data_record_fields_id = drf.id
+                WHERE dr.data_type_id = '.$props['datatype_id'].' AND e.data_field_id = '.$props['datafield_id'].'
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
             $results = $conn->executeQuery($query);
 
             print '<table border="1">';
