@@ -32,6 +32,11 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             fixed: false
             nullable: true
             column: description
+        display_order:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
 
         active:
             type: boolean

@@ -82,9 +82,9 @@
      */
     function setModalMessage(message, message_type = '') {
         var modal_body = $(".ODRRemodalBody");
-        if (message_type === undefined) {
+        if ( message_type === undefined || message_type === '' ) {
             modal_body.html(
-                '<h4>' + message + '<h4>'
+                '<br><br><h4>' + message + '<h4>'
             );
         }
         else if (message_type === "raw") {

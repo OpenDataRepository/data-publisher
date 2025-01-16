@@ -632,13 +632,12 @@ class DatarecordInfoService
                     foreach ($drf['tagSelection'] as $ts_num => $ts) {
                         $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
 
-                        if ( $ts['tag']['userCreated'] > 0 ) {
-                            // TODO - shouldn't this 'tag_parent_uuid' entry always be in the array?
-                            // TODO - ...and in the tag data, not the tagSelection data?
-                            $tag_uuid = $ts['tag']['tagUuid'];
-                            if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
-                                $ts['tag_parent_uuid'] = $inversed_tag_uuid_tree[$tag_uuid];
-                        }
+                        // Might as well store the parent tag uuid here, if it exists...
+                        $tag_uuid = $ts['tag']['tagUuid'];
+                        if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
+                            $ts['tag']['parent_tagUuid'] = $inversed_tag_uuid_tree[$tag_uuid];
+                        // Note that you're "supposed" to get this from the cached datatype array,
+                        //  but it's easier for the API to do it this way
 
                         $t_id = $ts['tag']['id'];
                         $new_ts_array[$t_id] = $ts;
@@ -716,11 +715,14 @@ class DatarecordInfoService
             // Don't want to keep this entry
             unset( $result['dataRecordFields'] );
 
-            if ( !isset($radio_selections[$dr_id]) )
-                $radio_selections[$dr_id] = array();
-            if ( !isset($radio_selections[$dr_id][$df_id]) )
-                $radio_selections[$dr_id][$df_id] = array();
-            $radio_selections[$dr_id][$df_id][$ro_id] = $result;
+            // Only want selected options in the array
+            if ( $result['selected'] == 1 ) {
+                if ( !isset($radio_selections[$dr_id]) )
+                    $radio_selections[$dr_id] = array();
+                if ( !isset($radio_selections[$dr_id][$df_id]) )
+                    $radio_selections[$dr_id][$df_id] = array();
+                $radio_selections[$dr_id][$df_id][$ro_id] = $result;
+            }
         }
 
         return $radio_selections;
@@ -763,11 +765,14 @@ class DatarecordInfoService
             // Don't want to keep this entry
             unset( $result['dataRecordFields'] );
 
-            if ( !isset($tag_selections[$dr_id]) )
-                $tag_selections[$dr_id] = array();
-            if ( !isset($tag_selections[$dr_id][$df_id]) )
-                $tag_selections[$dr_id][$df_id] = array();
-            $tag_selections[$dr_id][$df_id][$t_id] = $result;
+            // Only want selected tags in the cached array
+            if ( $result['selected'] == 1 ) {
+                if ( !isset($tag_selections[$dr_id]) )
+                    $tag_selections[$dr_id] = array();
+                if ( !isset($tag_selections[$dr_id][$df_id]) )
+                    $tag_selections[$dr_id][$df_id] = array();
+                $tag_selections[$dr_id][$df_id][$t_id] = $result;
+            }
         }
 
         return $tag_selections;

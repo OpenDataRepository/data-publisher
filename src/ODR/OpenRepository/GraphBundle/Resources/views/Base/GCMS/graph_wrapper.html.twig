@@ -50,6 +50,7 @@
 
         {% if display_type != TABLE_CONTENT %}
             {% for dr_id, datarecord in datarecord_array %}
+                {% set graph_datarecord_id = datarecord.id %}
 
                 {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {
                     'datarecord': datarecord,
@@ -59,8 +60,7 @@
                 } %}
 
                 <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}" userollup="true">
-                    {% set graph_datarecord_id = datarecord.id %}
-                    {% include "ODRAdminBundle:Display:display_fieldarea.html.twig" with {
+                    {% include "ODRAdminBundle:Display:display_childtype_fieldarea.html.twig" with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,
                         'theme_array': theme_array,
@@ -183,7 +183,7 @@
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
             <div class="ODRGraphSpacer {{ content_div_class_str }}">
-                {% include "ODRAdminBundle:Display:display_fieldarea.html.twig" with {
+                {% include "ODRAdminBundle:Display:display_childtype_fieldarea.html.twig" with {
                     'datatype_array': datatype_array,
                     'datarecord': datarecord,
                     'theme_array': theme_array,

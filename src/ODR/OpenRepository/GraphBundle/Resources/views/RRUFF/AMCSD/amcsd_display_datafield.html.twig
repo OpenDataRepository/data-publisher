@@ -1,0 +1,43 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+
+{% if field_values[rpf_name] is defined %}
+    {# Prefer to get the value from the array info that was passed in... #}
+    {% set valuefield_value = field_values[rpf_name] %}
+
+{% elseif datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {# ...but fall back to the value from the database if a modified value isn't available #}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {# This is guaranteed to only be called on "Short Text" fields #}
+    {% if datarecordfield.shortVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% endif %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+
+<form class="pure-u-1" id="ViewForm_{{ unique_id }}">
+    {# This is guaranteed to only be called on "Short Text" fields #}
+{#    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}#}
+    <fieldset>
+        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+            {% if rpf_name == 'Point Group' or rpf_name == 'Space Group' %}
+                <div class="ODRRenderPluginField">{{ valuefield_value|raw }}</div>
+            {% else %}
+                <input id="{{ input_id }}" class="pure-u-1 Cursor" type="text" value="{{ valuefield_value }}" readonly="readonly"/>
+            {% endif %}
+        </div>
+    </fieldset>
+
+</form>
+{% endspaceless %}

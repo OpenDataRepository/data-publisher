@@ -359,6 +359,25 @@ class CrystallographyDef
 
 
     /**
+     * This is less of a derivation and more of a search, but whatever.
+     *
+     * @var string $point_group
+     * @return string
+     */
+    public static function deriveCrystalSystemFromPointGroup($point_group)
+    {
+        // Should be able to find the point group in this array
+        foreach (self::$point_groups as $crystal_system => $pg_list) {
+            if ( in_array($point_group, $pg_list) )
+                return $crystal_system;
+        }
+
+        // If not, return an empty string
+        return '';
+    }
+
+
+    /**
      * The space groups can (almost) always be derived back into their point group...the algorithm
      * for doing so isn't difficult.
      *
@@ -376,7 +395,7 @@ class CrystallographyDef
 
         // If the derivation is invalid, then look up the correct point group
         if ( isset(self::$point_group_synonyms[$pg]) )
-            $pg = self::$point_group_synonyms;
+            $pg = self::$point_group_synonyms[$pg];
 
         return $pg;
     }
@@ -386,7 +405,7 @@ class CrystallographyDef
      * There are a couple space groups that self::derivePointGroupFromSpaceGroup() doesn't quite
      * arrive at the "correct" answer for...this array maps those errors to the correct ones.
      *
-     * @var array[]
+     * @var string[]
      */
     public static $point_group_synonyms = array(
         // cubic

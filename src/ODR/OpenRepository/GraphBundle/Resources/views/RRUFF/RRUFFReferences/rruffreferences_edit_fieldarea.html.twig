@@ -37,7 +37,7 @@
                 {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
                 {% if can_execute_plugin %}
-                    {% set content = [datarecord]|datatype_plugin(datatype, rpi, theme_array, rendering_options, parent_datarecord) %}
+                    {% set content = [datarecord]|datatype_plugin(datatype, rpi, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions) %}
                     {% if content|length > 0 %}
                         <!-- html for {{ rpi.renderPlugin.pluginName }} -->
                         {{ content|raw }}
@@ -93,7 +93,7 @@
 {% for theme_element in theme.themeElements %}
     {# Ignoring the possibility of ThemeElement plugins for a reference datatype #}
 
-    {% if not theme_element|is_empty(datarecord, datatype, 'edit') %}
+    {% if not theme_element|is_empty(datarecord, datatype, 'edit', edit_shows_all_fields) %}
     <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
     <div class="ODRInnerBox{% if theme_element.themeElementMeta.hideBorder %} ODRInnerBox_HideBorder{% endif %}">
 
@@ -111,7 +111,7 @@
                         {% set can_edit_datafield = true %}
                     {% endif %}
 
-                    {% if theme_datafield.hidden == 0 %}
+                    {% if theme_datafield.hidden == 0 or edit_shows_all_fields %}
                     <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
                          id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}"
                     {% if datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
@@ -194,6 +194,7 @@
 
                         'datatype_permissions': datatype_permissions,
                         'datafield_permissions': datafield_permissions,
+                        'edit_shows_all_fields': edit_shows_all_fields,
 
                         'is_top_level': 0,
                         'is_link': theme_datatype.is_link,

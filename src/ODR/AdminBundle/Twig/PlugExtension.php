@@ -758,19 +758,20 @@ class PlugExtension extends \Twig_Extension
      * @param array $datarecord
      * @param array $datatype
      * @param string $mode  'display' or 'edit'
+     * @param bool $edit_shows_all_fields
      *
      * @return bool
      * @throws \Exception
      */
-    public function isEmptyFilter($theme_element, $datarecord, $datatype, $mode)
+    public function isEmptyFilter($theme_element, $datarecord, $datatype, $mode, $edit_shows_all_fields = false)
     {
         try {
             if ( !isset($theme_element['themeElementMeta']) )
                 throw new \Exception('Array does not describe a theme_element');
 
-            // If the theme element itself is marked has "hidden", then don't display regardless
-            //  of contents
-            if ( $theme_element['themeElementMeta']['hidden'] == 1 )
+            // If the theme element itself is marked as hidden then return "empty"...unless edit
+            //  mode wants to display everything
+            if ( $theme_element['themeElementMeta']['hidden'] == 1 && !$edit_shows_all_fields )
                 return true;
 
             // If the theme element has themeDatafield entries...
@@ -780,7 +781,7 @@ class PlugExtension extends \Twig_Extension
                 foreach ($theme_element['themeDataFields'] as $num => $tdf) {
                     $df_id = $tdf['dataField']['id'];
 
-                    if ( $tdf['hidden'] == 0 && isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
+                    if ( ($tdf['hidden'] == 0 || $edit_shows_all_fields) && isset($datatype['dataFields'][$df_id]) )
                         return false;
                 }
             }

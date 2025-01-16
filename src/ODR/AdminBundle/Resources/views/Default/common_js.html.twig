@@ -357,6 +357,9 @@
         var searchToggle = $(".ODRSearchToggle");
         var searchContent = $("#ODRSearchContent");
 
+        // Ensure the sidebar is scrolled to its top first, so the collapse/expand icon is visible
+        $(sidebar).scrollTop(0);
+
         $(sidebar).removeClass("ODRSearchVisible ODRHidden").addClass("ODRSearchHidden");
         $(searchContent).addClass("ODRSearchResultsWide");
         $(searchToggle).removeClass('fa-arrow-circle-left').addClass('fa-arrow-circle-right');

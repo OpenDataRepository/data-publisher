@@ -6,17 +6,22 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {% set can_change_public_status = false %}
-{% if datatype_permissions[initial_datatype_id] is defined and datatype_permissions[initial_datatype_id][ 'dr_public' ] is defined %}
+{% if datatype_permissions[target_datatype_id] is defined and datatype_permissions[target_datatype_id][ 'dr_public' ] is defined %}
     {% set can_change_public_status = true %}
 {% endif %}
 
-{% set rendering_options = {'is_top_level': is_top_level, 'context': 'mass_edit', 'is_datatype_admin': is_datatype_admin, 'mass_edit_trigger_datafields': mass_edit_trigger_datafields} %}
+{% set rendering_options = {
+    'is_top_level': is_top_level,
+    'context': 'mass_edit',
+    'is_datatype_admin': is_datatype_admin,
+    'mass_edit_trigger_datafields': mass_edit_trigger_datafields
+} %}
 
 {# Determine whether a datatype render plugin needs to be run #}
 {% set render_plugin_instance = null %}
 {% set can_execute_plugin = false %}
 {% for rpi_num,rpi in datatype.renderPluginInstances %}
-    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.overrideChild and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
         {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
         {% if can_execute_plugin %}
@@ -57,20 +62,7 @@
     </h3>
 
     <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
-    {% set content = '' %}
-    {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
-        {# MassEdit has no datarecords to work with #}
-        {% set content = []|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, [], datatype_permissions, datafield_permissions) %}
-        {% if content|length > 0 %}
-            <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
-            {{ content|raw }}
-        {% endif %}
-    {% endif %}
-
-    {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
-        {# If using render plugin and it overrides datafield display, do nothing here #}
-    {% else %}
-        {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
+        {% include 'ODRAdminBundle:MassEdit:massedit_childtype_fieldarea.html.twig' with {
             'datatype_array': datatype_array,
             'theme_array': theme_array,
 
@@ -85,7 +77,6 @@
 
             'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
         } %}
-    {% endif %}
     </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
 </div><!-- End of #DataType_{{ datatype.id }} -->

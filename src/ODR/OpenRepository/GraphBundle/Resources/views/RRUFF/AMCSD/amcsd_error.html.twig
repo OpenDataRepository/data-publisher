@@ -2,8 +2,12 @@
 
 <div class="ODRThemeElement pure-u-1 pure-u-md-1 pure-u-xl-1">
     <div class="ODRInnerBox ODRThemeVisibleHiddenElement" style="padding:10px">
+        {% if rpf_name == 'Space Group' %}
+        This Space Group can't be derived into a Point Group and/or Crystal System.  Please notify the ODR Team so this can be fixed.
+        {% else %}
         The currently uploaded {{ rpf_name }} has a problem, and the values of the other datafields can't be derived from it.
         {% if can_edit_relevant_datafield %}<br>Please download the {{ rpf_name }}, fix the errors in it, and then upload a corrected version.{% endif %}
+        {% endif %}
     </div>
 </div>
 

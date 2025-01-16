@@ -2221,10 +2221,15 @@ class EditController extends ODRCustomController
                         // ----------------------------------------
                         // If saving to a datetime field, ensure it's a datetime object?
                         if ($typeclass == 'DatetimeValue') {
-                            if ($new_value == '')
-                                $new_value = new \DateTime('9999-12-31 00:00:00');
-                            else
+                            if ( is_null($new_value)
+                                || $new_value === ''
+                                || $new_value === '0000-00-00'
+                                || $new_value === '0000-00-00 00:00:00'
+                            ) {
+                                $new_value = new \DateTime('9999-12-31 00:00:00');    // matches APIController::updateStorageField()
+                            } else {
                                 $new_value = new \DateTime($new_value);
+                            }
                         }
                         else if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
                             // DecimalValue::setValue() already does its own thing, and parent::ODR_copyStorageEntity() will set $new_value back to NULL for an IntegerValue
@@ -2437,12 +2442,20 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Determine which list of datarecords to pull from the user's session
+            $cookies = $request->cookies;
+            $edit_shows_all_fields = false;
+            if ( $cookies->has('datatype_'.$top_level_datatype->getId().'_edit_shows_all') )
+                $edit_shows_all_fields = $cookies->get('datatype_'.$top_level_datatype->getId().'_edit_shows_all');
+
+
             $return['d'] = array(
                 'html' => $odr_render_service->reloadEditChildtype(
                     $user,
                     $theme_element,
                     $parent_datarecord,
-                    $top_level_datarecord
+                    $top_level_datarecord,
+                    $edit_shows_all_fields
                 )
             );
         }
@@ -2896,6 +2909,9 @@ class EditController extends ODRCustomController
             $only_display_editable_datarecords = true;
             if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
                 $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
+            $edit_shows_all_fields = false;
+            if ( $cookies->has('datatype_'.$datatype->getId().'_edit_shows_all') )
+                $edit_shows_all_fields = $cookies->get('datatype_'.$datatype->getId().'_edit_shows_all');
 
 
             // If this datarecord is being viewed from a search result list...
@@ -3039,6 +3055,8 @@ class EditController extends ODRCustomController
                 'ODRAdminBundle:Edit:edit_header.html.twig',
                 array(
                     'datatype_permissions' => $datatype_permissions,
+                    'edit_shows_all_fields' => $edit_shows_all_fields,
+
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
 
@@ -3068,7 +3086,7 @@ class EditController extends ODRCustomController
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
             // Render the edit page for this datarecord
-            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme);
+            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme, $edit_shows_all_fields);
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
