@@ -64,8 +64,8 @@ async function app() {
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
                         "tag_data":"web\\/uploads\\/master_tag_data.js",
-                        "ima_url":"\\/\\/www.rruff.net\\/odr_rruff",
-                        "cell_params_url":"\\/\\/www.rruff.net\\/odr_rruff"
+                        "ima_url":"\\/\\/BASE_URL\\/odr_rruff",
+                        "cell_params_url":"\\/\\/BASE_URL\\/odr_rruff"
                      }
                      */
 
@@ -98,7 +98,8 @@ async function app() {
                         'year': await findValue(record.reference_record_map.year, record_data),
                         'article_title': await findValue(record.reference_record_map.article_title, record_data),
                         'journal': await findValue(record.reference_record_map.journal, record_data),
-                        'volume': await findValue(record.reference_record_map.pages, record_data),
+                        'pages': await findValue(record.reference_record_map.pages, record_data),
+                        'volume': await findValue(record.reference_record_map.volume, record_data),
                         'record_uuid': record_data.record_uuid,
                         'internal_id': record_data.internal_id
                     };
