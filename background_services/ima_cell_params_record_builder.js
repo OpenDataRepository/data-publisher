@@ -66,8 +66,8 @@ async function app() {
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
                         "tag_data":"web\\/uploads\\/master_tag_data.js",
-                        "ima_url":"\\/\\/www.rruff.net\\/odr_rruff",
-                        "cell_params_url":"\\/\\/www.rruff.net\\/odr_rruff"
+                        "ima_url":"\\/\\/BASE_URL\\/odr_rruff",
+                        "cell_params_url":"\\/\\/BASE_URL\\/odr_rruff"
                      }
                      */
 
