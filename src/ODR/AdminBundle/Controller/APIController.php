@@ -798,10 +798,13 @@ class APIController extends ODRCustomController
                     $updated_date = new \DateTime('@' . $recent/1000);
                 }
                 // return new JsonResponse(['done' => $updated_date]);
+                /*
                 $params['updated_date'] = date_format(
                     date_sub($updated_date, date_interval_create_from_date_string('12 hours')),
                     "Y-m-d H:i:s"
                 );
+                */
+                $params['updated_date'] = date_format($updated_date, "Y-m-d H:i:s");
                 // Temporary for testing
                 // $params['updated_date'] = date_format(
                     // date_sub($updated_date, date_interval_create_from_date_string('90 days')),

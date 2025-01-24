@@ -1,5 +1,8 @@
 /*
  * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
+ *
+ * DEPRECATED - NAS 20250122
+ *
  */
 
 const puppeteer = require('puppeteer');

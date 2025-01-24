@@ -127,10 +127,12 @@ async function app() {
                             && ima_record.record_uuid !== undefined
                             && await findValue(cp_map.a, record_data) !== ''
                     ) {
-                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = new Array()};'
+
+                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = {} };'
+                            //content += 'if(cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' +  ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
                             content += 'cellparams[\'' +
                                 ima_record.record_uuid +
-                                '\'].push("' +
+                                '\'][\'' + record_data['record_uuid'] +'\'] = "' +
                                 // Source
                                 'J|' +
                                 // Cell Parameter ID
@@ -177,7 +179,7 @@ async function app() {
                                 Buffer.from(
                                     await findValue(cp_map.status_notes, record_data)
                                 ).toString('base64') +
-                            '");\n';
+                            '";\n';
                         }
                     }
                     /*
@@ -204,13 +206,15 @@ async function app() {
                             && record_data._record_metadata._public_date !== undefined
                             && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
                         ) {
+                            // Setting to true can create or overwrite this records status
                             content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
                         }
                         else if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
                         ) {
-                            content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'false\';';
+                            // Only set to false if the record hasn't been set to true already
+                            content += 'if(rruff_record_exists[\'' + ima_record.record_uuid + '\'] === undefined) rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'false\';';
                         }
                         // TODO Add RRUFF ID to "rruff_record_exists" and
                         // ensure all RRUFF records get that value even if they don't
@@ -220,11 +224,12 @@ async function app() {
                             && ima_record.record_uuid !== undefined
                             && await findValue(pd_map.a, record_data) !== ''
                         ) {
-                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = new Array()};'
+                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = {} };'
+                            // content += 'if(cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
                             content += 'cellparams[\'' +
                                 ima_record.record_uuid +
                                 // await findValue(pd_map.mineral_name, record_data) +
-                                '\'].push("' +
+                                '\'][\'' + record_data['record_uuid'] +'\'] = "' +
                                 // Source
                                 'R|' +
                                 // Cell Parameter ID
@@ -273,7 +278,7 @@ async function app() {
                                 Buffer.from(
                                     await findValue(pd_map.status_notes, record_data)
                                 ).toString('base64') +
-                                '");\n';
+                                '";\n';
                         }
                     }
                     /*
@@ -284,10 +289,11 @@ async function app() {
                         if(await findValue(amcsd_map.a, record_data) !== '') {
                             let amcsd_mineral_name = (await findValue(amcsd_map.mineral_name, record_data)).toLowerCase();
 
-                            content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = new Array()};';
+                            content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = {} };';
+                            // content += 'if(cellparams[\'' + amcsd_mineral_name + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
                             content += 'cellparams[\'' +
                                 amcsd_mineral_name +
-                                '\'].push("' +
+                                '\'][\'' + record_data['record_uuid'] +'\'] = "' +
                                 // Source
                                 'A|' +
                                 // Cell Parameter ID
@@ -334,7 +340,7 @@ async function app() {
                                 Buffer.from(
                                     await findValue(amcsd_map.status_notes, record_data)
                                 ).toString('base64') +
-                            '");\n';
+                            '";\n';
                         }
                     }
 
