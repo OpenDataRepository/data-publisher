@@ -109,8 +109,18 @@ class ODRTabHelperService
         if ( $odr_tab_id == '' || $search_key == '' )
             return false;
 
+        // Copying this from SearchKeyService to avoid another import
+        // Replace all occurrences of the '-' character with '+', and the '_' character with '/'
+        $decoded = base64_decode(strtr($search_key, '-_', '+/'));
+
+        // Return an array instead of an object
+        $array = json_decode($decoded, true);
+        if ( is_null($array) || !isset($array['dt_id']) )
+            throw new ODRException('Invalid JSON', 400, 0x7daceb83);
+        $dt_id = $array['dt_id'];
+
         // Overwrite any existing data for this tab with the new search key
-        self::setTabData($odr_tab_id, array('search_key' => $search_key));
+        self::setTabData($odr_tab_id, array('search_key' => $search_key, 'dt_id' => $dt_id));
 
         return true;
     }
@@ -236,7 +246,7 @@ class ODRTabHelperService
      *
      * @param string $odr_tab_id
      *
-     * @return null|int
+     * @return int
      */
     public function getPageLength($odr_tab_id)
     {
@@ -247,12 +257,26 @@ class ODRTabHelperService
             $tab_data = array();
         }
 
+        // If the page_length value doesn't exist...
         if ( !isset($tab_data['page_length']) ) {
-            // If the page_length value doesn't exist, set to the default page_length
-            $tab_data['page_length'] = $this->default_page_length;
-            self::setTabData($odr_tab_id, $tab_data);
+            $dt_id = null;
+            if ( isset($tab_data['dt_id']) )
+                $dt_id = $tab_data['dt_id'];
 
-            return $this->default_page_length;
+            // ...attempt to fall back to a value in a cookie first
+            $request = $this->request_stack->getCurrentRequest();
+            $cookies = $request->cookies;
+            if ( !is_null($dt_id) && $cookies->has('datatype_'.$dt_id.'_page_length') ) {
+                // ...use the value from the cookie if it exists
+                $tab_data['page_length'] = $cookies->get('datatype_'.$dt_id.'_page_length');
+            }
+            else {
+                // ...but if the cookie doesn't exist, then use the default page_length
+                $tab_data['page_length'] = $this->default_page_length;
+            }
+
+            // Regardless of where it came from, save the setting in the tab data
+            self::setTabData($odr_tab_id, $tab_data);
         }
 
         // Otherwise, return the page length for the current tab
@@ -281,11 +305,15 @@ class ODRTabHelperService
             self::setTabData($odr_tab_id, array('page_length' => $page_length));
         }
         else {
+            // NOTE: can't set cookie values here, because that has to be tied to the response
+            // Also can't check the cookie value here, because that would prevent page_length from
+            //  being changed
+
             // Set the page_length for this tab, creating an entry if it doesn't exist
             $tab_data['page_length'] = $page_length;
 
             // Also set the page length in the datatables of tab data, if that exists
-            if ( isset($tab_data['state']) && isset($tab_data['state']['length']) )
+            if ( isset($tab_data['state']['length']) )
                 $tab_data['state']['length'] = $page_length;
 
             // Store the resulting tab data
@@ -313,7 +341,7 @@ class ODRTabHelperService
         if ( is_null($tab_data) )
             return false;
 
-        if ( is_null($tab_data) || !isset($tab_data['state']) )
+        if ( !isset($tab_data['state']) )
             return false;
 
 
