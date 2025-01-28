@@ -4174,4 +4174,310 @@ class ValidationController extends ODRCustomController
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
+
+    /**
+     * Finds and returns duplicate datarecordfield entries
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function findduplicatedrfentriesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            // Don't want to deal with the soft-deleted filter, so use raw sql
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+            // ----------------------------------------
+            $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
+            $results = $conn->executeQuery($query);
+
+            $dt_ids = array();
+            foreach ($results as $result)
+                $dt_ids[] = $result['id'];
+
+            $query  = 'SELECT drf.id AS drf_id, drf.data_record_id AS dr_id, drf.data_field_id AS df_id ';
+            $query .= 'FROM odr_data_record_fields drf ';
+            $query .= 'JOIN odr_data_record dr ON drf.data_record_id = dr.id ';
+            $query .= 'WHERE dr.data_type_id = :dt_id ';
+            $query .= 'AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL ';
+            $query .= 'ORDER BY drf.data_record_id, drf.data_field_id, drf.id ';
+
+            $drfs_to_delete = array();
+            print '<pre>';
+            foreach ($dt_ids as $dt_id) {
+                $params = array('dt_id' => $dt_id);
+                $results = $conn->executeQuery($query, $params);
+
+                print 'dt: '.$dt_id."\n";
+
+                $prev_drf_id = $prev_dr_id = $prev_df_id = null;
+                foreach ($results as $result) {
+                    if ( is_null($prev_dr_id) ) {
+                        $prev_drf_id = $result['drf_id'];
+                        $prev_dr_id = $result['dr_id'];
+                        $prev_df_id = $result['df_id'];
+                    }
+                    else {
+                        if ( $prev_dr_id == $result['dr_id'] && $prev_df_id == $result['df_id'] ) {
+                            $drfs_to_delete[] = $prev_drf_id;
+                            print ' -- drf '.$result['drf_id'].' is a duplicate of drf '.$prev_drf_id.', dr: '.$prev_dr_id.', df: '.$prev_df_id."\n";
+                        }
+
+                        $prev_drf_id = $result['drf_id'];
+                        $prev_dr_id = $result['dr_id'];
+                        $prev_df_id = $result['df_id'];
+                    }
+                }
+
+                print "\n\n";
+            }
+            print '</pre>';
+
+            print '<pre>UPDATE odr_data_record_fields drf SET drf.deletedAt = NOW() WHERE drf.id IN ('.implode(',', $drfs_to_delete).');</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0xcb1a9183;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Finds and returns storage entries where datafield/datarecord don't match its drf
+     *
+     * @param string $type
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function findinvaliddrfentriesAction($type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            // Don't want to deal with the soft-deleted filter, so use raw sql
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+
+            $typeclass = '';
+            if ($type === 'boolean')
+                $typeclass = 'odr_boolean';
+            else if ($type === 'integer')
+                $typeclass = 'odr_integer_value';
+            else if ($type === 'decimal')
+                $typeclass = 'odr_decimal_value';
+            else if ($type === 'shortvarchar')
+                $typeclass = 'odr_short_varchar';
+            else if ($type === 'mediumvarchar')
+                $typeclass = 'odr_medium_varchar';
+            else if ($type === 'longvarchar')
+                $typeclass = 'odr_long_varchar';
+            else if ($type === 'longtext')
+                $typeclass = 'odr_long_text';
+            else if ($type === 'datetime')
+                $typeclass = 'odr_datetime_value';
+            else
+                throw new ODRBadRequestException('invalid typeclass');
+
+
+            // ----------------------------------------
+            $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
+            $results = $conn->executeQuery($query);
+
+            $dt_ids = array();
+            foreach ($results as $result) {
+//                if ( intval( $result['id'] ) > 594 )
+                    $dt_ids[] = $result['id'];
+            }
+
+
+            $query  = 'SELECT e.id AS e_id, e.data_record_id AS e_dr_id, e.data_field_id AS e_df_id, ';
+            $query .= 'drf.id AS drf_id, drf.data_record_id AS drf_dr_id, drf.data_field_id AS drf_df_id ';
+            $query .= 'FROM '.$typeclass.' e ';
+            $query .= 'JOIN odr_data_record_fields drf ON e.data_record_fields_id = drf.id ';
+            $query .= 'JOIN odr_data_record dr ON e.data_record_id = dr.id ';
+            $query .= 'WHERE dr.data_type_id = :dt_id ';
+            $query .= 'AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL ';
+//            $query .= 'ORDER BY e.data_record_id, e.data_field_id ';
+
+            print '<pre>';
+            foreach ($dt_ids as $dt_id) {
+                $params = array('dt_id' => $dt_id);
+                $results = $conn->executeQuery($query, $params);
+
+                print 'dt: '.$dt_id."\n";
+
+                foreach ($results as $result) {
+                    $e_id = $result['e_id'];
+                    $e_dr_id = $result['e_dr_id'];
+                    $e_df_id = $result['e_df_id'];
+                    $drf_id = $result['drf_id'];
+                    $drf_dr_id = $result['drf_dr_id'];
+                    $drf_df_id = $result['drf_df_id'];
+
+                    if ( $e_dr_id != $drf_dr_id )
+                        print ' -- drf '.$drf_id.' dr: '.$drf_dr_id.' does not match entity '.$e_id.' dr: '.$e_dr_id."\n";
+                    if ( $e_df_id != $drf_df_id )
+                        print ' -- drf '.$drf_id.' df: '.$drf_df_id.' does not match entity '.$e_id.' df: '.$e_df_id."\n";
+                }
+
+                print "\n\n";
+            }
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0xcc591e1d;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Finds and returns duplicate storage entries
+     *
+     * @param string $type
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function findduplicatestorageentriesAction($type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            // Don't want to deal with the soft-deleted filter, so use raw sql
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+
+            $typeclass = '';
+            if ($type === 'boolean')
+                $typeclass = 'odr_boolean';
+            else if ($type === 'integer')
+                $typeclass = 'odr_integer_value';
+            else if ($type === 'decimal')
+                $typeclass = 'odr_decimal_value';
+            else if ($type === 'shortvarchar')
+                $typeclass = 'odr_short_varchar';
+            else if ($type === 'mediumvarchar')
+                $typeclass = 'odr_medium_varchar';
+            else if ($type === 'longvarchar')
+                $typeclass = 'odr_long_varchar';
+            else if ($type === 'longtext')
+                $typeclass = 'odr_long_text';
+            else if ($type === 'datetime')
+                $typeclass = 'odr_datetime_value';
+            else
+                throw new ODRBadRequestException('invalid typeclass');
+
+
+            // ----------------------------------------
+            $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
+            $results = $conn->executeQuery($query);
+
+            $dt_ids = array();
+            foreach ($results as $result)
+                $dt_ids[] = $result['id'];
+
+            $query  = 'SELECT e.id AS e_id, e.data_record_id AS dr_id, e.data_field_id AS df_id ';
+            $query .= 'FROM odr_data_record dr ';
+//            $query .= 'JOIN odr_data_record_fields drf ON drf.data_record_id = dr.id ';
+//            $query .= 'JOIN '.$typeclass.' e ON e.data_record_fields_id = drf.id ';
+            $query .= 'JOIN '.$typeclass.' e ON e.data_record_id = dr.id ';
+            $query .= 'WHERE dr.data_type_id = :dt_id ';
+//            $query .= 'AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL ';
+            $query .= 'AND dr.deletedAt IS NULL AND e.deletedAt IS NULL ';
+            $query .= 'ORDER BY e.data_record_id, e.data_field_id, e.id ';
+
+            $entities_to_delete = array();
+            print '<pre>';
+            foreach ($dt_ids as $dt_id) {
+                $params = array('dt_id' => $dt_id);
+                $results = $conn->executeQuery($query, $params);
+
+                print 'dt: '.$dt_id."\n";
+
+                $prev_e_id = $prev_dr_id = $prev_df_id = null;
+                foreach ($results as $result) {
+                    if ( is_null($prev_dr_id) ) {
+                        $prev_e_id = $result['e_id'];
+                        $prev_dr_id = $result['dr_id'];
+                        $prev_df_id = $result['df_id'];
+                    }
+                    else {
+                        if ( $prev_dr_id == $result['dr_id'] && $prev_df_id == $result['df_id'] ) {
+                            $entities_to_delete[] = $prev_e_id;
+                            print ' -- e '.$result['e_id'].' is a duplicate of e '.$prev_e_id.', dr: '.$prev_dr_id.', df: '.$prev_df_id."\n";
+                        }
+
+                        $prev_e_id = $result['e_id'];
+                        $prev_dr_id = $result['dr_id'];
+                        $prev_df_id = $result['df_id'];
+                    }
+                }
+
+                print "\n\n";
+            }
+            print '</pre>';
+
+            print '<pre>UPDATE '.$typeclass.' e SET e.deletedAt = NOW() WHERE e.id IN ('.implode(',', $entities_to_delete).');</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0xb7743598;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }

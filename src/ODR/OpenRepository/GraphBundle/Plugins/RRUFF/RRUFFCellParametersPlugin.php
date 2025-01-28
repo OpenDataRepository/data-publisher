@@ -928,7 +928,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $datatype = $datafield->getDataType();
             $user = $event->getUser();
 
-            // Only care about a change to specific fields of a datatype using the IMA render plugin...
+            // Only care about a change to specific fields of a datatype using this render plugin...
             $rpf_name = self::isEventRelevant($datafield);
             if ( !is_null($rpf_name) ) {
                 // ----------------------------------------
@@ -1021,7 +1021,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $datatype = $datafield->getDataType();
             $user = $event->getUser();
 
-            // Only care about a change to specific fields of a datatype using the IMA render plugin...
+            // Only care about a change to specific fields of a datatype using this render plugin...
             $rpf_name = self::isEventRelevant($datafield);
             if ( !is_null($rpf_name) ) {
                 // ----------------------------------------

@@ -1563,6 +1563,21 @@ odr_find_duplicate_meta_entries:
 odr_find_duplicate_dtsf_entries:
     path: /admin/find_duplicate_dtsf_entries
     defaults: { _controller: ODRAdminBundle:Validation:findduplicatespecialfields }
+# Locates duplicate storage entity entries
+odr_find_duplicate_drf_entries:
+    path: /admin/find_duplicate_drf_entries
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicatedrfentries }
+
+odr_find_invalid_drf_entries:
+    path: /admin/find_invalid_drf_entries/{type}
+    defaults: { _controller: ODRAdminBundle:Validation:findinvaliddrfentries }
+    requirements:
+        type: boolean|integer|decimal|shortvarchar|mediumvarchar|longvarchar|longtext|datetime
+odr_find_duplicate_storage_entries:
+    path: /admin/find_duplicate_storage_entries/{type}
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicatestorageentries }
+    requirements:
+        type: boolean|integer|decimal|shortvarchar|mediumvarchar|longvarchar|longtext|datetime
 
 # Locate/delete a pile of child entities that make no sense when their parent entities are deleted
 # This needs to be run repeatedly until it stops making changes

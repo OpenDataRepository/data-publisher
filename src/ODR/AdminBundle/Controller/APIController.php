@@ -55,6 +55,7 @@ use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 use ODR\AdminBundle\Component\Event\DatatypePublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
+use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Exceptions
 use ODR\AdminBundle\Component\CustomException\ODRJsonException;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -2830,7 +2831,7 @@ class APIController extends ODRCustomController
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-            /** @var EventDispatcherInterface $event_dispatcher */
+            /** @var EventDispatcherInterface $dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
 
@@ -2908,7 +2909,7 @@ class APIController extends ODRCustomController
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'templateFieldUuid' => $field['template_field_uuid'],
-                                'dataType' => $data_record->getDataType()->getId()
+                                'dataType' => $data_type->getId()
                             )
                         );
                     }
@@ -2917,7 +2918,7 @@ class APIController extends ODRCustomController
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'fieldUuid' => $field['field_uuid'],
-                                'dataType' => $data_record->getDataType()->getId()
+                                'dataType' => $data_type->getId()
                             )
                         );
                     }
@@ -3002,7 +3003,7 @@ class APIController extends ODRCustomController
                             case 'MediumVarchar':
                             case 'ShortVarchar':
                             case 'DatetimeValue':
-                                $ret = self::updateStorageField($em, $user, $data_record, $data_field, $orig_dataset, $field);
+                                $ret = self::updateStorageField($em, $dispatcher, $user, $data_record, $data_field, $orig_dataset, $field);
 
                                 if ( $ret['fields_updated'] )
                                     $fields_updated = true;
@@ -3871,13 +3872,18 @@ class APIController extends ODRCustomController
         if ( !empty($tag_selections) ) {
             // If drf entry doesn't exist at this point, create it
             $drf_created = false;
-            if ( is_null($drf) ) {
+            if ( $drf == null ) {
                 $drf = new DataRecordFields();
                 $drf->setCreatedBy($user);
                 self::setDates($drf, $created);
                 $drf->setDataField($datafield);
                 $drf->setDataRecord($datarecord);
                 $em->persist($drf);
+
+                // IMPORTANT: the drf seemingly needs to be flushed and refreshed here to guarantee
+                //  the storage entity doesn't get a completely wrong drf entry...see self::updateStorageField()
+                $em->flush();
+                $em->refresh($drf);
 
                 $drf_created = true;
             }
@@ -4229,13 +4235,18 @@ class APIController extends ODRCustomController
             }
 
             // If drf entry doesn't exist at this point, create it
-            if ( is_null($drf) ) {
+            if ( $drf == null ) {
                 $drf = new DataRecordFields();
                 $drf->setCreatedBy($user);
                 self::setDates($drf, $created);
                 $drf->setDataField($datafield);
                 $drf->setDataRecord($datarecord);
                 $em->persist($drf);
+
+                // IMPORTANT: the drf seemingly needs to be flushed and refreshed here to guarantee
+                //  the storage entity doesn't get a completely wrong drf entry...see self::updateStorageField()
+                $em->flush();
+                $em->refresh($drf);
             }
 
             /** @var RadioSelection $new_selection */
@@ -4322,6 +4333,7 @@ class APIController extends ODRCustomController
      * Most of the storage fields use the same logic to save changes.
      *
      * @param \Doctrine\ORM\EntityManager $em
+     * @param EventDispatcherInterface $dispatcher
      * @param ODRUser $user
      * @param DataRecord $datarecord The datarecord the user might be modifying
      * @param DataFields $datafield The datafield the user might be modifying
@@ -4330,9 +4342,8 @@ class APIController extends ODRCustomController
      * @throws ODRException
      * @return array
      */
-    private function updateStorageField($em, $user, $datarecord, $datafield, $orig_dataset, $field)
+    private function updateStorageField($em, $dispatcher, $user, $datarecord, $datafield, $orig_dataset, $field)
     {
-
         $created = null;
         if ( isset($field['created']) )
             $created = $field['created'];
@@ -4389,7 +4400,7 @@ class APIController extends ODRCustomController
                 )
             );
 
-            if ( is_null($drf) ) {
+            if ( $drf == null ) {
                 // If drf entry doesn't exist, create one
                 $drf = new DataRecordFields();
                 $drf->setCreatedBy($user);
@@ -4397,21 +4408,31 @@ class APIController extends ODRCustomController
                 $drf->setDataField($datafield);
                 $drf->setDataRecord($datarecord);
                 $em->persist($drf);
+
+                // IMPORTANT: the drf seemingly needs to be flushed and refreshed here to guarantee
+                //  the storage entity doesn't get a completely wrong drf entry
+                $em->flush();
+                $em->refresh($drf);
+
+                // When testing ODR's API after commit 551d46e...I ran into a situation where doctrine
+                //  would correctly create the drf, but then return the wrong drf id to be saved
+                //  as the foreign key for the creation of the storage entity.
+                // More worringly, I couldn't figure out the conditions for it to trigger...just that
+                //  it triggered 100% of the time when the API tried to create drf entries for
+                //  datafield 7240, unless the drf was flushed/refreshed beforehand...
             }
 
             /** @var Boolean|IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|longVarchar|LongText|DateTimeValue $existing_storage_entity */
             $existing_storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
                 array(
-                    'dataRecordFields' => $drf->getId()
+                    'dataRecord' => $datarecord->getId(),
+                    'dataField' => $datafield->getId()
                 )
             );
 
             $new_storage_entity = null;
-            if ( !is_null($existing_storage_entity) ) {
-                $new_storage_entity = clone $existing_storage_entity;
-            }
-            else {
-                // Create the storage entity
+            if ( $existing_storage_entity == null ) {
+                // If storage entity doesn't exist, create one
                 $class = "ODR\\AdminBundle\\Entity\\".$typeclass;
                 $new_storage_entity = new $class();
                 $new_storage_entity->setDataRecord($datarecord);
@@ -4421,6 +4442,9 @@ class APIController extends ODRCustomController
 
                 if ( $typeclass === 'ShortVarchar' )
                     $new_storage_entity->setConvertedValue('');
+            }
+            else {
+                $new_storage_entity = clone $existing_storage_entity;
             }
 
             $new_storage_entity->setCreatedBy($user);
@@ -4439,20 +4463,36 @@ class APIController extends ODRCustomController
                 }
             }
             else if ( $typeclass === 'Boolean' ) {
-                $new_storage_entity->setValue($field['selected']);
+                $new_storage_entity->setValue( $field['selected'] );
             }
             else {
-                $new_storage_entity->setValue($field['value']);
+                $new_storage_entity->setValue( $field['value'] );
             }
 
             $em->persist($new_storage_entity);
-            if ( !is_null($existing_storage_entity) )
+            if ( !($existing_storage_entity == null) )
                 $em->remove($existing_storage_entity);
 
             // Trying to do everything realtime - no waiting forever stuff
             $em->flush();
             $em->refresh($new_storage_entity);
 
+
+            // ----------------------------------------
+            // Need to fire off this event so derived fields can get their value
+            try {
+                $event = new PostUpdateEvent($new_storage_entity, $user);
+                $dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+
+            // ----------------------------------------
             // Assign the updated field back to the dataset
             if ( $typeclass === 'DatetimeValue' ) {
                 $field['value'] = $new_storage_entity->getValue()->format('Y-m-d');

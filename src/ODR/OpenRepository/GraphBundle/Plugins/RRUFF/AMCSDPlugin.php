@@ -1465,6 +1465,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( strpos($sg, '*') === 0 )
                     $sg = substr($sg, 1);
 
+                // Certain Space Groups also apparently have a ':1' or whatever after them, which
+                //  also provides extra information to other programs...
+                if ( strpos($sg, ':') !== 0 )
+                    $sg = substr($sg, 0, strpos($sg, ':'));
+
                 // The Lattice, Point Group, and Crystal System are then derived from the Space Group
                 $lattice = substr($sg, 0, 1);
                 $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);

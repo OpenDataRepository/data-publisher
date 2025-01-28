@@ -3346,7 +3346,7 @@ class PluginsController extends ODRCustomController
             // There's no problem otherwise
             return '';
 
-            // TODO - in the future, they'll have to "claim" a field in a context, just like datatype plugins
+            // TODO - in the future, they'll have to "claim" a field in a context, just like datatype plugins will
             // TODO - e.g. CurrencyPlugin claims its field in the Display context...meaning no other plugin can claim the same field in the same context
         }
         else {
