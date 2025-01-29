@@ -438,7 +438,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
                 // ...there's a chance that there are files uploaded to the "AMC File" or the
                 //  "CIF File" fields, but none of the relevant datafields have a value in them
-                if ( self::amcFileHasProblem($plugin_fields, $datarecord) ) {
+
+                // Read the cached datarecord to get all current values in it
+                $value_mapping = self::getValueMapping($datarecord);
+
+                // Determine if any of the categories of fields have a problem
+                $amc_problems = self::amcFileHasProblem($plugin_fields, $value_mapping);
+                $cif_problems = self::cifFileHasProblem($plugin_fields, $value_mapping);
+                $symmetry_problems = self::symmetryHasProblem($plugin_fields, $value_mapping);
+
+                if ( !empty($amc_problems) ) {
                     // Determine whether the user can edit the "AMC File" datafield
                     $can_edit_relevant_datafield = false;
                     if ( $is_datatype_admin )
@@ -452,6 +461,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
                         array(
                             'rpf_name' => 'AMC File',
+                            'problem_fields' => self::formatProblemFields($amc_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
                         )
                     );
@@ -459,7 +469,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $output = $error_div . $output;
                 }
 
-                if ( self::cifFileHasProblem($plugin_fields, $datarecord) ) {
+                if ( !empty($cif_problems) ) {
                     // Determine whether the user can edit the "CIF File" datafield
                     $can_edit_relevant_datafield = false;
                     if ( $is_datatype_admin )
@@ -473,6 +483,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
                         array(
                             'rpf_name' => 'CIF File',
+                            'problem_fields' => self::formatProblemFields($cif_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
                         )
                     );
@@ -482,7 +493,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // ...there's also a chance that there was a problem deriving the Point Group and/or
                 //  Crystal System from the Space group
-                if ( self::symmetryHasProblem($plugin_fields, $datarecord) ) {
+                if ( !empty($symmetry_problems) ) {
                     // Determine whether the user can edit the "CIF File" datafield
                     $can_edit_relevant_datafield = false;
                     if ( $is_datatype_admin )
@@ -496,6 +507,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
                         array(
                             'rpf_name' => 'Space Group',
+                            'problem_fields' => self::formatProblemFields($symmetry_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
                         )
                     );
@@ -514,16 +526,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Most of the fields defined by this plugin derive their values from a file uploaded into the
-     * "AMC File" field...if there's an error where the values can't be derived, then the user needs
-     * to be notified...
+     * Due to need to check the existing data a couple different ways, it makes more sense to get
+     * all the data in its own function.
      *
-     * @param array $plugin_fields
      * @param array $datarecord
-     *
-     * @return bool
+     * @return array
      */
-    private function amcFileHasProblem($plugin_fields, $datarecord)
+    private function getValueMapping($datarecord)
     {
         $value_mapping = array();
         foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
@@ -555,6 +564,22 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
         }
 
+        return $value_mapping;
+    }
+
+
+    /**
+     * Most of the fields defined by this plugin derive their values from a file uploaded into the
+     * "AMC File" field...if there's an error where the values can't be derived, then the user needs
+     * to be notified...
+     *
+     * @param array $plugin_fields
+     * @param array $value_mapping
+     *
+     * @return array A list of fields which could not be derived from the AMC File
+     */
+    private function amcFileHasProblem($plugin_fields, $value_mapping)
+    {
         // Need to locate the "AMC File" datafield...
         $df_id = null;
         foreach ($plugin_fields as $num => $rpf_df) {
@@ -566,11 +591,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         // The "AMC File" field can't have a problem if there is no file uploaded...
         if ( empty($value_mapping[$df_id]) )
-            return false;
-
+            return array();
 
         // Otherwise, there's something uploaded to the "AMC File" datafield...therefore, the other
         //  fields defined by this render plugin should all have a value
+        $problem_fields = array();
+
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
                 case 'database_code_amcsd':
@@ -584,18 +610,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'beta':
                 case 'gamma':
                 case 'Space Group':
-                    // All of these fields need to have a value for the AMC file to be valid...if
-                    //  they don't, then the file has a problem
+                    // If the AMC file is valid, then every one of these fields will have a value
                     if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
-                        return true;
-                    break;
+                        $problem_fields[] = $rpf_df['rpf_name'];
 
-                // These three fields are derived from the Space Group...while they're supposed to
-                //  exist, it's also possible for there to be an error in the Space Group
-//                case 'Point Group':
-//                case 'Crystal System':
-//                case 'Lattice':
-//                    break;
+                    // NOTE: the Point Group, Crystal System, and Lattice fields aren't included
+                    //  here on purpose...a problem with them is more likely to be ODR's fault than
+                    //  the fault of this file
+                    break;
 
                 // These two fields are optional...the AMC file may not have them
 //                case 'Pressure':
@@ -604,13 +626,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 default:
                     // Every other field the plugin specifies doesn't matter when trying to determine
-                    //  if the AMC File has problems
+                    //  if a File has problems
                     break;
             }
         }
 
-        // Otherwise, all required fields have a value, so there's no problem with the AMC file
-        return false;
+        // Return which fields (if any) lack a value
+        return $problem_fields;
     }
 
 
@@ -620,67 +642,53 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * error, then the user needs to be notified...
      *
      * @param array $plugin_fields
-     * @param array $datarecord
+     * @param array $value_mapping
      *
-     * @return bool
+     * @return array A list of fields which could not be derived from the CIF File
      */
-    private function cifFileHasProblem($plugin_fields, $datarecord)
+    private function cifFileHasProblem($plugin_fields, $value_mapping)
     {
-        // Due to only needing to touch five fields, it's slightly more efficient to use a different
-        //  access method when dealing with the CIF File
-        $cif_file_df_id = null;
-        $volume_df_id = null;
-        $chemistry_df_id = null;
-        $chemistry_elements_df_id = null;
-        $locality_df_id = null;
+        // Need to locate the "CIF File" datafield...
+        $df_id = null;
+        foreach ($plugin_fields as $num => $rpf_df) {
+            // NOTE - technically $num is the datafield_id, but don't want to overwrite $df_id yet
+            if ( $rpf_df['rpf_name'] === 'CIF File' ) {
+                $df_id = $rpf_df['id'];
+                break;
+            }
+        }
+        // The "CIF File" field can't have a problem if there is no file uploaded...
+        if ( empty($value_mapping[$df_id]) )
+            return array();
+
+        // Otherwise, there's something uploaded to the "CIF File" datafield...therefore, the other
+        //  fields defined by this render plugin should all have a value
+        $problem_fields = array();
+
         foreach ($plugin_fields as $df_id => $rpf_df) {
-            if ( $rpf_df['rpf_name'] === 'CIF File' )
-                $cif_file_df_id = $df_id;
-            else if ( $rpf_df['rpf_name'] === 'Volume' )
-                $volume_df_id = $df_id;
-            else if ( $rpf_df['rpf_name'] === 'Chemistry' )
-                $chemistry_df_id = $df_id;
-            else if ( $rpf_df['rpf_name'] === 'Chemistry Elements' )
-                $chemistry_elements_df_id = $df_id;
-            else if ( $rpf_df['rpf_name'] === 'Locality' )
-                $locality_df_id = $df_id;
+            switch ( $rpf_df['rpf_name'] ) {
+                // These fields are derived from the CIF File
+                case 'Volume':
+                case 'Chemistry':
+                case 'Chemistry Elements':
+                    // If the CIF file is valid, then every one of these fields will have a value
+                    if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
+                        $problem_fields[] = $rpf_df['rpf_name'];
+                    break;
+
+                // These fields are optional...the CIF file isn't required to have them
+//                case 'Locality':
+//                    break;
+
+                default:
+                    // Every other field the plugin specifies doesn't matter when trying to determine
+                    //  if a File has problems
+                    break;
+            }
         }
 
-
-        // If there's no "CIF File" uploaded, then there can't be a problem with it
-        if ( empty($datarecord['dataRecordFields'][$cif_file_df_id]['file']) )
-            return false;
-
-        // If there's no storage entity for the "Volume", "Chemistry" or "Chemistry Elements"
-        //  fields, then there's a problem
-        if ( !isset($datarecord['dataRecordFields'][$volume_df_id]) )
-            return true;
-        if ( !isset($datarecord['dataRecordFields'][$chemistry_df_id]) )
-            return true;
-        if ( !isset($datarecord['dataRecordFields'][$chemistry_elements_df_id]) )
-            return true;
-        // The "Locality" field is technically allowed to be blank
-//        if ( !isset($datarecord['dataRecordFields'][$locality_df_id]) )
-//            return true;
-
-        // If any of the fields are blank, then that's also a problem
-        $drf = $datarecord['dataRecordFields'][$volume_df_id];
-        if ( empty($drf['decimalValue']) || $drf['decimalValue'][0]['value'] === '' )
-            return true;
-        $drf = $datarecord['dataRecordFields'][$chemistry_df_id];
-        if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
-            return true;
-        $drf = $datarecord['dataRecordFields'][$chemistry_elements_df_id];
-        if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
-            return true;
-        // The "Locality" field is technically allowed to be blank
-//        $drf = $datarecord['dataRecordFields'][$locality_df_id];
-//        if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
-//            return true;
-
-
-        // Otherwise, there are no problems
-        return false;
+        // Return which fields (if any) lack a value
+        return $problem_fields;
     }
 
 
@@ -689,61 +697,83 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * "Point Group", and "Crystal System" fields...but this isn't necessarily guaranteed to work
      * because of the flexibility permitted in defining "Space Group" fields...
      *
-     * @param array $plugin_fields
-     * @param array $datarecord
+     * This is separate from self::cifFileHasProblems() because a problem here is more lkely to be
+     * ODR's fault than the fault of the AMC/CIF files.
      *
-     * @return bool
+     * @param array $plugin_fields
+     * @param array $value_mapping
+     *
+     * @return array A list of fields which could not be derived from the Space Group
      */
-    private function symmetryHasProblem($plugin_fields, $datarecord)
+    private function symmetryHasProblem($plugin_fields, $value_mapping)
     {
-        // Due to only needing to touch four fields, it's faster to do it this way
-        $crystal_system_df_id = null;
-        $point_group_df_id = null;
-        $space_group_df_id = null;
-        $lattice_df_id = null;
+        // Need to locate the "Space Group" datafield...
+        $df_id = null;
+        foreach ($plugin_fields as $num => $rpf_df) {
+            // NOTE - technically $num is the datafield_id, but don't want to overwrite $df_id yet
+            if ( $rpf_df['rpf_name'] === 'Space Group' ) {
+                $df_id = $rpf_df['id'];
+                break;
+            }
+        }
+        // The various symmetry fields can't have a problem if the space group is empty...
+        if ( !isset($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
+            return array();
+
+        // Otherwise, there's something uploaded to the "CIF File" datafield...therefore, the other
+        //  fields defined by this render plugin should all have a value
+        $problem_fields = array();
 
         foreach ($plugin_fields as $df_id => $rpf_df) {
-            if ( $rpf_df['rpf_name'] === 'Crystal System' )
-                $crystal_system_df_id = $df_id;
-            else if ( $rpf_df['rpf_name'] === 'Point Group' )
-                $point_group_df_id = $df_id;
-            else if ( $rpf_df['rpf_name'] === 'Space Group' )
-                $space_group_df_id = $df_id;
-            else if ( $rpf_df['rpf_name'] === 'Lattice' )
-                $lattice_df_id = $df_id;
+            switch ( $rpf_df['rpf_name'] ) {
+                // If the Space Group is valid, then every one of these fields will have a value
+                case 'Point Group':
+                case 'Crystal System':
+                case 'Lattice':
+                    // All of these fields need to have a value for the CIF file to be valid...
+                    if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
+                        $problem_fields[] = $rpf_df['rpf_name'];
+                    break;
+
+                default:
+                    // Every other field the plugin specifies doesn't matter when trying to determine
+                    //  if a File has problems
+                    break;
+            }
         }
 
-
-        // No sense complaining if the "Space Group" field is empty...it'll complain about the
-        //  CIF File instead
-        if ( !isset($datarecord['dataRecordFields'][$space_group_df_id]) )
-            return false;
-        $drf = $datarecord['dataRecordFields'][$space_group_df_id];
-        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
-            return false;
-
-        // If there is a "Space Group" field, however, then the other three fields should not be blank
-        if ( !isset($datarecord['dataRecordFields'][$point_group_df_id]) )
-            return true;
-        $drf = $datarecord['dataRecordFields'][$point_group_df_id];
-        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
-            return true;
-
-        if ( !isset($datarecord['dataRecordFields'][$crystal_system_df_id]) )
-            return true;
-        $drf = $datarecord['dataRecordFields'][$crystal_system_df_id];
-        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
-            return true;
-
-        if ( !isset($datarecord['dataRecordFields'][$lattice_df_id]) )
-            return true;
-        $drf = $datarecord['dataRecordFields'][$lattice_df_id];
-        if ( empty($drf['shortVarchar']) || $drf['shortVarchar'][0]['value'] === '' )
-            return true;
+        // Return which fields (if any) lack a value
+        return $problem_fields;
+    }
 
 
-        // Otherwise, there are no problems
-        return false;
+    /**
+     * Converts a list of field names into a format suitable for an error message
+     *
+     * @param array $field_list
+     * @return string
+     */
+    private function formatProblemFields($field_list)
+    {
+        $str = '';
+        $count = count($field_list);
+
+        if ( $count == 1 ) {
+            $str = '"'.$field_list[0].'" field';
+        }
+        else if ( $count == 2 ) {
+            $str = '"'.$field_list[0].'" and "'.$field_list[1].'" fields';
+        }
+        else {
+            foreach ($field_list as $num => $fieldname) {
+                if ( ($num+1) < $count )
+                    $str .= '"'.$fieldname.'", ';
+                else
+                    $str .= ' and "'.$fieldname.'" fields';
+            }
+        }
+
+        return $str;
     }
 
 
@@ -811,19 +841,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 $value_mapping = array();
                 if ( $relevant_rpf_name === 'AMC File' ) {
-                    // Attempt to verify that the file at least looks like an AMC file before
-                    //  trying to extract data from it
-                    self::checkAMCFile($handle);
-
-                    // Extract each piece of data from the file contents
+                    // Extract as many pieces of data from the file as possible
                     $value_mapping = self::readAMCFile($handle);
                 }
                 else if ( $relevant_rpf_name === 'CIF File' ) {
-                    // Attempt to verify that the file at least looks like an CIF file before
-                    //  trying to extract data from it
-                    self::checkCIFFile($handle);
-
-                    // Extract each piece of data from the file contents
+                    // Extract as many pieces of data from the file as possible
                     $value_mapping = self::readCIFFile($handle);
                 }
 
@@ -1050,19 +1072,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     $value_mapping = array();
                     if ( $relevant_rpf_name === 'AMC File' ) {
-                        // Attempt to verify that the file at least looks like an AMC file before
-                        //  trying to extract data from it
-                        self::checkAMCFile($handle);
-
-                        // Extract each piece of data from the file contents
+                        // Extract as many pieces of data from the file as possible
                         $value_mapping = self::readAMCFile($handle);
                     }
                     else if ( $relevant_rpf_name === 'CIF File' ) {
-                        // Attempt to verify that the file at least looks like an CIF file before
-                        //  trying to extract data from it
-                        self::checkCIFFile($handle);
-
-                        // Extract each piece of data from the file contents
+                        // Extract as many pieces of data from the file as possible
                         $value_mapping = self::readCIFFile($handle);
                     }
 
@@ -1316,87 +1330,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Attempts to verify that the given AMC file is at least readable by self::readAMCFile().
-     *
-     * Verifying with 100% accuracy that it is indeed an AMC file is impossible because of boring
-     * computer science reasons.
-     *
-     * @param resource $handle
-     *
-     * @throws \Exception
-     */
-    private function checkAMCFile($handle)
-    {
-        // Ensure we're at the beginning of the file
-        fseek($handle, 0, SEEK_SET);
-
-        $has_database_code = false;
-        $has_cellparams = false;
-
-        $database_code_line = -999;
-        $line_num = 0;
-        while ( !feof($handle) ) {
-            $line_num++;
-            $line = fgets($handle);
-
-            // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
-            if ($line_num == 1) {
-                if ( !ValidUtility::isValidMediumVarchar($line) )
-                    throw new \Exception("Mineral name is too long");
-            }
-            if ( strpos($line, '_database_code_amcsd') === 0 ) {
-                $pieces = explode(' ', $line);
-
-                // Need to have 2 values in this line
-                if ( count($pieces) !== 2 )
-                    throw new \Exception("Invalid line starting with '_database_code_amcsd'");
-
-                // Need to save this line number, because the cell params should come immediately after
-                $has_database_code = true;
-                $database_code_line = $line_num;
-            }
-            // The line after that contains the a/b/c/alpha/beta/gamma/space group values
-            elseif ( ($database_code_line+1) === $line_num ) {
-                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
-                $pieces = explode(' ', $line);
-
-                // Need to have 7 values in this line
-                if ( count($pieces) !== 7 )
-                    throw new \Exception("Invalid number of cellparameters");
-
-                // a/b/c/alpha/beta/gamma values need to be valid decimal values
-                for ($i = 0; $i < 6; $i++) {
-                    if ( !ValidUtility::isValidDecimal($pieces[$i]) )
-                        throw new \Exception("Cellparameter at position ".$i." is not numeric");
-                }
-
-                // Space Group should only have like 10 characters max (though variants can go up to
-                //  like 14 characters apparently), so it needs to fit inside a ShortVarchar
-                // Note that underscores here only refer to the character immediately following them
-                //  and are not paired, unlike underscores in mineral formulas
-                if ( !ValidUtility::isValidShortVarchar($pieces[6]) )
-                    throw new \Exception("Space Group is too long");
-
-                // Otherwise, this line could technically a set of cell parameters
-                $has_cellparams = true;
-            }
-        }
-
-        // The file needs to be at least 6 lines long...mineral name, authors, journal, database_code,
-        //  cellparams, and at least one atom position...if not, it can't be valid
-        if ( $line_num < 6 )
-            throw new \Exception("AMC File is too short");
-
-        // If it didn't find the database_code or cellparams lines, then it can't be valid
-        if ( !$has_database_code || !$has_cellparams )
-            throw new \Exception("Couldn't find _database_code_amcsd or cellparameters in AMC File");
-
-        // Can't technically tell if the file is a valid AMC file or not, but at least it's close
-        //  enough that self::readAMCFile() shouldn't throw an error
-    }
-
-
-    /**
      * Reads the given AMC file, converting its contents into an array that's indexed by the
      * "name" property of the fields defined in the "required_fields" section of AMCSDPlugin.yml
      *
@@ -1418,24 +1351,29 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $line_num++;
             $line = fgets($handle);
 
-            // First line is the mineral name
+            // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
             if ($line_num == 1) {
-                $value_mapping['Mineral'] = $line;
+                if ( ValidUtility::isValidMediumVarchar($line) )
+                    $value_mapping['Mineral'] = $line;
             }
-            // Second line is the authors
+            // Second line is the authors...no length limit
             elseif ($line_num == 2) {
                 $value_mapping['Authors'] = $line;
             }
-            // Third line is the journal
-//            elseif ($line_num == 3)
+            // Third line is the journal, but it's not useful
+//            elseif ($line_num == 3) {
 //                $value_mapping['Journal'] = $line;
+//            }
 
             // Next there's usually two (sometimes three) lines of stuff the plugin doesn't care about
 
             // The line starting with "_database_code_amcsd" is the next important one...
             elseif ( strpos($line, '_database_code_amcsd') === 0 ) {
                 $pieces = explode(' ', $line);
-                $value_mapping['database_code_amcsd'] = $pieces[1];
+
+                // Need to have 2 values in this line
+                if ( count($pieces) === 2 )
+                    $value_mapping['database_code_amcsd'] = $pieces[1];
 
                 // Need to save this line number, because the cell params come immediately after
                 $database_code_line = $line_num;
@@ -1448,40 +1386,52 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $line .= "\n";
                 $pieces = explode(' ', $line);
 
-                $value_mapping['a'] = $pieces[0];
-                $value_mapping['b'] = $pieces[1];
-                $value_mapping['c'] = $pieces[2];
-                $value_mapping['alpha'] = $pieces[3];
-                $value_mapping['beta'] = $pieces[4];
-                $value_mapping['gamma'] = $pieces[5];
+                // Need to have 7 values in this line
+                if ( count($pieces) === 7 ) {
+                    // The first six need to be valid decimal values
+                    if ( ValidUtility::isValidDecimal($pieces[0]) )
+                        $value_mapping['a'] = $pieces[0];
+                    if ( ValidUtility::isValidDecimal($pieces[1]) )
+                        $value_mapping['b'] = $pieces[1];
+                    if ( ValidUtility::isValidDecimal($pieces[2]) )
+                        $value_mapping['c'] = $pieces[2];
+                    if ( ValidUtility::isValidDecimal($pieces[3]) )
+                        $value_mapping['alpha'] = $pieces[3];
+                    if ( ValidUtility::isValidDecimal($pieces[4]) )
+                        $value_mapping['beta'] = $pieces[4];
+                    if ( ValidUtility::isValidDecimal($pieces[5]) )
+                        $value_mapping['gamma'] = $pieces[5];
 
-                // For historical reasons, AMC files might have a '*' before the space group...this
-                //  apparently meant that the calculated x/y/z coords of the atoms in the file were
-                //  shifted, compared to would be "expected" based on the space group
-                $sg = trim($pieces[6]);
+                    // Space Group are usually 5-12ish characters long, so they fit inside a ShortVarchar
+                    if ( ValidUtility::isValidShortVarchar($pieces[6]) ) {
+                        $sg = trim( $pieces[6] );
 
-                // Since the AMC files are kind of a...cliff notes...version of the CIF file, the
-                //  '*' character is unique to them.  It shouldn't be saved to the Space Group field
-                if ( strpos($sg, '*') === 0 )
-                    $sg = substr($sg, 1);
+                        // For historical reasons, AMC files might have a '*' before the space group
+                        //  ...this apparently meant that the calculated x/y/z coords of the atoms
+                        //  in the file were shifted, compared to would be "expected" based on the
+                        //  space group.  This '*' character shouldn't be saved if it exists
+                        if ( strpos($sg, '*') === 0 )
+                            $sg = substr($sg, 1);
 
-                // Certain Space Groups also apparently have a ':1' or whatever after them, which
-                //  also provides extra information to other programs...
-                if ( strpos($sg, ':') !== 0 )
-                    $sg = substr($sg, 0, strpos($sg, ':'));
+                        // Certain AMC files also apparently have a ':1' or whatever after the Space
+                        //  Group, which also provides extra information to other programs...
+                        if ( strpos($sg, ':') !== false )
+                            $sg = substr($sg, 0, strpos($sg, ':'));
 
-                // The Lattice, Point Group, and Crystal System are then derived from the Space Group
-                $lattice = substr($sg, 0, 1);
-                $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
-                $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
+                        // The Lattice, Point Group, and Crystal System are then derived from the Space Group
+                        $lattice = substr($sg, 0, 1);
+                        $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
+                        $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
 
-                $value_mapping['Crystal System'] = $cs;
-                $value_mapping['Point Group'] = $pg;
-                $value_mapping['Space Group'] = $sg;
-                $value_mapping['Lattice'] = $lattice;
+                        $value_mapping['Crystal System'] = $cs;
+                        $value_mapping['Point Group'] = $pg;
+                        $value_mapping['Space Group'] = $sg;
+                        $value_mapping['Lattice'] = $lattice;
+                    }
+                }
             }
             else if ( $line_num > 2 && $database_code_line === -999 ) {
-                // The pressure/temperature are usually before the "_database_code_amcsd" (I think)
+                // The pressure/temperature are usually before "_database_code_amcsd" (I think)
                 // ...but aren't on a guaranteed line
 
                 // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
@@ -1510,68 +1460,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Want all file contents in a single field
         $value_mapping['File Contents'] = implode("", $all_lines);
 
-        // Ensure the values are trimmed before they're saved
+        // Ensure all values are trimmed before they're saved
         foreach ($value_mapping as $rpf_name => $value)
             $value_mapping[$rpf_name] = trim($value);
 
         // All data gathered, return the mapping array
         return $value_mapping;
-    }
-
-
-    /**
-     * Attempts to verify that the given CIF file is at least readable by self::readCIFFile().
-     *
-     * Verifying with 100% accuracy that it is indeed an CIF file is impossible because of boring
-     * computer science reasons.
-     *
-     * @param resource $handle
-     *
-     * @throws \Exception
-     */
-    private function checkCIFFile($handle)
-    {
-        // Ensure we're at the beginning of the file
-        fseek($handle, 0, SEEK_SET);
-
-        $has_chemistry = $has_volume = false;
-        while ( !feof($handle) ) {
-            $line = fgets($handle);
-
-            // There are two requirements for the CIF File...
-            if ( strpos($line, '_chemical_formula_sum') === 0 ) {
-                // ...it needs to have a line for the chemistry
-                $pieces = explode(' ', $line);
-
-                // Need to have at least 2 values in this line
-                if ( count($pieces) < 2 )
-                    throw new \Exception("Invalid line starting with '_chemical_formula_sum'");
-
-                $has_chemistry = true;
-            }
-            else if ( strpos($line, '_cell_volume') === 0 ) {
-                // ...and it needs to have a line for the volume
-                $pieces = explode(' ', $line);
-
-                // Need to have 2 values in this line
-                if ( count($pieces) !== 2 )
-                    throw new \Exception("Invalid line starting with '_cell_volume'");
-
-                $has_volume = true;
-            }
-
-            // While the "Locality" field is also read from the CIF file, not all of the CIFs have
-            //  the _chemical_compound_source line...can't throw an exception if it's missing
-        }
-
-        // If it didn't find the chemistry or volume lines, then it can't be valid
-        if ( !$has_chemistry )
-            throw new \Exception("Couldn't find _chemical_formula_sum in CIF File");
-        if ( !$has_volume )
-            throw new \Exception("Couldn't find _cell_volume in CIF File");
-
-        // Can't technically tell if the file is a valid CIF file or not, but at least it's close
-        //  enough that self::readCIFFile() shouldn't throw an error
     }
 
 
@@ -1593,27 +1487,31 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $line = fgets($handle);
 
             if ( strpos($line, '_chemical_formula_sum') === 0 ) {
-                // This line has the chemical formula of the compound
-                $space = strpos($line, ' ');
-                $formula = trim( substr($line, $space+1) );
+                // This line needs to have at least two pieces in it
+                $pieces = explode(' ', $line);
+                if ( count($pieces) >= 2 ) {
+                    // This line has the chemical formula of the compound
+                    $space = strpos($line, ' ');
+                    $formula = trim( substr($line, $space+1) );
 
-                // The formula *should* have single quotes around it...get rid of them
-                $formula = substr($formula, 1, -1);
-                $value_mapping['Chemistry'] = $formula;
+                    // The formula *should* have single quotes around it...get rid of them
+                    $formula = substr($formula, 1, -1);
+                    $value_mapping['Chemistry'] = $formula;
 
-                // The value for the "Chemistry Elements" field is derived from this field, using
-                //  pretty much the same process as the IMA List
-                $ima_pattern = '/(REE|[A-Z][a-z]?)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter
-                $ima_matches = array();
-                preg_match_all($ima_pattern, $formula, $ima_matches);
+                    // The value for the "Chemistry Elements" field is derived from this field, using
+                    //  pretty much the same process as the IMA List
+                    $ima_pattern = '/(REE|[A-Z][a-z]?)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter
+                    $ima_matches = array();
+                    preg_match_all($ima_pattern, $formula, $ima_matches);
 
-                // Create a unique list of tokens from the array of elements
-                $chemistry_elements = array();
-                foreach ($ima_matches[1] as $num => $elem)
-                    $chemistry_elements[$elem] = 1;
-                $chemistry_elements = array_keys($chemistry_elements);
+                    // Create a unique list of tokens from the array of elements
+                    $chemistry_elements = array();
+                    foreach ($ima_matches[1] as $num => $elem)
+                        $chemistry_elements[$elem] = 1;
+                    $chemistry_elements = array_keys($chemistry_elements);
 
-                $value_mapping['Chemistry Elements'] = implode(" ", $chemistry_elements);
+                    $value_mapping['Chemistry Elements'] = implode(" ", $chemistry_elements);
+                }
             }
             else if ( strpos($line, '_chemical_compound_source') === 0 ) {
                 // This (optional) line has either 'Synthetic', or the locality of the physical sample
@@ -1622,17 +1520,23 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // The locality *should* have single quotes around it...get rid of them
                 $locality = substr($locality, 1, -1);
+
+                // Replace either "smart quote" with the ascii equivalent
+                $locality = str_replace(array("‘","’"), "'", $locality);    // U+2018 and U+2019
+                $locality = str_replace(array("“","”"), "\"", $locality);    // U+201C and U+201D
+
+                // TODO - ...probably need a real solution to avoid saving non-UTF8 characters, not a bootleg one like this :/
+
                 $value_mapping['Locality'] = $locality;
             }
             else if ( strpos($line, '_cell_volume') === 0 ) {
                 // This line should have a decimal value for the volume
                 $pieces = explode(' ', $line);
-                $value_mapping['Volume'] = $pieces[1];
+                if ( count($pieces) === 2 )
+                    $value_mapping['Volume'] = $pieces[1];
             }
             else if ( strpos($line, '_space_group_symop_operation_xyz') === 0 ) {
-                // The formula and locality should be considerably earlier in the file than here,
-                //  but I'm reluctant to read several dozen thousand files to guarantee an earlier
-                //  break point...
+                // The other values should be earlier in the file than this
                 break;
             }
         }
