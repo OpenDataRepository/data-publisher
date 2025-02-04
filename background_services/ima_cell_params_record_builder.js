@@ -199,6 +199,10 @@ async function app() {
                         // "_create_auth": "Tommy Yong",
                         // "_public_date": "2200-01-01 00:00:00"
 
+                        /*
+                          If we have any ima record here, it means a RRUFF
+                          record exists.
+                         */
                         if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
@@ -209,13 +213,6 @@ async function app() {
                             // Setting to true can create or overwrite this records status
                             content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
                         }
-                        else if(
-                            ima_record !== undefined
-                            && ima_record.record_uuid !== undefined
-                        ) {
-                            // Only set to false if the record hasn't been set to true already
-                            content += 'if(rruff_record_exists[\'' + ima_record.record_uuid + '\'] === undefined) rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'false\';';
-                        }
                         // TODO Add RRUFF ID to "rruff_record_exists" and
                         // ensure all RRUFF records get that value even if they don't
                         // have a PD alpha value.
@@ -223,6 +220,8 @@ async function app() {
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
                             && await findValue(pd_map.a, record_data) !== ''
+                            && record_data._record_metadata._public_date !== undefined
+                            && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
                         ) {
                             content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = {} };'
                             // content += 'if(cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
@@ -276,7 +275,7 @@ async function app() {
                                 await findValue('', record_data) + '|' +
                                 // Status Notes Base64
                                 Buffer.from(
-                                    await findValue(pd_map.status_notes, record_data)
+                                    await findValue(pd_map.rruff_locality, record_data)
                                 ).toString('base64') +
                                 '";\n';
                         }
@@ -433,10 +432,13 @@ async function buildReference(data_map, record) {
     // console.log('Target UUID: ', data_map.reference_uuid)
     if(reference_record !== null) {
         // console.log('Reference Found');
-        let ref = await findValue(data_map.cite_text_journal, reference_record) + ' ' +
-            await findValue(data_map.cite_text_volume, reference_record) + ' (' +
-            await findValue(data_map.cite_text_year, reference_record) + ') ' +
-            await findValue(data_map.cite_text_pages, reference_record);
+        let ref = await findValue(data_map.cite_text_journal, reference_record) + ' ';
+        ref += await findValue(data_map.cite_text_volume, reference_record) + ' ';
+        let cite_text_year =  await findValue(data_map.cite_text_year, reference_record);
+        if(cite_text_year !== undefined && cite_text_year.length > 0) {
+            ref += ' (' + cite_text_year + ') ';
+        }
+        ref += await findValue(data_map.cite_text_pages, reference_record);
 
         // console.log('REF: ' + ref);
         return Buffer.from(ref).toString('base64');

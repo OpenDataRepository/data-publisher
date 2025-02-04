@@ -138,7 +138,7 @@ async function app() {
                     // Get Cell Params Records
                     let cell_params_record_data = await loadPage(data.cell_params_url);
                     console.log('CP RECORDS: ', cell_params_record_data.records.length);
-                    // Get Powder Diffraction Records
+                    // Get Powder Diffraction Records from RRUFF
                     let powder_diffraction_record_data = await loadPage(data.powder_diffraction_url);
                     console.log('PD RECORDS: ', powder_diffraction_record_data.records.length);
                     let paragenetic_modes_record_data = await loadPage(data.paragenetic_modes_url);
@@ -147,11 +147,11 @@ async function app() {
                     // Get reference list
                     console.log('REF: ' + data.references_url);
                     let reference_record_data = await loadPage(data.references_url);
-                    console.log('RECORDS: ', reference_record_data.records.length);
+                    console.log('REFERENCE RECORDS: ', reference_record_data.records.length);
                     // Get AMCSD Cell Parameters
                     console.log('REF: ' + data.amcsd_url);
                     let amcsd_record_data = await loadPage(data.amcsd_url);
-                    console.log('RECORDS: ', amcsd_record_data.records.length);
+                    console.log('AMCSD RECORDS: ', amcsd_record_data.records.length);
 
 
                     // Initialize temp files

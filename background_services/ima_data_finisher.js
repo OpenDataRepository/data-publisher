@@ -101,6 +101,7 @@ async function app() {
                                 await fs.rename(data.mineral_data_filename, output_path + '/mineral_data.js', () => {});
                                 await fs.rename(data.mineral_data_include_filename, output_path + '/mineral_names.php', () => {});
 
+
                                 // Cell Params Data
                                 console.log('CELL PARAMS FILE: ' + data.cell_params_filename);
                                 await fs.rename(data.cell_params_filename, output_path + '/cellparams_data.js', () => {});
@@ -123,6 +124,7 @@ async function app() {
 
                                 // Overwrite existing update files with empty files
                                 await writeFile(output_path + '/mineral_data_update.js', '');
+                                await writeFile(output_path + '/mineral_names_update.php', '<?php \n');
                                 await writeFile(output_path + '/cellparams_data_update.js', '');
                                 await writeFile(output_path + '/references_update.js', '');
                                 await writeFile(output_path + '/master_tag_data_update.js', '');
