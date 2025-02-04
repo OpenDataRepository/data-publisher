@@ -462,6 +462,13 @@ h3.ui-accordion-header a {
     -webkit-font-smoothing: antialiased;
 }
 
+.pure-skin-odr .pure-form .ODRRecord input[readonly],
+.pure-skin-odr .pure-form .ODRRecord textarea[readonly] {
+    border: none;
+    background: #EEE none;
+    cursor: help;
+}
+
 /* .pure-skin-odr .pure-form .ODRRecord select { */
 .pure-skin-odr .pure-form select {
     position: relative;
