@@ -2946,7 +2946,7 @@ class PluginsController extends ODRCustomController
 
                 if ( $typeclass !== 'Radio' ) {
                     // This is not a "radio" fieldtype
-                    $all_fieldtypes[$typeclass] = $ft_id;
+                    $all_fieldtypes[$typename] = $ft_id;
                 }
                 else {
                     // This is a "radio" fieldtype...
@@ -3171,10 +3171,8 @@ class PluginsController extends ODRCustomController
                     if ( !in_array($ft_id, $allowed_fieldtypes[$rpf_id]) ) {
                         $is_illegal_render_plugin = true;
 
-                        if ( $datafield->getFieldType()->getTypeClass() !== 'Radio' )
-                            $illegal_render_plugin_message = 'This Render Plugin is not compatible with a "'.$datafield->getFieldType()->getTypeClass().'" Datafield';
-                        else
-                            $illegal_render_plugin_message = 'This Render Plugin is not compatible with a "'.$datafield->getFieldType()->getTypeName().'" Datafield';
+                        $illegal_render_plugin_message = self::getAllowedFieldtypesString($allowed_fieldtypes, $all_fieldtypes);
+                        $illegal_render_plugin_message .= '  It is not compatible with "'.$datafield->getFieldType()->getTypeName().'" Datafields.';
                     }
                 }
             }
@@ -3415,6 +3413,45 @@ class PluginsController extends ODRCustomController
         }
     }
 
+
+    /**
+     * Returns a formatted list of which fieldtypes the datafield plugin is allowed to use.
+     *
+     * @param array $allowed_fieldtypes
+     * @param array $all_fieldtypes
+     * @return string
+     */
+    private function getAllowedFieldtypesString($allowed_fieldtypes, $all_fieldtypes)
+    {
+        $ft_array = array();
+        foreach ($allowed_fieldtypes as $rpf_id => $ft_list) {
+            foreach ($ft_list as $num => $ft_id)
+                $ft_array[] = '"'.array_search($ft_id, $all_fieldtypes).'"';
+        }
+
+        $str = '';
+        if ( count($ft_array) == 1 ) {
+            $str = 'This Render Plugin can only be used on '.implode('', $ft_array).' fields.';
+        }
+        else if ( count($ft_array) == 2 ) {
+            $str = 'This Render Plugin can only be used on '.implode(' or ', $ft_array).' fields.';
+        }
+        else {
+            $str = 'This Render Plugin can only be used on ';
+            $count = count($ft_array);
+            $ft = '';
+            for ($i = 0; $i < $count; $i++) {
+                $ft = $ft_array[$i];
+                if ( $i < ($count-1) )
+                    $str .= $ft.', ';
+                else
+                    break;
+            }
+            $str .= ' or '.$ft.' fields.';
+        }
+
+        return $str;
+    }
 
     /**
      * Detaches a render plugin from the datafield/datatype.
@@ -4130,7 +4167,7 @@ class PluginsController extends ODRCustomController
             }
 
             // Only need to update the theme entry if plugin fields were created
-            if ( !empty($plugin_fields_added) || $plugin_theme_elements_added )
+            if ( !empty($new_datafields) || !empty($plugin_fields_added) || $plugin_theme_elements_added )
                 $theme_info_service->updateThemeCacheEntry($master_theme, $user);
 
             if ( !empty($plugin_fields_added) || !empty($plugin_fields_changed) || !empty($plugin_settings_changed) ) {
