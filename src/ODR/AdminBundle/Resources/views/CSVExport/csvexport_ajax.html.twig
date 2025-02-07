@@ -166,8 +166,12 @@
                 </div>
             </div>
             <div class="JobTracker"></div>
-            <div class="CSVExportMessage">Your download will be ready momentarily. If you don't want to wait, feel free
-                to continue to use the site and a message will inform you when the download is ready.
+            <div class="CSVExportMessage">
+            {% if user_id == 0 %}
+                Do not leave the page before the download is ready.  You will not be able to download the export if you leave.
+            {% else %}
+                Your download will be ready momentarily.  If you don't want to wait, feel free to continue to use the site and a message will inform you when the download is ready.
+            {% endif %}
             </div>
         </div>
     </div>

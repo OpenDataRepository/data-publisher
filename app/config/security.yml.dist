@@ -112,7 +112,8 @@ security:
                 always_use_default_target_path: true
 
             form_login:
-                provider: fos_userbundle csrf_token_generator: security.csrf.token_manager
+                provider: fos_userbundle
+                csrf_token_generator: security.csrf.token_manager
 
                 # always force sucessful logins through this firewall (regular username/password login to ODR) to redirect to this path
                 default_target_path:  odr_redirect
@@ -157,6 +158,9 @@ security:
         - { path: ^/view, role: IS_AUTHENTICATED_ANONYMOUSLY }       # display mode
         - { path: ^/session, role: IS_AUTHENTICATED_ANONYMOUSLY }    # changing pagelength or using a different layout
         - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }  # beanstalk doesn't have a login, uses secret key defined in parameters.yml for authentication
+
+        - { path: ^/csvexport, role: IS_AUTHENTICATED_ANONYMOUSLY }    # CSV Export
+        - { path: ^/jobs/refresh, role: IS_AUTHENTICATED_ANONYMOUSLY } # Active Jobs page
 
 ##########
 # Regular use of site for logged-in users

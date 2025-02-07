@@ -558,7 +558,7 @@ class ODRRenderService
      * Renders and returns the HTML for users to select datafields they want exported into a CSV
      * file from all datarecords in a search result.
      *
-     * @param ODRUser $user
+     * @param ODRUser|null $user
      * @param DataType $datatype
      * @param string $odr_tab_id
      * @param Theme|null $theme
@@ -572,7 +572,12 @@ class ODRRenderService
             'odr_tab_id' => $odr_tab_id,
             'site_baseurl' => $this->site_baseurl,
 //            'include_links' => false,
+
+            'user_id' => 0,
         );
+
+        if ( !is_null($user) )
+            $extra_parameters['user_id'] = $user->getId();
 
         $datarecord = null;
 

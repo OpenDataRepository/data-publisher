@@ -1365,7 +1365,7 @@ odr_mass_delete:
 #-----------------------------------------
 # CSVExport Controller
 odr_csv_export_render:
-    path: /admin/csvexport/{datatype_id}/{search_theme_id}/{search_key}/{offset}
+    path: /csvexport/{datatype_id}/{search_theme_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExport, offset: '' }
     requirements:
         datatype_id: \d+
@@ -1374,28 +1374,27 @@ odr_csv_export_render:
         offset: \d+
 
 odr_csv_export_start_express:
-    path: /admin/csvexport/express
+    path: /csvexport/express
     defaults: { _controller: ODRAdminBundle:CSVExport:newCsvExportStart }
     methods: [ POST ]
-
-odr_csv_export_start:
-    path: /admin/csvexport/start
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
-    methods: [ POST ]
+#odr_csv_export_start:
+#    path: /csvexport/start
+#    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
+#    methods: [ POST ]
 
 odr_csv_export_worker:
     path: /beanstalk/csvexport/worker
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExportWorker }
     methods: [ POST ]
 
-odr_csv_export_finalize:
-    path: /beanstalk/csvexport/finalize
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportFinalize }
-    methods: [ POST ]
+#odr_csv_export_finalize:
+#    path: /beanstalk/csvexport/finalize
+#    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportFinalize }
+#    methods: [ POST ]
 
 
 odr_csv_download:
-    path:  /admin/csvexport/download/{user_id}/{tracked_job_id}
+    path:  /csvexport/download/{user_id}/{tracked_job_id}
     defaults: { _controller: ODRAdminBundle:CSVExport:downloadCSV }
     requirements:
         user_id: \d+

@@ -39,7 +39,12 @@ class TrackedJobService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
+
+    /**
+     * @var PermissionsManagementService
+     */
+    private $permissions_service;
 
     /**
      * @var Logger
@@ -70,15 +75,18 @@ class TrackedJobService
      *
      * @param EntityManager $entity_manager
      * @param DatatreeInfoService $datatree_info_service
+     * @param PermissionsManagementService $permissions_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         DatatreeInfoService $datatree_info_service,
+        PermissionsManagementService  $permissions_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dti_service = $datatree_info_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->permissions_service = $permissions_service;
         $this->logger = $logger;
     }
 
@@ -200,8 +208,19 @@ class TrackedJobService
             $tmp = explode('_', $target_entity);
             $datatype_id = $tmp[1];
 
-            // Don't show a user this job if they don't have permissions to view the datatype  TODO - feels like there could be a better way of handling this criteria
-            if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view'])) )
+
+            // ----------------------------------------
+            /** @var ODRUser|null $user */
+            $user = null;
+            if ( !is_null($tracked_job->getCreatedBy()) )
+                $user = $tracked_job->getCreatedBy();
+
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
+            if ( $datatype == null )
+                continue;
+
+            if ( !$this->permissions_service->canViewDatatype($user, $datatype) )
                 continue;
 
             // Store whether user has permissions to delete this job
@@ -213,7 +232,14 @@ class TrackedJobService
             $created = $tracked_job->getCreated();
             $job['datatype_id'] = $datatype_id;
             $job['created_at'] = $created->format('Y-m-d H:i:s');
-            $job['created_by'] = $tracked_job->getCreatedBy()->getUserString();
+
+            $job['created_by'] = 'anon';
+            $job['user_id'] = 0;
+            if ( !is_null($tracked_job->getCreatedBy()) ) {
+                $job['created_by'] = $tracked_job->getCreatedBy()->getUserString();
+                $job['user_id'] = $tracked_job->getCreatedBy()->getId();
+            }
+
             $job['progress'] = array('total' => $tracked_job->getTotal(), 'current' => $tracked_job->getCurrent());
             $job['tracked_job_id'] = $tracked_job->getId();
             $job['eta'] = '...';
@@ -224,7 +250,7 @@ class TrackedJobService
                 $job['description'] = $additional_data['description'];
             $job['can_delete'] = false;
 
-            $top_level_datatype_id = $this->dti_service->getGrandparentDatatypeId($datatype_id);
+            $top_level_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($datatype_id);
             $job['top_level_datatype_id'] = $top_level_datatype_id;
 
 
@@ -268,69 +294,27 @@ class TrackedJobService
                 $job['eta'] = 'Done';
 
                 // If the job is finished, and the user has permissions to this datatype, allow them to delete jobs
-                if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin']) )
+                if ( $this->permissions_service->isDatatypeAdmin($user, $datatype) )
                     $can_delete = true;
             }
 
             // ----------------------------------------
+            // None of the jobs can be deleted if they're in progress...
+            if ($can_delete)
+                $job['can_delete'] = true;
+
             // Calculate/save data specific to certain jobs
             if ($job_type == 'csv_export') {
-                $tmp = explode('_', $tracked_job->getTargetEntity());
-                $datatype_id = $tmp[1];
-
-                /** @var DataType $datatype */
-                $datatype = $repo_datatype->find($datatype_id);
-                if ($datatype == null)
-                    continue;
-
                 $job['description'] = 'CSV Export from Datatype "'.$datatype->getShortName().'"';
-//                $job['datatype_id'] = $datatype_id;
-                $job['user_id'] = $tracked_job->getCreatedBy()->getId();
-
-                if ($can_delete)
-                    $job['can_delete'] = true;
             }
             else if ($job_type == 'csv_import_validate') {
-                $tmp = explode('_', $tracked_job->getTargetEntity());
-                $datatype_id = $tmp[1];
-
-                /** @var DataType $datatype */
-                $datatype = $repo_datatype->find($datatype_id);
-                if ($datatype == null)
-                    continue;
-
                 $job['description'] = 'Validating csv import data for DataType "'.$datatype->getShortName().'"';
-
-                if ($can_delete)
-                    $job['can_delete'] = true;
             }
             else if ($job_type == 'csv_import') {
-                $tmp = explode('_', $tracked_job->getTargetEntity());
-                $datatype_id = $tmp[1];
-
-                /** @var DataType $datatype */
-                $datatype = $repo_datatype->find($datatype_id);
-                if ($datatype == null)
-                    continue;
-
                 $job['description'] = 'Importing data into DataType "'.$datatype->getShortName().'"';
-
-                if ($can_delete)
-                    $job['can_delete'] = true;
             }
             else if ($job_type == 'mass_edit') {
-                $tmp = explode('_', $tracked_job->getTargetEntity());
-                $datatype_id = $tmp[1];
-
-                /** @var DataType $datatype */
-                $datatype = $repo_datatype->find($datatype_id);
-                if ($datatype == null)
-                    continue;
-
                 $job['description'] = 'Mass Edit of DataType "'.$datatype->getShortName().'"';
-
-                if ($can_delete)
-                    $job['can_delete'] = true;
             }
             else if ($job_type == 'migrate') {
                 $tmp = explode('_', $tracked_job->getTargetEntity());
@@ -348,13 +332,9 @@ class TrackedJobService
                     continue;
 
                 $job['description'] = 'Migration of DataField "'.$datafield->getFieldName().'" from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
-
-                if ($can_delete)
-                    $job['can_delete'] = true;
             }
             else if ($job_type == 'tag_rebuild') {
-                if ($can_delete)
-                    $job['can_delete'] = true;
+                $job['description'] = 'Rebuilding Tags for DataType "'.$datatype->getShortName().'"';
             }
 
             $jobs[] = $job;

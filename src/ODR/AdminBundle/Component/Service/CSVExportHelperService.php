@@ -273,7 +273,7 @@ class CSVExportHelperService
             throw new ODRBadRequestException('Invalid API key');
 
         $tracked_job_id = intval($parameters['tracked_job_id']);
-        $user_id = $parameters['user_id'];
+        $user_id = intval($parameters['user_id']);
 
         $datatype_id = $parameters['datatype_id'];
         $datarecord_ids = $parameters['datarecord_id'];
@@ -344,12 +344,11 @@ class CSVExportHelperService
 
 
         // ----------------------------------------
-        // Need the user to be able to filter data
-        /** @var ODRUser $user */
-        $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-        if ($user == null || !$user->isEnabled())
-            throw new ODRNotFoundException('User');
-        // TODO - need to modify so this can work without an active user, somehow
+        // Need to know which data to filter out
+        /** @var ODRUser|null $user */
+        $user = null;
+        if ( $user_id !== 0 )
+            $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
         // Ensure user has permissions to be doing this
         if ( !$this->permissions_service->canViewDatatype($user, $datatype) )
@@ -1154,8 +1153,8 @@ class CSVExportHelperService
             throw new ODRBadRequestException();
         }
 
-        $tracked_job_id = $parameters['tracked_job_id'];
-        $user_id = $parameters['user_id'];
+        $tracked_job_id = intval($parameters['tracked_job_id']);
+        $user_id = intval($parameters['user_id']);
         $datatype_id = $parameters['datatype_id'];
         $datafields = $parameters['datafields'];
 

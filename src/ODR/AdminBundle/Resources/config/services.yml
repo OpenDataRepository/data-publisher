@@ -354,6 +354,7 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $datatree_info_service: "@odr.datatree_info_service"
+            $permissions_service: "@odr.permissions_management_service"
             $logger: "@logger"
 
     odr.uuid_service:
