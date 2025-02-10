@@ -695,6 +695,11 @@ odr_record_public:
     defaults: { _controller: ODRAdminBundle:Edit:publicdatarecord }
     requirements:
         datarecord_id:  \d+
+odr_record_toggle_prevent_edits:
+    path:  /edit/togglepreventedits/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Edit:toggledatarecordpreventedits }
+    requirements:
+        datarecord_id:  \d+
 
 odr_record_add:
     path:  /edit/adddatarecord/{datatype_id}

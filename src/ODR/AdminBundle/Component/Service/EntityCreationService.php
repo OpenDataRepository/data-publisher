@@ -298,6 +298,8 @@ class EntityCreationService
         else
             $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
 
+        $datarecord_meta->setPreventUserEdits(false);
+
         $datarecord_meta->setCreated($created);
         $datarecord_meta->setUpdated($created);
         $datarecord_meta->setCreatedBy($user);

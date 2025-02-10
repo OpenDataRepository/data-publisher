@@ -293,7 +293,7 @@ class DatarecordInfoService
         // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
            'SELECT
-               dr, partial drm.{id, publicDate}, partial p_dr.{id}, partial gp_dr.{id},
+               dr, partial drm.{id, publicDate, prevent_user_edits}, partial p_dr.{id}, partial gp_dr.{id},
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 

@@ -2919,7 +2919,7 @@ class CSVImportController extends ODRCustomController
                     //  it comes to an external id field.  The property should be enforced on all
                     //  other fields, however
                     if ( $datafield->getPreventUserEdits() && !$is_external_id_field )
-                        throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
+                        throw new ODRForbiddenException("The Database's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
                 }
                 else {  // $datafield_id == 'new'
                     // Verify that the requested fieldtype for the new datafield exists

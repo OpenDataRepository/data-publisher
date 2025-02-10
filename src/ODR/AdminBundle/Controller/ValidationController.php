@@ -513,6 +513,8 @@ class ValidationController extends ODRCustomController
                     else
                         $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
 
+                    $drm->setPreventUserEdits(false);
+
                     $drm->setCreatedBy($user);
                     $drm->setUpdatedBy($user);
 
