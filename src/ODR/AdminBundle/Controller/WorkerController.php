@@ -1470,9 +1470,10 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
-            $lookup = 'reference';
+//            $lookup = 'reference';
 //            $lookup = 'mineral';
 //            $lookup = 'instrument';
+            $lookup = 'xray';
 
             $props = array();
             if ( $lookup === 'reference' ) {
@@ -1494,6 +1495,13 @@ $ret .= '  Set current to '.$count."\n";
                     'table' => 'odr_short_varchar',
                     'datatype_id' => 741,
                     'datafield_id' => 7080,
+                );
+            }
+            else if ( $lookup === 'xray' ) {
+                $props = array(
+                    'table' => 'odr_medium_varchar',
+                    'datatype_id' => 763,
+                    'datafield_id' => 7150,
                 );
             }
             else
