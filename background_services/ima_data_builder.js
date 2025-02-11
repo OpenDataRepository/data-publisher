@@ -104,19 +104,19 @@ async function app() {
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
                         "tag_data":"web\\/uploads\\/master_tag_data.js",
-                        "ima_url":"\\/\\/www.rruff.net\\/odr_rruff",
-                        "cell_params_url":"\\/\\/www.rruff.net\\/odr_rruff"
+                        "ima_url":"\\/\\/BASE_URL\\/odr_rruff",
+                        "cell_params_url":"\\/\\/BASE_URL\\/odr_rruff"
                      }
                      */
                     let basepath = '/home/rruff/data-publisher/';
                     if(data.ima_update_rebuild) {
-                        let stats = fs.statSync(basepath + '/web/uploads/IMA/mineral_data.js');
+                        // let stats = fs.statSync(basepath + '/web/uploads/IMA/mineral_data.js');
+                        // Utillize Master Tag Data for update cycle as it is recreated every time
+                        let stats = fs.statSync(basepath + '/web/uploads/IMA/master_tag_data.js');
                         let mtime = Date.parse(stats.mtime);
                         // Rework all the URLs - use file access time to generate timestamp
                         // data.ima_url
-                        // console.log('Old: ', data.ima_url)
                         data.ima_url = data.ima_url.replace(/99999999/,mtime);
-                        // console.log('New: ', data.ima_url)
                         // data.cell_params_url
                         data.cell_params_url = data.cell_params_url.replace(/99999999/,mtime);
                         // data.powder_diffraction_url
@@ -138,7 +138,7 @@ async function app() {
                     // Get Cell Params Records
                     let cell_params_record_data = await loadPage(data.cell_params_url);
                     console.log('CP RECORDS: ', cell_params_record_data.records.length);
-                    // Get Powder Diffraction Records
+                    // Get Powder Diffraction Records from RRUFF
                     let powder_diffraction_record_data = await loadPage(data.powder_diffraction_url);
                     console.log('PD RECORDS: ', powder_diffraction_record_data.records.length);
                     let paragenetic_modes_record_data = await loadPage(data.paragenetic_modes_url);
@@ -147,11 +147,11 @@ async function app() {
                     // Get reference list
                     console.log('REF: ' + data.references_url);
                     let reference_record_data = await loadPage(data.references_url);
-                    console.log('RECORDS: ', reference_record_data.records.length);
+                    console.log('REFERENCE RECORDS: ', reference_record_data.records.length);
                     // Get AMCSD Cell Parameters
                     console.log('REF: ' + data.amcsd_url);
                     let amcsd_record_data = await loadPage(data.amcsd_url);
-                    console.log('RECORDS: ', amcsd_record_data.records.length);
+                    console.log('AMCSD RECORDS: ', amcsd_record_data.records.length);
 
 
                     // Initialize temp files
@@ -216,6 +216,7 @@ async function app() {
                     let ima_record_template = await loadPage(data.ima_template_url);
                     let ima_record_map = data.ima_record_map;
                     let tag_data = [];
+                    console.log("Build Tag Data (MASTER)");
                     await buildTagData(ima_record_map.ima_template_tags_uuid, ima_record_template, tag_data, 'master');
                     content += tag_data.join('');
 
@@ -230,6 +231,7 @@ async function app() {
                     let pm_record_template = await loadPage(data.paragenetic_modes_template_url);
                     let pm_record_map = data.paragenetic_modes_record_map;
                     tag_data = [];
+                    console.log("Build Tag Data (PM)");
                     await buildTagData(pm_record_map.tags_field_uuid, pm_record_template, tag_data, 'pm');
                     content += tag_data.join('');
 
@@ -479,7 +481,7 @@ async function app() {
                     // Get AMCSD Records & Send to Cell Params Tube
                     // TODO Implement IMA Lookup for AMCSD Cell Params
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 900; i++) {
+                    // for(let i = 0; i < 200; i++) {
                     for(let i = 0; i <  amcsd_record_data.records.length; i++) {
                         let record = amcsd_record_data.records[i];
                         record.cell_params_index = i;
@@ -524,7 +526,7 @@ async function app() {
 
                     // Get References and Build List for References Tube
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 900; i++) {
+                    // for(let i = 0; i < 200; i++) {
                     for(let i = 0; i <  reference_record_data.records.length; i++) {
                         let record = reference_record_data.records[i];
                         record.cell_params_index = i;

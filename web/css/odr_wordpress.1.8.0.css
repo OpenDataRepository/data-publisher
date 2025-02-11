@@ -284,8 +284,12 @@ Forms Core
 }
 /* ===============  forms-responsive.css =================*/
 @media only screen and (max-width : 480px) {
+    #ODRSearchSidebar {
+        margin-left: -10px !important;
+    }
+
     .pure-skin-odr .pure-form button[type="submit"] {
-    margin: 0.7em 0 0;
+        margin: 0.7em 0 0;
     }
 
     .pure-skin-odr .pure-form input[type="text"],
@@ -4550,11 +4554,11 @@ i {
 }
 
 #ODRMessages {
-    z-index: 99;
+    /* z-index: 99; NAS 20250108 */
 }
 
 #ODRLoginLink {
-    z-index: 99;
+    /* z-index: 99; NAS 20250107 */
 }
 
 #ODRSearchSidebar {

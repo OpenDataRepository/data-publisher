@@ -135,6 +135,7 @@ parameters:
         pd_template_uuid: '2e74e1efde12a0154982bcd3e2dc'
         template_uuid: '60231f230a3c7b73e0f0d1f1deea'
         rruff_id: 'd0e7a8e1e42d8159008116130e86'
+        rruff_locality: '1eb33d935bd18e9a71cc11a8218d'
         mineral_name: '382ef1131743332081f9acbc3ae3'
         ima_chemistry: '15acd8f68d2690ca9e1b39b87fad'
         measured_chemistry: '721ee4b743273af28a33f534e7c5'

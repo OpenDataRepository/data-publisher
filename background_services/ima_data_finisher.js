@@ -63,19 +63,25 @@ async function app() {
                             if(data.ima_update_rebuild) {
                                 // move files to be "updates" and update load file with timestamp
                                 // Mineral Data
-                                await fs.rename(data.mineral_data_filename, output_path + '/mineral_data_update.js', () => {});
+                                let file_data = await readFile(data.mineral_data_filename);
+                                await appendFile(output_path + '/mineral_data_update.js', file_data, () => {});
 
                                 // Mineral Name List
-                                await fs.rename(data.mineral_data_include_filename, output_path + '/mineral_names_update.php', () => {});
+                                file_data = await readFile(data.mineral_data_include_filename);
+                                await appendFile(output_path + '/mineral_names_update.php', file_data, () => {});
 
                                 // Cell Params Data
-                                await fs.rename(data.cell_params_filename, output_path + '/cellparams_data_update.js', () => {});
+                                file_data = await readFile(data.cell_params_filename);
+                                console.log("Appending file: ", output_path + '/cellparams_data_update.js');
+                                await appendFile(output_path + '/cellparams_data_update.js', file_data, () => {});
 
                                 // Paragenetic Modes Data
-                                await fs.rename(data.paragenetic_modes_filename, output_path + '/pm_data_update.js', () => {});
+                                file_data = await readFile(data.paragenetic_modes_filename);
+                                await appendFile(output_path + '/pm_data_update.js', file_data, () => {});
 
                                 // References Data
-                                await fs.rename(data.references_filename, output_path + '/references_update.js', () => {});
+                                file_data = await readFile(data.references_filename);
+                                await appendFile(output_path + '/references_update.js', file_data, () => {});
 
                                 // Master Tag Data
                                 await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data.js', () => {});
@@ -94,6 +100,7 @@ async function app() {
                                 // Mineral Data
                                 await fs.rename(data.mineral_data_filename, output_path + '/mineral_data.js', () => {});
                                 await fs.rename(data.mineral_data_include_filename, output_path + '/mineral_names.php', () => {});
+
 
                                 // Cell Params Data
                                 console.log('CELL PARAMS FILE: ' + data.cell_params_filename);
@@ -117,6 +124,7 @@ async function app() {
 
                                 // Overwrite existing update files with empty files
                                 await writeFile(output_path + '/mineral_data_update.js', '');
+                                await writeFile(output_path + '/mineral_names_update.php', '<?php \n');
                                 await writeFile(output_path + '/cellparams_data_update.js', '');
                                 await writeFile(output_path + '/references_update.js', '');
                                 await writeFile(output_path + '/master_tag_data_update.js', '');
@@ -214,6 +222,26 @@ async function deleteTmpFiles(data) {
 }
 
 const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
+
+async function readFile(file_path) {
+    try {
+        const data = fs.readFileSync(file_path,
+            { encoding: 'utf8', flag: 'r' });
+        return data;
+    } catch (err) {
+        console.log(err);
+        return '';
+    }
+}
+
+async function appendFile(file_name, content) {
+    try {
+        fs.appendFileSync(file_name, content);
+        // file written successfully
+    } catch (err) {
+        console.log(err);
+    }
+}
 
 async function writeFile(file_name, content) {
     try {
