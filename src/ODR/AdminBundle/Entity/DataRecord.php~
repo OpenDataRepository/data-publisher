@@ -589,6 +589,17 @@ class DataRecord
     {
         return $this->getDataRecordMeta()->getPublicDate();
     }
+
+    /**
+     * Get preventUserEdits.
+     *
+     * @return bool
+     */
+    public function getPreventUserEdits()
+    {
+        return $this->getDataRecordMeta()->getPreventUserEdits();
+    }
+
     /**
      * @var \Doctrine\Common\Collections\Collection
      */

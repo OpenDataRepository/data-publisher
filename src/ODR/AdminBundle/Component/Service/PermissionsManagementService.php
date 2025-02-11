@@ -171,12 +171,12 @@ class PermissionsManagementService
     public function canViewDatatype($user, $datatype)
     {
         // If the datatype is public, then it can always be viewed
-        if ($datatype->isPublic())
+        if ( $datatype->isPublic() )
             return true;
 
         // Otherwise, the datatype is non-public
         // If the user isn't logged in, they can't view the datatype
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -215,7 +215,7 @@ class PermissionsManagementService
     public function canViewNonPublicDatarecords($user, $datatype)
     {
         // If the user isn't logged in, they can't view non-public datarecords
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -256,12 +256,12 @@ class PermissionsManagementService
     public function canViewDatarecord($user, $datarecord)
     {
         // If the datarecord is public, then it can be viewed (assuming user can also view datatype)
-        if ($datarecord->isPublic())
+        if ( $datarecord->isPublic() )
             return true;
 
         // Otherwise, the datarecord is non-public
         // ...if the user isn't logged in, they can't view the datarecord
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -303,7 +303,7 @@ class PermissionsManagementService
     public function canAddDatarecord($user, $datatype)
     {
         // If the user isn't logged in, they can't add new datarecords
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -338,7 +338,7 @@ class PermissionsManagementService
     public function canEditDatatype($user, $datatype)
     {
         // If the user isn't logged in, they can't edit datarecords
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -386,7 +386,7 @@ class PermissionsManagementService
     public function canEditDatarecord($user, $datarecord)
     {
         // If the user isn't logged in, they can't edit datarecords
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -441,7 +441,7 @@ class PermissionsManagementService
     public function canDeleteDatarecord($user, $datatype)
     {
         // If the user isn't logged in, they can't delete any datarecords
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -480,7 +480,7 @@ class PermissionsManagementService
     public function canChangePublicStatus($user, $datarecord)
     {
         // If the user isn't logged in, they can't change public status
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -530,7 +530,7 @@ class PermissionsManagementService
     public function isDatatypeAdmin($user, $datatype)
     {
         // If the user isn't logged in, they aren't considered a datatype admin
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -567,11 +567,11 @@ class PermissionsManagementService
     public function canViewDatafield($user, $datafield)
     {
         // If the datafield is public, then it can always be viewed
-        if ($datafield->isPublic())
+        if ( $datafield->isPublic() )
             return true;
 
         // If the user isn't logged in, they can't view a non-public Datafield
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -612,7 +612,7 @@ class PermissionsManagementService
     public function canEditDatafield($user, $datafield, $datarecord = null)
     {
         // If the user isn't logged in, they can't edit any Datafield
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -668,11 +668,11 @@ class PermissionsManagementService
         }
 
         // If user can view the datafield/datarecord, then they're always able to view public files...
-        if ($file->isPublic())
+        if ( $file->isPublic() )
             return true;
 
         // If the file is non-public, it shouldn't be viewable unless logged in...
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -714,11 +714,11 @@ class PermissionsManagementService
         }
 
         // If user can view the datafield/datarecord, then they're always able to view public images...
-        if ($image->isPublic())
+        if ( $image->isPublic() )
             return true;
 
         // If the image is non-public, it shouldn't be viewable unless logged in...
-        if ($user === "anon.")
+        if ( $user === "anon." || $user == null )
             return false;
         // If the user is a superadmin, then they automatically have all permissions
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )

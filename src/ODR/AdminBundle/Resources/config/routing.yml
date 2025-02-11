@@ -695,6 +695,11 @@ odr_record_public:
     defaults: { _controller: ODRAdminBundle:Edit:publicdatarecord }
     requirements:
         datarecord_id:  \d+
+odr_record_toggle_prevent_edits:
+    path:  /edit/togglepreventedits/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Edit:toggledatarecordpreventedits }
+    requirements:
+        datarecord_id:  \d+
 
 odr_record_add:
     path:  /edit/adddatarecord/{datatype_id}
@@ -1365,7 +1370,7 @@ odr_mass_delete:
 #-----------------------------------------
 # CSVExport Controller
 odr_csv_export_render:
-    path: /admin/csvexport/{datatype_id}/{search_theme_id}/{search_key}/{offset}
+    path: /csvexport/{datatype_id}/{search_theme_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExport, offset: '' }
     requirements:
         datatype_id: \d+
@@ -1374,28 +1379,27 @@ odr_csv_export_render:
         offset: \d+
 
 odr_csv_export_start_express:
-    path: /admin/csvexport/express
+    path: /csvexport/express
     defaults: { _controller: ODRAdminBundle:CSVExport:newCsvExportStart }
     methods: [ POST ]
-
-odr_csv_export_start:
-    path: /admin/csvexport/start
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
-    methods: [ POST ]
+#odr_csv_export_start:
+#    path: /csvexport/start
+#    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
+#    methods: [ POST ]
 
 odr_csv_export_worker:
     path: /beanstalk/csvexport/worker
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExportWorker }
     methods: [ POST ]
 
-odr_csv_export_finalize:
-    path: /beanstalk/csvexport/finalize
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportFinalize }
-    methods: [ POST ]
+#odr_csv_export_finalize:
+#    path: /beanstalk/csvexport/finalize
+#    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportFinalize }
+#    methods: [ POST ]
 
 
 odr_csv_download:
-    path:  /admin/csvexport/download/{user_id}/{tracked_job_id}
+    path:  /csvexport/download/{user_id}/{tracked_job_id}
     defaults: { _controller: ODRAdminBundle:CSVExport:downloadCSV }
     requirements:
         user_id: \d+
@@ -1563,6 +1567,21 @@ odr_find_duplicate_meta_entries:
 odr_find_duplicate_dtsf_entries:
     path: /admin/find_duplicate_dtsf_entries
     defaults: { _controller: ODRAdminBundle:Validation:findduplicatespecialfields }
+# Locates duplicate storage entity entries
+odr_find_duplicate_drf_entries:
+    path: /admin/find_duplicate_drf_entries
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicatedrfentries }
+
+odr_find_invalid_drf_entries:
+    path: /admin/find_invalid_drf_entries/{type}
+    defaults: { _controller: ODRAdminBundle:Validation:findinvaliddrfentries }
+    requirements:
+        type: boolean|integer|decimal|shortvarchar|mediumvarchar|longvarchar|longtext|datetime
+odr_find_duplicate_storage_entries:
+    path: /admin/find_duplicate_storage_entries/{type}
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicatestorageentries }
+    requirements:
+        type: boolean|integer|decimal|shortvarchar|mediumvarchar|longvarchar|longtext|datetime
 
 # Locate/delete a pile of child entities that make no sense when their parent entities are deleted
 # This needs to be run repeatedly until it stops making changes

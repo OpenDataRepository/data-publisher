@@ -48,23 +48,26 @@ odr_plugins.rruff.cell_parameters:
             name: Crystal System
             description:
             type: ShortVarchar
-            properties:
-                - no_user_edits
+#            properties:
+#                - no_user_edits
         # ...a grand total of 32 point groups...
         point_group:
             name: Point Group
             description:
             type: ShortVarchar
-            properties:
-                - no_user_edits
+#            properties:
+#                - no_user_edits
         # ...and a grand total of 230 "official" space groups...though basically all of them allow
         #  multiple values based on the axis/angle ordering selected for the a/b/c/α/β/γ values
         space_group:
             name: Space Group
             description:
             type: ShortVarchar
-            properties:
-                - no_user_edits
+#            properties:
+#                - no_user_edits
+
+        # NOTE - despite user edits not being blocked for these three fields, the render plugin
+        # does not provide conventional form submission javascript when overriding the field
 
         # The lattice is derived from the first letter of the space group
         lattice:

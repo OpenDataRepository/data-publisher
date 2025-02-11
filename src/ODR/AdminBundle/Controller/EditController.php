@@ -303,6 +303,10 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
+
+            // Do not create a new child record if edits are blocked
+            if ( $grandparent_datarecord->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -442,6 +446,10 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             if ( !$permissions_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // Do not delete the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -605,6 +613,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -732,6 +749,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -846,6 +872,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -1000,6 +1035,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -1150,6 +1194,15 @@ class EditController extends ODRCustomController
             // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -1342,6 +1395,15 @@ class EditController extends ODRCustomController
             // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -1499,6 +1561,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
             // Delete the file
@@ -1589,6 +1660,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -1686,6 +1766,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -1878,6 +1967,15 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -2003,6 +2101,10 @@ class EditController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->canChangePublicStatus($user, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 
@@ -2049,6 +2151,105 @@ class EditController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x3df683c4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+    /**
+     * Toggles whether users can edit a datarecord or not.
+     *
+     * @param integer $datarecord_id The database id of the DataRecord to modify.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function toggledatarecordpreventeditsAction($datarecord_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+            $datatype_id = $datatype->getId();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            // TODO - should this instead just require can_edit_datarecord?
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            if ( $datarecord->getPreventUserEdits() ) {
+                // Datarecord should now allow user edits
+                $properties = array('prevent_user_edits' => false);
+                $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
+            }
+            else {
+                // Datarecord should now prevent user edits
+                $properties = array('prevent_user_edits' => true);
+                $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
+            }
+
+
+            // ----------------------------------------
+            // Fire off a DatarecordModified event
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+
+            // ----------------------------------------
+            $return['d'] = array(
+                'public' => $datarecord->isPublic(),
+                'datarecord_id' => $datarecord_id,
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x3ebe1f5b;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -2131,8 +2332,13 @@ class EditController extends ODRCustomController
             // If the datafield is set to prevent user edits, then prevent this controller action
             //  from making a change to it
             if ( $datafield->getPreventUserEdits() )
-                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
+
 
             // ----------------------------------------
             // Determine class of form needed
@@ -3162,6 +3368,10 @@ class EditController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // ----------------------------------------
 
 

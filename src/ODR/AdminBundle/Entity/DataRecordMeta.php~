@@ -33,6 +33,11 @@ class DataRecordMeta
     private $publicDate;
 
     /**
+     * @var bool
+     */
+    private $prevent_user_edits;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -94,6 +99,30 @@ class DataRecordMeta
     public function getPublicDate()
     {
         return $this->publicDate;
+    }
+
+    /**
+     * Set preventUserEdits.
+     *
+     * @param bool $preventUserEdits
+     *
+     * @return DataRecordMeta
+     */
+    public function setPreventUserEdits($preventUserEdits)
+    {
+        $this->prevent_user_edits = $preventUserEdits;
+
+        return $this;
+    }
+
+    /**
+     * Get preventUserEdits.
+     *
+     * @return bool
+     */
+    public function getPreventUserEdits()
+    {
+        return $this->prevent_user_edits;
     }
 
     /**

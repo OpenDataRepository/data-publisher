@@ -1515,6 +1515,13 @@ class RadioOptionsController extends ODRCustomController
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
 

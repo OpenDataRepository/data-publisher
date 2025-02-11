@@ -784,14 +784,8 @@ class ODRGroupController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Only want the top-level datatypes ids where the calling user is an admin...
+            // Need to get all datatypes at first...
             $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
-            foreach ($top_level_datatypes as $num => $dt_id) {
-                if ( !isset($datatypes_with_admin_permission[$dt_id]) )
-                    unset( $top_level_datatypes[$num] );
-            }
-
-            // ...so that all relevant groups for just those datatypes can be loaded
             $query = $em->createQuery(
                'SELECT dt, dtm, g, g_cb, gm, dt_cb
                 FROM ODRAdminBundle:DataType AS dt
@@ -812,15 +806,20 @@ class ODRGroupController extends ODRCustomController
             );
             $results = $query->getArrayResult();
 
+            // ...mostly because the user may not have admin permissions to the "template group"
+            //  datatype that they do have admin permissions for
+            $dt_name_lookup = array();
 
-            // For each of the datatypes that the calling user has the 'dt_admin' permission for...
             $datatypes = array();
             foreach ($results as $dt_num => $dt) {
                 $dt_id = $dt['id'];
+                $dt_uuid = $dt['unique_id'];
 
                 $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
                 $dt['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
                 $datatypes[$dt_id] = $dt;
+
+                $dt_name_lookup[$dt_uuid] = $dt['dataTypeMeta']['shortName'];
 
                 // ...categorize the groups for this datatype by their original purpose if stated,
                 //  or by group_id if they're not a default group
@@ -837,6 +836,12 @@ class ODRGroupController extends ODRCustomController
                     else
                         $datatypes[$dt_id]['groups'][$group_id] = $g;
                 }
+            }
+
+            // Only want the top-level datatypes ids where the calling user is an admin...
+            foreach ($datatypes as $dt_id => $dt) {
+                if ( !isset($datatypes_with_admin_permission[$dt_id]) )
+                    unset( $datatypes[$dt_id] );
             }
 
             // Now that all the groups have been organized per datatype, split the templates from
@@ -873,6 +878,7 @@ class ODRGroupController extends ODRCustomController
                     array(
                         'target_user' => $user,
 
+                        'dt_name_lookup' => $dt_name_lookup,
                         'datatypes' => $datatypes,
                         'templates' => $templates,
 

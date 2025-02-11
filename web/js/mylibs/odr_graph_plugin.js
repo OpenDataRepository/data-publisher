@@ -410,7 +410,10 @@ function ODRGraph_histogramChartPlotly(chart_obj, onComplete) {
 
                 showlegend: show_legend,
                 hoverlabel: {
-                    namelength: 50
+                    namelength: 50,
+                    font: {
+                        size: 20,
+                    }
                 },
             };
 
@@ -592,7 +595,10 @@ function ODRGraph_barChartPlotly(chart_obj, onComplete) {
 
                 showlegend: show_legend,
                 hoverlabel: {
-                    namelength: 50
+                    namelength: 50,
+                    font: {
+                        size: 20,
+                    }
                 },
             };
 
@@ -721,7 +727,10 @@ function ODRGraph_pieChartPlotly(chart_obj, onComplete) {
 
                 showlegend: true,
                 hoverlabel: {
-                    namelength: 50
+                    namelength: 50,
+                    font: {
+                        size: 20,
+                    }
                 },
             };
 
@@ -945,7 +954,10 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
 
                 showlegend: show_legend,
                 hoverlabel: {
-                    namelength: 50
+                    namelength: 50,
+                    font: {
+                        size: 20,
+                    }
                 },
             };
 
@@ -1140,7 +1152,10 @@ function ODRGraph_stackedAreaChartPlotly(chart_obj, onComplete) {
 
                 showlegend: show_legend,
                 hoverlabel: {
-                    namelength: 50
+                    namelength: 50,
+                    font: {
+                        size: 20,
+                    }
                 },
             };
 

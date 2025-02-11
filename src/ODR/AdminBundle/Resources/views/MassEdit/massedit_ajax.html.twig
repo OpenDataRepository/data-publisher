@@ -140,7 +140,7 @@ function initPage() {
         }
         else if ( $(this).hasClass('ODRBlockedField') ) {
             $.each(inputs, function (index, elem) {
-                $(elem).prop('disabled', true).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
+                $(elem).prop('disabled', true).attr('title', "The Database's administrator has blocked changes to this Datafield.");
             });
         }
     });

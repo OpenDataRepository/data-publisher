@@ -32,6 +32,8 @@ class SearchAPIServiceTest extends WebTestCase
     {
         exec('redis-cli flushall');
         $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
         $search_api_service = $client->getContainer()->get('odr.search_api_service');
@@ -60,6 +62,8 @@ class SearchAPIServiceTest extends WebTestCase
     public function testPerformSearchCompleteDatarecordList($search_params, $expected_datarecord_ids, $search_as_super_admin)
     {
         $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
         $search_api_service = $client->getContainer()->get('odr.search_api_service');
@@ -89,6 +93,8 @@ class SearchAPIServiceTest extends WebTestCase
     {
         exec('redis-cli flushall');
         $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
         $search_api_service = $client->getContainer()->get('odr.search_api_service');

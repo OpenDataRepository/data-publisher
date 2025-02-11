@@ -230,7 +230,7 @@ class ThemeInfoService
     /**
      * Attempts to return the id of the user's preferred theme for the given datatype/page_type.
      *
-     * @param string|ODRUser $user  Either 'anon.' or an ODRUser object
+     * @param ODRUser|string|null $user  Either 'anon.' or an ODRUser object
      * @param integer $datatype_id
      * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      *
@@ -261,7 +261,7 @@ class ThemeInfoService
 
         // If nothing was found in the user's session, then see if the user has a preference already
         //  stored in the database for this page_type...
-        if ($user !== 'anon.') {
+        if ( !is_null($user) && $user !== 'anon.' ) {
             $theme_preference = self::getUserThemePreference($user, $datatype_id, $page_type);
             if ( !is_null($theme_preference) ) {
                 // ...set it as their current session theme to avoid database lookups

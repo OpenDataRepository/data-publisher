@@ -166,6 +166,11 @@ class ODRCustomController extends Controller
             $odr_tab_id = $odr_tab_service->createTabId();
         }
 
+        // Ensure the tab refers to the given search key
+        $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
+        if ( $expected_search_key !== $search_key )
+            $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
+
         // Grab the page length for this tab from the session, if possible
         $page_length = $odr_tab_service->getPageLength($odr_tab_id);
 

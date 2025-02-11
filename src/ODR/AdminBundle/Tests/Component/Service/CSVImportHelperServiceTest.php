@@ -42,6 +42,8 @@ class CSVImportHelperServiceTest extends WebTestCase
     {
         exec('redis-cli flushall');
         $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
 
         /** @var CSVImportHelperService $csv_helper_service */
         $csv_helper_service = $client->getContainer()->get('odr.csv_import_helper_service');

@@ -38,6 +38,7 @@ use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Templating\EngineInterface;
@@ -60,6 +61,9 @@ class TextResultsController extends ODRCustomController
     {
         $return = array();
         $return['data'] = '';
+
+        $cookie_key = '';
+        $cookie_value = '';
 
         try {
             // ----------------------------------------
@@ -111,16 +115,16 @@ class TextResultsController extends ODRCustomController
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var TableThemeHelperService $tth_service */
-            $tth_service = $this->container->get('odr.table_theme_helper_service');
+            /** @var TableThemeHelperService $table_theme_helper_service */
+            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
 
 
             /** @var DataType $datatype */
@@ -141,12 +145,12 @@ class TextResultsController extends ODRCustomController
             // Determine whether user is logged in or not
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Store whether the user is permitted to edit at least one datarecord for this datatype
-            $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
+            $can_edit_datatype = $permissions_service->canEditDatatype($user, $datatype);
 
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -165,7 +169,7 @@ class TextResultsController extends ODRCustomController
             $editable_datarecord_list = array();
 
             // ...so determine whether the user has such a restriction
-            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
+            $restricted_datarecord_list = $permissions_service->getDatarecordRestrictionList($user, $datatype);
             $has_search_restriction = false;
             if ( !is_null($restricted_datarecord_list) )
                 $has_search_restriction = true;
@@ -190,8 +194,15 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // Save changes to the page_length unless viewing a search results table meant for
             //  linking datarecords...
-            if ($odr_tab_id !== '')
+            if ($odr_tab_id !== '') {
                 $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+
+                // Also need to save it in the relevant cookie
+                $cookie_key = 'datatype_'.$datatype->getId().'_page_length';
+                $cookie_value = $page_length;
+
+                // The value is stored back in the cookie after the response is created below
+            }
 
             if ( $search_key == '' ) {
                 // Theoretically this won't happen during regular operation of ODR anymore, but
@@ -238,7 +249,7 @@ class TextResultsController extends ODRCustomController
                 // Determine which datafield(s) datatables.js is currently using as its sort column(s)
                 foreach ($sort_cols as $display_order => $col) {
                     $col -= 2;
-                    $df = $tth_service->getDatafieldAtColumn($user, $datatype->getId(), $theme->getId(), $col);
+                    $df = $table_theme_helper_service->getDatafieldAtColumn($user, $datatype->getId(), $theme->getId(), $col);
 
                     $sort_datafields[$display_order] = $df['id'];
                     $sort_directions[$display_order] = $sort_dirs[$display_order];
@@ -384,7 +395,7 @@ class TextResultsController extends ODRCustomController
             // Get the rows that will fulfill the datatables request
             $data = array();
             if ( $datarecord_count > 0 ) {
-                $data = $tth_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
+                $data = $table_theme_helper_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
 
                 // It's impossible for this function to determine the correct order these datarecords
                 //  should be in based on the values in their datafields...fortunately, the search
@@ -414,6 +425,8 @@ class TextResultsController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
+        if ( $cookie_key !== '' && $cookie_value !== '' )
+            $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
         return $response;
     }
 
@@ -485,8 +498,8 @@ class TextResultsController extends ODRCustomController
                     /* do nothing so the rest of ODR uses the datatype's default sorting */
                 }
                 else {
-                    /** @var TableThemeHelperService $tth_service */
-                    $tth_service = $this->container->get('odr.table_theme_helper_service');
+                    /** @var TableThemeHelperService $table_theme_helper_service */
+                    $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
 
                     /** @var ODRUser $user */
                     $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
@@ -494,7 +507,7 @@ class TextResultsController extends ODRCustomController
                     // Determine which datafield(s) datatables.js is currently using as its sort column(s)
                     foreach ($sort_cols as $display_order => $col) {
                         $col -= 2;
-                        $df = $tth_service->getDatafieldAtColumn($user, $datatype_id, $theme_id, $col);
+                        $df = $table_theme_helper_service->getDatafieldAtColumn($user, $datatype_id, $theme_id, $col);
 
                         $sort_datafields[$display_order] = $df['id'];
                         $sort_directions[$display_order] = $sort_dirs[$display_order];
