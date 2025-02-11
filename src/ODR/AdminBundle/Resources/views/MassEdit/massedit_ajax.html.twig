@@ -211,7 +211,7 @@ function initPage() {
     });
 
     // Tristate checkbox
-    $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
+    $("#MassEditForm .ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked
         var icon = $(this).children('i').first();
         var input = $(this).children('input').first();
@@ -247,7 +247,7 @@ function initPage() {
     });
 
     // tag Tristate checkbox
-    $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+    $("#MassEditForm .ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
         // Grab data about the tag being clicked
         var icon_div = $(this).children('i').first();
         var input_div = $(this).children('input').first();
