@@ -426,6 +426,86 @@ class DisplayController extends ODRCustomController
 
 
     /**
+     * Redirects a given datarecord UUID to the correct internal ID for viewAction()
+     *
+     * @param $datarecord_id
+     * @param $search_key
+     * @param $offset
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function viewuuidAction($datarecord_uuid, Request $request)
+    {
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                array( 'unique_id' => $datarecord_uuid)
+            );
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $grandparent_datarecord = $datarecord->getGrandparent();
+            if ( $grandparent_datarecord->getDeletedAt() != null )
+                throw new ODRNotFoundException('Datarecord');
+            $grandparent_datatype = $grandparent_datarecord->getDatatype();
+            if ( $grandparent_datatype->getDeletedAt() != null )
+                throw new ODRNotFoundException('Datarecord');
+
+            // ----------------------------------------
+            // First, ensure user is permitted to download
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canViewDatarecord($user, $grandparent_datarecord) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+            //
+            $baseurl = $this->generateUrl( 'odr_search', array( 'search_slug' => $grandparent_datatype->getSearchSlug()) );
+            $hash = $this->generateUrl( 'odr_display_view', array( 'datarecord_id' => $grandparent_datarecord->getId()) );
+
+            // Which type of redirect to use depends on whether this is coming from AJAX or not...
+            $params = $request->query->all();
+            if ( isset($params['odr_tab_id']) ) {
+                // This is an AJAX request  e.g.  //odr.io/admin#/view/record/{datarecord_uuid}
+                // Get the existing javascript to redirect
+                $return = array(
+                    'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
+                    't' => '',
+                    'd' => array(
+                        'url' => $hash
+                    )
+                );
+
+                $response = new Response(json_encode($return));
+                $response->headers->set('Content-Type', 'application/json');
+                return $response;
+            }
+            else {
+                // This is an HTML request  e.g.  //odr.io/view/record/{datarecord_uuid}
+                return $this->redirect($baseurl.'#'.$hash);
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xbfbe0a12;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
      * Starts the process of downloading a file from the server.
      *
      * @param integer $file_id The database id of the file to download.

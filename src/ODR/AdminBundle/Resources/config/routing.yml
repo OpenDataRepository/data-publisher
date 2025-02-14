@@ -1042,6 +1042,12 @@ odr_display_view:
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
+odr_display_uuid:
+    path:  /view/record/{datarecord_uuid}
+    defaults: { _controller: ODRAdminBundle:Display:viewuuid }
+    requirements:
+        datarecord_uuid: '^[a-z0-9]+$'
+
 odr_view_random:
     path:  /view/random/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Display:viewrandom }
