@@ -475,8 +475,13 @@ class DisplayController extends ODRCustomController
 
             // Which type of redirect to use depends on whether this is coming from AJAX or not...
             $params = $request->query->all();
-            if ( isset($params['odr_tab_id']) ) {
+            if ( isset($params['_']) ) {
                 // This is an AJAX request  e.g.  //odr.io/admin#/view/record/{datarecord_uuid}
+                // The '_' parameter is automatically appended by the ajax handler due to 'cache: false',
+                //  and will therefore always exist at this time.  The 'odr_tab_id' parameter won't
+                //  exist if this URL is entered in a new tab in the browser, as the hash suppresses
+                //  the search that would set it...
+
                 // Get the existing javascript to redirect
                 $return = array(
                     'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
@@ -492,7 +497,7 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // This is an HTML request  e.g.  //odr.io/view/record/{datarecord_uuid}
-                return $this->redirect($baseurl.'#'.$hash);
+                return $this->redirect($baseurl.'#'.$hash, 303);
             }
         }
         catch (\Exception $e) {
