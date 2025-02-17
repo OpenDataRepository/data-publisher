@@ -293,7 +293,7 @@ class DatarecordInfoService
         // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
            'SELECT
-               dr, partial drm.{id, publicDate, prevent_user_edits}, partial p_dr.{id}, partial gp_dr.{id},
+               dr, partial drm.{id, publicDate}, partial p_dr.{id}, partial gp_dr.{id}, partial gp_drm.{id, prevent_user_edits},
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
@@ -321,6 +321,7 @@ class DatarecordInfoService
             LEFT JOIN dr.updatedBy AS dr_ub
             LEFT JOIN dr.parent AS p_dr
             LEFT JOIN dr.grandparent AS gp_dr
+            LEFT JOIN gp_dr.dataRecordMeta AS gp_drm
 
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.grandparent AS gp_dt
@@ -423,6 +424,12 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
             $datarecord_data[$dr_num]['createdBy'] = UserUtility::cleanUserData( $dr['createdBy'] );
             $datarecord_data[$dr_num]['updatedBy'] = UserUtility::cleanUserData( $dr['updatedBy'] );
+
+            // Need to also flatten the grandparent's meta entry
+            $datarecord_data[$dr_num]['grandparent'] = array(
+                'id' => $dr['grandparent']['id'],
+                'prevent_user_edits' => $dr['grandparent']['dataRecordMeta'][0]['prevent_user_edits'],
+            );
 
             // Since only one datafield is allowed for a datatype's external_id_datafield, it doesn't
             //  need to be handled like a name/sort field

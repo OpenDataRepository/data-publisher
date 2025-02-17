@@ -85,7 +85,7 @@
      * @param {number} [target_datafield_id]
      */
     function initFileDownloadDialogForm(target_datarecord_id, target_datafield_id) {
-        $(".ODRTristateCheckbox").unbind('click').click(function() {
+        $("#ODRFileDownloadForm .ODRTristateCheckbox").unbind('click').click(function() {
             var icon_div = $(this).children('.fa').first();
 
             if ( $(this).hasClass('binary') ) {
