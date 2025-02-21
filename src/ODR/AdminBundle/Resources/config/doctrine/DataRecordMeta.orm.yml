@@ -18,6 +18,11 @@ ODR\AdminBundle\Entity\DataRecordMeta:
             nullable: false
             column: public_date
 
+        prevent_user_edits:
+            type: boolean
+            nullable: false
+            default: false
+
         created:
             type: datetime
             gedmo:

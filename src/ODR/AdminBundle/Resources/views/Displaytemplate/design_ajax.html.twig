@@ -3151,12 +3151,19 @@
         });
     }
 
+    var ReloadThemeElement_Flag = [];
+
     /**
      * Requests a new version of the HTML for an entire theme element from the server.
      *
      * @param {number} theme_element_id
      */
     function ReloadThemeElement(theme_element_id) {
+        // Prevent simultaneous reloads of the same theme element...
+        if ( ReloadThemeElement_Flag[theme_element_id] === undefined )
+            ReloadThemeElement_Flag[theme_element_id] = 1;
+        else
+            return false;
         // console.log('reloading theme_element: ' + theme_element_id);
 
         var url = '{{ path('odr_design_reload_theme_element', { 'theme_element_id': 0 }) }}';
@@ -3188,6 +3195,7 @@
                 else
                     $(element).prepend(data.d.html);
 
+                ReloadThemeElement_Flag[theme_element_id] = undefined;
                 initPage(false);
             },
             error: function(jqXHR, textStatus, errorThrown) {

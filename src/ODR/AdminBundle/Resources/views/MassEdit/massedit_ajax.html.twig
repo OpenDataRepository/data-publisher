@@ -129,7 +129,6 @@ function initPage() {
         var df_id = df_data[1];
 
         var inputs = [];
-        inputs.push( $('#Form_DataField_' + df_id).find('input.ODRField_clearAll').first() );
         inputs.push( $('#Form_DataField_' + df_id).find('input.ODRField').first() );
         inputs.push( $('#Form_DataField_' + df_id).find('textarea.ODRParagraphField').first() );
         inputs.push( $('#Form_DataField_' + df_id).find('input.ODRDatePicker').first() );
@@ -141,7 +140,7 @@ function initPage() {
         }
         else if ( $(this).hasClass('ODRBlockedField') ) {
             $.each(inputs, function (index, elem) {
-                $(elem).prop('disabled', true).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
+                $(elem).prop('disabled', true).attr('title', "The Database's administrator has blocked changes to this Datafield.");
             });
         }
     });
@@ -212,7 +211,7 @@ function initPage() {
     });
 
     // Tristate checkbox
-    $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
+    $("#MassEditForm .ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked
         var icon = $(this).children('i').first();
         var input = $(this).children('input').first();
@@ -248,7 +247,7 @@ function initPage() {
     });
 
     // tag Tristate checkbox
-    $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+    $("#MassEditForm .ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
         // Grab data about the tag being clicked
         var icon_div = $(this).children('i').first();
         var input_div = $(this).children('input').first();

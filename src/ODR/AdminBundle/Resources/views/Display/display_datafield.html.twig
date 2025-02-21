@@ -76,7 +76,7 @@
     <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
 
     {# Determine whether a render plugin needs to be run #}
-    {% set rendering_options = {'is_link': is_link, 'is_datatype_admin': false, 'context': 'display'} %}
+    {% set rendering_options = {'is_link': is_link, 'is_datatype_admin': is_datatype_admin, 'context': 'display'} %}
     {% set render_plugin_instance = null %}
     {% set can_execute_plugin = false %}
 

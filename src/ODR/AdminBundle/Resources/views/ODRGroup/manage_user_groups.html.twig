@@ -10,6 +10,8 @@
 
 {% include 'ODRAdminBundle:ODRGroup:manage_user_groups_table.html.twig' with {
     'datatypes': datatypes,
+    'dt_name_lookup': dt_name_lookup,
+
     'user_group_list': user_group_list,
     'user_datatype_group_membership': user_datatype_group_membership,
 
@@ -20,6 +22,8 @@
 
 {% include 'ODRAdminBundle:ODRGroup:manage_user_groups_table.html.twig' with {
     'datatypes': templates,
+    'dt_name_lookup': dt_name_lookup,
+
     'user_group_list': user_group_list,
     'user_datatype_group_membership': user_datatype_group_membership,
 

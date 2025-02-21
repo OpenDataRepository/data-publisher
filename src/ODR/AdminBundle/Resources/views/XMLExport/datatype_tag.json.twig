@@ -1,5 +1,4 @@
 {% set tag_meta = tag.tagMeta %}
-
 {# Store whether this tag has any child tags #}
 {% set has_children = false %}
 {% if tag.children is defined and tag.children is not empty %}
@@ -10,14 +9,18 @@
 {
     {% if version == 'v1' %}
     "tag_{{ tag.id }}": {
-        "name": "{{ tag_meta.tagName }}",
     {% elseif version == 'v2' %}
-        "{{ tag_meta.tagName }}": {
+    "{{ tag_meta.tagName }}": {
     {% elseif version == 'v3' %}
     {% endif %}
 
         "name": "{{ tag_meta.tagName }}",
         "id": "{{ tag.id }}",
+        {% if tag_meta.displayOrder is defined %}
+            "display_order": "{{ tag_meta.displayOrder }}",
+        {% else %}
+            "display_order": "0",
+        {% endif %}
         "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
         {% if tag.tag_parent_uuid is defined %}
             "tag_parent_uuid": {{ tag.tag_parent_uuid }},
@@ -35,6 +38,7 @@
         {% endfor %}
         ]
     {% endif %}
+
     {% if version == 'v1' or version == 'v2' %}
     }
     {% endif %}

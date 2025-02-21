@@ -18,7 +18,7 @@ function delay(time) {
 
 async function app() {
     browser = await puppeteer.launch({headless:'new'});
-    console.log('Clearing Cell Params Record Builder...');
+    console.log('Clearing Tube IMA References...');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {

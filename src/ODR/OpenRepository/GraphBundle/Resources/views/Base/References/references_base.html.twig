@@ -13,10 +13,7 @@
     {{ journal|raw }}
 {% endif %}
 {% if volume != '' %}
-    {{ volume|raw }},
-{% endif %}
-{% if issue != '' %}
-    issue {{ issue|raw }},
+    {{ volume|raw }}{% if issue != '' %}({{ issue|raw }}){% endif %},
 {% endif %}
 {% if book_title != '' %}
     {% if original_context != 'text' %}

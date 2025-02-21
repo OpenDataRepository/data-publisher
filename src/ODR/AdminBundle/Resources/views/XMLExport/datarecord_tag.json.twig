@@ -1,36 +1,16 @@
 {% set tag_meta = tag.tagMeta %}
 
-{# Store whether this tag has any child tags #}
-{% set has_children = false %}
-{% if tag.children is defined and tag.children is not empty %}
-    {% set has_children = true %}
-{% endif %}
-
-{# Store whether any children of this tag are selected #}
-{% set child_is_selected = 0 %}
-{% if child_tag_selections[ tag.id ] is defined %}
-    {% set child_is_selected = 1 %}
-{% endif %}
-
 {
     "id": {{ tag.id }},
     "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
-    "name": "{{ tag.tagName }}",
-    "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}",
-    "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",
-
-    {% if has_children and child_is_selected == 1 %}
-        "selected": 1,
-        "tags": [
-        {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
-                'tag_selections': tag_selections,
-                'child_tag_selections': child_tag_selections,
-                'tag': child_tag,
-            } %}
-        {% endfor %}
-        ]
-    {% else %}
-        "selected": 1
+    {% if tag.parent_tagUuid is defined %}
+        "parent_template_tag_uuid": {{ tag.parent_tagUuid|json_encode|raw }},
     {% endif %}
+    "name": "{{ tag.tagName }}",
+    {% if tag.userCreated %}
+        "user_created": "1",
+    {% endif %}
+    "tag_created": "{{ tag.created|date('Y-m-d H:i:s') }}",
+    "tag_selected": "{{ tag_selection.created|date('Y-m-d H:i:s') }}",
+    "selected": 1
 },

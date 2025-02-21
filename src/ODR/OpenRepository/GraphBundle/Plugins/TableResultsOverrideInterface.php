@@ -24,7 +24,7 @@ interface TableResultsOverrideInterface
 {
     /**
      * Returns an array of datafield values that TableThemeHelperService should display, instead of
-     * using the values in the datarecord.
+     * the raw values available in the cached datarecord array.
      *
      * @param array $render_plugin_instance
      * @param array $datarecord

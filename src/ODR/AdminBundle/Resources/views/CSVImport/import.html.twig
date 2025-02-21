@@ -139,26 +139,26 @@
 {% endif %}
 
 {% if presets != null %}
-    <div class="ODRValidationSystem ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
+    <div class="ODRCSVImportValidationResults ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="FRight"><i class="fa fa-lg fa-caret-up"></i></span>
             <a>Validation Results</a>
         </h3>
     </div>
 
-    <div class="ODRValidationSystem content" style="margin: 10px;">
+    <div class="content" style="margin: 10px;">
     {% if errors != null and errors|length > 0 %}
-        {% include 'ODRAdminBundle:CSVImport:errors.html.twig' with {'error_messages': errors} %}
+        {% include 'ODRAdminBundle:CSVImport:errors.html.twig' with {'errors': errors} %}
     {% else %}
         <span>No errors found</span>
     {% endif %}
+    </div>
 
     {% if allow_import == true %}
-        <div>
-            <button id="import_button" class="pure-button pure-button-primary" onclick="doImport();">Start Import</button>
-        </div>
-    {% endif %}
+    <div>
+        <button id="import_button" class="pure-button pure-button-primary" onclick="doImport();">Start Import</button>
     </div>
+    {% endif %}
 {% endif %}
 
  </div>
@@ -271,8 +271,8 @@
             }
         });
 
-        $("#FullCSVImportForm").children(".ODRCSVImportHeader").last().trigger('click');
-        $(".ODRCSVImportErrors").prev().trigger('click');
+        $(".ODRCSVImportValidationResults").trigger('click');
+        // $(".ODRCSVImportErrors").prev().trigger('click');    {# want tables to be hidden by default #}
 
         {% if resulting_tag_arrays|length > 0 %}
         setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}

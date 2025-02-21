@@ -125,9 +125,13 @@ class CSVExportController extends ODRCustomController
 
 
             // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
+            /** @var ODRUser|null $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            // Easier for the rest of ODR if anonymous users get converted into null
+            if ( $user === 'anon.' )
+                $user = null;
+
+            // Determine user privileges
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
@@ -304,16 +308,18 @@ class CSVExportController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to export from a master template');
 
 
-            $session = $request->getSession();
+            // Need two more variables for the beanstalk job
             $api_key = $this->container->getParameter('beanstalk_api_key');
-
             $url = $this->generateUrl('odr_csv_export_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
-
             // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
+            /** @var ODRUser|null $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            // Easier for the rest of ODR if anonymous users get converted into null
+            if ( $user === 'anon.' )
+                $user = null;
+
+            // Determine user privileges
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
@@ -443,6 +449,8 @@ class CSVExportController extends ODRCustomController
             // Grab datarecord list and search key from user session...didn't use the cache because
             //  that could've been cleared and would cause this to work on a different subset of
             //  datarecords
+            $session = $request->getSession();
+
             if ( !$session->has('csv_export_datarecord_lists') )
                 throw new ODRBadRequestException('Missing CSVExport session variable');
             $list = $session->get('csv_export_datarecord_lists');
@@ -470,15 +478,13 @@ class CSVExportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Get/create an entity to track the progress of this datatype recache
-            $job_type = 'csv_export';
-            $target_entity = 'datatype_'.$datatype_id;
+            // Get/create an entity to track the progress of this export job
             $additional_data = array('description' => 'Exporting data from DataType '.$datatype_id);
             $restrictions = '';
             $total = count($grandparent_datarecord_list);
 
             $tracked_job = new TrackedJob();
-            $tracked_job->setTargetEntity($target_entity);
+            $tracked_job->setTargetEntity('datatype_'.$datatype_id);
             $tracked_job->setJobType('csv_export');
             $tracked_job->setAdditionalData($additional_data);
             $tracked_job->setRestrictions($restrictions);
@@ -490,7 +496,7 @@ class CSVExportController extends ODRCustomController
             $tracked_job->setFailed(false);
 
             $tracked_job->setCreated(new \DateTime());
-            $tracked_job->setCreatedBy($user);
+            $tracked_job->setCreatedBy($user);    // $user could be null at this point
 
             $em->persist($tracked_job);
             $em->flush();
@@ -507,21 +513,23 @@ class CSVExportController extends ODRCustomController
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
             $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    'tracked_job_id' => $tracked_job_id,
-                    'user_id' => $user->getId(),
+            $payload = array(
+                'tracked_job_id' => $tracked_job_id,
+                'user_id' => 0,
 
-                    'delimiter' => $delimiter,
+                'delimiter' => $delimiter,
 
-                    'datatype_id' => $datatype_id,
-                    'datafields' => $datafields,
+                'datatype_id' => $datatype_id,
+                'datafields' => $datafields,
 
-                    'redis_prefix' => $redis_prefix,    // debug purposes only
-                    'url' => $url,
-                    'api_key' => $api_key,
-                )
+                'redis_prefix' => $redis_prefix,    // debug purposes only
+                'url' => $url,
+                'api_key' => $api_key,
             );
+            if ( !is_null($user) )
+                $payload['user_id'] = $user->getId();
+
+            $payload = json_encode($payload);
 //            $logger->debug('CSVExportController::newCsvExportStart() tracked_job_id: '.$tracked_job_id.', payload size: '.strlen($payload));
             $pheanstalk->useTube('csv_export_finalize_express')->put($payload, $priority, 0);
 
@@ -548,30 +556,32 @@ class CSVExportController extends ODRCustomController
                     || $counter === count($grandparent_datarecord_list)
                 ) {
                     $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            'tracked_job_id' => $tracked_job_id,
-                            'user_id' => $user->getId(),
+                    $payload = array(
+                        'tracked_job_id' => $tracked_job_id,
+                        'user_id' => 0,
 
-                            'delimiter' => $delimiter,
-                            'file_image_delimiter' => $file_image_delimiter,
-                            'radio_delimiter' => $radio_delimiter,
-                            'tag_delimiter' => $tag_delimiter,
-                            'tag_hierarchy_delimiter' => $tag_hierarchy_delimiter,
-                            'job_order' => $job_order,
+                        'delimiter' => $delimiter,
+                        'file_image_delimiter' => $file_image_delimiter,
+                        'radio_delimiter' => $radio_delimiter,
+                        'tag_delimiter' => $tag_delimiter,
+                        'tag_hierarchy_delimiter' => $tag_hierarchy_delimiter,
+                        'job_order' => $job_order,
 
-                            'datatype_id' => $datatype_id,
-                            // top-level datarecord id
-                            'datarecord_id' => $datarecord_ids,
-                            // list of all datarecords related to $datarecord_id that matched the search
-                            'complete_datarecord_list' => $complete_datarecord_list_array,
-                            'datafields' => $datafields,
+                        'datatype_id' => $datatype_id,
+                        // top-level datarecord id
+                        'datarecord_id' => $datarecord_ids,
+                        // list of all datarecords related to $datarecord_id that matched the search
+                        'complete_datarecord_list' => $complete_datarecord_list_array,
+                        'datafields' => $datafields,
 
-                            'redis_prefix' => $redis_prefix,    // debug purposes only
-                            'url' => $url,
-                            'api_key' => $api_key,
-                        )
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
+                        'url' => $url,
+                        'api_key' => $api_key,
                     );
+                    if ( !is_null($user) )
+                        $payload['user_id'] = $user->getId();
+                    $payload = json_encode($payload);
+
 //                    $logger->debug('CSVExportController::newCsvExportStart() tracked_job_id: '.$tracked_job_id.', payload size: '.strlen($payload));
                     $pheanstalk->useTube('csv_export_worker_express')->put($payload, $priority, 0, 300);    // try to use a 5 minute ttl
 
@@ -642,6 +652,11 @@ class CSVExportController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // TODO - create some method to legitimately download csv's created by other users?
+            $user_id = 0;
+            if ( $user !== 'anon.' )
+                $user_id = $user->getId();
+
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -651,19 +666,15 @@ class CSVExportController extends ODRCustomController
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to export from a master template');
 
-            // TODO Is there some reason user_id is passed rather than retrieved from the user object?
-            $user_id = $user->getId();
-
             $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
 
-
-            // Mark the job deleted
-            $em->remove($tracked_job);
-            $em->flush();
-
             $handle = fopen($csv_export_path.$filename, 'r');
             if ($handle !== false) {
+                // Mark the job as deleted
+                $em->remove($tracked_job);
+                $em->flush();
+
                 // Set up a response to send the file back
                 $response = new StreamedResponse();
 

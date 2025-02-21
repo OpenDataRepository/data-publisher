@@ -294,7 +294,7 @@ class DatarecordInfoService
         // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
            'SELECT
-               dr, partial drm.{id, publicDate}, partial p_dr.{id}, partial gp_dr.{id},
+               dr, partial drm.{id, publicDate}, partial p_dr.{id}, partial gp_dr.{id}, partial gp_drm.{id, prevent_user_edits},
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
@@ -323,6 +323,7 @@ class DatarecordInfoService
             LEFT JOIN dr.updatedBy AS dr_ub
             LEFT JOIN dr.parent AS p_dr
             LEFT JOIN dr.grandparent AS gp_dr
+            LEFT JOIN gp_dr.dataRecordMeta AS gp_drm
 
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.grandparent AS gp_dt
@@ -427,6 +428,12 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
             $datarecord_data[$dr_num]['createdBy'] = UserUtility::cleanUserData( $dr['createdBy'] );
             $datarecord_data[$dr_num]['updatedBy'] = UserUtility::cleanUserData( $dr['updatedBy'] );
+
+            // Need to also flatten the grandparent's meta entry
+            $datarecord_data[$dr_num]['grandparent'] = array(
+                'id' => $dr['grandparent']['id'],
+                'prevent_user_edits' => $dr['grandparent']['dataRecordMeta'][0]['prevent_user_edits'],
+            );
 
             // Since only one datafield is allowed for a datatype's external_id_datafield, it doesn't
             //  need to be handled like a name/sort field
@@ -638,13 +645,12 @@ class DatarecordInfoService
                     foreach ($drf['tagSelection'] as $ts_num => $ts) {
                         $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
 
-                        if ( $ts['tag']['userCreated'] > 0 ) {
-                            // TODO - shouldn't this 'tag_parent_uuid' entry always be in the array?
-                            // TODO - ...and in the tag data, not the tagSelection data?
-                            $tag_uuid = $ts['tag']['tagUuid'];
-                            if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
-                                $ts['tag_parent_uuid'] = $inversed_tag_uuid_tree[$tag_uuid];
-                        }
+                        // Might as well store the parent tag uuid here, if it exists...
+                        $tag_uuid = $ts['tag']['tagUuid'];
+                        if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
+                            $ts['tag']['parent_tagUuid'] = $inversed_tag_uuid_tree[$tag_uuid];
+                        // Note that you're "supposed" to get this from the cached datatype array,
+                        //  but it's easier for the API to do it this way
 
                         $t_id = $ts['tag']['id'];
                         $new_ts_array[$t_id] = $ts;
@@ -729,11 +735,14 @@ class DatarecordInfoService
             // Don't want to keep this entry
             unset( $result['dataRecordFields'] );
 
-            if ( !isset($radio_selections[$dr_id]) )
-                $radio_selections[$dr_id] = array();
-            if ( !isset($radio_selections[$dr_id][$df_id]) )
-                $radio_selections[$dr_id][$df_id] = array();
-            $radio_selections[$dr_id][$df_id][$ro_id] = $result;
+            // Only want selected options in the array
+            if ( $result['selected'] == 1 ) {
+                if ( !isset($radio_selections[$dr_id]) )
+                    $radio_selections[$dr_id] = array();
+                if ( !isset($radio_selections[$dr_id][$df_id]) )
+                    $radio_selections[$dr_id][$df_id] = array();
+                $radio_selections[$dr_id][$df_id][$ro_id] = $result;
+            }
         }
 
         return $radio_selections;
@@ -776,11 +785,14 @@ class DatarecordInfoService
             // Don't want to keep this entry
             unset( $result['dataRecordFields'] );
 
-            if ( !isset($tag_selections[$dr_id]) )
-                $tag_selections[$dr_id] = array();
-            if ( !isset($tag_selections[$dr_id][$df_id]) )
-                $tag_selections[$dr_id][$df_id] = array();
-            $tag_selections[$dr_id][$df_id][$t_id] = $result;
+            // Only want selected tags in the cached array
+            if ( $result['selected'] == 1 ) {
+                if ( !isset($tag_selections[$dr_id]) )
+                    $tag_selections[$dr_id] = array();
+                if ( !isset($tag_selections[$dr_id][$df_id]) )
+                    $tag_selections[$dr_id][$df_id] = array();
+                $tag_selections[$dr_id][$df_id][$t_id] = $result;
+            }
         }
 
         return $tag_selections;

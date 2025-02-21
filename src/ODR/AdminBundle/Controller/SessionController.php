@@ -60,6 +60,9 @@ class SessionController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $cookie_key = '';
+        $cookie_value = '';
+
         try {
             // Grab necessary objects
             /** @var ODRTabHelperService $odr_tab_service */
@@ -72,8 +75,19 @@ class SessionController extends ODRCustomController
                 $odr_tab_id = $params['odr_tab_id'];
 
             if ($odr_tab_id !== '') {
+                // Need to store this both in the user's session and a cookie
+                $length = intval($length);
+                $tab_data = $odr_tab_service->getTabData($odr_tab_id);
+
                 // Store the change to this tab's page_length in the session
                 $odr_tab_service->setPageLength($odr_tab_id, $length);
+
+                // Also update the cookie value
+                $dt_id = $tab_data['dt_id'];
+                $cookie_key = 'datatype_'.$dt_id.'_page_length';
+                $cookie_value = $length;
+
+                // The value is stored back in the cookie after the response is created below
             }
         }
         catch (\Exception $e) {
@@ -86,6 +100,7 @@ class SessionController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
+        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
         return $response;
     }
 
@@ -111,8 +126,8 @@ class SessionController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        $key = '';
-        $value = '';
+        $cookie_key = '';
+        $cookie_value = '';
 
         try {
             // Pull the tab id from the current request
@@ -135,18 +150,18 @@ class SessionController extends ODRCustomController
 
 
             // Load the current value of the cookie
-            $key = 'datatype_'.$datatype->getId().'_editable_only';
+            $cookie_key = 'datatype_'.$datatype->getId().'_editable_only';
 
             // Can't use boolean here it seems
             $display = 1;
-            if ( $cookies->has($key) )
-                $display = intval( $cookies->get($key) );
+            if ( $cookies->has($cookie_key) )
+                $display = intval( $cookies->get($cookie_key) );
 
             // Invert the value stored
             if ($display === 1)
-                $value = 0;
+                $cookie_value = 0;
             else
-                $value = 1;
+                $cookie_value = 1;
 
             // The value is stored back in the cookie after the response is created below
         }
@@ -160,7 +175,77 @@ class SessionController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->setCookie(new Cookie($key, $value));
+        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+        return $response;
+    }
+
+
+    /**
+     * Edit mode typically respects whether a field wants to be hidden or not, but there are times
+     * when you kind of want to be able to see everything regardless.  Because this also needs to
+     * affect InlineLink, it's easiest to use a cookie to store/transfer the preference.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function editshowsallAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $cookie_key = '';
+        $cookie_value = '';
+
+        try {
+            // Pull the tab id from the current request
+            $post = $request->request->all();
+            if ( !isset($post['odr_tab_id']) || !isset($post['datatype_id']) )
+                throw new ODRBadRequestException('invalid form');
+
+            $odr_tab_id = $post['odr_tab_id'];
+            $datatype_id = $post['datatype_id'];
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $cookies = $request->cookies;
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ( is_null($datatype) )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // Load the current value of the cookie
+            $cookie_key = 'datatype_'.$datatype->getId().'_edit_shows_all';
+
+            // Can't use boolean here it seems
+            $display = 0;
+            if ( $cookies->has($cookie_key) )
+                $display = intval( $cookies->get($cookie_key) );
+
+            // Invert the value stored
+            if ($display === 1)
+                $cookie_value = 0;
+            else
+                $cookie_value = 1;
+
+            // The value is stored back in the cookie after the response is created below
+        }
+        catch (\Exception $e) {
+            $source = 0xe4f8d574;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
         return $response;
     }
 

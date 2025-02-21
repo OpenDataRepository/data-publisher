@@ -183,6 +183,9 @@ class ValidUtility
      */
     static public function isValidDatetime($value, $format = 'Y-m-d')
     {
+        if ( is_null($value) || $value === '' || $value === '0000-00-00' || $value === '0000-00-00 00:00:00' )
+            return true;
+
         $date = \DateTime::createFromFormat($format, $value);
         if ( $date && $date->format($format) === $value )
             return true;

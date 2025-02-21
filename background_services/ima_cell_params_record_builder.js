@@ -66,8 +66,8 @@ async function app() {
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
                         "tag_data":"web\\/uploads\\/master_tag_data.js",
-                        "ima_url":"\\/\\/www.rruff.net\\/odr_rruff",
-                        "cell_params_url":"\\/\\/www.rruff.net\\/odr_rruff"
+                        "ima_url":"\\/\\/BASE_URL\\/odr_rruff",
+                        "cell_params_url":"\\/\\/BASE_URL\\/odr_rruff"
                      }
                      */
 
@@ -127,10 +127,12 @@ async function app() {
                             && ima_record.record_uuid !== undefined
                             && await findValue(cp_map.a, record_data) !== ''
                     ) {
-                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = new Array()};'
+
+                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = {} };'
+                            //content += 'if(cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' +  ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
                             content += 'cellparams[\'' +
                                 ima_record.record_uuid +
-                                '\'].push("' +
+                                '\'][\'' + record_data['record_uuid'] +'\'] = "' +
                                 // Source
                                 'J|' +
                                 // Cell Parameter ID
@@ -177,7 +179,7 @@ async function app() {
                                 Buffer.from(
                                     await findValue(cp_map.status_notes, record_data)
                                 ).toString('base64') +
-                            '");\n';
+                            '";\n';
                         }
                     }
                     /*
@@ -190,17 +192,43 @@ async function app() {
                             record_data['records_' + pd_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
-                        content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
+
+                        // "_record_metadata": {
+                        // "_create_date": "2016-05-12 13:23:56",
+                        // "_update_date": "2024-02-16 07:15:36",
+                        // "_create_auth": "Tommy Yong",
+                        // "_public_date": "2200-01-01 00:00:00"
+
+                        /*
+                          If we have any ima record here, it means a RRUFF
+                          record exists.
+                         */
+                        if(
+                            ima_record !== undefined
+                            && ima_record.record_uuid !== undefined
+                            && record_data._record_metadata !== undefined
+                            && record_data._record_metadata._public_date !== undefined
+                            && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
+                        ) {
+                            // Setting to true can create or overwrite this records status
+                            content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
+                        }
+                        // TODO Add RRUFF ID to "rruff_record_exists" and
+                        // ensure all RRUFF records get that value even if they don't
+                        // have a PD alpha value.
                         if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
                             && await findValue(pd_map.a, record_data) !== ''
+                            && record_data._record_metadata._public_date !== undefined
+                            && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
                         ) {
-                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = new Array()};'
+                            content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = {} };'
+                            // content += 'if(cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
                             content += 'cellparams[\'' +
                                 ima_record.record_uuid +
                                 // await findValue(pd_map.mineral_name, record_data) +
-                                '\'].push("' +
+                                '\'][\'' + record_data['record_uuid'] +'\'] = "' +
                                 // Source
                                 'R|' +
                                 // Cell Parameter ID
@@ -247,9 +275,9 @@ async function app() {
                                 await findValue('', record_data) + '|' +
                                 // Status Notes Base64
                                 Buffer.from(
-                                    await findValue(pd_map.status_notes, record_data)
+                                    await findValue(pd_map.rruff_locality, record_data)
                                 ).toString('base64') +
-                                '");\n';
+                                '";\n';
                         }
                     }
                     /*
@@ -260,10 +288,11 @@ async function app() {
                         if(await findValue(amcsd_map.a, record_data) !== '') {
                             let amcsd_mineral_name = (await findValue(amcsd_map.mineral_name, record_data)).toLowerCase();
 
-                            content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = new Array()};';
+                            content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = {} };';
+                            // content += 'if(cellparams[\'' + amcsd_mineral_name + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
                             content += 'cellparams[\'' +
                                 amcsd_mineral_name +
-                                '\'].push("' +
+                                '\'][\'' + record_data['record_uuid'] +'\'] = "' +
                                 // Source
                                 'A|' +
                                 // Cell Parameter ID
@@ -310,7 +339,7 @@ async function app() {
                                 Buffer.from(
                                     await findValue(amcsd_map.status_notes, record_data)
                                 ).toString('base64') +
-                            '");\n';
+                            '";\n';
                         }
                     }
 
@@ -347,7 +376,7 @@ async function app() {
                 }
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
-                    // console.log('Error occurred: ', e);
+                    console.log('Error occurred: ', e);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         // console.log('Deleted (' + Date.now() + '): ' , job);
                         console.log('Deleted (' + Date.now() + '): ' , job.id);
@@ -403,10 +432,13 @@ async function buildReference(data_map, record) {
     // console.log('Target UUID: ', data_map.reference_uuid)
     if(reference_record !== null) {
         // console.log('Reference Found');
-        let ref = await findValue(data_map.cite_text_journal, reference_record) + ' ' +
-            await findValue(data_map.cite_text_volume, reference_record) + ' (' +
-            await findValue(data_map.cite_text_year, reference_record) + ') ' +
-            await findValue(data_map.cite_text_pages, reference_record);
+        let ref = await findValue(data_map.cite_text_journal, reference_record) + ' ';
+        ref += await findValue(data_map.cite_text_volume, reference_record) + ' ';
+        let cite_text_year =  await findValue(data_map.cite_text_year, reference_record);
+        if(cite_text_year !== undefined && cite_text_year.length > 0) {
+            ref += ' (' + cite_text_year + ') ';
+        }
+        ref += await findValue(data_map.cite_text_pages, reference_record);
 
         // console.log('REF: ' + ref);
         return Buffer.from(ref).toString('base64');

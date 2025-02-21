@@ -453,7 +453,7 @@ class CSVImportController extends ODRCustomController
             $csv_filename = $session->get('csv_file');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist 5');
+                throw new ODRException('Target CSV File does not exist');
 
 
             // Ensure the delimiter is valid before attempting to read the file...
@@ -1418,7 +1418,7 @@ class CSVImportController extends ODRCustomController
             $delimiter = $session->get('csv_delimiter');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist 4');
+                throw new ODRException('Target CSV File does not exist');
 
             // Don't need to check whether the file needs to be rewritten
 
@@ -1541,6 +1541,7 @@ class CSVImportController extends ODRCustomController
                             // Encountered duplicate value in the csv file
                             $errors[] = array(
                                 'level' => 'Error',
+                                'category' => 'Duplicate filenames',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => 'The field "'.$file_headers[$column_num].'" wants to import the file "'.$filename.'", but that file was already listed on line '.$unique_filenames[$value],
@@ -1564,6 +1565,7 @@ class CSVImportController extends ODRCustomController
 //print_r($error);
                 $tracked_error = new TrackedError();
                 $tracked_error->setErrorLevel( $error['level'] );
+                $tracked_error->setErrorCategory( $error['category'] );
                 $tracked_error->setErrorBody( json_encode($error['body']) );
                 $tracked_error->setTrackedJob( $tracked_job );
                 $tracked_error->setCreatedBy( $user );
@@ -1785,6 +1787,7 @@ class CSVImportController extends ODRCustomController
                 if ($dr == null) {
                     $errors[] = array(
                         'level' => 'Warning',
+                        'category' => 'Missing datarecords',
                         'body' => array(
                             'line_num' => $line_num,
                             'message' => 'The value "'.$parent_external_id_value.'" in column "'.$column_names[$parent_external_id_column].'" is supposed to match the external ID of a parent Datarecord in "'.$parent_datatype->getShortName().'", but no such Datarecord exists...this row will be ignored',
@@ -1861,6 +1864,7 @@ class CSVImportController extends ODRCustomController
                     if ($datarecord_id == null) {
                         $errors[] = array(
                             'level' => 'Error',
+                            'category' => 'Missing datarecords',
                             'body' => array(
                                 'line_num' => $line_num,
                                 'message' => 'The value "'.$value.'" in column "'.$column_names[$remote_external_id_column].'" is supposed to match the external ID of a Datarecord in the Datatype "'.$datatype->getShortName().'", but no such Datarecord exists',
@@ -1884,6 +1888,7 @@ class CSVImportController extends ODRCustomController
                     // Don't think this can even happen, but don't continue if it does
                     $errors[] = array(
                         'level' => 'Error',
+                        'category' => 'Unrecoverable CSVImport problems',
                         'body' => array(
                             'line_num' => $line_num,
                             'message' => 'Parameter mismatch...somehow not importing into anything (top-level/child/linked datatype)??',
@@ -1900,6 +1905,7 @@ class CSVImportController extends ODRCustomController
                 if ($datatree == null) {
                     $errors[] = array(
                         'level' => 'Error',
+                        'category' => 'Unrecoverable CSVImport problems',
                         'body' => array(
                             'line_num' => $line_num,
                             'message' => 'Parameter mismatch...datatree entry does not exist??',
@@ -2003,13 +2009,14 @@ class CSVImportController extends ODRCustomController
 
                                 if ( !file_exists($upload_dir.$filename) ) {
                                     // File/Image does not exist in the upload directory
-                                    // $errors[] = array(
-                                        // 'level' => 'Error',
-                                        // 'body' => array(
-                                            // 'line_num' => $line_num,
-                                            // 'message' => 'Column "'.$column_names[$column_num].'" references a '.$typeclass.' "'.$filename.'", but that '.$typeclass.' has not been uploaded to the server.',
-                                        // )
-                                    // );
+                                    $errors[] = array(
+                                        'level' => 'Warning',
+                                        'category' => 'Missing filenames',
+                                        'body' => array(
+                                            'line_num' => $line_num,
+                                            'message' => 'Column "'.$column_names[$column_num].'" references a '.$typeclass.' "'.$filename.'", but that '.$typeclass.' has not been uploaded to the server.',
+                                        )
+                                    );
                                 }
                                 else {
                                     // File/Image exists, ensure it has a valid mimetype
@@ -2020,6 +2027,7 @@ class CSVImportController extends ODRCustomController
                                     if ( count($validation_params['mimeTypes']) > 0 && !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
                                         $errors[] = array(
                                             'level' => 'Error',
+                                            'category' => 'Invalid upload files',
                                             'body' => array(
                                                 'line_num' => $line_num,
                                                 'message' => 'The '.$typeclass.' "'.$filename.'" listed in column "'.$column_names[$column_num].'" is not a valid file for the '.$typeclass.' fieldtype.',
@@ -2033,6 +2041,7 @@ class CSVImportController extends ODRCustomController
                             if ( !$allow_multiple_uploads && $total_file_count > 1 ) {
                                 $errors[] = array(
                                     'level' => 'Error',
+                                    'category' => 'Database constraint violations',
                                     'body' => array(
                                         'line_num' => $line_num,
                                         'message' => 'The column "'.$column_names[$column_num].'" is marked as only allowing a single '.$typeclass.' upload, but it would have '.$total_file_count.' '.$typeclass.'s uploaded after this CSV Import.',
@@ -2047,6 +2056,7 @@ class CSVImportController extends ODRCustomController
                             // Warn about invalid characters in an integer conversion
                             $errors[] = array(
                                 'level' => 'Warning',
+                                'category' => 'Invalid values',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid integer value, and will not be imported'
@@ -2058,6 +2068,7 @@ class CSVImportController extends ODRCustomController
                         if ( !ValidUtility::isValidDecimal($value) ) {
                             $errors[] = array(
                                 'level' => 'Warning',
+                                'category' => 'Invalid values',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid decimal value, and will not be imported'
@@ -2072,6 +2083,7 @@ class CSVImportController extends ODRCustomController
                         if ( preg_match($pattern, $value) == 1 ) {
                             $errors[] = array(
                                 'level' => 'Error',
+                                'category' => 'Invalid values',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value',
@@ -2085,6 +2097,7 @@ class CSVImportController extends ODRCustomController
                             catch (\Exception $e) {
                                 $errors[] = array(
                                     'level' => 'Error',
+                                    'category' => 'Invalid values',
                                     'body' => array(
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value',
@@ -2098,6 +2111,7 @@ class CSVImportController extends ODRCustomController
                         if ( !ValidUtility::isValidShortVarchar($value) ) {
                             $errors[] = array(
                                 'level' => 'Warning',
+                                'category' => 'Invalid values',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store up to 32 characters',
@@ -2109,6 +2123,7 @@ class CSVImportController extends ODRCustomController
                         if ( !ValidUtility::isValidMediumVarchar($value) ) {
                             $errors[] = array(
                                 'level' => 'Warning',
+                                'category' => 'Invalid values',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store up to 64 characters',
@@ -2120,6 +2135,7 @@ class CSVImportController extends ODRCustomController
                         if ( !ValidUtility::isValidLongVarchar($value) ) {
                             $errors[] = array(
                                 'level' => 'Warning',
+                                'category' => 'Invalid values',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store up to 255 characters',
@@ -2128,7 +2144,7 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
                     case "LongText":
-                        /* do nothing? */
+                        /* nothing to validate? */
                         break;
 
                     case "Radio":
@@ -2149,6 +2165,7 @@ class CSVImportController extends ODRCustomController
                                 if ( $option_length == 0 ) {
                                     $errors[] = array(
                                         'level' => 'Warning',
+                                        'category' => 'Invalid radio option names',
                                         'body' => array(
                                             'line_num' => $line_num,
                                             'message' => 'Column "'.$column_names[$column_num].'" would create a blank radio option during import...',
@@ -2158,6 +2175,7 @@ class CSVImportController extends ODRCustomController
                                 else if ( $option_length > 255 ) {
                                     $errors[] = array(
                                         'level' => 'Warning',
+                                        'category' => 'Invalid radio option names',
                                         'body' => array(
                                             'line_num' => $line_num,
                                             'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
@@ -2171,6 +2189,7 @@ class CSVImportController extends ODRCustomController
                             if ($length > 255) {
                                 $errors[] = array(
                                     'level' => 'Warning',
+                                    'category' => 'Invalid radio option names',
                                     'body' => array(
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
@@ -2211,6 +2230,7 @@ class CSVImportController extends ODRCustomController
                             if ( trim($tag_name) === '' ) {
                                 $errors[] = array(
                                     'level' => 'Warning',
+                                    'category' => 'Invalid tag names',
                                     'body' => array(
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" would create a blank tag during import...',
@@ -2220,6 +2240,7 @@ class CSVImportController extends ODRCustomController
                             else if ( mb_strlen($tag_name, "utf-8") > 255 ) {
                                 $errors[] = array(
                                     'level' => 'Warning',
+                                    'category' => 'Invalid tag names',
                                     'body' => array(
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" has a Tag that is '.$length.' characters long, but the maximum length allowed is 255 characters',
@@ -2251,6 +2272,7 @@ class CSVImportController extends ODRCustomController
 //print_r($error);
                 $tracked_error = new TrackedError();
                 $tracked_error->setErrorLevel( $error['level'] );
+                $tracked_error->setErrorCategory( $error['category'] );
                 $tracked_error->setErrorBody( json_encode($error['body']) );
                 $tracked_error->setTrackedJob( $repo_tracked_job->find($tracked_job_id) );
                 $tracked_error->setCreatedBy( $user );
@@ -2508,7 +2530,7 @@ class CSVImportController extends ODRCustomController
             $delimiter = $presets['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist 3');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2596,12 +2618,26 @@ class CSVImportController extends ODRCustomController
             // TODO - since the complete tag structure is known by now, locate attempts to select mid-level tags?
             // TODO - ...attempts to do so should probably create a warning
 
+            // Since twig is so bad with building arrays, organize the errors/warings here
+            $messages = array();
+            foreach ($error_messages as $message) {
+                $level = $message['error_level'];
+                $category = $message['error_category'];
+                $body = $message['error_body'];
+
+                if ( !isset($messages[$level]) )
+                    $messages[$level] = array();
+                if ( !isset($messages[$level][$category]) )
+                    $messages[$level][$category] = array();
+
+                $messages[$level][$category][] = $body;
+            }
+
             // If some sort of serious error encountered during validation, prevent importing
             $allow_import = true;
-            foreach ($error_messages as $message) {
-                if ( $message['error_level'] == 'Error' )
-                    $allow_import = false;
-            }
+            if ( isset($messages['Error']) )
+                $allow_import = false;
+
 
 //exit( '<pre>'.print_r($error_messages, true).'</pre>' );
 //exit( '<pre>'.print_r($presets, true).'</pre>' );
@@ -2617,7 +2653,7 @@ class CSVImportController extends ODRCustomController
                         'upload_type' => '',
 
                         'presets' => $presets,
-                        'errors' => $error_messages,
+                        'errors' => $messages,
 
                         'datatree_array' => $datatree_array,
 
@@ -2773,7 +2809,7 @@ class CSVImportController extends ODRCustomController
             $delimiter = $job_data['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist 2');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2883,7 +2919,7 @@ class CSVImportController extends ODRCustomController
                     //  it comes to an external id field.  The property should be enforced on all
                     //  other fields, however
                     if ( $datafield->getPreventUserEdits() && !$is_external_id_field )
-                        throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
+                        throw new ODRForbiddenException("The Database's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
                 }
                 else {  // $datafield_id == 'new'
                     // Verify that the requested fieldtype for the new datafield exists
@@ -3098,7 +3134,7 @@ print_r($new_mapping);
             $delimiter = $job_data['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new ODRException('Target CSV File does not exist 1');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -3736,9 +3772,9 @@ exit();
                                 if ($csv_filename === '')
                                     continue;
 
-                                // If file doesn't exist, continue
-                                if(!file_exists($storage_filepath.'/'.$csv_filename)) {
-                                    print $storage_filepath.'/'.$csv_filename."<br>\n";
+                                // If file/image doesn't exist, continue
+                                if ( !file_exists($storage_filepath.'/'.$csv_filename) ) {
+                                    $status .= '      ...the '.$typeclass.' "'.$storage_filepath.'/'.$csv_filename.'" does not exist, skipping'."\n";
                                     continue;
                                 }
 

@@ -591,6 +591,16 @@ class DataRecord
     }
 
     /**
+     * Get preventUserEdits.
+     *
+     * @return bool
+     */
+    public function getPreventUserEdits()
+    {
+        return $this->getDataRecordMeta()->getPreventUserEdits();
+    }
+
+    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $boolean;

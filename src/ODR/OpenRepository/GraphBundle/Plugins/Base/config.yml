@@ -82,6 +82,11 @@ services:
             $dri_service: '@odr.datarecord_info_service'
             $templating: '@templating'
 
+    odr_plugins.base.url_button:
+        class: '%odr_plugin_base_classpath%\Base\URLButtonPlugin'
+        arguments:
+            $templating: '@templating'
+
     odr_plugins.base.currency:
         class: '%odr_plugin_base_classpath%\Base\CurrencyPlugin'
         arguments:

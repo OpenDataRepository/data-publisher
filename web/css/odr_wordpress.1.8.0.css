@@ -20,7 +20,7 @@ a {
 }
 
 #odr-main-content-wrapper {
-    margin-top: 100px;
+    margin-top: 76px;
 }
 
 /* from PURE buttons-core.css */
@@ -284,8 +284,12 @@ Forms Core
 }
 /* ===============  forms-responsive.css =================*/
 @media only screen and (max-width : 480px) {
+    #ODRSearchSidebar {
+        margin-left: -10px !important;
+    }
+
     .pure-skin-odr .pure-form button[type="submit"] {
-    margin: 0.7em 0 0;
+        margin: 0.7em 0 0;
     }
 
     .pure-skin-odr .pure-form input[type="text"],
@@ -3955,7 +3959,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     padding-right: 14px;
     padding-left: 14px;
     position: relative;
-    top: 8px;
+    float: right;
+    margin-right: 10px;
+    top: 0;
 }
 
 .ODRJobList_header {
@@ -4548,11 +4554,11 @@ i {
 }
 
 #ODRMessages {
-    z-index: 99;
+    /* z-index: 99; NAS 20250108 */
 }
 
 #ODRLoginLink {
-    z-index: 99;
+    /* z-index: 99; NAS 20250107 */
 }
 
 #ODRSearchSidebar {
@@ -5513,4 +5519,10 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 .ODRTrigger_headerUl {
     margin-top: 20px;
+}
+
+.ODRURLButtonPlugin_div {
+    position: relative;
+    width: 99%;
+    top: 0.5em;
 }

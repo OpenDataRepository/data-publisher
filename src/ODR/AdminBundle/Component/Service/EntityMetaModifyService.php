@@ -649,6 +649,7 @@ class EntityMetaModifyService
         $changes_made = false;
         $existing_values = array(
             'publicDate' => $old_meta_entry->getPublicDate(),
+            'prevent_user_edits' => $old_meta_entry->getPreventUserEdits(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -683,6 +684,8 @@ class EntityMetaModifyService
         // Set any new properties
         if ( isset($properties['publicDate']) )
             $new_datarecord_meta->setPublicDate( $properties['publicDate'] );
+        if ( isset($properties['prevent_user_edits']) )
+            $new_datarecord_meta->setPreventUserEdits( $properties['prevent_user_edits'] );
 
         $new_datarecord_meta->setUpdated($created);
         $new_datarecord_meta->setUpdatedBy($user);

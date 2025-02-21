@@ -254,8 +254,8 @@ class JobController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($user === 'anon.')
-                throw new ODRForbiddenException();
+//            if ($user === 'anon.')
+//                throw new ODRForbiddenException();
 
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 

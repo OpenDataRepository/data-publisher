@@ -268,7 +268,6 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $derivation_problems = self::findDerivationProblems($relevant_fields);
 
                 // Can't use array_merge() since that destroys the existing keys
-                $problem_fields = array();
                 foreach ($derivation_problems as $df_id => $problem)
                     $problem_fields[$df_id] = $problem;
             }
@@ -304,12 +303,13 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         'target_datarecord_id' => $datarecord['id'],
                         'target_theme_id' => $initial_theme_id,
 
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
                         'record_display_view' => $record_display_view,
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
-
-                        'is_datatype_admin' => $is_datatype_admin,
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
@@ -317,9 +317,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 );
             }
             else if ( $rendering_options['context'] === 'edit' ) {
-                // TODO - the Status Notes field can run plugins in Display mode because its HTML doesn't need to be modified there...
-                // TODO - ...but Edit mode requires an HTML change, so most datafield plugins wouldn't work
-                // TODO - the Chemistry Plugin is the only one that's allowed to run, and only because it's hardcoded in...
+                // Need to be able to pass this option along if doing edit mode
+                $edit_shows_all_fields = $rendering_options['edit_shows_all_fields'];
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_fieldarea.html.twig',
@@ -335,6 +334,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
+                        'edit_shows_all_fields' => $edit_shows_all_fields,
 
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],

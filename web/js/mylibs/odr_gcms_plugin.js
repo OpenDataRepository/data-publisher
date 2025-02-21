@@ -253,7 +253,10 @@ function ODRGraph_GCMSlineChartPlotly(chart_obj, onComplete) {
 
                 showlegend: true,
                 hoverlabel: {
-                    namelength: 50
+                    namelength: 50,
+                    font: {
+                        size: 20,
+                    }
                 },
             };
 
@@ -392,7 +395,10 @@ function ODRGraph_GCMSbarChartPlotly(x_value, chart_obj) {
 
                 showlegend: true,
                 hoverlabel: {
-                    namelength: 50
+                    namelength: 50,
+                    font: {
+                        size: 20,
+                    }
                 },
             };
 

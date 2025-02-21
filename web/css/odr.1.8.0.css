@@ -280,8 +280,12 @@ Forms Core
 }
 /* ===============  forms-responsive.css =================*/
 @media only screen and (max-width : 480px) {
+    #ODRSearchSidebar {
+        margin-left: -10px !important;
+    }
+
     .pure-skin-odr .pure-form button[type="submit"] {
-    margin: 0.7em 0 0;
+        margin: 0.7em 0 0;
     }
 
     .pure-skin-odr .pure-form input[type="text"],
@@ -3912,6 +3916,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     padding-left: 14px;
     position: relative;
     top: -5px;
+    margin-right: 10px;
 }
 
 .ODRJobList_header {
@@ -5464,4 +5469,10 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 }
 .ODRTrigger_headerUl {
     margin-top: 20px;
+}
+
+.ODRURLButtonPlugin_div {
+    position: relative;
+    width: 99%;
+    top: 0.5em;
 }

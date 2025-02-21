@@ -3,6 +3,12 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
 {% include 'ODRAdminBundle:Display:display_datatypetools.html.twig' with {
     'datatype': datatype,
     'datarecord': datarecord,
@@ -35,15 +41,35 @@
                                 {% set is_file_contents_datafield = true %}
                             {% endif %}
 
+                            {% set rpf_name = '' %}
+                            {% set is_modified_field = false %}
+                            {% if plugin_fields[ datafield.id ] is defined and
+                                (plugin_fields[ datafield.id ]['rpf_name'] == "Point Group"
+                                or plugin_fields[ datafield.id ]['rpf_name'] == "Space Group")
+                            %}
+                                {% set rpf_name = plugin_fields[ datafield.id ]['rpf_name'] %}
+                                {% set is_modified_field = true %}
+                            {% endif %}
+
                             {% if theme_datafield.hidden == 0 %}
                                 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
                                     {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                                         {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                                    {% elseif is_modified_field %}
+                                        {% include 'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_display_datafield.html.twig' with {
+                                            'datarecord': datarecord,
+                                            'datafield': datafield,
+
+                                            'rpf_name': rpf_name,
+                                            'field_values': field_values,
+                                        } %}
                                     {% else %}
                                         {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                             'datarecord': datarecord,
                                             'datafield': datafield,
                                             'themeDatafield': theme_datafield,
+
+                                            'is_datatype_admin': is_datatype_admin,
                                         } %}
                                     {% endif %}
                                 </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
@@ -86,7 +112,8 @@
                                     'parent_datarecord': datarecord,
                                     'target_theme_id': child_theme_id,
 
-                                    'is_datatype_admin': is_datatype_admin,
+                                    'datatype_permissions': datatype_permissions,
+                                    'datafield_permissions': datafield_permissions,
 
                                     'record_display_view': record_display_view,
                                     'is_top_level': 0,

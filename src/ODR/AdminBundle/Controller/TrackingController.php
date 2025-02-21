@@ -38,6 +38,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Templating\EngineInterface;
+use Doctrine\DBAL\Connection as DBALConnection;
 
 
 class TrackingController extends ODRCustomController
@@ -776,6 +777,7 @@ class TrackingController extends ODRCustomController
             $history = array();
             $dr_created_deleted_history = array();
             $names = array();
+            $child_dr_lookup = array();
 
             if ( !is_null($target_datarecord_id) || !is_null($target_search_key)
                 || !is_null($target_user_ids) || !is_null($target_datafield_ids)
@@ -888,8 +890,12 @@ class TrackingController extends ODRCustomController
 //                else
                     $history = self::combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes);
 
+                // ...and locate the grandparents of all child records, so the table can identify them
+                //  by their grandparent instead of themselves
+                $child_dr_lookup = self::getChildDrLookup($em, $history);
+
                 // Need to convert all the ids into names...
-                $names = self::getNames($em, $history, $dr_created_deleted_history);
+                $names = self::getNames($em, $history, $dr_created_deleted_history, $child_dr_lookup);
 
                 if ( $simple )
                     $history = self::combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes);
@@ -915,6 +921,7 @@ class TrackingController extends ODRCustomController
                         'dr_history' => $dr_created_deleted_history,
 
                         'names' => $names,
+                        'child_dr_lookup' => $child_dr_lookup,
                     )
                 ),
                 'rows_exceeded' => $rows_exceeded,
@@ -2220,7 +2227,7 @@ class TrackingController extends ODRCustomController
                     foreach ($df_data as $entity_id => $entity_data) {
                         foreach ($entity_data as $date => $data) {
                             $date = explode(' ', $date)[0];
-                            $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
+                            $history[$dt_id][$dr_id][$date] = $data['selectedBy'];
                         }
                     }
                 }
@@ -2260,10 +2267,11 @@ class TrackingController extends ODRCustomController
      * @param \Doctrine\ORM\EntityManager $em
      * @param array $history
      * @param array $datarecord_created_deleted_history
+     * @param array $child_dr_lookup
      *
      * @return array
      */
-    private function getNames($em, $history, $datarecord_created_deleted_history)
+    private function getNames($em, $history, $datarecord_created_deleted_history, $child_dr_lookup)
     {
         $ids = array(
             'dt_ids' => array(),
@@ -2332,6 +2340,11 @@ class TrackingController extends ODRCustomController
                     }
                 }
             }
+        }
+
+        // ...and all ids from the child datarecord lookup array
+        foreach ($child_dr_lookup as $dr_id => $gdr_id) {
+            $ids['dr_ids'][$gdr_id] = 1;
         }
 
 
@@ -2460,6 +2473,49 @@ class TrackingController extends ODRCustomController
         }
 
         return $names;
+    }
+
+
+    /**
+     * Returns a lookup array to turn child datarecord ids into grandparent ids, so that the names
+     * and links that get rendered for the child datarecords are actually useful
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param array $history
+     *
+     * @return array
+     */
+    private function getChildDrLookup($em, $history)
+    {
+        $dr_list = array();
+        foreach ($history as $dt_id => $dt_data) {
+            foreach ($dt_data as $dr_id => $dr_data) {
+                $dr_list[] = $dr_id;
+            }
+        }
+
+        // Just want the datarecord id and its grandparent id, but doctrine demands a table join
+        //  to get that info...faster to just use native SQL
+        $query =
+           'SELECT dr.id AS dr_id, dr.grandparent_id AS gdr_id
+            FROM odr_data_record dr
+            WHERE dr.id IN (?) AND dr.id != dr.grandparent_id
+            AND dr.deletedAt IS NULL';
+        $parameters = array(1 => $dr_list);
+        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+
+        $conn = $em->getConnection();
+        $results = $conn->executeQuery($query, $parameters, $types);
+
+        $dr_lookup = array();
+        foreach ($results as $result) {
+            $dr_id = $result['dr_id'];
+            $gdr_id = $result['gdr_id'];
+
+            $dr_lookup[$dr_id] = $gdr_id;
+        }
+
+        return $dr_lookup;
     }
 
 

@@ -3,6 +3,12 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
 {% for theme_element in theme.themeElements %}
 
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">

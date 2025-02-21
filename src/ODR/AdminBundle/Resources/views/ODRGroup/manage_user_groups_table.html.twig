@@ -1,8 +1,5 @@
 {% spaceless %}
 
-{% if datatypes|length == 0 %}
-    <div class="ODRDatarecordListHeader">No {{ key }}s exist!</div>
-{% else %}
     <div class="pure-u-1-2">
         <table id="{{ id }}" class="display dataTable">
             <thead>
@@ -31,7 +28,14 @@
                             </span>
                         </span>
                     </td>
-                    <td>{{ datatype_meta.shortName }}</td>
+                    <td>
+                    {% if dt.unique_id == dt.template_group %}
+                        {{ datatype_meta.shortName }}
+                    {% else %}
+                        {% set group_dt_name = dt_name_lookup[ dt.template_group ] %}
+                        {{ group_dt_name }} &gt;&gt; {{ datatype_meta.shortName }}
+                    {% endif %}
+                    </td>
                     <td>
                         <i
                             id="in_datatype_{{ dt_id }}_group"
@@ -147,7 +151,6 @@
         </div>
     {% endfor %}
 
-{% endif %}
 
 <script>
     $(function() {

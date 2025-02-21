@@ -15,6 +15,15 @@
     <php>
         <!-- the value is the FQCN of the application kernel -->
         <env name="BASEURL" value="[[ ENTER URL OF ODR DOMAIN HERE ]]" />
+
+        <env name="API_BASEURL" value="[[ ENTER URL TO ODR API HERE ]]" />
+        <env name="API_TESTING_DB" value="[[ ]]" />
+
+        <env name="API_USERNAME" value="[[ ]]" />
+        <env name="API_USER_PASSWORD" value="[[ ]]" />
+        <!--        <env name="API_UNPRIVILEGED_USERNAME" value="[[ ]]" />-->
+        <!--        <env name="API_UNPRIVILEGED_USER_PASSWORD" value="[[ ]]" />-->
+
         <env name="KERNEL_CLASS" value="AppKernel" />
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="weak"/>
         <server name="KERNEL_DIR" value="app/" />
@@ -32,12 +41,17 @@
         <testsuite name="services">
             <directory>../src/ODR/AdminBundle/Tests/Component/Service</directory>
             <directory>../src/ODR/OpenRepository/*Bundle/Tests/Component/Service</directory>
+            <exclude>../src/ODR/OpenRepository/SearchBundle/Tests/Component/Service/SearchAPIService_templateTest.php</exclude>
+        </testsuite>
+        <testsuite name="templates">
+            <file>../src/ODR/OpenRepository/SearchBundle/Tests/Component/Service/SearchAPIService_templateTest.php</file>
         </testsuite>
         <testsuite name="plugins">
             <directory>../src/ODR/OpenRepository/GraphBundle/Tests/Plugins</directory>
         </testsuite>
         <testsuite name="api">
-            <file>../src/ODR/AdminBundle/Tests/Controller/APIControllerTest.php</file>
+<!--            <file>../src/ODR/AdminBundle/Tests/Controller/APIControllerTest.php</file>-->
+            <file>../src/ODR/AdminBundle/Tests/Controller/APIControllerTest_alt.php</file>
         </testsuite>
         <testsuite name="fieldstats">
             <file>../src/ODR/AdminBundle/Tests/Controller/SearchAPIService_fieldstatsTest.php</file>

@@ -8,12 +8,6 @@
     {% set can_edit_child_record = true %}
 {% endif %}
 
-{% set is_datatype_admin = false %}
-{% if datatype_permissions[ childtype.id ] is defined
-    and datatype_permissions[ childtype.id ][ 'dt_admin' ] is defined %}
-    {% set is_datatype_admin = true %}
-{% endif %}
-
 {#
 --------------------<br>
 edit_fieldarea_childtype.html.twig<br>
@@ -36,7 +30,9 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
         'parent_datarecord': parent_datarecord,
         'target_theme_id': target_theme_id,
 
-        'is_datatype_admin': is_datatype_admin,
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
+        'edit_shows_all_fields': edit_shows_all_fields,
 
         'record_display_view': 'single',
         'is_top_level': 0,
@@ -56,6 +52,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
 
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,
+        'edit_shows_all_fields': edit_shows_all_fields,
 
         'is_top_level': 0,
         'is_link': is_link,

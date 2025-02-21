@@ -101,6 +101,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
             // ----------------------------------------
             // Only execute the plugin if a file has been uploaded to this datafield
             $data_array = array();
+            $num_columns = 0;
             if ( isset($datarecord['dataRecordFields'][$datafield['id']]['file']['0']) ) {
                 $files_to_delete = array();
 
@@ -132,22 +133,23 @@ class CSVTablePlugin implements DatafieldPluginInterface
                     throw new \Exception('Currently not permitted to execute on files larger than 5Mb');
 
 
-                // TODO - test whether this'll work on stupid csv files like CSVImport has to deal with
                 // Load file and parse into array
-                $data_array = array();
-
                 $handle = fopen($local_filepath, "r");
                 if ( !$handle )
                     throw new \Exception('Could not open "'.$local_filepath.'"');
 
-                // TODO - modify so the plugin can effectively "auto-detect" separators like web/js/mylibs/odr_plotly_graphs.js does?
-                // TODO - ...the afformentioned js file uses regex to break lines into "words", instead of a pre-defined separator
-                $separator = ",";
+                $content = file_get_contents($local_filepath);
+                $content = str_replace("\r", '', $content);
+                $lines = explode("\n", $content);    // TODO - this won't work on csv files with newlines inside doublequotes...
 
-                $data = fgetcsv($handle, 1000, $separator);
+                $ret = self::guessFileProperties($lines);
+                $delimiter = $ret['delimiter'];
+                $num_columns = $ret['num_columns'];
+
+                $data = fgetcsv($handle, 1000, $delimiter);
                 while ( $data !== false ) {
-                    array_push($data_array, $data);
-                    $data = fgetcsv($handle, 1000, $separator);
+                    $data_array[] = $data;
+                    $data = fgetcsv($handle, 1000, $delimiter);
                 }
 
 
@@ -173,6 +175,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
                         'datarecord' => $datarecord,
 
                         'data_array' => $data_array,
+                        'num_columns' => $num_columns,
                     )
                 );
             }
@@ -183,5 +186,137 @@ class CSVTablePlugin implements DatafieldPluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Attempts to guess the delimiter and the number of columns from the first several lines of the
+     * given file.
+     *
+     * There is a javascript version of this logic in /web/js/mylibs/odr_plotly_graphs.js...changes
+     * or fixes made here should also be made there.
+     *
+     * @param string[] $lines
+     * @return array
+     */
+    private function guessFileProperties($lines)
+    {
+        // Since these are (hopefully) scientific data files, the set of valid delimiters is (hopefully)
+        //  pretty small
+        $valid_delimiters = array(
+            "\t" => 0,
+            "," => 0,
+            ";" => 0,
+        );
+        // NOTE: do not put the space character in there...if the file is using the space character as
+        //  a delimiter, then it's safer for the graph code to split the line apart into "words" instead
+        //  of splitting by a specific character sequence
+
+        // Read the first couple non-comment lines in the file...
+        $max_line_count = 10;
+        $current_line = 0;
+        $delimiters_by_line = array();
+        foreach ($lines as $line) {
+            if ( strpos($line, '#') === 0 ) {
+                // Ignore comment lines
+                continue;
+            }
+            else {
+                $delimiters_by_line[$current_line] = array();
+
+                // ...and count how many of each character is encountered
+                for ($j = 0; $j < strlen($line); $j++) {
+                    $char = $line[$j];
+
+                    // If the line contains a valid delimiter, then store how many times it occurs
+                    if ( isset($valid_delimiters[$char]) ) {
+                        if ( !isset($delimiters_by_line[$current_line][$char]) )
+                            $delimiters_by_line[$current_line][$char] = 0;
+                        $delimiters_by_line[$current_line][$char]++;
+                    }
+                    else if ( $char === "\"" || $char === "\'" ) {
+                        // If the line contained a singlequote or a doublequote, then ignore it completely
+                        unset( $delimiters_by_line[$current_line] );
+                        break;
+                    }
+                }
+
+                $current_line++;
+                if ( $current_line >= $max_line_count )
+                    break;
+            }
+        }
+
+        // Filter out delimiters that don't occur the same number of times on each line
+        $delimiter_count = array();
+        foreach ($valid_delimiters as $delimiter => $num) {
+            $delimiter_count[$delimiter] = -1;
+
+            foreach ($delimiters_by_line as $line_num => $occurrences) {
+                if ( isset($occurrences[$delimiter]) ) {
+                    if ( $delimiter_count[$delimiter] === -1 ) {
+                        // Store how many times this delimiter occurs on the first valid line of data
+                        //  in the file
+                        $delimiter_count[$delimiter] = $occurrences[$delimiter];
+                    }
+                    else if ( $delimiter_count[$delimiter] !== $occurrences[$delimiter] ) {
+                        // This line has a different number of this delimiter than the earlier lines in
+                        //  the file...it's probably not safe to call this a delimiter
+                        $delimiter_count[$delimiter] = -1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // To counter the (hopefully) rare case where more than one "valid" delimiter character exists
+        //  in the file, count how many of the lines have each delimiter
+        $lines_with_delimiters = array();
+        foreach ($valid_delimiters as $delimiter => $num) {
+            // Ignore delimiters that the previous step believes aren't safe
+            if ( $delimiter_count[$delimiter] === -1 )
+                continue;
+
+            $lines_with_delimiters[$delimiter] = 0;
+            foreach ($delimiters_by_line as $line_num => $occurrences) {
+                if ( isset($occurrences[$delimiter]) )
+                    $lines_with_delimiters[$delimiter] += 1;
+            }
+        }
+
+        // Guess which of the remaining delimiters is most likely for the file
+        $delimiter_guess = null;
+        $columns_guess = null;
+        foreach ($valid_delimiters as $delimiter => $num) {
+
+            if ( isset($delimiter_count[$delimiter]) && $delimiter_count[$delimiter] !== -1 ) {
+                if ( is_null($delimiter_guess) ) {
+                    // Ideally, the first delimiter found will be the only one...
+                    $delimiter_guess = $delimiter;
+                    $columns_guess = $delimiter_count[$delimiter] + 1;
+                }
+                else {
+                    // ...but if a second delimiter could be valid...
+                    if ( isset($lines_with_delimiters[$delimiter_guess]) ) {
+                        $previous_guess_count = $lines_with_delimiters[$delimiter_guess];
+                        $current_guess_count = $lines_with_delimiters[$delimiter];
+                        // ...then try to use the delimiter that appears more often in the file
+                        if ( $current_guess_count > $previous_guess_count ) {
+                            $delimiter_guess = $delimiter;
+                            $columns_guess = $delimiter_count[$delimiter] + 1;
+                        }
+                    }
+                }
+
+                // I think the "earlier" delimiters in valid_delimiters will be preferred over "later"
+                //  delimiters in the case of a tie...TODO
+            }
+        }
+
+        $ret = array(
+            'delimiter' => $delimiter_guess,
+            'num_columns' => $columns_guess,
+        );
+        return $ret;
     }
 }

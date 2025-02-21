@@ -348,6 +348,8 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'display_graph' => $display_graph,
 
                 'is_datatype_admin' => $is_datatype_admin,
+                'datatype_permissions' => $datatype_permissions,
+                'datafield_permissions' => $datafield_permissions,
 
                 // Options for graph display
                 'plugin_options' => $options,

@@ -463,6 +463,7 @@ class ODREventSubscriber implements EventSubscriberInterface
                     $dr_id = $result['dr_id'];
                     $dr_uuid = $result['dr_uuid'];
 
+                    $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
                     $this->cache_service->delete('cached_datarecord_'.$dr_id);
                     $this->cache_service->delete('cached_table_data_'.$dr_id);
                     $this->cache_service->delete('json_record_'.$dr_uuid);
@@ -607,8 +608,23 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
 
             // Clearing these cache entries is required
-            foreach ($all_linked_ancestors as $num => $dt_id)
+            foreach ($all_linked_ancestors as $num => $dt_id) {
                 $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+
+                // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+                //  confident it works properly when dealing with potentially async situations
+                $conn = $this->em->getConnection();
+                $query =
+                   'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
+                    FROM odr_data_record AS dr
+                    WHERE dr.data_type_id = '.$dt_id;
+                $results = $conn->fetchAll($query);
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+                    $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
+                }
+            }
             foreach ($all_linked_descendants as $num => $dt_id)
                 $this->cache_service->delete('inverse_associated_datatypes_for_'.$dt_id);
 
@@ -697,6 +713,7 @@ class ODREventSubscriber implements EventSubscriberInterface
                 //  external id/name/sort fields, or changing radio/tag names, but there are others
                 $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
                 foreach ($dr_list as $dr_id => $parent_dr_id) {
+                    $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
                     $this->cache_service->delete('cached_datarecord_'.$dr_id);
                     $this->cache_service->delete('cached_table_data_'.$dr_id);
                 }
@@ -896,17 +913,15 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  probably should ensure several more cache entries are deleted...
             if ( $datatype->getId() == $datatype->getGrandparent()->getId() ) {
                 if ( !is_array($datarecord_id) ) {
+                    $this->cache_service->delete('associated_datarecords_for_'.$datarecord_id);
                     $this->cache_service->delete('cached_datarecord_'.$datarecord_id);
                     $this->cache_service->delete('cached_table_data_'.$datarecord_id);
-
-                    $this->cache_service->delete('associated_datarecords_for_'.$datarecord_id);
                 }
                 else {
                     foreach ($datarecord_id as $dr_id) {
+                        $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
                         $this->cache_service->delete('cached_datarecord_'.$dr_id);
                         $this->cache_service->delete('cached_table_data_'.$dr_id);
-
-                        $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
                     }
                 }
 

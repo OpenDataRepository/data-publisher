@@ -82,9 +82,9 @@
      */
     function setModalMessage(message, message_type = '') {
         var modal_body = $(".ODRRemodalBody");
-        if (message_type === undefined) {
+        if ( message_type === undefined || message_type === '' ) {
             modal_body.html(
-                '<h4>' + message + '<h4>'
+                '<br><br><h4>' + message + '<h4>'
             );
         }
         else if (message_type === "raw") {
@@ -256,26 +256,28 @@
 
         // Get Scroll height of inner, plus some extra for the scrollbars
         var content_height = modal_inner_content.prop('scrollHeight') + 100;
-        // console.log('content_height: ' + content_height);
+        // console.log('content_height:', content_height);
 
         var modal_height = $(window).height()
             - modal.find(".ODRRemodalButtons").height()
             - modal.find(".ODRRemodalTitle").height();
 
-        if ( $(window).width() >= 568 )
-            modal_height -= 30;
-        // console.log('modal_height: ' + modal_height);
-
-        // Just show content if smaller than window height
+        // If not ignoring content height, then use that for modal height
         if (!ignore_content_height && content_height < modal_height)
             modal_height = content_height;
-        // console.log('adjusted_height: ' + modal_height);
+        // console.log('adjusted_height:', modal_height);
 
-        // Ensure it looks okay
-        modal_height -= 40;
+        // Ensure there's always enough space for the save button
+        // console.log('window.screen.availHeight:', window.screen.availHeight);
+        if ( (window.screen.availHeight-270) < modal_height ) {
+            modal_height = window.screen.availHeight - 270;
+            // console.log('adjusted modal height to (window.screen.availHeight-270)', modal_height);
+        }
+
+        // Ensure it's not too small
         if (modal_height < 200)
             modal_height = 200;
-        // console.log('final_height: ' + modal_height);
+        // console.log('final_height:', modal_height);
 
         modal_inner.animate(
             {height: modal_height},

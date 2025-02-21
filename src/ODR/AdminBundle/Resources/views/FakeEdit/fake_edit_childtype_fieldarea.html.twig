@@ -1,0 +1,74 @@
+{% spaceless %}
+
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
+{% if insert_fake_datarecord is not defined %}
+    {% set insert_fake_datarecord = false %}
+{% endif %}
+
+{% set rendering_options = {
+    'is_top_level': is_top_level,
+    'is_link': is_link,
+    'display_type': display_type,
+    'multiple_allowed': multiple_allowed,
+    'context': 'fake_edit',
+    'is_datatype_admin': is_datatype_admin
+} %}
+
+{% set render_plugin_instance = null %}
+{% set can_execute_plugin = false %}
+{% for rpi_num,rpi in datatype.renderPluginInstances %}
+    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.overrideFields and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+        {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
+
+        {% if can_execute_plugin %}
+            {# Only want to save the render_plugin_instance if it's render-able #}
+            {% set render_plugin_instance = rpi %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+{% set content = '' %}
+{% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields %}
+    {# [datarecord] converts datarecord into a single-element array #}
+    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
+    {% if content|length > 0 %}
+        <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
+        {{ content|raw }}
+    {% endif %}
+{% endif %}
+
+{% if not can_execute_plugin or content|length == 0 %}
+    {% include 'ODRAdminBundle:FakeEdit:fake_edit_fieldarea.html.twig' with {
+        'datatype_array': datatype_array,
+        'datarecord': datarecord,
+        'theme_array': theme_array,
+
+        'parent_datarecord': parent_datarecord,
+        'target_datatype_id': target_datatype_id,
+        'target_datarecord_id': datarecord.id,
+        'target_theme_id': target_theme_id,
+
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
+
+        'is_top_level': is_top_level,
+        'is_link': is_link,
+        'display_type': display_type,
+        'multiple_allowed': multiple_allowed,
+
+        'token_list': token_list,
+        'insert_fake_datarecord': insert_fake_datarecord,
+    } %}
+{% endif %}
+
+{% endspaceless %}

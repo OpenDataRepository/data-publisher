@@ -6,7 +6,9 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
+{% set field_is_blocked = false %}
 {% if datafield_meta.is_unique or datafield_meta.prevent_user_edits %}
+    {% set field_is_blocked = true %}
     <input id="Field_{{ datafield.id }}_block" class="ODRMassEdit_block {% if datafield_meta.is_unique %}ODRUniqueField{% elseif datafield_meta.prevent_user_edits %}ODRBlockedField{% endif %}" type="hidden" />
 {% endif %}
 
@@ -40,7 +42,7 @@
 
     {% set content = '' %}
     {% if can_execute_plugin %}
-        {% set content = datafield|datafield_plugin(datarecord, render_plugin_instance, rendering_options) %}
+        {% set content = datafield|datafield_plugin([], render_plugin_instance, rendering_options) %}
     {% endif %}
 
     {% if can_execute_plugin and content|length > 0 %}
@@ -116,7 +118,7 @@
     {% elseif field_typename == "Paragraph Text" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
-        <span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
+        {% if not field_is_blocked %}<span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>{% endif %}
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
             <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
@@ -135,7 +137,7 @@
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
-        <span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
+        {% if not field_is_blocked %}<span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>{% endif %}
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
             <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
@@ -275,7 +277,7 @@
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
-        <span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>
+        {% if not field_is_blocked %}<span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>{% endif %}
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
             <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
@@ -314,13 +316,14 @@
     {% endif %}
 </form>
 
-
-{% if field_typename == "Integer"
-    or field_typename == "Decimal"
-    or field_typename == "Long Text"
-    or field_typename == "Medium Text"
-    or field_typename == "Short Text"
-%}
+{# Only output save javascript when a plugin was not run #}
+{% if not can_execute_plugin or content|length == 0 %}
+    {% if field_typename == "Integer"
+        or field_typename == "Decimal"
+        or field_typename == "Long Text"
+        or field_typename == "Medium Text"
+        or field_typename == "Short Text"
+    %}
     <script>
 
         var {{ field_typeclass }}Interval_{{ datafield.id }} = null;
@@ -362,6 +365,7 @@
             // focusInvalid: false
         });
     </script>
+    {% endif %}
 {% endif %}
 
 {% endspaceless %}

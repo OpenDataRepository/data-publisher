@@ -34,6 +34,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\EntityCreationService;
@@ -177,6 +178,15 @@ class FlowController extends ODRCustomController
 
                 if ($datarecord->getDataType()->getId() != $datatype_id || $datafield->getDataType()->getId() != $datatype_id)
                     return self::flowAbort('Parameter mismatch');
+
+                // If the datafield is set to prevent user edits, then prevent this controller action
+                //  from making a change to it
+                if ( $datafield->getPreventUserEdits() )
+                    throw new ODRForbiddenException("The Database's administrator has blocked changes to this Datafield.");
+
+                // Do not make changes to the record if edits are blocked
+                if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                    throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             }
 
 

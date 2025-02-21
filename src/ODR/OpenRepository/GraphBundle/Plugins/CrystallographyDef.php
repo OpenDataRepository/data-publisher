@@ -345,17 +345,36 @@ class CrystallographyDef
         218 => array('P-43n'),
         219 => array('F-43c'),
         220 => array('I-43d'),
-        221 => array('Pm3m', 'P4/m-32/m'),
+        221 => array('Pm3m', 'Pm-3m', 'P4/m-32/m'),
         222 => array('Pn3n', 'P4/n-32/n'),
         223 => array('Pm3n', 'P4_1/m-32/n'),
         224 => array('Pn3m', 'P4_1/n-32/m'),
-        225 => array('Fm3m', 'F4/m-32/m'),
+        225 => array('Fm3m', 'Fm-3m', 'F4/m-32/m'),
         226 => array('Fm3c', 'F4/m-32/c'),
-        227 => array('Fd3m', 'F4_1/d-32/m'),
+        227 => array('Fd3m', 'Fd-3m', 'F4_1/d-32/m'),
         228 => array('Fd3c', 'F4_1/d-32/c'),
         229 => array('Im3m', 'I4/m-32/m'),
         230 => array('Ia3d', 'I4_1/a-32/d', 'Ia-3d'),
     );
+
+
+    /**
+     * This is less of a derivation and more of a search, but whatever.
+     *
+     * @var string $point_group
+     * @return string
+     */
+    public static function deriveCrystalSystemFromPointGroup($point_group)
+    {
+        // Should be able to find the point group in this array
+        foreach (self::$point_groups as $crystal_system => $pg_list) {
+            if ( in_array($point_group, $pg_list) )
+                return $crystal_system;
+        }
+
+        // If not, return an empty string
+        return '';
+    }
 
 
     /**
@@ -376,7 +395,7 @@ class CrystallographyDef
 
         // If the derivation is invalid, then look up the correct point group
         if ( isset(self::$point_group_synonyms[$pg]) )
-            $pg = self::$point_group_synonyms;
+            $pg = self::$point_group_synonyms[$pg];
 
         return $pg;
     }
@@ -386,7 +405,7 @@ class CrystallographyDef
      * There are a couple space groups that self::derivePointGroupFromSpaceGroup() doesn't quite
      * arrive at the "correct" answer for...this array maps those errors to the correct ones.
      *
-     * @var array[]
+     * @var string[]
      */
     public static $point_group_synonyms = array(
         // cubic

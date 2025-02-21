@@ -40,7 +40,7 @@
             'parent_datarecord': parent_datarecord,
             'datarecord_list': datarecord_array,
 
-            'datatype_permissions': [],
+            'datatype_permissions': datatype_permissions,
 
             'is_top_level': is_top_level,
             'is_link': is_link,
@@ -50,6 +50,7 @@
 
         {% if display_type != TABLE_CONTENT %}
             {% for dr_id, datarecord in datarecord_array %}
+                {% set graph_datarecord_id = datarecord.id %}
 
                 {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {
                     'datarecord': datarecord,
@@ -59,8 +60,7 @@
                 } %}
 
                 <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}" userollup="true">
-                    {% set graph_datarecord_id = datarecord.id %}
-                    {% include "ODRAdminBundle:Display:display_fieldarea.html.twig" with {
+                    {% include "ODRAdminBundle:Display:display_childtype_fieldarea.html.twig" with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,
                         'theme_array': theme_array,
@@ -70,7 +70,8 @@
                         'target_datarecord_id': datarecord.id,
                         'target_theme_id': target_theme_id,
 
-                        'is_datatype_admin': is_datatype_admin,
+                        'datatype_permissions': datatype_permissions,
+                        'datafield_permissions': datafield_permissions,
 
                         'record_display_view': record_display_view,
                         'is_top_level': is_top_level,
@@ -94,6 +95,9 @@
                 'parent_datarecord': parent_datarecord,
                 'target_datatype_id': target_datatype_id,
                 'target_theme_id': target_theme_id,
+
+                'datatype_permissions': datatype_permissions,
+                'datafield_permissions': datafield_permissions,
 
                 'is_top_level': is_top_level,
                 'is_link': is_link,
@@ -159,7 +163,7 @@
         'parent_datarecord': parent_datarecord,
         'datarecord_list': datarecord_array,
 
-        'datatype_permissions': [],
+        'datatype_permissions': datatype_permissions,
 
         'is_top_level': is_top_level,
         'is_link': is_link,
@@ -179,7 +183,7 @@
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
             <div class="ODRGraphSpacer {{ content_div_class_str }}">
-                {% include "ODRAdminBundle:Display:display_fieldarea.html.twig" with {
+                {% include "ODRAdminBundle:Display:display_childtype_fieldarea.html.twig" with {
                     'datatype_array': datatype_array,
                     'datarecord': datarecord,
                     'theme_array': theme_array,
@@ -189,7 +193,8 @@
                     'target_datarecord_id': datarecord.id,
                     'target_theme_id': target_theme_id,
 
-                    'is_datatype_admin': is_datatype_admin,
+                    'datatype_permissions': datatype_permissions,
+                    'datafield_permissions': datafield_permissions,
 
                     'record_display_view': record_display_view,
                     'is_top_level': is_top_level,

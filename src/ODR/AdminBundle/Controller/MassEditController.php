@@ -665,8 +665,12 @@ class MassEditController extends ODRCustomController
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                    JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
                     WHERE dr.dataType = :datatype_id AND dr.provisioned = false
-                    AND dr.deletedAt IS NULL'
+                    AND gp_drm.prevent_user_edits = 0
+                    AND dr.deletedAt IS NULL
+                    AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
                 )->setParameters( array('datatype_id' => $dt_id) );
                 $results = $query->getArrayResult();
 
@@ -737,8 +741,11 @@ class MassEditController extends ODRCustomController
                         FROM ODRAdminBundle:DataFields AS df
                         JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
                         JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                        WHERE df.id = :datafield_id
-                        AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                        JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                        JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
+                        WHERE df.id = :datafield_id AND gp_drm.prevent_user_edits = 0
+                        AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                        AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
                     )->setParameters( array('datafield_id' => $df_id) );
                 }
                 else {
@@ -747,9 +754,12 @@ class MassEditController extends ODRCustomController
                         FROM ODRAdminBundle:DataFields AS df
                         JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
                         JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                        JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                        JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                        JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
                         WHERE df.id = :datafield_id AND drm.publicDate != :public_date
-                        AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                        AND gp_drm.prevent_user_edits = 0
+                        AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                        AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
                     )->setParameters( array('datafield_id' => $df_id, 'public_date' => '2200-01-01 00:00:00') );
                 }
                 $results = $query->getArrayResult();
@@ -975,6 +985,10 @@ class MassEditController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->canChangePublicStatus($user, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException('MassEditCommand.php: Datarecord '.$datarecord_id.' is set to prevent_user_edits, skipping');
             // --------------------
 
 
@@ -1160,6 +1174,15 @@ class MassEditController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException('MassEditCommand.php: Datafield '.$datafield_id.' is set to prevent_user_edits, skipping');
+
+            // Do not make changes to the record if edits are blocked
+            if ( $datarecord->getGrandparent()->getPreventUserEdits() )
+                throw new ODRForbiddenException('MassEditCommand.php: Datarecord '.$datarecord_id.' is set to prevent_user_edits, skipping');
             // --------------------
 
 
@@ -1663,6 +1686,11 @@ class MassEditController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1757,10 +1785,14 @@ class MassEditController extends ODRCustomController
                 //  could be for a datarecord that isn't top-level
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS parent
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
-                    WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
-                    AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
+                    FROM ODRAdminBundle:DataRecord AS parent_dr
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent_dr
+                    JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                    JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
+                    WHERE dr.id != parent_dr.id AND parent_dr.id IN (:parent_ids)
+                    AND gp_drm.prevent_user_edits = 0
+                    AND dr.deletedAt IS NULL AND parent_dr.deletedAt IS NULL
+                    AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
                 )->setParameters( array('parent_ids' => $parent_ids) );
                 $results = $query->getArrayResult();
 
@@ -1886,10 +1918,6 @@ class MassEditController extends ODRCustomController
             // -----------------------------------
             // Ensure no records think they're still linked to this now-deleted record
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user);
                 $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
             }
@@ -1903,10 +1931,6 @@ class MassEditController extends ODRCustomController
             // We don't want to fire off multiple (potentially hundreds) of DatarecordDeleted events
             //  here, so the event was designed to permit arrays of ids/uuids
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordDeletedEvent($ancestor_datarecord_ids, $ancestor_datarecord_uuids, $datatype, $user);
                 $dispatcher->dispatch(DatarecordDeletedEvent::NAME, $event);
             }
@@ -1923,10 +1947,6 @@ class MassEditController extends ODRCustomController
             // Due to a pile of records being deleted, it probably won't hurt to fire off this
             //  event either
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeImportedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
             }
