@@ -153,6 +153,7 @@ class UpdateDataFieldsForm extends AbstractType
             || $current_typeclass == 'IntegerValue' || $current_typeclass == 'DecimalValue'
             || $current_typeclass == 'ShortVarchar' || $current_typeclass == 'MediumVarchar'
             || $current_typeclass == 'LongVarchar' || $current_typeclass == 'LongText'
+            || $current_typeclass == 'XYZData'
         ) {
             $prevent_user_edits_options =  array(
                 'label'  => 'Prevent User Edits',
@@ -171,7 +172,7 @@ class UpdateDataFieldsForm extends AbstractType
 
 
         if ( $current_typeclass === 'Image' || $current_typeclass === 'Radio' ) {
-            // NOTE: this semi-intentionallydoesn't match with datafield_properties_form.html.twig
+            // NOTE: this semi-intentionally doesn't match with datafield_properties_form.html.twig
             //  or display_datafield.html.twig...easier to control the visibiilty from either of them
             $builder->add(
                 'children_per_row',
@@ -265,6 +266,18 @@ class UpdateDataFieldsForm extends AbstractType
                 CheckboxType::class,
                 array(
                     'label' => 'Non-admins can add/move/delete tags',
+                    'required' => false
+                )
+            );
+        }
+
+        if ( $current_typeclass === 'XYZData' ) {
+            // This property only makes sense for this fieldtype
+            $builder->add(
+                'xyz_data_column_names',
+                TextType::class,
+                array(
+                    'label' => 'Comma-delimited list of column names',
                     'required' => false
                 )
             );

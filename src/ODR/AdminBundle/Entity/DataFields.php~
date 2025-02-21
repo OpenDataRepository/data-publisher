@@ -1006,6 +1006,16 @@ class DataFields
     }
 
     /**
+     * Get getXyzDataColumnNames
+     *
+     * @return string
+     */
+    public function getXyzDataColumnNames()
+    {
+        return $this->getDataFieldMeta()->getXyzDataColumnNames();
+    }
+
+    /**
      * Get searchable
      *
      * @return integer

@@ -153,6 +153,11 @@ class DataFieldsMeta
     private $tags_allow_non_admin_edit;
 
     /**
+     * @var string
+     */
+    private $xyz_data_column_names;
+
+    /**
      * @var integer
      */
     private $searchable;
@@ -793,6 +798,30 @@ class DataFieldsMeta
     public function getTagsAllowNonAdminEdit()
     {
         return $this->tags_allow_non_admin_edit;
+    }
+
+    /**
+     * Set xyzDataColumnNames.
+     *
+     * @param string $xyzDataColumnNames
+     *
+     * @return DataFieldsMeta
+     */
+    public function setXyzDataColumnNames($xyzDataColumnNames)
+    {
+        $this->xyz_data_column_names = $xyzDataColumnNames;
+
+        return $this;
+    }
+
+    /**
+     * Get xyzDataColumnNames.
+     *
+     * @return string
+     */
+    public function getXyzDataColumnNames()
+    {
+        return $this->xyz_data_column_names;
     }
 
     /**

@@ -362,9 +362,12 @@ class FakeEditController extends ODRCustomController
                                 break;
 
                             // The rest of the typeclasses aren't valid
+                            // NOTE: these are also set in FakeEditController::reloadchildAction()
+                            //  and PluginsController::validatePluginConfig()
                             case 'File':
                             case 'Image':
                             case 'Markdown':
+                            case 'XYZData':
                             default:
                                 throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" is not a valid typeclass');
                         }
@@ -1050,9 +1053,12 @@ class FakeEditController extends ODRCustomController
                                 break;
 
                             // The rest of the typeclasses aren't valid
+                            // NOTE: these are also set in FakeEditController::savefakerecordAction()
+                            //  and PluginsController::validatePluginConfig()
                             case 'File':
                             case 'Image':
                             case 'Markdown':
+                            case 'XYZData':
                             default:
                                 throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" is not a valid typeclass');
                         }

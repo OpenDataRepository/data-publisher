@@ -73,6 +73,14 @@ ODR\AdminBundle\Entity\DataRecord:
             fetch: LAZY
             orphanRemoval: false
 
+        XYZData:
+            targetEntity: XYZData
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
         longText:
             targetEntity: LongText
             cascade: {  }

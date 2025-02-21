@@ -763,6 +763,19 @@ class SearchKeyService
                             throw new ODRBadRequestException('Invalid search key: only allowed to search on empty string in Datetime field');
                     }
                 }
+                else if ( $typeclass === 'XYZData' ) {
+                    // This is for an XYZData field...ensure the user hasn't specified more
+                    //  dimensions than the field allows
+                    $df = $datatype_array[$dt_id]['dataFields'][$df_id];
+                    $xyz_column_names = explode(',', $df['dataFieldMeta']['xyz_data_column_names']);
+
+                    $entries = explode('|', $value);
+                    foreach ($entries as $entry) {
+                        $pieces = explode(',', $entry);
+                        if ( count($pieces) !== count($xyz_column_names) )
+                            throw new ODRBadRequestException('Invalid search key: column num mismatch for datafield '.$df_id, $exception_code);
+                    }
+                }
 
                 // Don't need to validate anything related to the other typeclasses in here
             }
@@ -772,7 +785,7 @@ class SearchKeyService
                     throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // $key is for a DatetimeValue, or a File/Image's public status/quality
+                    // $key is for a DatetimeValue or a File/Image's public status/quality
                     //  ...ensure the datafield is valid to search on
                     $df_id = intval($pieces[0]);
 
@@ -843,7 +856,7 @@ class SearchKeyService
                         else if ( $pieces[3] === 'by' && !is_numeric($value) ) {
                             throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid user id', $exception_code);
                         }
-                        else if ( $pieces[3] !== 'by') {
+                        else if ( $pieces[3] !== 'by' ) {
                             throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
                         }
                     }
@@ -1006,6 +1019,7 @@ class SearchKeyService
                                     case 'DatetimeValue':
                                     case 'File':
                                     case 'Image':
+                                    case 'XYZData':
                                         // A general search doesn't make sense for these fieldtypes,
                                         //  so don't create a criteria entry to be searched on
                                         break;
@@ -1149,7 +1163,7 @@ class SearchKeyService
                 $pieces = explode('_', $key);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // This is a DatetimeValue, or the public_status/quality for a File/Image field
+                    // This is a DatetimeValue or the public_status/quality for a File/Image field
                     //  ...need to find the datatype id
                     $dt_id = null;
                     $df_id = intval($pieces[0]);
@@ -1499,6 +1513,7 @@ class SearchKeyService
                             case 'MediumVarchar':
                             case 'LongVarchar':
                             case 'LongText':
+                            case 'XYZData':
                                 // valid typeclass, continue
                                 break;
 
@@ -1761,6 +1776,7 @@ class SearchKeyService
                                     case 'DatetimeValue':
                                     case 'File':
                                     case 'Image':
+                                    case 'XYZData':
                                         // A general search doesn't make sense for these fieldtypes,
                                         //  so don't create a criteria entry to be searched on
                                         break;
@@ -2001,6 +2017,9 @@ class SearchKeyService
                         $key = 'tags';
                     else
                         continue;
+                    // Also need to store XYZData column names
+                    if ( $df_lookup[$df_id]['typeClass'] === 'XYZData' )
+                        $df_lookup[$df_id]['xyz_column_names'] = explode(',', $df_data['dataFieldMeta']['xyz_data_column_names']);
 
                     $df_lookup[$df_id][$key] = array();
                     foreach ($df_data[$key] as $num => $entity) {
@@ -2058,6 +2077,7 @@ class SearchKeyService
                     case 'Tag':
                         $value = explode(',', $value);
                         break;
+                    // TODO - XYZData?
                     default:
                         // Don't need to do anything for the text/number/file/image fields
                         break;
@@ -2118,9 +2138,10 @@ class SearchKeyService
                         continue;
                     }
 
-                    // This could be either a DatetimeValue field or a File/Image field...
+                    // This could be either a DatetimeValue, a File/Image, or an XYZData field...
                     $df_name = $df_lookup[ $pieces[0] ]['fieldName'];
-                    $start = $end = $public_status = $quality = null;
+                    $start = $end = null;
+                    $public_status = $quality = null;
 
                     // These are for DatetimeValues...
                     if ( $pieces[1] === 's' )

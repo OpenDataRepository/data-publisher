@@ -45,12 +45,12 @@ class DatarecordInfoService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var TagHelperService
      */
-    private $th_service;
+    private $tag_helper_service;
 
     /**
      * @var CsrfTokenManager
@@ -83,8 +83,8 @@ class DatarecordInfoService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatree_info_service;
-        $this->th_service = $tag_helper_service;
+        $this->datatree_info_service = $datatree_info_service;
+        $this->tag_helper_service = $tag_helper_service;
         $this->token_manager = $token_manager;
         $this->logger = $logger;
     }
@@ -247,7 +247,7 @@ class DatarecordInfoService
         $associated_datarecords = array();
         if ($include_links) {
             // Need to locate all linked datarecords for the provided datarecord
-            $associated_datarecords = $this->dti_service->getAssociatedDatarecords($grandparent_datarecord_id);
+            $associated_datarecords = $this->datatree_info_service->getAssociatedDatarecords($grandparent_datarecord_id);
         }
         else {
             // Don't want any datarecords that are linked to from the given grandparent datarecord
@@ -281,8 +281,9 @@ class DatarecordInfoService
     {
         // This function is only called when the cache entry doesn't exist
 
-        // These two are kept separate from the primary query because it's slightly easier on
+        // These are kept separate from the primary query because it's slightly easier on
         //  doctrine's array hydrator
+        $xyz_values = self::getXYZData($grandparent_datarecord_id);
         $radio_selections = self::getRadioSelections($grandparent_datarecord_id);
         $tag_selections = self::getTagSelections($grandparent_datarecord_id);
 
@@ -304,7 +305,7 @@ class DatarecordInfoService
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
-               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv,
+               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, e_xyz,
 
                partial e_b_ub.{id, username, email, firstName, lastName},
                partial e_iv_ub.{id, username, email, firstName, lastName},
@@ -313,7 +314,8 @@ class DatarecordInfoService
                partial e_lvc_ub.{id, username, email, firstName, lastName},
                partial e_mvc_ub.{id, username, email, firstName, lastName},
                partial e_svc_ub.{id, username, email, firstName, lastName},
-               partial e_dtv_ub.{id, username, email, firstName, lastName}
+               partial e_dtv_ub.{id, username, email, firstName, lastName},
+               partial e_xyz_ub.{id, username, email, firstName, lastName}
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -362,6 +364,8 @@ class DatarecordInfoService
             LEFT JOIN e_svc.updatedBy AS e_svc_ub
             LEFT JOIN drf.datetimeValue AS e_dtv
             LEFT JOIN e_dtv.updatedBy AS e_dtv_ub
+            LEFT JOIN drf.XYZData AS e_xyz
+            LEFT JOIN e_xyz.updatedBy AS e_xyz_ub
 
             LEFT JOIN drf.dataField AS df
             LEFT JOIN df.dataFieldMeta AS dfm
@@ -447,7 +451,7 @@ class DatarecordInfoService
                 //  tag when given a child tag
                 // Despite technically having four levels of foreach loops, only the deepest two
                 //  loops really do anything
-                $tag_id_hierarchy = $this->th_service->getTagHierarchy($gp_dt_id);
+                $tag_id_hierarchy = $this->tag_helper_service->getTagHierarchy($gp_dt_id);
                 foreach ($tag_id_hierarchy as $dt_id => $df_list) {
                     foreach ($df_list as $df_id => $tag_tree) {
                         foreach ($tag_tree as $parent_tag_id => $children) {
@@ -460,7 +464,7 @@ class DatarecordInfoService
                 // Need to do the same thing with tag uuids too
                 // Despite technically having four levels of foreach loops, only the deepest two
                 //  loops really do anything
-                $tag_uuid_hierarchy = $this->th_service->getTagHierarchy($gp_dt_id, true);
+                $tag_uuid_hierarchy = $this->tag_helper_service->getTagHierarchy($gp_dt_id, true);
                 foreach ($tag_uuid_hierarchy as $dt_id => $df_list) {
                     foreach ($df_list as $df_id => $tag_tree) {
                         foreach ($tag_tree as $parent_tag_uuid => $children) {
@@ -551,6 +555,8 @@ class DatarecordInfoService
                     $expected_fieldtype = 'radioSelection';
                 else if ($expected_fieldtype == 'tag')
                     $expected_fieldtype = 'tagSelection';
+                else if ($expected_fieldtype == 'xYZData')
+                    $expected_fieldtype = 'xyzData';
 
                 // Flatten file metadata and get rid of encrypt_key
                 foreach ($drf['file'] as $file_num => $file) {
@@ -650,6 +656,13 @@ class DatarecordInfoService
                         $new_ts_array[$t_id] = $ts;
                     }
                     $drf['tagSelection'] = $new_ts_array;
+                }
+
+                // Deal with xyz data
+                if ( isset($xyz_values[$dr_id][$df_id]) ) {
+                    $drf['xyzData'] = $xyz_values[$dr_id][$df_id];
+                    foreach ($drf['xyzData'] as $num => $xyz)
+                        $drf['xyzData'][$num]['updatedBy'] = UserUtility::cleanUserData( $xyz['updatedBy'] );
                 }
 
                 // Delete everything that isn't strictly needed in this $drf array
@@ -783,6 +796,51 @@ class DatarecordInfoService
         }
 
         return $tag_selections;
+    }
+
+
+    /**
+     * Because of the complexity/depth of the main query in {@link self::buildDatarecordData()},
+     * it's a lot harder for mysql if the database also has any xyz data...it's better to get
+     * them in a separate query.
+     *
+     * @param int $grandparent_datarecord_id
+     *
+     * @return array
+     */
+    private function getXYZData($grandparent_datarecord_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT xyz, partial xyz_ub.{id, username, email, firstName, lastName},
+                partial drf.{id}, partial df.{id}, partial dr.{id}
+            FROM ODRAdminBundle:XYZData AS xyz
+            LEFT JOIN xyz.updatedBy AS xyz_ub
+            LEFT JOIN xyz.dataRecordFields AS drf
+            LEFT JOIN drf.dataField AS df
+            LEFT JOIN drf.dataRecord AS dr
+            WHERE dr.grandparent = :grandparent_datarecord_id
+            AND xyz.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
+            ORDER BY dr.id, df.id, xyz.x_value'
+        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        $results = $query->getArrayResult();
+
+        $xyz_values = array();
+        foreach ($results as $result) {
+            // Need these ids out of the array...
+            $df_id = $result['dataRecordFields']['dataField']['id'];
+            $dr_id = $result['dataRecordFields']['dataRecord']['id'];
+            // Don't want to keep this entry
+            unset( $result['dataRecordFields'] );
+
+            if ( !isset($xyz_values[$dr_id]) )
+                $xyz_values[$dr_id] = array();
+            if ( !isset($xyz_values[$dr_id][$df_id]) )
+                $xyz_values[$dr_id][$df_id] = array();
+            $xyz_values[$dr_id][$df_id][] = $result;
+        }
+
+        return $xyz_values;
     }
 
 
@@ -1018,7 +1076,8 @@ class DatarecordInfoService
 
 
     /**
-     * Extracts the value from a dataRecordField entry in the array.
+     * Extracts the value from a dataRecordField entry in the array.  This doesn't include Tags or
+     * XYZ values, because those aren't valid for a DatatypeSpecialField.
      *
      * @param $drf
      * @return string
@@ -1265,7 +1324,7 @@ class DatarecordInfoService
         foreach ($datatype_array as $dt_id => $dt) {
             if ( isset($dt['dataFields'][$df_id]) ) {
                 $df = $dt['dataFields'][$df_id];
-                $typeclass = lcfirst( $df['dataFieldMeta']['fieldType']['typeClass'] );
+                $typeclass = strtolower( $df['dataFieldMeta']['fieldType']['typeClass'] );
 
                 switch ($typeclass) {
                     // FakeEdit doesn't allow uploads of files/images...
@@ -1276,6 +1335,7 @@ class DatarecordInfoService
                     case 'tags':
                     // ...so any value in these fieldtypes should get ignored
                     case 'markdown':
+                    case 'xyzdata':
                         // TODO - modify to fill out non-markdown fields?
                         return array();
                 }

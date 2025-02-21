@@ -71,6 +71,7 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\ThemeRenderPluginInstance;
 use ODR\AdminBundle\Entity\UserGroup;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -222,6 +223,7 @@ class EntityCreationService
         $datafield_meta->setSearchCanRequestBothMerges(false);
         $datafield_meta->setTagsAllowNonAdminEdit(false);
         $datafield_meta->setTagsAllowMultipleLevels(false);
+        $datafield_meta->setXyzDataColumnNames('');
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
             $datafield_meta->setAllowMultipleUploads(true);
             $datafield_meta->setShortenFilename(true);
@@ -2961,5 +2963,124 @@ class EntityCreationService
             $this->em->flush();
 
         return $user_group;
+    }
+
+
+    /**
+     * Creates, persists, and flushes a new XYZData entity.   This function doesn't permit delaying
+     * flushes, because it's impossible to lock properly.
+     *
+     * IMPORTANT: $created is not optional.  It's required to ensure that dozens/hundreds of XYZData
+     *  entities are created/modified "at the same time"...otherwise tracking doesn't work correctly.
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     * @param DataFields $datafield
+     * @param \DateTime $created
+     * @param float $x_value This is not optional, as it's part of identification
+     * @param boolean $fire_event If false, then don't fire the PostUpdateEvent
+     * @param float|null $initial_y_value
+     * @param float|null $initial_z_value
+     *
+     * @return XYZData
+     */
+    public function createXYZValue($user, $datarecord, $datafield, $created, $x_value, $fire_event = true, $initial_y_value = null, $initial_z_value = null)
+    {
+        // Locate the table name that will be inserted into if the storage entity doesn't exist
+        $fieldtype = $datafield->getFieldType();
+        $typeclass = $fieldtype->getTypeClass();
+
+        if ( $typeclass !== 'XYZData' )
+            throw new \Exception('createXYZData() called on invalid fieldtype "'.$typeclass.'"');
+
+
+        // Return the storage entity if it already exists
+        /** @var XYZData $storage_entity */
+        $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+            array(
+                'dataRecord' => $datarecord->getId(),
+                'dataField' => $datafield->getId(),
+                'x_value' => $x_value,
+            )
+        );
+        if ( $storage_entity == null ) {
+            // Bad Things (tm) happen if there's more than one storage entity for this
+            //  datarecord/datafield/fieldtype tuple, so use a locking service to prevent that...
+            $lockHandler = $this->lock_service->createLock('storage_'.$datarecord->getId().'_'.$datafield->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
+                // Another process is attempting to create this entity...wait for it to finish...
+                $lockHandler->acquire(true);
+
+                // ...then reload and return the storage entity that got created
+                /** @var XYZData $storage_entity */
+                $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+                    array(
+                        'dataRecord' => $datarecord->getId(),
+                        'dataField' => $datafield->getId(),
+                        'x_value' => $x_value,
+                    )
+                );
+                return $storage_entity;
+            }
+            else {
+                // Got the lock, locate/create the datarecordfield entity for this
+                $drf = self::createDatarecordField($user, $datarecord, $datafield, $created);
+
+                // Unlike other entities, there could be dozens/hundreds of XYZData entries for a
+                //  given datarecordfield entry...creating/modifying a pile of them could easily
+                //  require multiple seconds to save, which would break tracking and field history
+                // Rather than also save a "tracking_id" or "transaction_id", it's simpler to force
+                //  the caller to provide a DateTime object...with the hope that they reuse that
+                //  object when creating/updating multiple XYZData entries
+//                if ( is_null($created) )
+//                    $created = new \DateTime();
+
+                if ( !is_null($x_value) )
+                    $x_value = floatval($x_value);
+                if ( !is_null($initial_y_value) )
+                    $initial_y_value = floatval($initial_y_value);
+                if ( !is_null($initial_z_value) )
+                    $initial_z_value = floatval($initial_z_value);
+
+                // Create the storage entity
+                $storage_entity = new XYZData();
+                $storage_entity->setDataRecord($datarecord);
+                $storage_entity->setDataField($datafield);
+                $storage_entity->setDataRecordFields($drf);
+                $storage_entity->setFieldType($fieldtype);
+
+                $storage_entity->setXValue($x_value);
+                $storage_entity->setYValue($initial_y_value);
+                $storage_entity->setZValue($initial_z_value);
+
+                $storage_entity->setCreated($created);
+                $storage_entity->setUpdated($created);
+                $storage_entity->setCreatedBy($user);
+                $storage_entity->setUpdatedBy($user);
+
+                $this->em->persist($storage_entity);
+                $this->em->flush();
+                $this->em->refresh($storage_entity);
+
+                // Now that the storage entity is created, release the lock on it
+                $lockHandler->release();
+
+                // Only want to fire this event when the storage entity gets created
+                if ($fire_event) {
+                    try {
+                        $event = new PostUpdateEvent($storage_entity, $user);
+                        $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+
+                        // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
+                    }
+                    catch (\Exception $e) {
+//                        if ( $this->env === 'dev' )
+//                            throw $e;
+                    }
+                }
+            }
+        }
+
+        return $storage_entity;
     }
 }

@@ -154,6 +154,19 @@ function initPage() {
 
         openFieldHistoryDialog(datarecord_id, datafield_id);
     });
+    $(".ODRXYZDatafieldHistory").unbind('click').click(function(event) {
+        // Don't trigger whatever the click normally would have done
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        // Grab relevant entity ids
+        var id_data = $(this).parents('.ODRDataField').attr('id').split(/_/);
+        var datarecord_id = id_data[1];
+        var datafield_id = id_data[2];
+
+        // Need a different database query for this fieldtype...
+        openXYZFieldHistoryDialog(datarecord_id, datafield_id);
+    });
 {% endif %}
 
     $(".ODRFileRenameTrigger").unbind('click').click(function() {
@@ -1119,7 +1132,6 @@ function initPage() {
             SaveRecordData('#' + form_id, '');
         }
     });
-
     $(".ODRDatePicker_clear").unbind('click').click(function() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
 
@@ -1934,7 +1946,6 @@ function SaveRecordData(form_id, interval, callback) {
     // If form is in "autocomplete" - do nothing
     // Only check DataFields that are part of this FieldArea and one level deep
     var autocomplete = $(form_id).find('.ui-autocomplete-input');
-
     if (autocomplete.length > 0) {
         // console.log('autocomplete active.');
         return;
