@@ -1674,7 +1674,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $old_value = self::findCurrentValue($datafield->getId());
 
         // Extract the numeric part of the "most recent" value, and add 1 to it
-        $val = intval( substr($old_value, 2) );
+        $val = intval( substr($old_value, 0, 5) );
         $val += 1;
 
         // Convert it back into the expected format so the storage entity can get created
