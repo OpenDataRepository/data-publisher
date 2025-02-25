@@ -714,11 +714,11 @@ class DatarecordInfoService
            'SELECT rs, ro, partial rs_ub.{id, username, email, firstName, lastName},
                     partial drf.{id}, partial df.{id}, partial dr.{id}
             FROM ODRAdminBundle:RadioSelection AS rs
-            LEFT JOIN rs.radioOption AS ro
-            LEFT JOIN rs.updatedBy AS rs_ub
-            LEFT JOIN rs.dataRecordFields AS drf
-            LEFT JOIN drf.dataField AS df
-            LEFT JOIN drf.dataRecord AS dr
+            JOIN rs.radioOption AS ro
+            JOIN rs.updatedBy AS rs_ub
+            JOIN rs.dataRecordFields AS drf
+            JOIN drf.dataField AS df
+            JOIN drf.dataRecord AS dr
             WHERE dr.grandparent = :grandparent_datarecord_id
             AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
@@ -764,11 +764,11 @@ class DatarecordInfoService
            'SELECT ts, t, partial ts_ub.{id, username, email, firstName, lastName},
                     partial drf.{id}, partial df.{id}, partial dr.{id}
             FROM ODRAdminBundle:TagSelection AS ts
-            LEFT JOIN ts.tag AS t
-            LEFT JOIN ts.updatedBy AS ts_ub
-            LEFT JOIN ts.dataRecordFields AS drf
-            LEFT JOIN drf.dataField AS df
-            LEFT JOIN drf.dataRecord AS dr
+            JOIN ts.tag AS t
+            JOIN ts.updatedBy AS ts_ub
+            JOIN ts.dataRecordFields AS drf
+            JOIN drf.dataField AS df
+            JOIN drf.dataRecord AS dr
             WHERE dr.grandparent = :grandparent_datarecord_id
             AND ts.deletedAt IS NULL AND t.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
@@ -814,10 +814,10 @@ class DatarecordInfoService
            'SELECT xyz, partial xyz_ub.{id, username, email, firstName, lastName},
                 partial drf.{id}, partial df.{id}, partial dr.{id}
             FROM ODRAdminBundle:XYZData AS xyz
-            LEFT JOIN xyz.updatedBy AS xyz_ub
-            LEFT JOIN xyz.dataRecordFields AS drf
-            LEFT JOIN drf.dataField AS df
-            LEFT JOIN drf.dataRecord AS dr
+            JOIN xyz.updatedBy AS xyz_ub
+            JOIN xyz.dataRecordFields AS drf
+            JOIN drf.dataField AS df
+            JOIN drf.dataRecord AS dr
             WHERE dr.grandparent = :grandparent_datarecord_id
             AND xyz.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
