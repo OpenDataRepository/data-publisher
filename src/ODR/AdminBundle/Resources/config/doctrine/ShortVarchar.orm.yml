@@ -44,6 +44,9 @@ ODR\AdminBundle\Entity\ShortVarchar:
         shortvarchar_fulltext:
             columns: ["value"]
             flags: fulltext
+        shortvarchar_converted_fulltext:
+            columns: [ "converted_value" ]
+            flags: fulltext
 
     manyToOne:
         dataField:
