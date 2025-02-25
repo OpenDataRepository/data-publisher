@@ -34,7 +34,6 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
@@ -73,6 +72,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
+use ODR\AdminBundle\Component\Service\XYZDataHelperService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
@@ -2618,12 +2618,10 @@ class EditController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
-            /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var XYZDataHelperService $xyzdata_helper_service */
+            $xyzdata_helper_service = $this->container->get('odr.xyzdata_helper_service');
 
 
             /** @var DataRecord $datarecord */
@@ -2670,171 +2668,20 @@ class EditController extends ODRCustomController
             if ( $csrf_token !== $expected_csrf_token )
                 throw new ODRBadRequestException('Invalid Form');
 
-            // Now that the token is valid, parse the field contents
-            $expected_num_columns = count( explode(',', $datafield->getXyzDataColumnNames()) );
 
-            $new_data = array();
-            $points = explode('|', $new_value);
-            $count = 1;
-            foreach ($points as $point) {
-                $pieces = explode(',', substr($point, 1, -1));
-                $x_value = null;
-
-                if ( !isset($pieces[0]) )
-                    throw new ODRBadRequestException('Missing x_value for point #'.$count);
-                else if ( !ValidUtility::isValidDecimal($pieces[0]) )
-                    throw new ODRBadRequestException('Invalid x_value for point #'.$count);
-                else {
-                    $x_value = strval(floatval($pieces[0]));
-                    $new_data[$x_value]['x_value'] = $x_value;
-                }
-
-                if ( $expected_num_columns > 1 ) {
-                    if ( !isset($pieces[1]) )
-                        throw new ODRBadRequestException('Missing y_value for point #'.$count);
-                    else if ( !ValidUtility::isValidDecimal($pieces[1]) )
-                        throw new ODRBadRequestException('Invalid y_value for point #'.$count);
-                    else
-                        $new_data[$x_value]['y_value'] = strval(floatval($pieces[1]));
-                }
-
-                if ( $expected_num_columns > 2 ) {
-                    if ( !isset($pieces[2]) )
-                        throw new ODRBadRequestException('Missing z_value for point #'.$count);
-                    else if ( !ValidUtility::isValidDecimal($pieces[2]) )
-                        throw new ODRBadRequestException('Invalid z_value for point #'.$count);
-                    else
-                        $new_data[$x_value]['z_value'] = strval(floatval($pieces[2]));
-                }
-
-                $count++;
-            }
-
-            // Now that the new data is valid, it makes sense to get the existing data...
-            /** @var XYZData[] $xyz_data_values */
-            $xyz_data_values = $em->getRepository('ODRAdminBundle:XYZData')->findBy(
-                array(
-                    'dataRecord' => $datarecord_id,
-                    'dataField' => $datafield_id
-                )
+            // Now that the token is valid, save the given value
+            $changes_made = $xyzdata_helper_service->updateXYZData(
+                $user,
+                $datarecord,
+                $datafield,
+                new \DateTime(),
+                $new_value,
+                $replace_all
             );
 
-            $xyz_lookup = array();
-            $old_data = array();
-            foreach ($xyz_data_values as $xyz_data) {
-                // This field should always have an x_value...use it as the key of the array
-                $x_value = strval($xyz_data->getXValue());
-                $old_data[$x_value]['x_value'] = $x_value;
-                $xyz_lookup[$x_value] = $xyz_data;
-
-                if ( $expected_num_columns > 1 )
-                    $old_data[$x_value]['y_value'] = strval($xyz_data->getYValue());
-                if ( $expected_num_columns > 2 )
-                    $old_data[$x_value]['z_value'] = strval($xyz_data->getZValue());
-            }
-
 
             // ----------------------------------------
-            // Go through both old and new arrays to determine if there's any difference
-            $entries_to_create = $entries_to_modify = $entries_to_delete = array();
-            foreach ($old_data as $x_value => $data) {
-                if ( !isset($new_data[$x_value]) || $replace_all ) {
-                    $entries_to_delete[$x_value] = 1;
-                    unset( $old_data[$x_value] );
-                }
-            }
-            foreach ($new_data as $x_value => $data) {
-                if ( !isset($old_data[$x_value]) ) {
-                    $entries_to_create[$x_value] = array();
-                    if ( isset($data['y_value']) )
-                        $entries_to_create[$x_value]['y_value'] = $data['y_value'];
-                    if ( isset($data['z_value']) )
-                        $entries_to_create[$x_value]['z_value'] = $data['z_value'];
-                    unset( $new_data[$x_value] );
-                }
-            }
-
-            // At this point, old and new data should have an identical set of x_value keys...
-            foreach ($old_data as $x_value => $data) {
-                $old_y_value = $old_z_value = null;
-                $new_y_value = $new_z_value = null;
-
-                if ( $expected_num_columns > 1 ) {
-                    $old_y_value = $data['y_value'];
-                    $new_y_value = $new_data[$x_value]['y_value'];
-                }
-
-                if ( $expected_num_columns > 2 ) {
-                    $old_z_value = $data['z_value'];
-                    $new_z_value = $new_data[$x_value]['z_value'];
-                }
-
-                if ( !($old_y_value == $new_y_value && $old_z_value == $new_z_value) ) {
-                    $entries_to_modify[$x_value] = array();
-                    if ( !is_null($new_y_value) )
-                        $entries_to_modify[$x_value]['y_value'] = $new_y_value;
-                    if ( !is_null($new_z_value) )
-                        $entries_to_modify[$x_value]['z_value'] = $new_z_value;
-                }
-            }
-
-
-            // ----------------------------------------
-            // Unlike other entities, there could be dozens/hundreds of XYZData entries for a
-            //  given datarecordfield entry...creating/modifying a pile of them could easily
-            //  require multiple seconds to save, which would break tracking and field history
-
-            // Rather than also save a "tracking_id" or "transaction_id", it's simpler to force
-            //  the caller to provide a DateTime object...with the hope that they reuse that
-            //  object when creating/updating multiple XYZData entries
-            $created_date = new \DateTime();
-
-            // Use the three arrays of changes to modify the database
-            $created = $modified = $deleted = false;
-            foreach ($entries_to_create as $x_value => $data) {
-                // ...new entries get created with default values
-                $created = true;
-
-                if ($expected_num_columns == 1 )
-                    $entity_create_service->createXYZValue($user, $datarecord, $datafield, $created_date, $x_value, false);
-                else if ($expected_num_columns == 2 )
-                    $entity_create_service->createXYZValue($user, $datarecord, $datafield, $created_date, $x_value, false, $data['y_value']);
-                else if ($expected_num_columns == 3 )
-                    $entity_create_service->createXYZValue($user, $datarecord, $datafield, $created_date, $x_value, false, $data['y_value'], $data['z_value']);
-
-                // TODO - should PostUpdateEvent fire?  it's only listened to by render plugins...
-            }
-
-            foreach ($entries_to_modify as $x_value => $data) {
-                // ...existing entries get modified
-                $modified = true;
-
-                $entity = $xyz_lookup[$x_value];
-                $props = array('x_value' => $x_value);
-                if ( isset($data['y_value']) )
-                    $props['y_value'] = $data['y_value'];
-                if ( isset($data['z_value']) )
-                    $props['z_value'] = $data['z_value'];
-
-                $entity_modify_service->updateXYZData($user, $entity, $created_date, $props, true, false);
-                // TODO - should PostUpdateEvent fire?  it's only listened to by render plugins...
-            }
-
-            foreach ($entries_to_delete as $x_value => $data) {
-                // ...and deleted entries are directly dealt with via doctrine
-                $deleted = true;
-
-                $entity = $xyz_lookup[$x_value];
-                $em->remove($entity);
-            }
-
-            // If any of these changes happened, then the database should be flushed
-            if ( $modified || $deleted )
-                $em->flush();
-
-
-            // ----------------------------------------
-            if ( $created || $modified || $deleted ) {
+            if ( $changes_made ) {
                 // Fire off an event notifying that the modification of the datafield is done
                 try {
                     $event = new DatafieldModifiedEvent($datafield, $user);
@@ -2861,7 +2708,7 @@ class EditController extends ODRCustomController
             }
 
             // Notify whether a change was made or not
-            $return['d'] = array('change_made' => $created || $modified || $deleted);
+            $return['d'] = array('change_made' => $changes_made);
         }
         catch (\Exception $e) {
             $source = 0x74a1294a;

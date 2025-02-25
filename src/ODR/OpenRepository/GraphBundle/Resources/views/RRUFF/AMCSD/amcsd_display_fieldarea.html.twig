@@ -37,7 +37,11 @@
                             {% set datafield = datatype['dataFields'][datafield_id] %}
 
                             {% set is_file_contents_datafield = false %}
-                            {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "File Contents" %}
+                            {% if plugin_fields[ datafield.id ] is defined and
+                                (plugin_fields[ datafield.id ]['rpf_name'] == "AMC File Contents"
+                                or plugin_fields[ datafield.id ]['rpf_name'] == "AMC File Contents (short)"
+                                or plugin_fields[ datafield.id ]['rpf_name'] == "CIF File Contents")
+                            %}
                                 {% set is_file_contents_datafield = true %}
                             {% endif %}
 
@@ -47,6 +51,7 @@
                                 (plugin_fields[ datafield.id ]['rpf_name'] == "Point Group"
                                 or plugin_fields[ datafield.id ]['rpf_name'] == "Space Group")
                             %}
+                                {# NOTE: replacing underscores and minus signs for these two fields #}
                                 {% set rpf_name = plugin_fields[ datafield.id ]['rpf_name'] %}
                                 {% set is_modified_field = true %}
                             {% endif %}

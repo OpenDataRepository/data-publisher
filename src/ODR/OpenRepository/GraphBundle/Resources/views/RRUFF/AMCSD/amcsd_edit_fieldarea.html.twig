@@ -46,17 +46,21 @@
                         {% set can_edit_datafield = true %}
                     {% endif %}
 
-                    {% set is_amc_file_datafield = false %}
-                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "AMC File" %}
-                        {% set is_amc_file_datafield = true %}
-                    {% endif %}
-                    {% set is_cif_file_datafield = false %}
-                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "CIF File" %}
-                        {% set is_cif_file_datafield = true %}
+                    {% set is_file_datafield = false %}
+                    {% if plugin_fields[ datafield.id ] is defined and
+                        (plugin_fields[ datafield.id ]['rpf_name'] == "AMC File"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "CIF File"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "DIF File")
+                    %}
+                        {% set is_file_datafield = true %}
                     {% endif %}
 
                     {% set is_file_contents_datafield = false %}
-                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "File Contents" %}
+                    {% if plugin_fields[ datafield.id ] is defined and
+                        (plugin_fields[ datafield.id ]['rpf_name'] == "AMC File Contents"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "AMC File Contents (short)"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "CIF File Contents")
+                    %}
                         {% set is_file_contents_datafield = true %}
                     {% endif %}
 
@@ -83,8 +87,8 @@
 
                                     'is_datatype_admin': is_datatype_admin,
                                 } %}
-                            {% elseif is_amc_file_datafield or is_cif_file_datafield %}
-                                {# the "AMC File" and "CIF File" datafields require slightly different file upload javascript #}
+                            {% elseif is_file_datafield %}
+                                {# the "AMC File", "CIF File", and "DIF File" datafields require slightly different file upload javascript #}
                                 {% include 'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_file_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,

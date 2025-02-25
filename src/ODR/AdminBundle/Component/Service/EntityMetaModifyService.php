@@ -2938,25 +2938,26 @@ class EntityMetaModifyService
 
 
     /**
-     * Modifies a given XYZData by copying the old value into a new storage entity, then
-     * deleting the old entity.
+     * NOTE: you almost always want to use XYZDataHelperService::update() instead...this function
+     * intentionally only modifies a single XYZData, just like the update functions for the
+     * File/Image/Radio/Tag only update one of the related entities for the datarecordfield.
      *
-     * This only modifies a single XYZData, just like the update functions for File/Image/Radio/Tag
-     * only update one of the attached entities for the datarecordfield.
+     * NOTE: if you do use this function, then you also probably don't want to be modifying the x_value.
+     * The rest of the XYZData stuff tries to use that as a key to determine when rows should be
+     * created.
      *
      * IMPORTANT: $created is not optional.  It's required to ensure that dozens/hundreds of XYZData
-     *  entities are created/modified "at the same time"...otherwise tracking doesn't work correctly.
+     * entities are created/modified "at the same time"...otherwise tracking doesn't work correctly.
      *
      * @param ODRUser $user
      * @param XYZData $entity
      * @param \DateTime $created
      * @param array $properties
      * @param bool $delay_flush If true, then don't flush prior to returning
-     * @param bool $fire_event  If false, then don't fire the PostUpdateEvent
      *
-     * @return XYZData
+     * @return bool true if changes were made, false otherwise
      */
-    public function updateXYZData($user, $entity, $created, $properties, $delay_flush = false, $fire_event = true)
+    public function updateXYZData($user, $entity, $created, $properties, $delay_flush = false)
     {
         // Determine which type of entity to create if needed
         $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
@@ -2993,26 +2994,8 @@ class EntityMetaModifyService
             $changes_made = true;
 
         if ( !$changes_made ) {
-            if ( $fire_event ) {
-                // ----------------------------------------
-                // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
-                //  event subscribers will prevent file encryption otherwise...
-                try {
-                    $event = new PostUpdateEvent($entity, $user);
-                    $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
-
-                    // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
-                }
-                catch (\Exception $e) {
-                    // ...the event stuff is likely going to "disappear" any error it encounters, but
-                    //  might as well rethrow anything caught here since there shouldn't be a critical
-                    //  process downstream anyways
-//                    if ( $this->env === 'dev' )
-//                        throw $e;
-                }
-            }
-
-            return $entity;
+            // TODO - fire a PostUpdateEvent?
+            return $changes_made;
         }
 
         // Ensure values are saved as either floats or nulls
@@ -3084,25 +3067,8 @@ class EntityMetaModifyService
         if ( !$delay_flush )
             $this->em->flush();
 
-        if ( $fire_event ) {
-            // ----------------------------------------
-            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
-            //  event subscribers will prevent file encryption otherwise...
-            try {
-                $event = new PostUpdateEvent($new_entity, $user);
-                $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+        // TODO - fire a PostUpdateEvent?
 
-                // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
-            }
-            catch (\Exception $e) {
-                // ...the event stuff is likely going to "disappear" any error it encounters, but
-                //  might as well rethrow anything caught here since there shouldn't be a critical
-                //  process downstream anyways
-//                if ( $this->env === 'dev' )
-//                    throw $e;
-            }
-        }
-
-        return $new_entity;
+        return $changes_made;
     }
 }

@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
@@ -36,6 +37,7 @@ use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
@@ -43,6 +45,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
+use ODR\AdminBundle\Component\Service\XYZDataHelperService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\CrystallographyDef;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
@@ -96,6 +99,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private $lock_service;
 
     /**
+     * @var XYZDataHelperService
+     */
+    private $xyzdata_helper_service;
+
+    /**
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
@@ -129,6 +137,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param EntityCreationService $entity_create_service
      * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
+     * @param XYZDataHelperService $xyzdata_helper_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
@@ -142,6 +151,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         EntityCreationService $entity_create_service,
         EntityMetaModifyService $entity_modify_service,
         LockService $lock_service,
+        XYZDataHelperService $xyzdata_helper_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
@@ -154,6 +164,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $this->entity_create_service = $entity_create_service;
         $this->entity_modify_service = $entity_modify_service;
         $this->lock_service = $lock_service;
+        $this->xyzdata_helper_service = $xyzdata_helper_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
@@ -262,15 +273,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // So, "database_code_amcsd", not "database code"
                 switch ($rpf_name) {
                     case 'fileno':
-                    case 'database_code_amcsd':
-                    case 'Authors':
-                    case 'File Contents':
 
-                    // These four can be edited
+                    // These three can be edited
 //                    case 'amc_file':
 //                    case 'cif_file':
 //                    case 'dif_file':
 
+                    case 'AMC File Contents':
+                    case 'AMC File Contents (short)':
+                    case 'database_code_amcsd':
+                    case 'Authors':
                     case 'Mineral':
                     case 'a':
                     case 'b':
@@ -278,21 +290,23 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'alpha':
                     case 'beta':
                     case 'gamma':
-                    case 'Volume':
-
                     case 'Crystal System':
                     case 'Point Group':
                     case 'Space Group':
                     case 'Lattice':
-
                     case 'Pressure':
                     case 'Temperature':
                         // None of these fields can be edited, since they're from the AMC file
 
+                    case 'CIF File Contents':
+                    case 'Volume':
                     case 'Chemistry':
                     case 'Chemistry Elements':
                     case 'Locality':
-                        // These fields also can't be edited, since they're from the CIF file
+                        // These fields can't be edited, since they're from the CIF file
+
+                    case 'Diffraction Search Values':
+                        // This field can't be edited, since it's from the DIF file
                         break;
 
                     default:
@@ -436,8 +450,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // If executing from the Display or Edit modes...
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
-                // ...there's a chance that there are files uploaded to the "AMC File" or the
-                //  "CIF File" fields, but none of the relevant datafields have a value in them
+                // ...there's a chance that there are files uploaded to the various file datafields,
+                //  but none of the relevant datafields have a value in them
 
                 // Read the cached datarecord to get all current values in it
                 $value_mapping = self::getValueMapping($datarecord);
@@ -445,6 +459,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Determine if any of the categories of fields have a problem
                 $amc_problems = self::amcFileHasProblem($plugin_fields, $value_mapping);
                 $cif_problems = self::cifFileHasProblem($plugin_fields, $value_mapping);
+                $dif_problems = self::difFileHasProblem($plugin_fields, $value_mapping);
                 $symmetry_problems = self::symmetryHasProblem($plugin_fields, $value_mapping);
 
                 if ( !empty($amc_problems) ) {
@@ -484,6 +499,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         array(
                             'rpf_name' => 'CIF File',
                             'problem_fields' => self::formatProblemFields($cif_problems),
+                            'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
+                        )
+                    );
+
+                    $output = $error_div . $output;
+                }
+
+                if ( !empty($dif_problems) ) {
+                    // Determine whether the user can edit the "DIF File" datafield
+                    $can_edit_relevant_datafield = false;
+                    if ( $is_datatype_admin )
+                        $can_edit_relevant_datafield = true;
+
+                    $df_id = array_search('DIF File', $editable_datafields);
+                    if ( isset($datafield_permissions[$df_id]['edit']) )
+                        $can_edit_relevant_datafield = true;
+
+                    $error_div = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        array(
+                            'rpf_name' => 'DIF File',
+                            'problem_fields' => self::formatProblemFields($dif_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
                         )
                     );
@@ -551,6 +588,17 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // ...doesn't have anything uploaded
                     $value_mapping[$df_id] = array();
             }
+            else if ( isset($drf['xyzData']) ) {
+                // XYZData fields will have two entries remaining at this time
+                if ( count($drf['xyzData']) > 0 ) {
+                    // Don't want to actually parse this stuff...just give it a non-empty value so
+                    //  that self::difFileHasProblem() doesn't complain
+                    $value_mapping[$df_id] = '1';
+                }
+                else {
+                    $value_mapping[$df_id] = '';
+                }
+            }
             else {
                 // Not a file datafield, but don't want to have to locate typeclass, so...
                 unset( $drf['file'] );
@@ -599,9 +647,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
+                case 'AMC File Contents':
+                case 'AMC File Contents (short)':
                 case 'database_code_amcsd':
                 case 'Authors':
-                case 'File Contents':
                 case 'Mineral':
                 case 'a':
                 case 'b':
@@ -668,6 +717,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
                 // These fields are derived from the CIF File
+                case 'CIF File Contents':
                 case 'Volume':
                 case 'Chemistry':
                 case 'Chemistry Elements':
@@ -679,6 +729,56 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // These fields are optional...the CIF file isn't required to have them
 //                case 'Locality':
 //                    break;
+
+                default:
+                    // Every other field the plugin specifies doesn't matter when trying to determine
+                    //  if a File has problems
+                    break;
+            }
+        }
+
+        // Return which fields (if any) lack a value
+        return $problem_fields;
+    }
+
+
+    /**
+     * Like the "AMC File" field, the "DIF File" field is used to derive the contents of other
+     * fields...but the "DIF File" doesn't need to provide as many values.  Still, if there was an
+     * error, then the user needs to be notified...
+     *
+     * @param array $plugin_fields
+     * @param array $value_mapping
+     *
+     * @return array A list of fields which could not be derived from the DIF File
+     */
+    private function difFileHasProblem($plugin_fields, $value_mapping)
+    {
+        // Need to locate the "DIF File" datafield...
+        $df_id = null;
+        foreach ($plugin_fields as $num => $rpf_df) {
+            // NOTE - technically $num is the datafield_id, but don't want to overwrite $df_id yet
+            if ( $rpf_df['rpf_name'] === 'DIF File' ) {
+                $df_id = $rpf_df['id'];
+                break;
+            }
+        }
+        // The "DIF File" field can't have a problem if there is no file uploaded...
+        if ( empty($value_mapping[$df_id]) )
+            return array();
+
+        // Otherwise, there's something uploaded to the "DIF File" datafield...therefore, the other
+        //  fields defined by this render plugin should all have a value
+        $problem_fields = array();
+
+        foreach ($plugin_fields as $df_id => $rpf_df) {
+            switch ( $rpf_df['rpf_name'] ) {
+                // These fields are derived from the DIF File
+                case 'Diffraction Search Values':
+                    // If the DIF file is valid, then every one of these fields will have a value
+                    if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
+                        $problem_fields[] = $rpf_df['rpf_name'];
+                    break;
 
                 default:
                     // Every other field the plugin specifies doesn't matter when trying to determine
@@ -795,6 +895,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         //  of an error
         $file = null;
         $datarecord = null;
+        $datafield = null;
         $user = null;
         $storage_entities = array();
 
@@ -827,6 +928,20 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Map the field definitions in the render plugin to datafields
                 $datafield_mapping = self::getRenderPluginFieldsMapping($datatype);
 
+                // If this is a request off a DIF file field...
+                if ( $relevant_rpf_name === 'DIF File' ) {
+                    // ...then want $datafield to refer to the XYZData datafield instead of the DIF
+                    //  File field ASAP in case of an error
+                    $df_id = $datafield_mapping['Diffraction Search Values'];
+
+                    /** @var DataFields $xyz_df */
+                    $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                    if ( $xyz_df == null )
+                        throw new ODRNotFoundException('Datafield');
+
+                    $datafield = $xyz_df;
+                }
+
                 // Need to hydrate the storage entities for each datafield so the values from the
                 //  file can get saved into the database
                 $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
@@ -848,6 +963,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // Extract as many pieces of data from the file as possible
                     $value_mapping = self::readCIFFile($handle);
                 }
+                else if ( $relevant_rpf_name === 'DIF File' ) {
+                    // Extract as many pieces of data from the file as possible
+                    $value_mapping = self::readDIFFile($handle);
+                }
 
                 // No longer need the file to be open
                 fclose($handle);
@@ -856,32 +975,46 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
                 // ----------------------------------------
-                // Each piece of data from the file is referenced by its RenderPluginField name...
-                foreach ($value_mapping as $rpf_name => $value) {
-                    // ...from which the actual datafield id can be located...
-                    $df_id = $datafield_mapping[$rpf_name];
-                    // ...which gives the hydrated storage entity...
-                    $entity = $storage_entities[$df_id];
-                    /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
-
-                    // ...which is saved in the storage entity for the datafield
-                    $this->entity_modify_service->updateStorageEntity(
-                        $user,
-                        $entity,
-                        array('value' => $value),
-                        true,    // don't flush immediately
-                        false    // don't fire PostUpdate event...nothing depends on these fields
-                    );
-                    $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
-
-                    // This only works because the datafields getting updated aren't files/images or
-                    //  radio/tag fields
+                if ( $relevant_rpf_name === 'DIF File' ) {
+                    // Should only be one piece of data...
+                    foreach ($value_mapping as $rpf_name => $value) {
+                         $this->xyzdata_helper_service->updateXYZData(
+                            $user,
+                            $datarecord,
+                            $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
+                            new \DateTime(),
+                            $value,
+                            true    // shouldn't be anything in the field, but replace everything anyways
+                        );
+                        $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+                    }
                 }
+                else {
+                    // Each piece of data from the file is referenced by its RenderPluginField name...
+                    foreach ($value_mapping as $rpf_name => $value) {
+                        // ...from which the actual datafield id can be located...
+                        $df_id = $datafield_mapping[$rpf_name];
+                        // ...which gives the hydrated storage entity...
+                        $entity = $storage_entities[$df_id];
+                        /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
 
+                        // ...which is saved in the storage entity for the datafield
+                        $this->entity_modify_service->updateStorageEntity(
+                            $user,
+                            $entity,
+                            array('value' => $value),
+                            true,    // don't flush immediately
+                            false    // don't fire PostUpdate event...nothing depends on these fields
+                        );
+                        $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
 
-                // ----------------------------------------
-                // Now that all the fields have their correct value, flush all changes
-                $this->em->flush();
+                        // This only works because the datafields getting updated aren't files/images or
+                        //  radio/tag fields
+                    }
+
+                    // Now that all the fields have their correct value, flush all changes
+                    $this->em->flush();
+                }
             }
         }
         catch (\Exception $e) {
@@ -890,7 +1023,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             if ( $relevant_rpf_name ) {
                 // If an error was thrown, attempt to ensure the related AMCSD fields are blank
-                self::saveOnError($user, $file, $storage_entities);
+                self::saveOnError($user, $datarecord, $datafield, $file, $storage_entities);
             }
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
@@ -947,31 +1080,56 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Map the field definitions in the render plugin to datafields
                 $datafield_mapping = self::getRenderPluginFieldsMapping($datatype);
 
+                // If this is a request off a DIF file field...
+                if ( $relevant_rpf_name === 'DIF File' ) {
+                    // ...then want $datafield to refer to the XYZData datafield instead of the DIF
+                    //  File field ASAP in case of an error
+                    $df_id = $datafield_mapping['Diffraction Search Values'];
+
+                    /** @var DataFields $xyz_df */
+                    $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                    if ( $xyz_df == null )
+                        throw new ODRNotFoundException('Datafield');
+
+                    $datafield = $xyz_df;
+                }
+
                 // Need to hydrate the storage entities for each datafield so the values from the
                 //  file can get saved into the database
                 $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
 
 
                 // ----------------------------------------
-                // Each relevant field required by the render plugin needs to be cleared...
-                foreach ($storage_entities as $df_id => $entity) {
-                    $rpf_name = array_search($df_id, $datafield_mapping);
-
-                    /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
-                    $this->entity_modify_service->updateStorageEntity(
+                if ( $relevant_rpf_name === 'DIF File' ) {
+                    $this->xyzdata_helper_service->updateXYZData(
                         $user,
-                        $entity,
-                        array('value' => ''),
-                        true,    // don't flush immediately
-                        false    // don't fire PostUpdate event...nothing depends on these fields
+                        $datarecord,
+                        $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
+                        new \DateTime(),
+                        '',
+                        true    // ensure everything in the field is deleted
                     );
-                    $this->logger->debug('-- updating datafield '.$df_id.' ('.$rpf_name.') to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                    $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' (Diffraction Search Values) to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$event->getDatafield()->getId(), 'dr '.$datarecord->getId()));
                 }
+                else {
+                    // Each relevant field required by the render plugin needs to be cleared...
+                    foreach ($storage_entities as $df_id => $entity) {
+                        $rpf_name = array_search($df_id, $datafield_mapping);
 
+                        /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
+                        $this->entity_modify_service->updateStorageEntity(
+                            $user,
+                            $entity,
+                            array('value' => ''),
+                            true,    // don't flush immediately
+                            false    // don't fire PostUpdate event...nothing depends on these fields
+                        );
+                        $this->logger->debug('-- updating datafield '.$df_id.' ('.$rpf_name.') to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                    }
 
-                // ----------------------------------------
-                // Now that all the fields have their correct value, flush all changes
-                $this->em->flush();
+                    // Now that all the fields have their correct value, flush all changes
+                    $this->em->flush();
+                }
 
                 // The HTML on the page has already been set up to do a complete/partial reload so
                 //  the changes to the rest of the fields get displayed properly
@@ -1026,8 +1184,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $datatype = $datafield->getDataType();
             $user = $event->getUser();
 
-            // Only care about a file that get uploaded to the "AMC File" field of a datatype using
-            //  the AMCSD render plugin...
+            // Only care about the various file fields of a datatype using the AMCSD render plugin...
             $relevant_rpf_name = self::isEventRelevant($datafield);
             if ( $relevant_rpf_name ) {
                 // ----------------------------------------
@@ -1057,6 +1214,20 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // Map the field definitions in the render plugin to datafields
                     $datafield_mapping = self::getRenderPluginFieldsMapping($datatype);
 
+                    // If this is a request off a DIF file field...
+                    if ( $relevant_rpf_name === 'DIF File' ) {
+                        // ...then want $datafield to refer to the XYZData datafield instead of the DIF
+                        //  File field ASAP in case of an error
+                        $df_id = $datafield_mapping['Diffraction Search Values'];
+
+                        /** @var DataFields $xyz_df */
+                        $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                        if ( $xyz_df == null )
+                            throw new ODRNotFoundException('Datafield');
+
+                        $datafield = $xyz_df;
+                    }
+
                     // Need to hydrate the storage entities for each datafield so the values from the
                     //  file can get saved into the database
                     $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
@@ -1079,6 +1250,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         // Extract as many pieces of data from the file as possible
                         $value_mapping = self::readCIFFile($handle);
                     }
+                    else if ( $relevant_rpf_name === 'DIF File' ) {
+                        // Extract as many pieces of data from the file as possible
+                        $value_mapping = self::readDIFFile($handle);
+                    }
 
                     // No longer need the file to be open
                     fclose($handle);
@@ -1089,32 +1264,46 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
                     // ----------------------------------------
-                    // Each piece of data from the file is referenced by its RenderPluginField name...
-                    foreach ($value_mapping as $rpf_name => $value) {
-                        // ...from which the actual datafield id can be located...
-                        $df_id = $datafield_mapping[$rpf_name];
-                        // ...which gives the hydrated storage entity...
-                        $entity = $storage_entities[$df_id];
-                        /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
-
-                        // ...which is saved in the storage entity for the datafield
-                        $this->entity_modify_service->updateStorageEntity(
-                            $user,
-                            $entity,
-                            array('value' => $value),
-                            true,    // don't flush immediately
-                            false    // don't fire PostUpdate event...nothing depends on these fields
-                        );
-                        $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
-
-                        // This only works because the datafields getting updated aren't files/images or
-                        //  radio/tag fields
+                    if ( $relevant_rpf_name === 'DIF File' ) {
+                        // Should only be one piece of data...
+                        foreach ($value_mapping as $rpf_name => $value) {
+                            $this->xyzdata_helper_service->updateXYZData(
+                                $user,
+                                $datarecord,
+                                $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
+                                new \DateTime(),
+                                $value,
+                                true    // Ensure the field's contents are completely replaced
+                            );
+                            $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
+                        }
                     }
+                    else {
+                        // Each piece of data from the file is referenced by its RenderPluginField name...
+                        foreach ($value_mapping as $rpf_name => $value) {
+                            // ...from which the actual datafield id can be located...
+                            $df_id = $datafield_mapping[$rpf_name];
+                            // ...which gives the hydrated storage entity...
+                            $entity = $storage_entities[$df_id];
+                            /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
 
+                            // ...which is saved in the storage entity for the datafield
+                            $this->entity_modify_service->updateStorageEntity(
+                                $user,
+                                $entity,
+                                array('value' => $value),
+                                true,    // don't flush immediately
+                                false    // don't fire PostUpdate event...nothing depends on these fields
+                            );
+                            $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
 
-                    // ----------------------------------------
-                    // Now that all the fields have their correct value, flush all changes
-                    $this->em->flush();
+                            // This only works because the datafields getting updated aren't files/images or
+                            //  radio/tag fields
+                        }
+
+                        // Now that all the fields have their correct value, flush all changes
+                        $this->em->flush();
+                    }
                 }
             }
         }
@@ -1136,7 +1325,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Returns whether the given datafield is the "AMC File" datafield of a datatype that's using
+     * Returns whether the given datafield is one of the file datafields of a datatype that's using
      * the AMCSD render plugin.
      *
      * @param DataFields $datafield
@@ -1165,6 +1354,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 ) {
                     // ...and the datafield that triggered the event is the "CIF File" datafield
                     return 'CIF File';
+                }
+                else if ( isset($rpi['renderPluginMap']['DIF File'])
+                    && $rpi['renderPluginMap']['DIF File']['id'] === $datafield->getId()
+                ) {
+                    // ...and the datafield that triggered the event is the "DIF File" datafield
+                    return 'DIF File';
                 }
             }
         }
@@ -1205,10 +1400,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // Only want a subset of the fields required by the AMCSD plugin in the final array
             switch ($rpf_name) {
+                case 'AMC File Contents':
+                case 'AMC File Contents (short)':
                 case 'database_code_amcsd':
                 case 'Authors':
-                case 'File Contents':
-
                 case 'Mineral':
                 case 'a':
                 case 'b':
@@ -1216,20 +1411,20 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'alpha':
                 case 'beta':
                 case 'gamma':
-                case 'Volume':
-
                 case 'Crystal System':
                 case 'Point Group':
                 case 'Space Group':
                 case 'Lattice':
-
                 case 'Pressure':
                 case 'Temperature':
 
+                case 'CIF File Contents':
+                case 'Volume':
                 case 'Chemistry':
                 case 'Chemistry Elements':
-
                 case 'Locality':
+
+                case 'Diffraction Search Values':
                     $datafield_mapping[$rpf_name] = $rpf_df_id;
                     break;
 
@@ -1267,26 +1462,52 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($datafield_mapping as $rpf_name => $df_id) {
             if ( $relevant_rpf_name === 'AMC File' ) {
                 switch ($rpf_name) {
-                    case 'Volume':
-                    case 'Chemistry':
-                    case 'Chemistry Elements':
-                    case 'Locality':
-                        // When called on an "AMC File", none of these fields should be hydrated
-                        unset( $datafield_mapping[$rpf_name] );
+                    case 'AMC File Contents':
+                    case 'AMC File Contents (short)':
+                    case 'database_code_amcsd':
+                    case 'Authors':
+                    case 'Mineral':
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                    case 'alpha':
+                    case 'beta':
+                    case 'gamma':
+                    case 'Crystal System':
+                    case 'Point Group':
+                    case 'Space Group':
+                    case 'Lattice':
+                    case 'Pressure':
+                    case 'Temperature':
+                        // When called on an "AMC File", all of these fields should be hydrated
                         break;
 
                     default:
-                        // ...any other field should be hydrated
+                        // ...any other field should not
+                        unset( $datafield_mapping[$rpf_name] );
                         break;
                 }
             }
             else if ( $relevant_rpf_name === 'CIF File' ) {
                 switch ($rpf_name) {
+                    case 'CIF File Contents':
                     case 'Volume':
                     case 'Chemistry':
                     case 'Chemistry Elements':
                     case 'Locality':
                         // When called on a "CIF File", all of these fields should be hydrated
+                        break;
+
+                    default:
+                        // ...any other field should not
+                        unset( $datafield_mapping[$rpf_name] );
+                        break;
+                }
+            }
+            else if ( $relevant_rpf_name === 'DIF File' ) {
+                switch ($rpf_name) {
+                    case 'Diffraction Search Values':
+                        // When called on a "DIF File", all of these fields should be hydrated
                         break;
 
                     default:
@@ -1317,11 +1538,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         //  likely they don't, and $entity_modify_service->updateStorageEntity() requires one
         $storage_entities = array();
         foreach ($datafield_mapping as $rpf_name => $df_id) {
-            $df = $hydrated_datafields[$df_id];
-            $entity = $this->entity_create_service->createStorageEntity($user, $datarecord, $df);
+            if ( $rpf_name === 'Diffraction Search Values' ) {
+                // Do NOT attempt to run $entity_create_service->createXYZValue()
+            }
+            else {
+                $df = $hydrated_datafields[$df_id];
+                $entity = $this->entity_create_service->createStorageEntity($user, $datarecord, $df);
 
-            // Store they (likely newly created) storage entity for the next step
-            $storage_entities[$df_id] = $entity;
+                // Store the (likely newly created) storage entity for the next step
+                $storage_entities[$df_id] = $entity;
+            }
         }
 
         // Return the hydrated list of storage entities
@@ -1458,7 +1684,21 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
 
         // Want all file contents in a single field
-        $value_mapping['File Contents'] = implode("", $all_lines);
+        $value_mapping['AMC File Contents'] = implode("", $all_lines);
+
+        // Also want a shorter version of this file's contents without the atom positions...
+        $short_lines = array();
+        // ...but it's slightly tricky because the line that starts with "atom" isn't guaranteed to
+        //  always be two lines after the _database_code_amcsd line
+        $short_ending_line = $database_code_line - 1 + 2;  // minus 1 to convert back to 0-based line numbers first
+        if ( strpos($all_lines[$short_ending_line], "atom") !== 0 ) {
+            // ...if the expected line doesn't start with "atom", then it's the line after that
+            $short_ending_line += 1;
+        }
+
+        for ($i = 0; $i < $short_ending_line; $i++)
+            $short_lines[] = $all_lines[$i];
+        $value_mapping['AMC File Contents (short)'] = implode("", $short_lines);
 
         // Ensure all values are trimmed before they're saved
         foreach ($value_mapping as $rpf_name => $value)
@@ -1480,6 +1720,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private function readCIFFile($handle)
     {
         $value_mapping = array();
+        $all_lines = array();
 
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
@@ -1535,15 +1776,72 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( count($pieces) === 2 )
                     $value_mapping['Volume'] = $pieces[1];
             }
-            else if ( strpos($line, '_space_group_symop_operation_xyz') === 0 ) {
-                // The other values should be earlier in the file than this
-                break;
-            }
+
+            // Save every line from the file, as well
+            $all_lines[] = $line;
         }
+
+        // Want all file contents in a single field
+        $value_mapping['CIF File Contents'] = implode("", $all_lines);
 
         // Ensure the values are trimmed before they're saved
         foreach ($value_mapping as $rpf_name => $value)
             $value_mapping[$rpf_name] = trim($value);
+
+        // All data gathered, return the mapping array
+        return $value_mapping;
+    }
+
+
+    /**
+     * Reads the given DIF file, converting its contents into an array of values for an XYZData
+     * field so it can be searched.
+     *
+     * @param resource $handle
+     *
+     * @return array
+     */
+    private function readDIFFile($handle)
+    {
+        // The relevant section of the DIF file has seven columns...2-THETA, INTENSITY, D-SPACING,
+        //  H, K, L, and Multiplicity...this regex extracts the INTENSITY AND D-SPACING columns,
+        // discarding the remainder
+        $pattern = '/(?:\s+[\d\.]+\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:[^\n]+)/';
+        $all_values = array();
+
+        // Ensure we're at the beginning of the file
+        fseek($handle, 0, SEEK_SET);
+
+        $header_line = -999;
+        $line_num = 0;
+        while ( !feof($handle) ) {
+            $line = fgets($handle);
+            $line_num++;
+
+            if ( strpos($line, 'INTENSITY') !== false && strpos($line, 'D-SPACING') !== false ) {
+                // This line needs to have at least two pieces in it
+                $header_line = $line_num;
+            }
+            else if ( $header_line > 0 ) {
+                // Want to stop reading the file when it hits the divider below the table
+                if ( strpos($line, '===') !== false )
+                    break;
+
+                $matches = array();
+                $ret = preg_match($pattern, $line, $matches);
+                if ( $ret === false )
+                    $a = 1;
+
+                $intensity = $matches[1];
+                $d_spacing = $matches[2];
+
+                if ( floatval($intensity) >= 4.0)
+                    $all_values[] = '('.$d_spacing.','.$intensity.')';
+            }
+        }
+
+        // Want all file contents in a single field
+        $value_mapping['Diffraction Search Values'] = implode("|", $all_values);
 
         // All data gathered, return the mapping array
         return $value_mapping;
@@ -1556,25 +1854,48 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * the renderplugin to recognize and display that something is wrong with this file.
      *
      * @param ODRUser $user
+     * @param DataRecord $datarecord
+     * @param DataFields $datafield
      * @param File $file
      * @param array $storage_entities
      */
-    private function saveOnError($user, $file, $storage_entities)
+    private function saveOnError($user, $datarecord, $datafield, $file, $storage_entities)
     {
         try {
-            foreach ($storage_entities as $df_id => $entity) {
-                /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
-                $this->entity_modify_service->updateStorageEntity(
+            if ( !is_null($datarecord) && !is_null($datafield) && empty($storage_entities) ) {
+                $this->xyzdata_helper_service->updateXYZData(
                     $user,
-                    $entity,
-                    array('value' => ''),
-                    true,    // don't flush immediately
-                    false    // don't fire PostUpdate event...nothing depends on these fields
+                    $datarecord,
+                    $datafield,
+                    new \DateTime(),
+                    '',
+                    true    // ensure the field contents are blank
                 );
-                $this->logger->debug('-- (ERROR) updating datafield '.$df_id.' to have the value ""', array(self::class, 'saveOnError()', 'File '.$file->getId()));
+                $this->logger->debug('-- (ERROR) updating XYZData datafield '.$datafield->getId().' to have the value ""', array(self::class, 'saveOnError()', 'File '.$file->getId()));
             }
+            else if ( !empty($storage_entities) ) {
+                foreach ($storage_entities as $df_id => $entity) {
+                    /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
+                    if ( $entity instanceof XYZData ) {
+                        // Ignore this entity here
+                    }
+                    else {
+                        $this->entity_modify_service->updateStorageEntity(
+                            $user,
+                            $entity,
+                            array('value' => ''),
+                            true,    // don't flush immediately
+                            false    // don't fire PostUpdate event...nothing depends on these fields
+                        );
+                        $this->logger->debug('-- (ERROR) updating datafield '.$df_id.' to have the value ""', array(self::class, 'saveOnError()', 'File '.$file->getId()));
+                    }
+                }
 
-            $this->em->flush();
+                $this->em->flush();
+            }
+            else {
+                throw new ODRException('Invalid parameters sent to AMCSDPlugin::saveOnError()');
+            }
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it
@@ -1760,31 +2081,32 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $mineral_name_df_id = $render_plugin_map['Mineral']['id'];
         $authors_df_id = $render_plugin_map['Authors']['id'];
         $database_code_amcsd_df_id = $render_plugin_map['database_code_amcsd']['id'];
-        $file_contents_df_id = $render_plugin_map['File Contents']['id'];
-
+        $amc_file_contents_df_id = $render_plugin_map['AMC File Contents']['id'];
+        $amc_file_contents_short_df_id = $render_plugin_map['AMC File Contents (short)']['id'];
         $a_df_id = $render_plugin_map['a']['id'];
         $b_df_id = $render_plugin_map['b']['id'];
         $c_df_id = $render_plugin_map['c']['id'];
         $alpha_df_id = $render_plugin_map['alpha']['id'];
         $beta_df_id = $render_plugin_map['beta']['id'];
         $gamma_df_id = $render_plugin_map['gamma']['id'];
-
         $crystal_system_df_id = $render_plugin_map['Crystal System']['id'];
         $point_group_df_id = $render_plugin_map['Point Group']['id'];
         $space_group_df_id = $render_plugin_map['Space Group']['id'];
         $lattice_df_id = $render_plugin_map['Lattice']['id'];
-
         $pressure_df_id = $render_plugin_map['Pressure']['id'];
         $temperature_df_id = $render_plugin_map['Temperature']['id'];
 
         // ...but there are several fields that are supposed to come from the "CIF File" field
         $cif_file_df_id = $render_plugin_map['CIF File']['id'];
+        $cif_file_contents_df_id = $render_plugin_map['CIF File Contents']['id'];
         $volume_df_id = $render_plugin_map['Volume']['id'];
-
         $chemistry_df_id = $render_plugin_map['Chemistry']['id'];
         $chemistry_elements_df_id = $render_plugin_map['Chemistry Elements']['id'];
-
         $locality_df_id = $render_plugin_map['Locality']['id'];
+
+        // ...and another that's supposed to come from the "DIF File" field
+        $dif_file_df_id = $render_plugin_map['DIF File']['id'];
+        $diffraction_search_values_df_id = $render_plugin_map['Diffraction Search Values']['id'];
 
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
@@ -1793,26 +2115,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $mineral_name_df_id => array($amc_file_df_id),
             $authors_df_id => array($amc_file_df_id),
             $database_code_amcsd_df_id => array($amc_file_df_id),
-            $file_contents_df_id => array($amc_file_df_id),
+            $amc_file_contents_df_id => array($amc_file_df_id),
+            $amc_file_contents_short_df_id => array($amc_file_df_id),
             $a_df_id => array($amc_file_df_id),
             $b_df_id => array($amc_file_df_id),
             $c_df_id => array($amc_file_df_id),
             $alpha_df_id => array($amc_file_df_id),
             $beta_df_id => array($amc_file_df_id),
             $gamma_df_id => array($amc_file_df_id),
-            $volume_df_id => array($cif_file_df_id),
-
             $crystal_system_df_id => array($amc_file_df_id), // crystal system, point group, and lattice are technically derived from the space group...
             $point_group_df_id => array($amc_file_df_id),    // ...but doesn't matter since you can't edit space group directly anyways
             $space_group_df_id => array($amc_file_df_id),
             $lattice_df_id => array($amc_file_df_id),
-
             $pressure_df_id => array($amc_file_df_id),
             $temperature_df_id => array($amc_file_df_id),
 
+            $cif_file_contents_df_id => array($cif_file_df_id),
+            $volume_df_id => array($cif_file_df_id),
             $chemistry_df_id => array($cif_file_df_id),
             $chemistry_elements_df_id => array($cif_file_df_id),
             $locality_df_id => array($cif_file_df_id),
+
+            $diffraction_search_values_df_id => array($dif_file_df_id),
         );
     }
 
@@ -1833,6 +2157,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $relevant_datafields = array(
             'AMC File' => 1,
             'CIF File' => 1,
+            'DIF File' => 1,
         );
 
         $ret = array();
@@ -1858,6 +2183,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $relevant_datafields = array(
             'AMC File' => 1,
             'CIF File' => 1,
+            'DIF File' => 1,
         );
 
         $trigger_fields = array();

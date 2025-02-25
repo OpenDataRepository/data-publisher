@@ -4,6 +4,16 @@ ODR\AdminBundle\Entity\XYZData:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        XYZData_created:
+            columns: [ "created" ]
+        x_value_index:
+            columns: [ "x_value" ]
+        y_value_index:
+            columns: [ "y_value" ]
+        z_value_index:
+            columns: [ "z_value" ]
+
     fields:
         id:
             id: true
@@ -42,10 +52,6 @@ ODR\AdminBundle\Entity\XYZData:
         deletedAt:
             type: datetime
             nullable: true
-
-    indexes:
-        XYZData_created:
-            columns: ["created"]
 
     manyToOne:
         dataField:
