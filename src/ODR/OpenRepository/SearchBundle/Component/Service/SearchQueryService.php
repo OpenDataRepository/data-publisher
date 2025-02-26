@@ -2131,8 +2131,9 @@ class SearchQueryService
                 else {
                     switch ($char) {
                         case ' ':
-                            // save any existing piece before saving the operator
+                            // Treat this as an "AND" operator when it's outside of quotes
                             if ($tmp !== '') {
+                                // Save any existing piece before saving the operator
                                 $pieces[] = $tmp;
                                 $tmp = '';
                             }
@@ -2192,6 +2193,16 @@ class SearchQueryService
                             }
                             break;
 
+                        case ',':
+                            // Treat this as an "OR" operator when it's outside of quotes
+                            if ($tmp !== '') {
+                                // Save any existing piece before saving the operator
+                                $pieces[] = $tmp;
+                                $tmp = '';
+                            }
+                            $pieces[] = '||';
+                            break;
+
                         case 'o':
                         case 'O':
                             // only count this as an operator if the 'O' is part of the substring ' OR '
@@ -2210,6 +2221,7 @@ class SearchQueryService
                                 $tmp .= $char;
                             }
                             break;
+
                         default:
                             if ( $i > 0 && $str[$i-1] === '"' ) {
                                 // If this character is immediately preceeded by a double-quote, then
