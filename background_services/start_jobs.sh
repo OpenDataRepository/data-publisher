@@ -8,6 +8,6 @@ node ima_paragenetic_modes_builder.js   >> ../app/logs/ima_paragenetic_modes_bui
 node ima_cell_params_record_builder.js   >> ../app/logs/ima_cell_params_builder_1.log 2>&1 &
 node ima_cell_params_record_builder.js   >> ../app/logs/ima_cell_params_builder_2.log 2>&1 &
 node ima_cell_params_record_builder.js   >> ../app/logs/ima_cell_params_builder_3.log 2>&1 &
-node reference_record_builder.js >> ../app/logs/ima_reference_builder_1.log 2>&1 &
-node reference_record_builder.js >> ../app/logs/ima_reference_builder_2.log 2>&1 &
+node ima_reference_record_builder.js >> ../app/logs/ima_reference_builder_1.log 2>&1 &
+node ima_reference_record_builder.js >> ../app/logs/ima_reference_builder_2.log 2>&1 &
 
