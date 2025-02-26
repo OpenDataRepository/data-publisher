@@ -57,43 +57,67 @@ odr_plugins.rruff.amcsd:
                 - no_user_edits
                 - is_derived
 
-        # TODO - need a "file header" field that doesn't have all the dirty details of atom locations
-        contents:
-            name: File Contents
-            description: A copy of the AMC File's contents
-            type: LongText
-            display_order: 3
-            properties:
-                - no_user_edits
-                - is_derived
-
         amc_file:
             name: AMC File
             description: The AMC file for this dataset
             type: File
-            display_order: 4
+            display_order: 3
             properties:
                 - single_uploads_only
         cif_file:
             name: CIF File
             description: The CIF file for this dataset
             type: File
-            display_order: 5
+            display_order: 4
             properties:
                 - single_uploads_only
         dif_file:
             name: DIF File
             description: The DIF file for this dataset
             type: File
-            display_order: 6
+            display_order: 5
             properties:
                 - single_uploads_only
+
+        amc_file_contents_long:
+            name: AMC File Contents
+            description: A copy of the entire AMC File's contents
+            type: LongText
+            display_order: 6
+            properties:
+                - no_user_edits
+                - is_derived
+        amc_file_contents_short:
+            name: AMC File Contents (short)
+            description: A copy of the AMC File's contents, but without the atom positions
+            type: LongText
+            display_order: 7
+            properties:
+                - no_user_edits
+                - is_derived
+        cif_file_contents:
+            name: CIF File Contents
+            description: A copy of the CIF File's contents
+            type: LongText
+            display_order: 8
+            properties:
+                - no_user_edits
+                - is_derived
+
+        diffraction_search_values:
+            name: Diffraction Search Values
+            description: A copy of the values in the DIF File which are relevant for searching
+            type: XYZData
+            display_order: 9
+            properties:
+                - no_user_edits
+                - is_derived
 
         mineral_name:
             name: Mineral
             description: The name of the mineral or compound that was examined
             type: MediumVarchar
-            display_order: 7
+            display_order: 10
             properties:
                 - no_user_edits
                 - is_derived
@@ -101,7 +125,7 @@ odr_plugins.rruff.amcsd:
             name: a
             description: The value of the "a" cellparameter from the AMC File
             type: DecimalValue
-            display_order: 8
+            display_order: 11
             properties:
                 - no_user_edits
                 - is_derived
@@ -109,7 +133,7 @@ odr_plugins.rruff.amcsd:
             name: b
             description: The value of the "b" cellparameter from the AMC File
             type: DecimalValue
-            display_order: 9
+            display_order: 12
             properties:
                 - no_user_edits
                 - is_derived
@@ -117,7 +141,7 @@ odr_plugins.rruff.amcsd:
             name: c
             description: The value of the "c" cellparameter from the AMC File
             type: DecimalValue
-            display_order: 10
+            display_order: 13
             properties:
                 - no_user_edits
                 - is_derived
@@ -125,7 +149,7 @@ odr_plugins.rruff.amcsd:
             name: alpha
             description: The value of the "alpha" cellparameter from the AMC File
             type: DecimalValue
-            display_order: 11
+            display_order: 14
             properties:
                 - no_user_edits
                 - is_derived
@@ -133,7 +157,7 @@ odr_plugins.rruff.amcsd:
             name: beta
             description: The value of the "beta" cellparameter from the AMC File
             type: DecimalValue
-            display_order: 12
+            display_order: 15
             properties:
                 - no_user_edits
                 - is_derived
@@ -141,7 +165,7 @@ odr_plugins.rruff.amcsd:
             name: gamma
             description: The value of the "gamma" cellparameter from the AMC File
             type: DecimalValue
-            display_order: 13
+            display_order: 16
             properties:
                 - no_user_edits
                 - is_derived
@@ -149,7 +173,7 @@ odr_plugins.rruff.amcsd:
             name: Volume
             description: The value of the "volume" cellparameter from the CIF File
             type: DecimalValue
-            display_order: 14
+            display_order: 17
             properties:
                 - no_user_edits
                 - is_derived
@@ -158,7 +182,7 @@ odr_plugins.rruff.amcsd:
             name: Crystal System
             description: For convenience, the "Crystal System" value is derived from the value of the "Space Group" field in the AMC File
             type: ShortVarchar
-            display_order: 15
+            display_order: 18
             properties:
                 - no_user_edits
                 - is_derived
@@ -166,7 +190,7 @@ odr_plugins.rruff.amcsd:
             name: Point Group
             description: For convenience, the "Point Group" value is derived from the value of the "Space Group" field in the AMC File
             type: ShortVarchar
-            display_order: 16
+            display_order: 19
             properties:
                 - no_user_edits
                 - is_derived
@@ -174,7 +198,7 @@ odr_plugins.rruff.amcsd:
             name: Space Group
             description: The value of the "Space Group" field in the AMC File
             type: ShortVarchar
-            display_order: 17
+            display_order: 20
             properties:
                 - no_user_edits
                 - is_derived
@@ -182,7 +206,7 @@ odr_plugins.rruff.amcsd:
             name: Lattice
             description: For convenience, the "Lattice" value is derived from the value of the "Space Group" field in the AMC File
             type: ShortVarchar
-            display_order: 18
+            display_order: 21
             properties:
                 - no_user_edits
                 - is_derived
@@ -191,7 +215,7 @@ odr_plugins.rruff.amcsd:
             name: Pressure
             description: The value of the "Pressure" field in the AMC File
             type: ShortVarchar
-            display_order: 19
+            display_order: 22
             properties:
                 - no_user_edits
                 - is_derived
@@ -199,7 +223,7 @@ odr_plugins.rruff.amcsd:
             name: Temperature
             description: The value of the "Temperature" field in the AMC File
             type: ShortVarchar
-            display_order: 20
+            display_order: 23
             properties:
                 - no_user_edits
                 - is_derived
@@ -208,7 +232,7 @@ odr_plugins.rruff.amcsd:
             name: Chemistry
             description: The value of the "Chemistry" field in the CIF File
             type: LongVarchar
-            display_order: 21
+            display_order: 24
             properties:
                 - no_user_edits    # TODO - allow editing?  On one hand, all the chemical formulas lack subscripts...on the other, the CIF File value is "official"...
                 - is_derived
@@ -216,7 +240,7 @@ odr_plugins.rruff.amcsd:
             name: Chemistry Elements
             description: The individual elements from the "Chemistry" field in the CIF File
             type: LongVarchar
-            display_order: 22
+            display_order: 25
             properties:
                 - no_user_edits
                 - is_derived
@@ -225,7 +249,7 @@ odr_plugins.rruff.amcsd:
             name: Locality
             description: The value of the "compound source" field in the CIF File
             type: LongVarchar
-            display_order: 23
+            display_order: 26
             properties:
                 - no_user_edits
                 - is_derived

@@ -293,6 +293,26 @@
         </div>
     </fieldset>
 
+    {% elseif field_typename == "XYZ Data" %}
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
+{#        <span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>#}
+        {% if mass_edit_trigger_datafields[datafield.id] is defined %}
+            {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <label class="Pointer">
+                    <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
+                </label>
+            </span>
+            {% endfor %}
+        {% endif %}
+
+        <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
+{#            <input id="Form_{{ datafield.id }}" type="text" class="ODRField pure-u-1" name="{{ input_name }}" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>#}
+            "XYZ Data" fields can't have their values changed via MassEdit
+        </div>
+    </fieldset>
+
     {% endif %}
 </form>
 

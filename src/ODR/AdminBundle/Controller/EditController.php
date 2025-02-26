@@ -72,6 +72,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
+use ODR\AdminBundle\Component\Service\XYZDataHelperService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
@@ -2269,6 +2270,10 @@ class EditController extends ODRCustomController
      * by EditController::radioselectionAction(), and changes to Tags are handled by
      * TagsController::tagselectionAction()
      *
+     * The XYZData fieldtype is rendered like a textarea (for now)...but because it's not actually
+     * stored as a string in the database, it's just easier to handle changes to the contents in
+     * Edit::updatexyzdataAction() instead
+     *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
      * @param Request $request
@@ -2557,6 +2562,156 @@ class EditController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x294a59c5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Parses a $_POST request to update the contents of an XYZData field.
+     *
+     * This is separate from updateAction() because the field isn't stored as a string, despite being
+     * rendered as a textarea (for now)...it's just easier to handle it separately.
+     *
+     * @param integer $datarecord_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function updatexyzdataAction($datarecord_id, $datafield_id, Request $request)
+    {
+        // TODO - This should be changed to a transaction....
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+            if ( !isset($post['XYZDataForm']['_token']) || !isset($post['XYZDataForm']['value']) )
+                throw new ODRBadRequestException('Invalid Form');
+
+            $csrf_token = $post['XYZDataForm']['_token'];
+            $new_value = $post['XYZDataForm']['value'];
+
+            // Field History needs the ability to delete all current entries in the field...
+            $replace_all = false;
+            if ( isset($post['replace_all']) )
+                $replace_all = true;
+
+
+            // Get the Entity Manager
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var XYZDataHelperService $xyzdata_helper_service */
+            $xyzdata_helper_service = $this->container->get('odr.xyzdata_helper_service');
+
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
+            // --------------------
+
+            // ----------------------------------------
+            // The XYZData fieldtype is technically compound...each datarecordfield can point to
+            //  multiple entries in the XYZData table in the database.  Rather than create an edit
+            //  UI to "correctly" interact with the underlying field, and in the interest of not
+            //  screwing with Symfony form components/transformers/etc to convert a string into the
+            //  "correct" underlying structure...this is all going to be done manually
+
+            /** @var CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+
+            $token_id = 'XYZDataForm_'.$datarecord->getId().'_'.$datafield->getId();
+            $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
+            if ( $csrf_token !== $expected_csrf_token )
+                throw new ODRBadRequestException('Invalid Form');
+
+
+            // Now that the token is valid, save the given value
+            $changes_made = $xyzdata_helper_service->updateXYZData(
+                $user,
+                $datarecord,
+                $datafield,
+                new \DateTime(),
+                $new_value,
+                $replace_all
+            );
+
+
+            // ----------------------------------------
+            if ( $changes_made ) {
+                // Fire off an event notifying that the modification of the datafield is done
+                try {
+                    $event = new DatafieldModifiedEvent($datafield, $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+
+                // Mark this datarecord as updated
+                try {
+                    $event = new DatarecordModifiedEvent($datarecord, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+            }
+
+            // Notify whether a change was made or not
+            $return['d'] = array('change_made' => $changes_made);
+        }
+        catch (\Exception $e) {
+            $source = 0x74a1294a;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -3382,7 +3537,8 @@ class EditController extends ODRCustomController
                 'Image' => 0,
                 'Markdown' => 0,
                 'Radio' => 0,
-                'Tag' => 0
+                'Tag' => 0,
+                'XYZData' => 0,
             );
 
             $typeclass = $datafield->getFieldType()->getTypeClass();
@@ -3459,8 +3615,6 @@ class EditController extends ODRCustomController
                     return 1;
             });
 
-//exit( '<pre>'.print_r($historical_values, true).'</pre>' );
-
             // Filter the array so it doesn't list the same value multiple times in a row
             $previous_value = null;
             foreach ($historical_values as $num => $data) {
@@ -3479,8 +3633,6 @@ class EditController extends ODRCustomController
             // Use the resulting keys of the array after the sort as version numbers
             foreach ($historical_values as $num => $data)
                 $historical_values[$num]['version'] = ($num+1);
-
-//exit( '<pre>'.print_r($historical_values, true).'</pre>' );
 
             // Generate a csrf token to use if the user wants to revert back to an earlier value
             $current_typeclass = $datafield->getFieldType()->getTypeClass();
@@ -3521,4 +3673,279 @@ class EditController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Builds an array of all prior values of the given XYZData field, to serve as a both display of
+     * field history and a reversion dialog.
+     *
+     * @param integer $datarecord_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getxyzdatafieldhistoryAction($datarecord_id, $datafield_id, Request $request)
+    {
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            // Get Entity Manager and setup repositories
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() !== null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // ----------------------------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Only check history of an XYZData field
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ( $typeclass !== 'XYZData' )
+                throw new ODRException('Unable to view history of a '.$typeclass.' datafield');
+
+            $em->getFilters()->disable('softdeleteable');    // Need to load deleted rows
+
+            // Grab all values that the datafield has had
+            $historical_values = array();
+            $query = $em->createQuery(
+               'SELECT e.id AS id, e.x_value AS x_value, e.y_value AS y_value, e.z_value AS z_value,
+                    ft.typeClass AS typeclass, ft.typeName AS typeName,
+                    e.created AS created, created_by.firstName, created_by.lastName, created_by.username,
+                    e.deletedAt AS deletedAt
+                FROM ODRAdminBundle:XYZData AS e
+                JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
+                JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
+                WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id'
+            )->setParameters(
+                array(
+                    'datarecord_id' => $datarecord->getId(),
+                    'datafield_id' => $datafield->getId()
+                )
+            );
+            $results = $query->getArrayResult();
+
+            // So the problem here is that 1) the field has multiple "values" at once, and 2) it's
+            //  permitted to only add/modify/delete a couple of them at a time.  This means that each
+            //  row isn't a "snapshot" of the field's state...that needs to be manually constructed
+            //  by digging through each row
+            foreach ($results as $result) {
+                $typeclass = $result['typeclass'];
+                $typename = $result['typeName'];
+
+                $user_string = $result['username'];
+                if ( $result['firstName'] !== '' && $result['lastName'] !== '' )
+                    $user_string = $result['firstName'].' '.$result['lastName'];
+
+                // Insert an entry when something got created...
+                $created = ($result['created'])->format('Y-m-d H:i:s');
+                $historical_values[$created] = array(
+                    'values' => array(),
+                    'user' => $user_string,
+                    'created' => $result['created'],
+                    'typeclass' => $typeclass,
+                    'typename' => $typename,
+                );
+
+                // Also insert an entry if something got deleted
+                if ( !is_null($result['deletedAt']) ) {
+                    $deleted = ($result['deletedAt'])->format('Y-m-d H:i:s');
+                    $historical_values[$deleted] = array(
+                        'values' => array(),
+                        'user' => $user_string,
+                        'created' => $result['deletedAt'],
+                        'typeclass' => $typeclass,
+                        'typename' => $typename,
+                    );
+                }
+            }
+            ksort($historical_values);
+
+
+            // $historical_values now has a entry for everytime "something happened" to the field's
+            //  value, but it's currently a bit excessive...because of how the field works, there's
+            //  a good chance that creating/modifying entries happens before entries are deleted
+            $prev_timestamp = $prev_created = null;
+            foreach ($historical_values as $timestamp => $tmp) {
+                if ( is_null($prev_timestamp) ) {
+                    // First change, save for the next loop
+                    $prev_timestamp = $timestamp;
+                    $prev_created = $tmp['created'];
+                }
+                else {
+                    // Determine how much time elapsed between this change and the previous
+                    $interval = date_diff($tmp['created'], $prev_created);
+                    if ( $interval->y == 0 && $interval->m == 0 && $interval->d == 0
+                        && $interval->h == 0 && $interval->i == 0 && $interval->s < 30
+                    ) {
+                        // ...if less than 30 seconds elapsed...consider the current and the previous
+                        //  timestamp as "referring to the same event", and delete the previous
+                        //  entry
+                        unset( $historical_values[$prev_timestamp] );
+
+                        // Doing it this way will ensure that only the "most recent" entry that
+                        //  "refers to the same event" exists in the end...if it was done the other
+                        //  way around, then the display would get clogged up by entries that were
+                        //  seconds away from being deleted
+                    }
+
+                    // Continue checking the array
+                    $prev_timestamp = $timestamp;
+                    $prev_created = $tmp['created'];
+                }
+            }
+
+
+            // At this point, $historical_values now theoretically has one timestamp per "event"...so
+            //  we can now go back through the results and determine which values were "active" at
+            //  each of those timestamps
+            foreach ($results as $result) {
+                $id = $result['id'];
+                $x_value = $result['x_value'];
+                $y_value = $result['y_value'];
+                $z_value = $result['z_value'];
+
+                $created = ($result['created'])->format('Y-m-d H:i:s');
+                $deleted = null;
+                if ( !is_null($result['deletedAt']) )
+                    $deleted = ($result['deletedAt'])->format('Y-m-d H:i:s');
+
+                foreach ($historical_values as $timestamp => $tmp) {
+                    // If the value was created before/on this date...
+                    if ( $created <= $timestamp ) {
+                        // ...and it hasn't been deleted yet...
+                        if ( is_null($deleted) || $deleted > $timestamp ) {
+                            // ...then it was "active" at this time
+                            $historical_values[$timestamp]['values'][$id] = array(
+                                'x_value' => $x_value,
+                                'y_value' => $y_value,
+                                'z_value' => $z_value,
+                            );
+                        }
+                        else {
+                            // If the entry was deleted by "now", then don't continue looking...because
+                            //  the array is sorted, it can't match anything
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $em->getFilters()->enable('softdeleteable');    // Don't need to load deleted rows anymore
+
+
+            // ----------------------------------------
+            // Convert each "event" into a single string
+            $xyz_column_names = $datafield->getDataFieldMeta()->getXyzDataColumnNames();
+            $xyz_column_names = explode(',', $xyz_column_names);
+
+            foreach ($historical_values as $num => $data) {
+                $tmp = $data['values'];
+                usort($tmp, function ($a, $b) {
+                    return $a['x_value'] <=> $b['x_value'];
+                });
+
+                $values = array();
+                foreach ($tmp as $entity_id => $entity_data) {
+                    $str = '('.$entity_data['x_value'];
+                    if ( count($xyz_column_names) > 1 )
+                        $str .= ','.$entity_data['y_value'];
+                    if ( count($xyz_column_names) > 2 )
+                        $str .= ','.$entity_data['z_value'];
+                    $str .= ')';
+
+                    $values[] = $str;
+                }
+
+                $historical_values[$num]['value'] = implode('|', $values);
+            }
+
+            // Filter the array so it doesn't list the same value multiple times in a row
+            $previous_value = null;
+            foreach ($historical_values as $num => $data) {
+                $current_value = $data['value'];
+
+                if ( $previous_value !== $current_value )
+                    $previous_value = $current_value;
+                else
+                    unset( $historical_values[$num] );
+            }
+            // Make the array indices contiguous again
+            $historical_values = array_values($historical_values);
+
+
+            // ----------------------------------------
+            // Use the resulting keys of the array after the sort as version numbers
+            foreach ($historical_values as $num => $data)
+                $historical_values[$num]['version'] = ($num+1);
+
+            // Generate a csrf token to use if the user wants to revert back to an earlier value
+            $current_typeclass = $datafield->getFieldType()->getTypeClass();
+
+            /** @var CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+
+            $token_id = $current_typeclass.'Form_'.$datarecord->getId().'_'.$datafield->getId();
+            $csrf_token = $token_generator->getToken($token_id)->getValue();
+
+
+            // Render the dialog box for this request
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',
+                    array(
+                        'historical_values' => $historical_values,
+
+                        'datarecord' => $datarecord,
+                        'datafield' => $datafield,
+                        'current_typeclass' => $current_typeclass,
+
+                        'csrf_token' => $csrf_token,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xaf753f60;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

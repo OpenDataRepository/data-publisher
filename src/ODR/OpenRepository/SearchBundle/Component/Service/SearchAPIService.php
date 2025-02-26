@@ -435,6 +435,8 @@ class SearchAPIService
 
                     if ( $is_valid_field )
                         $filtered_search_params[$key] = $value;
+
+                    // Don't need additional checks for Datetime of XYZData fields
                 }
                 else {
                     // $key is one of the modified/created/modifiedBy/createdBy/publicStatus entries
@@ -655,6 +657,19 @@ class SearchAPIService
                                 $value = $search_term['value'];
 
                             $dr_list = $this->search_service->searchDatetimeDatafield($entity, $before, $after, $value);
+                        }
+                        else if ($typeclass === 'XYZData') {
+                            // XYZData requires a mess of processing
+                            $dr_list = $this->search_service->searchXYZDatafield($entity, $search_term['value']);
+
+                            // NOTE: not needed until negation is implemented
+//                            // If this search involved the empty string...
+//                            $involves_empty_string = $dr_list['guard'];
+//                            if ($involves_empty_string) {
+//                                // ...then insert an entry into the criteria array so that the later
+//                                //  call of self::mergeSearchResults() can properly compensate
+//                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+//                            }
                         }
                         else {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
@@ -1454,6 +1469,10 @@ class SearchAPIService
                     else if ($typeclass === 'DatetimeValue') {
                         // DatetimeValue needs to worry about before/after...
                         $results = $this->search_service->searchDatetimeTemplateDatafield($entity, $search_term['before'], $search_term['after']);
+                    }
+                    else if ($typeclass === 'XYZData') {
+                        // XYZData requires a mess of processing
+                        $dr_list = $this->search_service->searchXYZTemplateDatafield($entity, $search_term['value']);
                     }
                     else {
                         // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue

@@ -33,6 +33,7 @@ use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
@@ -519,7 +520,9 @@ class MassEditController extends ODRCustomController
 
                         case 'File':
                         case 'Image':
-                            // Nothing to validate here...MassEdit can currently only change public status for these
+                        case 'XYZData':
+                            // Nothing to validate here...MassEdit can currently only change public
+                            //  status or activate the MassEditTrigger event for these
                             break;
 
                         default:
@@ -618,7 +621,7 @@ class MassEditController extends ODRCustomController
             //  allowed to do that
             foreach ($public_status as $dt_id => $status) {
                 $can_change_public_status = false;
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_public']) )
+                if ( isset($datatype_permissions[$dt_id]['dr_public']) )
                     $can_change_public_status = true;
 
                 if ( !$can_change_public_status )
@@ -718,7 +721,7 @@ class MassEditController extends ODRCustomController
             foreach ($datafield_list as $df_id => $dt_id) {
                 // Ensure user has the permisions to modify values of this datafield
                 $can_edit_datafield = false;
-                if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id][ 'edit' ]) )
+                if ( isset($datafield_permissions[$df_id][ 'edit' ]) )
                     $can_edit_datafield = true;
 
                 if (!$can_edit_datafield)
@@ -726,7 +729,7 @@ class MassEditController extends ODRCustomController
 
                 // Determine whether user can view non-public datarecords for this datatype
                 $can_view_datarecord = false;
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id][ 'dr_view' ]) )
+                if ( isset($datatype_permissions[$dt_id][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
 
@@ -953,6 +956,11 @@ class MassEditController extends ODRCustomController
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -1009,10 +1017,6 @@ class MassEditController extends ODRCustomController
                 // Fire off a DatarecordPublicStatusChanged event...this will also end up triggering
                 //  the database changes and cache clearing that a DatarecordModified event would cause
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
                 }
@@ -1511,13 +1515,37 @@ class MassEditController extends ODRCustomController
                     }
                 }
             }
-            else {
-                // For every other fieldtype...ensure the storage entity exists
-                /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-                $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
-                $old_value = $storage_entity->getValue();
+            else if ($field_typeclass === 'XYZData') {
+                // XYZData entities only respond to MassEditTrigger requests  TODO - change this?
+                if ( !empty($event_trigger) ) {
+                    // $event_trigger will only have an entry for this datafield if the event is
+                    //  supposed to be triggered
 
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
+
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
+                    }
+                }
+            }
+            else {
+                // For every other fieldtype...
                 if ( !is_null($value) ) {
+                    // Ensure the storage entity exists, since it'll get a value anyways
+                    /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+                    $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
+                    $old_value = $storage_entity->getValue();
+
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
                         $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
@@ -1530,15 +1558,20 @@ class MassEditController extends ODRCustomController
                     }
                 }
 
-                // $event_trigger will only have an entry for this datafield if the event is supposed
-                //  to be triggered
                 if ( !empty($event_trigger) ) {
+                    // $event_trigger will only have an entry for this datafield if the event is
+                    //  supposed to be triggered
+
                     foreach ($event_trigger as $rp_id => $rp_classname) {
                         try {
+                            /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+                            $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
                             $drf = $storage_entity->getDataRecordFields();
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
                             $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+
+                            $ret .= 'dispatching MassEditTriggerEvent for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt

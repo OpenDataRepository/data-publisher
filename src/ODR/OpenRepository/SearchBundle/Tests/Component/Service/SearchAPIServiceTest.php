@@ -1140,7 +1140,59 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),    // should return nothing because it's impossible to match
                 true
             ],
+
+
             // ----------------------------------------
+            'AMCSD test: silly precision search' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(5.6984,)',
+                ),
+                array(324),
+                true
+            ],
+
+            'AMCSD test: search with one range' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325,326,328),
+                true
+            ],
+            'AMCSD test: search with two ranges' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)|(>5.63 <5.65,)',    // want records with 1) an x between 2.81 and 2.83 and 2) an x between 5.63 and 5.65
+                ),
+                array(326),
+                true
+            ],
+
+            'AMCSD test: search with both x/y that should work' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(>5.6 <5.65,>30)',
+                ),
+                array(325,326,327),
+                true
+            ],
+            'AMCSD test: search with both x/y that should return nothing' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(>5.6 <5.65,>50)',
+                ),
+                array(),    // the y value is between 30 and 35 for the previous matches, so nothing should match here
+                true
+            ],
+            'AMCSD test: search with separate x/y' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(>5.6 <5.65,)|(,>50)',
+                ),
+                array(325,326,327),    // all three have a different point with a y value of 100, so they should all match again
+                true
+            ],
         ];
     }
 

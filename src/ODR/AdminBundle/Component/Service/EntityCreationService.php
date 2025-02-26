@@ -71,6 +71,7 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\ThemeRenderPluginInstance;
 use ODR\AdminBundle\Entity\UserGroup;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -222,6 +223,7 @@ class EntityCreationService
         $datafield_meta->setSearchCanRequestBothMerges(false);
         $datafield_meta->setTagsAllowNonAdminEdit(false);
         $datafield_meta->setTagsAllowMultipleLevels(false);
+        $datafield_meta->setXyzDataColumnNames('');
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
             $datafield_meta->setAllowMultipleUploads(true);
             $datafield_meta->setShortenFilename(true);
@@ -2961,5 +2963,239 @@ class EntityCreationService
             $this->em->flush();
 
         return $user_group;
+    }
+
+
+    /**
+     * Creates, persists, and flushes a new XYZData entity.   This function doesn't permit delaying
+     * flushes, because it's impossible to lock properly.  This version only creates a single XYZData
+     * entity at a time.
+     *
+     * IMPORTANT: $created is not optional.  It's required to ensure that dozens/hundreds of XYZData
+     *  entities are created/modified "at the same time"...otherwise tracking doesn't work correctly.
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     * @param DataFields $datafield
+     * @param \DateTime $created
+     * @param float $x_value This is not optional, as it's part of identification
+     * @param float|null $initial_y_value
+     * @param float|null $initial_z_value
+     *
+     * @return XYZData
+     */
+    public function createXYZValue_single($user, $datarecord, $datafield, $created, $x_value, $initial_y_value = null, $initial_z_value = null)
+    {
+        $exception_source = 0x04ca5082;
+
+        // Locate the table name that will be inserted into if the storage entity doesn't exist
+        $fieldtype = $datafield->getFieldType();
+        $typeclass = $fieldtype->getTypeClass();
+
+        if ( $typeclass !== 'XYZData' )
+            throw new ODRException('createXYZValue_single() called on invalid fieldtype "'.$typeclass.'"', 500, $exception_source);
+
+
+        // Return the storage entity if it already exists
+        /** @var XYZData $storage_entity */
+        $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+            array(
+                'dataRecord' => $datarecord->getId(),
+                'dataField' => $datafield->getId(),
+                'x_value' => $x_value,
+            )
+        );
+        if ( $storage_entity == null ) {
+            // Bad Things (tm) happen if there's more than one storage entity for this
+            //  datarecord/datafield/fieldtype tuple, so use a locking service to prevent that...
+            $lockHandler = $this->lock_service->createLock('storage_'.$datarecord->getId().'_'.$datafield->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
+                // Another process is attempting to create this entity...wait for it to finish...
+                $lockHandler->acquire(true);
+
+                // ...then reload and return the storage entity that got created
+                /** @var XYZData $storage_entity */
+                $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+                    array(
+                        'dataRecord' => $datarecord->getId(),
+                        'dataField' => $datafield->getId(),
+                        'x_value' => $x_value,
+                    )
+                );
+                return $storage_entity;
+            }
+            else {
+                // Got the lock, locate/create the datarecordfield entity for this
+                $drf = self::createDatarecordField($user, $datarecord, $datafield, $created);
+
+                // Unlike other entities, there could be dozens/hundreds of XYZData entries for a
+                //  given datarecordfield entry...creating/modifying a pile of them could easily
+                //  require multiple seconds to save, which would break tracking and field history
+                // Rather than also save a "tracking_id" or "transaction_id", it's simpler to force
+                //  the caller to provide a DateTime object...with the hope that they reuse that
+                //  object when creating/updating multiple XYZData entries
+//                if ( is_null($created) )
+//                    $created = new \DateTime();
+
+                if ( !is_null($x_value) )
+                    $x_value = floatval($x_value);
+                if ( !is_null($initial_y_value) )
+                    $initial_y_value = floatval($initial_y_value);
+                if ( !is_null($initial_z_value) )
+                    $initial_z_value = floatval($initial_z_value);
+
+                // Create the storage entity
+                $storage_entity = new XYZData();
+                $storage_entity->setDataRecord($datarecord);
+                $storage_entity->setDataField($datafield);
+                $storage_entity->setDataRecordFields($drf);
+                $storage_entity->setFieldType($fieldtype);
+
+                $storage_entity->setXValue($x_value);
+                $storage_entity->setYValue($initial_y_value);
+                $storage_entity->setZValue($initial_z_value);
+
+                $storage_entity->setCreated($created);
+                $storage_entity->setUpdated($created);
+                $storage_entity->setCreatedBy($user);
+                $storage_entity->setUpdatedBy($user);
+
+                $this->em->persist($storage_entity);
+                $this->em->flush();
+                $this->em->refresh($storage_entity);
+
+                // Now that the storage entity is created, release the lock on it
+                $lockHandler->release();
+
+                // TODO - fire a PostUpdateEvent?
+            }
+        }
+
+        return $storage_entity;
+    }
+
+
+    /**
+     * Creates, persists, and flushes a new XYZData entity.   This function doesn't permit delaying
+     * flushes, because it's impossible to lock properly.  This version can create multiple XYZData
+     * entities at a time.
+     *
+     * IMPORTANT: $created is not optional.  It's required to ensure that dozens/hundreds of XYZData
+     *  entities are created/modified "at the same time"...otherwise tracking doesn't work correctly.
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     * @param DataFields $datafield
+     * @param \DateTime $created
+     * @param array $values an array where each element has 'x', 'y', and 'z' values, depending on how
+     *                      many columns the field is supposed to have
+     *
+     * @return bool true if at least one entity was created, false otherwise
+     */
+    public function createXYZValue_batch($user, $datarecord, $datafield, $created, $values)
+    {
+        $exception_source = 0xaae9e33c;
+
+        // Locate the table name that will be inserted into if the storage entity doesn't exist
+        $fieldtype = $datafield->getFieldType();
+        $typeclass = $fieldtype->getTypeClass();
+
+        if ( $typeclass !== 'XYZData' )
+            throw new ODRException('createXYZValue_batch() called on invalid fieldtype "'.$typeclass.'"', 500, $exception_source);
+
+        // Probably should verify stuff out here
+        $expected_num_columns = count( explode(',', $datafield->getXyzDataColumnNames()) );
+        foreach ($values as $value) {
+            if ( !isset($value['x']) )
+                throw new ODRException('createXYZValue_batch(): missing x value', 500, $exception_source);
+            if ( $expected_num_columns > 1 && !isset($value['y']) )
+                throw new ODRException('createXYZValue_batch(): missing y value', 500, $exception_source);
+            if ( $expected_num_columns > 2 && !isset($value['z']) )
+                throw new ODRException('createXYZValue_batch(): missing z value', 500, $exception_source);
+        }
+
+
+        // ----------------------------------------
+        // Don't want to potentially hydrate dozens/hundreds of entities
+        $changes_made = false;
+
+        // Bad Things (tm) happen if there's more than one storage entity for this
+        //  datarecord/datafield/fieldtype tuple, so use a locking service to prevent that...
+        $lockHandler = $this->lock_service->createLock('storage_'.$datarecord->getId().'_'.$datafield->getId().'.lock');
+        if ( !$lockHandler->acquire() ) {
+            // Another process is attempting to create this entity...wait for it to finish...
+            $lockHandler->acquire(true);
+        }
+
+        // Got the lock, locate/create the datarecordfield entity for this
+        $drf = self::createDatarecordField($user, $datarecord, $datafield, $created);
+
+        // Unlike other entities, there could be dozens/hundreds of XYZData entries for a given
+        //  datarecordfield entry...creating/modifying a pile of them could easily require multiple
+        //  seconds to save, which would break tracking and field history
+        // Rather than also save a "tracking_id" or "transaction_id", it's simpler to force the caller
+        //  to provide a DateTime object...with the hope that they reuse that object when creating
+        //  or updating multiple XYZData entries
+//        if ( is_null($created) )
+//            $created = new \DateTime();
+
+        // Don't want to create new entities that would result in duplicate x values
+        // TODO - don't care about the y/z values, right?
+        $query = $this->em->createQuery(
+           'SELECT e.id, e.x_value
+            FROM ODRAdminBundle:XYZData e
+            WHERE e.dataRecordFields = :drf_id
+            AND e.deletedAt IS NULL'
+        )->setParameters( array('drf_id' => $drf->getId()) );
+        $results = $query->getArrayResult();
+
+        $current_values = array();
+        foreach ($results as $result) {
+            $x = $result['x_value'];
+
+            $current_values[$x] = 1;
+        }
+
+        foreach ($values as $value) {
+            $x_value = $y_value = $z_value = null;
+
+            $x_value = $value['x'];
+            if ( $expected_num_columns > 1 )
+                $y_value = $value['y'];
+            if ( $expected_num_columns > 2 )
+                $z_value = $value['z'];
+
+            if ( !isset($current_values[$x_value]) ) {
+                $changes_made = true;
+
+                // Create the storage entity
+                $storage_entity = new XYZData();
+                $storage_entity->setDataRecord($datarecord);
+                $storage_entity->setDataField($datafield);
+                $storage_entity->setDataRecordFields($drf);
+                $storage_entity->setFieldType($fieldtype);
+
+                $storage_entity->setXValue($x_value);
+                $storage_entity->setYValue($y_value);
+                $storage_entity->setZValue($z_value);
+
+                $storage_entity->setCreated($created);
+                $storage_entity->setUpdated($created);
+                $storage_entity->setCreatedBy($user);
+                $storage_entity->setUpdatedBy($user);
+
+                $this->em->persist($storage_entity);
+            }
+        }
+
+        if ( $changes_made )
+            $this->em->flush();
+
+        // Now that the storage entities have been created, release the lock on it
+        $lockHandler->release();
+
+        // TODO - fire a PostUpdateEvent?
+
+        return $changes_made;
     }
 }

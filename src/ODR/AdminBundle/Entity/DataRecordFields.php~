@@ -100,6 +100,11 @@ class DataRecordFields
     private $tagSelection;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $XYZData;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -605,6 +610,42 @@ class DataRecordFields
     }
 
     /**
+     * Add xYZDatum.
+     *
+     * @param \ODR\AdminBundle\Entity\XYZData $xYZDatum
+     *
+     * @return DataRecordFields
+     */
+    public function addXYZDatum(\ODR\AdminBundle\Entity\XYZData $xYZDatum)
+    {
+        $this->XYZData[] = $xYZDatum;
+
+        return $this;
+    }
+
+    /**
+     * Remove xYZDatum.
+     *
+     * @param \ODR\AdminBundle\Entity\XYZData $xYZDatum
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeXYZDatum(\ODR\AdminBundle\Entity\XYZData $xYZDatum)
+    {
+        return $this->XYZData->removeElement($xYZDatum);
+    }
+
+    /**
+     * Get XYZData.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getXYZData()
+    {
+        return $this->XYZData;
+    }
+
+    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -720,6 +761,9 @@ class DataRecordFields
                 break;
             case 'DatetimeValue':
                 $my_obj = $this->getDatetimeValue();
+                break;
+            case 'XYZData':
+                $my_obj = $this->getXYZData();
                 break;
 
             case 'Markdown':

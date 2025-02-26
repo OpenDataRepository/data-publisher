@@ -11,6 +11,7 @@ services:
             $entity_create_service: "@odr.entity_creation_service"
             $entity_modify_service: "@odr.entity_meta_modify_service"
             $lock_service: "@odr.lock_service"
+            $xyzdata_helper_service: "@odr.xyzdata_helper_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
             $templating: "@templating"

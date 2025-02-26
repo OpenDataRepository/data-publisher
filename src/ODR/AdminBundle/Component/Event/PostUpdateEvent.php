@@ -67,7 +67,7 @@ class PostUpdateEvent extends Event implements ODREventInterface
     /**
      * Returns the storage entity that got created/modified.
      *
-     * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
+     * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar|XYZData
      */
     public function getStorageEntity()
     {
@@ -89,7 +89,7 @@ class PostUpdateEvent extends Event implements ODREventInterface
     /**
      * Sets which entity (if any) this event ended up changing.    TODO - does this need to be an array?
      *
-     * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $derived_entity
+     * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar|XYZData $derived_entity
      */
     public function setDerivedEntity($derived_entity)
     {
@@ -100,7 +100,7 @@ class PostUpdateEvent extends Event implements ODREventInterface
     /**
      * Returns which entity (if any) this event ended up changing.
      *
-     * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar|null
+     * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar|XYZData|null
      */
     public function getDerivedEntity()
     {

@@ -44,6 +44,23 @@
     {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
         {% set valuefield = datarecordfield.datetimeValue[0] %}
         {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "XYZ Data" %}
+        {% set valuefield = datarecordfield.xyzData %}
+
+        {% set labels = datafield_meta.xyz_data_column_names|split(',') %}
+        {% for num,xyz_data in valuefield %}
+            {% if labels|length == 1 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ')' %}
+            {% elseif labels|length == 2 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ',' ~ xyz_data.y_value ~ ')' %}
+            {% elseif labels|length == 3 %}
+                {% set valuefield_value = valuefield_value ~ '(' ~ xyz_data.x_value ~ ',' ~ xyz_data.y_value ~ ',' ~ xyz_data.z_value ~ ')' %}
+            {% endif %}
+
+            {% if not loop.last %}
+                {% set valuefield_value = valuefield_value ~ '|' %}
+            {% endif %}
+        {% endfor %}
     {% elseif field_typename == "Markdown" %}
         {% set valuefield = '' %}
     {% endif %}
@@ -282,6 +299,14 @@
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input id="{{ input_id }}" type="text" class="pure-u-1 Cursor" value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" readonly="readonly" />
+            </div>
+        </fieldset>
+
+    {% elseif field_typename == "XYZ Data" %}
+        <fieldset>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <textarea id="{{ input_id }}" class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
             </div>
         </fieldset>
 

@@ -48,7 +48,7 @@ class DatabaseInfoService
     /**
      * @var TagHelperService
      */
-    private $th_service;
+    private $tag_helper_service;
 
     /**
      * @var Logger
@@ -75,7 +75,7 @@ class DatabaseInfoService
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->datatree_info_service = $datatree_info_service;
-        $this->th_service = $tag_helper_service;
+        $this->tag_helper_service = $tag_helper_service;
         $this->logger = $logger;
     }
 
@@ -200,7 +200,7 @@ class DatabaseInfoService
         $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
         // Going to need any tag hierarchy data for this datatype
-        $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype_id);
+        $tag_hierarchy = $this->tag_helper_service->getTagHierarchy($grandparent_datatype_id);
 
 
         // ----------------------------------------
@@ -386,8 +386,8 @@ class DatabaseInfoService
                             $tag_tree = $tag_hierarchy[$dt_id][$df_id];
 
                         // Stack/order the tags before saving them in the array
-                        $tag_list = $this->th_service->stackTagArray($tags[$df_id], $tag_tree);
-                        $this->th_service->orderStackedTagArray($tag_list);
+                        $tag_list = $this->tag_helper_service->stackTagArray($tags[$df_id], $tag_tree);
+                        $this->tag_helper_service->orderStackedTagArray($tag_list);
 
                         // Also save the tag hierarchy in here for convenience
                         $df['tags'] = $tag_list;

@@ -385,6 +385,15 @@ services:
             $token_generator: "@fos_user.util.token_generator"
             $logger: "@logger"
 
+    odr.xyzdata_helper_service:
+        class: ODR\AdminBundle\Component\Service\XYZDataHelperService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $event_dispatcher: "@event_dispatcher"
+            $logger: "@logger"
+
     # Defines a number of reusable classes to use inside Symfony forms
     odr.type.datafield_type:
         class: ODR\AdminBundle\Form\Type\DatafieldType

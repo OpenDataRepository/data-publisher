@@ -257,6 +257,9 @@ class WorkerController extends ODRCustomController
                 // DecimalValue fieldtypes have both 'value' and 'original_value'
                 if ( $new_fieldtype->getTypeClass() === 'DecimalValue' )
                     $insert_query .= ', original_value';
+                // ShortVarchar fieldtypes have both 'value' and 'converted_value'
+                else if ( $new_fieldtype->getTypeClass() === 'ShortVarchar' )
+                    $insert_query .= ', converted_value';
                 $insert_query .= ')';
 
                 // Most of the SELECT is the same for all migrations...
@@ -395,6 +398,11 @@ class WorkerController extends ODRCustomController
                 }
 
                 // Text/number fields can't be converted into dates  TODO - ...for now
+
+                // Need to provide a value for this column...but don't bother attempting to fill it
+                //  out properly
+                if ( $new_typeclass === 'ShortVarchar' )
+                    $select_query.= ', ""';
 
 
                 // Stitch all parts of the query together and execute it

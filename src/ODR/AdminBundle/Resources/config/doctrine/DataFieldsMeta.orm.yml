@@ -169,6 +169,14 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: false
             column: tags_allow_non_admin_edit
 
+        xyz_data_column_names:
+            type: string
+            length: 255
+            fixed: false
+            nullable: false
+            default: ''
+
+        # Other than Markdown fields, pretty much every other field can be searched
         searchable:
             type: integer
             unsigned: false

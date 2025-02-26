@@ -1,9 +1,19 @@
-ODR\AdminBundle\Entity\ShortVarchar:
+ODR\AdminBundle\Entity\XYZData:
     type: entity
-    table: odr_short_varchar
+    table: odr_xyz_data
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        XYZData_created:
+            columns: [ "created" ]
+        x_value_index:
+            columns: [ "x_value" ]
+        y_value_index:
+            columns: [ "y_value" ]
+        z_value_index:
+            columns: [ "z_value" ]
+
     fields:
         id:
             id: true
@@ -13,16 +23,21 @@ ODR\AdminBundle\Entity\ShortVarchar:
             generator:
                 strategy: IDENTITY
 
-        value:
-            type: string
-            length: 32
-            fixed: false
-            nullable: false
-        converted_value:
-            type: string
-            length: 32
-            fixed: false
-            nullable: false
+        x_value:
+            type: float
+            unsigned: false
+            nullable: true
+            default: 0
+        y_value:
+            type: float
+            unsigned: false
+            nullable: true
+            default: 0
+        z_value:
+            type: float
+            unsigned: false
+            nullable: true
+            default: 0
 
         created:
             type: datetime
@@ -37,16 +52,6 @@ ODR\AdminBundle\Entity\ShortVarchar:
         deletedAt:
             type: datetime
             nullable: true
-
-    indexes:
-        shortvarchar_created:
-            columns: ["created"]
-        shortvarchar_fulltext:
-            columns: ["value"]
-            flags: fulltext
-        shortvarchar_converted_fulltext:
-            columns: [ "converted_value" ]
-            flags: fulltext
 
     manyToOne:
         dataField:
@@ -73,7 +78,7 @@ ODR\AdminBundle\Entity\ShortVarchar:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: shortVarchar
+            inversedBy: XYZData
             joinColumns:
                 data_record_id:
                     referencedColumnName: id
@@ -83,7 +88,7 @@ ODR\AdminBundle\Entity\ShortVarchar:
             targetEntity: DataRecordFields
             cascade: {  }
 #            mappedBy: null
-            inversedBy: shortVarchar
+            inversedBy: XYZData
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id

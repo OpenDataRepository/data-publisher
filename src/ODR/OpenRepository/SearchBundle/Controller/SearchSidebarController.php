@@ -411,7 +411,7 @@ class SearchSidebarController extends ODRCustomController
             // Would prefer if this didn't use yet another dialog, but there's just too much
             //  useful information that needs displaying...
             $return['d'] = $templating->render(
-                'ODROpenRepositorySearchBundle:Default:choose_layout.html.twig',
+                'ODROpenRepositorySearchBundle:Default:choose_sidebar_layout.html.twig',
                 array(
                     'user' => $user,
                     'is_datatype_admin' => $is_datatype_admin,

@@ -2541,6 +2541,7 @@ class DisplaytemplateController extends ODRCustomController
                         'search_can_request_both_merges' => $submitted_data->getSearchCanRequestBothMerges(),
                         'tags_allow_multiple_levels' => $submitted_data->getTagsAllowMultipleLevels(),
                         'tags_allow_non_admin_edit' => $submitted_data->getTagsAllowNonAdminEdit(),
+                        'xyz_column_names' => $submitted_data->getXyzDataColumnNames(),
                         'searchable' => $submitted_data->getSearchable(),
                         'publicDate' => $submitted_data->getPublicDate(),
                         'internal_reference_name' => $submitted_data->getInternalReferenceName(),
