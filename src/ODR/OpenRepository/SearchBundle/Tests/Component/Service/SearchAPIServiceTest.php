@@ -194,21 +194,60 @@ class SearchAPIServiceTest extends WebTestCase
 
             // ----------------------------------------
             // simple regular searches
-            'RRUFF Reference: authors containing "downs", including non-public records' => [
+            'RRUFF Reference: article title containing "abelsonite", including non-public records' => [
                 array(
                     'dt_id' => 1,
-                    '1' => "downs"
+                    '2' => "abelsonite"
                 ),
-                array(35,36,49,66,68),
+                array(1,35,63,83),
                 true
             ],
-            'RRUFF Reference: authors containing "downs" and journal not containing "raman", including non-public records' => [
+            'RRUFF Reference: article title containing "structure", including non-public records' => [
                 array(
                     'dt_id' => 1,
-                    '1' => "downs",
-                    '3' => "!raman"
+                    '2' => "structure",
                 ),
-                array(35,49,66,68),
+                array(1,4,6,7,10,12,23,25,35,46,65,69,72,82,85,87,89),
+                true
+            ],
+            'RRUFF Reference: article title containing "abelsonite" AND "structure", including non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => "abelsonite structure"
+                ),
+                array(1,35),
+                true
+            ],
+            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 1), including non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => "abelsonite OR structure",
+                ),
+                array(1,4,6,7,10,12,23,25,35,46,63,65,69,72,82,83,85,87,89),
+                true
+            ],
+            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 2), including non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => "abelsonite || structure"
+                ),
+                array(1,4,6,7,10,12,23,25,35,46,63,65,69,72,82,83,85,87,89),
+                true
+            ],
+            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 3), including non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => "abelsonite, structure",
+                ),
+                array(1,4,6,7,10,12,23,25,35,46,63,65,69,72,82,83,85,87,89),
+                true
+            ],
+            'RRUFF Reference: article title containing the lteral string "abelsonite, the", including non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => "\"abelsonite, the\"",
+                ),
+                array(35),
                 true
             ],
 
