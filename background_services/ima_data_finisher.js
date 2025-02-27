@@ -70,6 +70,10 @@ async function app() {
                                 file_data = await readFile(data.mineral_data_include_filename);
                                 await appendFile(output_path + '/mineral_names_update.php', file_data, () => {});
 
+                                // Author Names Test
+                                file_data = await readFile(data.author_names_filename);
+                                await appendFile(output_path + '/author_names_update.php', file_data, () => {});
+
                                 // Cell Params Data
                                 file_data = await readFile(data.cell_params_filename);
                                 console.log("Appending file: ", output_path + '/cellparams_data_update.js');
@@ -100,6 +104,8 @@ async function app() {
                                 // Mineral Data
                                 await fs.rename(data.mineral_data_filename, output_path + '/mineral_data.js', () => {});
                                 await fs.rename(data.mineral_data_include_filename, output_path + '/mineral_names.php', () => {});
+                                // Author Names
+                                await fs.rename(data.author_names_filename, output_path + '/author_names.php', () => {});
 
 
                                 // Cell Params Data
@@ -125,6 +131,7 @@ async function app() {
                                 // Overwrite existing update files with empty files
                                 await writeFile(output_path + '/mineral_data_update.js', '');
                                 await writeFile(output_path + '/mineral_names_update.php', '<?php \n');
+                                await writeFile(output_path + '/author_names_update.php', '<?php \n');
                                 await writeFile(output_path + '/cellparams_data_update.js', '');
                                 await writeFile(output_path + '/references_update.js', '');
                                 await writeFile(output_path + '/master_tag_data_update.js', '');

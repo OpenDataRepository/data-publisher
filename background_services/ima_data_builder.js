@@ -178,6 +178,14 @@ async function app() {
                     console.log('writeFile: ' + basepath + data.mineral_data + '_include.' + tmp_file_extension);
                     await writeFile(mineral_data_include_filename, content);
 
+                    if(!data.ima_update_rebuild) {
+                        content = '<?php ' +
+                            '$author_names = array();\n\n';
+                    }
+                    let author_names_filename = basepath + data.mineral_data + '_authors.' + tmp_file_extension;
+                    console.log('writeFile: ' + basepath + data.mineral_data + '_authors.' + tmp_file_extension);
+                    await writeFile(author_names_filename, content);
+
                     // Initialize temp files
                     if(!data.ima_update_rebuild) {
                         content = 'var cellparams_range=new Array();';
@@ -351,6 +359,7 @@ async function app() {
                         record.api_key = data.api_key;
                         record.api_login_url = data.api_login_url;
                         record.api_worker_job_url = data.api_worker_job_url;
+                        record.author_names_filename = author_names_filename;
                         record.api_job_status_url = data.api_job_status_url;
                         record.file_extension = tmp_file_extension;
                         record.base_path = basepath;
@@ -369,12 +378,9 @@ async function app() {
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
                                 () => {
-                                    // console.log('Tube: ' , tubeName);
-                                    // console.log('Record: ', record);
-                                    // TODO Build Full Record Here
                                     cell_params_record_client.put(JSON.stringify(record)).onSuccess(
                                         (jobId) => {
-                                            // console.log('Cell ParamsJob ID: ', jobId);
+                                            console.log('CPDB Cell Parameters ID: ', jobId);
                                         }
                                     );
                                 }
@@ -448,6 +454,7 @@ async function app() {
                         record.api_login_url = data.api_login_url;
                         record.api_worker_job_url = data.api_worker_job_url;
                         record.api_job_status_url = data.api_job_status_url;
+                        record.author_names_filename = author_names_filename;
                         record.file_extension = tmp_file_extension;
                         record.base_path = basepath;
                         record.base_url = data.base_url;
@@ -465,12 +472,9 @@ async function app() {
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
                                 () => {
-                                    // console.log('Tube: ' , tubeName);
-                                    // console.log('Record: ', record);
-                                    // TODO Build Full Record Here
                                     cell_params_record_client.put(JSON.stringify(record)).onSuccess(
                                         (jobId) => {
-                                            console.log('Powder Diffraction Job ID: ', jobId);
+                                            console.log('RRUFF Cell Parameters Job ID: ', jobId);
                                         }
                                     );
                                 }
@@ -487,6 +491,7 @@ async function app() {
                         record.cell_params_index = i;
                         record.cell_params_type = 'amcsd';
                         record.tracked_job_id = tracked_job.id;
+                        record.author_names_filename = author_names_filename;
                         record.api_user = data.api_user;
                         record.api_key = data.api_key;
                         record.api_login_url = data.api_login_url;
@@ -505,18 +510,15 @@ async function app() {
                         record.cell_params_map = data.cell_params_map;
                         record.powder_diffraction_map = data.powder_diffraction_map;
 
-                        console.log('Powder Diffraction Job ID: ', record.internal_id);
-                        console.log('Powder Diffraction Job ID: ', record.record_uuid);
                         job_count++;
                         cell_params_record_client.use(cell_params_record_tube)
                             .onSuccess(
                                 () => {
-                                    // console.log('Tube: ' , tubeName);
-                                    // console.log('Record: ', record);
-                                    // TODO Build Full Record Here
                                     cell_params_record_client.put(JSON.stringify(record)).onSuccess(
                                         (jobId) => {
-                                            // console.log('Powder Diffraction Job ID: ', jobId);
+                                            console.log('AMCSD Cell Parameters ID [internal_id]: ', record.internal_id);
+                                            console.log('AMCSD Cell Parameters ID [unique_id]: ', record.unique_id);
+                                            console.log('AMCSD Cell Parameters ID: ', jobId);
                                         }
                                     );
                                 }
@@ -579,6 +581,7 @@ async function app() {
                     record.ima_update_rebuild = data.ima_update_rebuild;
                     record.mineral_data_filename = mineral_data_filename;
                     record.mineral_data_include_filename = mineral_data_include_filename;
+                    record.author_names_filename = author_names_filename;
                     record.cell_params_filename = cell_params_filename;
                     record.paragenetic_modes_filename = paragenetic_modes_filename;
                     record.references_filename = references_filename;

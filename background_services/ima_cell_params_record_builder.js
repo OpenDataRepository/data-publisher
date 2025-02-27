@@ -112,6 +112,7 @@ async function app() {
                     // console.log("AMCSD RECORD MAP")
                     // console.log(amcsd_map);
                     let content = '';
+                    let authors = '';
                     /*
                       From the Cell Parameters Database
                      */
@@ -334,12 +335,33 @@ async function app() {
                                 // File/citation link
                                 await findValue(amcsd_map.cite_link, record_data) + '|' +
                                 // File/citation link 2
-                                await findValue('' , record_data) + '|' +
+                                record_data['record_uuid'] + '|';
                                 // Status Notes Base64
-                                Buffer.from(
-                                    await findValue(amcsd_map.status_notes, record_data)
-                                ).toString('base64') +
-                            '";\n';
+                            let status_notes = await findValue(amcsd_map.status_notes, record_data)
+                            if(status_notes.length > 0) {
+                                status_notes = 'Locality: ' + status_notes
+                            }
+                            content += Buffer.from(status_notes).toString('base64') + '";\n';
+
+
+                            // Get the authors and append to authors file
+                            let record_authors = await findValue(amcsd_map.amcsd_authors, record_data);
+                            if(record_authors.length > 0) {
+                                if(record_authors.match(/,/)) {
+                                    let author_array = record_authors.split(/,/);
+                                    for(let i= 0; i < author_array.length; i++) {
+                                        // In theory the "and " construct should only be present when'
+                                        // multiple authors are found
+                                        if(author_array[i].trim().match(/^and\s/)) {
+                                            author_array[i] = author_array[i].trim().replace(/^and\s/,'');
+                                        }
+                                        authors += 'array_push($author_names, \'' + author_array[i].trim() + '\');\n';
+                                    }
+                                }
+                                else {
+                                    authors += 'array_push($author_names, \'' + record_authors.trim() + '\');\n';
+                                }
+                            }
                         }
                     }
 
@@ -347,6 +369,8 @@ async function app() {
                     // console.log('writeFile: ' + record.base_path + record.cell_params + '.' + record.file_extension);
                     await appendFile( record.base_path + record.cell_params + '.' + record.file_extension, content);
 
+                    // console.log('writeFile: ' + record.author_names_filename);
+                    await appendFile( record.author_names_filename, authors);
                     /*
                         {
                            "user_email": "nate@opendatarepository.org",
