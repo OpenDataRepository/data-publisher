@@ -5258,6 +5258,9 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRFilterGraphPlugin_fields {
     background: white;
 }
+.ODRFilterGraphPlugin_select {
+    height: 8.75em;
+}
 .ODRFilterGraphPlugin_select_all {
     display: inline-block;
     box-sizing: border-box;

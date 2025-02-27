@@ -880,6 +880,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 switch ($typeclass) {
                     case 'Image':
                     case 'Markdown':
+                    case 'XYZData':
                     case 'Tag':    // TODO - implement this
                         // These can't be filtered on, skip to the next datafield
                         continue 2;
@@ -1403,6 +1404,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 switch ($typeclass) {
                     case 'Image':
                     case 'Markdown':
+                    case 'XYZData':
                     case 'Tag':    // TODO - implement this
                         // These can't be filtered on, skip to the next datafield
                         unset( $tmp['dataFields'][$df_id] );
