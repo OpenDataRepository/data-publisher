@@ -1,25 +1,102 @@
 {% spaceless %}
 
+{% set skipped = 0 %}
+
 <div class="ODRContentWrapper">
     <div class="ODRThemeElement">
         <div class="ODRInnerBox">
             <div class="ODRAccordionWrapper ODRTabAccordion">
-            <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-                <a class="ODRCurrentLinkedRecords_toggle"><span class="fa fa-caret-down"></span> Currently Linked Records...</a>
-            </h3>
-
+                <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                    <a class="ODRCurrentLinkedRecords_toggle"><span class="fa fa-caret-down"></span> Currently Linked Records...</a>
+                </h3>
+                <div class="ODRCurrentLinkedRecords_wrapper">
             {% for dt_id,dt_data in linked_record_data %}
-                <div class="ODRRecordLinkInfoDiv">
-                    <span>{{ dt_data['direction'] }} {{ dt_data['records']|length }} {{ dt_data['dt_name'] }} {% if dt_data['records']|length == 1 %}record{% else %}records{% endif %}</span>
-                    <button class="pure-button-primary"
-                            onclick="{% if dt_data['direction'] == 'links to' %}OpenLinkSearchPage({{ local_datarecord.datatype.id }},{{ dt_id }},{{ local_datarecord.id }});{% else %}OpenLinkSearchPage({{ dt_id }},{{ local_datarecord.datatype.id }},{{ local_datarecord.id }});{% endif %}"
-                            title="Click to search for Records to link to"
-                    ><i class="fa fa-search-plus"></i>Modify</button>
-                </div>
-                {% if dt_data['record_str'] != '' %}<div class="ODRRecordLinkInfoList">{{ dt_data['record_str']|raw }}</div>{% endif %}
+                {% if dt_data['records']|length > 0 %}
+                    {% set show_record_str = false %}
+                    {% if dt_data['record_str'] != '' and dt_data['records']|length > 0 and dt_data['records']|length <= 5 %}
+                        {% set show_record_str = true %}
+                    {% endif %}
+
+                    <div class="pure-u-lg-1-3 pure-u-md-1-2 pure-u-sm-1">
+                        <div class="pure-u-1" rel="{{ dt_id }}">
+                            <a class="ODRRecordLinkInfo_modify" rel="{{ dt_data['direction'] }}">[ link/unlink ]</a>
+                            <span>{{ dt_data['dt_name'] }} ({{ dt_data['records']|length }})</span>
+                            {% if dt_data['record_str'] != '' and dt_data['records']|length > 0 %}
+                            <a class="ODRRecordLinkInfo_toggle">[ {% if show_record_str %}hide{% else %}show{% endif %} ]</a>
+                            {% endif %}
+                            {% if dt_data['record_str'] != '' and dt_data['records']|length > 0 %}
+                            <div class="ODRRecordLinkInfo_list pure-u-1 {% if dt_data['records']|length > 5 %} ODRHidden{% endif %}">
+                                {{ dt_data['record_str']|raw }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    {% set skipped = skipped + 1 %}
+                {% endif %}
             {% endfor %}
-        </div>
+                </div>
+            </div>
+
+            {% if skipped > 0 %}
+            <div class="ODRAccordionWrapper ODRTabAccordion">
+                <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                    <a class="ODRCurrentLinkedRecords_toggle"><span class="fa fa-caret-right"></span> Other Related Datasets...</a>
+                </h3>
+
+                <div class="ODRCurrentLinkedRecords_wrapper ODRHidden">
+            {% for dt_id,dt_data in linked_record_data %}
+                {% if dt_data['records']|length == 0 %}
+                     <div class="pure-u-lg-1-3 pure-u-md-1-2 pure-u-sm-1">
+                         <div class="pure-u-1" rel="{{ dt_id }}">
+                             <a class="ODRRecordLinkInfo_modify" rel="{{ dt_data['direction'] }}">[ link/unlink ]</a>
+                             <span>{{ dt_data['dt_name'] }} ({{ dt_data['records']|length }})</span>
+
+                         </div>
+                     </div>
+                {% endif %}
+            {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
     </div>
 </div>
+
+<script>
+    $(function() {
+        $(".ODRCurrentLinkedRecords_toggle").unbind('click').click(function() {
+            var icon_div = $(this).children('span').first();
+            if ( $(icon_div).hasClass('fa-caret-down') ) {
+                $(icon_div).removeClass('fa-caret-down').addClass('fa-caret-right');
+                $(this).parent().next().addClass('ODRHidden');
+            }
+            else {
+                $(icon_div).addClass('fa-caret-down').removeClass('fa-caret-right');
+                $(this).parent().next().removeClass('ODRHidden');
+            }
+        });
+
+        $(".ODRRecordLinkInfo_toggle").unbind('click').click(function() {
+            if ( $(this).next().hasClass('ODRHidden') ) {
+                $(this).next().removeClass('ODRHidden');
+                $(this).html('[ hide ]');
+            }
+            else {
+                $(this).next().addClass('ODRHidden');
+                $(this).html('[ show ]');
+            }
+        });
+        $(".ODRRecordLinkInfo_modify").unbind('click').click(function() {
+            var direction = $(this).attr('rel');
+            var dt_id = $(this).parent().attr('rel');
+
+            if ( direction === 'links to' )
+                OpenLinkSearchPage({{ local_datarecord.datatype.id }}, dt_id, {{ local_datarecord.id }});
+            else
+                OpenLinkSearchPage(dt_id, {{ local_datarecord.datatype.id }}, {{ local_datarecord.id }});
+        });
+    });
+</script>
 
 {% endspaceless %}

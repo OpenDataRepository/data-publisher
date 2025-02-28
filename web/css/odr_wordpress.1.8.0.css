@@ -5434,11 +5434,11 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     margin-top: 5px;
     margin-bottom: 5px;
 }
-.ODRRecordLinkInfoDiv {
-    padding-left: 5px;
+.ODRRecordLinkInfo_toggle,.ODRRecordLinkInfo_modify {
+    padding: 0 3px;
 }
-.ODRRecordLinkInfoList {
-    padding-left: 10px;
+.ODRRecordLinkInfo_list {
+    margin-left: 5px;
 }
 
 .ODRSidebarLayout_dragTarget {
