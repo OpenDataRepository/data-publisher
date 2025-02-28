@@ -38,6 +38,21 @@ odr_plugins.base.file_renamer:
             description: A character sequence to replace any period characters with.
             display_order: 1
 
+        file_extension:
+            name: File Extension
+            type: string
+            default: "auto"
+            description: If "auto", then the uploaded file's extension is not changed.  Must not be blank.
+            display_order: 2
+
+        append_file_uuid:
+            name: Append File UUID?
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: If "yes", then the file's UUID will be appended to the filename.
+            display_order: 3
+
         # Because the plugin needs to access an uknown number of datafields that might also be in
         #  linked datatypes, the renderPlugin settings dialog needs to be partially hijacked to work
         #  correctly
@@ -47,6 +62,6 @@ odr_plugins.base.file_renamer:
             type: string
             default:
             description: A newline-separated list of datafield UUIDs or string constants to build the filename with.
-            display_order: 2
+            display_order: 4
             # This optional property is the one that triggers the hijack of the dialog
             uses_custom_render: true

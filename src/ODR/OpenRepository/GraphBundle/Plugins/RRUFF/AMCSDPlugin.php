@@ -222,6 +222,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // ...I don't think any of AMCSD's fields qualify as "optional", actually
             );
 
+            // Would prefer the built-in file renaming feature to not work when the FileRenamer
+            //  plugin is active...
+            // Thanks to long covid this coupling is the least horrible method I can figure out
+            // TODO - fix this somehow, please
+            $extra_plugins = array();
+
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -268,6 +274,20 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Need to tweak display parameters for several of the fields...
                 $plugin_fields[$rpf_df_id] = $rpf_df;
                 $plugin_fields[$rpf_df_id]['rpf_name'] = $rpf_name;
+
+                // Would prefer the built-in file renaming feature to not work when the FileRenamer
+                //  plugin is active...
+                // Thanks to long covid this coupling is the least horrible method I can figure out
+                // TODO - fix this somehow, please
+                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                    $df_id = $df['id'];
+                    $render_plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+
+                    if ( !isset($extra_plugins[$df_id]) )
+                        $extra_plugins[$df_id] = array();
+
+                    $extra_plugins[$df_id][$render_plugin_classname] = $rpi;
+                }
 
                 // These strings are the "name" entries for each of the required fields
                 // So, "database_code_amcsd", not "database code"
@@ -373,6 +393,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'token_list' => $token_list,
 
                         'plugin_fields' => $plugin_fields,
+                        'extra_plugins' => $extra_plugins,
                     )
                 );
             }
