@@ -30,6 +30,8 @@
                             'site_baseurl': site_baseurl,
                             'theme_datafield': theme_datafield,
                             'datafield': datafield,
+
+                            'prefix': prefix,
                         } %}
                     {% endif %}
                 {% endif %}
@@ -50,6 +52,8 @@
                     {% set multiple_allowed = datatype['descendants'][child_datatype_id]['multiple_allowed'] %}
                     {% set is_link = datatype['descendants'][child_datatype_id]['is_link'] %}
 
+                    {% set new_prefix = prefix ~ '-' ~ child_datatype_id %}
+
                     {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'theme_array': child_theme,
@@ -61,6 +65,8 @@
                         'is_top_level': 0,
                         'multiple_allowed': multiple_allowed,
                         'is_link': is_link,
+
+                        'prefix': new_prefix,
                     } %}
                 {% endif %}
             {% endfor %}

@@ -1,0 +1,28 @@
+{% spaceless %}
+
+<fieldset style="margin-left: 10px; padding-left: 10px; border-left: 0.5rem solid #32a1ce">
+    <legend>{{ datatype_array['dataTypeMeta']['shortName'] }}</legend>
+    {% for df_id,df in datatype_array['dataFields'] %}
+        {% set df_meta = df['dataFieldMeta'] %}
+        {% set typename = df_meta['fieldType']['typeName'] %}
+        {% if typename != 'Markdown' %}
+        <label for="df_{{ prefix }}_{{ df_id }}">
+            <input id="df_{{ prefix }}_{{ df_id }}" type="checkbox" name="datafields[{{ prefix }}_{{ df_id }}]" value="{{ df_id }}"/>&nbsp;{{ df_meta['fieldName'] }} ({{ typename }})
+        </label>
+        {% endif %}
+        <br>
+    {% endfor %}
+
+    {% if datatype_array['descendants'] is defined %}
+        {% for child_dt_id,tdt_data in datatype_array['descendants'] %}
+            {% set child_datatype_array = tdt_data['datatype'][child_dt_id] %}
+            {% set new_prefix = prefix ~ '-' ~ child_dt_id %}
+            {% include 'ODRAdminBundle:Debug:debug_csv_export_childtype.html.twig' with {
+                'datatype_array': child_datatype_array,
+                'prefix': new_prefix,
+            } %}
+        {% endfor %}
+    {% endif %}
+</fieldset>
+
+{% endspaceless %}

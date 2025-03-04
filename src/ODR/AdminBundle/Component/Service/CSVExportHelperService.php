@@ -278,7 +278,12 @@ class CSVExportHelperService
         $datatype_id = $parameters['datatype_id'];
         $datarecord_ids = $parameters['datarecord_id'];
         $complete_datarecord_list_array = $parameters['complete_datarecord_list'];
+
+        // The datafield list needs to be decoded from json...it seems as if passing it through the
+        //  symfony command turns it into an object otherwise
         $datafields = $parameters['datafields'];
+        if ( $tracked_job_id !== -1 )
+            $datafields = json_decode($datafields, true);
 
         $job_order = $parameters['job_order'];
 
@@ -374,26 +379,55 @@ class CSVExportHelperService
         // If tags are being exported, then additional information will be needed
         $inversed_tag_hierarchy = array();
 
-        // Ensure this datatype's external id field is going to be exported, if one exists
-        $external_id_field = $dt_array[$datatype_id]['dataTypeMeta']['externalIdField'];
-        if ( !is_null($external_id_field) )
-            $datafields[] = $external_id_field['id'];
 
-        // Need to locate fieldtypes of all datafields that are going to be exported
-        $flipped_datafields = array_flip($datafields);
-        $datafields_to_export = array();
-        $datatypes_to_export = array();
+        // ----------------------------------------
+        // Need to locate information about the datafields that are going to be exported...particularly
+        //  whether the plugin system needs to override the values for CSVExport
+        $export_datafields = array();
+        $export_datatypes = array();
+
+        // Modify the given array of datafields to also have typeclass info for later
+        $new_datafields = array();
+
+        // Ensure this datatype's external id field is exported, if one exists
+        $external_id_field = $dt_array[$datatype_id]['dataTypeMeta']['externalIdField'];
+        if ( !is_null($external_id_field) ) {
+            $external_id_field_id = $external_id_field['id'];
+            $export_datafields[$external_id_field_id] = 0;
+            $new_datafields[ $datatype_id.'_'.$external_id_field_id ] = array('df_id' => $external_id_field_id, 'typeclass' => '');
+        }
+
+        foreach ($datafields as $id_string => $df_id) {
+            $export_datafields[$df_id] = 0;
+            $new_datafields[$id_string] = array('df_id' => intval($df_id), 'typeclass' => '');
+        }
+        $datafields = $new_datafields;
+
+        // Dig through the entire relevant cached datatype array...
         foreach ($dt_array as $dt_id => $dt) {
             foreach ($dt['dataFields'] as $df_id => $df) {
-                if ( isset($flipped_datafields[$df_id]) ) {
+                // If this datafield is supposed to be exported...
+                if ( isset($export_datafields[$df_id]) ) {
                     $fieldtype = $df['dataFieldMeta']['fieldType'];
                     $typeclass = $fieldtype['typeClass'];
                     $typename = $fieldtype['typeName'];
 
-                    // All fieldtypes except for Markdown can be exported
+                    // ...ensure it's not a Markdown field
                     if ($typename !== 'Markdown') {
-                        $datafields_to_export[$df_id] = $typeclass;
-                        $datatypes_to_export[$dt_id] = 1;
+                        $export_datafields[$df_id] = 1;
+                        $export_datatypes[$dt_id] = 1;
+
+                        // ...and splice the typeclass back into the list of datafields
+                        foreach ($new_datafields as $id_string => $df_data) {
+                            if ( $df_data['df_id'] === $df_id ) {
+                                $datafields[$id_string]['typeclass'] = $typeclass;
+
+                                // DO NOT break here...the user could've selected the same datafield
+                                //  in multiple linked descendants, and they all need to have their
+                                //  typeclass info
+//                                break;
+                            }
+                        }
                     }
 
                     // If exporting a tag datafield...
@@ -402,17 +436,19 @@ class CSVExportHelperService
                         //  parent tag from a child tag
                         $inversed_tag_hierarchy = self::getTagTree($df['tagTree']);
                     }
-
-                    // "Mark" this datafield as seen
-                    unset( $flipped_datafields[$df_id] );
                 }
             }
         }
 
-        // If any entries remain in $flipped_datafields...they're either datafields the user can't
-        //  view, or they belong to unrelated datatypes.  Neither should be allowed.
-        if ( !empty($flipped_datafields) ) {
-            $df_ids = implode(',', array_keys($flipped_datafields));
+        // If any entries remain in $df_id_list...they're either datafields the user can't view, or
+        //  they belong to unrelated datatypes.  Neither should be allowed.
+        $invalid_df_ids = array();
+        foreach ($export_datafields as $df_id => $num) {
+            if ( $num === 0 )
+                $invalid_df_ids[] = $df_id;
+        }
+        if ( !empty($invalid_df_ids) ) {
+            $df_ids = implode(',', array_keys($invalid_df_ids));
             throw new ODRBadRequestException('Unable to locate Datafields "'.$df_ids.'" for User '.$user_id.', Datatype '.$datatype_id);
         }
 
@@ -422,7 +458,7 @@ class CSVExportHelperService
         //  (or their datatypes) want to override a csv export
         $plugin_data = array();
         foreach ($dt_array as $dt_id => $dt) {
-            if ( isset($datatypes_to_export[$dt_id]) ) {
+            if ( isset($export_datatypes[$dt_id]) ) {
                 foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     if ( $rpi['renderPlugin']['overrideExport'] == true ) {
                         $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
@@ -437,7 +473,7 @@ class CSVExportHelperService
             }
 
             foreach ($dt['dataFields'] as $df_id => $df) {
-                if ( isset($datafields_to_export[$df_id]) ) {
+                if ( isset($export_datafields[$df_id]) ) {
                     foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['overrideExport'] == true ) {
                             $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
@@ -453,6 +489,7 @@ class CSVExportHelperService
             }
         }
 
+        // TODO - need to handle the LinkedDescendantMerger plugin
         // For each datatype/datafield that might want to execute a plugin to override the output...
         $plugin_executions = array('datatype' => array(), 'datafield' => array());
         foreach ($plugin_data as $num => $data) {
@@ -468,14 +505,13 @@ class CSVExportHelperService
             //  can know which fields are being exported, so it doesn't have to do the work to
             //  determine values for every single possible field it overrides
             foreach ($df_list as $df_num => $df_id) {
-                if ( !isset($datafields_to_export[$df_id]) )
+                if ( !isset($export_datafields[$df_id]) )
                     unset( $df_list[$df_num] );
             }
 
             if ( !empty($df_list) ) {
-                // Can't actually execute the plugins to determine the values for the datafields here
-                //  ...if the datafield belongs to a multiple-allowed child/linked descendant, then
-                //  it'll have multiple values in the export
+                // Can't actually execute the plugins here, since this loop doesn't involve the
+                //  datarecord data
 
                 // Have to instead store enough info so the plugin can be executed later...
                 if ( is_null($data['df_id']) ) {
@@ -541,8 +577,9 @@ class CSVExportHelperService
             // ----------------------------------------
             // Remove all datarecords and datafields from the stacked datarecord array that the
             //  user doesn't want to export
-            $datarecords_to_export = array_flip($complete_datarecord_list_array[$i]);
-            $filtered_dr_array = self::filterDatarecordArray($user_permissions, $stacked_dt_array, $datafields_to_export, $stacked_dr_array, $datarecords_to_export, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
+            $datarecords = array_flip($complete_datarecord_list_array[$i]);
+            $current_prefix = $datatype_id;
+            $filtered_dr_array = self::filterDatarecordArray($current_prefix, $user_permissions, $stacked_dt_array, $datafields, $stacked_dr_array, $datarecords, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
 
             // Unfortunately, this CSV exporter needs to be able to deal with the possibility of
             //  exporting more than one child/linked datatype that allows multiple child/linked
@@ -554,6 +591,7 @@ class CSVExportHelperService
             //   |   |- Reference (multiple allowed per Mineral)
             //   |- Raman (multiple allowed per Sample)
             //   |- Infrared (multiple allowed per Sample)
+            //   |- Reference (multiple allowed per Sample)
             //   |- etc
 
             // Child/linked datatypes that only allow a single child/linked datarecord should get
@@ -570,14 +608,14 @@ class CSVExportHelperService
             //  the same order
             foreach ($datarecord_data as $num => $data) {
                 $line = array();
-                foreach ($datafields_to_export as $df_id => $typeclass) {
+                foreach ($datafields as $id_string => $df_data) {
                     // Due to the possibility of child/linked datatypes allowing multiple child/linked
                     //  records, the filtered/merged data arrays may not have entries for all of
                     //  the fields selected for export
-                    if ( isset($data[$df_id]) )
-                        $line[$df_id] = $data[$df_id];
+                    if ( isset($data[$id_string]) )
+                        $line[] = $data[$id_string];
                     else
-                        $line[$df_id] = '';
+                        $line[] = '';
                 }
 
                 // Store the line so it can be written to a csv file
@@ -713,18 +751,19 @@ class CSVExportHelperService
      * Extracts values of all datafields that have been selected for export from the cached
      * datarecord array.
      *
+     * @param string $current_prefix
      * @param array $user_permissions
      * @param array $datatype_data
-     * @param array $datafields_to_export
+     * @param array $datafields
      * @param array $datarecord_data
-     * @param array $datarecords_to_export
+     * @param array $datarecords
      * @param array $inversed_tag_hierarchy
      * @param array $delimiters
      * @param array $plugin_executions
      *
      * @return array
      */
-    private function filterDatarecordArray($user_permissions, $datatype_data, $datafields_to_export, $datarecord_data, $datarecords_to_export, $inversed_tag_hierarchy, $delimiters, $plugin_executions)
+    private function filterDatarecordArray($current_prefix, $user_permissions, $datatype_data, $datafields, $datarecord_data, $datarecords, $inversed_tag_hierarchy, $delimiters, $plugin_executions)
     {
         // Due to recursion, creating/returning a new array is easier than modifying the original
         $filtered_data = array();
@@ -732,7 +771,7 @@ class CSVExportHelperService
         // Ignore all datafields that aren't supposed to be exported
         foreach ($datarecord_data as $dr_id => $dr_data) {
             // Ignore all datarecords that aren't supposed to be exported
-            if ( !isset($datarecords_to_export[$dr_id]) )
+            if ( !isset($datarecords[$dr_id]) )
                 continue;
 
             $filtered_data[$dr_id] = array();
@@ -760,7 +799,8 @@ class CSVExportHelperService
 
                 foreach ($dr_data['dataRecordFields'] as $df_id => $df_data) {
                     // ...if it's supposed to be exported...
-                    if ( isset($datafields_to_export[$df_id]) ) {
+                    $df_prefix = $current_prefix.'_'.$df_id;
+                    if ( isset($datafields[$df_prefix]) ) {
                         // ...then acquire the datafield's value
                         $tmp = array();
 
@@ -781,7 +821,7 @@ class CSVExportHelperService
                         }
                         else {
                             // This datafield's value should be pulled from the datarecord array
-                            $typeclass = $datafields_to_export[$df_id];
+                            $typeclass = $datafields[$df_prefix]['typeclass'];
                             switch ($typeclass) {
                                 case 'File':
                                     $tmp = self::getFileData($df_data, $delimiters);
@@ -806,7 +846,7 @@ class CSVExportHelperService
                         }
 
                         // ...and save it
-                        $filtered_data[$dr_id]['values'][$df_id] = $tmp;
+                        $filtered_data[$dr_id]['values'][$df_prefix] = $tmp;
                     }
                 }
 
@@ -821,7 +861,8 @@ class CSVExportHelperService
                     // ...then repeat the process for each of the child datarecords
                     $child_dt = $dt_data['descendants'][$child_dt_id]['datatype'];
 
-                    $tmp = self::filterDatarecordArray($user_permissions, $child_dt, $datafields_to_export, $child_dr_list, $datarecords_to_export, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
+                    $new_prefix = $current_prefix.'-'.$child_dt_id;
+                    $tmp = self::filterDatarecordArray($new_prefix, $user_permissions, $child_dt, $datafields, $child_dr_list, $datarecords, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
                     if ( !empty($tmp) )
                         $filtered_data[$dr_id]['children'][$child_dt_id] = $tmp;
                 }
@@ -1201,7 +1242,11 @@ class CSVExportHelperService
         $tracked_job_id = intval($parameters['tracked_job_id']);
         $user_id = intval($parameters['user_id']);
         $datatype_id = $parameters['datatype_id'];
+
+        // The datafield list needs to be decoded from json...it seems as if passing it through the
+        //  symfony command turns it into an object otherwise
         $datafields = $parameters['datafields'];
+        $datafields = json_decode($datafields, true);
 
         $file_delimiter = $parameters['delimiter'];
         if ( $file_delimiter === 'tab' )
@@ -1301,36 +1346,64 @@ class CSVExportHelperService
             //  cached datatype array
             $dt_array = $this->database_info_service->getDatatypeArray($datatype_id, true);    // do need links
 
-            // Ensure this datatype's external id field is going to be exported, if one exists
+            // Modify the given array of datafields to also have typeclass info for later
+            $export_datafields = array();
+            $new_datafields = array();
+
+            // Ensure this datatype's external id field is exported, if one exists
             $external_id_field = $dt_array[$datatype_id]['dataTypeMeta']['externalIdField'];
-            if ( !is_null($external_id_field) )
-                $datafields[] = $external_id_field['id'];
+            if ( !is_null($external_id_field) ) {
+                $external_id_field_id = $external_id_field['id'];
+                $export_datafields[$external_id_field_id] = 0;
+                $new_datafields[ $datatype_id.'_'.$external_id_field_id ] = array('df_id' => $external_id_field_id, 'typeclass' => '');
+            }
+
+            foreach ($datafields as $id_string => $df_id) {
+                $export_datafields[$df_id] = 0;
+                $new_datafields[$id_string] = array('df_id' => intval($df_id), 'fieldName' => '');
+            }
+            $datafields = $new_datafields;
 
             // Dig through the cached datatype array and save the names of all fields being exported
-            $flipped_datafields = array_flip($datafields);
-            $header_line = array();
             foreach ($dt_array as $dt_id => $dt) {
                 foreach ($dt['dataFields'] as $df_id => $df) {
-                    if ( isset($flipped_datafields[$df_id]) ) {
+                    if ( isset($export_datafields[$df_id]) ) {
                         $typename = $df['dataFieldMeta']['fieldType']['typeName'];
                         $fieldname = $df['dataFieldMeta']['fieldName'];
 
-                        if ($typename === 'Markdown') {
-                            // Markdown fields can't be exported, so do nothing here
-                        }
-                        else if ($typename === 'XYZ Data') {
-                            // XYZData fields should have the column names as part of the fieldname
-                            $xyz_column_names = $df['dataFieldMeta']['xyz_data_column_names'];
-                            $header_line[$df_id] = $fieldname.' ('.$xyz_column_names.')';
-                        }
-                        else {
-                            // All other fieldtypes just use the fieldname
-                            $header_line[$df_id] = $fieldname;
+                        foreach ($new_datafields as $id_string => $df_data) {
+                            if ( $df_data['df_id'] === $df_id ) {
+
+                                if ($typename === 'Markdown') {
+                                    // Markdown fields can't be exported, so do nothing here
+                                }
+                                else if ($typename === 'XYZ Data') {
+                                    // XYZData fields should have the column names as part of the fieldname
+                                    $xyz_column_names = $df['dataFieldMeta']['xyz_data_column_names'];
+                                    $datafields[$id_string]['fieldName'] = $fieldname.' ('.$xyz_column_names.')';
+                                }
+                                else {
+                                    // All other fieldtypes just use the fieldname
+                                    $datafields[$id_string]['fieldName'] = $fieldname;
+                                }
+
+                                // DO NOT break here...the user could've selected the same datafield
+                                //  in multiple linked descendants, and they all need to have their
+                                //  names
+//                                break;
+                            }
                         }
                     }
                 }
             }
 
+            // Compress the list of datafields into a header line
+            $header_line = array();
+            foreach ($datafields as $id_string => $df_data)
+                $header_line[] = $df_data['fieldName'];
+
+
+            // ----------------------------------------
             // Ensure directories exists
             $csv_export_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/';
             if ( !file_exists($csv_export_path) )

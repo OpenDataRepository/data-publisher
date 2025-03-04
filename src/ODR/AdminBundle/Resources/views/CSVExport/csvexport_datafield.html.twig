@@ -23,7 +23,7 @@
     {% set classes = classes ~ ' ODRExportTagHierarchy' %}
 {% endif %}
 
-<div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {{ classes }}" id="Field_{{ datafield.id }}" >
+<div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {{ classes }}" id="Field_{{ datafield.id }}" rel="{{ prefix }}">
 
     <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
         {# NOTE - need this in here to prevent stuff from being hidden, apparently #}

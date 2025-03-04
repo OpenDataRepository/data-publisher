@@ -570,10 +570,12 @@
                 var id_data = $(this).attr('id').split(/_/);
                 var datafield_id = id_data[1];
 
+                var prefix = $(this).attr('rel');
+
                 if ( !$(this).hasClass('ODRExportPluginField') ) {
                     // For regular datafields, just throw the field's id into a form
                     do_export = true;
-                    var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: datafield_id, name: "datafields[]"});
+                    var element = $("<input>", {id: "Field_" + prefix + "_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: datafield_id, name: "datafields[" + prefix + "_" + datafield_id + "]"});
                     $("#csvexport_form").append(element);
                 }
                 else {
@@ -591,7 +593,7 @@
 
                         if ( export_element ) {
                             do_export = true;
-                            var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: element_value, name: "plugin_datafields[" + datafield_id + "][" + element_name + "]"});
+                            var element = $("<input>", {id: "Field_" + prefix + "_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: element_value, name: "plugin_datafields[" + prefix + "_" + datafield_id + "][" + element_name + "]"});
                             $("#csvexport_form").append(element);
                         }
                     });
