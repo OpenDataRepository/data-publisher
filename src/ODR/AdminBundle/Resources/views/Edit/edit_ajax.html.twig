@@ -10,12 +10,6 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% if has_linked_datatypes > 0 %}
-<div id="ODRRecordLinkInfoWrapperDiv">
-{#    <button type="button" class="pure-button" onclick="OpenLinkInfoDialog({{ datarecord.id }})">View Linked Records...</button>#}
-</div>
-{% endif %}
-
 {% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
@@ -33,6 +27,11 @@
     'token_list': token_list,
 } %}
 
+{% if has_linked_datatypes > 0 %}
+    <div id="ODRRecordLinkInfoWrapperDiv">
+        {#    <button type="button" class="pure-button" onclick="OpenLinkInfoDialog({{ datarecord.id }})">View Linked Records...</button>#}
+    </div>
+{% endif %}
 
 {% if is_datatype_admin %}
 <div id="field_history_dialog_wrapper">
