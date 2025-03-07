@@ -8,7 +8,10 @@ const fs = require('fs');
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
 const tube = 'odr_paragenetic_modes_record_builder';
+const Memcached = require("memcached-promise");
+
 let browser;
+let memcached_client;
 let token = '';
 
 function delay(time) {
@@ -17,8 +20,24 @@ function delay(time) {
     });
 }
 
+async function getToken(record) {
+    // Get new token and set timestamp
+    // console.log('API URL: ', record.api_login_url);
+    let post_data = {
+        'username': record.api_user,
+        'password': record.api_key
+    };
+    let token_obj = await apiCall(record.api_login_url, post_data, 'POST');
+    token_obj.timestamp = Date.now();
+    await memcached_client.set('ima_api_token', JSON.stringify(token_obj), 180);
+    return token_obj;
+}
+
+
 async function app() {
     browser = await puppeteer.launch({headless:'new'});
+    memcached_client = new Memcached('localhost:11211', {retries: 10, retry: 10000, remove: false});
+
     console.log('IMA Paragenetic Modes Builder Start');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
@@ -30,15 +49,41 @@ async function app() {
 
                     console.log('Starting job: ' + job.id);
 
+
+
+
                     // Login/get token
-                    // console.log('API URL: ', record.api_login_url);
-                    let post_data = {
-                        'username': record.api_user,
-                        'password': record.api_key
-                    };
-                    let login_token = await apiCall(record.api_login_url, post_data, 'POST');
-                    token = login_token.token;
-                    // console.log('Login Token: ', login_token.token);
+                    // Get token from memcached
+                    token = '';
+
+                    let token_data = await memcached_client.get('ima_api_token');
+                    if (token_data !== undefined && token_data !== '') {
+                        let token_object = JSON.parse(token_data);
+                        /*
+                          {
+                            token: [token],
+                            timestamp: [timestamp] // seconds since epoch UTC
+                          }
+                        */
+                        // if token timestamp > 2 minutes old, get new token
+                        if (token_object.timestamp < (Date.now() - 2 * 60 * 1000)) {
+                            // Get new token and set timestamp
+                            let token_obj = await getToken(record);
+                            token = token_obj.token;
+                        } else {
+                            token = token_object.token;
+                        }
+                    } else {
+                        // Set token
+                        let token_obj = await getToken(record);
+                        token = token_obj.token;
+                    }
+
+
+
+
+
+
 
                     // Check Status of Job
                     // console.log(data.api_job_status_url + ' -- ' + data.tracked_job_id);

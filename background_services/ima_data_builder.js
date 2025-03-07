@@ -611,11 +611,10 @@ async function app() {
                     ima_data_finisher_client.use(ima_data_finisher_tube)
                         .onSuccess(
                             () => {
-                                // TODO Build Full Record Here
                                 ima_data_finisher_client.put(JSON.stringify(record))
                                     .onSuccess(
                                         (jobId) => {
-                                            // console.log('IMA Record Job ID: ', jobId);
+                                            console.log('IMA Record Job ID: ', jobId);
                                         }
                                 );
                             }
