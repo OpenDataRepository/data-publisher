@@ -334,7 +334,15 @@ class TrackedJobService
                 $job['description'] = 'Migration of DataField "'.$datafield->getFieldName().'" from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
             }
             else if ($job_type == 'tag_rebuild') {
-                $job['description'] = 'Rebuilding Tags for DataType "'.$datatype->getShortName().'"';
+                $tmp = explode('_', $tracked_job->getTargetEntity());
+                $datafield_id = $tmp[1];
+
+                /** @var DataFields $datafield */
+                $datafield = $repo_datafield->find($datafield_id);
+                if ($datafield == null)
+                    continue;
+
+                $job['description'] = 'Tag Rebuild of Datafield '.$datafield_id.' "'.$datafield->getFieldName().'" for the Datatype "'.$datatype->getShortName().'"';
             }
 
             $jobs[] = $job;
