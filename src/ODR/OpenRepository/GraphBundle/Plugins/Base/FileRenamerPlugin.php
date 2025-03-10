@@ -246,10 +246,11 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      * Returns whether the given datafield is using the FileRenamer plugin.
      *
      * @param DataFields $datafield
+     * @param bool $is_pre_encrypt_event
      *
      * @return bool
      */
-    private function isEventRelevant($datafield)
+    private function isEventRelevant($datafield, $is_pre_encrypt_event)
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
@@ -266,7 +267,21 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                 // Datafield is using the correct plugin...
-                return true;
+                if ( $is_pre_encrypt_event ) {
+                    // ...but if it's for a preEncrypt event, then need to also check one of the
+                    //  options for this plugin
+                    if ( !isset($rpi['renderPluginOptionsMap']['fire_on_pre_encrypt'])
+                        || $rpi['renderPluginOptionsMap']['fire_on_pre_encrypt'] === 'yes'
+                    ) {
+                        // The somewhat strange conditions are meant for the off-chance that the
+                        //  plugin config doesn't have this option set
+                        return true;
+                    }
+                }
+                else {
+                    // ...no reason to not return true here
+                    return true;
+                }
             }
         }
 
@@ -1093,7 +1108,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $typeclass = $datafield->getFieldType()->getTypeClass();
 
             // Only care about a file that get uploaded to a field using this plugin...
-            $is_event_relevant = self::isEventRelevant($datafield);
+            $is_event_relevant = self::isEventRelevant($datafield, true);
             if ( $is_event_relevant ) {
                 // This file was uploaded to the correct field, so it now needs to be processed
                 $this->logger->debug('Want to rename '.$typeclass.' '.$entity->getId().' "'.$entity->getOriginalFileName().'"...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
@@ -1199,7 +1214,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $user = $event->getUser();
 
             // Only care about a file that get changed in a field using this plugin...
-            $is_event_relevant = self::isEventRelevant($datafield);
+            $is_event_relevant = self::isEventRelevant($datafield, false);
             if ( $is_event_relevant ) {
                 // Load all files/images uploaded to this field
                 $typeclass = $datafield->getFieldType()->getTypeClass();

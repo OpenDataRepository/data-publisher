@@ -53,6 +53,14 @@ odr_plugins.base.file_renamer:
             description: If "yes", then the file's UUID will be appended to the filename.
             display_order: 3
 
+        fire_on_pre_encrypt:
+            name: Fire onPreEncrypt?
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: Set to "No" when the filename depends on a field that also requires a preEncrypt event
+            display_order: 4
+
         # Because the plugin needs to access an uknown number of datafields that might also be in
         #  linked datatypes, the renderPlugin settings dialog needs to be partially hijacked to work
         #  correctly
@@ -62,6 +70,6 @@ odr_plugins.base.file_renamer:
             type: string
             default:
             description: A newline-separated list of datafield UUIDs or string constants to build the filename with.
-            display_order: 4
+            display_order: 5
             # This optional property is the one that triggers the hijack of the dialog
             uses_custom_render: true
