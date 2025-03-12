@@ -42,7 +42,7 @@ odr_plugins.base.file_renamer:
             name: File Extension
             type: string
             default: "auto"
-            description: If "auto", then the uploaded file's extension is not changed.  Must not be blank.
+            description: If "auto", then the uploaded file's extension is not changed.  Must not be blank or end with a period.
             display_order: 2
 
         append_file_uuid:

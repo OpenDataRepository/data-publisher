@@ -375,6 +375,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // If the file extension is blank, then it's not configured correctly
         if ( isset($config['file_extension']) && $config['file_extension'] === '' )
             return array();
+        // If the file extension ends with a period, then it's not valid
+        if ( substr($config['file_extension'], -1) === '.' )
+            return array();
 
         // Otherwise, attempt to return the plugin's config
         return $config;
@@ -1048,6 +1051,20 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         $base_filename = implode($separator, $values);
         // ...and then replacing any period characters with the substitute sequence
         $base_filename = str_replace(".", $config_info['period_substitute'], $base_filename);
+
+        // Need to try to prevent illegal characters in the filenames...
+        $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
+        if ( preg_match($regex, $base_filename) === 1 )
+            return array();
+        // ...also try to prevent leading/trailing spaces in the filename...
+        $base_filename = trim($base_filename);
+        // ...and other various illegal names in both linux and windows...
+        $regex = '/^(\.|\.\.|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i';
+        if ( preg_match($regex, $base_filename) === 1 )
+            return array();
+        // ...and filenames starting with a dash are also bad
+        if ( strpos($base_filename, '-') === 0 )
+            return array();
 
 
         // ----------------------------------------
