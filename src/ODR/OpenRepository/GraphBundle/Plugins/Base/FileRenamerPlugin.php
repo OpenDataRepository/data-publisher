@@ -336,10 +336,22 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                     // Need to know the simple configuration values...
-                    $separator = trim($rpi['renderPluginOptionsMap']['separator']);
-                    $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
-                    $file_extension = trim($rpi['renderPluginOptionsMap']['file_extension']);
-                    $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
+                    $separator = '__';
+                    if ( isset($rpi['renderPluginOptionsMap']['separator']) )
+                        $separator = trim($rpi['renderPluginOptionsMap']['separator']);
+                    $period_substitute = '-';
+                    if ( isset($rpi['renderPluginOptionsMap']['period_substitute']) )
+                        $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
+                    $file_extension = 'auto';
+                    if ( isset($rpi['renderPluginOptionsMap']['file_extension']) )
+                        $file_extension = trim($rpi['renderPluginOptionsMap']['file_extension']);
+                    $append_file_uuid = 'yes';
+                    if ( isset($rpi['renderPluginOptionsMap']['append_file_uuid']) )
+                        $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
+                    $delete_invalid_characters = 'yes';
+                    if ( isset($rpi['renderPluginOptionsMap']['delete_invalid_characters']) )
+                        $delete_invalid_characters = trim($rpi['renderPluginOptionsMap']['delete_invalid_characters']);
+
                     // ...and the semi-encoded value for the list of fields
                     $field_list_value = trim($rpi['renderPluginOptionsMap']['field_list']);
 
@@ -358,6 +370,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                         'period_substitute' => $period_substitute,
                         'file_extension' => $file_extension,
                         'append_file_uuid' => $append_file_uuid,
+                        'delete_invalid_characters' => $delete_invalid_characters,
                     );
                 }
             }
@@ -726,10 +739,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // Determine the requested configuration info from the plugin's config
         $config_info = self::getCurrentPluginConfig($df);
         // If nothing is configured, then don't attempt to rename any files/images
-        if ( !isset($config_info['prefix']) || !isset($config_info['config']) || !isset($config_info['separator']) )
-            return array();
-        // Additionally, don't rename anything when the file_extension is blank
-        if ( !isset($config_info['file_extension']) || $config_info['file_extension'] === '' )
+        if ( empty($config_info) )
             return array();
 
 
@@ -1054,8 +1064,17 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
         // Need to try to prevent illegal characters in the filenames...
         $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
-        if ( preg_match($regex, $base_filename) === 1 )
-            return array();
+        if ( $config_info['delete_invalid_characters'] === 'yes' ) {
+            // Delete these invalid characters by default
+            $base_filename = preg_replace($regex, '', $base_filename);
+        }
+        else {
+            // If the user doesn't want any invalid characters deleted...
+            if ( preg_match($regex, $base_filename) === 1 )
+                // ...then refuse to continue executing the plugin when the filename has them
+                return array();
+        }
+
         // ...also try to prevent leading/trailing spaces in the filename...
         $base_filename = trim($base_filename);
         // ...and other various illegal names in both linux and windows...
