@@ -340,6 +340,32 @@ class SearchKeyService
                         $token = '';
                     }
                     break;
+                case ',':
+                    if ($in_quote) {
+                        // Always want to save this comma if in quotes...
+                        $token .= $char;
+                    }
+                    else {
+                        // Otherwise, it indicates an OR operator...save the existing string
+                        $tokens[] = $token;
+
+                        // Insert an OR token here
+                        $tokens[] = '||';
+
+                        // Reset for next potential token
+                        $prev_token = '||';
+                        $token = '';
+
+                        // Due to the search string having already been modified, a string like
+                        //  "this,     that"  will have already been converted into  "this, that"
+                        $check = $i+1;
+                        if ( $check < $len && $str[$i+1] === ' ' ) {
+                            // Skip over the space if it exists, since that'll create an extranous
+                            //  AND operator
+                            $i++;
+                        }
+                    }
+                    break;
                 case 'o':
                 case 'O':
                     if ($in_quote) {
@@ -349,24 +375,15 @@ class SearchKeyService
                     else {
                         // OR operators are only valid if the parser thought the last token was an
                         //  AND operator and there's a space after the "OR"...
-                        if ( $prev_token === '&&' && ($i+2) < $len ) {
-                            // Determine whether this is an OR operator or not...
-                            $second_char = $str[$i+1];
-                            $third_char = $str[$i+2];
+                        $check = $i + 2;    // need to ensure $str[$i+2] doesn't go out of bounds
+                        if ( $i != 0 && $check < $len && $str[$i-1] == ' ' && ($str[$i+1] == 'R' || $str[$i+1] == 'r') && $str[$i+2] == ' ' ) {
+                            // This is an OR operator...replace the previous token with this one
+                            array_pop($tokens);
+                            $tokens[] = '||';
+                            $prev_token = '||';
 
-                            if ( ($second_char === 'r' || $second_char === 'R') && $third_char === ' ' ) {
-                                // This is an OR operator...replace the previous token with this one
-                                array_pop($tokens);
-                                $tokens[] = '||';
-                                $prev_token = '||';
-
-                                // Skip over the rest of this operator
-                                $i += 2;
-                            }
-                            else {
-                                // ...not an OR operator, treat it as a regular character
-                                $token .= $char;
-                            }
+                            // Skip over the rest of this operator
+                            $i += 2;
                         }
                         else {
                             // ...not an OR operator, treat it as a regular character
@@ -382,24 +399,15 @@ class SearchKeyService
                     else {
                         // OR operators are only valid if the parser thought the last token was an
                         //  AND operator and there's a space after the "||"...
-                        if ( $prev_token === '&&' && ($i+2) < $len ) {
-                            // Determine whether this is an OR operator or not...
-                            $second_char = $str[$i+1];
-                            $third_char = $str[$i+2];
+                        $check = $i + 2;    // need to ensure $str[$i+2] doesn't go out of bounds
+                        if ( $i != 0 && $check < $len && $str[$i-1] == ' ' && $str[$i+1] == '|' && $str[$i+2] == ' ' ) {
+                            // This is an OR operator...replace the previous token with this one
+                            array_pop($tokens);
+                            $tokens[] = '||';
+                            $prev_token = '||';
 
-                            if ( $second_char === '|' && $third_char === ' ' ) {
-                                // This is an OR operator...replace the previous token with this one
-                                array_pop($tokens);
-                                $tokens[] = '||';
-                                $prev_token = '||';
-
-                                // Skip over the rest of this operator
-                                $i += 2;
-                            }
-                            else {
-                                // ...not an OR operator, treat it as a regular character
-                                $token .= $char;
-                            }
+                            // Skip over the rest of this operator
+                            $i += 2;
                         }
                         else {
                             // ...not an OR operator, treat it as a regular character
