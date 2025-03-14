@@ -235,12 +235,7 @@ function initPage() {
                 $(download_div).removeClass('ODRHidden');
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                // Stop checking decrypt progress when an error occurs
-                file_decrypt_timeouts[ file_id ] = null;
-
-                // Hide the css for the progressbar
-                $(download_div).css('visibility', 'hidden');
-                $(decrypt_progress).css('width', 0);
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
