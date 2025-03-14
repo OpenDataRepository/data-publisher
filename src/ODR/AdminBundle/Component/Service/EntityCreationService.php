@@ -689,8 +689,8 @@ class EntityCreationService
 
         $datatype_meta = new DataTypeMeta();
         $datatype_meta->setDataType($datatype);
-        $datatype_meta->setShortName($datatype_name);
-        $datatype_meta->setLongName($datatype_name);
+        $datatype_meta->setShortName( mb_scrub($datatype_name) );
+        $datatype_meta->setLongName( mb_scrub($datatype_name) );
         $datatype_meta->setDescription('');
         $datatype_meta->setXmlShortName('');
 
@@ -1918,7 +1918,7 @@ class EntityCreationService
         /** @var RadioOptions $radio_option */
         $radio_option = new RadioOptions();
         $radio_option->setDataField($datafield);
-        $radio_option->setOptionName($option_name);     // exists to prevent potential concurrency issues, see below
+        $radio_option->setOptionName( mb_scrub($option_name) );     // exists to prevent potential concurrency issues, see below
 
         if ( !$delay_uuid )
             $radio_option->setRadioOptionUuid( $this->uuid_service->generateRadioOptionUniqueId() );
@@ -1934,7 +1934,7 @@ class EntityCreationService
         /** @var RadioOptionsMeta $radio_option_meta */
         $radio_option_meta = new RadioOptionsMeta();
         $radio_option_meta->setRadioOption($radio_option);
-        $radio_option_meta->setOptionName($option_name);
+        $radio_option_meta->setOptionName( mb_scrub($option_name) );
         $radio_option_meta->setXmlOptionName('');
         $radio_option_meta->setDisplayOrder(0);
         $radio_option_meta->setIsDefault(false);
@@ -2136,7 +2136,7 @@ class EntityCreationService
         $rpom = new RenderPluginOptionsMap();
         $rpom->setRenderPluginInstance($render_plugin_instance);
         $rpom->setRenderPluginOptionsDef($render_plugin_option);
-        $rpom->setValue($option_value);
+        $rpom->setValue( mb_scrub($option_value) );
 
         $rpom->setCreated($created);
         $rpom->setUpdated($created);
@@ -2402,7 +2402,7 @@ class EntityCreationService
         $stored_search_key = new StoredSearchKey();
         $stored_search_key->setDataType($datatype);
         $stored_search_key->setSearchKey($search_key);
-        $stored_search_key->setStorageLabel($label);
+        $stored_search_key->setStorageLabel( mb_scrub($label) );
 
         $stored_search_key->setIsDefault(false);
         $stored_search_key->setIsPublic(false);
@@ -2510,7 +2510,7 @@ class EntityCreationService
         /** @var Tags $tag */
         $tag = new Tags();
         $tag->setDataField($datafield);
-        $tag->setTagName($tag_name);     // exists to prevent potential concurrency issues, see below
+        $tag->setTagName( mb_scrub($tag_name) );     // exists to prevent potential concurrency issues, see below
 
         if (!$delay_uuid)
             $tag->setTagUuid( $this->uuid_service->generateTagUniqueId() );
@@ -2526,7 +2526,7 @@ class EntityCreationService
         /** @var TagMeta $tag_meta */
         $tag_meta = new TagMeta();
         $tag_meta->setTag($tag);
-        $tag_meta->setTagName($tag_name);
+        $tag_meta->setTagName( mb_scrub($tag_name) );
         $tag_meta->setXmlTagName('');
         $tag_meta->setDisplayOrder(9999);    // append new tags to the end
 

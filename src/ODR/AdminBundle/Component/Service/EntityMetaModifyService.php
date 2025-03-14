@@ -61,6 +61,7 @@ use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Events
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
@@ -475,15 +476,15 @@ class EntityMetaModifyService
             $new_datafield_meta->setFieldType( $properties['fieldType'] );
 
         if ( isset($properties['fieldName']) )
-            $new_datafield_meta->setFieldName( $properties['fieldName'] );
+            $new_datafield_meta->setFieldName( mb_scrub($properties['fieldName']) );
         if ( isset($properties['description']) )
-            $new_datafield_meta->setDescription( $properties['description'] );
+            $new_datafield_meta->setDescription( mb_scrub($properties['description']) );
         if ( isset($properties['xml_fieldName']) )
             $new_datafield_meta->setXmlFieldName( $properties['xml_fieldName'] );
         if ( isset($properties['internal_reference_name']) )
             $new_datafield_meta->setInternalReferenceName( $properties['internal_reference_name'] );
         if ( isset($properties['markdownText']) )
-            $new_datafield_meta->setMarkdownText( $properties['markdownText'] );
+            $new_datafield_meta->setMarkdownText( mb_scrub($properties['markdownText']) );
         if ( isset($properties['regexValidator']) )
             $new_datafield_meta->setRegexValidator( $properties['regexValidator'] );
         if ( isset($properties['phpValidator']) )
@@ -503,7 +504,7 @@ class EntityMetaModifyService
         if ( isset($properties['shorten_filename']) )
             $new_datafield_meta->setShortenFilename( $properties['shorten_filename'] );
         if ( isset($properties['quality_str']) )
-            $new_datafield_meta->setQualityStr( $properties['quality_str'] );
+            $new_datafield_meta->setQualityStr( mb_scrub($properties['quality_str']) );
         if ( isset($properties['children_per_row']) )
             $new_datafield_meta->setChildrenPerRow( $properties['children_per_row'] );
         if ( isset($properties['radio_option_name_sort']) )
@@ -519,7 +520,7 @@ class EntityMetaModifyService
         if ( isset($properties['tags_allow_non_admin_edit']) )
             $new_datafield_meta->setTagsAllowNonAdminEdit( $properties['tags_allow_non_admin_edit'] );
         if ( isset($properties['xyz_column_names']) )
-            $new_datafield_meta->setXyzDataColumnNames( $properties['xyz_column_names'] );
+            $new_datafield_meta->setXyzDataColumnNames( mb_scrub($properties['xyz_column_names']) );
         if ( isset($properties['searchable']) )
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['publicDate']) )
@@ -970,20 +971,20 @@ class EntityMetaModifyService
         }
 
         if ( isset($properties['searchSlug']) )
-            $new_datatype_meta->setSearchSlug( $properties['searchSlug'] );
+            $new_datatype_meta->setSearchSlug( mb_scrub($properties['searchSlug']) );
         if ( isset($properties['shortName']) )
-            $new_datatype_meta->setShortName( $properties['shortName'] );
+            $new_datatype_meta->setShortName( mb_scrub($properties['shortName']) );
         if ( isset($properties['longName']) )
-            $new_datatype_meta->setLongName( $properties['longName'] );
+            $new_datatype_meta->setLongName( mb_scrub($properties['longName']) );
         if ( isset($properties['description']) )
-            $new_datatype_meta->setDescription( $properties['description'] );
+            $new_datatype_meta->setDescription( mb_scrub($properties['description']) );
         if ( isset($properties['xml_shortName']) )
             $new_datatype_meta->setXmlShortName( $properties['xml_shortName'] );
 
         if ( isset($properties['searchNotesUpper']) )
-            $new_datatype_meta->setSearchNotesUpper( $properties['searchNotesUpper'] );
+            $new_datatype_meta->setSearchNotesUpper( mb_scrub($properties['searchNotesUpper']) );
         if ( isset($properties['searchNotesLower']) )
-            $new_datatype_meta->setSearchNotesLower( $properties['searchNotesLower'] );
+            $new_datatype_meta->setSearchNotesLower( mb_scrub($properties['searchNotesLower']) );
 
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
@@ -1201,11 +1202,37 @@ class EntityMetaModifyService
             $new_file_meta = $old_meta_entry;
         }
 
+        // ----------------------------------------
+        // Need to try to prevent illegal characters in the filenames...
+        if ( isset($properties['original_filename']) ) {
+            $new_filename = $properties['original_filename'];
+            $exception_source = 0x8098270f;
+
+            $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
+            if ( preg_match($regex, $new_filename) === 1 ) {
+                // ...then refuse to continue executing the plugin when the filename has them
+                throw new ODRBadRequestException('Invalid characters in new filename', $exception_source);
+            }
+
+            // ...also try to prevent leading/trailing spaces in the filename...
+            $new_filename = trim($new_filename);
+            // ...and other various illegal names in both linux and windows...
+            $regex = '/^(\.|\.\.|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i';
+            if ( preg_match($regex, $new_filename) === 1 )
+                throw new ODRBadRequestException('Illegal filename', $exception_source);
+            // ...and filenames starting with a dash are also bad
+            if ( strpos($new_filename, '-') === 0 )
+                throw new ODRBadRequestException('Illegal filename', $exception_source);
+
+            $new_file_meta->setOriginalFileName( mb_scrub($new_filename) );
+        }
+
+
         // Set any new properties
         if ( isset($properties['description']) )
-            $new_file_meta->setDescription( $properties['description'] );
-        if ( isset($properties['original_filename']) )
-            $new_file_meta->setOriginalFileName( $properties['original_filename'] );
+            $new_file_meta->setDescription( mb_scrub($properties['description']) );
+//        if ( isset($properties['original_filename']) )
+//            $new_file_meta->setOriginalFileName( $properties['original_filename'] );
         if ( isset($properties['quality']) )
             $new_file_meta->setQuality( $properties['quality'] );
         if ( isset($properties['external_id']) )
@@ -1464,9 +1491,9 @@ class EntityMetaModifyService
 
         // Set any new properties
         if ( isset($properties['groupName']) )
-            $new_group_meta->setGroupName( $properties['groupName'] );
+            $new_group_meta->setGroupName( mb_scrub($properties['groupName']) );
         if ( isset($properties['groupDescription']) )
-            $new_group_meta->setGroupDescription( $properties['groupDescription'] );
+            $new_group_meta->setGroupDescription( mb_scrub($properties['groupDescription']) );
         if ( isset($properties['datarecord_restriction']) )
             $new_group_meta->setDatarecordRestriction( $properties['datarecord_restriction'] );
 
@@ -1559,11 +1586,36 @@ class EntityMetaModifyService
             $new_image_meta = $old_meta_entry;
         }
 
+        // ----------------------------------------
+        // Need to try to prevent illegal characters in the filenames...
+        if ( isset($properties['original_filename']) ) {
+            $new_filename = $properties['original_filename'];
+            $exception_source = 0x41e90938;
+
+            $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
+            if ( preg_match($regex, $new_filename) === 1 ) {
+                // ...then refuse to continue executing the plugin when the filename has them
+                throw new ODRBadRequestException('Invalid characters in new filename', $exception_source);
+            }
+
+            // ...also try to prevent leading/trailing spaces in the filename...
+            $new_filename = trim($new_filename);
+            // ...and other various illegal names in both linux and windows...
+            $regex = '/^(\.|\.\.|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i';
+            if ( preg_match($regex, $new_filename) === 1 )
+                throw new ODRBadRequestException('Illegal filename', $exception_source);
+            // ...and filenames starting with a dash are also bad
+            if ( strpos($new_filename, '-') === 0 )
+                throw new ODRBadRequestException('Illegal filename', $exception_source);
+
+            $new_image_meta->setOriginalFileName( mb_scrub($new_filename) );
+        }
+
         // Set any new properties
         if ( isset($properties['caption']) )
-            $new_image_meta->setCaption( $properties['caption'] );
-        if ( isset($properties['original_filename']) )
-            $new_image_meta->setOriginalFileName( $properties['original_filename'] );
+            $new_image_meta->setCaption( mb_scrub($properties['caption']) );
+//        if ( isset($properties['original_filename']) )
+//            $new_image_meta->setOriginalFileName( $properties['original_filename'] );
         if ( isset($properties['quality']) )
             $new_image_meta->setQuality( $properties['quality'] );
         if ( isset($properties['external_id']) )
@@ -1661,12 +1713,12 @@ class EntityMetaModifyService
 
         // Set any new properties
         if ( isset($properties['optionName']) ) {
-            $new_radio_option_meta->setOptionName( $properties['optionName'] );
+            $new_radio_option_meta->setOptionName( mb_scrub($properties['optionName']) );
 
             // The property in the meta entry should be in sync with the property in the regular entity
             // If it's not, then there can be some weird concurrency issues with CSV/XML importing,
             //  or when creating a bunch of radio options at once
-            $radio_option->setOptionName( $properties['optionName'] );
+            $radio_option->setOptionName( mb_scrub($properties['optionName']) );
             $this->em->persist($radio_option);
         }
         if ( isset($properties['xml_optionName']) )
@@ -1933,8 +1985,8 @@ class EntityMetaModifyService
 
 
         // Set any new properties
-        if (isset($properties['value']))
-            $new_rpom->setValue( $properties['value'] );
+        if ( isset($properties['value']) )
+            $new_rpom->setValue( mb_scrub($properties['value']) );
 
         $new_rpom->setUpdated($created);
         $new_rpom->setUpdatedBy($user);
@@ -2021,9 +2073,9 @@ class EntityMetaModifyService
 
         // Set any new properties
         if ( isset($properties['layoutName']) )
-            $new_sidebar_layout_meta->setLayoutName( $properties['layoutName'] );
+            $new_sidebar_layout_meta->setLayoutName( mb_scrub($properties['layoutName']) );
         if ( isset($properties['layoutDescription']) )
-            $new_sidebar_layout_meta->setLayoutDescription( $properties['layoutDescription'] );
+            $new_sidebar_layout_meta->setLayoutDescription( mb_scrub($properties['layoutDescription']) );
         if ( isset($properties['shared']) )
             $new_sidebar_layout_meta->setShared( $properties['shared'] );
 
@@ -2236,9 +2288,8 @@ class EntityMetaModifyService
             $new_entity = $entity;
         }
 
-        // Set any new properties...not checking isset() because it couldn't reach this point
-        //  without being isset()...also,  isset( array[key] ) == false  when  array(key => null)
-        $new_entity->setValue( $properties['value'] );
+        // Don't need to check isset() at this point
+        $new_entity->setValue( mb_scrub($properties['value']) );
 
         // NOTE: intentionally does NOT handle the 'convertedValue' property
 
@@ -2337,7 +2388,7 @@ class EntityMetaModifyService
 
         // Set any new properties
         if ( isset($properties['storageLabel']) )
-            $new_ssk->setStorageLabel( $properties['storageLabel'] );
+            $new_ssk->setStorageLabel( mb_scrub($properties['storageLabel']) );
         if ( isset($properties['searchKey']) )
             $new_ssk->setSearchKey( $properties['searchKey'] );
         if ( isset($properties['isDefault']) )
@@ -2423,12 +2474,12 @@ class EntityMetaModifyService
 
         // Set any new properties
         if ( isset($properties['tagName']) ) {
-            $new_tag_meta->setTagName( $properties['tagName'] );
+            $new_tag_meta->setTagName( mb_scrub($properties['tagName']) );
 
             // The property in the meta entry should be in sync with the property in the regular entity
             // If it's not, then there can be some weird concurrency issues with CSV/XML importing,
             //  or when creating a bunch of tags at once
-            $tag->setTagName( $properties['tagName'] );
+            $tag->setTagName( mb_scrub($properties['tagName']) );
             $this->em->persist($tag);
         }
         if ( isset($properties['xml_tagName']) )
@@ -2881,9 +2932,9 @@ class EntityMetaModifyService
 
         // Set any new properties
         if ( isset($properties['templateName']) )
-            $new_theme_meta->setTemplateName( $properties['templateName'] );
+            $new_theme_meta->setTemplateName( mb_scrub($properties['templateName']) );
         if ( isset($properties['templateDescription']) )
-            $new_theme_meta->setTemplateDescription( $properties['templateDescription'] );
+            $new_theme_meta->setTemplateDescription( mb_scrub($properties['templateDescription']) );
         if ( isset($properties['defaultFor']) )
             $new_theme_meta->setDefaultFor( $properties['defaultFor'] );
         if ( isset($properties['displayOrder']) )

@@ -4469,7 +4469,7 @@ class APIController extends ODRCustomController
                 $new_storage_entity->setValue( $field['selected'] );
             }
             else {
-                $new_storage_entity->setValue( $field['value'] );
+                $new_storage_entity->setValue( mb_scrub($field['value']) );
             }
 
             $em->persist($new_storage_entity);

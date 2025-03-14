@@ -1696,16 +1696,16 @@ class PluginsController extends ODRCustomController
 
             // Create a new RenderPlugin entry from the config file data
             $render_plugin = new RenderPlugin();
-            $render_plugin->setPluginName( $plugin_data['name'] );
-            $render_plugin->setDescription( $plugin_data['description'] );
-            $render_plugin->setCategory( $plugin_data['category'] );
-            $render_plugin->setPluginClassName( $plugin_classname );
+            $render_plugin->setPluginName( mb_scrub($plugin_data['name']) );
+            $render_plugin->setDescription( mb_scrub($plugin_data['description']) );
+            $render_plugin->setCategory( mb_scrub($plugin_data['category']) );
+            $render_plugin->setPluginClassName( mb_scrub($plugin_classname) );
             $render_plugin->setActive(true);
 
             if ( $plugin_data['render'] === false )    // Yaml parser reads 'false' as a boolean
                 $render_plugin->setRender('false');
             else
-                $render_plugin->setRender( $plugin_data['render'] );
+                $render_plugin->setRender( mb_scrub($plugin_data['render']) );
 
             $plugin_type = strtolower( $plugin_data['plugin_type'] );
             if ( $plugin_type === 'datatype' )
@@ -1775,8 +1775,8 @@ class PluginsController extends ODRCustomController
                 foreach ($plugin_data['required_fields'] as $identifier => $data) {
                     $rpf = new RenderPluginFields();
                     $rpf->setRenderPlugin($render_plugin);
-                    $rpf->setFieldName( $data['name'] );
-                    $rpf->setDescription( $data['description'] );
+                    $rpf->setFieldName( mb_scrub($data['name']) );
+                    $rpf->setDescription( mb_scrub($data['description']) );
                     $rpf->setActive(true);
 
                     // Display order defaults to 0, but should match the config if it's defined
@@ -1850,9 +1850,9 @@ class PluginsController extends ODRCustomController
                     // TODO - rename to RenderPluginOptions
                     $rpo = new RenderPluginOptionsDef();
                     $rpo->setRenderPlugin($render_plugin);
-                    $rpo->setName($option_key);
-                    $rpo->setDisplayName( $data['name'] );
-                    $rpo->setDescription( $data['description'] );
+                    $rpo->setName( mb_scrub($option_key) );
+                    $rpo->setDisplayName( mb_scrub($data['name']) );
+                    $rpo->setDescription( mb_scrub($data['description']) );
 
                     // The "default" key could have boolean values...
                     if ($data['default'] === true)
@@ -1860,11 +1860,11 @@ class PluginsController extends ODRCustomController
                     else if ($data['default'] === false)
                         $rpo->setDefaultValue("false");
                     else
-                        $rpo->setDefaultValue( $data['default'] );
+                        $rpo->setDefaultValue( mb_scrub($data['default']) );
 
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
-                        $rpo->setChoices( $data['choices'] );
+                        $rpo->setChoices( mb_scrub($data['choices']) );
 
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);
@@ -2170,16 +2170,16 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Update the existing RenderPlugin entry from the config file data
-            $render_plugin->setPluginName( $plugin_data['name'] );
-            $render_plugin->setDescription( $plugin_data['description'] );
-            $render_plugin->setCategory( $plugin_data['category'] );
-            $render_plugin->setPluginClassName( $plugin_classname );
+            $render_plugin->setPluginName( mb_scrub($plugin_data['name']) );
+            $render_plugin->setDescription( mb_scrub($plugin_data['description']) );
+            $render_plugin->setCategory( mb_scrub($plugin_data['category']) );
+            $render_plugin->setPluginClassName( mb_scrub($plugin_classname) );
             $render_plugin->setActive(true);
 
             if ( $plugin_data['render'] === false )    // Yaml parser reads 'false' as a boolean
                 $render_plugin->setRender('false');
             else
-                $render_plugin->setRender( $plugin_data['render'] );
+                $render_plugin->setRender( mb_scrub($plugin_data['render']) );
 
             $plugin_type = strtolower( $plugin_data['plugin_type'] );
             if ( $plugin_type === 'datatype' )
@@ -2284,8 +2284,8 @@ class PluginsController extends ODRCustomController
                     }
 
                     $rpf->setRenderPlugin($render_plugin);
-                    $rpf->setFieldName( $data['name'] );
-                    $rpf->setDescription( $data['description'] );
+                    $rpf->setFieldName( mb_scrub($data['name']) );
+                    $rpf->setDescription( mb_scrub($data['description']) );
                     $rpf->setActive(true);
 
                     // Display order defaults to 0, but should match the config if it's defined
@@ -2405,9 +2405,9 @@ class PluginsController extends ODRCustomController
 
 
                     $rpo->setRenderPlugin($render_plugin);
-                    $rpo->setName($option_key);
-                    $rpo->setDisplayName( $data['name'] );
-                    $rpo->setDescription( $data['description'] );
+                    $rpo->setName( mb_scrub($option_key) );
+                    $rpo->setDisplayName( mb_scrub($data['name']) );
+                    $rpo->setDescription( mb_scrub($data['description']) );
 
                     // The "default" key could have boolean values...
                     if ($data['default'] === true)
@@ -2415,11 +2415,11 @@ class PluginsController extends ODRCustomController
                     else if ($data['default'] === false)
                         $rpo->setDefaultValue("false");
                     else
-                        $rpo->setDefaultValue( $data['default'] );
+                        $rpo->setDefaultValue( mb_scrub($data['default']) );
 
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
-                        $rpo->setChoices( $data['choices'] );
+                        $rpo->setChoices( mb_scrub($data['choices']) );
 
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);

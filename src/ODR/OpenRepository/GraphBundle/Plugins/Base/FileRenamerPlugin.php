@@ -1062,6 +1062,11 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // ...and then replacing any period characters with the substitute sequence
         $base_filename = str_replace(".", $config_info['period_substitute'], $base_filename);
 
+        // ----------------------------------------
+        // NOTE: this is mostly a duplicate of code in EntityMetaModifyService::updateFileMeta()
+        // ...unlike that location, which is more of a "last resort" to prevent invalid filenames,
+        //  this plugin will skip attempting to save anything it thinks is invalid
+
         // Need to try to prevent illegal characters in the filenames...
         $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
         if ( $config_info['delete_invalid_characters'] === 'yes' ) {

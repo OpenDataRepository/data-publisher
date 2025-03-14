@@ -1451,9 +1451,9 @@ class DatatypeController extends ODRCustomController
 
                     // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
                     $submitted_data->setDataType($datatype);
-                    $submitted_data->setShortName($short_name);
-                    $submitted_data->setLongName($short_name);
-                    $submitted_data->setDescription($description);
+                    $submitted_data->setShortName( mb_scrub($short_name) );
+                    $submitted_data->setLongName( mb_scrub($short_name) );
+                    $submitted_data->setDescription( mb_scrub($description) );
 
                     // Default search slug to Dataset ID
                     $submitted_data->setSearchSlug($datatype->getUniqueId());
