@@ -1857,7 +1857,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 $matches = array();
                 $ret = preg_match($pattern, $line, $matches);
-                if ( $ret !== false ) {
+                if ( $ret === 1 ) {
                     $two_theta = $matches[1];
                     $intensity = $matches[2];
                     $d_spacing = $matches[3];
