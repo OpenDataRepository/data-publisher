@@ -323,6 +323,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Chemistry':
                     case 'Chemistry Elements':
                     case 'Locality':
+                    case 'Crystal Density':
                         // These fields can't be edited, since they're from the CIF file
 
                     case 'Diffraction Search Values':
@@ -749,6 +750,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // These fields are optional...the CIF file isn't required to have them
 //                case 'Locality':
+//                case 'Crystal Density':
 //                    break;
 
                 default:
@@ -1444,6 +1446,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'Chemistry':
                 case 'Chemistry Elements':
                 case 'Locality':
+                case 'Crystal Density':
 
                 case 'Diffraction Search Values':
                     $datafield_mapping[$rpf_name] = $rpf_df_id;
@@ -1516,6 +1519,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Chemistry':
                     case 'Chemistry Elements':
                     case 'Locality':
+                    case 'Crystal Density':
                         // When called on a "CIF File", all of these fields should be hydrated
                         break;
 
@@ -1787,8 +1791,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $locality = str_replace(array("‘","’"), "'", $locality);    // U+2018 and U+2019
                 $locality = str_replace(array("“","”"), "\"", $locality);    // U+201C and U+201D
 
-                // TODO - ...probably need a real solution to avoid saving non-UTF8 characters, not a bootleg one like this :/
-
                 $value_mapping['Locality'] = $locality;
             }
             else if ( strpos($line, '_cell_volume') === 0 ) {
@@ -1796,6 +1798,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $pieces = explode(' ', $line);
                 if ( count($pieces) === 2 )
                     $value_mapping['Volume'] = $pieces[1];
+            }
+            else if ( strpos($line, '_exptl_crystal_density_diffrn') === 0 ) {
+                // This line should have a decimal value for the density
+                $part = trim( substr($line, 29) );
+                $value_mapping['Crystal Density'] = $part;
             }
 
             // Save every line from the file, as well
@@ -1825,9 +1832,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private function readDIFFile($handle)
     {
         // The relevant section of the DIF file has seven columns...2-THETA, INTENSITY, D-SPACING,
-        //  H, K, L, and Multiplicity...this regex extracts the INTENSITY AND D-SPACING columns,
-        // discarding the remainder
-        $pattern = '/(?:\s+[\d\.]+\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:[^\n]+)/';
+        //  H, K, L, and Multiplicity...this regex extracts the first three columns, and discards
+        //  the remainder
+        $pattern = '/(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:[^\n]+)/';
         $all_values = array();
 
         // Ensure we're at the beginning of the file
@@ -1850,14 +1857,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 $matches = array();
                 $ret = preg_match($pattern, $line, $matches);
-                if ( $ret === false )
-                    $a = 1;
+                if ( $ret !== false ) {
+                    $two_theta = $matches[1];
+                    $intensity = $matches[2];
+                    $d_spacing = $matches[3];
 
-                $intensity = $matches[1];
-                $d_spacing = $matches[2];
-
-                if ( floatval($intensity) >= 4.0)
-                    $all_values[] = '('.$d_spacing.','.$intensity.')';
+                    if ( floatval($intensity) >= 4.0)
+                        $all_values[] = '('.$d_spacing.','.$intensity.','.$two_theta.')';
+                }
             }
         }
 
@@ -2124,6 +2131,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $chemistry_df_id = $render_plugin_map['Chemistry']['id'];
         $chemistry_elements_df_id = $render_plugin_map['Chemistry Elements']['id'];
         $locality_df_id = $render_plugin_map['Locality']['id'];
+        $density_df_id = $render_plugin_map['Crystal Density']['id'];
 
         // ...and another that's supposed to come from the "DIF File" field
         $dif_file_df_id = $render_plugin_map['DIF File']['id'];
@@ -2156,6 +2164,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $chemistry_df_id => array($cif_file_df_id),
             $chemistry_elements_df_id => array($cif_file_df_id),
             $locality_df_id => array($cif_file_df_id),
+            $density_df_id => array($cif_file_df_id),
 
             $diffraction_search_values_df_id => array($dif_file_df_id),
         );
