@@ -1016,6 +1016,16 @@ class DataFields
     }
 
     /**
+     * Get xyzDataMultirangeSearch
+     *
+     * @return string
+     */
+    public function getXyzDataMultirangeSearch()
+    {
+        return $this->getDataFieldMeta()->getXyzDataMultirangeSearch();
+    }
+
+    /**
      * Get searchable
      *
      * @return integer

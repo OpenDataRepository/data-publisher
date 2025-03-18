@@ -306,7 +306,11 @@
         <fieldset>
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                {% if is_datatype_admin and datafield_meta.xyz_data_column_names|trim == '' %}
+                <span class="ODRInputError">No column names defined!</span>
+                {% else %}
                 <textarea id="{{ input_id }}" class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
+                {% endif %}
             </div>
         </fieldset>
 

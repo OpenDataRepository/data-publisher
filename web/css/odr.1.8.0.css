@@ -4513,6 +4513,9 @@ i {
     padding-right: 6px;
 }
 
+.ODRXYZData_spacer {
+    margin-left: 15px !important;
+}
 .ODRXYZData_label, .ODRXYZData {
     display: inline-block !important;
 }

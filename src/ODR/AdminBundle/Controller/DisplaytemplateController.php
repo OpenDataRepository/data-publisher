@@ -2436,6 +2436,8 @@ class DisplaytemplateController extends ODRCustomController
 //                    $submitted_data->setSearchCanRequestBothMerges( $master_datafield->getSearchCanRequestBothMerges() );
                     $submitted_data->setTagsAllowMultipleLevels( $master_datafield->getTagsAllowMultipleLevels() );
 //                    $submitted_data->setTagsAllowNonAdminEdit( $master_datafield->getTagsAllowNonAdminEdit() );
+                    $submitted_data->setXyzDataColumnNames( $master_datafield->getXyzDataColumnNames() );
+//                    $submitted_data->setXyzDataMultirangeSearch( $master_datafield->getXyzDataMultirangeSearch() );
 //                    $submitted_data->setSearchable( $master_datafield->getSearchable() );
 //                    $submitted_data->setInternalReferenceName( $master_datafield->getInternalReferenceName() );
 
@@ -2514,6 +2516,15 @@ class DisplaytemplateController extends ODRCustomController
                         $reload_datafield = true;
                     }
 
+                    // If an XYZData field got changed to/from having no column names, then reload
+                    //  the field
+                    if ( ( trim($datafield->getXyzDataColumnNames()) !== '' && trim($submitted_data->getXyzDataColumnNames()) === '' )
+                        || ( trim($datafield->getXyzDataColumnNames()) === '' && trim($submitted_data->getXyzDataColumnNames()) !== '' )
+                    ) {
+                        $reload_datafield = true;
+                        $force_slideout_reload = true;
+                    }
+
 
                     // ----------------------------------------
                     // Save all changes made via the submitted form
@@ -2542,6 +2553,7 @@ class DisplaytemplateController extends ODRCustomController
                         'tags_allow_multiple_levels' => $submitted_data->getTagsAllowMultipleLevels(),
                         'tags_allow_non_admin_edit' => $submitted_data->getTagsAllowNonAdminEdit(),
                         'xyz_column_names' => $submitted_data->getXyzDataColumnNames(),
+                        'xyz_data_multirange_search' => $submitted_data->getXyzDataMultirangeSearch(),
                         'searchable' => $submitted_data->getSearchable(),
                         'publicDate' => $submitted_data->getPublicDate(),
                         'internal_reference_name' => $submitted_data->getInternalReferenceName(),

@@ -13,6 +13,8 @@ ODR\AdminBundle\Entity\XYZData:
             columns: [ "y_value" ]
         z_value_index:
             columns: [ "z_value" ]
+        deletedAt:
+            columns: [ "deletedAt" ]
 
     fields:
         id:

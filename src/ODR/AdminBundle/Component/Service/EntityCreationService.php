@@ -224,6 +224,7 @@ class EntityCreationService
         $datafield_meta->setTagsAllowNonAdminEdit(false);
         $datafield_meta->setTagsAllowMultipleLevels(false);
         $datafield_meta->setXyzDataColumnNames('');
+        $datafield_meta->setXyzDataMultirangeSearch(false);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
             $datafield_meta->setAllowMultipleUploads(true);
             $datafield_meta->setShortenFilename(true);

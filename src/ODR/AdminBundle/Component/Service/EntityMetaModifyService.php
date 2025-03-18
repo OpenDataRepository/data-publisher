@@ -326,6 +326,7 @@ class EntityMetaModifyService
             'tags_allow_multiple_levels' => $old_meta_entry->getTagsAllowMultipleLevels(),
             'tags_allow_non_admin_edit' => $old_meta_entry->getTagsAllowNonAdminEdit(),
             'xyz_column_names' => $old_meta_entry->getXyzDataColumnNames(),
+            'xyz_data_multirange_search' => $old_meta_entry->getXyzDataMultirangeSearch(),
             'searchable' => $old_meta_entry->getSearchable(),
             'publicDate' => $old_meta_entry->getPublicDate(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
@@ -435,6 +436,7 @@ class EntityMetaModifyService
         if ($relevant_typeclass !== 'XYZData') {
             // This property is only used by XYZData fields
             $properties['xyz_column_names'] = '';
+            $properties['xyz_data_multirange_search'] = false;
         }
 
 
@@ -521,6 +523,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setTagsAllowNonAdminEdit( $properties['tags_allow_non_admin_edit'] );
         if ( isset($properties['xyz_column_names']) )
             $new_datafield_meta->setXyzDataColumnNames( mb_scrub($properties['xyz_column_names']) );
+        if ( isset($properties['xyz_data_multirange_search']) )
+            $new_datafield_meta->setXyzDataMultirangeSearch( $properties['xyz_data_multirange_search'] );
         if ( isset($properties['searchable']) )
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['publicDate']) )

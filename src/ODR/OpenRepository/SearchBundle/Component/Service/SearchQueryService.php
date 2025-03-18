@@ -1546,8 +1546,10 @@ class SearchQueryService
             FROM odr_data_record AS dr
             JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
             JOIN odr_xyz_data AS e ON e.data_record_fields_id = drf.id
-            WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
+            WHERE drf.data_field_id = :datafield_id AND ('.$search_params['str'].')
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+
+        // NOTE: using drf.data_field_id instead of e.data_field_id because it seems to perform better here
 
 //        // Also define the query used when one of the search parameters is the empty string
 //        $null_query =
@@ -1593,6 +1595,152 @@ class SearchQueryService
     public function searchXYZTemplateDatafield($datatype_id, $datafield_id, $value)
     {
         throw new ODRNotImplementedException("need an example to work from", 0xbc71d1e3);
+    }
+
+
+    /**
+     * Searches the specified DatetimeValue datafield for the given values, returning an array of
+     * datarecord ids that match the search.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     *
+     * TODO - implement logic so 'guard' is correct/used?
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchXYZDatafield_simple($datatype_id, $datafield_id, $x_value, $y_value, $z_value)
+    {
+        // ----------------------------------------
+        // There could be up to three different search terms, and they all need to be inserted into
+        //  the same mysql query
+        $x_params = $y_params = $z_params = array();
+        $search_params = array('str' => '', 'params' => array('datafield_id' => $datafield_id/*, 'datatype_id' => $datatype_id*/));
+
+        if ( trim($x_value) !== '' ) {
+            $x_params = self::parseField($x_value, 'DecimalValue');    // NOTE: using "XYZData" triggers the multi-range splitting
+            $x_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.x_value', ':xterm_'), $x_params['str']).')';
+        }
+        if ( trim($y_value) !== '' ) {
+            $y_params = self::parseField($y_value, 'DecimalValue');
+            $y_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.y_value', ':yterm_'), $y_params['str']).')';
+        }
+        if ( trim($z_value) !== '' ) {
+            $z_params = self::parseField($z_value, 'DecimalValue');
+            $z_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.z_value', ':zterm_'), $z_params['str']).')';
+        }
+
+        $search_strs = array();
+        if ( !empty($x_params) ) {
+            foreach ($x_params['params'] as $key => $value)
+                $search_params['params']['x'.$key] = $value;
+            $search_strs[] = $x_params['str'];
+        }
+        if ( !empty($y_params) ) {
+            foreach ($y_params['params'] as $key => $value)
+                $search_params['params']['y'.$key] = $value;
+            $search_strs[] = $y_params['str'];
+        }
+        if ( !empty($z_params) ) {
+            foreach ($z_params['params'] as $key => $value)
+                $search_params['params']['z'.$key] = $value;
+            $search_strs[] = $z_params['str'];
+        }
+
+        $search_params['str'] = implode(' AND ', $search_strs);
+
+
+        // ----------------------------------------
+//        // Determine whether this query's search parameters contain an empty string...if so, may
+//        //  have to to run an additional query because of how ODR is designed...
+//        $involves_empty_string = false;
+//        if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+//            // ...but only when the query actually has a logical chance of returning results...
+//            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+//                $search_params['params']['datatype_id'] = $datatype_id;
+//
+//                // Need to inform callers that this query can matches the empty string
+//                // This is important because if this search is on a descendant datatype, then the
+//                //  ancestor datatype needs to take records without descendants and merge_by_OR with
+//                //  the descendant datatype's records that match the query
+//                $involves_empty_string = true;
+//            }
+//        }
+        // TODO - so this fieldtype has the same problem as the text/number fields...searches that hit the empty string require a separate query
+        // TODO - ...unlike the text/number fields, I'm pretty sure it can't be solved by tacking on a UNIONed query
+        // TODO - Ignoring how the UNIONed query is likely going to interfere with the parameter searching...
+        // TODO - ...there's also the problem that if you have a set of points (1,1), (2,2), and (3,3)...then naively searching for records with xyzdata where "x != 2" still returns true here
+        // TODO - ...in order for negation to work as expected, "x != 2" actually means "the set {all possible records} minus the set {records which have x == 2}"
+        // TODO - this wouldn't be a huge deal, except you don't really do a simple search like that...it almost always involves a pile of other parameters
+
+
+        // ----------------------------------------
+        // Define the base query for searching
+        $query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN odr_xyz_data AS e ON e.data_record_fields_id = drf.id
+            WHERE drf.data_field_id = :datafield_id AND ('.$search_params['str'].')
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+
+        // NOTE: using drf.data_field_id instead of e.data_field_id because it seems to perform better here
+
+//        // Also define the query used when one of the search parameters is the empty string
+//        $null_query =
+//           'SELECT dr.id AS dr_id
+//            FROM odr_data_record AS dr
+//            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+//            LEFT JOIN odr_xyz_data AS e ON e.data_record_fields_id = drf.id
+//            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
+//        // This query won't pick up cases where the drf exists and the storage entity was deleted,
+//        //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
+//        //  migration, or a change to the contents of a storage entity didn't complete properly
+
+
+        // ----------------------------------------
+        // Activate the query for finding nulls if needed
+//        if ( $involves_empty_string )
+//            $query .= "\nUNION\n".$null_query;
+
+        // Execute and return the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, $search_params['params']);
+
+        $datarecords = array();
+        foreach ($results as $result)
+            $datarecords[ $result['dr_id'] ] = 1;
+
+        return array(
+            'records' => $datarecords,
+//            'guard' => $involves_empty_string,    // NOTE: not needed until negation is implemented
+        );
+    }
+
+
+    /**
+     * TODO - implement this
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchXYZTemplateDatafield_simple($datatype_id, $datafield_id, $value)
+    {
+        throw new ODRNotImplementedException("need an example to work from", 0xbc71d1e4);
     }
 
 
@@ -2499,7 +2647,7 @@ class SearchQueryService
                     }
                 }
                 else if ( is_numeric($piece) ) {
-                    if ( strpos($piece, '.') === true || $typeclass === 'XYZData' )
+                    if ( strpos($piece, '.') !== false || $typeclass === 'XYZData' )
                         $piece = floatval($piece);
                     else
                         $piece = intval($piece);

@@ -660,7 +660,24 @@ class SearchAPIService
                         }
                         else if ($typeclass === 'XYZData') {
                             // XYZData requires a mess of processing
-                            $dr_list = $this->search_service->searchXYZDatafield($entity, $search_term['value']);
+                            if ( isset($search_term['value']) ) {
+                                // The "advanced" form of this field has its search term in a single value
+                                $dr_list = $this->search_service->searchXYZDatafield($entity, $search_term['value']);
+                            }
+                            else {
+                                // The "simple" form of this field could have up to three separate
+                                //  search terms
+                                $x_value = $y_value = $z_value = '';
+                                if ( isset($search_term['x']) )
+                                    $x_value = $search_term['x'];
+                                if ( isset($search_term['y']) )
+                                    $y_value = $search_term['y'];
+                                if ( isset($search_term['z']) )
+                                    $z_value = $search_term['z'];
+
+                                $dr_list = $this->search_service->searchXYZDatafield_simple($entity, $x_value, $y_value, $z_value);
+                            }
+
 
                             // NOTE: not needed until negation is implemented
 //                            // If this search involved the empty string...

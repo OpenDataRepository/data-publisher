@@ -793,7 +793,8 @@ class SearchKeyService
                     throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // $key is for a DatetimeValue or a File/Image's public status/quality
+                    // $key is for a DatetimeValue, a File/Image's public status/quality, or a
+                    //  simple XYZData search
                     //  ...ensure the datafield is valid to search on
                     $df_id = intval($pieces[0]);
 
@@ -830,6 +831,18 @@ class SearchKeyService
                     }
                     else if ( $pieces[1] === 'pub' || $pieces[1] === 'qual' ) {
                         // This is for a File/Image...nothing to validate here
+                    }
+                    else if ( $pieces[1] === 'x' || $pieces[1] === 'y' || $pieces[1] === 'z' ) {
+                        // This is for an XYZData field...ensure the user hasn't specified more
+                        //  dimensions than the field allows
+                        $df = $datatype_array[$dt_id]['dataFields'][$df_id];
+                        $xyz_column_names = explode(',', $df['dataFieldMeta']['xyz_data_column_names']);
+
+                        if ( ($pieces[1] === 'y' && count($xyz_column_names) < 2)
+                            || ($pieces[1] === 'z' && count($xyz_column_names) < 3)
+                        ) {
+                            throw new ODRBadRequestException('Invalid search key: column num mismatch for datafield '.$df_id, $exception_code);
+                        }
                     }
                     else {
                         throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
@@ -1282,6 +1295,28 @@ class SearchKeyService
 
                             $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;
                         }
+                    }
+                    else if ( $pieces[1] === 'x' || $pieces[1] === 'y' || $pieces[1] === 'z' ) {
+                        // This is a simple XYZData search...which is ironically more complicated
+                        //  here, because the other type of XYZData search has already compressed
+                        //  its entire set of parameters into a single string for a single field
+                        if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                                'entity_type' => 'datafield',
+                                'entity_id' => $df_id,
+                                'datatype_id' => $dt_id,
+                            );
+                        }
+
+                        // ...I'm not going to risk screwing up compressing the criteria into a
+                        //  format that the other search understands, so searching this XYZData
+                        //  field gets its own search logic
+                        if ( $pieces[1] === 'x' )
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['x'] = $value;
+                        else if ( $pieces[1] === 'y' )
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['y'] = $value;
+                        else if ( $pieces[1] === 'z' )
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['z'] = $value;
                     }
                 }
                 else {

@@ -1394,6 +1394,93 @@ class SearchService
 
 
     /**
+     * Searches the given XYZData field, and returns an array of datarecord ids that match the
+     * given criteria.  Unlike {@link self::searchXYZDatafield()}, this one can't handle multiple ranges.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'dt_id' => <dt_id>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     *     'guard' => <true when any of the search trems could match the empty string, false otherwise>,
+     * )
+     * </pre>
+     *
+     * @param DataFields $datafield
+     * @param string $x_value
+     * @param string $y_value
+     * @param string $z_value
+     *
+     * @return array
+     */
+    public function searchXYZDatafield_simple($datafield, $x_value, $y_value, $z_value)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'XYZData' )
+            throw new ODRBadRequestException('searchXYZDatafield_simple() called with '.$typeclass.' datafield', 0xb7e7485c);
+
+
+        // ----------------------------------------
+        // Going to need to get any cached entries first...
+        $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        // Since this version of the search can only handle a single range, both the caching and
+        //  the mysql parts are easier
+        $key = $x_value.'~'.$y_value.'~'.$z_value;
+        if ( !isset($cached_searches[$key]) ) {
+            // If the search for this entry isn't cached, then need to run it again...
+            $result = $this->search_query_service->searchXYZDatafield_simple(
+                $datafield->getDataType()->getId(),
+                $datafield->getId(),
+                $x_value,
+                $y_value,
+                $z_value
+            );
+
+            // ...and store it in the cache for later
+            $cached_searches[$key] = $result;
+            $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        }
+
+        // Extract the entry now that it's guaranteed to be cached
+        $dr_list = $cached_searches[$key]['records'];
+
+
+        // ----------------------------------------
+        // Return the search result
+        $result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => $dr_list,
+//            'guard' => $result['guard'],    // NOTE: not needed until negation is implemented
+        );
+
+        return $result;
+    }
+
+
+    /**
+     * TODO - implement this
+     *
+     * @param DataFields $datafield
+     * @param string $x_value
+     * @param string $y_value
+     * @param string $z_value
+     *
+     * @return array
+     */
+    public function searchXYZTemplateDatafield_simple($datafield, $x_value, $y_value, $z_value)
+    {
+        throw new ODRNotImplementedException("need an example to work from", 0xbc71d1e7);
+    }
+
+
+    /**
      * Searches the specified datafield for the specified value, returning an array of
      * datarecord ids that match the search.
      *
