@@ -2206,7 +2206,10 @@ class TrackingController extends ODRCustomController
                     foreach ($df_data as $entity_id => $entity_data) {
                         foreach ($entity_data as $date => $data) {
                             $date = explode(' ', $date)[0];
-                            $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
+                            if ( isset($data['updatedBy']) )
+                                $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
+                            else if ( isset($data['deletedBy']) )
+                                $history[$dt_id][$dr_id][$date] = $data['deletedBy'];
                         }
                     }
                 }

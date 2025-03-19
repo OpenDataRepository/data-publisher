@@ -123,7 +123,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         a:
             name: a
-            description: The value of the "a" cellparameter from the AMC File
+            description: The value for "a" listed in the AMC File
             type: DecimalValue
             display_order: 11
             properties:
@@ -131,7 +131,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         b:
             name: b
-            description: The value of the "b" cellparameter from the AMC File
+            description: The value for "b" listed in the AMC File
             type: DecimalValue
             display_order: 12
             properties:
@@ -139,7 +139,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         c:
             name: c
-            description: The value of the "c" cellparameter from the AMC File
+            description: The value for "c" listed in the AMC File
             type: DecimalValue
             display_order: 13
             properties:
@@ -147,7 +147,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         alpha:
             name: alpha
-            description: The value of the "alpha" cellparameter from the AMC File
+            description: The value for "alpha" listed in the AMC File
             type: DecimalValue
             display_order: 14
             properties:
@@ -155,7 +155,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         beta:
             name: beta
-            description: The value of the "beta" cellparameter from the AMC File
+            description: The value for "beta" listed in the AMC File
             type: DecimalValue
             display_order: 15
             properties:
@@ -163,7 +163,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         gamma:
             name: gamma
-            description: The value of the "gamma" cellparameter from the AMC File
+            description: The value for "gamma" listed in the AMC File
             type: DecimalValue
             display_order: 16
             properties:
@@ -171,7 +171,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         volume:
             name: Volume
-            description: The value of the "volume" cellparameter from the CIF File
+            description: The value of the "_cell_volume" field from the CIF File
             type: DecimalValue
             display_order: 17
             properties:
@@ -196,7 +196,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         space_group:
             name: Space Group
-            description: The value of the "Space Group" field in the AMC File
+            description: The value for "Space Group" listed in the AMC File
             type: ShortVarchar
             display_order: 20
             properties:
@@ -213,7 +213,7 @@ odr_plugins.rruff.amcsd:
 
         pressure:
             name: Pressure
-            description: The value of the "Pressure" field in the AMC File
+            description: The value for "Pressure" listed in the AMC File
             type: ShortVarchar
             display_order: 22
             properties:
@@ -221,7 +221,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         temperature:
             name: Temperature
-            description: The value of the "Temperature" field in the AMC File
+            description: The value for "Temperature" listed in the AMC File
             type: ShortVarchar
             display_order: 23
             properties:
@@ -230,7 +230,7 @@ odr_plugins.rruff.amcsd:
 
         chemistry:
             name: Chemistry
-            description: The value of the "Chemistry" field in the CIF File
+            description: The value of the "_chemical_formula_sum" field in the CIF File
             type: LongVarchar
             display_order: 24
             properties:
@@ -238,7 +238,7 @@ odr_plugins.rruff.amcsd:
                 - is_derived
         chemistry_elements:
             name: Chemistry Elements
-            description: The individual elements from the "Chemistry" field in the CIF File
+            description: The individual elements from the "_chemical_formula_sum" field in the CIF File
             type: LongVarchar
             display_order: 25
             properties:
@@ -247,9 +247,18 @@ odr_plugins.rruff.amcsd:
 
         locality:
             name: Locality
-            description: The value of the "compound source" field in the CIF File
+            description: The value of the "_chemical_compound_source" field in the CIF File
             type: LongVarchar
             display_order: 26
+            properties:
+                - no_user_edits
+                - is_derived
+
+        density:
+            name: Crystal Density
+            description: The value of the "_exptl_crystal_density_diffrn" field in the CIF File
+            type: DecimalValue
+            display_order: 27
             properties:
                 - no_user_edits
                 - is_derived

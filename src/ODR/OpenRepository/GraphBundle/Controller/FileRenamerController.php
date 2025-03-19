@@ -69,14 +69,19 @@ class FileRenamerController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var Logger $logger */
             $logger = $this->container->get('logger');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
 
             /** @var DataRecord $datarecord */
@@ -109,7 +114,7 @@ class FileRenamerController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             // Ensure the user is allowed to edit the datafield
-            if ( !$pm_service->canEditDatafield($user, $datafield) )
+            if ( !$permissions_service->canEditDatafield($user, $datafield) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -118,7 +123,7 @@ class FileRenamerController extends ODRCustomController
             // Ensure the datafield is using the correct render plugin
             $plugin_classname = null;
 
-            $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+            $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
 
             $dt = $dt_array[$datatype->getId()];
             if ( isset($dt['dataFields']) && isset($dt['dataFields'][$datafield->getId()]) ) {
@@ -178,14 +183,16 @@ class FileRenamerController extends ODRCustomController
 
                 // ----------------------------------------
                 // Technically can do this without a try/catch block, but no real reason not to use one
-                $new_filenames = null;
+                $ret = null;
                 try {
                     // Determine the new names for each of the files/images uploaded to this drf
-                    $new_filenames = $plugin_service->getNewFilenames($drf);
+                    $ret = $plugin_service->getNewFilenames($drf);
                     $logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
 
-                    if ( is_array($new_filenames) ) {
-                        foreach ($new_filenames as $entity_id => $new_filename) {
+                    if ( is_array($ret) ) {
+                        foreach ($ret as $entity_id => $data) {
+                            $new_filename = $data['new_filename'];
+
                             if ( strlen($new_filename) <= 255 ) {
                                 // ...so for each file/image uploaded to the datafield...
                                 /** @var File|Image $entity */
@@ -195,9 +202,18 @@ class FileRenamerController extends ODRCustomController
                                 // ...save the new filename in the database...
                                 $props = array('original_filename' => $new_filename);
                                 if ($typeclass === 'File')
-                                    $emm_service->updateFileMeta($user, $entity, $props, true);
+                                    $entity_modify_service->updateFileMeta($user, $entity, $props, true);
                                 else
-                                    $emm_service->updateImageMeta($user, $entity, $props, true);
+                                    $entity_modify_service->updateImageMeta($user, $entity, $props, true);
+
+                                // If the plugin is enforcing a particular file extension...
+                                if ( isset($data['new_ext']) ) {
+                                    // ...then need to also set a value in the File/Image entity itself
+                                    $new_ext = $data['new_ext'];
+
+                                    $entity->setExt($new_ext);
+                                    $em->persist($entity);
+                                }
                             }
                             else {
                                 $logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', array(self::class, 'rebuildAction()', $typeclass.' '.$entity->getId()));
@@ -216,7 +232,7 @@ class FileRenamerController extends ODRCustomController
 
                         // Since this isn't a background job or an event, however, the suspected reason
                         //  for the problem can get displayed to the user
-                        throw new \Exception($new_filenames);
+                        throw new \Exception($ret);
                     }
                 }
                 catch (\Exception $e) {
@@ -229,17 +245,13 @@ class FileRenamerController extends ODRCustomController
                 }
                 finally {
                     // Would prefer if these happened regardless of success/failure...
-                    if ( is_array($new_filenames) ) {
+                    if ( is_array($ret) ) {
                         $logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
 
 
                         // ----------------------------------------
                         // Fire off an event notifying that the modification of the datafield is done
                         try {
-                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                            /** @var EventDispatcherInterface $event_dispatcher */
-                            $dispatcher = $this->get('event_dispatcher');
                             $event = new DatafieldModifiedEvent($datafield, $user);
                             $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                         }
@@ -252,10 +264,6 @@ class FileRenamerController extends ODRCustomController
 
                         // Since a file got renamed, need to mark the record as updated
                         try {
-                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                            /** @var EventDispatcherInterface $event_dispatcher */
-                            $dispatcher = $this->get('event_dispatcher');
                             $event = new DatarecordModifiedEvent($datarecord, $user);
                             $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                         }

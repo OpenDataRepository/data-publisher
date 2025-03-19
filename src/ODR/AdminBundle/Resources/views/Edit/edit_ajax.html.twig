@@ -10,12 +10,6 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% if has_linked_datatypes > 0 %}
-<div id="ODRRecordLinkInfoWrapperDiv">
-{#    <button type="button" class="pure-button" onclick="OpenLinkInfoDialog({{ datarecord.id }})">View Linked Records...</button>#}
-</div>
-{% endif %}
-
 {% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
@@ -33,6 +27,11 @@
     'token_list': token_list,
 } %}
 
+{% if has_linked_datatypes > 0 %}
+    <div id="ODRRecordLinkInfoWrapperDiv">
+        {#    <button type="button" class="pure-button" onclick="OpenLinkInfoDialog({{ datarecord.id }})">View Linked Records...</button>#}
+    </div>
+{% endif %}
 
 {% if is_datatype_admin %}
 <div id="field_history_dialog_wrapper">
@@ -236,12 +235,7 @@ function initPage() {
                 $(download_div).removeClass('ODRHidden');
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                // Stop checking decrypt progress when an error occurs
-                file_decrypt_timeouts[ file_id ] = null;
-
-                // Hide the css for the progressbar
-                $(download_div).css('visibility', 'hidden');
-                $(decrypt_progress).css('width', 0);
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -544,6 +538,82 @@ function initPage() {
 
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
+    {# These two are to handle the FileRenamer and FileHeaderInserter plugins #}
+    {# While theoretically they shouldn't be in edit_ajax, the way those plugins are currently implemented makes that impossible... #}
+    $(".ODRFileRenamer_rebuild").unbind('click').click(function() {
+        var id_data = $(this).parents('form').first().attr('id').split('_');
+        var dr_id = id_data[1];
+        var df_id = id_data[2];
+
+        var url = "{{ path('odr_plugin_file_renamer_rebuild', {'dr_id': 0, 'df_id': 0}) }}";
+        url = url.substr(0, url.length-3);
+        url += dr_id + '/' + df_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Reload the datafield so the new filenames show up
+                ReloadEditDatafield(dr_id, df_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    });
+
+    $(".ODRFileHeaderInserter_rebuild").unbind('click').click(function() {
+        var id_data = $(this).parents('form').first().attr('id').split('_');
+        var dr_id = id_data[1];
+        var df_id = id_data[2];
+
+        var url = "{{ path('odr_plugin_file_header_inserter_rebuild', {'dr_id': 0, 'df_id': 0}) }}";
+        url = url.substr(0, url.length-3);
+        url += dr_id + '/' + df_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Reload the datafield so the new filenames show up
+                ReloadEditDatafield(dr_id, df_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
                 }
             }
         });
@@ -1611,19 +1681,6 @@ function OpenLinkInfoDialog(local_datarecord_id) {
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             $("#ODRRecordLinkInfoWrapperDiv").html(data.d.html);
-
-            $(".ODRCurrentLinkedRecords_toggle").unbind('click').click(function() {
-                var icon_div = $(this).children('span').first();
-                if ( $(icon_div).hasClass('fa-caret-down') ) {
-                    $(icon_div).removeClass('fa-caret-down').addClass('fa-caret-right');
-                    $(".ODRRecordLinkInfoDiv,.ODRRecordLinkInfoList").addClass('ODRHidden');
-                }
-                else {
-                    $(icon_div).addClass('fa-caret-down').removeClass('fa-caret-right');
-                    $(".ODRRecordLinkInfoDiv,.ODRRecordLinkInfoList").removeClass('ODRHidden');
-                }
-            });
-
             hideSearchOverlay();
         },
         error: function(jqXHR, textStatus, errorThrown) {

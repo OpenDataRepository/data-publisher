@@ -365,6 +365,22 @@
                 }
             }) }}
         </div>
+
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.xyz_data_multirange_search) }}
+
+            <span title="If checked, then the search UI changes to allow multiple ranges.  Otherwise, it only really permits a single range.">
+                <label for="{{ datafield_form.xyz_data_multirange_search.vars.id }}">
+                    {{ form_widget(datafield_form.xyz_data_multirange_search, {
+                        'attr': {
+                            'class': 'ODRFloatingCheckbox',
+                        }
+                    }) }}
+
+                    {{ datafield_form.xyz_data_multirange_search.vars.label }}
+                </label>
+            </span>
+        </div>
     {% endif %}
 
     {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}

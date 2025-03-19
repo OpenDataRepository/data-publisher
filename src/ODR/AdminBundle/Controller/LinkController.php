@@ -1802,6 +1802,9 @@ class LinkController extends ODRCustomController
                             //  remote datarecord
                             $dr_name = $dr_array[$dr_id]['nameField_value'];
                         }
+                        else {
+                            $dr_name = $dr_id;
+                        }
 
                         // Save an entry for this record
                         $linked_record_data[$dt_id]['records'][$gdr_id] = $dr_name;

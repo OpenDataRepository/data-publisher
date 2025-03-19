@@ -249,7 +249,7 @@ class CSVExportController extends ODRCustomController
             }
 
             $odr_tab_id = $post['odr_tab_id'];
-            $datafields = $post['datafields'];
+            $datafields = $post['datafields'];    // TODO - plugin_datafields?
             $datatype_id = $post['datatype_id'];
             $delimiter = trim($post['delimiter']);
 
@@ -268,13 +268,6 @@ class CSVExportController extends ODRCustomController
             $tag_hierarchy_delimiter = null;
             if ( isset($post['tag_hierarchy_delimiter']) )
                 $tag_hierarchy_delimiter = trim($post['tag_hierarchy_delimiter']);
-
-
-            // If a datafield exists on the page more than once, then it can have more than one
-            //  entry in the submitted form...this will cause an error later, so de-duplicate it
-            $datafields = array_flip($datafields);
-            $datafields = array_keys($datafields);
-            // TODO - ...need to figure out whether the "existing more than once" thing is a problem
 
 
             // Grab necessary objects
@@ -412,11 +405,30 @@ class CSVExportController extends ODRCustomController
             $dr_array = array();
             $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
-            $df_mapping = array();
-            foreach ($datafields as $num => $df_id) {
+            $tmp_df_mapping = array();
+            foreach ($datafields as $df_identifier => $df_id) {
                 foreach ($dt_array as $dt_id => $dt) {
+                    $pieces = explode('_', $df_identifier);
+                    $prefix = $pieces[0];
+                    $df_id = $pieces[1];
+
                     if ( isset($dt['dataFields'][$df_id]) ) {
-                        $df_mapping[$df_id] = $dt_id;
+                        // User is technically able to see the datafield, since it didn't get filtered
+
+                        // Still need to ensure that the request for this field doesn't "pass through"
+                        //  a datatype they're not allowed to view...e.g. A links to B links to C, but
+                        //  the user doesn't have permissions to view B
+                        $prefix_pieces = explode('-', $prefix);
+                        foreach ($prefix_pieces as $tmp_dt_id) {
+                            if ( !isset($dt_array[$tmp_dt_id]) ) {
+                                // If the user isn't allowed to see one of the datatypes in this
+                                //  prefix string, then skip checking/saving anything else about it
+                                continue 2;
+                            }
+                        }
+
+                        // If this point is reached, then it's a valid field for CSVExport
+                        $tmp_df_mapping[$prefix.'_'.$df_id] = 1;
 
                         $df = $dt['dataFields'][$df_id];
                         $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
@@ -441,8 +453,12 @@ class CSVExportController extends ODRCustomController
             // If these arrays don't match...then either the user can't view at least one of the
             //  fields they want to export, or they tried to export a field from an unrelated
             //  datatype.  This will typically only be triggered by manual edits of the POST data.
-            if ( count($datafields) !== count($df_mapping) )
+            if ( count($datafields) !== count($tmp_df_mapping) )
                 throw new ODRBadRequestException('Invalid Datafield list');
+
+            // The datafield list needs to be converted into json...it seems as if passing it through
+            //  the symfony command turns it into an object otherwise
+            $datafields = json_encode($datafields);
 
 
             // ----------------------------------------

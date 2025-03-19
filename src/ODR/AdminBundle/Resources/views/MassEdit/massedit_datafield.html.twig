@@ -55,11 +55,11 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             {% if mass_edit_trigger_datafields[datafield.id] is defined %}
                 {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                     <label class="Pointer">
                         <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                     </label>
-                </span>
+                </div>
                 {% endfor %}
             {% endif %}
         </span>
@@ -75,11 +75,11 @@
         <label id="Label_{{ datafield.id }}" class="ODRFieldLabel {#pure-u-1#}" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+            <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                 <label class="Pointer">
                     <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                 </label>
-            </span>
+            </div>
             {% endfor %}
         {% endif %}
 
@@ -98,11 +98,11 @@
         <label id="Label_{{ datafield.id }}" class="ODRFieldLabel {#pure-u-1#}" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+            <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                 <label class="Pointer">
                     <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                 </label>
-            </span>
+            </div>
             {% endfor %}
         {% endif %}
 
@@ -121,11 +121,11 @@
         {% if not field_is_blocked %}<span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>{% endif %}
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+            <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                 <label class="Pointer">
                     <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                 </label>
-            </span>
+            </div>
             {% endfor %}
         {% endif %}
 
@@ -140,11 +140,11 @@
         {% if not field_is_blocked %}<span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>{% endif %}
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+            <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                 <label class="Pointer">
                     <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                 </label>
-            </span>
+            </div>
             {% endfor %}
         {% endif %}
 
@@ -159,11 +159,11 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             {% if mass_edit_trigger_datafields[datafield.id] is defined %}
                 {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                     <label class="Pointer">
                         <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                     </label>
-                </span>
+                </div>
                 {% endfor %}
             {% endif %}
         </span>
@@ -201,11 +201,11 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             {% if mass_edit_trigger_datafields[datafield.id] is defined %}
                 {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                     <label class="Pointer">
                         <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                     </label>
-                </span>
+                </div>
                 {% endfor %}
             {% endif %}
         </span>
@@ -231,11 +231,11 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             {% if mass_edit_trigger_datafields[datafield.id] is defined %}
                 {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-                <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+                <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                     <label class="Pointer">
                         <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                     </label>
-                </span>
+                </div>
                 {% endfor %}
             {% endif %}
 
@@ -280,11 +280,11 @@
         {% if not field_is_blocked %}<span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>{% endif %}
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+            <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                 <label class="Pointer">
                     <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                 </label>
-            </span>
+            </div>
             {% endfor %}
         {% endif %}
 
@@ -299,11 +299,11 @@
 {#        <span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>#}
         {% if mass_edit_trigger_datafields[datafield.id] is defined %}
             {% for num,data in mass_edit_trigger_datafields[datafield.id] %}
-            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
+            <div class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}">
                 <label class="Pointer">
                     <input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="{{ data.plugin_id }}" />&nbsp;Activate the {{ data.plugin_name }} on this field
                 </label>
-            </span>
+            </div>
             {% endfor %}
         {% endif %}
 

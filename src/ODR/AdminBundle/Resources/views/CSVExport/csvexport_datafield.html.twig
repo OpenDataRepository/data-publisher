@@ -6,8 +6,10 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 
 {% set classes = '' %}
-{% if field_typename != 'Markdown' %}
+{% if field_typename == 'Markdown' or (field_typename == 'XYZ Data' and datafield_meta.xyz_data_column_names|trim == '') %}
     {# markdown fields shouldn't be selectable in here #}
+    {# XYZData fields without column names also shouldn't be selectable #}
+{% else %}
     {% set classes = classes ~ ' ODRCSVExportField Pointer ODRUnselectedCSVExportField' %}
 {% endif %}
 
@@ -23,7 +25,7 @@
     {% set classes = classes ~ ' ODRExportTagHierarchy' %}
 {% endif %}
 
-<div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {{ classes }}" id="Field_{{ datafield.id }}" >
+<div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {{ classes }}" id="Field_{{ datafield.id }}" rel="{{ prefix }}">
 
     <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
         {# NOTE - need this in here to prevent stuff from being hidden, apparently #}
@@ -195,7 +197,11 @@
             <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
                 <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
             </label>
-            <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
+            <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
+            {% if datafield_meta.xyz_data_column_names|trim == '' %}
+                <span class="ODRInputError">No column names defined!</span>
+            {% endif %}
+            </div>
         </fieldset>
 
         {% elseif field_typename == "Markdown" %}

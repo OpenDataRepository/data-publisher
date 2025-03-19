@@ -222,7 +222,11 @@
                 <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
             </label>
 
-            <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
+            <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
+            {% if is_datatype_admin and datafield_meta.xyz_data_column_names|trim == '' %}
+                <span class="ODRInputError">No column names defined!</span>
+            {% endif %}
+            </div>
         </fieldset>
 
     {% endif %}

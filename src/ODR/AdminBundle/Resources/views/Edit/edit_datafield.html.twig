@@ -495,6 +495,9 @@
                 {{ datafield_meta.fieldName }}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                {% if is_datatype_admin and datafield_meta.xyz_data_column_names|trim == '' %}
+                <span class="ODRInputError">No column names defined!</span>
+                {% else %}
                 <textarea
                     id="{{ input_id }}"
                     class="pure-u-1"
@@ -504,6 +507,7 @@
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                 >{{ valuefield_value }}</textarea>
                 <i class="fa fa-save ODRSaveIndicator"></i>
+                {% endif %}
             </div>
         </fieldset>
 

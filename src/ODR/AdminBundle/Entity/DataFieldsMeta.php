@@ -158,6 +158,11 @@ class DataFieldsMeta
     private $xyz_data_column_names;
 
     /**
+     * @var bool
+     */
+    private $xyz_data_multirange_search;
+
+    /**
      * @var integer
      */
     private $searchable;
@@ -822,6 +827,30 @@ class DataFieldsMeta
     public function getXyzDataColumnNames()
     {
         return $this->xyz_data_column_names;
+    }
+
+    /**
+     * Set xyzDataMultirangeSearch.
+     *
+     * @param bool $xyzDataMultirangeSearch
+     *
+     * @return DataFieldsMeta
+     */
+    public function setXyzDataMultirangeSearch($xyzDataMultirangeSearch)
+    {
+        $this->xyz_data_multirange_search = $xyzDataMultirangeSearch;
+
+        return $this;
+    }
+
+    /**
+     * Get xyzDataMultirangeSearch.
+     *
+     * @return bool
+     */
+    public function getXyzDataMultirangeSearch()
+    {
+        return $this->xyz_data_multirange_search;
     }
 
     /**

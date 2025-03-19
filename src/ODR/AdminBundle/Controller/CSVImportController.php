@@ -2960,7 +2960,7 @@ class CSVImportController extends ODRCustomController
 
                     // Set the datafield's name
                     $datafield_meta = $datafield->getDataFieldMeta();
-                    $datafield_meta->setFieldName( $column_names[$column_id] );
+                    $datafield_meta->setFieldName( mb_scrub($column_names[$column_id]) );
 
                     // Set whether it's supposed to be unique or not
                     if ( isset($unique_columns[$column_id]) )

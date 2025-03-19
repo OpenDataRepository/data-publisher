@@ -1,4 +1,7 @@
 {% spaceless %}
+
+{% set prefix = initial_datatype_id %}
+
 <div class="ODRFormWrap ODRDesign pure-u-1">
     {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {
         'datatype_array': datatype_array,
@@ -11,6 +14,8 @@
         'is_top_level': 1,
         'multiple_allowed': 0,
         'is_link': 0,
+
+        'prefix': prefix
     } %}
 </div><!-- End of .ODRFormWrap -->
 {% endspaceless %}

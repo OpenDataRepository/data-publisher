@@ -87,12 +87,16 @@ class DebugController extends ODRCustomController
             // Need the datatype array to be able to render datafield selection...
             $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), true);    // need links
 
-            // ...not going to stack it because I don't want to deal with recursion and this isn't
-            // a "real" interface
+            // ...can't get away with not stacking it, unfortunately, due to ODR's linking rules
+            //  permitting mulitple "paths" to reach the same linked descendent datatype
+            // e.g. A links to B links to C, A links to C
+            $dt_array = $database_info_service->stackDatatypeArray($dt_array, $datatype_id);
+
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Debug:csv_export_start.html.twig',
+                    'ODRAdminBundle:Debug:debug_csv_export_start.html.twig',
                     array(
+                        'initial_datatype_id' => $datatype_id,
                         'datatype_array' => $dt_array,
                         'search_key' => $search_key,
                     )
@@ -137,7 +141,7 @@ class DebugController extends ODRCustomController
                 throw new ODRBadRequestException();
             }
 
-            $datafields = $post['datafields'];
+            $datafields = $post['datafields'];    // TODO - plugin_datafields?
             $search_key = $post['search_key'];
 
             $delimiter = trim($post['delimiter']);

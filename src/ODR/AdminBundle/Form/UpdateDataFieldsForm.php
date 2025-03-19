@@ -272,12 +272,21 @@ class UpdateDataFieldsForm extends AbstractType
         }
 
         if ( $current_typeclass === 'XYZData' ) {
-            // This property only makes sense for this fieldtype
+            // These properties only makes sense for this fieldtype
             $builder->add(
                 'xyz_data_column_names',
                 TextType::class,
                 array(
                     'label' => 'Comma-delimited list of column names',
+                    'required' => false
+                )
+            );
+
+            $builder->add(
+                'xyz_data_multirange_search',
+                CheckboxType::class,
+                array(
+                    'label' => 'Use multirange search UI',
                     'required' => false
                 )
             );

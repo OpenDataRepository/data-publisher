@@ -51,21 +51,11 @@
             </label><br>
         </fieldset>
 
-    {% for dt_id,dt in datatype_array %}
-        <fieldset>
-            <legend>{{ dt['dataTypeMeta']['shortName'] }}</legend>
-            {% for df_id,df in dt['dataFields'] %}
-                {% set df_meta = df['dataFieldMeta'] %}
-                {% set typename = df_meta['fieldType']['typeName'] %}
-                {% if typename != 'Markdown' %}
-                <label for="df_{{ df_id }}">
-                    <input id="df_{{ df_id }}" type="checkbox" name="datafields[]" value="{{ df_id }}"/>&nbsp;{{ df_meta['fieldName'] }} ({{ typename }})
-                </label>
-                {% endif %}
-                <br>
-            {% endfor %}
-        </fieldset>
-    {% endfor %}
+        {% set prefix = initial_datatype_id %}
+        {% include 'ODRAdminBundle:Debug:debug_csv_export_childtype.html.twig' with {
+            'datatype_array': datatype_array,
+            'prefix': prefix
+        } %}
 
         <button type="submit">Submit</button>
     </form>

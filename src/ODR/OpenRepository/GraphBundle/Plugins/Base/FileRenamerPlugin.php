@@ -246,10 +246,11 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      * Returns whether the given datafield is using the FileRenamer plugin.
      *
      * @param DataFields $datafield
+     * @param bool $is_pre_encrypt_event
      *
      * @return bool
      */
-    private function isEventRelevant($datafield)
+    private function isEventRelevant($datafield, $is_pre_encrypt_event)
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
@@ -266,7 +267,21 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                 // Datafield is using the correct plugin...
-                return true;
+                if ( $is_pre_encrypt_event ) {
+                    // ...but if it's for a preEncrypt event, then need to also check one of the
+                    //  options for this plugin
+                    if ( !isset($rpi['renderPluginOptionsMap']['fire_on_pre_encrypt'])
+                        || $rpi['renderPluginOptionsMap']['fire_on_pre_encrypt'] === 'yes'
+                    ) {
+                        // The somewhat strange conditions are meant for the off-chance that the
+                        //  plugin config doesn't have this option set
+                        return true;
+                    }
+                }
+                else {
+                    // ...no reason to not return true here
+                    return true;
+                }
             }
         }
 
@@ -320,9 +335,23 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             // The datafield could have more than one renderPluginInstance
             foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
-                    // Need to know both the value for the separator and the period substitute...
-                    $separator = trim($rpi['renderPluginOptionsMap']['separator']);
-                    $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
+                    // Need to know the simple configuration values...
+                    $separator = '__';
+                    if ( isset($rpi['renderPluginOptionsMap']['separator']) )
+                        $separator = trim($rpi['renderPluginOptionsMap']['separator']);
+                    $period_substitute = '-';
+                    if ( isset($rpi['renderPluginOptionsMap']['period_substitute']) )
+                        $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
+                    $file_extension = 'auto';
+                    if ( isset($rpi['renderPluginOptionsMap']['file_extension']) )
+                        $file_extension = trim($rpi['renderPluginOptionsMap']['file_extension']);
+                    $append_file_uuid = 'yes';
+                    if ( isset($rpi['renderPluginOptionsMap']['append_file_uuid']) )
+                        $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
+                    $delete_invalid_characters = 'yes';
+                    if ( isset($rpi['renderPluginOptionsMap']['delete_invalid_characters']) )
+                        $delete_invalid_characters = trim($rpi['renderPluginOptionsMap']['delete_invalid_characters']);
+
                     // ...and the semi-encoded value for the list of fields
                     $field_list_value = trim($rpi['renderPluginOptionsMap']['field_list']);
 
@@ -339,6 +368,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                         'config' => array_slice($tmp, 1),
                         'separator' => $separator,
                         'period_substitute' => $period_substitute,
+                        'file_extension' => $file_extension,
+                        'append_file_uuid' => $append_file_uuid,
+                        'delete_invalid_characters' => $delete_invalid_characters,
                     );
                 }
             }
@@ -352,6 +384,12 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             return array();
         // If there's no separator, then the plugin isn't configured
         if ( isset($config['separator']) && $config['separator'] === '' )
+            return array();
+        // If the file extension is blank, then it's not configured correctly
+        if ( isset($config['file_extension']) && $config['file_extension'] === '' )
+            return array();
+        // If the file extension ends with a period, then it's not valid
+        if ( substr($config['file_extension'], -1) === '.' )
             return array();
 
         // Otherwise, attempt to return the plugin's config
@@ -530,6 +568,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 //                case 'Multiple Radio':
 //                case 'Multiple Select':
 //                case 'Tags':
+//                case 'XYZ Data':
                 default:
                     /* do nothing */
             }
@@ -683,7 +722,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      * don't actually exist...then the plugin won't be able to work properly.
      *
      * @param DataRecordFields $original_drf
-     * @return string[]|string Returns an array of strings organized by file/image id, or a single string attempting to indicate why the "correct" names can't be determined
+     * @return array|string Returns an array organized by file/image id, or a single string attempting to indicate why the "correct" names can't be determined
      */
     public function getNewFilenames($original_drf)
     {
@@ -700,7 +739,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // Determine the requested configuration info from the plugin's config
         $config_info = self::getCurrentPluginConfig($df);
         // If nothing is configured, then don't attempt to rename any files/images
-        if ( !isset($config_info['prefix']) || !isset($config_info['config']) || !isset($config_info['separator']) )
+        if ( empty($config_info) )
             return array();
 
 
@@ -1023,6 +1062,34 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // ...and then replacing any period characters with the substitute sequence
         $base_filename = str_replace(".", $config_info['period_substitute'], $base_filename);
 
+        // ----------------------------------------
+        // NOTE: this is mostly a duplicate of code in EntityMetaModifyService::updateFileMeta()
+        // ...unlike that location, which is more of a "last resort" to prevent invalid filenames,
+        //  this plugin will skip attempting to save anything it thinks is invalid
+
+        // Need to try to prevent illegal characters in the filenames...
+        $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
+        if ( $config_info['delete_invalid_characters'] === 'yes' ) {
+            // Delete these invalid characters by default
+            $base_filename = preg_replace($regex, '', $base_filename);
+        }
+        else {
+            // If the user doesn't want any invalid characters deleted...
+            if ( preg_match($regex, $base_filename) === 1 )
+                // ...then refuse to continue executing the plugin when the filename has them
+                return array();
+        }
+
+        // ...also try to prevent leading/trailing spaces in the filename...
+        $base_filename = trim($base_filename);
+        // ...and other various illegal names in both linux and windows...
+        $regex = '/^(\.|\.\.|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i';
+        if ( preg_match($regex, $base_filename) === 1 )
+            return array();
+        // ...and filenames starting with a dash are also bad
+        if ( strpos($base_filename, '-') === 0 )
+            return array();
+
 
         // ----------------------------------------
         // Now that we've got part of the filename, we need to update every one of the files/images
@@ -1034,11 +1101,23 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $id = $entity->getId();
             $uuid = $entity->getUniqueId();
 
-            // ...so that the filename for this file/image entity can be determined.  The uuid needs
-            //  to be appended to the filename, in order to ensure that the filenames remain unique
-            $new_filenames[$id] = $base_filename.$separator.$uuid.'.'.$entity->getExt();
+            // ...so that the filename for this file/image entity can be determined
+            $new_filenames[$id] = array('new_filename' => $base_filename);
 
-            // Saving the new names is done by whatever called this function, typically
+            // Append the file/image's uuid if requested
+            if ( $config_info['append_file_uuid'] === 'yes' )
+                $new_filenames[$id]['new_filename'] .= $separator.$uuid;
+
+            // Change the file's extension if requested
+            if ( $config_info['file_extension'] === 'auto' ) {
+                $new_filenames[$id]['new_filename'] .= '.'.$entity->getExt();
+            }
+            else {
+                $new_filenames[$id]['new_filename'] .= '.'.$config_info['file_extension'];
+                $new_filenames[$id]['new_ext'] = $config_info['file_extension'];
+            }
+
+            // Actually saving the new names is done by whatever called this function
         }
 
         return $new_filenames;
@@ -1070,7 +1149,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $typeclass = $datafield->getFieldType()->getTypeClass();
 
             // Only care about a file that get uploaded to a field using this plugin...
-            $is_event_relevant = self::isEventRelevant($datafield);
+            $is_event_relevant = self::isEventRelevant($datafield, true);
             if ( $is_event_relevant ) {
                 // This file was uploaded to the correct field, so it now needs to be processed
                 $this->logger->debug('Want to rename '.$typeclass.' '.$entity->getId().' "'.$entity->getOriginalFileName().'"...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
@@ -1083,12 +1162,13 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
                 // In order to not wait some unknown amount of time for the file/image to finish
                 //  encrypting, it needs to be renamed before the encryption process...
-                $new_filenames = self::getNewFilenames($drf);
-                if ( is_array($new_filenames) ) {
+                $ret = self::getNewFilenames($drf);
+                if ( is_array($ret) ) {
                     // ...and after we find the correct name for the newly uploaded file/image...
-                    if ( !isset($new_filenames[$entity->getId()]) )
+                    if ( !isset($ret[$entity->getId()]) )
                         throw new ODRException('onFilePreEncrypt() unable to find new filename for '.$typeclass.' '.$entity->getId(), 0x08fc0ad3);
-                    $new_filename = $new_filenames[$entity->getId()];
+                    $data = $ret[$entity->getId()];
+                    $new_filename = $data['new_filename'];
 
                     if ( strlen($new_filename) <= 255 ) {
                         $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
@@ -1102,6 +1182,15 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
                         $meta_entry->setOriginalFileName($new_filename);
                         $this->em->persist($meta_entry);
+
+                        // If the plugin is enforcing a particular file extension...
+                        if ( isset($data['new_ext']) ) {
+                            // ...then need to also set a value in the File/Image entity itself
+                            $new_ext = $data['new_ext'];
+
+                            $entity->setExt($new_ext);
+                            $this->em->persist($entity);
+                        }
 
                         // ...and move the file on the server so its location matches the database
                         rename($local_filepath, $entity->getLocalFileName().'/'.$new_filename);
@@ -1117,13 +1206,13 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     }
                 }
                 else {
-                    // ...if getNewFilename() returns null, then there's some unrecoverable problem
+                    // ...if getNewFilenames() returns null, then there's some unrecoverable problem
                     //  that prevents the file/image from being renamed
                     $this->logger->debug('-- (ERROR) unable to rename '.$typeclass.' '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
 
                     // Regardless of the reason why there's a problem, this plugin can't fix it
                     // As such, nothing should be done
-                    throw new \Exception($new_filenames);
+                    throw new \Exception($ret);
                 }
             }
         }
@@ -1166,7 +1255,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $user = $event->getUser();
 
             // Only care about a file that get changed in a field using this plugin...
-            $is_event_relevant = self::isEventRelevant($datafield);
+            $is_event_relevant = self::isEventRelevant($datafield, false);
             if ( $is_event_relevant ) {
                 // Load all files/images uploaded to this field
                 $typeclass = $datafield->getFieldType()->getTypeClass();
@@ -1205,9 +1294,11 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 // ----------------------------------------
                 // Like the FilePreEncrypt Event, need to figure out the relevant information to be
                 //  able to rename the files/images...
-                $new_filenames = self::getNewFilenames($drf);
-                if ( is_array($new_filenames) ) {
-                    foreach ($new_filenames as $entity_id => $new_filename) {
+                $ret = self::getNewFilenames($drf);
+                if ( is_array($ret) ) {
+                    foreach ($ret as $entity_id => $data) {
+                        $new_filename = $data['new_filename'];
+
                         if ( strlen($new_filename) <= 255 ) {
                             // ...so for each file/image uploaded to the datafield...
                             /** @var File|Image $entity */
@@ -1220,6 +1311,15 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                                 $this->entity_modify_service->updateFileMeta($user, $entity, $props, true);
                             else
                                 $this->entity_modify_service->updateImageMeta($user, $entity, $props, true);
+
+                            // If the plugin is enforcing a particular file extension...
+                            if ( isset($data['new_ext']) ) {
+                                // ...then need to also set a value in the File/Image entity itself
+                                $new_ext = $data['new_ext'];
+
+                                $entity->setExt($new_ext);
+                                $this->em->persist($entity);
+                            }
                         }
                         else {
                             $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
@@ -1230,13 +1330,13 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     $this->em->flush();
                 }
                 else {
-                    // ...if getNewFilename() returns null, then there's some unrecoverable problem
+                    // ...if getNewFilenames() returns null, then there's some unrecoverable problem
                     //  that prevents the file from being renamed
                     $this->logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
 
                     // Regardless of the reason why there's a problem, this plugin can't fix it
                     // As such, nothing should be done
-                    throw new \Exception($new_filenames);
+                    throw new \Exception($ret);
                 }
             }
         }

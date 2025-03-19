@@ -340,6 +340,32 @@ class SearchKeyService
                         $token = '';
                     }
                     break;
+                case ',':
+                    if ($in_quote) {
+                        // Always want to save this comma if in quotes...
+                        $token .= $char;
+                    }
+                    else {
+                        // Otherwise, it indicates an OR operator...save the existing string
+                        $tokens[] = $token;
+
+                        // Insert an OR token here
+                        $tokens[] = '||';
+
+                        // Reset for next potential token
+                        $prev_token = '||';
+                        $token = '';
+
+                        // Due to the search string having already been modified, a string like
+                        //  "this,     that"  will have already been converted into  "this, that"
+                        $check = $i+1;
+                        if ( $check < $len && $str[$i+1] === ' ' ) {
+                            // Skip over the space if it exists, since that'll create an extranous
+                            //  AND operator
+                            $i++;
+                        }
+                    }
+                    break;
                 case 'o':
                 case 'O':
                     if ($in_quote) {
@@ -349,24 +375,15 @@ class SearchKeyService
                     else {
                         // OR operators are only valid if the parser thought the last token was an
                         //  AND operator and there's a space after the "OR"...
-                        if ( $prev_token === '&&' && ($i+2) < $len ) {
-                            // Determine whether this is an OR operator or not...
-                            $second_char = $str[$i+1];
-                            $third_char = $str[$i+2];
+                        $check = $i + 2;    // need to ensure $str[$i+2] doesn't go out of bounds
+                        if ( $i != 0 && $check < $len && $str[$i-1] == ' ' && ($str[$i+1] == 'R' || $str[$i+1] == 'r') && $str[$i+2] == ' ' ) {
+                            // This is an OR operator...replace the previous token with this one
+                            array_pop($tokens);
+                            $tokens[] = '||';
+                            $prev_token = '||';
 
-                            if ( ($second_char === 'r' || $second_char === 'R') && $third_char === ' ' ) {
-                                // This is an OR operator...replace the previous token with this one
-                                array_pop($tokens);
-                                $tokens[] = '||';
-                                $prev_token = '||';
-
-                                // Skip over the rest of this operator
-                                $i += 2;
-                            }
-                            else {
-                                // ...not an OR operator, treat it as a regular character
-                                $token .= $char;
-                            }
+                            // Skip over the rest of this operator
+                            $i += 2;
                         }
                         else {
                             // ...not an OR operator, treat it as a regular character
@@ -382,24 +399,15 @@ class SearchKeyService
                     else {
                         // OR operators are only valid if the parser thought the last token was an
                         //  AND operator and there's a space after the "||"...
-                        if ( $prev_token === '&&' && ($i+2) < $len ) {
-                            // Determine whether this is an OR operator or not...
-                            $second_char = $str[$i+1];
-                            $third_char = $str[$i+2];
+                        $check = $i + 2;    // need to ensure $str[$i+2] doesn't go out of bounds
+                        if ( $i != 0 && $check < $len && $str[$i-1] == ' ' && $str[$i+1] == '|' && $str[$i+2] == ' ' ) {
+                            // This is an OR operator...replace the previous token with this one
+                            array_pop($tokens);
+                            $tokens[] = '||';
+                            $prev_token = '||';
 
-                            if ( $second_char === '|' && $third_char === ' ' ) {
-                                // This is an OR operator...replace the previous token with this one
-                                array_pop($tokens);
-                                $tokens[] = '||';
-                                $prev_token = '||';
-
-                                // Skip over the rest of this operator
-                                $i += 2;
-                            }
-                            else {
-                                // ...not an OR operator, treat it as a regular character
-                                $token .= $char;
-                            }
+                            // Skip over the rest of this operator
+                            $i += 2;
                         }
                         else {
                             // ...not an OR operator, treat it as a regular character
@@ -785,7 +793,8 @@ class SearchKeyService
                     throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
-                    // $key is for a DatetimeValue or a File/Image's public status/quality
+                    // $key is for a DatetimeValue, a File/Image's public status/quality, or a
+                    //  simple XYZData search
                     //  ...ensure the datafield is valid to search on
                     $df_id = intval($pieces[0]);
 
@@ -822,6 +831,18 @@ class SearchKeyService
                     }
                     else if ( $pieces[1] === 'pub' || $pieces[1] === 'qual' ) {
                         // This is for a File/Image...nothing to validate here
+                    }
+                    else if ( $pieces[1] === 'x' || $pieces[1] === 'y' || $pieces[1] === 'z' ) {
+                        // This is for an XYZData field...ensure the user hasn't specified more
+                        //  dimensions than the field allows
+                        $df = $datatype_array[$dt_id]['dataFields'][$df_id];
+                        $xyz_column_names = explode(',', $df['dataFieldMeta']['xyz_data_column_names']);
+
+                        if ( ($pieces[1] === 'y' && count($xyz_column_names) < 2)
+                            || ($pieces[1] === 'z' && count($xyz_column_names) < 3)
+                        ) {
+                            throw new ODRBadRequestException('Invalid search key: column num mismatch for datafield '.$df_id, $exception_code);
+                        }
                     }
                     else {
                         throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
@@ -1274,6 +1295,28 @@ class SearchKeyService
 
                             $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;
                         }
+                    }
+                    else if ( $pieces[1] === 'x' || $pieces[1] === 'y' || $pieces[1] === 'z' ) {
+                        // This is a simple XYZData search...which is ironically more complicated
+                        //  here, because the other type of XYZData search has already compressed
+                        //  its entire set of parameters into a single string for a single field
+                        if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                                'entity_type' => 'datafield',
+                                'entity_id' => $df_id,
+                                'datatype_id' => $dt_id,
+                            );
+                        }
+
+                        // ...I'm not going to risk screwing up compressing the criteria into a
+                        //  format that the other search understands, so searching this XYZData
+                        //  field gets its own search logic
+                        if ( $pieces[1] === 'x' )
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['x'] = $value;
+                        else if ( $pieces[1] === 'y' )
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['y'] = $value;
+                        else if ( $pieces[1] === 'z' )
+                            $criteria[$dt_id][0]['search_terms'][$df_id]['z'] = $value;
                     }
                 }
                 else {

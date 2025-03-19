@@ -850,6 +850,18 @@
             $("#datafield_" + df_id + "_select").empty();
         });
 
+        {# TODO - The simple version of the XYZData interface also needs to complain if a negation is used #}
+        $(context).find(".ODRInput.ODRXYZData_spacer").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            if ( $(this).val().indexOf('!') !== -1 ) {
+                $(this).addClass('ODRInputError');
+                $(this).next().removeClass('ODRHidden');
+            }
+            else {
+                $(this).removeClass('ODRInputError');
+                $(this).next().addClass('ODRHidden');
+            }
+        });
+
         // Slide out the help menu
         $(context).find(".ODRSearchHelp").unbind('click').click(function () {
             var search_help_div = $(context).find("#ODRSearchHelp_div");

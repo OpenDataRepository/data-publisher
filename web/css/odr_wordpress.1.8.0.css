@@ -4570,6 +4570,9 @@ i {
     padding-right: 6px;
 }
 
+.ODRXYZData_spacer {
+    margin-left: 15px !important;
+}
 .ODRXYZData_label, .ODRXYZData {
     display: inline-block !important;
 }
@@ -5308,6 +5311,9 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRFilterGraphPlugin_fields {
     background: white;
 }
+.ODRFilterGraphPlugin_select {
+    height: 8.75em;
+}
 .ODRFilterGraphPlugin_select_all {
     display: inline-block;
     box-sizing: border-box;
@@ -5431,11 +5437,11 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     margin-top: 5px;
     margin-bottom: 5px;
 }
-.ODRRecordLinkInfoDiv {
-    padding-left: 5px;
+.ODRRecordLinkInfo_toggle,.ODRRecordLinkInfo_modify {
+    padding: 0 3px;
 }
-.ODRRecordLinkInfoList {
-    padding-left: 10px;
+.ODRRecordLinkInfo_list {
+    margin-left: 5px;
 }
 
 .ODRSidebarLayout_dragTarget {
