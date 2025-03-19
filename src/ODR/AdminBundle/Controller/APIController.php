@@ -789,7 +789,8 @@ class APIController extends ODRCustomController
             }
 
             if ($recent) {
-                $str .= ' AND dr.updated >= :updated_date';
+                $str .= ' AND (dr.updated >= :updated_date';
+                $str .= ' OR dr.created >= :updated_date)';
 
                 $updated_date = new \DateTime();
                 // return new JsonResponse(['done' => $updated_date]);

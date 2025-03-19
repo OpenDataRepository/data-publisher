@@ -17,7 +17,7 @@
     {# The user's currently selected layout goes at the top of the list... #}
     {% for sidebar_layout in available_layouts %}
         {% if sidebar_layout.id == selected_layout_id %}
-            {% include 'ODROpenRepositorySearchBundle:Default:choose_layout_details.html.twig' with {
+            {% include 'ODROpenRepositorySearchBundle:Default:choose_sidebar_layout_details.html.twig' with {
                 'sidebar_layout': sidebar_layout,
                 'user': user,
                 'selected_layout_id': selected_layout_id,
@@ -38,7 +38,7 @@
 
     {% for sidebar_layout in available_layouts %}
         {% if sidebar_layout.id != selected_layout_id %}
-            {% include 'ODROpenRepositorySearchBundle:Default:choose_layout_details.html.twig' with {
+            {% include 'ODROpenRepositorySearchBundle:Default:choose_sidebar_layout_details.html.twig' with {
                 'sidebar_layout': sidebar_layout,
                 'user': user,
                 'selected_layout_id': selected_layout_id,

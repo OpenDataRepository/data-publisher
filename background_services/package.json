@@ -4,6 +4,9 @@
   "description": "Creates pre-rendered graphs for pages.",
   "main": "graph_renderer.js",
   "dependencies": {
+    "memcached": "^2.2.2",
+    "memcached-promise": "^1.0.1",
+    "node-fetch": "^3.3.2",
     "nodestalker": "^0.1.22",
     "puppeteer": "^20.1.0"
   },
