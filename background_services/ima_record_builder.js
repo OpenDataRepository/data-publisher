@@ -257,8 +257,8 @@ async function app() {
                     await appendFile(record.base_path + record.mineral_data + '.' + record.file_extension, content);
 
 
-                    content = '$mineral_names[] = "' + await findValue(record.cell_params_map.mineral_name, record_data) + '";\n';
-                    content += '$mineral_names_lowercase[] = "' + (await findValue(record.cell_params_map.mineral_name, record_data)).toLowerCase() + '";\n';
+                    content = '$mineral_names[] = "' + sanitizeMineralName(await findValue(record.cell_params_map.mineral_name, record_data)) + '";\n';
+                    content += '$mineral_names_lowercase[] = "' + sanitizeMineralName((await findValue(record.cell_params_map.mineral_name, record_data)).toLowerCase()) + '";\n';
                     // Create mineral list for quick redirect
                     await appendFile(record.base_path + record.mineral_data + '_include.' + record.file_extension, content);
 
@@ -325,6 +325,16 @@ async function app() {
 
         resJob();
     });
+}
+
+function sanitizeMineralName(mineral_name) {
+    mineral_name = mineral_name.replace('<sup>','');
+    mineral_name = mineral_name.replace('<\\sup>','');
+    mineral_name = mineral_name.replace('<sub>','');
+    mineral_name = mineral_name.replace('<\\sub>','');
+    mineral_name = mineral_name.replace('<i>','');
+    mineral_name = mineral_name.replace('<\\i>','');
+    return mineral_name
 }
 
 async function writeFile(file_name, content) {
