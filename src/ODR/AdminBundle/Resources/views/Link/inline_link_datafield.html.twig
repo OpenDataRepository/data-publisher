@@ -177,6 +177,7 @@
                     class="pure-u-1 ODRLinkLookupInput"
                     name="{{ input_name }}"
                     data-error-type="inline"
+                    placeholder="Type to search"
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                 >{{ valuefield_value }}</textarea>
             </div>
@@ -195,6 +196,7 @@
                     class="pure-u-1 ODRLinkLookupInput"
                     name="{{ input_name }}"
                     value="{{ valuefield_value }}"
+                    placeholder="Type to search"
                     data-error-type="inline"
                 />
 

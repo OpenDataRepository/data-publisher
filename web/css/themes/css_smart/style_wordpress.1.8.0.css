@@ -13,6 +13,21 @@ child header/h1: rgba(58, 161, 107, 0.90)
 file_header: #7fb9d8;
  */
 
+/* Fix for Astra Edits */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
+input[type="password"],
+input[type="search"],
+input[type=reset],
+input[type=tel],
+input[type=date],
+select,
+textarea {
+    width: auto;
+}
+
 
 @font-face {
     font-family: "Lato-Bol";
