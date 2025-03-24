@@ -2293,7 +2293,10 @@ class EntityMetaModifyService
         }
 
         // Don't need to check isset() at this point
-        $new_entity->setValue( mb_scrub($properties['value']) );
+        if ( $typeclass === 'DatetimeValue' )
+            $new_entity->setValue( $properties['value'] );
+        else
+            $new_entity->setValue( mb_scrub($properties['value']) );
 
         // NOTE: intentionally does NOT handle the 'convertedValue' property
 
