@@ -393,12 +393,12 @@ async function app() {
                                         if(author_array[i].trim().match(/^and\s/)) {
                                             author_array[i] = author_array[i].trim().replace(/^and\s/,'');
                                         }
-                                        author_array[i] = author_array[i].replace(/\\\\/, '\');
+                                        author_array[i] = author_array[i].replace(/\\\\/, '\\');
                                         authors += 'array_push($author_names, \'' + author_array[i].trim() + '\');\n';
                                     }
                                 }
                                 else {
-                                    author_array[i] = record_authors.replace(/\\\\/, '\');
+                                    author_array[i] = record_authors.replace(/\\\\/, '\\');
                                     authors += 'array_push($author_names, \'' + record_authors.trim() + '\');\n';
                                 }
                             }
