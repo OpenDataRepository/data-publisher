@@ -384,9 +384,10 @@ async function app() {
 
                             // Get the authors and append to authors file
                             let record_authors = await findValue(amcsd_map.amcsd_authors, record_data);
+                            let author_array = [];
                             if(record_authors.length > 0) {
                                 if(record_authors.match(/,/)) {
-                                    let author_array = record_authors.split(/,/);
+                                    author_array = record_authors.split(/,/);
                                     for(let i= 0; i < author_array.length; i++) {
                                         // In theory the "and " construct should only be present when'
                                         // multiple authors are found
