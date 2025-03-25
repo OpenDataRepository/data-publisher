@@ -399,7 +399,7 @@ async function app() {
                                     }
                                 }
                                 else {
-                                    author_array[i] = record_authors.replace(/\\\\/, '\\');
+                                    author_array.push(record_authors.replace(/\\\\/, '\\'));
                                     authors += 'array_push($author_names, \'' + record_authors.trim() + '\');\n';
                                 }
                             }
