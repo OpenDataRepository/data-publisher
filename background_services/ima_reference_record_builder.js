@@ -131,6 +131,7 @@ async function app() {
                     // pages: '98d09e2bcc2de65a4025a1eed271'
                     // reference_id: '72a950a4705a83547020834a1ce8'
 
+
                     let reference_id = await findValue(record.reference_record_map.reference_id, record_data);
                     let reference_record = {
                         'reference_id': await findValue(record.reference_record_map.reference_id, record_data),
@@ -143,12 +144,6 @@ async function app() {
                         'record_uuid': record_data.record_uuid,
                         'internal_id': record_data.internal_id
                     };
-
-                    /*
-                    Buffer.from(
-                        await findValue(record.ima_record_map.status_notes , record_data)
-                    ).toString('base64') + '||' +
-                     */
 
                     let content = 'references[' + reference_id + '] = ' + JSON.stringify(reference_record) + ';';
                     // console.log(content)
