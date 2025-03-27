@@ -384,21 +384,22 @@ async function app() {
 
                             // Get the authors and append to authors file
                             let record_authors = await findValue(amcsd_map.amcsd_authors, record_data);
+                            let author_array = [];
                             if(record_authors.length > 0) {
                                 if(record_authors.match(/,/)) {
-                                    let author_array = record_authors.split(/,/);
+                                    author_array = record_authors.split(/,/);
                                     for(let i= 0; i < author_array.length; i++) {
                                         // In theory the "and " construct should only be present when'
                                         // multiple authors are found
                                         if(author_array[i].trim().match(/^and\s/)) {
                                             author_array[i] = author_array[i].trim().replace(/^and\s/,'');
                                         }
-                                        author_array[i] = author_array[i].replace(/\\\\/, '\');
+                                        author_array[i] = author_array[i].replace(/\\\\/, '\\');
                                         authors += 'array_push($author_names, \'' + author_array[i].trim() + '\');\n';
                                     }
                                 }
                                 else {
-                                    author_array[i] = record_authors.replace(/\\\\/, '\');
+                                    author_array.push(record_authors.replace(/\\\\/, '\\'));
                                     authors += 'array_push($author_names, \'' + record_authors.trim() + '\');\n';
                                 }
                             }

@@ -13,22 +13,6 @@ child header/h1: rgba(58, 161, 107, 0.90)
 file_header: #7fb9d8;
  */
 
-/* Fix for Astra Edits */
-input[type="text"],
-input[type="number"],
-input[type="email"],
-input[type="url"],
-input[type="password"],
-input[type="search"],
-input[type=reset],
-input[type=tel],
-input[type=date],
-select,
-textarea {
-    width: auto;
-}
-
-
 @font-face {
     font-family: "Lato-Bol";
     src: url("fonts/Lato-Bol.ttf") format("truetype");
@@ -464,7 +448,7 @@ h3.ui-accordion-header a {
 .pure-skin-odr .pure-form .ODRRecord input[type="tel"],
 .pure-skin-odr .pure-form .ODRRecord input[type="color"],
 .pure-skin-odr .pure-form .ODRRecord textarea {
-    padding: 2px 2px 4px 4px;
+    padding: 4px 4px 4px 4px;
     display: inline-block;
     font-size: 0.8em;
     box-shadow: none;
@@ -1398,24 +1382,6 @@ h3.ODRFieldSelected .ODRSortHandle {
 }
 
 /* Set Placeholder to Right Side webkit solution */
-/*
-::-webkit-input-placeholder { text-align:right; }
-input:-moz-placeholder { text-align:right; }
-input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
-
-.ODRFieldWrapper input[type="text"] {
-    position: relative;
-}
-
-.ODRFieldWrapper:after {
-    float: left;
-    font-family: 'FontAwesome';
-    color:red;
-    position: relative;
-    left: -30px;
-    content: "\f007";
-}
-*/
 .ODRFieldWrapper {
     position: relative;
 }
@@ -1748,4 +1714,70 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     box-sizing: border-box;
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
+}
+
+
+#odr_page_input {
+    width: 50px !important;
+}
+
+.dataTables_filter input {
+    width: 200px !important;
+}
+
+#TextResults_length select,
+.paginate_input {
+    width: 50px !important;
+    top: -2px;
+    position: relative;
+}
+
+#TextResults_length {
+    margin-top: -5px;
+}
+#TextResults_info {
+    margin-top: -8px;
+}
+
+input.ODRRadioOptionName,
+input.ODRTagLabel {
+    width: 75%;
+}
+
+input.ODRDatePicker {
+    width: 150px;
+}
+
+#ODRUserProfileForm_1 input,
+#ODRUserProfileForm input {
+    width: 160px;
+}
+
+#ODRLinkDatatypeFormWrapper #selected_datatype,
+#ODRChooseLayout_PageType,
+#ODRChooseView_PageType {
+    width: 240px;
+}
+
+select.ODRRenderPluginOptionsMap {
+    width: auto !important;
+    height: 32px !important;
+    min-height: 24px !important;
+    padding: 2px 2px 2px 2px !important;
+    margin-top: 4px;
+    margin-left: 16px;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+}
+
+.ODRRenderPluginOptionsMap {
+    width: auto !important;
+    height: 24px !important;
+    padding: 2px 2px 2px 6px !important;
+}
+
+#delimiter_select,
+#target_datatype {
+    width: 200px;
 }
