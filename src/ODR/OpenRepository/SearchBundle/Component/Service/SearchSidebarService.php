@@ -167,6 +167,7 @@ class SearchSidebarService
         // ...then filter the array to just what the user can see
         $datarecord_array = array();
         $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
+        $datatype_permissions = $this->permissions_service->getDatatypePermissions($user);
         $this->permissions_service->filterByGroupPermissions($sidebar_datatype_array, $datarecord_array, $user_permissions);
 
         $sidebar_array = array();
