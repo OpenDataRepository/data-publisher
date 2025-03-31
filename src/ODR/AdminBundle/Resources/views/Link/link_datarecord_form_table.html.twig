@@ -44,7 +44,7 @@
             "searching": false,
             "autoWidth": false,
 
-            "pageLength": 10,
+            "pageLength": {{ page_length }},
             {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",
 
@@ -105,6 +105,42 @@
                 ODRLinkDatarecords_loadCurrentLinks(theme_id);
             }
             openChooseViewRemodal({{ remote_datatype.id }}, 'linking');
+        });
+
+        {# NOTE - lack of unbind() is intentional...don't want to lose what datatables.js has attached to this element #}
+        $("#TextResults_current_wrapper").find('select[name="TextResults_current_length"]').change(function() {
+            var new_page_length = $(this).val();
+
+            var url = '{{ path('odr_session_searchlink_pagelength', {'remote_datatype_id': 0, 'length': 10} ) }}';
+            url = url.substring(0,(url.length-4));
+            url += '{{ remote_datatype.id }}/' + new_page_length;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    // Don't need to do anything here...datatables will do its thing, and ODR will
+                    //  store the selected page length for next time
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
         });
 
         // Delete any existing inputs to be safe...

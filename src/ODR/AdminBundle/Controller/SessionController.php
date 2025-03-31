@@ -106,6 +106,48 @@ class SessionController extends ODRCustomController
 
 
     /**
+     * Changes the number of records displayed in the "current linked records" tables on the SearchLink
+     * page.
+     *
+     * @param integer $remote_datatype_id
+     * @param integer $length
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function searchlinkpagelengthAction($remote_datatype_id, $length, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $cookie_key = '';
+        $cookie_value = '';
+
+        try {
+            // Need to store this in a cookie...
+            $cookie_key = 'datatype_'.$remote_datatype_id.'_searchlink_page_length';
+            $cookie_value = $length;
+
+            // The value is stored back in the cookie after the response is created below
+        }
+        catch (\Exception $e) {
+            $source = 0xfd4b1a29;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+        return $response;
+    }
+
+
+    /**
      * Typically, if a user has the permission to edit datarecords for a datatype, then they're
      * permitted to edit all datarecords they can view.  However, when a user has a datarecord
      * restriction, then usually there's a difference between the list of datarecords the user can

@@ -1676,6 +1676,13 @@ odr_session_pagelength:
     requirements:
         length: 10|25|50|100
 
+odr_session_searchlink_pagelength:
+    path:  /session/searchlinkpagelength/{remote_datatype_id}/{length}
+    defaults: { _controller: ODRAdminBundle:Session:searchlinkpagelength }
+    requirements:
+        remote_datatype_id: \d+
+        length: 10|25|50|100
+
 odr_session_toggle_show_editable:
     path:  /session/toggle/show_editable
     defaults: { _controller: ODRAdminBundle:Session:toggleshoweditable }
