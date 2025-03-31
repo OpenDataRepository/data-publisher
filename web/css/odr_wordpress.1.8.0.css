@@ -2274,6 +2274,10 @@ h1:after {
     z-index: 500;
 }
 
+.ODRToggleLinkedEdit {
+    /*background: green;*/
+}
+
 /*
 .ODRAccordionSecondary .DataTypeTools {
     position: relative;

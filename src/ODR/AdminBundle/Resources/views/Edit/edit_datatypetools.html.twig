@@ -1,5 +1,14 @@
 {% spaceless %}
 
+{% set ALWAYS_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::ALWAYS_EDIT') %}
+{% set LINK_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::LINK_EDIT') %}
+{% set TOGGLE_EDIT_INACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_INACTIVE') %}
+{% set TOGGLE_EDIT_ACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_ACTIVE') %}
+
+{% if edit_behavior is not defined %}
+    {% set edit_behavior = ALWAYS_EDIT %}
+{% endif %}
+
 {% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
 {% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
 
@@ -31,6 +40,7 @@
     <span rel="{{ datatype.id }}">
 
         {% if is_top_level == 0 %}
+            {# Public status isn't important enough to hide behind the edit_behavior flags #}
             {% set class_str = "tooltip fa fa-globe" %}
             {% if datarecord.dataRecordMeta.publicDate|is_public %}
                 {% set class_str = class_str ~ " ODRActiveIcon" %}
@@ -44,27 +54,33 @@
                 {% endif %}
             {% endif %}
 
-            <i
-                id="datarecord_{{ datarecord.id }}_public"
-                class="{{ class_str }}"
-                title="This {% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord_meta.publicDate|is_public %}not {% endif %}Public"
-                rel="{{ datarecord.id }}"
+            <i id="datarecord_{{ datarecord.id }}_public"
+               class="{{ class_str }}"
+               title="This {% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord_meta.publicDate|is_public %}not {% endif %}Public"
+               rel="{{ datarecord.id }}"
+            ></i>
+        {% endif %}
+
+        {% if is_link == 1 and edit_behavior == LINK_EDIT %}
+            <i class="fa fa-edit tooltip Pointer ODREditOpen"
+               title="Click to edit this Linked Record"
+               rel="{{ datarecord.id }}"
             ></i>
         {% endif %}
 
         {% if is_link == 1 and can_edit_parent_record %}
-            <i
-                class="fa fa-unlink Pointer tooltip ODRUnlinkRecord"
-                title="Click to unlink this Linked Record"
-                rel="{{ datarecord.id }}"
+            {# Unlinking should also always be available #}
+            <i class="fa fa-unlink Pointer tooltip ODRUnlinkRecord"
+               title="Click to unlink this Linked Record"
+               rel="{{ datarecord.id }}"
             ></i>
         {% endif %}
 
-        {% if can_edit_parent_record and can_delete_record %}
-            <i
-                class="Pointer tooltip fa fa-times {% if is_link == 1 %}ODRDeleteLinkedRecord{% else %}ODRDeleteChildRecord{% endif %}"
-                title="Click to delete this {% if is_link == 1 %}Linked{% else %}Child{% endif %} Record"
-                rel="{{ datarecord.id }}"
+        {% if can_edit_parent_record and can_delete_record and (edit_behavior == ALWAYS_EDIT or edit_behavior == TOGGLE_EDIT_ACTIVE) %}
+            {# Deletion should be hidden behind edit_behavior #}
+            <i class="Pointer tooltip fa fa-times {% if is_link == 1 %}ODRDeleteLinkedRecord{% else %}ODRDeleteChildRecord{% endif %}"
+               title="Click to delete this {% if is_link == 1 %}Linked{% else %}Child{% endif %} Record"
+               rel="{{ datarecord.id }}"
             ></i>
         {% endif %}
     </span>

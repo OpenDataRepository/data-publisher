@@ -19,6 +19,7 @@
     'context': 'edit',
     'is_datatype_admin': is_datatype_admin,
     'edit_shows_all_fields': edit_shows_all_fields,
+    'edit_behavior': edit_behavior,
 } %}
 
 {# Ignore array render plugins here...their modifications are pretty much guaranteed to screw up Edit mode #}
@@ -63,6 +64,7 @@
             'is_link': is_link,
             'display_type': display_type,
             'multiple_allowed': multiple_allowed,
+            'edit_behavior': edit_behavior,
         } %}
 
         {% set is_first_record = true %}
@@ -83,6 +85,7 @@
                 'is_link': is_link,
                 'display_type': display_type,
                 'multiple_allowed': multiple_allowed,
+                'edit_behavior': edit_behavior,
 
                 'is_first_record': is_first_record,
             } %}
@@ -107,6 +110,7 @@
                     'is_link': is_link,
                     'display_type': display_type,
                     'multiple_allowed': multiple_allowed,
+                    'edit_behavior': edit_behavior,
 
                     'token_list': token_list,
                 } %}

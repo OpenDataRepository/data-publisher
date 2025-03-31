@@ -663,12 +663,13 @@ odr_record_edit:
         offset: \d+
 
 odr_record_reload_child:
-    path: /edit/childreload/{theme_element_id}/{parent_datarecord_id}/{top_level_datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Edit:reloadchild }
+    path: /edit/childreload/{theme_element_id}/{parent_datarecord_id}/{top_level_datarecord_id}/{edit_behavior_override}
+    defaults: { _controller: ODRAdminBundle:Edit:reloadchild, edit_behavior_override: 0 }
     requirements:
         theme_element_id: \d+
         parent_datarecord_id: \d+
         top_level_datarecord_id: \d+
+        edit_behavior_override: \d+
 odr_record_reload_datafield:
     path: /edit/datafieldreload/{source_datarecord_id}/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:reloaddatafield }

@@ -1373,8 +1373,8 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
-     * Loads/saves a DataType properties Form, and also loads the related Datatree and ThemeDataType
-     * properties forms as well when $datatype_id is a child of, or linked to by, $parent_datatype_id
+     * Loads/saves a DataType properties Form...if $datatype_id is a child/linked descendant of
+     * $parent_datatype_id, then it also loads the related Datatree and ThemeDataType properties forms
      *
      * @param integer $datatype_id The database id of the Datatype that is being modified
      * @param mixed $parent_datatype_id Either the id of the Datatype of the parent of $datatype_id, or the empty string
@@ -1773,7 +1773,10 @@ class DisplaytemplateController extends ODRCustomController
                     // Create the form itself
                     $datatree_form = $this->createForm(
                         UpdateDataTreeForm::class,
-                        $datatree_meta
+                        $datatree_meta,
+                        array(
+                            'is_link' => $is_link,
+                        )
                     )->createView();
 
                     $results = array();
@@ -2053,7 +2056,13 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Populate new Datatree form
             $submitted_data = new DataTreeMeta();
-            $datatree_form = $this->createForm(UpdateDataTreeForm::class, $submitted_data);
+            $datatree_form = $this->createForm(
+                UpdateDataTreeForm::class,
+                $submitted_data,
+                array(
+                    'is_link' => $datatree->getIsLink(),
+                )
+            );
 
             $datatree_form->handleRequest($request);
             if ( $datatree_form->isSubmitted() ) {
@@ -2067,6 +2076,7 @@ class DisplaytemplateController extends ODRCustomController
                     $properties = array(
                         'multiple_allowed' => $submitted_data->getMultipleAllowed(),
 //                        'is_link' => $submitted_data->getIsLink(),    // Not allowed to change this value through this controller action
+                        'edit_behavior' => $submitted_data->getEditBehavior(),
                     );
                     $entity_modify_service->updateDatatreeMeta($user, $datatree, $properties);
 

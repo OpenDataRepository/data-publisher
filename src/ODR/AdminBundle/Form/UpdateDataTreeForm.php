@@ -14,8 +14,11 @@
 
 namespace ODR\AdminBundle\Form;
 
+// Entities
+use ODR\AdminBundle\Entity\DataTreeMeta;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
@@ -30,6 +33,14 @@ class UpdateDataTreeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $is_link = $options['is_link'];
+
+        $choices = array(
+            'Edit directly' => DataTreeMeta::ALWAYS_EDIT,
+            'Edit opens in new tab' => DataTreeMeta::LINK_EDIT,
+            'Toggle Edit Lock' => DataTreeMeta::TOGGLE_EDIT_INACTIVE,
+        );
+
         $builder->add(
             'multiple_allowed',
             CheckboxType::class,
@@ -38,6 +49,21 @@ class UpdateDataTreeForm extends AbstractType
                 'label'  => 'Multiple Allowed',
             )
         );
+
+        if ( $is_link ) {
+            $builder->add(
+                'edit_behavior',
+                ChoiceType::class,
+                array(
+                    'choices' => $choices,
+                    'choices_as_values' => true,
+                    'label'  => 'Edit Behavior',
+                    'expanded' => false,
+                    'multiple' => false,
+                    'placeholder' => false
+                )
+            );
+        }
     }
 
 
@@ -71,5 +97,8 @@ class UpdateDataTreeForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTreeMeta'));
+
+        // Required options should not have defaults set
+        $resolver->setRequired('is_link');
     }
 }

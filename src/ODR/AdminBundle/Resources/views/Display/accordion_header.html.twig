@@ -12,7 +12,7 @@
         <a>{{ datatype.dataTypeMeta.shortName }}</a>
     {% endif %}
 
-        <span class="DatatypeTools">
+        <span id="DataTypeTools_{{ datarecord.id }}" class="DatatypeTools">
         {% if is_link == 1 %}
             <span title="This is a linked Datatype">
                 <i class="fa fa-link Cursor"></i>

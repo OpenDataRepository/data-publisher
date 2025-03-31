@@ -34,8 +34,28 @@
                 <i class="fa fa-lg fa-exclamation-circle"></i>&nbsp;
             </span>
             {% endif %}
-
         </div>
+
+        {% if datatree.dataTreeMeta.getislink == 1 %}
+        <div class="pure-control-group">
+            <label for="{{ datatree_form.edit_behavior.vars.id }}">
+                {{ datatree_form.edit_behavior.vars.label }}
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatree_form.edit_behavior) }}
+                <span class="ODRSelectWrap">
+                {{ form_widget(datatree_form.edit_behavior,
+                    {
+                        'attr': {
+                        'class': 'pure-u-1 ODRSelect',
+                        'data-error-type': 'inline'
+                    }
+                    })
+                }}
+                </span>
+            </div>
+        </div>
+        {% endif %}
 
         <div style="display: none">
             {{ form_rest(datatree_form) }}

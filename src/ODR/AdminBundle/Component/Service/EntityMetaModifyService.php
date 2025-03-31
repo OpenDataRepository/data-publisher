@@ -744,6 +744,7 @@ class EntityMetaModifyService
         $existing_values = array(
             'multiple_allowed' => $old_meta_entry->getMultipleAllowed(),
             'is_link' => $old_meta_entry->getIsLink(),
+            'edit_behavior' => $old_meta_entry->getEditBehavior(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -780,6 +781,8 @@ class EntityMetaModifyService
             $new_datatree_meta->setMultipleAllowed( $properties['multiple_allowed'] );
         if ( isset($properties['is_link']) )
             $new_datatree_meta->setIsLink( $properties['is_link'] );
+        if ( isset($properties['edit_behavior']) )
+            $new_datatree_meta->setEditBehavior( $properties['edit_behavior'] );
 
         $new_datatree_meta->setUpdated($created);
         $new_datatree_meta->setUpdatedBy($user);
@@ -802,9 +805,9 @@ class EntityMetaModifyService
         }
 
 
-        // Changing the "multiple_allowed" property of a child/linked datatype in a template need to
+        // Changing the "multiple_allowed" property of a child/linked datatype in a template needs to
         //  also update the "master_revision" property of the ancestor datatype
-        if ( $datatree->getAncestor()->getIsMasterType() )
+        if ( isset($properties['multiple_allowed']) && $datatree->getAncestor()->getIsMasterType() )
             self::incrementDatatypeMasterRevision($user, $datatree->getAncestor(), $delay_flush);
 
         // Return the new entry
