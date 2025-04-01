@@ -1290,32 +1290,36 @@ class DefaultController extends Controller
             // TODO - convert $output into a string here so .autocomplete( "instance" )._renderItem
             // TODO -  in edit_ajax.html.twig doesn't have to?
             $final_output = array();
+            foreach ($output as $dr_id => $data) {
+                $final_output[$dr_id] = array(
+                    'record_id' => $dr_id,
+                    'fields' => array()
+                );
 
-            if ( empty($output) ) {
-                if ( $can_add_datarecord )
-                    $dr_id = -1;
-                else
-                    $dr_id = -2;
+                foreach ($data as $df_id => $value) {
+                    $final_output[$dr_id]['fields'][] = array(
+                        'field_id' => $df_id,
+                        'field_value' => $value,
+                    );
+                }
+            }
 
+            if ( $can_add_datarecord ) {
+                // Always want the ability to make a new datarecord even if other records were found
+                $dr_id = -1;
                 $final_output[$dr_id] = array(
                     'record_id' => $dr_id,
                     'fields' => array(),
                 );
             }
-            else {
-                foreach ($output as $dr_id => $data) {
-                    $final_output[$dr_id] = array(
-                        'record_id' => $dr_id,
-                        'fields' => array()
-                    );
-
-                    foreach ($data as $df_id => $value) {
-                        $final_output[$dr_id]['fields'][] = array(
-                            'field_id' => $df_id,
-                            'field_value' => $value,
-                        );
-                    }
-                }
+            else if ( empty($output) ) {
+                // If the user can't make new records, then they need a message when their search
+                //  didn't match anything
+                $dr_id = -2;
+                $final_output[$dr_id] = array(
+                    'record_id' => $dr_id,
+                    'fields' => array(),
+                );
             }
 
             $return['d'] = $final_output;

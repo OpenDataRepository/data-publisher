@@ -727,7 +727,7 @@ function initPage() {
     $(".ODRInlineLinkRecord.ODRFieldArea").each(function() {
         // Going to attach an jQuery UI autocomplete handler to every text/number datafield in this
         //  fieldarea belonging to an "InlineLink" record...
-        $(this).find('.ODRLinkLookupInput').effect("highlight", {}, 3000).each(function() {
+        $(this).find('.ODRLinkLookupInput'){#.effect("highlight", {}, 3000)#}.each(function() {
             if ( !$(this).hasClass('.ui-autocomplete-input') ) {
                 // Create search parameters
                 var input_elem = $(this);
@@ -861,7 +861,7 @@ function initPage() {
                         html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
 
                         if ( item.record_id == -1 )    // user allowed to add record
-                            $(html).append('<span>No Results Found - Click here to create a new record.</span>');
+                            $(html).append('<span>Click here to create a new record.</span>');
                         else    // user not allowed to add record
                             $(html).append('<span>No Results Found.</span>');
                     }
