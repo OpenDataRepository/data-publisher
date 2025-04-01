@@ -18,8 +18,6 @@
     </div>
 </div>
 
-<input type="hidden" id="datatype_id" value="{{ datatype.id }}" />
-
 <div id="ThemeDesignWrapper">
     <div id="ThemeLeftColumn" class="ODRContentWrapper">
         <div class="ODRThemeElement">
@@ -145,13 +143,10 @@
             // Clear the currently selected group indicator
             $(".ODREditGroup").removeClass('ODRActiveIcon');
 
-            // Grab the datatype id
-            var datatype_id = $("#datatype_id").val();
-
             // Load user list for entire datatype
             var url = '{{ path('odr_datatype_group_membership', { 'datatype_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
-            url += datatype_id;
+            url += '{{ datatype.id }}';
 
             // alert(url);  return;
 
@@ -190,13 +185,9 @@
             $("#ODRGroupUserList").html('');
             $("#ThemeDesignForm").html('');
 
-            // Grab the datatype id
-            var datatype_id = $("#datatype_id").val();
-
-            // Load form for current datfield if not already loaded
             var url = '{{ path('odr_add_group', { 'datatype_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
-            url += datatype_id;
+            url += '{{ datatype.id }}';
 
             // alert(url);  return;
 
@@ -207,7 +198,7 @@
                 dataType: "json",
                 success: function(data) {
                     // Reload the group list html
-                    LoadGroupList(datatype_id);
+                    LoadGroupList({{ datatype.id }});
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
@@ -239,14 +230,12 @@
             var group_id_data = $(this).attr('id').split(/_/);
             var group_id = group_id_data[2];
 
-            var datatype_id = $(this).attr('rel');
-
             $(this).unbind('click').click(function() {
                 if ( $(this).hasClass('pure-button-disabled') ) {
                     return;
                 }
                 else if( confirm("Are you certain you want to delete this Group?")) {
-                    DeleteGroup(datatype_id, group_id);
+                    DeleteGroup({{ datatype.id }}, group_id);
                 }
             });
         });
@@ -409,7 +398,7 @@
             var group_id_data = $("#ThemeDesignForm").find(".ODRGroupPropertiesForm").attr('id').split(/_/);
             var group_id = group_id_data[1];
 
-            var datatype_id = $("#GroupPropertiesForm_" + group_id).attr('rel');
+            var datatype_id = {{ datatype.id }};
 
             // Save changes
             if( $(this).is(":checkbox") ) {
