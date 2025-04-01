@@ -353,6 +353,12 @@ odr_design_theme_datafield_header_visibility:
     requirements:
         theme_element_id:  \d+
         datafield_id: \d+
+odr_design_theme_datafield_use_icon:
+    path:  /design/themedatafielduseicon/{theme_element_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themedatafielduseicon }
+    requirements:
+        theme_element_id:  \d+
+        datafield_id: \d+
 
 odr_toggle_theme_shared:
     path:  /design/toggleshared/{theme_id}

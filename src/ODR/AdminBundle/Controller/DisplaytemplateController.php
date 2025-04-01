@@ -808,8 +808,10 @@ class DisplaytemplateController extends ODRCustomController
 
                                 $new_linked_tdf = clone $linked_tdf;
                                 $new_linked_tdf->setDataField($new_df);
-                                // Intentionally not changing displayOrder...new field should appear just after the
-                                //  old datafield, in theory
+                                // Intentionally not changing displayOrder...new field should appear
+                                //  just after the old datafield, in theory
+
+                                // No compelling reason to set hideHeader or useIconInTables to false
 
                                 self::persistObject($em, $new_linked_tdf, $user, true);    // Don't flush immediately...
                             }

@@ -2197,8 +2197,11 @@ class ThemeController extends ODRCustomController
 //                        'displayOrder' => $submitted_data->getDisplayOrder(),    // Not allowed to change this value through this controller action
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
-//                        'hidden' => $submitted_data->getHidden(),    // Not allowed to change this value through this controller action
-//                        'hideHeader' => $submitted_data->getHideHeader(),    // Not allowed to change this value through this controller action
+
+                        // Not allowed to change these values through this controller action
+//                        'hidden' => $submitted_data->getHidden(),
+//                        'hideHeader' => $submitted_data->getHideHeader(),
+//                        'useIconInTables' => $submitted_data->getUseIconInTables(),
                     );
                     $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
 
@@ -2425,6 +2428,110 @@ class ThemeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xc077b07d;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles whether the file field displays a filename or an icon in a Table theme.
+     *
+     * @param integer $theme_element_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themedatafielduseiconAction($theme_element_id, $datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ( is_null($datafield) )
+                throw new ODRNotFoundException('Datafield');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+                array(
+                    'themeElement' => $theme_element_id,
+                    'dataField' => $datafield_id,
+                )
+            );
+            if ( is_null($theme_datafield) )
+                throw new ODRNotFoundException('ThemeDatafield');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // For the moment, this only makes sense on an File datafield
+            if ( $datafield->getFieldType()->getTypeClass() !== 'File' )
+                throw new ODRBadRequestException();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifyTheme($user, $theme, $datafield);
+            // --------------------
+
+
+            // Toggle the property for the specified theme_datafield
+            if ( $theme_datafield->getUseIconInTables() ) {
+                $properties = array(
+                    'useIconInTables' => false,
+                );
+                $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+            else {
+                $properties = array(
+                    'useIconInTables' => true,
+                );
+                $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+
+            // Update cached version of theme
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
+
+            // TableThemeHelperService builds the actual string displayed for a file field, so don't
+            //  need to wipe the cached_table_data_<dr_id> entry
+        }
+        catch (\Exception $e) {
+            $source = 0xe2e50d01;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

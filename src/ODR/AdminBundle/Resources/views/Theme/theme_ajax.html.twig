@@ -111,6 +111,12 @@
                                     <span class="link-text"> Show Group Box Border</span>
                                 </a>
                             </p>
+                            <p>
+                                <a id="ODRDatatype_useIcon">
+                                    <i class="tooltip fa fa-file ODRToggleFilenameIconUse"></i>
+                                    <span class="link-text"> Currently using Filename in Table Layouts</span>
+                                </a>
+                            </p>
                             <p></p>
                             <p>
                                 <a id="ODRDatatype_deleteTE">
@@ -392,9 +398,10 @@
         tools.add_te     = $("#ODRDatatype_addTE");
         tools.visible_te = $("#ODRDatatype_visibleTE");
         tools.border_te  = $("#ODRDatatype_visibleTEBorder");
+        tools.use_icon   = $("#ODRDatatype_useIcon");
         tools.delete_te  = $("#ODRDatatype_deleteTE");
 
-        for(var x in tools) {
+        for (var x in tools) {
             var obj = tools[x];
             obj.addClass('faded');
             obj.find('i').removeClass('ODRActiveIcon');
@@ -407,6 +414,7 @@
         tools.add_te.find('.link-text').html('Add Group Box');
         tools.visible_te.find('.link-text').html('Group Box is Visible');
         tools.border_te.find('.link-text').html('Show Group Box Border');
+        tools.use_icon.find('.link-text').html('Currently using Filename in Table Layouts');
         tools.delete_te.find('.link-text').html('Delete Group Box');
 
         // Reset tooltips
@@ -430,6 +438,7 @@
         tools.add_te     = $("#ODRDatatype_addTE");
         tools.visible_te = $("#ODRDatatype_visibleTE");
         tools.border_te  = $("#ODRDatatype_visibleTEBorder");
+        tools.use_icon   = $("#ODRDatatype_useIcon");
         tools.delete_te  = $("#ODRDatatype_deleteTE");
 
         ODRTheme_ResetToolSet();
@@ -530,6 +539,9 @@
                 }
 
                 // ----------------------------------------
+                // "Currently using Icon in table layouts" makes no sense for a themeElement
+
+                // ----------------------------------------
                 // Delete ThemeElement/Group Box is only available when the themeElement is empty
                 // Permissions aren't a factor here, because the user always has permissions to delete
                 //  from the local dataype, and is only modifying a copy of the master theme for a
@@ -566,6 +578,11 @@
                 var is_image_datafield = false;
                 if ( $(image_header_div).length > 0 )
                     is_image_datafield = true;
+
+                var is_file_datafield = false;
+                var file_info_div = $(datafield).find('.ODRFileInfoDiv').first();
+                if ( $(file_info_div).length > 0 )
+                    is_file_datafield = true;
 
                 // ----------------------------------------
                 // Can't add a ThemeElement/Group Box to a Datafield
@@ -610,6 +627,32 @@
 
                     tools.border_te.unbind('click').click(function () {
                         ODRTheme_ToggleThemeDatafieldHeaderVisibility(theme_element_id, datafield_id);
+                    });
+                }
+
+                // ----------------------------------------
+                // Can only change whether a field uses a filename or an icon in a table theme if
+                //   it's a file field
+                if ( is_file_datafield ) {
+                    tools.use_icon.removeClass('faded');
+
+                    var use_icon_active = false;
+                    if ( $(file_info_div).hasClass('ODRFile_useIconInTables_design') )
+                        use_icon_active = true;
+
+                    if (use_icon_active) {
+                        tools.use_icon.find('i').removeClass('fa-file-text').addClass('fa-file');
+                        tools.use_icon.find('.link-text').html('Currently using Icon in Table Layouts');
+                        tools.use_icon.attr('title', 'Click to change to displaying its Filename in Table layouts.');
+                    }
+                    else {
+                        tools.use_icon.find('i').addClass('fa-file-text').removeClass('fa-file');
+                        tools.use_icon.find('.link-text').html('Currently using Filename in Table Layouts');
+                        tools.use_icon.attr('title', 'Click to change to displaying an Icon in Table layouts.');
+                    }
+
+                    tools.use_icon.unbind('click').click(function () {
+                        ODRTheme_ToggleThemeDatafieldUseIcon(theme_element_id, datafield_id);
                     });
                 }
 
@@ -1267,8 +1310,61 @@
             success: function() {
                 notifySaved();
 
-                // Toggle hidden status in UI
+                // Toggle hidden status on page
                 $(image_header).toggleClass('ODRFileImageHeader_hidden_design');
+
+                // Clear the selected element
+                clearAllFields();
+                ODRTheme_ResetToolSet();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Toggles whether the given theme_datafield displays as an icon or a filename in table themes.
+     *
+     * @param {number} theme_element_id
+     * @param {number} datafield_id
+     */
+    function ODRTheme_ToggleThemeDatafieldUseIcon(theme_element_id, datafield_id) {
+        // var show_hidden_elements = false;
+        // if ($("#ODRThemeShowHidden").is(":checked"))
+        //     show_hidden_elements = true;
+
+        var theme_element = $("#ThemeElement_" + theme_element_id);
+        var datafield = $(theme_element).find("#Field_" + datafield_id).first();
+        var file_info_div = $(datafield).find(".ODRFileInfoDiv");
+
+        var url  = '{{ path('odr_design_theme_datafield_use_icon', {'theme_element_id': 0, 'datafield_id': 0} ) }}';
+        url = url.substring(0,(url.length-3));
+        url += theme_element_id + '/' + datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function() {
+                notifySaved();
+
+                // Toggle status on page
+                $(file_info_div).toggleClass('ODRFile_useIconInTables_design');
 
                 // Clear the selected element
                 clearAllFields();

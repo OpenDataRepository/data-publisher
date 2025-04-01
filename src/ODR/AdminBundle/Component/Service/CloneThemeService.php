@@ -682,6 +682,8 @@ class CloneThemeService
                     $new_tdf = clone $tdf;
                     $new_tdf->setThemeElement($new_te);
 
+                    // No compelling reason to change hidden, hideHeader, or useIconInTables
+
                     $new_te->addThemeDataField($new_tdf);
                     self::persistObject($new_tdf, $user, true);    // don't flush immediately
 
@@ -760,6 +762,8 @@ class CloneThemeService
             $new_theme_datafield = clone $theme_datafield;
             $new_theme_datafield->setThemeElement($target_theme_element);
             $new_theme_datafield->setDisplayOrder(999);
+
+            // No compelling reason to change hidden, hideHeader, or useIconInTables
 
             $target_theme_element->addThemeDataField($new_theme_datafield);
             self::persistObject($new_theme_datafield, $user, true);    // These don't need to be flushed/refreshed immediately...
@@ -913,6 +917,8 @@ class CloneThemeService
                 // ...then need to clone each of them
                 $new_tdf = clone $source_tdf;
                 $new_tdf->setThemeElement($new_te);
+
+                // No compelling reason to change hidden, hideHeader, or useIconInTables
 
                 // Ensure the "in-memory" version knows about the new theme_datafield entry
                 $new_te->addThemeDataField($new_tdf);

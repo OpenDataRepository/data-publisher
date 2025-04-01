@@ -22,10 +22,16 @@ ODR\AdminBundle\Entity\ThemeDataField:
             type: integer
             nullable: false
             default: 0
+
         hideHeader:
             type: boolean
             nullable: false
             column: hide_header
+            default: false
+        useIconInTables:
+            type: boolean
+            nullable: false
+            column: use_icon_in_table
             default: false
 
         cssWidthMed:

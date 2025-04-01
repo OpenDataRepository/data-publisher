@@ -44,23 +44,26 @@ class UpdateThemeDatafieldForm extends AbstractType
             ThemeElementType::class
         );
 
+        // These properties don't get symfony form elements, because they're modified/saved through
+        //  various non-form UI elements/actions
         $builder->add(
             'cssWidthMed',
             HiddenType::class
         );
-
         $builder->add(
             'cssWidthXL',
             HiddenType::class
         );
-
         $builder->add(
             'hidden',
             HiddenType::class
         );
-
         $builder->add(
             'hideHeader',
+            HiddenType::class
+        );
+        $builder->add(
+            'useIconInTables',
             HiddenType::class
         );
     }

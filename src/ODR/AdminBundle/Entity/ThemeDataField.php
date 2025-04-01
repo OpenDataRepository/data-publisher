@@ -42,6 +42,11 @@ class ThemeDataField
     private $hideHeader;
 
     /**
+     * @var bool
+     */
+    private $useIconInTables;
+
+    /**
      * @var string
      */
     private $cssWidthMed;
@@ -171,6 +176,30 @@ class ThemeDataField
     public function getHideHeader()
     {
         return $this->hideHeader;
+    }
+
+    /**
+     * Set useIconInTables.
+     *
+     * @param bool $useIconInTables
+     *
+     * @return ThemeDataField
+     */
+    public function setUseIconInTables($useIconInTables)
+    {
+        $this->useIconInTables = $useIconInTables;
+
+        return $this;
+    }
+
+    /**
+     * Get useIconInTables.
+     *
+     * @return bool
+     */
+    public function getUseIconInTables()
+    {
+        return $this->useIconInTables;
     }
 
     /**
