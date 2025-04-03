@@ -17,11 +17,18 @@
         display: none;
     }
 
+    #ThemeDesignWrapperMessage {
+        display: block;
+    }
+    #ThemeDesignWrapper {
+        display: none;
+    }
+
 }
 
 
 /* Large screens ----------- */
-@media only screen  and (min-width : 1824px) {
+@media only screen  and (min-width : 1500px) {
     /* Styles */
     .hidden-lg-b {
         display: none;
@@ -37,6 +44,13 @@
 
     .hidden-phone {
         display: none;
+    }
+
+    #ThemeDesignWrapperMessage {
+        display: none;
+    }
+    #ThemeDesignWrapper {
+        display: block;
     }
 }
 
