@@ -1314,13 +1314,22 @@ function initPage() {
         var edit_behavior_override = 0;
         if ( EditBehaviorLookup[parent_datatype_id] !== undefined && EditBehaviorLookup[parent_datatype_id][child_datatype_id] !== undefined ) {
             var current_edit_behavior = EditBehaviorLookup[parent_datatype_id][child_datatype_id];
-            if ( current_edit_behavior === {{ TOGGLE_EDIT_INACTIVE }} )
-                edit_behavior_override = {{ TOGGLE_EDIT_ACTIVE }};
-            else
+            if ( current_edit_behavior === {{ TOGGLE_EDIT_INACTIVE }} ) {
+                // Want a confirmation that the user knows they're entering edit mode
+                var str = "This is a linked record, and usually the only reason to edit it directly is to fix typos.\n\n" +
+                    "To change the record displayed here instead, use the unlinking icon in the far right of this header first before linking to a different record.\n\n" +
+                    "Are you sure you want to edit this record?";
+                if ( confirm(str) ) {
+                    edit_behavior_override = {{ TOGGLE_EDIT_ACTIVE }};
+                    ReloadEditChild(child_datatype_id, parent_datarecord_id, undefined, edit_behavior_override);
+                }
+            }
+            else {
+                // Don't want a confirm box when changing back to inactive
                 edit_behavior_override = {{ TOGGLE_EDIT_INACTIVE }};
+                ReloadEditChild(child_datatype_id, parent_datarecord_id, undefined, edit_behavior_override);
+            }
         }
-
-        ReloadEditChild(child_datatype_id, parent_datarecord_id, undefined, edit_behavior_override);
     });
 
     {# NOTE - this is sometimes useful #}
