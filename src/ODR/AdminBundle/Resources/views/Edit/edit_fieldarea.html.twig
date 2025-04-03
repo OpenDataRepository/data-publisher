@@ -1,5 +1,6 @@
 {% spaceless %}
 
+{% set ALWAYS_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::ALWAYS_EDIT') %}
 {% set LINK_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::LINK_EDIT') %}
 {% set TOGGLE_EDIT_INACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_INACTIVE') %}
 
@@ -137,7 +138,12 @@
                 {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                     {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                     {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
+
+                    {# descendant records should inherit non-default edit_behavior, unless they also define their own non-default edit behavior #}
                     {% set child_edit_behavior = datatype['descendants'][child_datatype_id]['edit_behavior'] %}
+                    {% if edit_behavior != ALWAYS_EDIT and child_edit_behavior == ALWAYS_EDIT %}
+                        {% set child_edit_behavior = edit_behavior %}
+                    {% endif %}
 
                     {# pass all child datarecords of this child datatype at once... #}
                     {% set datarecord_array = {} %}
