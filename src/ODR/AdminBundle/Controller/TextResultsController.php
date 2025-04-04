@@ -841,6 +841,15 @@ class TextResultsController extends ODRCustomController
             foreach ($tmp as $num => $col)
                 $column_names[] = $col['title'];
 
+            // ----------------------------------------
+            // Pull the starting pagelength from a cookie value if possible
+            $cookies = $request->cookies;
+            $cookie_key = 'datatype_'.$remote_datatype->getId().'_searchlink_page_length';
+
+            $page_length = 10;
+            if ( $cookies->has($cookie_key) )
+                $page_length = intval( $cookies->get($cookie_key) );
+
             // Return the data for this request
             $return['d'] = array(
                 'html' => $templating->render(
@@ -849,6 +858,7 @@ class TextResultsController extends ODRCustomController
                         'data' => $data,
                         'column_str' => $column_str,
                         'column_names' => $column_names,
+                        'page_length' => $page_length,
 
                         'theme' => $remote_theme,
                         'linked_datarecords' => $linked_datarecords,

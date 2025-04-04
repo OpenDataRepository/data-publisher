@@ -2976,6 +2976,11 @@
                     });
                 }
             });
+            tdf_odtpf.find("select").each(function() {
+                $(this).unbind('change').change(function () {
+                    SaveDatatreeProperties(datatree_id);
+                });
+            });
         });
 
         var tdf_otdpf = $("#ThemeDesignForm .ODRThemeDatatypePropertiesForm");

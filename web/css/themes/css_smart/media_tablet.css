@@ -17,16 +17,35 @@
     .hidden-phone {
         display: none;
     }
+
+    #ThemeDesignWrapperMessage {
+        display: block;
+    }
+    #ThemeDesignWrapper {
+        display: none;
+    }
 }
 
 /* iPads (landscape) ----------- */
 @media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : landscape) {
     /* Styles */
+    #ThemeDesignWrapperMessage {
+        display: block;
+    }
+    #ThemeDesignWrapper {
+        display: none;
+    }
 }
 
 /* iPads (portrait) ----------- */
 @media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : portrait) {
     /* Styles */
+    #ThemeDesignWrapperMessage {
+        display: block;
+    }
+    #ThemeDesignWrapper {
+        display: none;
+    }
 }
 /**********
 iPad 3

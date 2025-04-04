@@ -293,6 +293,8 @@ class CloneMasterTemplateThemeService
                 $new_tdf = clone $source_tdf;
                 $new_tdf->setThemeElement($new_te);
 
+                // No compelling reason to change hidden, hideHeader, or useIconInTables
+
                 $dest_df = $dest_datafields[ $source_tdf->getDataField()->getId() ];
                 $new_tdf->setDataField($dest_df);
                 self::persistObject($new_tdf, $user, true);    // These don't need to be flushed/refreshed immediately...

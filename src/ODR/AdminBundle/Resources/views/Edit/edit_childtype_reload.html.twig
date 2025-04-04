@@ -1,11 +1,24 @@
 {% spaceless %}
 
 {% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
+{% set parent_datatype_id = parent_datarecord.dataType.id %}
 
 {# Still need to render the template even if there are no child datarecords...otherwise the "Add new Child" button won't be displayed #}
 {% set datarecord_array = {} %}
 {% if parent_datarecord['children'][ target_datatype_id ] is defined %}
     {% set datarecord_array = parent_datarecord['children'][ target_datatype_id ] %}
+{% endif %}
+
+{% if is_link == 1 and edit_behavior != 0 %}
+{# need to overwrite the current edit behavior for this relationship... #}
+<script>
+    $(function() {
+        if ( EditBehaviorLookup[{{ parent_datatype_id }}] === undefined )
+            EditBehaviorLookup[{{ parent_datatype_id }}] = {};
+        EditBehaviorLookup[{{ parent_datatype_id }}][{{ target_datatype_id }}] = {{ edit_behavior }};
+        console.log( EditBehaviorLookup );
+    });
+</script>
 {% endif %}
 
 {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
@@ -25,6 +38,7 @@
     'is_link': is_link,
     'display_type': display_type,
     'multiple_allowed': multiple_allowed,
+    'edit_behavior': edit_behavior,
 
     'token_list': token_list,
 } %}

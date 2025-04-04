@@ -1997,12 +1997,14 @@ class CloneTemplateService
                                 $this->logger->debug('CloneTemplateService:'.$indent_text.' ** ** attempting to locate field derived from datafield '.$master_df_id.' "'.$tdf->getDataField()->getFieldName().'"');
                                 $derived_df = $this->created_datafields[$master_df_id];
 
-                                if($derived_df !== null) {
+                                if ($derived_df !== null) {
                                     // Clone the existing theme datafield entry
                                     $new_tdf = clone $tdf;
                                     $new_tdf->setThemeElement($new_te);
                                     $new_tdf->setDataField($derived_df);
-    
+
+                                    // No compelling reason to change hidden, hideHeader, or useIconInTables
+
                                     $new_te->addThemeDataField($new_tdf);
                                     self::persistObject($new_tdf, $user, true);
 

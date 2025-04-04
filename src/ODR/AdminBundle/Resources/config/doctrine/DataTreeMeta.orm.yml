@@ -24,6 +24,12 @@ ODR\AdminBundle\Entity\DataTreeMeta:
             default: true
             column: multiple_allowed
 
+        edit_behavior:
+            type: integer
+            nullable: false
+            default: 0
+            column: edit_behavior
+
         created:
             type: datetime
             gedmo:

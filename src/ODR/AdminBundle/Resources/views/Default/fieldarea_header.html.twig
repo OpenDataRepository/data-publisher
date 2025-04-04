@@ -1,5 +1,14 @@
 {% spaceless %}
 
+{% set ALWAYS_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::ALWAYS_EDIT') %}
+{% set LINK_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::LINK_EDIT') %}
+{% set TOGGLE_EDIT_INACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_INACTIVE') %}
+{% set TOGGLE_EDIT_ACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_ACTIVE') %}
+
+{% if edit_behavior is not defined %}
+    {% set edit_behavior = ALWAYS_EDIT %}
+{% endif %}
+
 {% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
 {% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
 {% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
@@ -10,12 +19,17 @@
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 
 {% set can_edit_parent_record = false %}
+{% set can_edit_child_records = false %}
 {% set can_add_record = false %}
 {% if context == 'edit' or context == 'fake_edit' %}
     {# don't enable add/link to outside of edit mode #}
     {% if datatype_permissions[ parent_datatype_id ] is defined
         and datatype_permissions[ parent_datatype_id ][ 'dr_edit' ] is defined %}
         {% set can_edit_parent_record = true %}
+    {% endif %}
+    {% if datatype_permissions[ datatype.id ] is defined
+        and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+        {% set can_edit_child_records = true %}
     {% endif %}
     {% if datatype_permissions[ datatype.id ] is defined
         and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
@@ -54,8 +68,15 @@
                 {% endif %}
             </span>
 
+                {# NOTE: no sense displaying a toggle button when there are no records to edit #}
+                {#
+                {% if is_link == 1 and can_edit_child_records and (edit_behavior == TOGGLE_EDIT_ACTIVE or edit_behavior == TOGGLE_EDIT_INACTIVE) %}
+                <button class="ODRToggleLinkedEdit">{% if edit_behavior == TOGGLE_EDIT_ACTIVE %}Disable{% else %}Enable{% endif %} Editing</button>
+                {% endif %}
+                #}
+
             {% elseif context == 'fake_edit' %}
-            <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
+            <span class="DataRecordTools Info" title="This record must be saved before {% if is_link == 0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
                 <i class="fa fa-plus"></i>
                 {% endif %}
@@ -95,6 +116,11 @@
                 ></i>
                 {% endif %}
             </span>
+
+                {# NOTE: no sense displaying a toggle button when there are no records to edit #}
+                {% if datarecord_list|length > 0 and is_link == 1 and can_edit_child_records and (edit_behavior == TOGGLE_EDIT_ACTIVE or edit_behavior == TOGGLE_EDIT_INACTIVE) %}
+                <button class="ODRToggleLinkedEdit">{% if edit_behavior == TOGGLE_EDIT_ACTIVE %}Disable{% else %}Enable{% endif %} Editing</button>
+                {% endif %}
 
             {% elseif context == 'fake_edit' %}
             <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
@@ -158,6 +184,11 @@
                 {% endif %}
             </span>
 
+                {# NOTE: no sense displaying a toggle button when there are no records to edit #}
+                {% if datarecord_list|length > 0 and is_link == 1 and can_edit_child_records and (edit_behavior == TOGGLE_EDIT_ACTIVE or edit_behavior == TOGGLE_EDIT_INACTIVE) %}
+                <button class="ODRToggleLinkedEdit">{% if edit_behavior == TOGGLE_EDIT_ACTIVE %}Disable{% else %}Enable{% endif %} Editing</button>
+                {% endif %}
+
             {% elseif context == 'fake_edit' %}
             <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
@@ -216,6 +247,11 @@
             ></i>
             {% endif %}
         </span>
+
+            {# NOTE: no sense displaying a toggle button when there are no records to edit #}
+            {% if datarecord_list|length > 0 and is_link == 1 and can_edit_child_records and (edit_behavior == TOGGLE_EDIT_ACTIVE or edit_behavior == TOGGLE_EDIT_INACTIVE) %}
+            <button class="ODRToggleLinkedEdit">{% if edit_behavior == TOGGLE_EDIT_ACTIVE %}Disable{% else %}Enable{% endif %} Editing</button>
+            {% endif %}
 
         {% elseif context == 'fake_edit' %}
         <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">

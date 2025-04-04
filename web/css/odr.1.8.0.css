@@ -2248,6 +2248,10 @@ h1:after {
     z-index: 500;
 }
 
+.ODRToggleLinkedEdit {
+    /*background: green;*/
+}
+
 h3 .DatatypeTools,
 .DataTypeTools {
     font-size: 18px;

@@ -1,5 +1,9 @@
 {% spaceless %}
 
+{% set ALWAYS_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::ALWAYS_EDIT') %}
+{% set LINK_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::LINK_EDIT') %}
+{% set TOGGLE_EDIT_INACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_INACTIVE') %}
+
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -25,6 +29,7 @@
     'is_top_level': is_top_level,
     'is_link': is_link,
     'display_type': display_type,
+    'edit_behavior': edit_behavior,
 } %}
 
 {% for theme_element in theme.themeElements %}
@@ -58,7 +63,7 @@
                     {% if theme_datafield.hidden == 0 or edit_shows_all_fields %}
                         <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
                              id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}"
-                        {% if prevent_dr_edits or datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
+                        {% if prevent_dr_edits or datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield or edit_behavior == LINK_EDIT or edit_behavior == TOGGLE_EDIT_INACTIVE %}
                              title="You are not allowed to make changes to this datafield."
                              style="cursor:help;"
                         {% elseif is_symmetry_field %}
@@ -70,7 +75,7 @@
                                 {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
                                     'datafield': datafield
                                 } %}
-                            {% elseif prevent_dr_edits or datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
+                            {% elseif prevent_dr_edits or datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield or edit_behavior == LINK_EDIT or edit_behavior == TOGGLE_EDIT_INACTIVE %}
                                 {# user isn't allowed to edit datafield #}
                                 {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                     'datarecord': datarecord,
@@ -140,10 +145,28 @@
                     {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                     {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
+                    {# descendant records should inherit non-default edit_behavior, unless they also define their own non-default edit behavior #}
+                    {% set child_edit_behavior = datatype['descendants'][child_datatype_id]['edit_behavior'] %}
+                    {% if edit_behavior != ALWAYS_EDIT and child_edit_behavior == ALWAYS_EDIT %}
+                        {% set child_edit_behavior = edit_behavior %}
+                    {% endif %}
+
                     {# pass all child datarecords of this child datatype at once... #}
                     {% set datarecord_array = {} %}
                     {% if datarecord['children'][ child_datatype_id ] is defined %}
                         {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
+                    {% endif %}
+
+                    {% if theme_datatype.is_link == 1 and child_edit_behavior != 0 %}
+                    {# need to store the current edit behavior for this relationship... #}
+                    <script>
+                        $(function() {
+                            if ( EditBehaviorLookup[{{ target_datatype_id }}] === undefined )
+                                EditBehaviorLookup[{{ target_datatype_id }}] = {};
+                            EditBehaviorLookup[{{ target_datatype_id }}][{{ child_datatype_id }}] = {{ child_edit_behavior }};
+                            // console.log( EditBehaviorLookup );
+                        });
+                    </script>
                     {% endif %}
 
                     {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
@@ -163,6 +186,7 @@
                         'is_link': theme_datatype.is_link,
                         'display_type': theme_datatype.display_type,
                         'multiple_allowed': theme_datatype.multiple_allowed,
+                        'edit_behavior': child_edit_behavior,
 
                         'token_list': token_list,
                     } %}

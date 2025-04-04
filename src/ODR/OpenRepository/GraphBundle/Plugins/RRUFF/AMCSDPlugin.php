@@ -370,6 +370,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( $rendering_options['context'] === 'edit' ) {
                 // Need to be able to pass this option along if doing edit mode
                 $edit_shows_all_fields = $rendering_options['edit_shows_all_fields'];
+                $edit_behavior = $rendering_options['edit_behavior'];
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_edit_fieldarea.html.twig',
@@ -386,6 +387,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
                         'edit_shows_all_fields' => $edit_shows_all_fields,
+                        'edit_behavior' => $edit_behavior,
 
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],

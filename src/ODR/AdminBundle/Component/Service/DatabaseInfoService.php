@@ -404,20 +404,22 @@ class DatabaseInfoService
 
             // ----------------------------------------
             // Build up a list of child/linked datatypes and their basic information
-            // I think the 'is_link' property is used during rendering, but I'm not sure about the
-            //  'multiple_allowed' property
             $descendants = array();
             foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $dt_id)
-                    $descendants[$child_dt_id] = array('is_link' => 0, 'multiple_allowed' => 0);
+                    $descendants[$child_dt_id] = array('is_link' => 0, 'multiple_allowed' => 0, 'edit_behavior' => 0);
             }
             foreach ($datatree_array['linked_from'] as $child_dt_id => $parents) {
                 if ( in_array($dt_id, $parents) )
-                    $descendants[$child_dt_id] = array('is_link' => 1, 'multiple_allowed' => 0);
+                    $descendants[$child_dt_id] = array('is_link' => 1, 'multiple_allowed' => 0, 'edit_behavior' => 0);
             }
             foreach ($datatree_array['multiple_allowed'] as $child_dt_id => $parents) {
                 if ( isset($descendants[$child_dt_id]) && in_array($dt_id, $parents) )
                     $descendants[$child_dt_id]['multiple_allowed'] = 1;
+            }
+            foreach ($datatree_array['edit_behavior'] as $child_dt_id => $parents) {
+                if ( isset($descendants[$child_dt_id]) && isset($parents[$dt_id]) )
+                    $descendants[$child_dt_id]['edit_behavior'] = $datatree_array['edit_behavior'][$child_dt_id][$dt_id];
             }
 
             if ( count($descendants) > 0 )

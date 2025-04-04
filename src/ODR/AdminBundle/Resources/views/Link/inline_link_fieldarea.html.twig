@@ -44,7 +44,20 @@
                         {% set can_edit_datafield = true %}
                     {% endif %}
 
-                    {% if theme_datafield.hidden == 0 %}
+                    {# want to always display external id and name fields for inline link #}
+                    {% set is_special_field = false %}
+                    {% if datatype.dataTypeMeta.externalIdField is not null %}
+                        {% if datatype.dataTypeMeta.externalIdField == datafield_id %}
+                            {% set is_special_field = true %}
+                        {% endif %}
+                    {% endif %}
+                    {% for num,df_id in datatype['nameFields'] %}
+                        {% if df_id == datafield_id %}
+                            {% set is_special_field = true %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if theme_datafield.hidden == 0 or edit_shows_all_fields or is_special_field %}
                     <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
                          id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}"
 {#

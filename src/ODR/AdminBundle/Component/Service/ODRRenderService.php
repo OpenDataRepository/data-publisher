@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\Group;
@@ -1004,14 +1005,17 @@ class ODRRenderService
      * Renders and returns the HTML for a child/linked datatype on the edit page.
      *
      * @param ODRUser $user
-     * @param ThemeElement $theme_element
+     * @param ThemeElement $theme_element      Which theme element to reload
      * @param DataRecord $parent_datarecord
      * @param DataRecord $top_level_datarecord
-     * @param bool $edit_shows_all_fields
+     * @param bool $edit_shows_all_fields      If true, then datafields will be displayed regardless
+     *                                         of their hidden status
+     * @param integer $edit_behavior_override  If non-zero, then temporarily overrides which mode
+     *                                         linked descendants render with
      *
      * @return string
      */
-    public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $edit_shows_all_fields)
+    public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $edit_shows_all_fields, $edit_behavior_override)
     {
         $template_name = 'ODRAdminBundle:Edit:edit_childtype_reload.html.twig';
 
@@ -1019,6 +1023,7 @@ class ODRRenderService
             'token_list' => array(),
 
             'edit_shows_all_fields' => $edit_shows_all_fields,
+            'edit_behavior_override' => $edit_behavior_override,
         );
 
         // TODO - is this needed?
@@ -1123,6 +1128,7 @@ class ODRRenderService
         $top_level_datatype = $top_level_theme->getDataType();
 
         $parent_dr_id = $parent_datarecord->getId();
+        $parent_dt_id = $parent_datarecord->getDataType()->getId();
         $child_dt_id = $child_datatype->getId();
 
         // Load cached arrays of all the top-level entities
@@ -1186,6 +1192,20 @@ class ODRRenderService
             $this->theme_info_service->stackThemeArray($theme_array, $child_theme->getId());
 
 
+        // Need to locate the relevant 'edit_behavior' flag from the unstacked datatype array
+        // It should always exist because it's set by default when building the cached array
+        if ( !isset($datatype_array[$parent_dt_id]['descendants'][$child_dt_id]['edit_behavior']) )
+            throw new ODRException('reloadEditChildtype(): Cached datatype array malformed');
+        $edit_behavior = $datatype_array[$parent_dt_id]['descendants'][$child_dt_id]['edit_behavior'];
+
+        // ...but need to temporarily override it if requested
+        if ( isset($extra_parameters['edit_behavior_override']) ) {
+            $override = $extra_parameters['edit_behavior_override'];
+            if ( $override === DataTreeMeta::TOGGLE_EDIT_INACTIVE || $override === DataTreeMeta::TOGGLE_EDIT_ACTIVE )
+                $edit_behavior = $override;
+        }
+
+
         // Find the ThemeDatatype entry that contains the child/linked datatype getting reloaded
         $is_link = 0;
         $display_type = 0;
@@ -1210,7 +1230,7 @@ class ODRRenderService
 
 
         // ----------------------------------------
-        // Hard-code these, since Edit is the only mode that needs a childtype reload
+        // Might as well hard-code these
         $parameters = array(
             'datatype_array' => $stacked_datatype_array,
             'datarecord_array' => $stacked_datarecord_array,
@@ -1228,6 +1248,7 @@ class ODRRenderService
             'is_link' => $is_link,
             'display_type' => $display_type,
             'multiple_allowed' => $multiple_allowed,
+            'edit_behavior' => $edit_behavior,
         );
 
         $parameters = array_merge($parameters, $extra_parameters);

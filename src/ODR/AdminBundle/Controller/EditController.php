@@ -20,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
@@ -2729,15 +2730,17 @@ class EditController extends ODRCustomController
      *
      * @param int $theme_element_id        The theme element this child/linked datatype is in
      * @param int $parent_datarecord_id    The parent datarecord of the child/linked datarecord
-     *                                       that is getting reloaded
+     *                                     that is getting reloaded
      * @param int $top_level_datarecord_id The datarecord currently being viewed in edit mode,
-     *                                       required incase the user tries to reload B or C in the
-     *                                       structure A => B => C => ...
+     *                                     required incase the user tries to reload B or C in the
+     *                                     structure A => B => C => ...
+     * @param int $edit_behavior_override  If non-zero, then temporarily overrides which mode linked
+     *                                     descendants render with
      * @param Request $request
      *
      * @return Response
      */
-    public function reloadchildAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, Request $request)
+    public function reloadchildAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, $edit_behavior_override, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2809,6 +2812,11 @@ class EditController extends ODRCustomController
             if ( $cookies->has('datatype_'.$top_level_datatype->getId().'_edit_shows_all') )
                 $edit_shows_all_fields = $cookies->get('datatype_'.$top_level_datatype->getId().'_edit_shows_all');
 
+            // Only two values are legal for overriding edit behavior
+            $edit_behavior_override = intval($edit_behavior_override);
+            if ( $edit_behavior_override !== DataTreeMeta::TOGGLE_EDIT_ACTIVE && $edit_behavior_override !== DataTreeMeta::TOGGLE_EDIT_INACTIVE )
+                $edit_behavior_override = 0;
+
 
             $return['d'] = array(
                 'html' => $odr_render_service->reloadEditChildtype(
@@ -2816,7 +2824,8 @@ class EditController extends ODRCustomController
                     $theme_element,
                     $parent_datarecord,
                     $top_level_datarecord,
-                    $edit_shows_all_fields
+                    $edit_shows_all_fields,
+                    $edit_behavior_override
                 )
             );
         }

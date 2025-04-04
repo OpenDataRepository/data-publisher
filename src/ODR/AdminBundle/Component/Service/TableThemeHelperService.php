@@ -269,8 +269,8 @@ class TableThemeHelperService
         //  a linked datatype, since that means linked datarecords need to be loaded as well...
         $needs_linked_data = false;
 
-        // Not using  $this->datatree_info_service->getAssociatedDatatypes($datatype_id)  here, since that
-        //  includes datatypes which allow multiple descendant records...
+        // Not using  $this->datatree_info_service->getAssociatedDatatypes($datatype_id)  here, since
+        //  that includes datatypes which allow multiple descendant records...
         $associated_datatypes = array_keys($table_dt_array);
         foreach ($table_df_array as $num => $df) {
             $dt_id = $df['dataType']['id'];
@@ -368,11 +368,24 @@ class TableThemeHelperService
                     //  to people that don't have permission to view them
                     $file_publicDate = $dr[$df_id]['publicDate'];
                     $file_url = $dr[$df_id]['url'];
+                    $file_name = $dr[$df_id]['filename'];
 
-                    if ($can_view_datarecord[$dt_id] || $file_publicDate != '2200-01-01')
-                        $dr_data[] = $file_url;
-                    else
+                    // File fields also can be switched between displaying their full filename, or
+                    //  just displaying an icon
+                    $use_icon = false;
+                    if ( isset($df['themeDataField']['useIconInTables']) )
+                        $use_icon = $df['themeDataField']['useIconInTables'];
+
+                    if ($can_view_datarecord[$dt_id] || $file_publicDate != '2200-01-01') {
+                        if ( !$use_icon )
+                            $dr_data[] = '<a href="'.$file_url.'">'.$file_name.'</a>';
+                        else
+                            $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer"></i></a>';
+                    }
+                    else {
+                        // User can't view the file, don't display anything
                         $dr_data[] = '';
+                    }
                 }
                 else {
                     // ...store it in the final array
@@ -517,37 +530,37 @@ class TableThemeHelperService
 
                 switch ($df_typename) {
                     case 'Boolean':
-                        if ( isset($drf['boolean']) && isset($drf['boolean'][0]) ) {
+                        if ( isset($drf['boolean'][0]) ) {
                             if ( $drf['boolean'][0]['value'] == 1 )
                                 $df_value = 'YES';
                         }
                         break;
                     case 'Integer':
-                        if ( isset($drf['integerValue']) && isset($drf['integerValue'][0]) )
+                        if ( isset($drf['integerValue'][0]) )
                             $df_value = $drf['integerValue'][0]['value'];
                         break;
                     case 'Decimal':
-                        if ( isset($drf['decimalValue']) && isset($drf['decimalValue'][0]) )
+                        if ( isset($drf['decimalValue'][0]) )
                             $df_value = $drf['decimalValue'][0]['value'];
                         break;
                     case 'Paragraph Text':
-                        if ( isset($drf['longText']) && isset($drf['longText'][0]) )
+                        if ( isset($drf['longText'][0]) )
                             $df_value = $drf['longText'][0]['value'];
                         break;
                     case 'Long Text':
-                        if ( isset($drf['longVarchar']) && isset($drf['longVarchar'][0]) )
+                        if ( isset($drf['longVarchar'][0]) )
                             $df_value = $drf['longVarchar'][0]['value'];
                         break;
                     case 'Medium Text':
-                        if ( isset($drf['mediumVarchar']) && isset($drf['mediumVarchar'][0]) )
+                        if ( isset($drf['mediumVarchar'][0]) )
                             $df_value = $drf['mediumVarchar'][0]['value'];
                         break;
                     case 'Short Text':
-                        if ( isset($drf['shortVarchar']) && isset($drf['shortVarchar'][0]) )
+                        if ( isset($drf['shortVarchar'][0]) )
                             $df_value = $drf['shortVarchar'][0]['value'];
                         break;
                     case 'DateTime':
-                        if ( isset($drf['datetimeValue']) && isset($drf['datetimeValue'][0]) ) {
+                        if ( isset($drf['datetimeValue'][0]) ) {
                             $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
                             if ($df_value == '9999-12-31')
                                 $df_value = '';
@@ -555,13 +568,14 @@ class TableThemeHelperService
                         break;
 
                     case 'File':
-                        if ( isset($drf['file']) && isset($drf['file'][0]) ) {
+                        if ( isset($drf['file'][0]) ) {
                             $file = $drf['file'][0];    // should only ever be one file in here anyways
 
                             $url = $this->router->generate( 'odr_file_download', array('file_id' => $file['id']) );
                             $df_value = array(
                                 'publicDate' => $file['fileMeta']['publicDate']->format('Y-m-d'),
-                                'url' => '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>',
+                                'url' => $url,
+                                'filename' => $file['fileMeta']['originalFileName'],
                             );
                         }
                         break;
@@ -704,6 +718,8 @@ class TableThemeHelperService
                     $df['dataType'] = array(
                         'id' => $dt_id
                     );
+                    // Splice the themeDatafield into the array as well
+                    $df['themeDataField'] = $tdf;
 
                     // Store the datafield and continue looking
                     $df_array[] = $df;

@@ -19,7 +19,8 @@
     'multiple_allowed': multiple_allowed,
     'context': 'edit',
     'is_datatype_admin': is_datatype_admin,
-    'edit_shows_all_fields': edit_shows_all_fields
+    'edit_shows_all_fields': edit_shows_all_fields,
+    'edit_behavior': 0,
 } %}
 
 {# Ignore array render plugins here for the moment...there's nothing for them to modify in FakeEdit mode #}
@@ -167,6 +168,7 @@
                             'is_link': is_link,
                             'display_type': display_type,
                             'multiple_allowed': multiple_allowed,
+                            'edit_behavior': 0,
 
                             'token_list': token_list,
                         } %}

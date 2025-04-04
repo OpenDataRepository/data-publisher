@@ -271,4 +271,14 @@ class DataTree
     {
         return $this->getDataTreeMeta()->getMultipleAllowed();
     }
+
+    /**
+     * Get editBehavior.
+     *
+     * @return integer
+     */
+    public function getEditBehavior()
+    {
+        return $this->getDataTreeMeta()->getEditBehavior();
+    }
 }

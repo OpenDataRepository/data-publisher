@@ -13,6 +13,7 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -74,7 +75,8 @@ class DatatreeInfoService
         // ----------------------------------------
         // Otherwise...get all the datatree data
         $query = $this->em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id,
+                    dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed, dtm.edit_behavior AS edit_behavior
             FROM ODRAdminBundle:DataType AS ancestor
             JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
@@ -89,30 +91,45 @@ class DatatreeInfoService
             'descendant_of' => array(),
             'linked_from' => array(),
             'multiple_allowed' => array(),
+            'edit_behavior' => array(),
         );
         foreach ($results as $num => $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
             $is_link = $result['is_link'];
             $multiple_allowed = $result['multiple_allowed'];
+            $edit_behavior = $result['edit_behavior'];
 
+            // Always need an entry in this array so recursion can stop on a top-level datatype id
             if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
                 $datatree_array['descendant_of'][$ancestor_id] = '';
 
             if ($is_link == 0) {
+                // child datatypes need to point to their ancestor
                 $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
             }
             else {
+                // linked datatypes are slightly easier to work with if they have a list of all
+                //  datatypes that link to them
                 if ( !isset($datatree_array['linked_from'][$descendant_id]) )
                     $datatree_array['linked_from'][$descendant_id] = array();
-
                 $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
+
+                // The edit_behavior flag only matters for linked datatypes, and should only be stored
+                //  when it deviates from the default behavior
+                if ( $edit_behavior !== DataTreeMeta::ALWAYS_EDIT ) {
+                    // ...might as well store it the same way as all the other sub-arrays
+                    if ( !isset($datatree_array['edit_behavior'][$descendant_id]) )
+                        $datatree_array['edit_behavior'][$descendant_id] = array();
+                    $datatree_array['edit_behavior'][$descendant_id][$ancestor_id] = $edit_behavior;
+                }
             }
 
+            // No sense storing both values for the multiple-allowed flag...
             if ($multiple_allowed == 1) {
+                // ...since it's more of a linked datatype option, might as well store it the same way
                 if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
                     $datatree_array['multiple_allowed'][$descendant_id] = array();
-
                 $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
             }
         }

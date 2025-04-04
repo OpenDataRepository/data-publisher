@@ -1,5 +1,10 @@
 {% spaceless %}
 
+{% set ALWAYS_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::ALWAYS_EDIT') %}
+{% set LINK_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::LINK_EDIT') %}
+{% set TOGGLE_EDIT_INACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_INACTIVE') %}
+{% set TOGGLE_EDIT_ACTIVE = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::TOGGLE_EDIT_ACTIVE') %}
+
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
 <input type="hidden" id="ODRRecordName_top" value="{{ datarecord.nameField_value }}" data-parent-name="{{ datatype.dataTypeMeta.shortName }}" />
@@ -99,6 +104,8 @@ $(function() {
 
 
 var SaveTimeout = 1000;
+
+var EditBehaviorLookup = {};
 
 /**
  * Initializes the controls on the Edit page.
@@ -720,7 +727,7 @@ function initPage() {
     $(".ODRInlineLinkRecord.ODRFieldArea").each(function() {
         // Going to attach an jQuery UI autocomplete handler to every text/number datafield in this
         //  fieldarea belonging to an "InlineLink" record...
-        $(this).find('.ODRLinkLookupInput').effect("highlight", {}, 3000).each(function() {
+        $(this).find('.ODRLinkLookupInput'){#.effect("highlight", {}, 3000)#}.each(function() {
             if ( !$(this).hasClass('.ui-autocomplete-input') ) {
                 // Create search parameters
                 var input_elem = $(this);
@@ -854,7 +861,7 @@ function initPage() {
                         html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
 
                         if ( item.record_id == -1 )    // user allowed to add record
-                            $(html).append('<span>No Results Found - Click here to create a new record.</span>');
+                            $(html).append('<span>Click here to create a new record.</span>');
                         else    // user not allowed to add record
                             $(html).append('<span>No Results Found.</span>');
                     }
@@ -1282,6 +1289,66 @@ function initPage() {
         else
             $(elem).attr('title', 'Linked to by ' + ancestor_datatype + ': "' + ancestor_name + '"');
     });
+
+    $(".ODREditOpen").unbind('click').click(function() {
+        var datarecord_id = $(this).attr('rel');
+
+        var url = '{{ path('odr_record_edit', {'datarecord_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += datarecord_id;
+
+        OpenURL(url);
+    });
+    $(".ODRToggleLinkedEdit").unbind('click').click(function(event) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        var child_datatype = $(this).parents('.ODRChildDatatype').first();
+        var pieces = $(child_datatype).attr('id').split(/_/);
+        var child_datatype_id = pieces[1];
+        var parent_datarecord_id = pieces[2];
+
+        var pieces = $(child_datatype).parents('.ODRDataType').first().attr('id').split(/_/);
+        var parent_datatype_id = pieces[1];
+
+        var edit_behavior_override = 0;
+        if ( EditBehaviorLookup[parent_datatype_id] !== undefined && EditBehaviorLookup[parent_datatype_id][child_datatype_id] !== undefined ) {
+            var current_edit_behavior = EditBehaviorLookup[parent_datatype_id][child_datatype_id];
+            if ( current_edit_behavior === {{ TOGGLE_EDIT_INACTIVE }} ) {
+                // Want a confirmation that the user knows they're entering edit mode
+                var str = "This is a linked record, and usually the only reason to edit it directly is to fix typos.\n\n" +
+                    "To change the record displayed here instead, use the unlinking icon in the far right of this header first before linking to a different record.\n\n" +
+                    "Are you sure you want to edit this record?";
+                if ( confirm(str) ) {
+                    edit_behavior_override = {{ TOGGLE_EDIT_ACTIVE }};
+                    ReloadEditChild(child_datatype_id, parent_datarecord_id, undefined, edit_behavior_override);
+                }
+            }
+            else {
+                // Don't want a confirm box when changing back to inactive
+                edit_behavior_override = {{ TOGGLE_EDIT_INACTIVE }};
+                ReloadEditChild(child_datatype_id, parent_datarecord_id, undefined, edit_behavior_override);
+            }
+        }
+    });
+
+    {# NOTE - this is sometimes useful #}
+{#
+    $(".ODRAccordionWrapper").unbind('click').click(function(event) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        var child_datatype = $(this).parents('.ODRChildDatatype').first();
+        var pieces = $(child_datatype).attr('id').split(/_/);
+        var child_datatype_id = pieces[1];
+        var parent_datarecord_id = pieces[2];
+
+        var pieces = $(child_datatype).parents('.ODRDataType').first().attr('id').split(/_/);
+        var parent_datatype_id = pieces[1];
+
+        ReloadEditChild(child_datatype_id, parent_datarecord_id);
+    });
+#}
 
     console.log('Init page done.');
 }
@@ -2288,8 +2355,9 @@ function insertLoadingDiv(parent_div_id) {
  * @param {number} child_datatype_id
  * @param {number} parent_datarecord_id
  * @param {function} [callback]
+ * @param {number} edit_behavior_override
  */
-function ReloadEditChild(child_datatype_id, parent_datarecord_id, callback) {
+function ReloadEditChild(child_datatype_id, parent_datarecord_id, callback, edit_behavior_override) {
     // Callback is optional
     if (callback === undefined)
         callback = function() {}
@@ -2303,6 +2371,10 @@ function ReloadEditChild(child_datatype_id, parent_datarecord_id, callback) {
     var url = '{{ path('odr_record_reload_child', { 'theme_element_id': 0, 'parent_datarecord_id': 0, 'top_level_datarecord_id': 0 }) }}';
     url = url.substring(0, (url.length-5));
     url += theme_element_id + '/' + parent_datarecord_id + '/' + top_level_datarecord_id;
+    if ( edit_behavior_override !== undefined && (edit_behavior_override === {{ TOGGLE_EDIT_INACTIVE }} || edit_behavior_override === {{ TOGGLE_EDIT_ACTIVE }}) )
+        url += '/' + edit_behavior_override;
+
+    // alert(url);  return;
 
     // Need top-level datatype/datarecord/theme to be able to load the correct cached arrays in the
     //  case the user is reloading a child/linked datatype of a datatype that is itself a child/link.

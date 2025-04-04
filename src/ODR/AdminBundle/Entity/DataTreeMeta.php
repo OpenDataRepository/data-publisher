@@ -22,6 +22,19 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class DataTreeMeta
 {
+    // In the interest of not having magic numbers floating around...
+
+    // can always edit linked descendants directly
+    const ALWAYS_EDIT = 0;
+    // open edit page for this linked descendant in a new tab
+    const LINK_EDIT = 1;
+    // need to click a button to activate ability to edit a linked descendant
+    const TOGGLE_EDIT_INACTIVE = 2;
+    // the button from TOGGLE_EDIT_INACTIVE has been clicked, so actually re-activate edit for the
+    //  linked descendant
+    const TOGGLE_EDIT_ACTIVE = 3;
+
+
     /**
      * @var integer
      */
@@ -36,6 +49,11 @@ class DataTreeMeta
      * @var boolean
      */
     private $multiple_allowed;
+
+    /**
+     * @var integer
+     */
+    private $edit_behavior;
 
     /**
      * @var \DateTime
@@ -122,6 +140,30 @@ class DataTreeMeta
     public function getMultipleAllowed()
     {
         return $this->multiple_allowed;
+    }
+
+    /**
+     * Set editBehavior.
+     *
+     * @param integer $editBehavior
+     *
+     * @return DataTreeMeta
+     */
+    public function setEditBehavior($editBehavior)
+    {
+        $this->edit_behavior = $editBehavior;
+
+        return $this;
+    }
+
+    /**
+     * Get editBehavior.
+     *
+     * @return integer
+     */
+    public function getEditBehavior()
+    {
+        return $this->edit_behavior;
     }
 
     /**
