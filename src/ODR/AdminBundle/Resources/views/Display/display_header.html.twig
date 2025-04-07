@@ -25,6 +25,7 @@
 
     {% if can_edit_datarecord == true %}
         <i id="ODRDownloadAllFilesIcon" class="fa fa-file-archive-o Pointer" title="Download files"></i>
+        <i class="fa fa-globe {% if datarecord.ispublic %}ODRActiveIcon{% endif %}" title="This record is{% if not datarecord.ispublic %} not{% endif %} public"></i>
     {% endif %}
 
     {% if can_add_datarecord and datatype.isMasterType == 0 %}

@@ -394,14 +394,26 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // Get the rows that will fulfill the datatables request
             $data = array();
+            $public_datarecord_list = array();
             if ( $datarecord_count > 0 ) {
                 $data = $table_theme_helper_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
 
-                // It's impossible for this function to determine the correct order these datarecords
-                //  should be in based on the values in their datafields...fortunately, the search
-                //  system has already done this, and $data is already in the correct order
-                foreach ($data as $sort_order => $dr_data)
+                // Need to dig through the returned data array...
+                foreach ($data as $sort_order => $dr_data) {
+                    // It's impossible for this function to determine the correct order these datarecords
+                    //  should be in based on the values in their datafields...fortunately, the search
+                    //  system has already done this, and $data is already in the correct order
                     $data[$sort_order][1] = $sort_order;
+
+                    // Need to also extract the public status of the datarecords
+                    $dr_id = $dr_data[0];
+                    if ( $dr_id === '' )
+                        $dr_id = $dr_data[1];    // this is the dr_id location when rendering on a searchlink page
+
+                    // Extract the public date from the returned row so it doesn't get directly rendered
+                    $public_datarecord_list[$dr_id] = $dr_data['is_public'];
+                    unset( $data[$sort_order]['is_public'] );
+                }
             }
 
             // Build the json array to return to the datatables request
@@ -411,6 +423,7 @@ class TextResultsController extends ODRCustomController
                 'recordsFiltered' => $datarecord_count,
                 'data' => $data,
                 'editable_datarecord_list' => $editable_datarecord_list,
+                'public_datarecord_list' => $public_datarecord_list,
                 'scroll_target' => $scroll_target,
             );
             $return = $json;
@@ -830,6 +843,12 @@ class TextResultsController extends ODRCustomController
 
             // Load the table data for each of the datarecords that need to get displayed
             $data = $table_theme_helper_service->getRowData($user, $datarecord_list, $remote_datatype->getId(), $remote_theme->getId(), true);    // prepend a third column of data
+
+            // Need to dig through the returned data array...
+            foreach ($data as $sort_order => $dr_data) {
+                // Delete the public date from the returned row so it doesn't get directly rendered
+                unset( $data[$sort_order]['is_public'] );
+            }
 
             // Determine the column names for the datatables plugin
             $column_data = $table_theme_helper_service->getColumnNames($user, $remote_datatype->getId(), $remote_theme->getId());

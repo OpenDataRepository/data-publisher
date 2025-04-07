@@ -414,10 +414,20 @@
                     // User can edit at least one datarecord for this datatype...ensure user has
                     //  permission to edit this specific datarecord before tacking on an edit link
                     var dr_id = parseInt( json.data[i][0] );
-                    if ( json.editable_datarecord_list[dr_id] !== undefined )
-                        json.data[i].push('<span class="ODREditLink">Edit</span>');
+                    if ( json.editable_datarecord_list[dr_id] !== undefined ) {
+                        var str = '<div style="white-space: nowrap;">';
+                        str += '<span class="ODREditLink">Edit</span>';
+
+                        if ( json.public_datarecord_list[dr_id] !== undefined && json.public_datarecord_list[dr_id] === true )
+                            str += '<i class="fa fa-globe ODRActiveIcon" title="This record is public"></i>';
+                        else
+                            str += '<i class="fa fa-globe" title="This record is not public"></i>';
+
+                        str += '</div>';
+                        json.data[i].push(str);
+                    }
                     else
-                        json.data[i].push('<span></span>');
+                        json.data[i].push('<div></div>');
                 }
             }
 {% endif %}

@@ -45,13 +45,22 @@
                 </thead>
                 <tbody>
                 {% for row_num,row in row_data %}
-                    <tr class="ODRTableRecord DataRecord_{{ row[0] }}" rel="{{ row[0] }}">
+                    {% set dr_id = row[0] %}
+                    <tr class="ODRTableRecord DataRecord_{{ dr_id }}" rel="{{ dr_id }}">
                     {% for col_num,data in row %}
                         <td {% if loop.index <= 2 %}class="ODRHidden"{% endif %}>{{ data|raw }}</td>
                     {% endfor %}
                     {% if can_edit_datatype %}    {# TODO - datarecord restriction? #}
                         <td>
-                            <span class="ODREditLink">Edit</span>
+                            <div style="white-space: nowrap;">
+                                <span class="ODREditLink">Edit</span>
+
+                            {% if public_datarecord_list[dr_id] is defined and public_datarecord_list[dr_id] == true %}
+                                <i class="fa fa-globe ODRActiveIcon" title="This record is public"></i>
+                            {% else %}
+                                <i class="fa fa-globe" title="This record is not public"></i>
+                            {% endif %}
+                            </div>
                         </td>
                     {% endif %}
                     </tr>

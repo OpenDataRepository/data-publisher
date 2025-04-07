@@ -279,11 +279,8 @@ class TableThemeHelperService
                 // Store whether the user can view non-public datarecords for this datatype
                 $can_view_datarecord[$dt_id] = false;
 
-                if ( isset($user_permissions['datatypes'][$dt_id])
-                    && isset($user_permissions['datatypes'][$dt_id]['dr_view'])
-                ) {
+                if ( isset($user_permissions['datatypes'][$dt_id]['dr_view']) )
                     $can_view_datarecord[$dt_id] = true;
-                }
             }
 
             if ( $dt_id !== $datatype_id && in_array($dt_id, $associated_datatypes) ) {
@@ -417,6 +414,9 @@ class TableThemeHelperService
                 foreach ($dr_data as $tmp)
                     $row[] = strval($tmp);
 
+                // Append the public date
+                $row['is_public'] = $dr['is_public'];
+
                 $rows[] = $row;
             }
         }
@@ -452,6 +452,10 @@ class TableThemeHelperService
         // ----------------------------------------
         // Only want to save values from the top-level datarecord
         $data = array('sortField_value' => $dr['sortField_value']);
+        // Need the public date in here too...
+        $data['is_public'] = false;
+        if ( ($dr['dataRecordMeta']['publicDate'])->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' )
+            $data['is_public'] = true;
 
         // If the datatype is using a render plugin...
         $overriden_field_values = array();
