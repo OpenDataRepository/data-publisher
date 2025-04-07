@@ -146,6 +146,16 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 $delimiter = $ret['delimiter'];
                 $num_columns = $ret['num_columns'];
 
+                if ( is_null($delimiter) || is_null($num_columns) ) {
+                    // Some sort of error...abort the plugin execution so it doesn't throw an error
+                    fclose($handle);
+                    // Delete any non-public files that got decrypted
+                    foreach ($files_to_delete as $file_path)
+                        unlink($file_path);
+
+                    return '';
+                }
+
                 $data = fgetcsv($handle, 1000, $delimiter);
                 while ( $data !== false ) {
                     $data_array[] = $data;
