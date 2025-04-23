@@ -915,128 +915,15 @@ class DatarecordInfoService
                 $dt_lookup[$df_id] = $dtsf['dataField']['dataType']['id'];
             }
 
+
+            // ----------------------------------------
             // Attempt to find any "name" values for this datarecord...
-            $name_field_values = array();
-            foreach ($name_fields as $display_order => $df_id) {
-                if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                    $drf = $dr['dataRecordFields'][$df_id];
-                    $name_field_values[$display_order] = self::getValue($drf);
-                }
-
-                // "name" values aren't allowed to come from child/linked descendants
-            }
-
+            $name_fields_are_numeric = true;
+            $name_field_values = self::findSpecialFieldValues_worker($dt_lookup, $dr, $name_fields, $name_fields_are_numeric);
 
             // Attempt to find any "sort" values for this datarecord...
             $sort_fields_are_numeric = true;
-            $sort_field_values = array();
-            foreach ($sort_fields as $display_order => $df_id) {
-                // Determine whether the values should be in this datarecord or not
-                $is_remote = false;
-                if ( $dt_lookup[$df_id] !== $dr['dataType']['id'] )
-                    $is_remote = true;
-
-                if ( !$is_remote && isset($dr['dataRecordFields'][$df_id]) ) {
-                    // The sort field belongs to the current datatype, so attempt to find the value
-                    //  for this datafield
-                    $drf = $dr['dataRecordFields'][$df_id];
-                    $sort_field_values[$display_order] = self::getValue($drf);
-
-                    // Keep track of whether all sort values are numeric or not
-                    $typeclass = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
-                    if ( $typeclass !== 'IntegerValue' && $typeclass !== 'DecimalValue' )
-                        $sort_fields_are_numeric = false;
-                }
-                else if ( $is_remote ) {
-                    // Sort fields are allowed to come from another datatype if it's a single-allowed
-                    //  child/linked descendant.
-                    $descendant_dt_id = $dt_lookup[$df_id];
-
-                    // At this point, the datarecord array will contain the ids of all of its
-                    //  child/linked descedant records, organized by datatype id...
-                    $tmp_dr_list = array();
-                    if ( isset($dr['children'][$descendant_dt_id]) )
-                        $tmp_dr_list = $dr['children'][$descendant_dt_id];
-
-                    // ...so if it actually has a descendant record of that descendant datatype,
-                    //  then its id will be accessible
-                    $tmp_dr_id = null;
-                    if ( isset($tmp_dr_list[0]) )
-                        $tmp_dr_id = $tmp_dr_list[0];
-
-                    if ( !is_null($tmp_dr_id) ) {
-                        // Fortunately, there is a descendant record...
-
-                        if ( isset($dr_array[$tmp_dr_id]) ) {
-                            // ...and since the datarecord array contains an entry for this id,
-                            //  that means it's coming from a child record
-                            $child_dr = $dr_array[$tmp_dr_id];
-
-                            // Attempt to find the value for this datafield
-                            if ( isset($child_dr['dataRecordFields'][$df_id]) ) {
-                                $child_drf = $child_dr['dataRecordFields'][$df_id];
-                                $sort_field_values[$display_order] = self::getValue($child_drf);
-                            }
-                        }
-                        else {
-                            // ...since the datarecord array doesn't contain an entry for this id,
-                            //  that means it's supposed to come from a linked record...however, at
-                            //  this point in time the linked records aren't in the array.  Therefore,
-                            //  have no choice but to locate the value directly from the database
-
-                            // Need one query to get the typeclass of the field...
-                            $query = $this->em->createQuery(
-                               'SELECT ft.typeClass
-                                FROM ODRAdminBundle:DataFieldsMeta dfm
-                                LEFT JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
-                                WHERE dfm.dataField = :datafield_id
-                                AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
-                            )->setParameters( array('datafield_id' => $df_id) );
-                            $results = $query->getArrayResult();
-
-                            // Should only be one row
-                            $typeclass = $results[0]['typeClass'];
-
-                            // Knowing the typeclass enables a second query that targets the relevant
-                            //  dataRecordField entry in the linked record...
-                            $query = null;
-                            if ( $typeclass === 'Radio' ) {
-                                $query = $this->em->createQuery(
-                                   'SELECT ro.optionName AS sortfield_value
-                                    FROM ODRAdminBundle:DataRecordFields drf
-                                    LEFT JOIN ODRAdminBundle:RadioSelection rs WITH rs.dataRecordFields = drf
-                                    LEFT JOIN ODRAdminBundle:RadioOptions ro WITH rs.radioOption = ro
-                                    WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
-                                    AND rs.selected = 1
-                                    AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
-                                )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
-                            }
-                            else {
-                                $query = $this->em->createQuery(
-                                   'SELECT e.value AS sortfield_value
-                                    FROM ODRAdminBundle:DataRecordFields drf
-                                    LEFT JOIN ODRAdminBundle:'.$typeclass.' e WITH e.dataRecordFields = drf
-                                    WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
-                                    AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
-                                )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
-                            }
-                            $results = $query->getArrayResult();
-
-                            // Should only be one value...
-                            if ( isset($results[0]['sortfield_value']) )
-                                $sort_field_values[$display_order] = $results[0]['sortfield_value'];
-                            else
-                                $sort_field_values[$display_order] = '';
-
-                            // Keep track of whether all sort values are numeric or not
-                            if ( $typeclass !== 'IntegerValue' && $typeclass !== 'DecimalValue' )
-                                $sort_fields_are_numeric = false;
-                        }
-                    }
-
-                    // Otherwise, there's no descendant child/linked record to get a sort_value from
-                }
-            }
+            $sort_field_values = self::findSpecialFieldValues_worker($dt_lookup, $dr, $sort_fields, $sort_fields_are_numeric);
 
 
             // ----------------------------------------
@@ -1072,6 +959,131 @@ class DatarecordInfoService
                 $dr_array[$dr_id]['sortField_types'] = 'natural';
             }
         }
+    }
+
+
+    /**
+     * Finding the values for the relevant fields is achieved the same way regardless of whether it's
+     * a namefield or a sortfield.
+     *
+     * @param array $dt_lookup
+     * @param array $dr
+     * @param array $fields
+     * @param bool $fields_are_numeric
+     * @return array
+     */
+    private function findSpecialFieldValues_worker($dt_lookup, $dr, $fields, &$fields_are_numeric)
+    {
+        $field_values = array();
+
+        foreach ($fields as $display_order => $df_id) {
+            // Determine whether the values should be in this datarecord or not
+            $is_remote = false;
+            if ( $dt_lookup[$df_id] !== $dr['dataType']['id'] )
+                $is_remote = true;
+
+            if ( !$is_remote && isset($dr['dataRecordFields'][$df_id]) ) {
+                // This field belongs to the current datatype, so attempt to find the value for it
+                $drf = $dr['dataRecordFields'][$df_id];
+                $field_values[$display_order] = self::getValue($drf);
+
+                // Keep track of whether all values are numeric or not
+                $typeclass = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
+                if ( $typeclass !== 'IntegerValue' && $typeclass !== 'DecimalValue' )
+                    $fields_are_numeric = false;
+            }
+            else if ( $is_remote ) {
+                // Name/Sort fields are allowed to come from another datatype if it's a single-allowed
+                //  child/linked descendant.
+                $descendant_dt_id = $dt_lookup[$df_id];
+
+                // At this point, the datarecord array will contain the ids of all of its
+                //  child/linked descedant records, organized by datatype id...
+                $tmp_dr_list = array();
+                if ( isset($dr['children'][$descendant_dt_id]) )
+                    $tmp_dr_list = $dr['children'][$descendant_dt_id];
+
+                // ...so if it actually has a descendant record of that descendant datatype,
+                //  then its id will be accessible
+                $tmp_dr_id = null;
+                if ( isset($tmp_dr_list[0]) )
+                    $tmp_dr_id = $tmp_dr_list[0];
+
+                if ( !is_null($tmp_dr_id) ) {
+                    // There is a descendant record...
+
+                    if ( isset($dr_array[$tmp_dr_id]) ) {
+                        // ...and since the datarecord array contains an entry for this id,
+                        //  that means it's coming from a child record
+                        $child_dr = $dr_array[$tmp_dr_id];
+
+                        // Attempt to find the value for this datafield
+                        if ( isset($child_dr['dataRecordFields'][$df_id]) ) {
+                            $child_drf = $child_dr['dataRecordFields'][$df_id];
+                            $field_values[$display_order] = self::getValue($child_drf);
+                        }
+                    }
+                    else {
+                        // ...since the datarecord array doesn't contain an entry for this id,
+                        //  that means it's supposed to come from a linked record...however, at
+                        //  this point in time the linked records aren't in the array.  Therefore,
+                        //  have no choice but to locate the value directly from the database
+
+                        // Need one query to get the typeclass of the field...
+                        $query = $this->em->createQuery(
+                           'SELECT ft.typeClass
+                            FROM ODRAdminBundle:DataFieldsMeta dfm
+                            LEFT JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
+                            WHERE dfm.dataField = :datafield_id
+                            AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
+                        )->setParameters( array('datafield_id' => $df_id) );
+                        $results = $query->getArrayResult();
+
+                        // Should only be one row
+                        $typeclass = $results[0]['typeClass'];
+
+                        // Knowing the typeclass enables a second query that targets the relevant
+                        //  dataRecordField entry in the linked record...
+                        $query = null;
+                        if ( $typeclass === 'Radio' ) {
+                            $query = $this->em->createQuery(
+                               'SELECT ro.optionName AS field_value
+                                FROM ODRAdminBundle:DataRecordFields drf
+                                LEFT JOIN ODRAdminBundle:RadioSelection rs WITH rs.dataRecordFields = drf
+                                LEFT JOIN ODRAdminBundle:RadioOptions ro WITH rs.radioOption = ro
+                                WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
+                                AND rs.selected = 1
+                                AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                            )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
+                        }
+                        else {
+                            $query = $this->em->createQuery(
+                               'SELECT e.value AS field_value
+                                FROM ODRAdminBundle:DataRecordFields drf
+                                LEFT JOIN ODRAdminBundle:'.$typeclass.' e WITH e.dataRecordFields = drf
+                                WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
+                                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+                            )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
+                        }
+                        $results = $query->getArrayResult();
+
+                        // Should only be one value...
+                        if ( isset($results[0]['field_value']) )
+                            $field_values[$display_order] = $results[0]['field_value'];
+                        else
+                            $field_values[$display_order] = '';
+
+                        // Keep track of whether all values are numeric or not
+                        if ( $typeclass !== 'IntegerValue' && $typeclass !== 'DecimalValue' )
+                            $fields_are_numeric = false;
+                    }
+                }
+
+                // Otherwise, there's no descendant child/linked record to get a value from
+            }
+        }
+
+        return $field_values;
     }
 
 

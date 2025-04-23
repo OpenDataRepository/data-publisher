@@ -47,6 +47,7 @@ use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
@@ -958,7 +959,8 @@ class LinkController extends ODRCustomController
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update, $previous_remote_datatype);
 
                 // ----------------------------------------
-                // Determine whether one of the local datatype's sortfields belongs to a remote datatype...
+                // Determine whether one of the local datatype's name/sortfields belongs to a remote
+                //  datatype...
                 $query = $em->createQuery(
                    'SELECT dtsf.id
                     FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
@@ -991,7 +993,8 @@ class LinkController extends ODRCustomController
                     );
                     $result = $query->execute();
 
-                    // ...and also wipe the sort order for this datatype
+                    // ...and also wipe the related cache entries for this datatype
+                    $cache_service->delete('datatype_'.$local_datatype_id.'_record_names');
                     $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
                 }
 
@@ -1620,10 +1623,10 @@ class LinkController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
-            /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var Router $router */
             $router = $this->get('router');
             /** @var EngineInterface $templating */
@@ -1658,7 +1661,6 @@ class LinkController extends ODRCustomController
             //  locate the info to do it "manually"...
             $data = array();
             $linked_record_data = array();
-            $has_name_field = array();
             $conn = $em->getConnection();
 
             // Because of mysql, it's better to run a couple queries...need to first have info on all
@@ -1674,12 +1676,11 @@ class LinkController extends ODRCustomController
                 $datatype_ids[] = $dt_id;
 
             $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, dtm.publicDate, dtm.shortName, dtm.searchSlug, dtsf.id AS dtsf_id, dtsf.field_purpose
+               'SELECT dt.id AS dt_id, dtm.publicDate, dtm.shortName, dtm.searchSlug
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataType = dt
                 WHERE dt IN (:datatype_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND dtsf.deletedAt IS NULL'
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( array('datatype_ids' => $datatype_ids) );
             $results = $query->getArrayResult();
 
@@ -1688,8 +1689,6 @@ class LinkController extends ODRCustomController
                 $dt_public_date = $result['publicDate'];
                 $dt_name = $result['shortName'];
                 $dt_search_slug = $result['searchSlug'];
-                $dtsf_id = $result['dtsf_id'];
-                $dtsf_purpose = $result['field_purpose'];
 
                 // Store basic info about the datatype...
                 if ( !isset($data[$dt_id]) ) {
@@ -1700,10 +1699,6 @@ class LinkController extends ODRCustomController
                         'records' => array(),
                     );
                 }
-
-                // Store if it has a name field set...no sense displaying datarecord ids to users
-                if ( !is_null($dtsf_id) && $dtsf_purpose === DataTypeSpecialFields::NAME_FIELD )
-                    $has_name_field[$dt_id] = 1;
             }
 
             // Need to splice in the "direction"
@@ -1740,7 +1735,7 @@ class LinkController extends ODRCustomController
             //  local datarecord.  Going to do this "manually" in an attempt to create as little mysql
             //  stress as possible...
             $query =
-                'SELECT adr.id AS adr_id, adrm.public_date AS adrm_public_date,
+               'SELECT adr.id AS adr_id, adrm.public_date AS adrm_public_date,
                         pdr.id AS pdr_id, pdrm.public_date AS pdrm_public_date,
                         gdr.id AS gdr_id, gdrm.public_date AS gdrm_public_date, gdr.data_type_id AS gdt_id
                 FROM odr_linked_data_tree ldt
@@ -1826,7 +1821,8 @@ class LinkController extends ODRCustomController
                             // $tmp_dr_id is now equivalent to $gdr_id...check the public date of the
                             //  grandparent since the loop exited before it could do that
                             if ( !isset($dt_data['records'][$gdr_id]['public_date']) )
-                                $a = 1;
+                                throw new ODRException('Unable to locate public date while building list of linked records');
+
                             $gdr_public_date = $dt_data['records'][$gdr_id]['public_date'];
                             if ( !($gdr_public_date !== '2200-01-01 00:00:00' || $can_view_datarecords || $is_super_admin) ) {
                                 // User can't view the grandparent datarecord...skip to the next record
@@ -1867,17 +1863,17 @@ class LinkController extends ODRCustomController
             // Want to locate names for at least some of the records
             foreach ($linked_record_data as $dt_id => $dt_data) {
                 $names = array();
-                $unnamed = 0;
                 if ( count($dt_data['records']) > 0 ) {
-                    foreach ($dt_data['records'] as $gdr_id => $num) {
+                    // Can use this cached list since it's faster to rebuild...
+                    $sorted_dr_names = $sort_service->getNamedDatarecordList($dt_id);
 
-                        // Fall back to identifying the remote datarecord using the grandparent datarecord id...
+                    foreach ($dt_data['records'] as $gdr_id => $num) {
+                        // Fall back to identifying the remote datarecord using its grandparent
+                        //  datarecord id...
                         $dr_name = $gdr_id;
-                        if ( isset($has_name_field[$dt_id]) ) {
-                            // ...but if the datatype has a name field, then extract the name for the
-                            //  remote datarecord
-                            $dr_array = $datarecord_info_service->getDatarecordArray($gdr_id, false);    // don't want links
-                            $dr_name = $dr_array[$gdr_id]['nameField_value'];
+                        if ( isset($sorted_dr_names[$gdr_id]) ) {
+                            // ...but if the datatype has a name field(s), then get its name
+                            $dr_name = $sorted_dr_names[$gdr_id];
                         }
 
                         // Generate a link to the grandparent record...
@@ -2542,26 +2538,26 @@ class LinkController extends ODRCustomController
                     }
                 }
 
-                // If the local datatype is using a sortfield that comes from the remote datatype,
-                //  then need to wipe the local datatype's default sort ordering
+                // If the local datatype is using a name/sortfield that comes from the remote datatype,
+                //  then need to wipe some cache entries in the local datatype
                 $query = $em->createQuery(
                    'SELECT dtsf.id
                     FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
                     LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
-                    WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
-                    AND remote_df.dataType = :remote_datatype_id
+                    WHERE dtsf.dataType = :local_datatype_id AND remote_df.dataType = :remote_datatype_id
                     AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
                 )->setParameters(
                     array(
                         'local_datatype_id' => $local_datatype_id,
-                        'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
                         'remote_datatype_id' => $remote_datatype_id,
                     )
                 );
                 $dtsf_ids = $query->getArrayResult();
 
-                if ( !empty($dtsf_ids) )
+                if ( !empty($dtsf_ids) ) {
+                    $cache_service->delete('datatype_'.$local_datatype_id.'_record_names');
                     $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
+                }
 
                 // Flush once everything is deleted
                 if ( $change_made )
@@ -2870,29 +2866,6 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If the local datatype is using a sortfield that comes from the remote datatype,
-            //  then need to wipe the local datatype's default sort ordering
-            $query = $em->createQuery(
-               'SELECT dtsf.id
-                FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
-                LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
-                WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
-                AND remote_df.dataType = :remote_datatype_id
-                AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'local_datatype_id' => $local_datatype_id,
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
-                    'remote_datatype_id' => $remote_datatype_id,
-                )
-            );
-            $dtsf_ids = $query->getArrayResult();
-
-            if ( !empty($dtsf_ids) )
-                $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
-
-
-            // ----------------------------------------
             // Each of the records in $records_needing_events needs to be marked as updated and have
             //  their primary cache entries cleared
             try {
@@ -2908,10 +2881,8 @@ class LinkController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Each of these records also needs to have their "associated_datarecords_for_<dr_id>"
-            //  cache entry deleted so the view/edit pages can show the correct linked records
+            // Each of these records also needs to have several cache entries deleted
             $records_to_clear = array_keys($records_needing_events);
-
             try {
                 $event = new DatarecordLinkStatusChangedEvent($records_to_clear, $descendant_datatype, $user);
                 $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
@@ -3570,32 +3541,6 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If the record that got replaced contains a datafield that is being used to sort an
-            //  ancestor datatype, then that datatype's sort order needs to be cleared
-            $query = $em->createQuery(
-               'SELECT adt.id AS dt_id
-                FROM ODRAdminBundle:DataType AS adt
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataType = adt
-                LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
-                WHERE adt IN (:ancestor_datatype_ids) AND dtsf.field_purpose = :field_purpose
-                AND remote_df.dataType = :remote_datatype_id
-                AND adt.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'ancestor_datatype_ids' => $affected_datatype_ids,
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
-                    'remote_datatype_id' => $relevant_datatype->getId(),
-                )
-            );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $cache_service->delete('datatype_'.$dt_id.'_record_order');
-            }
-
-
-            // ----------------------------------------
             // If the record being replaced should be deleted...
             if ( $delete_after_link ) {
                 // ...then deal with that
@@ -3619,8 +3564,7 @@ class LinkController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Each of these records also needs to have their "associated_datarecords_for_<dr_id>"
-            //  cache entry deleted so the view/edit pages can show the correct linked records
+            // Each of these records also needs to have several cache entries deleted
             try {
                 foreach ($datarecord_link_status_change_events as $dt_id => $data) {
                     $record_list = array_keys( $data['records'] );

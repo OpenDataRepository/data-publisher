@@ -1197,10 +1197,6 @@ class APIController extends ODRCustomController
             }
 
             // ----------------------------------------
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('datatype_' . $dataset_record->getDataType()->getId() . '_record_order');
-
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_dataset_record', array(
                 'version' => $version,
@@ -3356,27 +3352,6 @@ class APIController extends ODRCustomController
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
-
-                    // If the local datatype is using a sortfield that comes from the remote datatype,
-                    //  then need to wipe the local datatype's default sort ordering
-                    $query = $em->createQuery(
-                       'SELECT dtsf.id
-                        FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
-                        LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
-                        WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
-                        AND remote_df.dataType = :remote_datatype_id
-                        AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
-                    )->setParameters(
-                        array(
-                            'local_datatype_id' => $data_type->getId(),
-                            'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
-                            'remote_datatype_id' => ($data['descendant_datatype'])->getId(),
-                        )
-                    );
-                    $dtsf_ids = $query->getArrayResult();
-
-                    if ( !empty($dtsf_ids) )
-                        $cache_service->delete('datatype_'.$data_type->getId().'_record_order');
                 }
             }
 

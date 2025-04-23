@@ -1832,7 +1832,7 @@ class MassEditController extends ODRCustomController
             $ancestor_datarecord_uuids = array_keys($dr_uuids);
 //print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  //exit();
 
-            // If the datarecord contains any datafields that are being used as a sortfield for
+            // If the datarecord contains any datafields that are being used as a name/sortfield for
             //  other datatypes, then need to clear the default sort order for those datatypes
             $query = $em->createQuery(
                'SELECT DISTINCT(l_dt.id) AS dt_id
@@ -1841,21 +1841,18 @@ class MassEditController extends ODRCustomController
                 LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose = :field_purpose
+                WHERE dr.id IN (:datarecords_to_delete)
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array(
-                    'datarecords_to_delete' => $datarecords_to_delete,
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
+                array( 'datarecords_to_delete' => $datarecords_to_delete )
             );
             $results = $query->getArrayResult();
 
-            $datatypes_to_reset_order = array();
+            $datatypes_to_clear = array();
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
-                $datatypes_to_reset_order[] = $dt_id;
+                $datatypes_to_clear[] = $dt_id;
             }
 
 
@@ -1960,8 +1957,10 @@ class MassEditController extends ODRCustomController
 
             // ----------------------------------------
             // Reset sort order for the datatypes found earlier
-            foreach ($datatypes_to_reset_order as $num => $dt_id)
+            foreach ($datatypes_to_clear as $num => $dt_id) {
+                $cache_service->delete('datatype_'.$dt_id.'_record_names');
                 $cache_service->delete('datatype_'.$dt_id.'_record_order');
+            }
 
             // NOTE: don't actually need to delete cached graphs for the datatype...the relevant
             //  plugins will end up requesting new graphs without the files for the deleted records

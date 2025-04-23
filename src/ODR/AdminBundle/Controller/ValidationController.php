@@ -2691,46 +2691,40 @@ class ValidationController extends ODRCustomController
                 $ancestor_name = $result['ancestor_name'];
                 $descendant_name = $result['descendant_name'];
 
-                if ( $field_purpose === 'name' ) {
-                    // If this is a name field, then it's not allowed to come from another datatype
+                // The name/sort fields are allowed to come from another datatype...but only
+                //  if the ancestor -> descendant link does not allow multiple records
+                $query = $em->createQuery(
+                   'SELECT dtm.is_link, dtm.multiple_allowed
+                    FROM ODRAdminBundle:DataTree AS dt
+                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                    WHERE dt.ancestor = :ancestor_id AND dt.descendant = :descendant_id
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'ancestor_id' => $ancestor_id,
+                        'descendant_id' => $descendant_id
+                    )
+                );
+                $sub_results = $query->getArrayResult();
+
+                if ( empty($sub_results) ) {
+                    // Datatype A isn't even related to Datatype B
                     $dtsf_entries_to_delete[] = $dtsf_id;
                 }
                 else {
-                    // If this is this a sort field, then it is allowed to come from another datatype
-                    //  ...but only if the ancestor -> descendant link only allows a single record
-                    $query = $em->createQuery(
-                       'SELECT dtm.is_link, dtm.multiple_allowed
-                        FROM ODRAdminBundle:DataTree AS dt
-                        JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                        WHERE dt.ancestor = :ancestor_id AND dt.descendant = :descendant_id
-                        AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                    )->setParameters(
-                        array(
-                            'ancestor_id' => $ancestor_id,
-                            'descendant_id' => $descendant_id
-                        )
-                    );
-                    $sub_results = $query->getArrayResult();
+                    $is_link = $sub_results[0]['is_link'];
+                    $multiple_allowed = $sub_results[0]['multiple_allowed'];
 
-                    if ( empty($sub_results) ) {
-                        // Datatype A isn't even related to Datatype B
+                    if ($is_link == 0) {
+                        // Datatype B is a child of Datatype A
+                        $dtsf_entries_to_delete[] = $dtsf_id;
+                    }
+                    else if ($multiple_allowed == 1) {
+                        // Datatype A can link to multiple datarecords of Datatype B
                         $dtsf_entries_to_delete[] = $dtsf_id;
                     }
                     else {
-                        $is_link = $sub_results[0]['is_link'];
-                        $multiple_allowed = $sub_results[0]['multiple_allowed'];
-
-                        if ($is_link == 0) {
-                            // Datatype B is a child of Datatype A
-                            $dtsf_entries_to_delete[] = $dtsf_id;
-                        }
-                        else if ($multiple_allowed == 1) {
-                            // Datatype A can link to multiple datarecords of Datatype B
-                            $dtsf_entries_to_delete[] = $dtsf_id;
-                        }
-                        else {
-                            print '<pre><b>Datatype '.$ancestor_id.' ("'.$ancestor_name.'") is allowed to sort with the field '.$df_id.' ("'.$df_name.'"), belonging to Datatype '.$descendant_id.' ("'.$descendant_name.'")</b></pre>';
-                        }
+                        print '<pre><b>Datatype '.$ancestor_id.' ("'.$ancestor_name.'") is allowed to use field '.$df_id.' ("'.$df_name.'"), belonging to Datatype '.$descendant_id.' ("'.$descendant_name.'"), as a '.$field_purpose.' field</b></pre>';
                     }
                 }
             }

@@ -532,16 +532,18 @@ class DatafieldInfoService
             }
         }
 
-        // Prevent a datafield's fieldtype from changing if it's a sort field for any datatype
-        // TODO - allow changing fieldtype of sort fields?
+        // Prevent a datafield's fieldtype from changing if it's being used as a name/sort field for
+        //  any datatype
+        // TODO - ...why prevent this?
+        // TODO - obviously, changing from a text to a file/image/markdown/etc field would break sorting, but was there some reason other than setting up a whitelist like with plugin fields?
         $query = $this->em->createQuery(
            'SELECT df.id AS df_id, dt.id AS dt_id
             FROM ODRAdminBundle:DataFields AS df
             LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
             LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
-            WHERE df IN (:datafield_ids) AND dtsf.field_purpose = :field_purpose
+            WHERE df IN (:datafield_ids)
             AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
-        )->setParameters( array('datafield_ids' => $datafield_ids, 'field_purpose' => DataTypeSpecialFields::SORT_FIELD) );
+        )->setParameters( array('datafield_ids' => $datafield_ids) );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {
@@ -560,7 +562,7 @@ class DatafieldInfoService
                 }
                 else {
                     $fieldtype_info[$df_id]['prevent_change'] = true;
-                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype.";
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being as a name/sort field for a Datatype.";
                 }
 
                 // Don't need to keep looking

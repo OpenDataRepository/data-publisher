@@ -1528,8 +1528,8 @@ class DisplaytemplateController extends ODRCustomController
             if ( !is_null($datatree) && $datatree->getIsLink() )
                 $is_link = true;
 
-            // Determine which child/linked datatypes have usable sortfields for this datatype
-            $sortfield_datatypes = self::getSortfieldDatatypes($datatype);
+            // Determine which child/linked datatypes could have usable fields for naming/sorting
+            $single_linked_descendants = self::getSingleLinkedDescendants($datatype);
 
 
             // ----------------------------------------
@@ -1545,7 +1545,7 @@ class DisplaytemplateController extends ODRCustomController
                     'is_top_level' => $is_top_level,
                     'is_link' => $is_link,
 
-                    'sortfield_datatypes' => $sortfield_datatypes,
+                    'single_linked_descendants' => $single_linked_descendants,
                 )
             );
             $datatype_form->handleRequest($request);
@@ -1749,16 +1749,15 @@ class DisplaytemplateController extends ODRCustomController
                         'is_top_level' => $is_top_level,
                         'is_link' => $is_link,
 
-                        'sortfield_datatypes' => $sortfield_datatypes
+                        'single_linked_descendants' => $single_linked_descendants,
                     )
                 );
 
 
                 // ----------------------------------------
-                // Create the form for the Datatree entity if it exists (stores whether the parent
-                //  datatype is allowed to have multiple datarecords of the child datatype)
+                // Create the form for the Datatree entity if it exists
                 $force_multiple = false;
-                $affects_sortfield = false;
+                $affects_namefield = $affects_sortfield = false;
 
                 $datatree_form = null;
                 if ( !is_null($datatree) ) {
@@ -1767,6 +1766,10 @@ class DisplaytemplateController extends ODRCustomController
                     $ancestor_datatype = $datatree->getAncestor();
                     $descendant_datatype = $datatree->getDescendant();
 
+                    foreach ($ancestor_datatype->getNameFields() as $display_order => $name_df) {
+                        if ( $name_df->getDataType()->getId() === $descendant_datatype->getId() )
+                            $affects_namefield = true;
+                    }
                     foreach ($ancestor_datatype->getSortFields() as $display_order => $sort_df) {
                         if ( $sort_df->getDataType()->getId() === $descendant_datatype->getId() )
                             $affects_sortfield = true;
@@ -1885,6 +1888,8 @@ class DisplaytemplateController extends ODRCustomController
                         'datatree' => $datatree,
                         'datatree_form' => $datatree_form,              // not creating view here because form could be legitimately null
                         'force_multiple' => $force_multiple,
+
+                        'affects_namefield' => $affects_namefield,
                         'affects_sortfield' => $affects_sortfield,
 
                         'theme_datatype' => $theme_datatype,
@@ -1908,14 +1913,14 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
-     * Datatypes are also allowed to pull datafields for sorting from linked datatypes, provided
+     * Datatypes are also allowed to use datafields from linked datatypes for naming/sorting, provided
      * they only allow a single linked datarecord.
      *
      * @param DataType $datatype
      *
      * @return int[]
      */
-    private function getSortfieldDatatypes($datatype)
+    private function getSingleLinkedDescendants($datatype)
     {
         /** @var DatatreeInfoService $datatree_info_service */
         $datatree_info_service = $this->container->get('odr.datatree_info_service');
@@ -1926,25 +1931,25 @@ class DisplaytemplateController extends ODRCustomController
 
         // The parent datatype should always be in here, otherwise no fields will get listed as
         //  candidates for a sortfield
-        $sortfield_datatypes = array();
-        $sortfield_datatypes[] = $datatype->getId();
+        $related_datatypes = array();
+        $related_datatypes[] = $datatype->getId();
 
         foreach ($linked_descendants as $num => $ldt_id) {
             if ( !isset($datatree_array['multiple_allowed'][$ldt_id]) ) {
                 // If the linked datatype isn't in the 'multiple allowed' section, then everything
                 //  that links to it only permits a single linked record
-                $sortfield_datatypes[] = $ldt_id;
+                $related_datatypes[] = $ldt_id;
             }
             else {
                 $parents = $datatree_array['multiple_allowed'][$ldt_id];
                 if ( !in_array($datatype->getId(), $parents) ) {
                     // The parent datatype only allows at most one linked record
-                    $sortfield_datatypes[] = $ldt_id;
+                    $related_datatypes[] = $ldt_id;
                 }
             }
         }
 
-        return $sortfield_datatypes;
+        return $related_datatypes;
     }
 
 
@@ -2044,14 +2049,19 @@ class DisplaytemplateController extends ODRCustomController
                 }
             }
 
-            // Determine whether the ancestor datatype is using a sortfield from the descendant datatype
+            // Determine whether the ancestor datatype is using a field from the descendant datatype
+            //  for naming/sorting
             $ancestor_datatype = $datatree->getAncestor();
             $descendant_datatype = $datatree->getDescendant();
 
-            $affects_sortfield = false;
+            $affects_special_field = false;
+            foreach ($ancestor_datatype->getNameFields() as $display_order => $name_df) {
+                if ( $name_df->getDataType()->getId() === $descendant_datatype->getId() )
+                    $affects_special_field = true;
+            }
             foreach ($ancestor_datatype->getSortFields() as $display_order => $sort_df) {
                 if ( $sort_df->getDataType()->getId() === $descendant_datatype->getId() )
-                    $affects_sortfield = true;
+                    $affects_special_field = true;
             }
 
 
@@ -2083,53 +2093,61 @@ class DisplaytemplateController extends ODRCustomController
                     $entity_modify_service->updateDatatreeMeta($user, $datatree, $properties);
 
                     // If multiple descendant records are now allowed for this descendant datatype,
-                    //  and at least one of the ancestor datatype's sortfields comes from a descendant...
+                    //  and the ancestor datatype is currently using a field from that descendant
+                    //  as a name/sort field...
                     $clear_datarecord_cache = false;
-                    if ( $affects_sortfield && $submitted_data->getMultipleAllowed() == true ) {
-                        // ...then need to ensure that the ancestor datatype does not use a sortfield
-                        //  from the descendant datatype in question
+                    if ( $affects_special_field && $submitted_data->getMultipleAllowed() == true ) {
+                        // ...then need to locate all relevant entries between the ancestor/descendant
+                        //  datatypes...
                         $query = $em->createQuery(
                            'SELECT dtsf
                             FROM ODRAdminBundle:DataTypeSpecialFields dtsf
                             JOIN ODRAdminBundle:DataFields df WITH dtsf.dataField = df
                             JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
                             WHERE dtsf.dataType = :ancestor_datatype_id AND dt = :descendant_datatype_id
-                            AND dtsf.deletedAt IS NULL AND dtsf.field_purpose = :field_purpose
-                            AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+                            AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
                         )->setParameters(
                             array(
                                 'ancestor_datatype_id' => $ancestor_datatype->getId(),
                                 'descendant_datatype_id' => $descendant_datatype->getId(),
-                                'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
                             )
                         );
                         $results = $query->getResult();
 
                         if ( !empty($results) ) {
-                            // Going to need to clear datarecord cache entries since the ancestor
-                            //  datatype's sort fields are being changed
+                            // Going to need to clear datarecord cache entries since values are going
+                            //  to change
                             $clear_datarecord_cache = true;
 
                             /** @var DataTypeSpecialFields[] $results */
                             $datafield_ids = array();
-                            foreach ($results as $dtsf)
+                            $datatype_ids = array();
+                            foreach ($results as $dtsf) {
                                 $datafield_ids[] = $dtsf->getDataField()->getId();
+                                $datatype_ids[] = $dtsf->getDataType()->getId();
+                            }
 
                             $query = $em->createQuery(
                                'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
                                 SET dtsf.deletedBy = :user, dtsf.deletedAt = :now
                                 WHERE dtsf.dataType = :datatype_id AND dtsf.dataField IN (:datafield_ids)
-                                AND dtsf.field_purpose = :field_purpose AND dtsf.deletedAt IS NULL'
+                                AND dtsf.deletedAt IS NULL'
                             )->setParameters(
                                 array(
                                     'user' => $user->getId(),
                                     'now' => new \DateTime(),
                                     'datatype_id' => $ancestor_datatype->getId(),
                                     'datafield_ids' => $datafield_ids,
-                                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
                                 )
                             );
                             $updated = $query->execute();
+
+                            // These cache entries also needs to be deleted when name/sort fields
+                            //  get changed
+                            foreach ($datatype_ids as $num => $dt_id) {
+                                $cache_service->delete('datatype_'.$dt_id.'_record_names');
+                                $cache_service->delete('datatype_'.$dt_id.'_record_order');
+                            }
                         }
                     }
 
@@ -4383,8 +4401,8 @@ if ($debug)
                             $current_datafields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
                     }
 
-                    // If searching for sort fields...
-                    if ( $type === 'sort' && isset($dt['descendants']) ) {
+                    // If this record has descendants...
+                    if ( isset($dt['descendants']) ) {
                         // ...then also need to go looking into linked descendants that only allow
                         //  a single record
                         foreach ($dt['descendants'] as $descendant_dt_id => $data) {
@@ -4572,8 +4590,8 @@ if ($debug)
                         }
                     }
 
-                    // If searching for sort fields...
-                    if ( $purpose === 'sort' && isset($dt['descendants']) ) {
+                    // If this record has descendants...
+                    if ( isset($dt['descendants']) ) {
                         // ...then also need to go looking into linked descendants that only allow
                         //  a single record
                         foreach ($dt['descendants'] as $descendant_dt_id => $data) {
@@ -4695,7 +4713,9 @@ if ($debug)
 //                        throw $e;
                 }
 
-                // If the sort fields got changed, then need to reset some more cache entries
+                // Need to reset some more cache entries...
+                if ( $purpose === 'name' )
+                    $cache_service->delete('datatype_'.$datatype->getId().'_record_names');
                 if ( $purpose === 'sort' )
                     $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
             }

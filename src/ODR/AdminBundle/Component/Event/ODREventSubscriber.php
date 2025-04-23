@@ -628,6 +628,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             foreach ($all_linked_descendants as $num => $dt_id)
                 $this->cache_service->delete('inverse_associated_datatypes_for_'.$dt_id);
 
+
+            // ----------------------------------------
+            // Don't need to clear 'datatype_<$dt_id>_record_names' or 'datatype_<$dt_id>_record_order'
+            // ...that happens inside DatarecordLinkStatusChanged, if LinkController realizes that
+            //  it needs to happen
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -688,13 +693,10 @@ class ODREventSubscriber implements EventSubscriberInterface
                 FROM ODRAdminBundle:DataFields AS df
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE df.dataType IN (:datatype_id) AND dtsf.field_purpose = :field_purpose
+                WHERE df.dataType IN (:datatype_id)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array(
-                    'datatype_id' => array( $datatype->getId() ),
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
+                array( 'datatype_id' => array( $datatype->getId() ) )
             );
             $results = $query->getArrayResult();
 
@@ -704,9 +706,12 @@ class ODREventSubscriber implements EventSubscriberInterface
                 $datatypes_to_reset_order[] = $dt_id;
             }
 
-            // ...and then reset the sort order for each of the other datatypes
-            foreach ($datatypes_to_reset_order as $dt_id)
+            // ...and then reset these cache entries for each of the other datatypes
+            foreach ($datatypes_to_reset_order as $dt_id) {
+                // Could be more precise with clearing these two entries, but this event is rare
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_names');
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+            }
 
             if ($clear_datarecord_caches) {
                 // ...also need to delete the datarecord entries here...usually due to modifying
@@ -769,7 +774,8 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Delete the related dashboard entry
             $this->cache_service->delete('dashboard_'.$datatype->getGrandparent()->getId());
 
-            // Delete the cached default ordering of records in this datatype
+            // Delete these two cache entries as well
+            $this->cache_service->delete('datatype_'.$datatype->getId().'_record_names');
             $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
             // DatabaseInfoService originally always reset cached graphs when a datarecord was
@@ -906,7 +912,8 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Delete the related dashboard entry
             $this->cache_service->delete('dashboard_'.$datatype->getGrandparent()->getId());
 
-            // Delete the cached default ordering of records in this datatype
+            // Delete these two cache entries as well
+            $this->cache_service->delete('datatype_'.$datatype->getId().'_record_names');
             $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
             // If the deleted datarecord (or datarecords) belongs to a top-level datatype, then
@@ -1028,7 +1035,7 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
     /**
-     * Handles dispatched DatatypeLinkStatusChanged events.
+     * Handles dispatched DatarecordLinkStatusChanged events.
      *
      * @param DatarecordLinkStatusChangedEvent $event
      *
@@ -1042,7 +1049,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datarecord_ids = $event->getDatarecordIds();
-//            $datatype = $event->getDescendantDatatype();
+            $datatype = $event->getDescendantDatatype();
 //            $user = $event->getUser();
 
             // This event currently isn't allowed to fire for render plugins
@@ -1118,6 +1125,37 @@ class ODREventSubscriber implements EventSubscriberInterface
 
             // These particular ancestors don't need their 'cached_datarecord_<dr_id>' (and other)
             //  entries cleared, because those don't directly reference the records in this event
+
+
+            // ----------------------------------------
+            // If the descendant datatype has fields which are being used by an ancestor datatype for
+            //  naming/sorting...
+            $query = $this->em->createQuery(
+               'SELECT DISTINCT(dt.id) AS dt_id
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
+                JOIN ODRAdminBundle:DataRecord dr WITH dr.dataType = dt
+                WHERE df.dataType = :descendant_datatype AND dr IN (:datarecord_ids)
+                AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'descendant_datatype' => $datatype->getId(),
+                    'datarecord_ids' => $datarecord_ids
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                // ...then need to reset several cached entries for each ancestor datatype as a
+                //  result of linking/unlinking
+                $dt_id = $result['dt_id'];
+
+                // Could be more precise with clearing these two entries, but this event is rare
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_names');
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+            }
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -1162,8 +1200,12 @@ class ODREventSubscriber implements EventSubscriberInterface
 //            }
 
             // ----------------------------------------
-            // Changes to the datafield should reset sort order for any datatypes using it as their
-            //  sort field
+            // Changes to the datafield should also clear these cache entries for any datatypes using
+            //  it as a special field
+            $name_datatypes = $datafield->getNameDatatypes();
+            foreach ($name_datatypes as $dt)
+                $this->cache_service->delete('datatype_'.$dt->getId().'_record_names');
+
             $sort_datatypes = $datafield->getSortDatatypes();
             foreach ($sort_datatypes as $dt)
                 $this->cache_service->delete('datatype_'.$dt->getId().'_record_order');

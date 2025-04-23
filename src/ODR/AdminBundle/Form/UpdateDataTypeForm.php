@@ -43,7 +43,7 @@ class UpdateDataTypeForm extends AbstractType
         $is_target_datatype_admin = $options['is_target_datatype_admin'];
         $is_top_level = $options['is_top_level'];
         $is_link = $options['is_link'];
-        $sortfield_datatypes = $options['sortfield_datatypes'];
+        $single_linked_descendants = $options['single_linked_descendants'];
 
         // None of these should be visible if viewing the properties of a datatype the user
         //  isn't allowed to modify...
@@ -102,12 +102,17 @@ class UpdateDataTypeForm extends AbstractType
             EntityType::class,
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
+                'query_builder' => function(EntityRepository $er) use ($single_linked_descendants) {
                     return $er->createQueryBuilder('df')
                                 ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                                 ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
-                                ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype_id);
+                                ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
+                                ->setParameter(1, $single_linked_descendants);
+                },
+
+                'group_by' => function($df, $key, $value) use ($datatype_id) {
+                    /** @var DataFields $df */
+                    return $df->getDataType()->getShortName();
                 },
 
                 'label' => 'Name Field',
@@ -126,12 +131,12 @@ class UpdateDataTypeForm extends AbstractType
             EntityType::class,
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($sortfield_datatypes) {
+                'query_builder' => function(EntityRepository $er) use ($single_linked_descendants) {
                     return $er->createQueryBuilder('df')
                                 ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                                 ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                                 ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
-                                ->setParameter(1, $sortfield_datatypes);
+                                ->setParameter(1, $single_linked_descendants);
                 },
 
                 'group_by' => function($df, $key, $value) use ($datatype_id) {
@@ -238,6 +243,6 @@ class UpdateDataTypeForm extends AbstractType
         $resolver->setRequired('is_top_level');
         $resolver->setRequired('is_link');
 
-        $resolver->setRequired('sortfield_datatypes');
+        $resolver->setRequired('single_linked_descendants');
     }
 }
