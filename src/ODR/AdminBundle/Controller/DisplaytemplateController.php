@@ -1492,6 +1492,8 @@ class DisplaytemplateController extends ODRCustomController
             $datatree_meta = null;
             /** @var ThemeDataType|null $theme_datatype */
             $theme_datatype = null;
+            /** @var ThemeElement|null $theme_element */
+            $theme_element = null;
 
             if ($parent_datatype_id !== '') {
                 $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
@@ -1516,6 +1518,11 @@ class DisplaytemplateController extends ODRCustomController
                 if ( $theme_datatype == null )
                     throw new ODRNotFoundException('ThemeDatatype');
             }
+
+            // Also want this value if it exists...it won't for the top-level datatype that the page
+            //  was rendered for
+            if ( !is_null($theme_datatype) )
+                $theme_element = $theme_datatype->getThemeElement();
 
 
             // ----------------------------------------
@@ -1894,6 +1901,7 @@ class DisplaytemplateController extends ODRCustomController
 
                         'theme_datatype' => $theme_datatype,
                         'theme_datatype_form' => $theme_datatype_form,  // not creating view here because form could be legitimately null
+                        'theme_element' => $theme_element,
                     )
                 );
             }
