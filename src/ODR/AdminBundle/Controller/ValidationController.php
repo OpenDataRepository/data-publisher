@@ -1389,6 +1389,8 @@ class ValidationController extends ODRCustomController
                 $dt_meta = new DataTreeMeta();
                 $dt_meta->setDataTree($new_dt);
                 $dt_meta->setMultipleAllowed(1);
+                $dt_meta->setEditBehavior(DataTreeMeta::ALWAYS_EDIT);
+                $dt_meta->setSecondaryDataTree(null);
 
                 if ($new_dt->getDescendant()->getParent()->getId() !== $new_dt->getAncestor()->getId()) {
                     $dt_meta->setIsLink(true);

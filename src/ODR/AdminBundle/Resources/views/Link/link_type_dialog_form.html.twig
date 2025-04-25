@@ -70,6 +70,21 @@
     {% endfor %}
     </div>
     <div class="pure-u-md-1-6 pure-u-2-24"></div>
+
+    {% if secondary_datatree_info|length > 0 %}
+    <div class="pure-u-1">
+        <label for="secondary_datatree_id">
+        {% set secondary_datatree_id = '' %}
+            {% set secondary_datatree_label = '' %}
+            {% for remote_datatype_id,data in secondary_datatree_info['available'] %}
+                {% set secondary_datatree_id = data['secondary_datatree_id'] %}
+                {% set secondary_datatree_label = data['label'] %}
+            {% endfor %}
+
+            <input id="secondary_datatree_id" type="checkbox" name="secondary_datatree_id" value="{{ secondary_datatree_id }}" {% if secondary_datatree_info['selected'] is not null %}checked{% endif %} rel="{{ current_datatree.id }}" />&nbsp;All records linked here should also get added to the "{{ secondary_datatree_label }}" relation.
+        </label>
+    </div>
+    {% endif %}
 </div>
 
 <script>
@@ -108,6 +123,47 @@
                 else
                     $("#ODRLinkDatatypeFormSubmit").html('Link to Selected {% if local_datatype.isMasterType %}Template{% else %}Database{% endif %}');
             }
+        });
+
+        $("#secondary_datatree_id").unbind('change').change(function() {
+
+            var datatree_id = $(this).attr('rel');
+            var secondary_datatree_id = 0;
+            if ( $(this).is(':checked') )
+                secondary_datatree_id = $(this).val();
+
+            var url = '{{ path('odr_design_toggle_secondary_datatree', {'datatree_id': 0, 'secondary_datatree_id': 0 } ) }}';
+            url = url.substring(0,(url.length - 3)) + datatree_id + "/" + secondary_datatree_id;
+
+            // alert(url);  return;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    notifySaved();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Close the dialog so it's not in some half-initialized state
+                    closeODRRemodal();
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+
         });
     });
 </script>

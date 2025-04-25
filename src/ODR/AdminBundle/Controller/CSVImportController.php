@@ -4517,6 +4517,23 @@ exit();
             if ($parent_datatype == null)
                 throw new ODRException('Invalid Form...Local Datatype is deleted');
 
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array(
+                    'ancestor' => $parent_datatype->getId(),
+                    'descendant' => $datatype->getId()
+                )
+            );
+            if ($datatree == null)
+                throw new ODRNotFoundException('Invalid Form...no link between datatypes');
+
+            // Due to the rules for "secondary" datatrees, we don't actually care what the secondary
+            //  datatree is...if one exists, then it'll trigger an additional link
+            $has_secondary_datatree = false;
+            if ( !is_null($datatree->getSecondaryDataTree()) )
+                $has_secondary_datatree = true;
+
+
             // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
@@ -4559,6 +4576,18 @@ exit();
 
                 $status .= ' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")'."\n";
                 $logger->debug(' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")');
+
+                // TODO - this won't actually get called until CSVImporter can create links for child datatypes
+                // TODO - ...which hopefully won't happen anytime soon
+                // If there's a "secondary" datatree for this relation...
+                if ( $has_secondary_datatree ) {
+                    // ...then due to the rules, we can satisfy it by calling createDatarecordLink()
+                    //  again with the grandparent datarecord
+                    $grandparent_datarecord = $local_datarecord->getGrandparent();
+                    $entity_create_service->createDatarecordLink($user, $grandparent_datarecord, $remote_datarecord);
+
+                    $logger->debug(' -- -- also created link between Datarecord '.$grandparent_datarecord->getId().' Datatype '.$grandparent_datarecord->getDataType()->getId().' to Datarecord '.$remote_datarecord->getId());
+                }
             }
             else {
                 if ( is_null($local_datarecord) && is_null($remote_datarecord) )

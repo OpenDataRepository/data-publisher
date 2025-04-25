@@ -56,6 +56,11 @@ class DataTreeMeta
     private $edit_behavior;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataTree
+     */
+    private $secondaryDataTree;
+
+    /**
      * @var \DateTime
      */
     private $deletedAt;
@@ -164,6 +169,30 @@ class DataTreeMeta
     public function getEditBehavior()
     {
         return $this->edit_behavior;
+    }
+
+    /**
+     * Set secondaryDataTree.
+     *
+     * @param \ODR\AdminBundle\Entity\DataTree|null $secondaryDataTree
+     *
+     * @return DataTreeMeta
+     */
+    public function setSecondaryDataTree(\ODR\AdminBundle\Entity\DataTree $secondaryDataTree = null)
+    {
+        $this->secondaryDataTree = $secondaryDataTree;
+
+        return $this;
+    }
+
+    /**
+     * Get secondaryDataTree.
+     *
+     * @return \ODR\AdminBundle\Entity\DataTree|null
+     */
+    public function getSecondaryDataTree()
+    {
+        return $this->secondaryDataTree;
     }
 
     /**

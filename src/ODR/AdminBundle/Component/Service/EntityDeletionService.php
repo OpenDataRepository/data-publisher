@@ -1031,6 +1031,24 @@ class EntityDeletionService
 
 
             // ----------------------------------------
+            // If this is a template datatype, then need to ensure no derived datatypes point to
+            //  the datatypes getting deleted...this is more of an issue for the child datatypes,
+            //  which can't get deleted so long as they have a masterDataType
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS mdt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+                WHERE mdt.id IN (:datatypes_to_delete)
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters( array('datatypes_to_delete' => $datatypes_to_delete) );
+            $results = $query->getResult();
+
+            $derived_datatypes_to_update = array();
+            foreach ($results as $dt)
+                $derived_datatypes_to_update[ $dt->getId() ] = $dt;
+
+
+            // ----------------------------------------
             // Determine all Groups and all Users affected by this
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
@@ -1249,6 +1267,15 @@ class EntityDeletionService
                 $datatree_ids[] = $dt['dt_id'];
             // Shouldn't need to worry about duplicates...
 
+            // NOTE: don't need to worry about "secondary" datatree entries either...there are three
+            //  possibilities for the datatype being deleted...
+            // 1) the datatype is the ancestor, and is top-level...in which case every childtype that
+            //    could have a "secondary" datatree is getting deleted anyways
+            // 2) the datatype is the ancestor, and is a childtype...in which case its datatree
+            //    entry will get deleted so there's no reference left
+            // 3) the datatype is the descendant...in which case all of its datatree entries get
+            //    deleted anyways, so there's nothing leftover to have a "secondary" datatree
+
             // Delete all Datatree and DatatreeMeta entries
             $query_str =
                'UPDATE odr_data_tree AS dt, odr_data_tree_meta AS dtm
@@ -1351,6 +1378,19 @@ class EntityDeletionService
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
+            // Update all Datatypes which were derived from these Datatypes
+            $derived_datatype_list = array_keys($derived_datatypes_to_update);
+
+            $query_str =
+               'UPDATE odr_data_type AS dt
+                SET dt.master_datatype_id = NULL
+                WHERE dt.id IN (?)
+                AND dt.deletedAt IS NULL AND dt.deletedAt IS NULL';
+            $parameters = array(1 => $derived_datatype_list);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
             // ----------------------------------------
             // No error encountered, commit changes
             $conn->commit();
@@ -1395,6 +1435,9 @@ class EntityDeletionService
                 if ( $dt_id !== $grandparent_datatype_id )
                     $datatypes_needing_events[ $dt_id ] = $dt;
             }
+            // ...or if a datatype used one of these now-deleted datatypes as a master datatype
+            foreach ($derived_datatypes_to_update as $dt_id => $dt)
+                $datatypes_needing_events[ $dt_id ] = $dt;
 
             // All these cases need to fire off a modified event for the datatype...
             foreach ($datatypes_needing_events as $dt_id => $dt) {

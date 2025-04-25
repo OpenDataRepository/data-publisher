@@ -519,8 +519,20 @@ class LinkController extends ODRCustomController
             }
 
             // Going to need the id of the local datatype's grandparent datatype
-            $current_datatree_array = $datatree_info_service->getDatatreeArray();
+            $datatree_array = $datatree_info_service->getDatatreeArray();
             $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
+
+            // Get the reference to the current datatree if one exists
+            /** @var DataTree|null $current_datatree */
+            $current_datatree = null;
+            if ( !is_null($current_remote_datatype) ) {
+                $current_datatree = $em->getrepository('ODRAdminBundle:DataTree')->findOneBy(
+                    array(
+                        'ancestor' => $local_datatype,
+                        'descendant' => $current_remote_datatype,
+                    )
+                );
+            }
 
 
             // ----------------------------------------
@@ -549,8 +561,6 @@ class LinkController extends ODRCustomController
             );
             $results = $query->getArrayResult();
 
-            // TODO - get rid of dtm.shortName and dtm.description
-            // TODO - pull info from the metadata datatype somehow...use "cached_datarecord_<dr_id>" probably, loading the data via query here is stupid
 
             $linkable_datatypes = array();
             foreach ($results as $dt) {
@@ -594,7 +604,7 @@ class LinkController extends ODRCustomController
             foreach ($linkable_datatypes as $dt_id => $dt) {
                 // "Manually" determining permissions since PermissionsManagementService requires hydration
                 $can_view_datatype = false;
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
+                if ( isset($datatype_permissions[$dt_id]['dt_view']) )
                     $can_view_datatype = true;
 
                 $is_public = true;
@@ -615,8 +625,8 @@ class LinkController extends ODRCustomController
                     // $dt is one of the local datatype's ancestors (or itself, for top-levels)
                     unset( $linkable_datatypes[$dt_id] );
                 }
-                else if ( isset($current_datatree_array['linked_from'][$dt_id])
-                    && in_array($local_datatype->getId(), $current_datatree_array['linked_from'][$dt_id])
+                else if ( isset($datatree_array['linked_from'][$dt_id])
+                    && in_array($local_datatype->getId(), $datatree_array['linked_from'][$dt_id])
                 ) {
                     // The local datatype already links to $dt...
                     if ( $current_remote_datatype !== null && $current_remote_datatype->getId() === $dt_id ) {
@@ -628,7 +638,7 @@ class LinkController extends ODRCustomController
                         unset( $linkable_datatypes[$dt_id] );
                     }
                 }
-                else if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype->getId(), $dt_id) ) {
+                else if ( self::willDatatypeLinkRecurse($datatree_array, $local_datatype->getId(), $dt_id) ) {
                     // Also need to block this request if it would cause rendering recursion
                     // e.g. if A is linked to B, then don't allow B to also link to A
                     // e.g. if A links to B, and B to C, then don't allow C to link to A
@@ -646,6 +656,25 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Need to run a rather large query in order to display the information required for
+            //  the secondary datatree entry...
+            $secondary_datatree_info = array();
+
+            // ...but only if there's already a link in this theme_element
+            if ( !is_null($current_remote_datatype) ) {
+                $local_datatype_id = $local_datatype->getId();
+                $remote_datatype_id = $current_remote_datatype->getId();
+
+                $secondary_datatree_info = self::getSecondaryDatatreeInfo(
+                    $em,
+                    $grandparent_datatype_id,
+                    $local_datatype_id,
+                    $remote_datatype_id,
+                );
+            }
+
+
+            // ----------------------------------------
             // Get Templating Object
             $return['d'] = array(
                 'html' => $templating->render(
@@ -657,12 +686,236 @@ class LinkController extends ODRCustomController
 
                         'linkable_datatypes' => $linkable_datatypes,
                         'has_linked_datarecords' => $has_linked_datarecords,
+
+                        'current_datatree' => $current_datatree,
+                        'secondary_datatree_info' => $secondary_datatree_info,
                     )
                 )
             );
         }
         catch (\Exception $e) {
             $source = 0xf8083699;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * The idea of a "secondary" datatree entry is to enable some form of "storage" or "master list"
+     * of linked records...this is really only useful when a datatype has multiple links to some
+     * other (typically reference-like) datatype, where all linked records are "related" but some of
+     * them are "special".
+     *
+     * Mechanically, a datatype needs to have multiple links...A -> R, A -> B -> R, A -> C -> R, etc
+     * where B and C are childtypes of A, but they all link to the same datatype R.  In this situation,
+     * the datatree entries of B -> R and C -> R can use this "secondary" entry to also point to the
+     * A -> R link...after which the rest of ODR can use that info to ensure that any record linked to
+     * in B/C -> R also gets linked in A -> R.
+     *
+     * Due to the existing rules for which datatypes can be linked to, a datatree entry is only
+     * going to have at most one valid datatree to link to, assuming it matches the stringen prereqs
+     * at all.
+     *
+     * Both determining and verifying this setting is valid needs the same info.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param int $grandparent_datatype_id Should be the grandparent of $ancestor_datatype_id
+     * @param int $ancestor_datatype_id
+     * @param int $descendant_datatype_id
+     *
+     * @return array
+     */
+    private function getSecondaryDatatreeInfo($em, $grandparent_datatype_id, $ancestor_datatype_id, $descendant_datatype_id)
+    {
+        // Ensure these are integers
+        $grandparent_datatype_id = intval($grandparent_datatype_id);
+        $ancestor_datatype_id = intval($ancestor_datatype_id);
+        $descendant_datatype_id = intval($descendant_datatype_id);
+
+        // There's no point running a query if the ancestor_datatype is top-level...only child
+        //  datatypes are allowed to have a "secondary" datatree
+        if ( $grandparent_datatype_id === $ancestor_datatype_id )
+            return array();
+
+
+        // ----------------------------------------
+        // This query gets info about every existing remote datatype that the grandparent datatype
+        //  or its children currently link to...
+        $query = $em->createQuery(
+           'SELECT gdt.id AS grandparent_datatype_id, gdtm.shortName AS grandparent_datatype_name,
+                    dt.id AS datatype_id, dtm.shortName AS datatype_name,
+                    ldt.id AS datatree_id, sldt.id AS secondary_datatree_id,
+                    ddt.id AS descendant_datatype_id, ddtm.shortName AS descendant_datatype_name
+            FROM ODRAdminBundle:DataType AS gdt
+            JOIN ODRAdminBundle:DataTypeMeta AS gdtm WITH gdtm.dataType = gdt
+            JOIN ODRAdminBundle:DataType AS dt WITH dt.grandparent = gdt
+            JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+            JOIN ODRAdminBundle:DataTree AS ldt WITH ldt.ancestor = dt
+            JOIN ODRAdminBundle:DataTreeMeta AS ldtm WITH ldtm.dataTree = ldt
+            LEFT JOIN ODRAdminBundle:DataTree AS sldt WITH (ldtm.secondaryDataTree = sldt AND sldt.deletedAt IS NULL)
+            JOIN ODRAdminBundle:DataType AS ddt WITH ldt.descendant = ddt
+            JOIN ODRAdminBundle:DataTypeMeta AS ddtm WITH ddtm.dataType = ddt
+            WHERE gdt.id = :grandparent_datatype_id AND ldtm.is_link = 1
+            AND gdt.deletedAt IS NULL AND gdtm.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND ldt.deletedAt IS NULL AND ldtm.deletedAt IS NULL
+            AND ddt.deletedAt IS NULL AND ddtm.deletedAt IS NULL'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        $results = $query->getArrayResult();
+
+        // ...the contexts that call this function, however, is only interested in a couple pieces
+        //  of info
+        $info = array(
+            'available' => null,
+            'selected' => null,
+        );
+        foreach ($results as $result) {
+            $gdt_id = $result['grandparent_datatype_id'];
+            $gdt_name = $result['grandparent_datatype_name'];
+            $dt_id = $result['datatype_id'];
+            $dt_name = $result['datatype_name'];
+            $ldt_id = $result['datatree_id'];
+            $sldt_id = $result['secondary_datatree_id'];
+            $ddt_id = $result['descendant_datatype_id'];
+            $ddt_name = $result['descendant_datatype_name'];
+
+            // Making the label is the easy part...
+            $label = $gdt_name.' -> '.$ddt_name;
+            if ( $gdt_id !== $dt_id )
+                $label = $gdt_name.' -> '.$dt_name.' -> '.$ddt_name;
+            // ...at the moment, the label including $dt_name isn't used
+
+            // ----------------------------------------
+            // Not all of these entries are going to be useful...
+            if ( $dt_id === $ancestor_datatype_id && $ddt_id === $descendant_datatype_id && !is_null($sldt_id) ) {
+                // In this case, this entry refers to the currently "selected" secondary datatree
+                $info['selected'] = array(
+                    'datatree_id' => $ldt_id,
+                    'secondary_datatree_id' => $sldt_id,
+                    'label' => $label
+                );
+            }
+
+            if ( $gdt_id === $dt_id ) {
+                // Any datatree that can be a "secondary" datatree has to be linked to directly from
+                //  the grandparent datatype
+                $info['available'][$ddt_id] = array(
+                    'ancestor_id' => $dt_id,
+                    'secondary_datatree_id' => $ldt_id,
+                    'label' => $label
+                );
+            }
+        }
+
+        // If nothing is available, then don't return anything
+        if ( is_null($info['available']) )
+            return array();
+
+        return $info;
+    }
+
+
+    /**
+     * Toggles whether the given datatree entry has a "secondary" datatree entry.
+     *
+     * @param $datatree_id
+     * @param $secondary_datatree_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function togglesecondarydatatreeAction($datatree_id, $secondary_datatree_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var DataTree $local_datatree */
+            $local_datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
+            if ($local_datatree == null)
+                throw new ODRNotFoundException('Datatree');
+
+            $ancestor_datatype = $local_datatree->getAncestor();
+            if ( $ancestor_datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Ancestor Datatype');
+
+            $descendant_datatype = $local_datatree->getDescendant();
+            if ( $descendant_datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Descendant Datatype');
+
+            $grandparent_datatype = $ancestor_datatype->getGrandparent();
+            if ( $grandparent_datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Grandparent Datatype');
+
+            /** @var DataTree|null $secondary_datatree */
+            $secondary_datatree = null;
+            if ( $secondary_datatree_id != 0 ) {
+                $secondary_datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($secondary_datatree_id);
+                if ($secondary_datatree == null)
+                    throw new ODRNotFoundException('Secondary Datatree');
+            }
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
+
+            // Ensure user has permissions to be doing this
+            if ( !$permissions_service->isDatatypeAdmin($user, $ancestor_datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            if ( intval($secondary_datatree_id) === 0 ) {
+                // Don't need to verify anything if removing a "secondary" datatree
+                $properties = array(
+                    'secondaryDataTree' => null
+                );
+                $entity_modify_service->updateDatatreeMeta($user, $local_datatree, $properties);
+            }
+            else {
+                // Need to verify that the requested secondary value is legal first
+                $secondary_datatree_info = self::getSecondaryDatatreeInfo(
+                    $em,
+                    $grandparent_datatype->getId(),
+                    $ancestor_datatype->getId(),
+                    $descendant_datatype->getId(),
+                );
+
+                if ( is_array($secondary_datatree_info['available']) ) {
+                    foreach ($secondary_datatree_info['available'] as $child_dt_id => $data) {
+                        if ( $data['secondary_datatree_id'] === $secondary_datatree->getId() ) {
+                            // The requested datatree id is a legal "secondary" datatree for this
+                            //  link...save it
+                            $properties = array(
+                                'secondaryDataTree' => $secondary_datatree
+                            );
+                            $entity_modify_service->updateDatatreeMeta($user, $local_datatree, $properties);
+                        }
+                    }
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x21839264;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -943,17 +1196,26 @@ class LinkController extends ODRCustomController
             // If a previous remote dataype is specified, then the link between the local datatype
             //  and the previous remote datatype needs to be removed...
             if ( !is_null($previous_remote_datatype) ) {
+                // Locate the Datatree entry that tied the local and the remote datatype together
+                /** @var DataTree $previous_datatree */
+                $previous_datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                    array(
+                        'ancestor' => $local_datatype_id,
+                        'descendant' => $previous_remote_datatype_id
+                    )
+                );
+                $previous_datatree_id = $previous_datatree->getId();
+
                 // Going to mass-delete a pile of stuff...wrap it in a transaction, since DQL doesn't
                 //  allow multi-table updates
                 $conn = $em->getConnection();
                 $conn->beginTransaction();
 
-
                 // Soft-delete all theme entries linking the local and the remote datatype together
                 self::deleteLinkedThemes($em, $user, $local_datatype_id, $previous_remote_datatype_id);
 
                 // Locate and delete all Datatree and LinkedDatatree entries for the previous link
-                $datarecords_to_update = self::deleteDatatreeEntries($em, $user, $local_datatype_id, $previous_remote_datatype_id);
+                $datarecords_to_update = self::deleteDatatreeEntries($em, $user, $previous_datatree, $local_datatype_id, $previous_remote_datatype_id);
 
                 // Mark all Datarecords that used to link to the remote datatype as updated
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update, $previous_remote_datatype);
@@ -1032,12 +1294,34 @@ class LinkController extends ODRCustomController
                     $result = $query->execute();
                 }
 
-
                 // ----------------------------------------
                 // Ensure that the "master_revision" property gets updated if required
                 $needs_flush = false;
                 if ( $local_datatype->getIsMasterType() ) {
                     $entity_modify_service->incrementDatatypeMasterRevision($user, $local_datatype, true);    // don't flush immediately
+                    $needs_flush = true;
+                }
+
+                // ...ensure any datatree entries that use this specific datatree as a "secondary" target
+                //  no longer point to it
+                $query = $em->createQuery(
+                   'SELECT dt
+                    FROM ODRAdminBundle:DataTree dt
+                    JOIN ODRAdminBundle:DataTreeMeta dtm WITH dtm.dataTree = dt
+                    WHERE dtm.secondaryDataTree = :datatree_to_delete
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters(
+                    array( 'datatree_to_delete' => $previous_datatree_id )    // have to use the id, since $datatree is deleted by now
+                );
+                $results = $query->getResult();
+
+                if ( !empty($results) ) {
+                    foreach ($results as $dt) {
+                        /** @var DataTree $dt */
+                        $props = array('secondaryDataTree' => null);
+                        $entity_modify_service->updateDatatreeMeta($user, $dt, $props, true);
+                    }
+
                     $needs_flush = true;
                 }
 
@@ -1452,54 +1736,44 @@ class LinkController extends ODRCustomController
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param ODRUser $user
+     * @param DataTree $previous_datatree
      * @param int $local_datatype_id
-     * @param int $remote_datatype_id
+     * @param int $previous_remote_datatype_id
      *
      * @return int[]
      */
-    private function deleteDatatreeEntries($em, $user, $local_datatype_id, $remote_datatype_id)
+    private function deleteDatatreeEntries($em, $user, $previous_datatree, $local_datatype_id, $previous_remote_datatype_id)
     {
-        // Locate the Datatree entry tying the local and the remote datatype together, if one exists
-        /** @var DataTree $datatree */
-        $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+        // ----------------------------------------
+        // Mark the relevant Datatree and DatatreeMeta entities as deleted
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
+            SET dtm.deletedAt = :now
+            WHERE dtm.id IN (:dtm_id) AND dtm.deletedAt IS NULL'
+        )->setParameters(
             array(
-                'ancestor' => $local_datatype_id,
-                'descendant' => $remote_datatype_id
+                'now' => new \DateTime(),
+                'dtm_id' => $previous_datatree->getDataTreeMeta()->getId()
             )
         );
+        $query->execute();
 
-        // If the previously mentioned Datatree entry does exist...
-        if ( !is_null($datatree) ) {
-            // ...mark the relevant Datatree and DatatreeMeta entities as deleted
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
-                SET dtm.deletedAt = :now
-                WHERE dtm.id IN (:dtm_id) AND dtm.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'dtm_id' => $datatree->getDataTreeMeta()->getId()
-                )
-            );
-            $query->execute();
-
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataTree AS dt
-                SET dt.deletedAt = :now, dt.deletedBy = :user_id
-                WHERE dt.id = (:dt_id) AND dt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'user_id' => $user->getId(),
-                    'dt_id' => $datatree->getId()
-                )
-            );
-            $query->execute();
-        }
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:DataTree AS dt
+            SET dt.deletedAt = :now, dt.deletedBy = :user_id
+            WHERE dt.id = (:dt_id) AND dt.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'user_id' => $user->getId(),
+                'dt_id' => $previous_datatree->getId()
+            )
+        );
+        $query->execute();
 
 
         // ----------------------------------------
-        // Locate all LinkedDatatree entries between the local and the remote datatype
+        // Locate all LinkedDatatree entries between the local and the previous remote datatype
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, ldt.id AS ldt_id
             FROM ODRAdminBundle:DataRecord AS ancestor
@@ -1510,7 +1784,7 @@ class LinkController extends ODRCustomController
         )->setParameters(
             array(
                 'ancestor_datatype' => $local_datatype_id,
-                'descendant_datatype' => $remote_datatype_id
+                'descendant_datatype' => $previous_remote_datatype_id
             )
         );
         $results = $query->getArrayResult();
@@ -1551,7 +1825,7 @@ class LinkController extends ODRCustomController
 
 
     /**
-     * Given a list of datarecord ids compiled by self::deleteDatatreeEntries, marks all those
+     * Given a list of datarecord ids compiled by {@link self::deleteDatatreeEntries}, marks all those
      * datarecord ids as updated and deletes related cache entries.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1561,8 +1835,8 @@ class LinkController extends ODRCustomController
      */
     private function updateDatarecordEntries($em, $user, $datarecord_ids, $previous_remote_datatype)
     {
-        // Do NOT want to fire off DatarecordModified events here...it would likely require a lot
-        //  of hydration
+        // Do NOT want to fire off DatarecordModified events here...it could require hydration of
+        //  thousands of datarecords
 
         // ...since DatarecordModified events aren't being used, that means all relevant datarecords
         //  can be marked as updated with a single DQL statement
@@ -2291,6 +2565,7 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('Descendant Datatype');
 
             // Ensure a link exists from ancestor to descendant datatype
+            /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
                 array(
                     'ancestor' => $ancestor_datatype->getId(),
@@ -2299,6 +2574,12 @@ class LinkController extends ODRCustomController
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
+
+            // Due to the rules for "secondary" datatrees, we don't actually care what the secondary
+            //  datatree is...if one exists, then it'll trigger an additional link
+            $has_secondary_datatree = false;
+            if ( !is_null($datatree->getSecondaryDataTree()) )
+                $has_secondary_datatree = true;
 
             // Determine which datatype is the remote one
             $remote_datatype_id = $descendant_datatype_id;
@@ -2324,7 +2605,7 @@ class LinkController extends ODRCustomController
 
             // Need to also check whether user has view permissions for remote datatype...
             $can_view_remote_datarecords = false;
-            if ( isset($datatype_permissions[$remote_datatype_id]) && isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
+            if ( isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
                 $can_view_remote_datarecords = true;
 
             if ( !$can_view_remote_datarecords ) {
@@ -2360,9 +2641,8 @@ class LinkController extends ODRCustomController
 
             // Ensure these actions are undertaken on the correct entity
             $local_datarecord_is_ancestor = true;
-            if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+            if ( $local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId() )
                 $local_datarecord_is_ancestor = false;
-            }
 
             // Load all records currently linked to the local_datarecord
             $local_relation = 'ancestor';
@@ -2570,7 +2850,7 @@ class LinkController extends ODRCustomController
             foreach ($datarecords as $id => $num) {
                 // Must be a valid record
                 $remote_datarecord = $repo_datarecord->find($id);
-                if ($remote_datarecord === null)
+                if ($remote_datarecord == null)
                     throw new ODRForbiddenException();
 
 
@@ -2594,6 +2874,13 @@ class LinkController extends ODRCustomController
                 // Setup for figuring out which cache entries need deleted
                 $gp_dr = $ancestor_datarecord->getGrandparent();
                 $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
+
+                // If there's a "secondary" datatree for this relation...
+                if ( $has_secondary_datatree ) {
+                    // ...then due to the rules, we can satisfy it by calling createDatarecordLink()
+                    //  again with the grandparent datarecord
+                    $entity_create_service->createDatarecordLink($user, $gp_dr, $descendant_datarecord);
+                }
 
                 // The local record is now linked to this remote record
                 $change_made = true;
@@ -2642,6 +2929,9 @@ class LinkController extends ODRCustomController
 
                 'change_made' => $change_made,
             );
+
+            if ( $has_secondary_datatree )
+                $return['d']['has_secondary_datatree'] = true;
         }
         catch (\Exception $e) {
             $source = 0x5392e9e1;
@@ -2737,9 +3027,17 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('Descendant Datatype');
 
             // Ensure a link exists from ancestor to descendant datatype
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array(
+                    'ancestor' => $ancestor_datatype->getId(),
+                    'descendant' => $descendant_datatype->getId()
+                )
+            );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
+
+            // The "secondary" datatree has no effect when unlinking records
 
             // Determine which datatype is the remote one
             $remote_datatype_id = $descendant_datatype_id;
@@ -2765,7 +3063,7 @@ class LinkController extends ODRCustomController
 
             // Need to also check whether user has view permissions for remote datatype...
             $can_view_remote_datarecords = false;
-            if ( isset($datatype_permissions[$remote_datatype_id]) && isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
+            if ( isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
                 $can_view_remote_datarecords = true;
 
             if (!$can_view_remote_datarecords) {
@@ -2796,9 +3094,8 @@ class LinkController extends ODRCustomController
             // Ensure these actions are undertaken on the correct entity
             $linked_datatree = null;
             $local_datarecord_is_ancestor = true;
-            if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+            if ( $local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId() )
                 $local_datarecord_is_ancestor = false;
-            }
 
             // Load all records currently linked to the local_datarecord
             $remote = 'ancestor';
@@ -3538,6 +3835,10 @@ class LinkController extends ODRCustomController
 
             foreach ($ancestors_to_replace as $dr_id => $dr)
                 $entity_create_service->createDatarecordLink($user, $dr, $replacement_datarecord);
+
+            // Don't need to worry about "secondary" datatree entries here...if we assume the
+            //  database is already "in sync", then this controller action will be replacing all the
+            //  records in both the "primary" and "secondary" datatrees anyways
 
 
             // ----------------------------------------

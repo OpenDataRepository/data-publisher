@@ -1820,8 +1820,15 @@ function LinkRecordOnly(ancestor_datatype_id, descendant_datatype_id, local_data
         dataType: "json",
         data: post_data,
         success: function(data, textStatus, xhr) {
-            // Don't need to do anything special on success
-            ReloadEditChild(data.d.datatype_id, data.d.datarecord_id, callback);
+            if ( data['d']['has_secondary_datatree'] !== undefined ) {
+                // If a "secondary" datatree is involved, then the record probably needs to show up
+                //  on multiple parts of the page...just reload everything
+                reloadPage();
+            }
+            else {
+                // Otherwise, there's only one place to reload
+                ReloadEditChild(data.d.datatype_id, data.d.datarecord_id, callback);
+            }
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error

@@ -985,6 +985,13 @@ odr_design_get_link_datatypes:
         datatype_id:  \d+
         theme_element_id:  \d+
 
+odr_design_toggle_secondary_datatree:
+    path:  /design/displaytemplate/toggle_secondary/{datatree_id}/{secondary_datatree_id}
+    defaults: { _controller: ODRAdminBundle:Link:togglesecondarydatatree }
+    requirements:
+        datatree_id:  \d+
+        secondary_datatree_id:  \d+
+
 odr_design_link_datatype:
     path:  /design/displaytemplate/linktype
     defaults: { _controller: ODRAdminBundle:Link:linkdatatype }

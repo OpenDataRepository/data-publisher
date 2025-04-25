@@ -1042,6 +1042,7 @@ class CloneMasterDatatypeService
                     // Clone the datatree's meta entry
                     $new_meta = clone $datatree->getDataTreeMeta();
                     $new_meta->setDataTree($new_dt);
+                    $new_meta->setSecondaryDataTree(null);    // don't want to go through the work to match this up...
                     self::persistObject($new_meta, true);    // don't flush immediately...
 
                     $new_dt->addDataTreeMetum($new_meta);

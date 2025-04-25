@@ -3189,6 +3189,13 @@ class APIController extends ODRCustomController
                             // Create the link
                             $entity_create_service->createDatarecordLink($user, $data_record, $linked_data_record);
 
+                            // If there's a "secondary" datatree for this relation...
+                            if ( !is_null($datatree->getSecondaryDataTree()) ) {
+                                // ...then due to the rules, we can satisfy it by calling createDatarecordLink()
+                                //  again with the grandparent datarecord
+                                $entity_create_service->createDatarecordLink($user, $data_record->getGrandparent(), $linked_data_record);
+                            }
+
                             // Ensure the proper set of events gets fired
                             $link_status_changed_records[] = $linked_data_record;
 

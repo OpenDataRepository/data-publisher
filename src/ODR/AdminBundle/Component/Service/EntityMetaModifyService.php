@@ -731,6 +731,17 @@ class EntityMetaModifyService
      */
     public function updateDatatreeMeta($user, $datatree, $properties, $delay_flush = false, $created = null)
     {
+        // ----------------------------------------
+        // Verify that changes to certain properties are given as Doctrine entities instead of ids
+        // These properties are allowed to be null, so need to use array_key_exists() instead of isset()
+        if ( array_key_exists('secondaryDataTree', $properties)
+            && !is_null($properties['secondaryDataTree'])
+            && !($properties['secondaryDataTree'] instanceof DataTree)
+        ) {
+            throw new ODRException('EntityMetaModifyService::updateDatatreeMeta(): $properties["secondaryDataTree"] is not an instanceof DataTree', 500, 0x56d60901);
+        }
+
+        // ----------------------------------------
         // Load the old meta entry
         /** @var DataTreeMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataTreeMeta')->findOneBy(
@@ -746,10 +757,23 @@ class EntityMetaModifyService
             'is_link' => $old_meta_entry->getIsLink(),
             'edit_behavior' => $old_meta_entry->getEditBehavior(),
         );
+
+        // These datatree entries could be null to begin with
+        if ( !is_null($old_meta_entry->getSecondaryDataTree()) )
+            $existing_values['secondaryDataTree'] = $old_meta_entry->getSecondaryDataTree();
+
+
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value )
+            // array_key_exists() is used because the datafield entries could legitimately be null
+            if ( array_key_exists($key, $properties) && $properties[$key] != $value )
                 $changes_made = true;
         }
+
+        // Need to do an additional check incase the secondary datatree was originally null and
+        //  changed to point to an entity.  Can use isset() here because the value in $properties
+        //  won't be null in this case
+        if ( !isset($existing_values['secondaryDataTree']) && isset($properties['secondaryDataTree']) )
+            $changes_made = true;
 
         if (!$changes_made)
             return $old_meta_entry;
@@ -777,6 +801,15 @@ class EntityMetaModifyService
 
 
         // Set any new properties
+        // isset() will return false when ('secondaryDataTree' => null), so need to use
+        //  array_key_exists() instead for this
+        if ( array_key_exists('secondaryDataTree', $properties) ) {
+            if ( is_null($properties['secondaryDataTree']) )
+                $new_datatree_meta->setSecondaryDataTree(null);
+            else
+                $new_datatree_meta->setSecondaryDataTree( $properties['secondaryDataTree'] );
+        }
+
         if ( isset($properties['multiple_allowed']) )
             $new_datatree_meta->setMultipleAllowed( $properties['multiple_allowed'] );
         if ( isset($properties['is_link']) )
@@ -951,7 +984,7 @@ class EntityMetaModifyService
 
         // Set any new properties
         // isset() will return false when ('externalIdField' => null), so need to use
-        //  array_key_exists() instead
+        //  array_key_exists() instead for these
         if ( array_key_exists('externalIdField', $properties) ) {
             if ( is_null($properties['externalIdField']) )
                 $new_datatype_meta->setExternalIdField(null);
@@ -2271,7 +2304,7 @@ class EntityMetaModifyService
 
         $remove_old_entry = false;
         $new_entity = null;
-        if ( self::createNewMetaEntry($user, $entity, $created) ) {
+        if ( self::createNewMetaEntry($user, $entity, $created) ) {    // TODO - check for duplicate data entries
             // Create a new entry and copy the previous one's data over
             $remove_old_entry = true;
 

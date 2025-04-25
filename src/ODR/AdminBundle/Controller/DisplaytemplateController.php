@@ -2094,10 +2094,17 @@ class DisplaytemplateController extends ODRCustomController
                 if ( $datatree_form->isValid() ) {
                     // If a value in the form changed, create a new DataTree entity to store the change
                     $properties = array(
+//                        'secondaryDataTree' => null,    // Not allowed to change this value through this controller action
+
                         'multiple_allowed' => $submitted_data->getMultipleAllowed(),
 //                        'is_link' => $submitted_data->getIsLink(),    // Not allowed to change this value through this controller action
                         'edit_behavior' => $submitted_data->getEditBehavior(),
                     );
+
+//                    // This value is permitted to be null
+//                    if ( $submitted_data->getSecondaryDataTree() !== null )
+//                        $properties['secondaryDataTree'] = $submitted_data->getSecondaryDataTree();
+
                     $entity_modify_service->updateDatatreeMeta($user, $datatree, $properties);
 
                     // If multiple descendant records are now allowed for this descendant datatype,
