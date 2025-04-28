@@ -899,7 +899,7 @@ class ReportsController extends ODRCustomController
                 JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
                 JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                WHERE drf.dataField = :datafield AND rs.selected = 1
+                WHERE ro.dataField = :datafield AND rs.selected = 1
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
             )->setParameters( array('datafield' => $datafield_id) );
             $results = $query->getArrayResult();
