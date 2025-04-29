@@ -2923,6 +2923,7 @@
             // console.log( 'select', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
+            var theme_element_id = datatype_id_data[2];
 
             $(elem).unbind('change').change(function() {
                 // Don't want a delay here, otherwise a change could get lost
@@ -2932,7 +2933,7 @@
                 // console.log('<select> changed, triggering delayed save for datatype', datatype_id);
                 SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                 SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
             });
         });
 
@@ -2940,6 +2941,7 @@
             // console.log( 'textarea', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
+            var theme_element_id = datatype_id_data[2];
 
             $(elem).unbind('keyup').unbind('paste');
             $(elem).on('keyup paste', function() {
@@ -2947,7 +2949,7 @@
                 // console.log('<textarea> changed, triggering delayed save for datatype', datatype_id);
                 SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                 SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
             });
         });
 
@@ -2955,6 +2957,7 @@
             // console.log( 'input', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
+            var theme_element_id = datatype_id_data[2];
 
             if( $(elem).is(":checkbox") ) {
                 $(elem).unbind('change').change(function() {
@@ -2962,7 +2965,7 @@
                     // console.log('checkbox changed, triggering delayed save for datatype', datatype_id);
                     SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                     SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
                 });
             }
             else {
@@ -2972,7 +2975,7 @@
                     // console.log('input changed, triggering delayed save for datatype', datatype_id);
                     SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                     SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
                 });
             }
         });
