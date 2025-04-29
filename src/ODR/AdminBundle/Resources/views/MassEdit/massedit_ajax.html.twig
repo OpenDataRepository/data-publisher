@@ -113,7 +113,7 @@ $(function() {
 function initPage() {
 
     // Hide all theme elements without input fields
-    $(".ODRThemeElement").each(function() {
+    $("#MassEditForm .ODRThemeElement").each(function() {
         var found = false;
         $(this).find("input,select,textarea").each(function() {
             found = true;
@@ -124,7 +124,7 @@ function initPage() {
             $(this).addClass('ODRHidden');
     });
 
-    $(".ODRMassEdit_block").each(function() {
+    $("#MassEditForm .ODRMassEdit_block").each(function() {
         var df_data = $(this).attr('id').split(/_/);
         var df_id = df_data[1];
 
@@ -145,7 +145,7 @@ function initPage() {
         }
     });
 
-    $(".ODRDatePicker").datepicker({
+    $("#MassEditForm .ODRDatePicker").datepicker({
         dateFormat: 'yy-mm-dd',
         changeMonth: true,
         changeYear: true,
@@ -159,7 +159,7 @@ function initPage() {
         }
     });
 
-    $(".ODRDatePicker_clear").unbind('click').click(function() {
+    $("#MassEditForm .ODRDatePicker_clear").unbind('click').click(function() {
         var blocked = false;
         if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
             blocked = true;
@@ -176,7 +176,7 @@ function initPage() {
         }
     });
 
-    $(".ODRParagraphField_clear").unbind('click').click(function() {
+    $("#MassEditForm .ODRParagraphField_clear").unbind('click').click(function() {
         var blocked = false;
         if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
             blocked = true;
@@ -193,7 +193,7 @@ function initPage() {
         }
     });
 
-    $(".ODRField_clear").unbind('click').click(function() {
+    $("#MassEditForm .ODRField_clear").unbind('click').click(function() {
         var blocked = false;
         if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
             blocked = true;
@@ -335,7 +335,7 @@ function doMassUpdate() {
 
     // Only save if there are no input errors...
     var has_errors = false;
-    $(".ODRInputError").each(function(index, elem) {
+    $("#MassEditForm .ODRInputError").each(function(index, elem) {
         if ( !$(elem).hasClass('ODRHidden') )
             has_errors = true;
     });
