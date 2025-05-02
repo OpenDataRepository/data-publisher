@@ -2275,7 +2275,11 @@ h1:after {
 }
 
 .ODRToggleLinkedEdit {
-    /*background: green;*/
+    background: transparent;
+    border: 1px solid;
+    border-radius: 4px;
+
+    padding: 2px 4px;
 }
 
 /*
