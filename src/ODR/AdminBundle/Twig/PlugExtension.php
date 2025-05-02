@@ -64,6 +64,9 @@ class PlugExtension extends \Twig_Extension
     public function getFilters()
     {
         return array(
+            new \Twig\TwigFilter('get_field_value', array($this, 'getFieldValueFilter')),
+            new \Twig\TwigFilter('get_value', array($this, 'getValueFilter')),
+
             new \Twig\TwigFilter('can_execute_array_plugin', array($this, 'canExecuteArrayPluginFilter')),
             new \Twig\TwigFilter('can_execute_datatype_plugin', array($this, 'canExecuteDatatypePluginFilter')),
             new \Twig\TwigFilter('can_execute_theme_element_plugin', array($this, 'canExecuteThemeElementPluginFilter')),
@@ -86,8 +89,7 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('is_filtered', array($this, 'isFilteredDivFilter')),
             new \Twig\TwigFilter('quality_json_decode', array($this, 'qualityJsonFilter')),
 
-            new \Twig\TwigFilter('get_value', array($this, 'getValueFilter')),
-            new \Twig\TwigFilter('get_field_value', array($this, 'getFieldValueFilter')),
+            new \Twig\TwigFilter('escape_namefield', array($this, 'nameFieldValueFilter')),
         );
     }
 
@@ -895,6 +897,164 @@ class PlugExtension extends \Twig_Extension
             return $ret;
         else
             return '';
+    }
+
+
+    /**
+     * Given a string, escapes '<' and '>' except for when they're part of a small subset of very
+     * specific HTML tags...specifically, <i>, <b>, <u>, <em>, <sup>, <sub>, and <span class="overbar">
+     *
+     * Be sure to chain Twig's |raw filter after calling this one, otherwise the return of this filter
+     * will get escaped anyways.
+     *
+     * @param string $str
+     * @return string
+     */
+    public function nameFieldValueFilter($str)
+    {
+        // So...the browser will attempt to render '<' and '>' as if they're html tags...
+        //  but this field needs them to sometimes be treated as greater-than/less-than signs, AND
+        //  also still needs specific html sequences to not get escaped
+        // Specifically...<i>, <b>, <u>, <sup>, <sub>, and <span class="overbar">, as well as their
+        //  closing tags.  <em> is also in there, because why not.
+        // This requirement is 100% non-negotiable, and some variant of markdown is unacceptable.
+        if ( strpos($str, '<') !== false || strpos($str, '>') !== false ) {
+            // Due to the complicated overbar span (and maybe some other ones in the future), it's more
+            //  effective to first split the string on '<' and '>'.  Due to requiring two separators,
+            //  it's "better" to do this "manually"
+            $pieces = array();
+            $prev = 0;
+
+            $len = mb_strlen($str);
+            for ($i = 0; $i < $len; $i++) {
+                // Need to use mb_substr() due to unicode characters...
+                $char = mb_substr($str, $i, 1);
+
+                if ( $char === '<' || $char === '>' ) {
+                    // Store the string before this symbol
+                    $piece = mb_substr($str, $prev, ($i-$prev));
+                    $pieces[] = $piece;
+                    // Store the symbol itself
+                    $pieces[] = $char;
+                    // Adjust to pick up the next piece
+                    $prev = $i+1;
+                }
+            }
+            // Get the remaining part of the string in the array
+            $piece = mb_substr($str, $prev, $i);
+            $pieces[] = $piece;
+
+            // Unfortunately, we kind of need to partially verify HTML structure here...leaving an
+            //  unclosed <i>, <b>, etc tag is going to mess up the entire page.  The easiest way to
+            //  do this is to partially recombine the string in the following for loop
+            $html_fragments = array();
+
+            $num_pieces = count($pieces);
+            for ($i = 0; $i < $num_pieces; $i++) {
+                // HTML tags are broken up into three pieces as a result of the previous for loop
+                $piece = $pieces[$i];
+
+                if ( $piece === '<' ) {
+                    // If there's a corresponding '>' after this piece...
+                    if ( ($i+2 < $num_pieces) && $pieces[$i+2] === '>' ) {
+                        // ...then it could be an HTML tag
+                        $potential_tag = $pieces[$i+1];
+                        if ( strpos($potential_tag, '/') === 0 )
+                            $potential_tag = substr($potential_tag, 1);
+
+                        switch ($potential_tag) {
+                            case 'i':
+                            case 'I':
+                            case 'b':
+                            case 'B':
+                            case 'u':
+                            case 'U':
+                            case 'em':
+                            case 'sub':
+                            case 'sup':
+                            case 'span class="overbar"':
+                            case 'span':
+                                // These are permitted...don't substitute them
+                                $tmp = $pieces[$i].strtolower($pieces[$i+1]).$pieces[$i+2];
+                                $html_fragments[] = $tmp;
+                                $i = $i+2;
+                                break;
+                            default:
+                                // Any other character sequence is not a permitted HTML tag
+                                $tmp = '&lt;'.$pieces[$i+1].'&gt;';
+                                $html_fragments[] = $tmp;
+                                $i = $i+2;
+                                break;
+                        }
+                    }
+                    else {
+                        // This '<' didn't have a closing '>', so it can't be part of an HTML tag
+                        $html_fragments[] = '&lt;';
+                    }
+                }
+                else if ( $piece === '>' ) {
+                    // The previous if statement would've dealt with this '>' if it was considered part
+                    //  of a valid HTML tag...since this point was reached, substitute it
+                    $html_fragments[] = '&gt;';
+                }
+                else {
+                    $html_fragments[] = $piece;
+                }
+            }
+
+            // Due to the small subset of permitted HTML tags, we should be able to verify this with
+            //  a stack setup
+            $stack = array();
+
+            $num_pieces = count($html_fragments);
+            for ($i = 0; $i < $num_pieces; $i++) {
+                $piece = $html_fragments[$i];
+                switch ($piece) {
+                    case '<i>':
+                    case '<b>':
+                    case '<u>':
+                    case '<em>':
+                    case '<sub>':
+                    case '<sup>':
+                        // Push the closing versions of these tags on the stack
+                        $stack[] = '</'.substr($piece, 1);
+                        break;
+                    case '<span class="overbar">':
+                        // Push the closing version of this tag on the stack
+                        $stack[] = '</span>';
+                        break;
+
+                    case '</i>':
+                    case '</b>':
+                    case '</u>':
+                    case '</em>':
+                    case '</sub>':
+                    case '</sup>':
+                    case '</span>':
+                        $tmp = array_pop($stack);
+                        if ( $piece !== $tmp ) {
+                            // If the most recently pushed item doesn't match this piece, then
+                            //  don't attempt to recover...just escape the entire string and return
+                            return str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
+                        }
+                    default:
+                        /* do nothing */
+                }
+            }
+
+            if ( count($stack) > 0 ) {
+                // If there's something left on the stack, then  don't attempt to recover...just
+                //  escape the entire string and return
+                return str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
+            }
+            else {
+                // If there's nothing left on the stack, then it's "valid enough"...recombine the
+                //  selected substitutions and return
+                $str = implode('', $pieces);
+            }
+        }
+
+        return $str;
     }
 
 

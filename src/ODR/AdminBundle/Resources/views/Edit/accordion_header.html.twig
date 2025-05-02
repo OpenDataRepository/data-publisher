@@ -61,7 +61,7 @@
 
     <a class="ODRRecordName" data-parent-name="{{ datatype.dataTypeMeta.shortName }}">
     {% if datarecord.nameField_value != datarecord.id %}
-        {{ datarecord.nameField_value }}
+        {{ datarecord.nameField_value|escape_namefield|raw }}
     {% else %}
         {{ datatype.dataTypeMeta.shortName }}
     {% endif %}

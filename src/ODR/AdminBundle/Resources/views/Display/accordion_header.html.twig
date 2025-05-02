@@ -7,7 +7,7 @@
         <span class="ui-icon ui-icon-triangle-1-s"></span>
 
     {% if datarecord.nameField_value != datarecord.id %}
-        <a>{{ datarecord.nameField_value }}</a>
+        <a>{{ datarecord.nameField_value|escape_namefield|raw }}</a>
     {% else %}
         <a>{{ datatype.dataTypeMeta.shortName }}</a>
     {% endif %}
