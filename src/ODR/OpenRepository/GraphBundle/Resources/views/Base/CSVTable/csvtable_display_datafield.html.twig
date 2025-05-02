@@ -32,14 +32,10 @@
             {% endif %}
 
                 <span class="ODRFileInfoDiv">
-                    {% if file_meta.publicDate|is_public %}
-                        <i class="fa fa-lg fa-info-circle fa-public"></i>
-                    {% else %}
-                        <i class="fa fa-lg fa-info-circle fa-not-public"></i>
-                    {% endif %}
+                    <i class="fa fa-lg fa-info-circle {% if file_meta.publicDate|is_public %}ODRPublic{% else %}ODRNotPublic{% endif %}"></i>
                     <span class="ODRFileInfo">
                         <div>
-                            <i class="fa fa-globe ODRPublicFile {% if file_meta.publicDate|is_public %}fa-public{% else %}fa-not-public{% endif %}"></i>&nbsp;
+                            <i class="fa fa-globe ODRPublicFile {% if file_meta.publicDate|is_public %}ODRPublic{% else %}ODRNotPublic{% endif %}"></i>&nbsp;
                             <span>{% if not file_meta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file_meta.publicDate|date('Y-m-d') }}{% endif %}</span>
                         </div>
                         <div>

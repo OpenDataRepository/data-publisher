@@ -17,7 +17,7 @@
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
             {% if intent == 'searching' %}
                 {% if can_edit_datarecord %}
-                <span><i class="fa fa-globe {% if dr_is_public %}ODRActiveIcon{% endif %}" title="This record is{% if not dr_is_public %} not{% endif %} public"></i></span>
+                <span><i class="fa fa-globe {% if dr_is_public %}ODRPublic{% endif %}" title="This record is{% if not dr_is_public %} not{% endif %} public"></i></span>
                 {% endif %}
 
                 <span>Record {{ counter }} * - Click here to view</span>

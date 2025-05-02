@@ -275,7 +275,7 @@ function initPage() {
         var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
         var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
-        if ( $(info_icon_div).hasClass('fa-not-public') ) {
+        if ( $(info_icon_div).hasClass('ODRNotPublic') ) {
             // Show div for decryption progress
             $(download_div).css('visibility', 'visible');
             $(decrypt_progress).css('width', '100%');
@@ -295,15 +295,15 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if ( data.d.is_public ) {
                     // File is now public
-                    $(info_icon_div).removeClass('fa-not-public').addClass('fa-public');
-                    $(popup_icon_div).removeClass('fa-not-public').addClass('fa-public');
+                    $(info_icon_div).removeClass('ODRNotPublic').addClass('ODRPublic');
+                    $(popup_icon_div).removeClass('ODRNotPublic').addClass('ODRPublic');
 
                     $(popup_icon_div).next().html('File was made public on ' + data.d.public_date);
                 }
                 else {
                     // File is now non-public
-                    $(info_icon_div).removeClass('fa-public').addClass('fa-not-public');
-                    $(popup_icon_div).removeClass('fa-public').addClass('fa-not-public');
+                    $(info_icon_div).removeClass('ODRPublic').addClass('ODRNotPublic');
+                    $(popup_icon_div).removeClass('ODRPublic').addClass('ODRNotPublic');
 
                     $(popup_icon_div).next().html('File is not public');
                 }
@@ -395,12 +395,12 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if ( data.d.is_public ) {
                     // Image is now public
-                    $(icon_div).addClass('fa-public').removeClass('fa-not-public');
+                    $(icon_div).addClass('ODRPublic').removeClass('ODRNotPublic');
                     $(icon_div).attr('title', 'Public since ' + data.d.public_date);
                 }
                 else {
                     // Image is now non-public
-                    $(icon_div).addClass('fa-not-public').removeClass('fa-public');
+                    $(icon_div).addClass('ODRNotPublic').removeClass('ODRPublic');
                     $(icon_div).parent().next().attr('title', 'Image is not public');
                 }
             },
@@ -1935,11 +1935,11 @@ function ChangeRecordPublicStatus(datarecord_id) {
             var new_title = title;
 
             if (data.d.public == 1) {
-                $(header).addClass('ODRActiveIcon');
+                $(header).addClass('ODRPublic');
                 new_title = title.replace('not ', '');
             }
             else {
-                $(header).removeClass('ODRActiveIcon');
+                $(header).removeClass('ODRPublic');
                 new_title = title.substring(0, title.indexOf('Public')) + 'not Public';
             }
 

@@ -341,16 +341,16 @@
             url: url,
             dataType: 'json',
             success: function(data) {
-                if ( $(elem).hasClass('fa-not-public') ) {
+                if ( $(elem).hasClass('ODRNotPublic') ) {
                     // Need to change the icon to indicate the datafield is now searchable...
-                    $(elem).removeClass('fa-not-public').addClass('fa-public');
+                    $(elem).removeClass('ODRNotPublic').addClass('ODRPublic');
 
                     // ...and update the overlay so the field can be used
                     ODRSidebarLayout_updateOverlayProperties(overlay_div, 'ODRUnusedDatafield');
                 }
                 else {
                     // Need to change the icon to indicate the datafield is no longer searchable...
-                    $(elem).removeClass('fa-public').addClass('fa-not-public');
+                    $(elem).removeClass('ODRPublic').addClass('ODRNotPublic');
 
                     // ...and update the overlay so the field can't be used
                     ODRSidebarLayout_updateOverlayProperties(overlay_div, 'ODRBlockedDatafield');

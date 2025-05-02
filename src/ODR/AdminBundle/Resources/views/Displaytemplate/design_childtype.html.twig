@@ -15,7 +15,7 @@
         >
             {% if is_datatype_admin %}
                 <i id="ODRDatatype_{{datatype.id }}_publicStatus"
-                   class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
+                   class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRPublic{% endif %} ODRPublicDatatype"
                    title="Dataset {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
                    rel="{{ datatype.id }}"
                 ></i>
@@ -69,7 +69,7 @@
                     class="ODRHeader ODRDatatypeProperties tooltip{% if not is_datatype_admin %} ODRForbidden{% endif %}"
                 >
                     <i id="ODRDatatype_{{datatype.id }}_publicStatus"
-                       class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
+                       class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRPublic{% endif %} ODRPublicDatatype"
                        title="Dataset {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
                        rel="{{ datatype.id }}"
                     ></i>

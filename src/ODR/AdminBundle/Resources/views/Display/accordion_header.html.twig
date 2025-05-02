@@ -22,7 +22,7 @@
             <span rel="{{ datatype.id }}">
                 {% set class_str = "tooltip fa fa-globe Cursor" %}
                 {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                    {% set class_str = class_str ~ " ODRActiveIcon" %}
+                    {% set class_str = class_str ~ " ODRPublic" %}
                 {% endif %}
 
                 {% set title_str = "Record is Not Public" %}

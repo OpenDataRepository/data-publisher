@@ -1464,12 +1464,12 @@
 
                         // Toggle muted status
                         $(elements).each(function(index, elem) {
-                            if ( $(elem).hasClass('ODRActiveIcon') ) {
-                                $(elem).removeClass('ODRActiveIcon');
+                            if ( $(elem).hasClass('ODRPublic') ) {
+                                $(elem).removeClass('ODRPublic');
                                 $(elem).attr('title', 'Dataset requires permission to view');
                             }
                             else {
-                                $(elem).addClass('ODRActiveIcon');
+                                $(elem).addClass('ODRPublic');
                                 $(elem).attr('title', 'Dataset does not require permission to view');
                             }
                         });
@@ -1522,12 +1522,12 @@
 
                         // Toggle muted status
                         $(elements).each(function(index, elem) {
-                            if ( $(elem).hasClass('ODRActiveIcon') ) {
-                                $(elem).removeClass('ODRActiveIcon');
+                            if ( $(elem).hasClass('ODRPublic') ) {
+                                $(elem).removeClass('ODRPublic');
                                 $(elem).attr('title', 'Datafield requires permission to view');
                             }
                             else {
-                                $(elem).addClass('ODRActiveIcon');
+                                $(elem).addClass('ODRPublic');
                                 $(elem).attr('title', 'Datafield does not require permission to view');
                             }
                         });

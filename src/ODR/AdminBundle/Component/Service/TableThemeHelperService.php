@@ -376,8 +376,10 @@ class TableThemeHelperService
                     if ($can_view_datarecord[$dt_id] || $file_publicDate != '2200-01-01') {
                         if ( !$use_icon )
                             $dr_data[] = '<a href="'.$file_url.'">'.$file_name.'</a>';
+                        else if ($file_publicDate == '2200-01-01')
+                            $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer ODRNotPublic"></i></a>';
                         else
-                            $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer"></i></a>';
+                            $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer ODRPublic"></i></a>';
                     }
                     else {
                         // User can't view the file, don't display anything
