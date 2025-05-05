@@ -16,12 +16,20 @@ function getResizableInfoValue(u_factor) {
             return '1/4';
         case '8':
             return '1/3';
+        case '9':
+            return '3/8';
         case '12':
             return '1/2';
+        case '15':
+            return '5/8';
         case '16':
             return '2/3';
         case '18':
             return '3/4';
+        case '20':
+            return '5/6';
+        case '21':
+            return '7/8';
         case '24':
             return '1/1';
         default:
@@ -95,23 +103,26 @@ function setupResizeable(elem) {
     // clearAllFields() destroys all resizeable instances before this is called
 
     {# TODO - Replace with alternate grid method due to jQuery bug: https://bugs.jqueryui.com/ticket/8932 #}
+    // Divide the width of the element's parent by 60 to create a grid...need to get values for
+    //  both *-24 and *-5, and 60 is the greatest common denominator.  It also appears to work nicely.
+    var parent = $(elem).parent().parent();
+    var grid_size = ( $(parent).width() ) / 60;
+
     jQuery(elem).resizable({
         handles: handles,
         minHeight: jQuery(elem).height(),
         maxHeight: jQuery(elem).height(),
-        // Divide the width of the element's parent by 24 to create a grid that closely approximates
-        //  the width of the element itself after it gets saved
-        grid: ( jQuery(elem).parent().parent().width() )/24,
+        grid: grid_size,
         start: function( event, ui) {
-            // console.log('Resizeable start:');
-            // console.log('height: ', jQuery(elem).height());
-            // console.log('grid:', jQuery(elem).parent().parent().width()/24);
-            // console.log('parent width:', jQuery(elem).parent().parent().width());
-            // console.log('element width:', jQuery(elem).width());
+            {#// NOTE: seems to be no difference between ui.element, ui.helper, and ui.originalElement#}
+            {#console.log('parent:', $(parent), 'parent_width:', $(parent).width(), 'grid:', grid_size);#}
+            {#console.log('elem:', ui.element, 'elem_width:', ui.size.width);#}
+            {#console.log('initial pct', ui.size.width / $(parent).width() * 100);#}
 
             var initial = '';
             $.each(ui.originalElement.attr('class').split(/\s+/), function(index, value) {
                 if ( value.indexOf('pure-u-xl-') === 0 ) {
+                    {#console.log('initial class:', value);#}
                     var values = value.split('-');
                     var first = values[3];
                     var second = values[4];
@@ -127,91 +138,109 @@ function setupResizeable(elem) {
             ui.originalElement.children(".ODRDragHandle_info").first().html(initial).show();
         },
         resize: function ( event, ui ) {
-            // Refactor all widths for all elements in array to be f/24
-            var ui_elem = ui.originalElement;
-            var width = ui_elem.width(); //  + padding_left + padding_right;
-            var total_width = ui_elem.parent().parent().width();
-            var pct = width / total_width * 100;
+            {#console.log('--------------------');#}
+            {#console.log('parent_width:', $(parent).width(), 'elem_width:', ui.size.width);#}
 
-            var u_factor = pct/4.16667;  // 100 / 24 = 4.16666667
+            // Ensure the element's width doesn't exceed its parent's width
+            if ( ui.size.width > $(parent).width() )
+                ui.size.width = $(parent).width();
+            var pct = ui.size.width / $(parent).width() * 100;
+            {#console.log('in-progress pct', pct);#}
 
-            // console.log('u', u_factor);
-            if (u_factor < 1)
-                u_factor = 1;
-            else if (u_factor > 24)
-                u_factor = 24;
-            else
-                u_factor = Math.ceil(u_factor);
+            // Convert the width percentage into either *-5 or *-24, preferring the former when the
+            //  percentage is fairly close to 20, 40, 60, or 80.
+            var value = '';
+            if (pct > 18.3 && pct < 21.7)
+                value = '1/5';
+            else if (pct > 38.3 && pct < 41.7)
+                value = '2/5';
+            else if (pct > 58.3 && pct < 61.7)
+                value = '3/5';
+            else if (pct > 78.3 && pct < 81.7)
+                value = '4/5';
+            else {
+                // All other values should get converted into *-24...using round() instead of ceil()
+                //  because the former plays nicer with the *-5 grid, and because the latter had a
+                //  habit of reporting the element should be in a different width category even
+                //  prior to actually resizing it
+                var u_factor = pct/(100/24);  // convert percentage back into roughly 24 divisions
+                value = getResizableInfoValue( Math.round(u_factor) );
+            }
 
-            var value = getResizableInfoValue(u_factor);
+            // Ensure no zero values
+            if ( value == '0-24' )
+                value = '1-24';
+            {#console.log('in-progress value:', value);#}
+
             ui.originalElement.children(".ODRDragHandle_info").first().html(value);
         },
         stop: function( event, ui ) {
-            // Refactor all widths for all elements in array to be f/24
-            var ui_elem = ui.originalElement;
-            var total_width = ui_elem.parent().parent().width();
-            // var padding_left = parseInt(ui_elem.css('padding-left'));
-            // var padding_right = parseInt(ui_elem.css('padding-right'));
-            var width = ui_elem.width(); //  + padding_left + padding_right;
-            // console.log('End total width:: ', total_width);
-            // console.log('End width:: ', width);
+            {#console.log('********************');#}
+            {#console.log('parent_width:', $(parent).width(), 'elem_width:', ui.size.width);#}
 
-            // Need to add padding before calculation?
-            // console.log('Padding left', padding_left);
-            // console.log('Padding right', padding_right);
+            // Ensure the element's width doesn't exceed its parent's width
+            if ( ui.size.width > $(parent).width() )
+                ui.size.width = $(parent).width();
+            var pct = ui.size.width / $(parent).width() * 100;
+            {#console.log('end pct', pct);#}
 
-            var pct = width / total_width * 100;
+            // Convert the width percentage into either *-5 or *-24, preferring the former when the
+            //  percentage is fairly close to 20, 40, 60, or 80.
+            var value = '';
+            if (pct > 18.3 && pct < 21.7)
+                value = '1-5';
+            else if (pct > 38.3 && pct < 41.7)
+                value = '2-5';
+            else if (pct > 58.3 && pct < 61.7)
+                value = '3-5';
+            else if (pct > 78.3 && pct < 81.7)
+                value = '4-5';
+            else {
+                // All other values should get converted into *-24...using round() instead of ceil()
+                //  because the former plays nicer with the *-5 grid, and because the latter had a
+                //  habit of reporting the element should be in a different width category even
+                //  prior to actually resizing it
+                var u_factor = pct/(100/24);  // convert percentage back into roughly 24 divisions
+                value = Math.round(u_factor) + '-24';
+            }
 
-            var u_factor = pct/4.16667;  // 100 / 24 = 4.16666667
+            // Ensure no zero values
+            if ( value == '0-24' )
+                value = '1-24';
+            {#console.log('end value', value);#}
 
-            // console.log('u', u_factor);
-            if (u_factor < 1)
-                u_factor = 1;
-            else if (u_factor > 24)
-                u_factor = 24;
-            else
-                u_factor = Math.ceil(u_factor);
-
-            // console.log('Factor:: ', u_factor);
-
+            // Delete all HTML classes from this element that start with "pure-u"
             var prefix = "pure-u";
-            var classes = ui_elem.attr('class').split(" ").filter(function(c) {
+            var classes = ui.element.attr('class').split(" ").filter(function(c) {
                 return c.lastIndexOf(prefix, 0) !== 0;
             });
-            ui_elem.attr('class', classes.join(" ").trim());
+            ui.element.attr('class', classes.join(" ").trim());
 
-            // Get new width and refactor to f/24
-            // Remove inline width style.
-            if(ui_elem.attr('style')) {
-                ui_elem.attr('style', function(i, style) {
+            // Ensure there's no inline style attribute
+            if (ui.element.attr('style')) {
+                ui.element.attr('style', function(i, style) {
                     return style.replace(/width[^;]+;?/g, '');
                 });
             }
 
-            // default is always pure-u-1
-            ui_elem.addClass('pure-u-1');
-            ui_elem.addClass('pure-u-md-' + u_factor + '-24');
-            ui_elem.addClass('pure-u-xl-' + u_factor + '-24');
-
-            // ui_elem.width(width)
+            // Ensure element has all three width classes
+            ui.element.addClass('pure-u-1').addClass('pure-u-md-' + value).addClass('pure-u-xl-' + value);
             ui.originalElement.children(".ODRDragHandle_info").first().hide();
 
             switch(element_type) {
                 case 'theme_element':
-                    // Save new U Factors to DB via Get Request
-                    jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24");
-                    jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24");
+                    jQuery("#UpdateThemeElementForm_cssWidthMed").val(value);
+                    jQuery("#UpdateThemeElementForm_cssWidthXL").val(value);
                     SaveThemeElementProperties(theme_element_id);
                     break;
 
                 default:
                     // Fix position of sort handle
-                    var left = ui_elem.width()/2 - 12;
-                    ui_elem.find(".ODRSortHandle").css('left', left + "px");
+                    var left = ui.element.width()/2 - 12;
+                    ui.element.find(".ODRSortHandle").css('left', left + "px");
 
-                    // Save new U Factors to DB via Get Request
-                    jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24");
-                    jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24");
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(value);
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(value);
                     SaveThemeDatafieldProperties(theme_element_id, datafield_id);
                     break;
             }
