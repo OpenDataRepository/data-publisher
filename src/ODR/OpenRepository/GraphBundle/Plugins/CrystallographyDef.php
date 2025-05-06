@@ -161,7 +161,7 @@ class CrystallographyDef
         34 => array('Pnn2', 'P2nn', 'Pn2n'),
         35 => array('Cmm2', 'A2mm', 'Bm2m', 'Cba2', 'A2cb', 'Bc2a'),
         36 => array('A2_1am', 'A2_1ma', 'A2_1cn', 'A2_1nb', 'Bb2_1m', 'Bm2_1b', 'Bn2_1a', 'Bc2_1n', 'Ccm2_1', 'Cmc2_1', 'Cbn2_1', 'Cna2_1'),
-        37 => array('A2aa', 'A2nn', 'Bb2b', 'Bn2n', 'Ccc2', 'Cnn2;'),
+        37 => array('A2aa', 'A2nn', 'Bb2b', 'Bn2n', 'Ccc2', 'Cnn2'),
         38 => array('Amm2', 'Am2m', 'Anc2_1', 'An2_1b', 'B2mm', 'Bmm2', 'B2_1na', 'Bcn2_1', 'C2mm', 'Cm2m', 'Cb2_1n', 'C2_1an'),
         39 => array('Abm2', 'Ac2m', 'Acc2_1', 'Ab2_1b', 'B2cm', 'Bma2', 'B2_1aa', 'Bcc2_1', 'Cm2a', 'C2mb', 'Cb2_1b', 'C2_1aa'),
         40 => array('Ama2', 'Am2a', 'Ann2_1', 'An2_1n', 'B2mb', 'Bbm2', 'B2_1nn', 'Bnn2_1', 'Cc2m', 'C2cm', 'Cn2_1n', 'C2_1nn'),
