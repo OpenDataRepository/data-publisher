@@ -901,26 +901,23 @@ class PlugExtension extends \Twig_Extension
 
 
     /**
-     * Given a string, escapes '<' and '>' except for when they're part of a small subset of very
-     * specific HTML tags...specifically, <i>, <b>, <u>, <em>, <sup>, <sub>, and <span class="overbar">
+     * By default, twig will attempt to escape '<' and '>' so they don't screw up the page...but
+     * ODR sometimes needs to actually render part of a datarecord's name with its HTML tags.
+     * Specifically `<i>`, `<b>`, `<u>`, `<em>`, `<sup>`, `<sub>`, and `<span class="overbar">`, as
+     * well as their closing tags.  This requirement is 100% non-negotiable, and some variant of
+     * markdown is unacceptable.
      *
-     * Be sure to chain Twig's |raw filter after calling this one, otherwise the return of this filter
-     * will get escaped anyways.
+     * ODR therefore needs to run a subset of an HTML parser on these name values...having a strict
+     * whitelist of acceptable HTML tags makes it both easier and harder...
      *
-     * @param string $str
+     * @param $str
      * @return string
      */
     public function nameFieldValueFilter($str)
     {
-        // So...the browser will attempt to render '<' and '>' as if they're html tags...
-        //  but this field needs them to sometimes be treated as greater-than/less-than signs, AND
-        //  also still needs specific html sequences to not get escaped
-        // Specifically...<i>, <b>, <u>, <sup>, <sub>, and <span class="overbar">, as well as their
-        //  closing tags.  <em> is also in there, because why not.
-        // This requirement is 100% non-negotiable, and some variant of markdown is unacceptable.
         if ( strpos($str, '<') !== false || strpos($str, '>') !== false ) {
             // Due to the complicated overbar span (and maybe some other ones in the future), it's more
-            //  effective to first split the string on '<' and '>'.  Due to requiring two separators,
+            //  effective to first explode the string on '<' and '>'.  Due to having two separators,
             //  it's "better" to do this "manually"
             $pieces = array();
             $prev = 0;
@@ -944,9 +941,10 @@ class PlugExtension extends \Twig_Extension
             $piece = mb_substr($str, $prev, $i);
             $pieces[] = $piece;
 
+            // ----------------------------------------
             // Unfortunately, we kind of need to partially verify HTML structure here...leaving an
-            //  unclosed <i>, <b>, etc tag is going to mess up the entire page.  The easiest way to
-            //  do this is to partially recombine the string in the following for loop
+            //  unclosed <i>, <b>, etc tag is going to mess up the rest of the page.  The easiest way
+            //  to do this is to partially recombine the string in the following for loop
             $html_fragments = array();
 
             $num_pieces = count($pieces);
@@ -954,8 +952,9 @@ class PlugExtension extends \Twig_Extension
                 // HTML tags are broken up into three pieces as a result of the previous for loop
                 $piece = $pieces[$i];
 
+                // If a '<' character was found...
                 if ( $piece === '<' ) {
-                    // If there's a corresponding '>' after this piece...
+                    // ...and there's a corresponding '>' character afterwards in the correct spot...
                     if ( ($i+2 < $num_pieces) && $pieces[$i+2] === '>' ) {
                         // ...then it could be an HTML tag
                         $potential_tag = $pieces[$i+1];
@@ -993,8 +992,8 @@ class PlugExtension extends \Twig_Extension
                     }
                 }
                 else if ( $piece === '>' ) {
-                    // The previous if statement would've dealt with this '>' if it was considered part
-                    //  of a valid HTML tag...since this point was reached, substitute it
+                    // The previous if statement would've dealt with this '>' if it was part of an
+                    //  acceptable HTML tag...since this point was reached, that's not the case
                     $html_fragments[] = '&gt;';
                 }
                 else {
@@ -1002,14 +1001,16 @@ class PlugExtension extends \Twig_Extension
                 }
             }
 
-            // Due to the small subset of permitted HTML tags, we should be able to verify this with
-            //  a stack setup
+            // ----------------------------------------
+            // Due to the small subset of permitted HTML tags, we should be able to verify "valid"
+            //  HTML with a simple stack setup
             $stack = array();
 
             $num_pieces = count($html_fragments);
             for ($i = 0; $i < $num_pieces; $i++) {
                 $piece = $html_fragments[$i];
                 switch ($piece) {
+                    // NOTE: the previous block converted everything to lowercase
                     case '<i>':
                     case '<b>':
                     case '<u>':
@@ -1043,8 +1044,8 @@ class PlugExtension extends \Twig_Extension
             }
 
             if ( count($stack) > 0 ) {
-                // If there's something left on the stack, then  don't attempt to recover...just
-                //  escape the entire string and return
+                // If there's something left on the stack, then the opening/closing tags are mismatched
+                // Don't attempt to recover or "fix" the HTML...just escape the entire string and return
                 return str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
             }
             else {

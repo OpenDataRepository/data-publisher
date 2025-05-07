@@ -932,10 +932,16 @@ class DatarecordInfoService
                 // Ensure the values are in the correct order before imploding
                 ksort($name_field_values);
                 $dr_array[$dr_id]['nameField_value'] = implode(' ', $name_field_values);
+
+                // Also define a location to store the value after it's been run through render plugins
+                // This value can't be constructed here, because part of it could come from a linked
+                //  descendant...which isn't accessible at this point in time
+                $dr_array[$dr_id]['nameField_formatted'] = '';
             }
             else {
                 // Otherwise, no value defined...default to the datarecord id
                 $dr_array[$dr_id]['nameField_value'] = $dr_id;
+                $dr_array[$dr_id]['nameField_formatted'] = $dr_id;
             }
 
             // Do the same thing for the sort values

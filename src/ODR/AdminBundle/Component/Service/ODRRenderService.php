@@ -123,6 +123,11 @@ class ODRRenderService
     private $entity_modify_service;
 
     /**
+     * @var ODRNameFieldHelperService
+     */
+    private $namefield_helper_service;
+
+    /**
      * @var FormFactory
      */
     private $form_factory;
@@ -166,6 +171,7 @@ class ODRRenderService
      * @param CloneThemeService $clone_theme_service
      * @param CloneTemplateService $clone_template_service
      * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param ODRNameFieldHelperService $namefield_helper_service
      * @param FormFactory $form_factory
      * @param EngineInterface $templating
      * @param Pheanstalk $pheanstalk
@@ -188,6 +194,7 @@ class ODRRenderService
         CloneThemeService $clone_theme_service,
         CloneTemplateService $clone_template_service,
         EntityMetaModifyService $entity_meta_modify_service,
+        ODRNameFieldHelperService $namefield_helper_service,
         FormFactory $form_factory,
         EngineInterface $templating,
         Pheanstalk $pheanstalk,
@@ -210,6 +217,7 @@ class ODRRenderService
         $this->clone_theme_service = $clone_theme_service;
         $this->clone_template_service = $clone_template_service;
         $this->entity_modify_service = $entity_meta_modify_service;
+        $this->namefield_helper_service = $namefield_helper_service;
 
         $this->form_factory = $form_factory;
         $this->templating = $templating;
@@ -696,6 +704,12 @@ class ODRRenderService
             // Load the requested datarecord's data from the cache
             $initial_datarecord_id = $datarecord->getId();
             $datarecord_array = $this->datarecord_info_service->getDatarecordArray($initial_datarecord_id, $include_links);
+
+            // Since a datarecord is involved, should ensure it has formatted namefield values...
+            $this->namefield_helper_service->checkNameFields($datatype_array, $datarecord_array);
+            // This needs to be done before permissions, and doing it before stacking makes it easier
+            //  for the CacheService to save the formatted values so this doesn't have to execute
+            //  every single time
         }
         else if ( $is_fake_datarecord ) {
             // Otherwise, this is Edit mode attempting to render a "fake" datarecord...
