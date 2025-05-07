@@ -344,7 +344,7 @@
 
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         // Have to wait for that to finish before recalculating the width of datatables objects
-        setTimeout("recalcDatatablesWidths()", 100);
+        setTimeout("recalcDatatablesWidths()", 350);
     }
 
     /**
@@ -366,7 +366,7 @@
 
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         // Have to wait for that to finish before recalculating the width of datatables objects
-        setTimeout("recalcDatatablesWidths()", 100);
+        setTimeout("recalcDatatablesWidths()", 350);
     }
 
     /**
@@ -385,7 +385,7 @@
 
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         // Have to wait for that to finish before recalculating the width of datatables objects
-        setTimeout("recalcDatatablesWidths()", 100);
+        setTimeout("recalcDatatablesWidths()", 350);
     }
 
     /**
@@ -505,7 +505,6 @@
         }
     }
 
-
     /**
      * If the current page's content includes a dataTables.js instance (i.e. search result lists),
      * then expanding/shrinking the search sidebar requires that instance to redraw itself so it
@@ -520,8 +519,9 @@
                 // The table also may not be initialized yet...
                 if ( $.fn.DataTable.isDataTable(elem) ) {
                     // ...but if it is, redo the Responsive and FixedHeader calculations
-                    $(elem).DataTable().responsive.recalc();
-                    $(elem).DataTable().fixedHeader.adjust();
+                    // $(elem).DataTable().responsive.recalc();
+                    // $(elem).DataTable().fixedHeader.adjust();
+                    $(elem).DataTable().columns.adjust();
                 }
             });
         }
