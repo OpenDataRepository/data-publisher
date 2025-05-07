@@ -1595,12 +1595,35 @@ class ODREventSubscriber implements EventSubscriberInterface
             // TODO -  triggers a change to datafield B, which can trigger a change to datafield A
 
             // TODO - is there any method to completely prevent this recursion from inside the event?
-
-            // Determine whether any render plugins should run something in response to this event
             $storage_entity = $event->getStorageEntity();
             $datafield = $storage_entity->getDataField();
+            $datarecord = $storage_entity->getDataRecord();
             $datatype = $datafield->getDataType();
 
+            // Determine whether the change to this drf should clear any namefield values that are
+            //  cached inside datarecord entries...the Datafield/DatarecordModified events can't
+            //  handle it because they're missing half of the info...
+            $query =
+               'SELECT adr.grandparent_id
+                FROM odr_data_record ddr
+                JOIN odr_linked_data_tree ldt ON ldt.descendant_id = ddr.grandparent_id
+                JOIN odr_data_record adr ON ldt.ancestor_id = adr.id
+                JOIN odr_data_type adt ON adr.data_type_id = adt.id
+                JOIN odr_data_type_special_fields dtsf ON dtsf.data_type_id = adt.id
+                WHERE ddr.id = '.$datarecord->getId().' AND dtsf.data_field_id = '.$datafield->getId().'
+                AND dtsf.field_purpose = '.DataTypeSpecialFields::NAME_FIELD.'
+                AND ddr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND adr.deletedAt IS NULL
+                AND adt.deletedAt IS NULL AND dtsf.deletedAt IS NULL';
+            $conn = $this->em->getConnection();
+            $results = $conn->fetchAll($query);
+
+            foreach ($results as $result) {
+                $dr_id = $result['grandparent_id'];
+                $this->cache_service->delete('cached_datarecord_'.$dr_id);
+            }
+
+
+            // Determine whether any render plugins should run something in response to this event
             $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
