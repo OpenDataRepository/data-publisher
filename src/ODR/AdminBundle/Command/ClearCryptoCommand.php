@@ -53,16 +53,27 @@ class ClearCryptoCommand extends ContainerAwareCommand
 
             $data = json_decode($job->getData());
 
-if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'_crypto_requests');
-else
-    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' ('.$data->redis_prefix.') from crypto_requests');
+            if ( $data->crypto_type !== 'encrypt' ) {
+                if ($input->getOption('old'))
+                    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'_crypto_requests');
+                else
+                    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' ('.$data->redis_prefix.') from crypto_requests');
 
-            // Dealt with the job
-            $pheanstalk->delete($job);
+                // Dealt with the job
+                $pheanstalk->delete($job);
 
-            // Sleep for a bit
-            usleep(100000); // sleep for 0.1 seconds
+                // Sleep for a bit
+                usleep(10000); // sleep for 0.01 seconds
+            }
+            else {
+                $output->writeln( 'Encountered encrypt job, releasing to try again' );
+
+                // Release the job back into the ready queue to try again
+                $pheanstalk->release($job);
+
+                // Sleep for a bit
+                usleep(5000000);     // sleep for 5 seconds
+            }
         }
 
     }
