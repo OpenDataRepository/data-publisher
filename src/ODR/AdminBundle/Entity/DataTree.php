@@ -281,4 +281,14 @@ class DataTree
     {
         return $this->getDataTreeMeta()->getEditBehavior();
     }
+
+    /**
+     * Get secondaryDataTree.
+     *
+     * @return \ODR\AdminBundle\Entity\DataTree|null
+     */
+    public function getSecondaryDataTree()
+    {
+        return $this->getDataTreeMeta()->getSecondaryDataTree();
+    }
 }

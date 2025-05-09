@@ -320,6 +320,7 @@ services:
             $clone_theme_service: "@odr.clone_theme_service"
             $clone_template_service: "@odr.clone_template_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $namefield_helper_service: "@odr.namefield_helper_service"
 
             $form_factory: "@form.factory"
             $templating: "@templating"
@@ -383,6 +384,13 @@ services:
             $search_api_service: "@odr.search_api_service"
             $search_key_service: "@odr.search_key_service"
             $token_generator: "@fos_user.util.token_generator"
+            $logger: "@logger"
+
+    odr.namefield_helper_service:
+        class: ODR\AdminBundle\Component\Service\ODRNameFieldHelperService
+        arguments:
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $cache_service: "@odr.cache_service"
             $logger: "@logger"
 
     odr.xyzdata_helper_service:

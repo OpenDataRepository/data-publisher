@@ -138,6 +138,49 @@ class SortService
      * Returns an array of sorted datarecord ids for the given datatype, optionally filtered to only
      * include ids that are in a comma-separated list of datarecord ids.
      *
+     * Effectively identical to {@see self::getSortedDatarecordList()}, except it operates with the
+     * datatype's name fields instead of its sort fields.
+     *
+     * @param integer $datatype_id    The id of the datatype being named
+     * @param null|string $subset_str If specified, the returned string will only contain datarecord ids from $subset_str
+     *
+     * @return array An ordered list of datarecord_id => name_value
+     */
+    public function getNamedDatarecordList($datatype_id, $subset_str = null)
+    {
+        $exception_code = 0x278dfcc6;
+
+        /** @var DataType $datatype */
+        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        if ($datatype == null)
+            throw new ODRNotFoundException('Datatype', false, $exception_code);
+
+        // Templates shouldn't need to call this, but it doesn't break anything if they do
+//        if ($datatype->getIsMasterType())
+//            throw new ODRBadRequestException('getSortedDatarecordList() called on a master template', $exception_code);
+
+        // Not sure if this is going to be called often enough to justify caching, but might as well
+        $datarecord_list = $this->cache_service->get('datatype_'.$datatype_id.'_record_names');
+        if ( $datarecord_list == false || count($datarecord_list) == 0 ) {
+            // Going to need the datatype's name fields, if any exist
+            $namefields = $datatype->getNameFields();
+
+            // Get a sorted datarecord list based off the datatype's name fields
+            $datarecord_list = self::getDatarecordList($datatype, $namefields);
+
+            // Store the sorted datarecord list back in the cache
+            $this->cache_service->set('datatype_'.$datatype_id.'_record_names', $datarecord_list);
+        }
+
+        // Now that we have the correct list of sorted datarecords...
+        return self::applySubsetFilter($datarecord_list, $subset_str);
+    }
+
+
+    /**
+     * Returns an array of sorted datarecord ids for the given datatype, optionally filtered to only
+     * include ids that are in a comma-separated list of datarecord ids.
+     *
      * If the datatype has been configured to use at least one datafield for sorting, then the
      * contents of those datafields are used to sort in ascending order.  Otherwise, the list is
      * sorted by datarecord ids.
@@ -165,80 +208,102 @@ class SortService
         // Attempt to grab the sorted list of datarecords for this datatype from the cache
         $datarecord_list = $this->cache_service->get('datatype_'.$datatype_id.'_record_order');
         if ( $datarecord_list == false || count($datarecord_list) == 0 ) {
-            // Going to need the datatype's sorting datafield, if it exists
+            // Going to need the datatype's sort fields, if any exist
             $sortfields = $datatype->getSortFields();
 
-            // NOTE - The $sortfields ARE NOT GUARANTEED to belong to $datatype...it's possible that
-            //  $datatype is sorting with fields from one of its linked descendants
-
-            $datarecord_list = array();
-            if ( empty($sortfields) ) {
-                // Need a list of all datarecords for this datatype
-                $query = $this->em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype AND dr.provisioned = false
-                    AND dr.deletedAt IS NULL
-                    ORDER BY dr.id'
-                )->setParameters( array('datatype' => $datatype_id) );
-                $results = $query->getArrayResult();
-
-                // The datatype doesn't have a sortfield, so going to order by datarecord id
-                foreach ($results as $num => $dr) {
-                    $dr_id = $dr['dr_id'];
-                    $datarecord_list[$dr_id] = $dr_id;
-                }
-
-                // Don't need a natural sort because the ids are guaranteed to just be numeric
-                asort($datarecord_list);
-            }
-            else if ( count($sortfields) === 1 ) {
-                // If the datatype only uses one field to sort itself, then don't need the multisort
-                $sortfield = $sortfields[0];
-                if ( $sortfield->getDataType()->getId() === $datatype->getId() )
-                    $datarecord_list = self::sortDatarecordsByDatafield( $sortfield->getId() );
-                else
-                    $datarecord_list = self::sortDatarecordsByLinkedDatafield( $datatype->getId(), $sortfield->getId() );
-            }
-            else {
-                // If the datatype uses more than one field to sort itself, then need to multisort
-
-                // While technically sorting ascending don't need a multisort, there are other places
-                //  in ODR that need to sort in multiple directions...so this is kept similar
-                $sort_datafields = array();
-                $sort_directions = array();
-                $linked_datafields = array();
-                $numeric_datafields = array();
-                foreach ($sortfields as $display_order => $df) {
-                    $sort_datafields[$display_order] = $df->getId();
-                    $sort_directions[$display_order] = 'asc';
-
-                    // It's easier to determine whether this is a linked field or not here instead
-                    //  of inside the multisort function
-                    if ( $df->getDataType()->getId() === $datatype->getId() )
-                        $linked_datafields[$display_order] = false;
-                    else
-                        $linked_datafields[$display_order] = true;
-
-                    // Same deal with whether the datafield is an integer/decimal field or not
-                    $typeclass = $df->getFieldType()->getTypeClass();
-                    if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' )
-                        $numeric_datafields[$display_order] = true;
-                    else
-                        $numeric_datafields[$display_order] = false;
-                }
-
-                $datarecord_list = self::multisortDatarecordList($datatype->getId(), $sort_datafields, $sort_directions, $linked_datafields, $numeric_datafields);
-            }
+            // Get a sorted datarecord list based off the datatype's sort fields
+            $datarecord_list = self::getDatarecordList($datatype, $sortfields);
 
             // Store the sorted datarecord list back in the cache
             $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);
         }
 
-
-        // ----------------------------------------
         // Now that we have the correct list of sorted datarecords...
         return self::applySubsetFilter($datarecord_list, $subset_str);
+    }
+
+
+    /**
+     * As far as ODR is concerned, there's not a fundamental difference between a "name field" and
+     * a "sort field"...they're both text/number fields, just used in different places for different
+     * reasons.
+     *
+     * Since these special fields share the same fieldtypes, getting the lists can technically be
+     * performed the exact same way.  Actually sorting the results for a name field is something of
+     * a wasted effort, but I'm not going to willingly implement a different function to optimize it.
+     *
+     * @param DataType $datatype
+     * @param DataFields[] $fields
+     *
+     * @return array An ordered list of datarecord_id => value
+     */
+    private function getDatarecordList($datatype, $fields)
+    {
+        // NOTE - These fields ARE NOT GUARANTEED to belong to $datatype...it's possible that
+        //  $datatype is referring to fields from one of its linked descendants
+        $datarecord_list = array();
+
+        if ( empty($fields) ) {
+            // Need a list of all datarecords for this datatype
+            $query = $this->em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.dataType = :datatype AND dr.provisioned = false
+                AND dr.deletedAt IS NULL
+                ORDER BY dr.id'
+            )->setParameters( array('datatype' => $datatype->getId()) );
+            $results = $query->getArrayResult();
+
+            // The datatype doesn't have one of whatever special field, so have to use record ids
+            foreach ($results as $num => $dr) {
+                $dr_id = $dr['dr_id'];
+                $datarecord_list[$dr_id] = $dr_id;
+            }
+
+            // Don't need a natural sort because the ids are guaranteed to just be numeric
+            asort($datarecord_list);
+        }
+        else if ( count($fields) === 1 ) {
+            // If the datatype only has one of this special field, then don't need the multisort
+            $field = $fields[0];
+            if ( $field->getDataType()->getId() === $datatype->getId() )
+                $datarecord_list = self::sortDatarecordsByDatafield( $field->getId() );
+            else
+                $datarecord_list = self::sortDatarecordsByLinkedDatafield( $datatype->getId(), $field->getId() );
+        }
+        else {
+            // If the datatype uses more than one of these fields, then need to multisort
+
+            // While technically sorting ascending don't need a multisort, there are other places
+            //  in ODR that need to sort in multiple directions...so this is kept similar
+            $sort_datafields = array();
+            $sort_directions = array();
+            $linked_datafields = array();
+            $numeric_datafields = array();
+            foreach ($fields as $display_order => $df) {
+                $sort_datafields[$display_order] = $df->getId();
+                $sort_directions[$display_order] = 'asc';
+
+                // It's easier to determine whether this is a linked field or not here instead
+                //  of inside the multisort function
+                if ( $df->getDataType()->getId() === $datatype->getId() )
+                    $linked_datafields[$display_order] = false;
+                else
+                    $linked_datafields[$display_order] = true;
+
+                // Same deal with whether the datafield is an integer/decimal field or not
+                $typeclass = $df->getFieldType()->getTypeClass();
+                if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' )
+                    $numeric_datafields[$display_order] = true;
+                else
+                    $numeric_datafields[$display_order] = false;
+            }
+
+            $datarecord_list = self::multisortDatarecordList($datatype->getId(), $sort_datafields, $sort_directions, $linked_datafields, $numeric_datafields);
+        }
+
+        // Not filtering the list here, since it's probably going to get cached
+        return $datarecord_list;
     }
 
 

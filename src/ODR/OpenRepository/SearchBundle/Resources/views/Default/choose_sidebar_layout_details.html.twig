@@ -151,22 +151,22 @@
                 {# users can only unshare one of their own sidebar layouts if it's not being used as a default #}
                 {% if sidebar_layout.default_for|length > 0 %}
                     <li class="ODRChooseViewLink strikethrough" title="This layout can't be set to private because it is being used as a database default">
-                        <i class="fa fa-globe fa-public"></i>&nbsp;Make private
+                        <i class="fa fa-globe ODRPublic"></i>&nbsp;Make private
                     </li>
                 {% else %}
                     <li class="ODRChooseViewLink ODRSidebarLayout_ToggleShared">
-                        <i class="fa fa-globe fa-public"></i>&nbsp;Make private
+                        <i class="fa fa-globe ODRPublic"></i>&nbsp;Make private
                     </li>
                 {% endif %}
             {% else %}
                 {# users can always share one of their own sidebar layouts #}
                 {% if sidebar_layout.is_empty %}
                     <li class="ODRChooseViewLink strikethrough" title="This layout can't be set to public because it is empty">
-                        <i class="fa fa-globe fa-not-public"></i>&nbsp;Make public
+                        <i class="fa fa-globe ODRNotPublic"></i>&nbsp;Make public
                     </li>
                 {% else %}
                     <li class="ODRChooseViewLink ODRSidebarLayout_ToggleShared">
-                        <i class="fa fa-globe fa-not-public"></i>&nbsp;Make public
+                        <i class="fa fa-globe ODRNotPublic"></i>&nbsp;Make public
                     </li>
                 {% endif %}
             {% endif %}

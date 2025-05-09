@@ -144,7 +144,7 @@
 
             {% if not datarecord_is_fake %}
                 <button class="pure-button ODRTabButton ODRRecordName" rel="{{ datarecord.id }}" data-parent-name="{{ datatype.dataTypeMeta.shortName }}">
-                    {{ datarecord.nameField_value }}
+                    {{ datarecord.nameField_formatted|escape_namefield|raw }}
                 </button>
             {% else %}
                 <button class="pure-button ODRTabButton" rel="{{ datarecord.id }}" title="This is a temporary record...">
@@ -210,7 +210,7 @@
                     {% endif %}
 
                     {% if not datarecord_is_fake %}
-                        <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
+                        <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>    {# NOTE: no point doing fancy escaping for a dropdown #}
                     {% else %}
                         <option value="{{ datarecord.id }}">&lt;&lt;Temporary&gt;&gt;</option>
                     {% endif %}
@@ -254,7 +254,7 @@
             {% endif %}
 
         {% elseif context == 'fake_edit' %}
-        <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
+        <span class="DataRecordTools Info" title="This record must be saved before {% if is_link == 0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
             {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
             <i class="fa fa-plus"></i>
             {% endif %}

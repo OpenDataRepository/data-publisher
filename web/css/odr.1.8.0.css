@@ -2418,11 +2418,11 @@ h3 .DatatypeTools,
     color: #dddddd;
 }
 
-.fa-public {
+.ODRPublic {
     color: #2DB83D !important;
 }
-.fa-not-public {
-    color: #FF3333; !important
+.ODRNotPublic {
+    color: #FF3333 !important;
 }
 
 #dialog_add_datafield .row label {
@@ -3920,7 +3920,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     padding-left: 14px;
     position: relative;
     top: -5px;
-    margin-right: 10px;
+    /*margin-right: 10px;*/
 }
 
 .ODRJobList_header {

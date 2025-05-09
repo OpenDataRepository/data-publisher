@@ -209,10 +209,94 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
      */
     private function applyChemistryFormatting($superscript_delimiter, $subscript_delimiter, $str)
     {
-        // Ensure any less/greater than signs don't confuse the browser
-        $str = preg_replace('/<(?!i|u|b|s|\/)/', '&lt;', $str); // negative lookahead...don't match '<' when it's a part of html tags like '<i>', '<b>', '<u>', '<sub>', '<sup>'
-        $str = preg_replace('/(?<!i|u|b|p)>/', '&gt;', $str);   // negative lookbehind...don't match '>' when it's a part of html tags like '<i>', '<b>', '<u>', '<sub>', '<sup>'
+        // So...the browser will attempt to render '<' and '>' as if they're html tags...
+        //  but this field needs them to sometimes be treated as greater-than/less-than signs, AND
+        //  also still needs specific html sequences to not get escaped
+        // Specifically...<i>, <b>, <u>, <sup>, <sub>, and <span class="overbar">, as well as their
+        //  closing tags.  <em> is also in there, because why not.
+        // This requirement is 100% non-negotiable, and some variant of markdown is unacceptable.
+        if ( strpos($str, '<') !== false || strpos($str, '>') !== false ) {
+            // Due to the complicated overbar span (and maybe some other ones in the future), it's more
+            //  effective to first split the string on '<' and '>'.  Due to requiring two separators,
+            //  it's "better" to do this "manually"
+            $pieces = array();
+            $prev = 0;
 
+            $len = mb_strlen($str);
+            for ($i = 0; $i < $len; $i++) {
+                // Need to use mb_substr() due to unicode characters...
+                $char = mb_substr($str, $i, 1);
+
+                if ( $char === '<' || $char === '>' ) {
+                    // Store the string before this symbol
+                    $piece = mb_substr($str, $prev, ($i-$prev));
+                    $pieces[] = $piece;
+                    // Store the symbol itself
+                    $pieces[] = $char;
+                    // Adjust to pick up the next piece
+                    $prev = $i+1;
+                }
+            }
+            // Get the remaining part of the string in the array
+            $piece = mb_substr($str, $prev, $i);
+            $pieces[] = $piece;
+
+            $num_pieces = count($pieces);
+            for ($i = 0; $i < $num_pieces; $i++) {
+                // HTML tags are broken up into three pieces as a result of the previous for loop
+                $piece = $pieces[$i];
+
+                if ( $piece === '<' ) {
+                    // If there's a corresponding '>' after this piece...
+                    if ( ($i+2 < $num_pieces) && $pieces[$i+2] === '>' ) {
+                        // ...then it could be an HTML tag
+                        $potential_tag = $pieces[$i+1];
+                        if ( strpos($potential_tag, '/') === 0 )
+                            $potential_tag = substr($potential_tag, 1);
+
+                        switch ($potential_tag) {
+                            case 'i':
+                            case 'I':
+                            case 'b':
+                            case 'B':
+                            case 'u':
+                            case 'U':
+                            case 'em':
+                            case 'sub':
+                            case 'sup':
+                            case 'span class="overbar"':
+                            case 'span':
+                                // These are permitted...do nothing here
+                                $i = $i+2;
+                                break;
+                            default:
+                                // Any other character sequence is not a permitted HTML tag
+                                $pieces[$i] = '&lt;';
+                                $pieces[$i+2] = '&gt;';
+                                $i = $i+2;
+                                break;
+                        }
+
+                        // NOTE: not going to verify it's valid HTML.  This is ridiculous enough already
+                    }
+                    else {
+                        // This '<' didn't have a closing '>', so it can't be part of an HTML tag
+                        $pieces[$i] = '&lt;';
+                    }
+                }
+                else if ( $piece === '>' ) {
+                    // The previous if statement would've dealt with this '>' if it was considered part
+                    //  of a valid HTML tag...since this point was reached, substitute it
+                    $pieces[$i] = '&gt;';
+                }
+            }
+
+            // Recombine everything back together into a single string
+            $str = implode('', $pieces);
+        }
+
+
+        // ----------------------------------------
         // Apply the subscripts...
         $sub = preg_quote($subscript_delimiter);
         $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);

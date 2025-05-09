@@ -6,11 +6,13 @@
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <span class="ui-icon ui-icon-triangle-1-s"></span>
 
-    {% if datarecord.nameField_value != datarecord.id %}
-        <a>{{ datarecord.nameField_value }}</a>
-    {% else %}
-        <a>{{ datatype.dataTypeMeta.shortName }}</a>
-    {% endif %}
+        <a class="ODRRecordName" data-parent-name="{{ datatype.dataTypeMeta.shortName }}">
+        {% if datarecord.nameField_value != datarecord.id %}
+            {{ datarecord.nameField_formatted|escape_namefield|raw }}
+        {% else %}
+            {{ datatype.dataTypeMeta.shortName }}
+        {% endif %}
+        </a>
 
         <span id="DataTypeTools_{{ datarecord.id }}" class="DatatypeTools">
         {% if is_link == 1 %}
@@ -22,7 +24,7 @@
             <span rel="{{ datatype.id }}">
                 {% set class_str = "tooltip fa fa-globe Cursor" %}
                 {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                    {% set class_str = class_str ~ " ODRActiveIcon" %}
+                    {% set class_str = class_str ~ " ODRPublic" %}
                 {% endif %}
 
                 {% set title_str = "Record is Not Public" %}

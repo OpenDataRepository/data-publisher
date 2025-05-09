@@ -2275,7 +2275,11 @@ h1:after {
 }
 
 .ODRToggleLinkedEdit {
-    /*background: green;*/
+    background: transparent;
+    border: 1px solid;
+    border-radius: 4px;
+
+    padding: 2px 4px;
 }
 
 /*
@@ -2451,12 +2455,12 @@ h3 .DatatypeTools,
     color: #dddddd;
 }
 
-.fa-public {
+.ODRPublic {
     color: #2DB83D !important;
 
 }
-.fa-not-public {
-    color: #FF3333; !important
+.ODRNotPublic {
+    color: #FF3333 !important;
 }
 
 #dialog_add_datafield .row label {
@@ -3957,15 +3961,23 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     cursor: pointer;
 }
 
+#ODRSearchResultsButtons {
+    text-align: right;
+    /*margin-top: 8px;*/
+}
+#ODRSearchResultsPrevious, #ODRSearchResultsNext {
+    position: relative;
+    top: -10px;
+}
 #ODRReturnToSearchResults {
     padding-top: 4px;
     padding-bottom: 4px;
     padding-right: 14px;
     padding-left: 14px;
     position: relative;
-    float: right;
-    margin-right: 10px;
-    top: 0;
+    /*float: right;*/
+    /*margin-right: 10px;*/
+    top: -3px;
 }
 
 .ODRJobList_header {

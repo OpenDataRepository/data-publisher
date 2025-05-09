@@ -3,7 +3,7 @@ odr_plugins.rruff.amcsd:
     category: RRUFF
     plugin_type: datatype
     render: odr_plugins.rruff.amcsd
-    version: 1.4.0
+    version: 1.5.0
     override_fields: true
     override_field_reload: false
     override_child: false
@@ -32,22 +32,22 @@ odr_plugins.rruff.amcsd:
     # NOTE: this also means that AMCSDPlugin.php does NOT need to implement DatafieldReloadOverrideInterface
 
     required_fields:
-        fileno:
-            name: fileno
-            description: An external ID used for the data
-            type: ShortVarchar    # must allow leading zeros
-            display_order: 0
-            properties:
-                - must_be_unique
-                - autogenerate_values    # TODO - is this correct? ...is the plugin going to have to change filenames to match this?
+#        fileno:
+#            name: fileno
+#            description: An external ID used for the data
+#            type: ShortVarchar    # must allow leading zeros
+#            display_order: 0
+#            properties:
+#                - must_be_unique
+#                - autogenerate_values
         database_code:
             name: database_code_amcsd
             description: The value of the "database_code_amcsd" field in the AMC File
             type: ShortVarchar    # must allow leading zeros
             display_order: 1
             properties:
-                - no_user_edits
-                - is_derived
+                - must_be_unique
+                - autogenerate_values
         authors:
             name: Authors
             description: The names of the authors that published the data

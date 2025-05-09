@@ -190,7 +190,7 @@ class DatatreeInfoService
      * Most of ODR treats this as the default way to associate datatypes together, and it's used
      * for everything from rendering to permissions.
      *
-     * @param int $top_level_datatype_id
+     * @param integer $top_level_datatype_id
      * @param boolean $deep If true, then all children of the associated datatypes are also returned
      *
      * @return array
@@ -400,7 +400,7 @@ class DatatreeInfoService
         while ( !empty($datatypes_to_check) ) {
             $tmp = array();
             foreach ($datatypes_to_check as $num => $parent_dt_id) {
-                $keys = array_keys($datatree_array['descendant_of'], $parent_dt_id, true);
+                $keys = array_keys($datatree_array['descendant_of'], $parent_dt_id);
                 foreach ($keys as $num => $c_dt_id) {
                     $tmp[$c_dt_id] = 0;
                     $child_datatypes[$c_dt_id] = 0;

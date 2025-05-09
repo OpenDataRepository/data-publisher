@@ -6,7 +6,7 @@
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a class="ODRGroup_{{ group.id }}_name" rel="{{ group.id }}">{{ group.groupMeta.groupName }}</a>
         <span style="margin-left: 10px;">
-            <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
+            <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRPublic{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
         </span>
     {% if prevent_all_changes %}
         <span class="ODRGroup_unchangeable" style="cursor: default; margin-left:15px; color: #000000;">Not allowed to make changes to this Group!</span>

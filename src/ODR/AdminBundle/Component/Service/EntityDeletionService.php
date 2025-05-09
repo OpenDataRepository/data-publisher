@@ -254,29 +254,6 @@ class EntityDeletionService
             // Merge the two lists together
             $all_affected_users = array_merge($all_affected_users, $all_super_admins);
 
-            // If any of the datafields being deleted are being used as a sortfield for other
-            //  datatypes, then need to clear the default sort order for those datatypes
-            $query = $this->em->createQuery(
-               'SELECT DISTINCT(l_dt.id) AS dt_id
-                FROM ODRAdminBundle:DataFields AS df
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE df.id IN (:datafields_to_delete) AND dtsf.field_purpose = :field_purpose
-                AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datafields_to_delete' => array($datafield->getId()),
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
-            );
-            $results = $query->getArrayResult();
-
-            $datatypes_to_reset_order = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $datatypes_to_reset_order[] = $dt_id;
-            }
-
             // Need to also delete the cache entries of all datatypes that have a field derived
             //  from the soon-to-be-deleted datafield
             $query = $this->em->createQuery(
@@ -401,7 +378,7 @@ class EntityDeletionService
 
             // ----------------------------------------
             // Need to locate all other datatypes that are using this soon-to-be-deleted datafield
-            //  as their sort field...
+            //  as their name/sort field...
             $query = $this->em->createQuery(
                'SELECT dt
                 FROM ODRAdminBundle:DataTypeSpecialFields dtsf
@@ -428,8 +405,11 @@ class EntityDeletionService
 
             /** @var DataType[] $results */
             foreach ($results as $dt) {
-                // Any datatypes this query finds had their sort fields changed, so they also need
+                // Any datatypes this query finds had their name/sort fields changed, so they also need
                 //  to rebuild their cache entries
+                $this->cache_service->delete('datatype_'.$dt->getId().'_record_names');
+                $this->cache_service->delete('datatype_'.$dt->getId().'_record_order');
+
                 try {
                     $event = new DatatypeModifiedEvent($dt, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
                     $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
@@ -561,10 +541,8 @@ class EntityDeletionService
 //                    throw $e;
             }
 
-            // Reset sort order for the datatypes found earlier
-            foreach ($datatypes_to_reset_order as $num => $dt_id)
-                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
 
+            // ----------------------------------------
             // Delete derived datatype cache entries if needed
             foreach ($datatypes_to_clear_cached_data as $num => $dt_id)
                 $this->cache_service->delete('cached_datatype_'.$dt_id);
@@ -698,21 +676,18 @@ class EntityDeletionService
                 LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose = :field_purpose
+                WHERE dr.id IN (:datarecords_to_delete)
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array(
-                    'datarecords_to_delete' => $datarecords_to_delete,
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
+                array( 'datarecords_to_delete' => $datarecords_to_delete )
             );
             $results = $query->getArrayResult();
 
-            $datatypes_to_reset_order = array();
+            $datatypes_to_clear = array();
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
-                $datatypes_to_reset_order[] = $dt_id;
+                $datatypes_to_clear[] = $dt_id;
             }
 
 
@@ -819,9 +794,11 @@ class EntityDeletionService
 
 
             // ----------------------------------------
-            // Reset sort order for the datatypes found earlier
-            foreach ($datatypes_to_reset_order as $num => $dt_id)
+            // Reset cached name/sort entries for the datatypes found earlier
+            foreach ($datatypes_to_clear as $num => $dt_id) {
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_names');
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+            }
 
             // NOTE: don't actually need to delete cached graphs for the datatype...the relevant
             //  plugins will end up requesting new graphs without the files for the deleted records
@@ -949,38 +926,35 @@ class EntityDeletionService
             foreach ($results as $result)
                 $datafields_to_delete[] = $result['df_id'];
 
-            // If any of the datafields being deleted are being used as a sortfield for other
-            //  datatypes, then need to clear the default sort order for those datatypes
+            // If any of the datafields being deleted are being used as a name/sortfield for other
+            //  datatypes, then need to clear two cache entries for those datatypes
             $query = $this->em->createQuery(
                'SELECT dt
                 FROM ODRAdminBundle:DataFields AS df
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
-                WHERE df.id IN (:datafields_to_delete) AND dtsf.field_purpose = :field_purpose
+                JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
+                WHERE df.id IN (:datafields_to_delete)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters(
-                array(
-                    'datafields_to_delete' => $datafields_to_delete,
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
+                array( 'datafields_to_delete' => $datafields_to_delete )
             );
             $results = $query->getResult();
 
-            $datatypes_to_reset_order = array();
+            $datatypes_to_clear = array();
             foreach ($results as $dt) {
                 /** @var DataType $dt */
-                $datatypes_to_reset_order[ $dt->getId() ] = $dt;
+                $datatypes_to_clear[ $dt->getId() ] = $dt;
             }
 
             // Don't need to fire off resets for datatypes that are getting deleted though
             foreach ($datatypes_to_delete as $num => $dt_id) {
-                if ( isset($datatypes_to_reset_order[$dt_id]) )
-                    unset( $datatypes_to_reset_order[$dt_id] );
+                if ( isset($datatypes_to_clear[$dt_id]) )
+                    unset( $datatypes_to_clear[$dt_id] );
             }
 
 
             // ----------------------------------------
-            // Need to also locate any datatypes that link to any of the datatypes being deleted
+            // Need to locate any datatypes that link to any of the datatypes being deleted
             $query = $this->em->createQuery(
                'SELECT ancestor
                 FROM ODRAdminBundle:DataType AS descendant
@@ -1008,6 +982,35 @@ class EntityDeletionService
                     unset( $linked_ancestor_datatypes[$dt_id] );
             }
 
+            // Need to also locate any datatypes that were linked to by any of the datatypes being
+            //  deleted
+            $query = $this->em->createQuery(
+               'SELECT descendant
+                FROM ODRAdminBundle:DataType AS ancestor
+                JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                WHERE ancestor.id IN (:datatypes_to_delete) AND dtm.is_link = 1
+                AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL'
+            )->setParameters( array('datatypes_to_delete' => $datatypes_to_delete) );
+            $results = $query->getResult();
+
+            $linked_descendant_datatypes = array();
+            foreach ($results as $dt) {
+                /** @var DataType $dt */
+                $linked_descendant_datatypes[ $dt->getId() ] = $dt;
+
+                // This is for marking those datatype as updated after the link is broken, so don't
+                //  want the grandparent datatypes here
+            }
+
+            // Don't need to update any ancestor datatypes that are getting deleted though
+            foreach ($datatypes_to_delete as $num => $dt_id) {
+                if ( isset($linked_descendant_datatypes[$dt_id]) )
+                    unset( $linked_descendant_datatypes[$dt_id] );
+            }
+
             // Get the ids of all LinkedDataTree entries that need to be deleted
             $query = $this->em->createQuery(
                'SELECT ldt.id AS ldt_id
@@ -1025,6 +1028,24 @@ class EntityDeletionService
             $linked_datatrees_to_delete = array_keys($linked_datatrees_to_delete);
             // There shouldn't be any duplicates here, since none of the datatypes getting deleted
             //  can link to each other
+
+
+            // ----------------------------------------
+            // If this is a template datatype, then need to ensure no derived datatypes point to
+            //  the datatypes getting deleted...this is more of an issue for the child datatypes,
+            //  which can't get deleted so long as they have a masterDataType
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS mdt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+                WHERE mdt.id IN (:datatypes_to_delete)
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters( array('datatypes_to_delete' => $datatypes_to_delete) );
+            $results = $query->getResult();
+
+            $derived_datatypes_to_update = array();
+            foreach ($results as $dt)
+                $derived_datatypes_to_update[ $dt->getId() ] = $dt;
 
 
             // ----------------------------------------
@@ -1246,6 +1267,15 @@ class EntityDeletionService
                 $datatree_ids[] = $dt['dt_id'];
             // Shouldn't need to worry about duplicates...
 
+            // NOTE: don't need to worry about "secondary" datatree entries either...there are three
+            //  possibilities for the datatype being deleted...
+            // 1) the datatype is the ancestor, and is top-level...in which case every childtype that
+            //    could have a "secondary" datatree is getting deleted anyways
+            // 2) the datatype is the ancestor, and is a childtype...in which case its datatree
+            //    entry will get deleted so there's no reference left
+            // 3) the datatype is the descendant...in which case all of its datatree entries get
+            //    deleted anyways, so there's nothing leftover to have a "secondary" datatree
+
             // Delete all Datatree and DatatreeMeta entries
             $query_str =
                'UPDATE odr_data_tree AS dt, odr_data_tree_meta AS dtm
@@ -1348,6 +1378,19 @@ class EntityDeletionService
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
+            // Update all Datatypes which were derived from these Datatypes
+            $derived_datatype_list = array_keys($derived_datatypes_to_update);
+
+            $query_str =
+               'UPDATE odr_data_type AS dt
+                SET dt.master_datatype_id = NULL
+                WHERE dt.id IN (?)
+                AND dt.deletedAt IS NULL AND dt.deletedAt IS NULL';
+            $parameters = array(1 => $derived_datatype_list);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
             // ----------------------------------------
             // No error encountered, commit changes
             $conn->commit();
@@ -1378,8 +1421,8 @@ class EntityDeletionService
                 //  arrays don't need to duplicate that work
             }
 
-            // If a datatype was using one of the now-deleted fields as a sort field...
-            foreach ($datatypes_to_reset_order as $dt_id => $dt) {
+            // If a datatype was using one of the now-deleted fields as a name/sort field...
+            foreach ($datatypes_to_clear as $dt_id => $dt) {
                 // Don't need to directly check $deleting_top_level_datatype here...the only part
                 //  that matters is this if statement
                 if ( $dt_id !== $grandparent_datatype_id )
@@ -1392,6 +1435,9 @@ class EntityDeletionService
                 if ( $dt_id !== $grandparent_datatype_id )
                     $datatypes_needing_events[ $dt_id ] = $dt;
             }
+            // ...or if a datatype used one of these now-deleted datatypes as a master datatype
+            foreach ($derived_datatypes_to_update as $dt_id => $dt)
+                $datatypes_needing_events[ $dt_id ] = $dt;
 
             // All these cases need to fire off a modified event for the datatype...
             foreach ($datatypes_needing_events as $dt_id => $dt) {
@@ -1406,14 +1452,16 @@ class EntityDeletionService
                 }
             }
 
-            // This cache entry also needs to be deleted when sort fields are changed
-            foreach ($datatypes_to_reset_order as $dt_id => $dt)
+            // These cache entries also needs to be deleted when name/sort fields are changed
+            foreach ($datatypes_to_clear as $dt_id => $dt) {
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_names');
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+            }
 
             // This cache entries should also be deleted when linked datatypes are changed
             foreach ($linked_ancestor_datatypes as $dt_id => $dt)
                 $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
-            foreach ($datatypes_to_delete as $dt_id => $dt)
+            foreach ($linked_descendant_datatypes as $dt_id => $dt)
                 $this->cache_service->delete('inverse_associated_datatypes_for_'.$dt_id);
 
 

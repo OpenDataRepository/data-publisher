@@ -270,7 +270,7 @@
 
                 let char = $(this).text();
                 // Don't insert the unicode abbreviation of this sequence
-                if ( char === '◻' )
+                if ( $(this).attr('title') === 'Box' )
                     char = '[box]';
 
                 let textarea = $("#{{ input_id }}_parsed");

@@ -1181,6 +1181,8 @@
         var local_datatype = $('#ThemeElement_' + theme_element_id).parents('.ODRDataType').first().attr('id').split(/_/);
         var local_datatype_id = local_datatype[1];
 
+        // console.log('theme_element_id', theme_element_id, 'local_datatype_id', local_datatype_id);
+
         {# defined in Link::link_type_dialog.html.twig #}
         openLinkDatatypeDialog(local_datatype_id, theme_element_id);
     }
@@ -1462,12 +1464,12 @@
 
                         // Toggle muted status
                         $(elements).each(function(index, elem) {
-                            if ( $(elem).hasClass('ODRActiveIcon') ) {
-                                $(elem).removeClass('ODRActiveIcon');
+                            if ( $(elem).hasClass('ODRPublic') ) {
+                                $(elem).removeClass('ODRPublic');
                                 $(elem).attr('title', 'Dataset requires permission to view');
                             }
                             else {
-                                $(elem).addClass('ODRActiveIcon');
+                                $(elem).addClass('ODRPublic');
                                 $(elem).attr('title', 'Dataset does not require permission to view');
                             }
                         });
@@ -1520,12 +1522,12 @@
 
                         // Toggle muted status
                         $(elements).each(function(index, elem) {
-                            if ( $(elem).hasClass('ODRActiveIcon') ) {
-                                $(elem).removeClass('ODRActiveIcon');
+                            if ( $(elem).hasClass('ODRPublic') ) {
+                                $(elem).removeClass('ODRPublic');
                                 $(elem).attr('title', 'Datafield requires permission to view');
                             }
                             else {
-                                $(elem).addClass('ODRActiveIcon');
+                                $(elem).addClass('ODRPublic');
                                 $(elem).attr('title', 'Datafield does not require permission to view');
                             }
                         });
@@ -1674,22 +1676,33 @@
 
             var form_div = $("#ThemeDesignForm");
 
-            // Locate this datatype's id
+            // Locate this datatype's id and containing theme element
             var datatype = $(this).parents('.ODRDataType').first();
             var id_data = $(datatype).attr('id').split(/_/);
             var datatype_id = id_data[1];
 
+            var theme_element = $(this).parents('.ODRThemeElement').first();
+            var theme_element_id = 0;
+            if ( $(theme_element).attr('id') !== undefined ) {
+                var id_data = $(theme_element).attr('id').split(/_/);
+                theme_element_id = id_data[1];
+            }
+
+
             // Determine if this datatype's properties form is already loaded
             var loaded_datatype_id = "";
+            var loaded_theme_element_id = "";
             var form = $(form_div).find("form.ODRDatatypePropertiesForm");
             if (form.length > 0) {
-                var loaded_datatype_id_data = form.attr("id").split(/_/);
-                loaded_datatype_id = loaded_datatype_id_data[1];
+                var loaded_id_data = form.attr("id").split(/_/);
+                loaded_datatype_id = loaded_id_data[1];
+                loaded_theme_element_id = loaded_id_data[2];
             }
 
             // Don't load this datatype's form if it's already being displayed
-            // console.log('loaded_datatype_id: ' + loaded_datatype_id + ',  datatype_id: ' + datatype_id);
-            if (loaded_datatype_id == datatype_id)
+            // console.log('loaded_datatype_id:', loaded_datatype_id, 'loaded_theme_element_id:', loaded_theme_element_id);
+            // console.log('datatype_id:', datatype_id, 'theme_element_id:', theme_element_id);
+            if (loaded_datatype_id == datatype_id && loaded_theme_element_id == theme_element_id)
                 return;
 
 
@@ -2910,6 +2923,7 @@
             // console.log( 'select', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
+            var theme_element_id = datatype_id_data[2];
 
             $(elem).unbind('change').change(function() {
                 // Don't want a delay here, otherwise a change could get lost
@@ -2919,7 +2933,7 @@
                 // console.log('<select> changed, triggering delayed save for datatype', datatype_id);
                 SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                 SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
             });
         });
 
@@ -2927,6 +2941,7 @@
             // console.log( 'textarea', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
+            var theme_element_id = datatype_id_data[2];
 
             $(elem).unbind('keyup').unbind('paste');
             $(elem).on('keyup paste', function() {
@@ -2934,7 +2949,7 @@
                 // console.log('<textarea> changed, triggering delayed save for datatype', datatype_id);
                 SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                 SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
             });
         });
 
@@ -2942,6 +2957,7 @@
             // console.log( 'input', $(elem) );
             var datatype_id_data = tdf_odpf.attr('id').split(/_/);
             var datatype_id = datatype_id_data[1];
+            var theme_element_id = datatype_id_data[2];
 
             if( $(elem).is(":checkbox") ) {
                 $(elem).unbind('change').change(function() {
@@ -2949,7 +2965,7 @@
                     // console.log('checkbox changed, triggering delayed save for datatype', datatype_id);
                     SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                     SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
                 });
             }
             else {
@@ -2959,7 +2975,7 @@
                     // console.log('input changed, triggering delayed save for datatype', datatype_id);
                     SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
                     SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
-                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id + "_" + theme_element_id).serialize();
                 });
             }
         });

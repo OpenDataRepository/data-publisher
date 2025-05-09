@@ -50,8 +50,7 @@
         <i id="ODRDownloadAllFilesIcon" class="fa fa-file-archive-o Pointer" title="Download files"></i>
 
     {% if can_change_public_status %}
-        <i class="ODRPublic ODRPublicRecord tooltip fa fa-globe ODRActiveIcon Pointer {% if not datarecord.ispublic %}hidden{% endif %}" title="This record is public"></i>
-        <i class="ODRPublic ODRNotPublicRecord tooltip fa fa-globe Pointer {% if datarecord.ispublic %}hidden{% endif %}" title="This record is not public"></i>
+        <i id="ODRPublicRecord" class="tooltip fa fa-globe Pointer {% if datarecord.dataRecordMeta.publicDate|is_public %}ODRPublic{% endif %}" title="This record is{% if not datarecord.dataRecordMeta.publicDate|is_public %} not{% endif %} public"></i>
     {% endif %}
 
     {% if can_delete_record %}
@@ -126,12 +125,13 @@
         });
 
 {% if can_change_public_status %}
-        $(".ODRPublic").unbind('click').click(function() {
+        $("#ODRPublicRecord").unbind('click').click(function() {
             var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
             url = url.substring(0, (url.length - 1));
             url += '{{ datarecord.id }}';
 
-            var isPublic = !$(this).hasClass('ODRNotPublicRecord');
+            var elem = $(this);
+            var is_public = $(elem).hasClass('ODRPublic');
 
             $.ajax({
                 cache: false,
@@ -139,14 +139,12 @@
                 url: url,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    if(isPublic) {
+                    if (is_public) {
                         // Was Public
-                        $(".ODRNotPublicRecord").removeClass('hidden')
-                        $(".ODRPublicRecord").addClass('hidden');
+                        $(elem).removeClass('ODRPublic').attr('title', 'This record is not public');
                     }
                     else {
-                        $(".ODRPublicRecord").removeClass('hidden');
-                        $(".ODRNotPublicRecord").addClass('hidden');
+                        $(elem).addClass('ODRPublic').attr('title', 'This record is public');
                     }
                     $.jGrowl('SAVED');
                 },

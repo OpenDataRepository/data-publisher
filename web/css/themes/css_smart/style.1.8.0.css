@@ -377,7 +377,7 @@ h3.ui-accordion-header a {
 
 .ODREditLink {
     padding-top: 8px;
-    padding-right: 16px;
+    /*padding-right: 16px;*/
 }
 
 .ShortResults_offset,
@@ -1231,7 +1231,7 @@ ul#wizardStatus li.completed:before{
     color: rgba(54, 187, 114, 1.00);
     font-size: 42px;
     position: absolute;
-    top: calc(50% - 30px);
+    top: calc(50% - 5px);
     z-index: 200;
 }
 .ODRDragHandleWest {

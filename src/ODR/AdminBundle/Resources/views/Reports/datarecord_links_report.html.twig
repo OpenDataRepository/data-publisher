@@ -93,15 +93,42 @@
 
             if ( !self_click ) {
                 // Open the selected datarecord list
-                $(this).children("i").each(function() {     // should only return one
-                    var row_num = $(this).attr('rel');
-
-                    $("#datarecord_list_" + row_num).removeClass('ODRHidden');
-                    $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
-                });
+                openLinkReportList( $(this) );
             }
         });
     });
 
+    /**
+     * Opens and aligns the list of datarecords.
+     * @param {HTMLElement} element
+     */
+    function openLinkReportList(element) {
+        // Going to need these three numbers to determine where to put the group list div
+        var table_offset = $("#ODRReportList_wrapper").offset().top;
+        var table_height = $("#ODRReportList_wrapper").height();
+        var offset_top = $(element).parent().offset().top - 15;
+
+        // Open the selected datarecord list
+        $(element).children("i").each(function() {     // should only return one
+            var row_num = $(this).attr('rel');
+            $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
+
+            // Determine height of the div displaying this datatype's groups
+            var group_div = $("#datarecord_list_" + row_num);
+            $(group_div).removeClass('ODRHidden');
+            var group_div_height = $(group_div).height();
+
+            var final_offset = offset_top;
+
+            // If the height of the group div is less than the height of the datatype list table...
+            if (table_height > group_div_height) {
+                // ...adjust the offset so the bottom of the group div isn't below the bottom of the datatype list table
+                if ((final_offset + group_div_height) > (table_offset + table_height))
+                    final_offset = (table_offset + table_height) - group_div_height;
+            }
+
+            $(group_div).offset({ top: final_offset });
+        });
+    }
 </script>
 {% endspaceless %}

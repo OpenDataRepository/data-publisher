@@ -98,71 +98,25 @@ class CSVTablePlugin implements DatafieldPluginInterface
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
         try {
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // ----------------------------------------
-            // Only execute the plugin if a file has been uploaded to this datafield
-            $data_array = array();
-            $num_columns = 0;
-            if ( isset($datarecord['dataRecordFields'][$datafield['id']]['file']['0']) ) {
-                $files_to_delete = array();
+            // The method of data extraction depends on the type of field...
+            $is_file = false;
+            if ( $datafield['dataFieldMeta']['fieldType']['typeClass'] === 'File' )
+                $is_file = true;
 
-                // Check that the file exists...
-                $file = $datarecord['dataRecordFields'][$datafield['id']]['file']['0'];
-                $local_filepath = realpath( $this->odr_web_directory.'/'.$file['localFileName']);
-                if (!$local_filepath) {
-                    // File does not exist, decryption depends on whether the file is
-                    //  public or not...
-                    $public_date = $file['fileMeta']['publicDate'];
-                    $now = new \DateTime();
-                    if ($now < $public_date) {
-                        // File is not public...decrypt to something hard to guess
-                        $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
-                        $local_filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
+            // Extract the data from the field
+            $ret = array();
+            if ( $is_file )
+                $ret = self::readFile($datarecord, $datafield);
+            else
+                $ret = self::readXYZData($datarecord, $datafield);
 
-                        // Ensure the decrypted version gets deleted later
-                        array_push($files_to_delete, $local_filepath);
-                    }
-                    else {
-                        // File is public, but not decrypted for some reason
-                        $local_filepath = $this->crypto_service->decryptFile($file['id']);
-                    }
-                }
-
-                // Only allow this action for files smaller than 5Mb?
-                $filesize = $file['filesize'] / 1024 / 1024;
-                if ($filesize > 5)
-                    throw new \Exception('Currently not permitted to execute on files larger than 5Mb');
-
-
-                // Load file and parse into array
-                $handle = fopen($local_filepath, "r");
-                if ( !$handle )
-                    throw new \Exception('Could not open "'.$local_filepath.'"');
-
-                $content = file_get_contents($local_filepath);
-                $content = str_replace("\r", '', $content);
-                $lines = explode("\n", $content);    // TODO - this won't work on csv files with newlines inside doublequotes...
-
-                $ret = self::guessFileProperties($lines);
-                $delimiter = $ret['delimiter'];
-                $num_columns = $ret['num_columns'];
-
-                $data = fgetcsv($handle, 1000, $delimiter);
-                while ( $data !== false ) {
-                    $data_array[] = $data;
-                    $data = fgetcsv($handle, 1000, $delimiter);
-                }
-
-
-                // ----------------------------------------
-                // Done reading the file
-                fclose($handle);
-
-                // Delete any non-public files that got decrypted
-                foreach ($files_to_delete as $file_path)
-                    unlink($file_path);
-
-                $data_array = json_encode($data_array);
-            }
+            // Convert the contents of the file/field into a format that Handsontable can use
+            $data_array = json_encode( $ret['data'] );
+            $num_columns = $ret['num_columns'];
 
 
             // ----------------------------------------
@@ -173,6 +127,8 @@ class CSVTablePlugin implements DatafieldPluginInterface
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
+
+                        'is_datatype_admin' => $is_datatype_admin,
 
                         'data_array' => $data_array,
                         'num_columns' => $num_columns,
@@ -186,6 +142,98 @@ class CSVTablePlugin implements DatafieldPluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Converts a file's contents into an array of lines.
+     *
+     * @param array $datarecord
+     * @param array $datafield
+     *
+     * @return array
+     */
+    private function readFile($datarecord, $datafield)
+    {
+        $file_data = array();
+        $num_columns = 0;
+
+        $datafield_id = $datafield['id'];
+
+        if ( isset($datarecord['dataRecordFields'][$datafield_id]['file']['0']) ) {
+            $files_to_delete = array();
+
+            // Check that the file exists...
+            $file = $datarecord['dataRecordFields'][$datafield_id]['file']['0'];
+            $local_filepath = realpath( $this->odr_web_directory.'/'.$file['localFileName']);
+            if (!$local_filepath) {
+                // File does not exist, decryption depends on whether the file is
+                //  public or not...
+                $public_date = $file['fileMeta']['publicDate'];
+                $now = new \DateTime();
+                if ($now < $public_date) {
+                    // File is not public...decrypt to something hard to guess
+                    $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
+                    $local_filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
+
+                    // Ensure the decrypted version gets deleted later
+                    array_push($files_to_delete, $local_filepath);
+                }
+                else {
+                    // File is public, but not decrypted for some reason
+                    $local_filepath = $this->crypto_service->decryptFile($file['id']);
+                }
+            }
+
+            // Only allow this action for files smaller than 5Mb?
+            $filesize = $file['filesize'] / 1024 / 1024;
+            if ($filesize > 5)
+                throw new \Exception('Currently not permitted to execute on files larger than 5Mb');
+
+
+            // Load file and parse into array
+            $handle = fopen($local_filepath, "r");
+            if ( !$handle )
+                throw new \Exception('Could not open "'.$local_filepath.'"');
+
+            $content = file_get_contents($local_filepath);
+            $content = str_replace("\r", '', $content);
+            $all_lines = explode("\n", $content);    // TODO - this won't work on csv files with newlines inside doublequotes...
+
+            $ret = self::guessFileProperties($all_lines);
+            $delimiter = $ret['delimiter'];
+            $num_columns = $ret['num_columns'];
+
+            if ( is_null($delimiter) || is_null($num_columns) ) {
+                // Some sort of error...abort the plugin execution so it doesn't throw an error
+                fclose($handle);
+                // Delete any non-public files that got decrypted
+                foreach ($files_to_delete as $file_path)
+                    unlink($file_path);
+
+                return '';
+            }
+
+            $csv_data = fgetcsv($handle, 1000, $delimiter);
+            while ( $csv_data !== false ) {
+                $file_data[] = $csv_data;
+                $csv_data = fgetcsv($handle, 1000, $delimiter);
+            }
+
+
+            // ----------------------------------------
+            // Done reading the file
+            fclose($handle);
+
+            // Delete any non-public files that got decrypted
+            foreach ($files_to_delete as $file_path)
+                unlink($file_path);
+        }
+
+        return array(
+            'data' => $file_data,
+            'num_columns' => $num_columns
+        );
     }
 
 
@@ -318,5 +366,44 @@ class CSVTablePlugin implements DatafieldPluginInterface
             'num_columns' => $columns_guess,
         );
         return $ret;
+    }
+
+
+    /**
+     * Converts an XYZData field's contents into an array of lines.
+     *
+     * @param array $datarecord
+     * @param array $datafield
+     *
+     * @return array
+     */
+    private function readXYZData($datarecord, $datafield)
+    {
+        // Need to locate the names for the columns...
+        $xyz_data_column_names = explode(',', $datafield['dataFieldMeta']['xyz_data_column_names']);
+        $num_columns = count($xyz_data_column_names);
+
+        // ...and splice them into the array of data
+        $xyz_data = array();
+        $xyz_data[] = $xyz_data_column_names;
+
+        $datafield_id = $datafield['id'];
+        if ( isset($datarecord['dataRecordFields'][$datafield_id]['xyzData']) ) {
+            foreach ($datarecord['dataRecordFields'][$datafield_id]['xyzData'] as $num => $datum) {
+                // Only output the pieces of data that match the number of columns
+                $line = array(0 => $datum['x_value']);
+                if ( $num_columns > 1 )
+                    $line[1] = $datum['y_value'];
+                if ( $num_columns > 2 )
+                    $line[2] = $datum['z_value'];
+
+                $xyz_data[] = $line;
+            }
+        }
+
+        return array(
+            'data' => $xyz_data,
+            'num_columns' => $num_columns
+        );
     }
 }

@@ -11,7 +11,7 @@
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a id="Datatype_{{ datatype.id }}_ShortName" style="cursor: default;">{{ datatype_meta.shortName }}</a>
             <span style="margin-left: 10px;">
-                <i class="Cursor fa fa-lg fa-globe {% if datatype_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype_meta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
+                <i class="Cursor fa fa-lg fa-globe {% if datatype_meta.publicDate|is_public %}ODRPublic{% endif %} ODRPublicDatatype" title="Datatype{% if datatype_meta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
             </span>
 
             {% include 'ODRAdminBundle:ODRGroup:datatype_permissions_icons.html.twig' with {

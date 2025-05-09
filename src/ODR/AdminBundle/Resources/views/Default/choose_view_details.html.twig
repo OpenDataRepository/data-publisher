@@ -158,18 +158,18 @@
             {% if theme_data.default_for|length > 0 or theme_data.theme_type == "master" %}
                 {# never allowed to change public status of default themes #}
                 <li class="ODRChooseViewLink strikethrough" title="This layout can't be set to private because it is being used as a database default">
-                    <i class="fa fa-globe fa-public"></i>&nbsp;Make private
+                    <i class="fa fa-globe ODRPublic"></i>&nbsp;Make private
                 </li>
             {% elseif is_super_admin or theme_data.created_by == user.id %}
                 {# super-admins can change public status of any other theme in the datatype #}
                 {# datatype admins and regular users are only allowed to change public status of themes they created #}
                 {% if theme_data.is_shared %}
                 <li class="ODRChooseViewLink ODRMakeViewShared">
-                    <i class="fa fa-globe fa-public"></i>&nbsp;Make private
+                    <i class="fa fa-globe ODRPublic"></i>&nbsp;Make private
                 </li>
                 {% else %}
                 <li class="ODRChooseViewLink ODRMakeViewShared">
-                    <i class="fa fa-globe fa-not-public"></i>&nbsp;Make public
+                    <i class="fa fa-globe ODRNotPublic"></i>&nbsp;Make public
                 </li>
                 {% endif %}
             {% endif %}

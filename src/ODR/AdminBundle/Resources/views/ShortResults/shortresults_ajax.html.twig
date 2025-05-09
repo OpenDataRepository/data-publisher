@@ -8,9 +8,18 @@
         {% set can_edit_datarecord = true %}
     {% endif %}
 
+    {% set dr_is_public = false %}
+    {% if datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') != '2200-01-01 00:00:00' %}
+        {% set dr_is_public = true %}
+    {% endif %}
+
     <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
             {% if intent == 'searching' %}
+                {% if can_edit_datarecord %}
+                <span><i class="fa fa-globe {% if dr_is_public %}ODRPublic{% endif %}" title="This record is{% if not dr_is_public %} not{% endif %} public"></i></span>
+                {% endif %}
+
                 <span>Record {{ counter }} * - Click here to view</span>
                 <span class="ODRShortResultsUUID">{{ datarecord.unique_id }}</span>
                 {% if can_edit_datarecord %}

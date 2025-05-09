@@ -149,7 +149,7 @@
                         <div class="pure-u-1">
                             &nbsp;<i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ oimage.created|date('Y-m-d') }} by {{ oimage.createdBy|user_string }}"></i>
                             &nbsp;<i class="ODRDeleteImage tooltip Pointer fa fa-lg fa-trash-o" title="Delete Image" rel="{{ oimage.id }}"></i>
-                            &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if oimage_meta.publicDate|is_public %}ODRActiveIcon{% endif %}" title="{% if not oimage_meta.publicDate|is_public %}Image is not public{% else %}Public since {{ oimage_meta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
+                            &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if oimage_meta.publicDate|is_public %}ODRPublic{% endif %}" title="{% if not oimage_meta.publicDate|is_public %}Image is not public{% else %}Public since {{ oimage_meta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
                             &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-left" title="Rotate Image 90 degrees counter-clockwise" rel="{{ oimage.id }}"></i>
                             &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-right" title="Rotate Image 90 degrees clockwise" rel="{{ oimage.id }}"></i>
                             &nbsp;

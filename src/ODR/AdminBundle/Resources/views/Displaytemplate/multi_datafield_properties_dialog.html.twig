@@ -123,16 +123,16 @@
             var input = $("#ODRMultiDatafield_" + df_id + "_publicStatus");
 
             var is_public = false;
-            if ( $(image).hasClass('ODRActiveIcon') )
+            if ( $(image).hasClass('ODRPublic') )
                 is_public = true;
 
             if ( is_public ) {
-                $(image).removeClass('ODRActiveIcon');
+                $(image).removeClass('ODRPublic');
                 $(span).html('Not Public');
                 $(input).val(0);
             }
             else {
-                $(image).addClass('ODRActiveIcon');
+                $(image).addClass('ODRPublic');
                 $(span).html('Public');
                 $(input).val(1);
             }
@@ -183,7 +183,7 @@
         $("#ODRMultiDatafield_all_public").unbind('click').click(function () {
             $(".ODRMultiDatafield_public").each(function() {
                 var is_public = false;
-                if ( $(this).children('i').first().hasClass('ODRActiveIcon') )
+                if ( $(this).children('i').first().hasClass('ODRPublic') )
                     is_public = true;
 
                 if ( !is_public )
@@ -193,7 +193,7 @@
         $("#ODRMultiDatafield_all_nonpublic").unbind('click').click(function () {
             $(".ODRMultiDatafield_public").each(function() {
                 var is_public = false;
-                if ( $(this).children('i').first().hasClass('ODRActiveIcon') )
+                if ( $(this).children('i').first().hasClass('ODRPublic') )
                     is_public = true;
 
                 if ( is_public )

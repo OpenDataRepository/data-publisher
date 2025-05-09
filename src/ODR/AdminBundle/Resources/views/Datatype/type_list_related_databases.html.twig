@@ -73,7 +73,7 @@
                         <tr id="RowDataType_{{ datatype.id }}" {#{% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}#}>
 
                             <td>{{ datatype.id }}</td>
-                            <td><i class="fa fa-lg fa-globe {% if datatype_is_public %}ODRActiveIcon{% endif %}" title="Database is{% if not datatype_is_public %} not{% endif %} public"></i></td>
+                            <td><i class="fa fa-lg fa-globe {% if datatype_is_public %}ODRPublic{% endif %}" title="Database is{% if not datatype_is_public %} not{% endif %} public"></i></td>
                             <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
 
                             {# number of datarecords for this datatype #}

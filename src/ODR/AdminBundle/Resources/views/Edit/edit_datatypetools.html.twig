@@ -43,7 +43,7 @@
             {# Public status isn't important enough to hide behind the edit_behavior flags #}
             {% set class_str = "tooltip fa fa-globe" %}
             {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                {% set class_str = class_str ~ " ODRActiveIcon" %}
+                {% set class_str = class_str ~ " ODRPublic" %}
                 {% endif %}
             {% if can_change_public_status %}
                 {% set class_str = class_str ~ " Pointer" %}

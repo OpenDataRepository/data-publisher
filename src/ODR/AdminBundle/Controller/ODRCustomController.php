@@ -450,6 +450,7 @@ class ODRCustomController extends Controller
             // -----------------------------------
             // This is a theme that the user wants to render as a table
             $theme_array = $theme_info_service->getThemeArray($theme->getId());
+            $public_datarecord_list = array();
 
             $column_data = array();
             $row_data = array();
@@ -466,6 +467,18 @@ class ODRCustomController extends Controller
                 //  can print them, bypassing TextResultsController::datatablesrowrequestAction()
                 //  completely
                 $row_data = $table_theme_helper_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
+
+                // Need to dig through the returned data array...
+                foreach ($row_data as $sort_order => $dr_data) {
+                    // Need to also extract the public status of the datarecords
+                    $dr_id = $dr_data[0];
+                    if ( $dr_id === '' )
+                        $dr_id = $dr_data[1];    // this is the dr_id location when rendering on a searchlink page
+
+                    // Extract the public date from the returned row so it doesn't get directly rendered
+                    $public_datarecord_list[$dr_id] = $dr_data['is_public'];
+                    unset( $row_data[$sort_order]['is_public'] );
+                }
 
                 // ...due to this bypass, the scroll target needs to be set here if it exists
                 if ( !is_null($session) && $session->has('scroll_target') ) {
@@ -530,6 +543,7 @@ class ODRCustomController extends Controller
                     'can_edit_datatype' => $can_edit_datatype,
                     'editable_only' => $only_display_editable_datarecords,
                     'has_search_restriction' => $has_search_restriction,
+                    '$public_datarecord_list' => $public_datarecord_list,
 
                     // required for load_datarecord_js.html.twig
                     'search_theme_id' => $theme->getId(),

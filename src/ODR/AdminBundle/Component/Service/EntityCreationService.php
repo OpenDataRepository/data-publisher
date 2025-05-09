@@ -630,6 +630,7 @@ class EntityCreationService
         $datatree_meta->setIsLink($is_link);
         $datatree_meta->setMultipleAllowed($multiple_allowed);
         $datatree_meta->setEditBehavior(DataTreeMeta::ALWAYS_EDIT);
+        $datatree_meta->setSecondaryDataTree(null);
 
         $datatree_meta->setCreated($created);
         $datatree_meta->setUpdated($created);

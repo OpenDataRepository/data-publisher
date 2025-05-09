@@ -565,11 +565,11 @@
             .attr('data-intro', "The actions for a child database are slightly different. The first icon allows the group to see the child database if it's not public.<br><br>The remaining four icons work identically to those for the top-level database.");
 
         // Find the first non-markdown datafield that's public
-        $('.ODRDataField').not('.ODRMarkdownField').find('.ODRPublicDatafield.ODRActiveIcon').first().closest('.ODRDataField')
+        $('.ODRDataField').not('.ODRMarkdownField').find('.ODRPublicDatafield.ODRPublic').first().closest('.ODRDataField')
             .attr('data-step', '22')
             .attr('data-intro', "Public datafields and their contents are always visible to everybody, but by clicking on the field you can change whether users in this group are allowed to modify the field's data.  The permissions this group has for a given field are indicated by the color of the background overlay.");
         // Find the first non-markdown datafield that's not public
-        $('.ODRDataField').not('.ODRMarkdownField').find('.ODRPublicDatafield').not('.ODRActiveIcon').first().closest('.ODRDataField')
+        $('.ODRDataField').not('.ODRMarkdownField').find('.ODRPublicDatafield').not('.ODRPublic').first().closest('.ODRDataField')
             .attr('data-step', '23')
             .attr('data-intro', "Non-public datafields can also be set so users in the group can't even see them in the first place.<br><br>Keep in mind that a user will still be able to see the field if they also belong to a different group that can view the field, such as the \"View All\" or \"Edit\" groups.");
         // Find the first markdown datafield

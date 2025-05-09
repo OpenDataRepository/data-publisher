@@ -33,6 +33,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -64,6 +65,8 @@ class ReportsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -107,7 +110,7 @@ class ReportsController extends ODRCustomController
             //  from the one for locating duplicate values in child datatypes...
             if (!$is_child_datatype) {
                 // Determine which records have duplicated values in the given datafield
-                $values = self::buildDatafieldUniquenessReport($em, $datafield);
+                $values = self::buildDatafieldUniquenessReport($em, $sort_service, $datafield);
 
                 // Render the report
                 $return['d'] = array(
@@ -122,7 +125,7 @@ class ReportsController extends ODRCustomController
             }
             else {
                 // Determine which records have duplicated values in the given datafield
-                $values = self::buildChildDatafieldUniquenessReport($em, $datafield);
+                $values = self::buildChildDatafieldUniquenessReport($em, $sort_service, $datafield);
 
                 // Render the report
                 $return['d'] = array(
@@ -152,81 +155,20 @@ class ReportsController extends ODRCustomController
 
 
     /**
-     * Returns an array of the namefield values for all datarecords of the given datatype.
-     * TODO - move to DatarecordInfoService?  This is the only controller that needs this data though...
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param DataType $datatype
-     *
-     * @return array
-     */
-    private function getDatarecordNames($em, $datatype)
-    {
-        // TODO - kinda need the grandparent datarecord id in here for the links to be correct...
-        $datarecord_names = array();
-
-        $namefields = $datatype->getNameFields();
-        foreach ($namefields as $display_order => $name_df) {
-            $query = null;
-            $typeclass = $name_df->getFieldType()->getTypeClass();
-            if ( $typeclass === 'Radio' ) {
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, ro.optionName AS namefield_value
-                    FROM ODRAdminBundle:RadioOptions AS ro
-                    LEFT JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-                    LEFT JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                    LEFT JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                    WHERE drf.dataField = :datafield AND rs.selected = 1
-                    AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL
-                    AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $name_df->getId()) );
-            }
-            else {
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, e.value AS namefield_value
-                    FROM ODRAdminBundle:'.$typeclass.' AS e
-                    LEFT JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                    LEFT JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                    WHERE e.dataField = :datafield
-                    AND e.deletedAt IS NULL AND drf.deletedAt IS NULL
-                    AND dr.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $name_df->getId()) );
-            }
-            $results = $query->getArrayResult();
-
-            foreach ($results as $num => $result) {
-                $dr_id = $result['dr_id'];
-                $namefield_value = trim($result['namefield_value']);
-
-                // Name field values are useless if they're blank...
-                if ( $namefield_value === '' )
-                    $namefield_value = $dr_id;
-
-                if ( !isset($datarecord_names[$dr_id]) )
-                    $datarecord_names[$dr_id] = $namefield_value;
-                else
-                    $datarecord_names[$dr_id] .= ' '.$namefield_value;
-            }
-        }
-
-        return $datarecord_names;
-    }
-
-
-    /**
      * Builds an array of duplicated values for a datafield belonging to a top-level datatype.
      *
      * In this version, duplicate values are not allowed in this datafield.
      *
      * @param \Doctrine\ORM\EntityManager $em
+     * @param SortService $sort_service
      * @param Datafields $datafield
      *
      * @return array
      */
-    private function buildDatafieldUniquenessReport($em, $datafield)
+    private function buildDatafieldUniquenessReport($em, $sort_service, $datafield)
     {
-        // Load the namefield_value for each datarecord of the given datafield's datatype
-        $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType());
+        // Get the namefield_value for each datarecord of the given datafield's datatype
+        $datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getId());
 
         // Build a query to determine which top-level datarecords have duplicate values
         // TODO - this doesn't find values that are empty because of a missing drf/storage entity
@@ -283,14 +225,15 @@ class ReportsController extends ODRCustomController
      * within the same parent datarecord.
      *
      * @param \Doctrine\ORM\EntityManager $em
+     * @param SortService $sort_service
      * @param Datafields $datafield
      *
      * @return array
      */
-    private function buildChildDatafieldUniquenessReport($em, $datafield)
+    private function buildChildDatafieldUniquenessReport($em, $sort_service, $datafield)
     {
-        // Load the namefield_value for each datarecord of the given datafield's grandparent datatype
-        $grandparent_datarecord_names = self::getDatarecordNames($em, $datafield->getDataType()->getGrandparent());
+        // Get the namefield_value for each datarecord of the given datafield's grandparent datatype
+        $grandparent_datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getGrandparent()->getId());
 
         // Build a query to determine which child datarecords have duplicate values
         $query = $em->createQuery(
@@ -389,6 +332,8 @@ class ReportsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -419,8 +364,8 @@ class ReportsController extends ODRCustomController
                 throw new ODRBadRequestException("This Datafield's Fieldtype is not File or Image");
 
 
-            // Load the namefield_value for each datarecord of the given datafield's grandparent datatype
-            $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType()->getGrandparent());
+            // Get the namefield_value for each datarecord of the given datafield's grandparent datatype
+            $datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getGrandparent()->getId());
 
             // Locate any datarecords where this datafield has multiple uploaded files
             $query = null;
@@ -531,6 +476,8 @@ class ReportsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -558,8 +505,8 @@ class ReportsController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Load the namefield_value for each of the ancestor side's datarecords
-            $datarecord_names = self::getDatarecordNames($em, $datatree->getAncestor());
+            // Get the namefield_value for each of the ancestor side's datarecords
+            $datarecord_names = $sort_service->getNamedDatarecordList($datatree->getAncestor()->getId());
 
             $results = array();
             if ($datatree->getIsLink() == 0) {
@@ -657,6 +604,8 @@ class ReportsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -697,9 +646,9 @@ class ReportsController extends ODRCustomController
             // --------------------
 
 
-            // Attempt to load both the local and the remote datarecord's name values
-            $local_datatype_names = self::getDatarecordNames($em, $datatree->getAncestor());
-            $remote_datatype_names = self::getDatarecordNames($em, $datatree->getDescendant());
+            // Attempt to get the name values for both the local and the remote datarecord
+            $local_datatype_names = $sort_service->getNamedDatarecordList($datatree->getAncestor()->getId());
+            $remote_datatype_names = $sort_service->getNamedDatarecordList($datatree->getDescendant()->getId());
 
             // Locate any datarecords of the local datatype that link to datarecords of the remote datatype
             $query = $em->createQuery(
@@ -783,6 +732,8 @@ class ReportsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -825,8 +776,8 @@ class ReportsController extends ODRCustomController
             }
 
 
-            // Load the namefield_value for each datarecord of the given datafield's datatype
-            $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType());
+            // Get the namefield_value for each datarecord of the given datafield's datatype
+            $datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getId());
 
             // Build a query to grab all values in this datafield
             $query = $em->createQuery(
@@ -903,6 +854,8 @@ class ReportsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -935,8 +888,8 @@ class ReportsController extends ODRCustomController
                 throw new ODRBadRequestException('Invalid DataField');
 
 
-            // Load the namefield_value for each datarecord of the given datafield's datatype
-            $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType());
+            // Get the namefield_value for each datarecord of the given datafield's datatype
+            $datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getId());
 
             // Find all selected radio options for this datafield
             $query = $em->createQuery(
@@ -946,7 +899,7 @@ class ReportsController extends ODRCustomController
                 JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
                 JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                WHERE drf.dataField = :datafield AND rs.selected = 1
+                WHERE ro.dataField = :datafield AND rs.selected = 1
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
             )->setParameters( array('datafield' => $datafield_id) );
             $results = $query->getArrayResult();

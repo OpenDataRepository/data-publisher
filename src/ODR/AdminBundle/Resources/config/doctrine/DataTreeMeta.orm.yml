@@ -55,6 +55,16 @@ ODR\AdminBundle\Entity\DataTreeMeta:
                     referencedColumnName: id
             orphanRemoval: false
 
+        secondaryDataTree:
+            targetEntity: DataTree
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null    # intentionally not mapping DataTree back to this
+            joinColumns:
+                secondary_data_tree_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

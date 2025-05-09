@@ -18,7 +18,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -32,6 +31,7 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
@@ -2355,6 +2355,7 @@ class TrackingController extends ODRCustomController
         $names = array();
 
         // datatypes...
+        $grandparent_datatype_ids = array();
         $query = $em->createQuery(
            'SELECT dt.id AS dt_id, dtm.longName AS dt_name,
                 gdt.id AS gdt_id, gdtm.longName AS gdt_name
@@ -2376,6 +2377,10 @@ class TrackingController extends ODRCustomController
                 $names['datatypes'][$dt_id] = $dt_name;
             else
                 $names['datatypes'][$dt_id] = $dt_name.' ('.$gdt_name.')';
+
+            // Also store the ids of the grandparent ids to make finding datarecord names considerably
+            //  easier...
+            $grandparent_datatype_ids[$gdt_id] = 1;
         }
 
         // datafields...
@@ -2407,72 +2412,19 @@ class TrackingController extends ODRCustomController
         }
 
 
-        // datarecords are more involved...need to figure out the nameFields first
-        $query = $em->createQuery(
-           'SELECT df.id AS df_id
-            FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
-            JOIN ODRAdminBundle:DataFields AS df WITH dtsf.dataField = df
-            WHERE dtsf.dataType IN (:datatype_ids) AND dtsf.field_purpose = :field_purpose
-            AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'datatype_ids' => array_keys($ids['dt_ids']),
-                'field_purpose' => DataTypeSpecialFields::NAME_FIELD
-            )
-        );
-        $results = $query->getArrayResult();
+        // ----------------------------------------
+        // datarecords are incredibly problematic to build names for "manually", due to namefields
+        //  being allowed to come from single-allowed child/linked descendants
+        /** @var SortService $sort_service */
+        $sort_service = $this->container->get('odr.sort_service');
 
-        $namefield_ids = array();
-        foreach ($results as $result)
-            $namefield_ids[] = $result['df_id'];
-
-        // Now that the namefields are known, find their values for all the datarecords in $history
-        $query =
-           'SELECT drf.data_record_id AS dr_id, drf.data_field_id AS df_id,
-	            iv.value AS iv_value, dv.value AS dv_value,
-	            sv.value AS sv_value, mv.value AS mv_value, lv.value AS lv_value,
-	            ro.option_name AS ro_name
-            FROM odr_data_record_fields drf
-            LEFT JOIN odr_integer_value iv ON (iv.data_record_fields_id = drf.id AND iv.deletedAt IS NULL)
-            LEFT JOIN odr_decimal_value dv ON (dv.data_record_fields_id = drf.id AND dv.deletedAt IS NULL)
-            LEFT JOIN odr_short_varchar sv ON (sv.data_record_fields_id = drf.id AND sv.deletedAt IS NULL)
-            LEFT JOIN odr_medium_varchar mv ON (mv.data_record_fields_id = drf.id AND mv.deletedAt IS NULL)
-            LEFT JOIN odr_long_varchar lv ON (lv.data_record_fields_id = drf.id AND lv.deletedAt IS NULL)
-            LEFT JOIN odr_radio_selection rs ON (rs.data_record_fields_id = drf.id AND rs.deletedAt IS NULL AND rs.selected = 1)
-            LEFT JOIN odr_radio_options ro ON (rs.radio_option_id = ro.id AND ro.deletedAt IS NULL)
-            WHERE drf.data_record_id IN (:datarecord_ids) AND drf.data_field_id IN (:namefield_ids)
-            AND drf.deletedAt IS NULL';
-        $params = array(
-            'datarecord_ids' => array_keys($ids['dr_ids']),
-            'namefield_ids' => $namefield_ids
-        );
-        $types = array(
-            'datarecord_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
-            'namefield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
-        );
-
-        $conn = $em->getConnection();
-        $results = $conn->executeQuery($query, $params, $types);
-        foreach ($results as $result) {
-            $dr_id = $result['dr_id'];
-            $value = null;
-            if ( !is_null($result['iv_value']) )
-                $value = $result['iv_value'];
-            else if ( !is_null($result['dv_value']) )
-                $value = $result['dv_value'];
-            else if ( !is_null($result['sv_value']) )
-                $value = $result['sv_value'];
-            else if ( !is_null($result['mv_value']) )
-                $value = $result['mv_value'];
-            else if ( !is_null($result['lv_value']) )
-                $value = $result['lv_value'];
-            else if ( !is_null($result['ro_name']) )
-                $value = $result['ro_name'];
-
-            if ( !isset($names['datarecords'][$dr_id]) )
-                $names['datarecords'][$dr_id] = $value;
-            else
-                $names['datarecords'][$dr_id] .= ' '.$value;
+        // ...it's considerably easier to treat the problem the same as sorting the datarecords
+        foreach ($grandparent_datatype_ids as $dt_id => $num_1) {
+            $dr_list = $sort_service->getNamedDatarecordList($dt_id);
+            foreach ($ids['dr_ids'] as $dr_id => $num_2) {
+                if ( isset($dr_list[$dr_id]) )
+                    $names['datarecords'][$dr_id] = $dr_list[$dr_id];
+            }
         }
 
         return $names;

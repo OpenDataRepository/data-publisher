@@ -1,12 +1,22 @@
 {% spaceless %}
 
-{{ form_start(datatype_form, {
-    'method': 'POST',
-    'attr': {
-        'id': 'DatatypePropertiesForm_' ~ datatype.id,
-        'class': 'ODRDatatypePropertiesForm pure-form'
-    }
-}) }}
+{% if theme_element is null %}
+    {{ form_start(datatype_form, {
+        'method': 'POST',
+        'attr': {
+            'id': 'DatatypePropertiesForm_' ~ datatype.id ~ '_0',
+            'class': 'ODRDatatypePropertiesForm pure-form'
+        }
+    }) }}
+{% else %}
+    {{ form_start(datatype_form, {
+        'method': 'POST',
+        'attr': {
+            'id': 'DatatypePropertiesForm_' ~ datatype.id ~ '_' ~ theme_element.id,
+            'class': 'ODRDatatypePropertiesForm pure-form'
+        }
+    }) }}
+{% endif %}
 
 {% if is_target_datatype_admin %}    {# don't display datatype-specific properties if the user can't modify the datatype #}
 
@@ -192,7 +202,8 @@
         'datatree': datatree,
         'datatree_form': datatree_form,
         'force_multiple': force_multiple,
-        'affects_sortfield': affects_sortfield
+        'affects_namefield': affects_namefield,
+        'affects_sortfield': affects_sortfield,
     } %}
 {% endif %}
 

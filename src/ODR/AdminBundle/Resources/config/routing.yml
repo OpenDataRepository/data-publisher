@@ -819,7 +819,7 @@ odr_record_get_xyzdata_field_history:
 # Fake Edit Controller
 # NOTE - they're not really "fake" records, per se...but "ephermal" is too wordy
 odr_edit_fake_record:
-    path:  /edit/fake_record/{datatype_id}
+    path:  /edit/create_record/{datatype_id}
     defaults: { _controller: ODRAdminBundle:FakeEdit:fakerecord }
     requirements:
         datatype_id:  \d+
@@ -984,6 +984,13 @@ odr_design_get_link_datatypes:
     requirements:
         datatype_id:  \d+
         theme_element_id:  \d+
+
+odr_design_toggle_secondary_datatree:
+    path:  /design/displaytemplate/toggle_secondary/{datatree_id}/{secondary_datatree_id}
+    defaults: { _controller: ODRAdminBundle:Link:togglesecondarydatatree }
+    requirements:
+        datatree_id:  \d+
+        secondary_datatree_id:  \d+
 
 odr_design_link_datatype:
     path:  /design/displaytemplate/linktype
