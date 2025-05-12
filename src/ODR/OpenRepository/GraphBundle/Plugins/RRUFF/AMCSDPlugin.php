@@ -1621,8 +1621,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
-                if ( count($pieces) === 2 )
-                    $value_mapping['database_code_amcsd'] = $pieces[1];
+//                if ( count($pieces) === 2 )
+//                    $value_mapping['database_code_amcsd'] = $pieces[1];
 
                 // Need to save this line number, because the cell params come immediately after
                 $database_code_line = $line_num;
