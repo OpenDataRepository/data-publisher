@@ -38,8 +38,8 @@ class CrystallographyDef
 
     /**
      * Defines the 32 official crystallographic point groups in terms of which crystal system they
-     * belong to.  The names of the point groups were given to me by Bob Downs, so blame him if
-     * they're "non-standard"...any differences are probably because his focus is in mineralogy.
+     * belong to.  The names of the point groups come from the American Mineralogy Crystal Structure
+     * Database (AMCSD) and the RRUFF Project.
      *
      * @var array
      */
@@ -91,7 +91,7 @@ class CrystallographyDef
         '4mm' => array(99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110),
         '-42m' => array(111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122),
         '4/m2/m2/m' => array(123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142),
-        // hexagonal (also known as trigonal/rhomobohedral outside the US)
+        // hexagonal (this subset is also known as trigonal/rhomobohedral outside the US)
         '3' => array(143, 144, 145, 146),
         '-3' => array(147, 148),
         '322' => array(149, 150, 151, 152, 153, 154, 155),
@@ -116,11 +116,11 @@ class CrystallographyDef
 
     /**
      * Defines the 230 official crystallographic space groups by their official number, along with
-     * (some of) the acceptable labels for said space groups..."P1" and "A1" both mean space group
-     * #1, for instance.
+     * (some of) the acceptable labels for said space groups in Wyckoff notation..."P1" and "A1"
+     * both mean space group #1, for instance.
      *
-     * Roughly speaking, the choice of which space group label gets actually used depends on which
-     * axes/angles get assigned to the a/b/c/α/β/γ values.  It's a convenience feature, mostly.
+     * The synonyms exist because which label actually gets used depends on which axes/angles get
+     * assigned to the a/b/c/α/β/γ values.  It's a convenience feature, mostly.
      *
      * @var array[]
      */
@@ -378,8 +378,8 @@ class CrystallographyDef
 
 
     /**
-     * The space groups can (almost) always be derived back into their point group...the algorithm
-     * for doing so isn't difficult.
+     * The space groups can (almost) always be directly derived back into their point group...the
+     * algorithm for doing so isn't difficult.
      *
      * @var string $space_group
      * @return string
@@ -403,7 +403,8 @@ class CrystallographyDef
 
     /**
      * There are a couple space groups that self::derivePointGroupFromSpaceGroup() doesn't quite
-     * arrive at the "correct" answer for...this array maps those errors to the correct ones.
+     * arrive at the "correct" answer that AMCSD/RRUFF/ODR expect...this array maps those "errors"
+     * to the expected ones.
      *
      * @var string[]
      */
@@ -467,5 +468,54 @@ class CrystallographyDef
         // Round it to three decimal places...technically incorrect, as the calculation really should
         //  take significant figures into account...
         return round($volume, 3);
+    }
+
+
+    /**
+     * There are several different notations to indicate space groups, but the American Mineralogy
+     * Crystal Structure Database (AMCSD), the RRUFF Project...and by extension, ODR... use Wyckoff
+     * notation.
+     *
+     * This particular function converts the Hermann–Mauguin notation into the Wyckoff notation. It
+     * was created by experimenting on the 21k+ CIF files in AMCSD as of May 2025.
+     *
+     * @param string $hm_space_group
+     * @return string
+     */
+    public static function convertHermannMauguinToWyckoffSpaceGroup($hm_space_group)
+    {
+        // The Hermann–Mauguin space group notation has 2-4 pieces...lattice is the first one, then
+        //  it's followed by up to three other elements.  Those other elements are just '1' in a fair
+        //  number of cases, which the Wyckoff notation doesn't bother to display...presumably
+        //  because they don't affect the symmetry.  Don't quote me on that, I lack the background.
+        $num_spaces = 0;
+        for ($i = 0; $i < strlen($hm_space_group); $i++) {
+            if ( $hm_space_group[$i] === ' ' )
+                $num_spaces++;
+        }
+
+        $wyckoff_space_group = $hm_space_group;
+        if ( $num_spaces > 1 && strpos($hm_space_group, 'P 3') === false && strpos($hm_space_group, 'P -3') === false) {
+            // These '1's aren't "extra" if there's only two elements total, or if it describes a
+            //  hexagonal crystal system...everywhere else they should be removed
+            $wyckoff_space_group = str_replace(' 1', '', $wyckoff_space_group);
+        }
+
+        // The Wyckoff notation also tends to use subscripts for certain symmetry operations, which
+        //  the Hermann–Mauguin notation does not
+        $wyckoff_space_group = str_replace(
+            array(' :', '21', '31', '32', '41', '42', '43', '61', '62', '63', '64', '65'),
+            array('', '2_1', '3_1', '3_2', '4_1', '4_2', '4_3', '6_1', '6_2', '6_3', '6_4', '6_5'),
+            $wyckoff_space_group
+        );
+
+        // The remaining spaces can now get removed to finish the conversion...
+        $wyckoff_space_group = str_replace(' ', '', $wyckoff_space_group);
+        // ...except the triclinc space group #1 has typically been mangled by this point and needs
+        //  to have a '1' added back in
+        if ( strlen($wyckoff_space_group) === 1 )
+            $wyckoff_space_group = $wyckoff_space_group.'1';
+
+        return $wyckoff_space_group;
     }
 }
