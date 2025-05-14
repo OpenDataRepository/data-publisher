@@ -1190,6 +1190,14 @@ class ODRRenderService
 
             // TODO - stacking is inserting the fake record in the front?  not super bad since it's automatically selected, but........
         }
+        else {
+            // If not dealing with a new record or inline linking, then need to verify that the
+            //  datarecord names exist...
+            $this->namefield_helper_service->checkNameFields($datatype_array, $datarecord_array);
+            // This needs to be done before permissions, and doing it before stacking makes it easier
+            //  for the CacheService to save the formatted values so this doesn't have to execute
+            //  every single time
+        }
 
         // Building the token list requires filtering to be done first...
         if ( isset($extra_parameters['token_list']) )
