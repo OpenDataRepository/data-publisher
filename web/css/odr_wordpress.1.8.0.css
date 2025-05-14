@@ -19,6 +19,11 @@ a {
     cursor: pointer;
 }
 
+.ODRSearchHeaderLabel {
+    padding-left: 15px;
+    white-space: nowrap;
+}
+
 #odr-main-content-wrapper {
     margin-top: 76px;
 }

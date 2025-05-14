@@ -33,7 +33,7 @@
 <div class="pure-u-1 clearfix" id="ODRSearchHeaderWrapper">
 
     {% if search_key != '' %}
-    <div class="pure-u-1-2" id="ODRPublicExportButtons">
+    <div class="pure-u-1-2 pure-u-xl-2-3 pure-u-xxl-3-4 pure-u-xxxl-3-4 pure-u-x4k-3-4" id="ODRPublicExportButtons">
     {% else %}
     <div class="pure-u-1" id="ODRPublicExportButtons">
     {% endif %}
@@ -61,12 +61,12 @@
         <i id="ODRAddRecord" class="fa fa-plus Pointer tooltip ODRAddRecord" title="Click to add a record"></i>
     {% endif %}
 
-        <label for="edit_shows_all_fields_toggle" class="Pointer" title="If checked, then all fields will be displayed regardless of the layout settings" style="padding-left: 15px">
+        <label class="ODRSearchHeaderLabel" for="edit_shows_all_fields_toggle" class="Pointer" title="If checked, then all fields will be displayed regardless of the layout settings">
             <input type="checkbox" id="edit_shows_all_fields_toggle" /> Display All fields
         </label>
 
     {% if is_datatype_admin %}
-        <label for="prevent_datarecord_edits" class="Pointer" title="If checked, then no changes can be made to this record" style="padding-left: 15px">
+        <label class="ODRSearchHeaderLabel" for="prevent_datarecord_edits" class="Pointer" title="If checked, then no changes can be made to this record">
             <input type="checkbox" id="prevent_datarecord_edits" /> Prevent editing
         </label>
     {% endif %}

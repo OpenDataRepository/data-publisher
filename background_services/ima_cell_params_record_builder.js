@@ -211,7 +211,7 @@ async function app() {
                                 // Cite_Text Reference
                                 await buildReference(cp_map, record_data) + '|' +
                                 // Cite Link 1
-                                await findValue(cp_map.cite_link , record_data) + '|' +
+                                await getCitationLink(cp_map, record_data) + '|' +
                                 // Cite Link 2
                                 await findValue(cp_map.cite_link2, record_data) + '|' +
                                 // Status Notes Base64
@@ -484,6 +484,38 @@ async function writeFile(file_name, content) {
     }
 }
 
+/**
+ * Restricts search to top-level linked/child records.  Ensures that
+ * citation link comes from the "main" reference and not from a reference
+ * tied to another child record.
+ *
+ * @param data_map
+ * @param record
+ * @returns {Promise<string|*|string>}
+ */
+async function getCitationLink(data_map, record) {
+    let reference_record = await findRecordByTemplateUUID(record['records_' + data_map.template_uuid], data_map.reference_uuid);
+    // Hack for AMCSD References
+    if(reference_record === undefined) {
+        reference_record = await findRecordByTemplateUUID(record['records_' + data_map.database_uuid], data_map.reference_uuid);
+    }
+    if(reference_record !== null) {
+        // console.log('Reference Found');
+        return await findValue(data_map.cite_link, reference_record)
+    }
+
+}
+
+/**
+ * Restricts search to top-level linked/child records.  Ensures that
+ * reference record comes from directly linked child record or linked
+ * record.  Prevents accidentally pulling reference from a child record
+ * such as a IMA mineral record or similar.
+ *
+ * @param data_map
+ * @param record
+ * @returns {Promise<string>}
+ */
 async function buildReference(data_map, record) {
     // Only look in the first level for actual reference records
     // record['records_' + data_map.template_uuid']
@@ -516,9 +548,9 @@ async function findRecordByTemplateUUID (records, target_uuid){
         return undefined;
     }
     for(let i = 0; i < records.length; i++) {
-        // console.log('Record UUID: ' + records[i].template_uuid + ' ' + target_uuid)
+        console.log('Record UUID: ' + records[i].template_uuid + ' ' + target_uuid)
         if(records[i].template_uuid === target_uuid) {
-            // console.log(records[i].record_uuid)
+            console.log(records[i].record_uuid)
             return records[i];
         }
     }

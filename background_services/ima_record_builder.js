@@ -257,6 +257,7 @@ async function app() {
                     await appendFile(record.base_path + record.mineral_data + '.' + record.file_extension, content);
 
 
+                    // TODO Need to determine if "not a mineral"??
                     content = '$mineral_names[] = "' + sanitizeMineralName(await findValue(record.cell_params_map.mineral_name, record_data)) + '";\n';
                     content += '$mineral_names_lowercase[] = "' + sanitizeMineralName((await findValue(record.cell_params_map.mineral_name, record_data)).toLowerCase()) + '";\n';
                     // Create mineral list for quick redirect
