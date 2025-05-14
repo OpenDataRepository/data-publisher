@@ -21,6 +21,7 @@ parameters:
     rruff_database_uuid: 'ddc5e9ba834ad596cc31aebb1225'
     reference_database_uuid: 'e7e7e1706e6163550eb03129883a'
     amcsd_database_uuid: 'bf04d8bf310bcf7a1126d2f042c6'
+    paragenetic_modes_uuid: '27d51336fe011aa49d203e0dc6b3'
     mineral_data: 'web/uploads/documents/mineral_data.js'
     cell_params: 'web/uploads/documents/cell_params.js'
     references: 'web/uploads/documents/references.js'
@@ -29,7 +30,11 @@ parameters:
     cell_params_range: 'web/uploads/documents/cell_params_range.js'
     cell_params_synonyms: 'web/uploads/documents/cell_params_synonyms.js'
     tag_data: 'web/uploads/documents/master_tag_data.js'
+    pm_data: 'web/uploads/documents/pm_data.js'
+    pm_tag_data: 'web/uploads/documents/pm_tag_data.js'
     baseurl_no_prefix: '//beta.rruff.net'
+    paragenetic_modes_record_map:
+        tags_field_uuid: '2165f15c30c80a5c0e36e32014db'
     ima_record_map:
         ima_template_uuid: 'a865bffe37e967554ef299f53b74'
         ima_template_tags_uuid: 'e1c111558e18afd5ad066d4ea6c9'
