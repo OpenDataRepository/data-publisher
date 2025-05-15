@@ -143,7 +143,7 @@ parameters:
         volume: '705077142a308d943856557b9b4a'
         pressure: '' # NOT PRESENT IN RECOORD
         temperature: '' # NOT PRESENT IN RECOORD
-        crystal_system: '08164b58cfef4ad63ed8c3dde09e'
+        crystal_system: '39000ba4c4b675f7e7521ef5e276'
         point_group: 'ae8ed391c63d668f3016705e53d3'
         space_group: 'acd14e1f1fefb6d8c78c9b106973'
         lattice: '8d02eecdbeccfbf07c4d3e504502'
