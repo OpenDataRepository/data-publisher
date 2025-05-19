@@ -302,6 +302,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'AMC File Contents':
                     case 'AMC File Contents (short)':
                     case 'Authors':
+                    // These fields can't be edited, since they're from the AMC file
+
+                    case 'CIF File Contents':
                     case 'Mineral':
                     case 'a':
                     case 'b':
@@ -309,16 +312,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'alpha':
                     case 'beta':
                     case 'gamma':
+                    case 'Volume':
                     case 'Crystal System':
                     case 'Point Group':
                     case 'Space Group':
                     case 'Lattice':
                     case 'Pressure':
                     case 'Temperature':
-                        // None of these fields can be edited, since they're from the AMC file
-
-                    case 'CIF File Contents':
-                    case 'Volume':
                     case 'Chemistry':
                     case 'Chemistry Elements':
                     case 'Locality':
@@ -673,15 +673,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'AMC File Contents':
                 case 'AMC File Contents (short)':
                 case 'Authors':
-                case 'Mineral':
-                case 'a':
-                case 'b':
-                case 'c':
-                case 'alpha':
-                case 'beta':
-                case 'gamma':
-                case 'Space Group':
-                    // If the AMC file is valid, then every one of these fields will have a value
+                    // If the AMC file is valid, then these fields will have a value
                     if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
                         $problem_fields[] = $rpf_df['rpf_name'];
 
@@ -689,11 +681,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     //  here on purpose...a problem with them is more likely to be ODR's fault than
                     //  the fault of this file
                     break;
-
-                // These two fields are optional...the AMC file may not have them
-//                case 'Pressure':
-//                case 'Temperature':
-//                    break;
 
                 default:
                     // Every other field the plugin specifies doesn't matter when trying to determine
@@ -740,7 +727,18 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             switch ( $rpf_df['rpf_name'] ) {
                 // These fields are derived from the CIF File
                 case 'CIF File Contents':
+                case 'Mineral':
+                case 'a':
+                case 'b':
+                case 'c':
+                case 'alpha':
+                case 'beta':
+                case 'gamma':
                 case 'Volume':
+//                case 'Crystal System':
+//                case 'Point Group':
+                case 'Space Group':
+//                case 'Lattice':
                 case 'Chemistry':
                 case 'Chemistry Elements':
                     // If the CIF file is valid, then every one of these fields will have a value
@@ -748,7 +746,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $problem_fields[] = $rpf_df['rpf_name'];
                     break;
 
+                // NOTE: the Point Group, Crystal System, and Lattice fields aren't included
+                //  here on purpose...a problem with them is more likely to be ODR's fault than
+                //  the fault of this file
+
                 // These fields are optional...the CIF file isn't required to have them
+//                case 'Pressure':
+//                case 'Temperature':
 //                case 'Locality':
 //                case 'Crystal Density':
 //                    break;
@@ -981,18 +985,29 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( $relevant_rpf_name === 'AMC File' ) {
                     // Extract as many pieces of data from the file as possible
                     $value_mapping = self::readAMCFile($handle);
+
+                    // No longer need the file to be open
+                    fclose($handle);
                 }
                 else if ( $relevant_rpf_name === 'CIF File' ) {
+                    // Don't actually want the file handle here
+                    fclose($handle);
+
+                    // Do need the database code
+                    $database_code_df_id = $datafield_mapping['database_code_amcsd'];
+                    $database_code_sv = $storage_entities[$database_code_df_id];
+                    $amcsd_database_code = $database_code_sv->getValue();
+
                     // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readCIFFile($handle);
+                    $value_mapping = self::readCIFFile($local_filepath, $amcsd_database_code);
                 }
                 else if ( $relevant_rpf_name === 'DIF File' ) {
                     // Extract as many pieces of data from the file as possible
                     $value_mapping = self::readDIFFile($handle);
-                }
 
-                // No longer need the file to be open
-                fclose($handle);
+                    // No longer need the file to be open
+                    fclose($handle);
+                }
 
                 // File hasn't been encrypted yet, so DO NOT delete it
 
@@ -1268,18 +1283,29 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     if ( $relevant_rpf_name === 'AMC File' ) {
                         // Extract as many pieces of data from the file as possible
                         $value_mapping = self::readAMCFile($handle);
+
+                        // No longer need the file to be open
+                        fclose($handle);
                     }
                     else if ( $relevant_rpf_name === 'CIF File' ) {
+                        // Don't actually want the file handle here
+                        fclose($handle);
+
+                        // Do need the database code
+                        $database_code_df_id = $datafield_mapping['database_code_amcsd'];
+                        $database_code_sv = $storage_entities[$database_code_df_id];
+                        $amcsd_database_code = $database_code_sv->getValue();
+
                         // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readCIFFile($handle);
+                        $value_mapping = self::readCIFFile($local_filepath, $amcsd_database_code);
                     }
                     else if ( $relevant_rpf_name === 'DIF File' ) {
                         // Extract as many pieces of data from the file as possible
                         $value_mapping = self::readDIFFile($handle);
-                    }
 
-                    // No longer need the file to be open
-                    fclose($handle);
+                        // No longer need the file to be open
+                        fclose($handle);
+                    }
 
                     // If the File isn't public, then delete its decrypted version off the server
                     if ( !$file->isPublic() )
@@ -1426,6 +1452,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'AMC File Contents':
                 case 'AMC File Contents (short)':
                 case 'Authors':
+
+                case 'CIF File Contents':
+                case 'database_code_amcsd':
                 case 'Mineral':
                 case 'a':
                 case 'b':
@@ -1433,15 +1462,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'alpha':
                 case 'beta':
                 case 'gamma':
+                case 'Volume':
                 case 'Crystal System':
                 case 'Point Group':
                 case 'Space Group':
                 case 'Lattice':
                 case 'Pressure':
                 case 'Temperature':
-
-                case 'CIF File Contents':
-                case 'Volume':
                 case 'Chemistry':
                 case 'Chemistry Elements':
                 case 'Locality':
@@ -1452,7 +1479,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     break;
 
                 // Don't want any of these fields, or any other field, in the final array
-//                case 'database_code_amcsd':
 //                case 'AMC File':
 //                case 'CIF File':
 //                case 'DIF File':
@@ -1466,7 +1492,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Using the mapping generated by self::getRenderPluginFieldsMapping(), ensures that a storage
+     * Using the mapping generated by {@link self::getRenderPluginFieldsMapping()}, ensures that a storage
      * entity exists for each mapped datafield.
      *
      * @param array $datafield_mapping
@@ -1488,19 +1514,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'AMC File Contents':
                     case 'AMC File Contents (short)':
                     case 'Authors':
-                    case 'Mineral':
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'alpha':
-                    case 'beta':
-                    case 'gamma':
-                    case 'Crystal System':
-                    case 'Point Group':
-                    case 'Space Group':
-                    case 'Lattice':
-                    case 'Pressure':
-                    case 'Temperature':
                         // When called on an "AMC File", all of these fields should be hydrated
                         break;
 
@@ -1512,8 +1525,25 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             else if ( $relevant_rpf_name === 'CIF File' ) {
                 switch ($rpf_name) {
+                    case 'database_code_amcsd':
+                        // Not going to actually change this field, but want it in case it needs to
+                        //  be added to a CIF file
+
                     case 'CIF File Contents':
+                    case 'Mineral':
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                    case 'alpha':
+                    case 'beta':
+                    case 'gamma':
                     case 'Volume':
+                    case 'Crystal System':
+                    case 'Point Group':
+                    case 'Space Group':
+                    case 'Lattice':
+                    case 'Pressure':
+                    case 'Temperature':
                     case 'Chemistry':
                     case 'Chemistry Elements':
                     case 'Locality':
@@ -1602,17 +1632,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
             if ($line_num == 1) {
-                if ( ValidUtility::isValidMediumVarchar($line) )
-                    $value_mapping['Mineral'] = $line;
+//                if ( ValidUtility::isValidMediumVarchar($line) )
+//                    $value_mapping['Mineral'] = $line;
             }
-            // Second line is the authors...no length limit
+            // Second line is the authors...the field has no length limit
             elseif ($line_num == 2) {
                 $value_mapping['Authors'] = $line;
             }
-            // Third line is the journal, but it's not useful
-//            elseif ($line_num == 3) {
-//                $value_mapping['Journal'] = $line;
-//            }
 
             // Next there's usually two (sometimes three) lines of stuff the plugin doesn't care about
 
@@ -1621,85 +1647,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
-//                if ( count($pieces) === 2 )
+                if ( count($pieces) === 2 ) {
+                    // ...not actually going to save this line to ODR
 //                    $value_mapping['database_code_amcsd'] = $pieces[1];
-
-                // Need to save this line number, because the cell params come immediately after
-                $database_code_line = $line_num;
-            }
-            // The line after that contains the a/b/c/alpha/beta/gamma/space group values
-            elseif ( ($database_code_line+1) === $line_num ) {
-                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
-                // The replacement could end up stripping the newline from the end, which is bad
-                if ( strpos($line, "\n") === false )
-                    $line .= "\n";
-                $pieces = explode(' ', $line);
-
-                // Need to have 7 values in this line
-                if ( count($pieces) === 7 ) {
-                    // The first six need to be valid decimal values
-                    if ( ValidUtility::isValidDecimal($pieces[0]) )
-                        $value_mapping['a'] = $pieces[0];
-                    if ( ValidUtility::isValidDecimal($pieces[1]) )
-                        $value_mapping['b'] = $pieces[1];
-                    if ( ValidUtility::isValidDecimal($pieces[2]) )
-                        $value_mapping['c'] = $pieces[2];
-                    if ( ValidUtility::isValidDecimal($pieces[3]) )
-                        $value_mapping['alpha'] = $pieces[3];
-                    if ( ValidUtility::isValidDecimal($pieces[4]) )
-                        $value_mapping['beta'] = $pieces[4];
-                    if ( ValidUtility::isValidDecimal($pieces[5]) )
-                        $value_mapping['gamma'] = $pieces[5];
-
-                    // Space Group are usually 5-12ish characters long, so they fit inside a ShortVarchar
-                    if ( ValidUtility::isValidShortVarchar($pieces[6]) ) {
-                        $sg = trim( $pieces[6] );
-
-                        // For historical reasons, AMC files might have a '*' before the space group
-                        //  ...this apparently meant that the calculated x/y/z coords of the atoms
-                        //  in the file were shifted, compared to would be "expected" based on the
-                        //  space group.  This '*' character shouldn't be saved if it exists
-                        if ( strpos($sg, '*') === 0 )
-                            $sg = substr($sg, 1);
-
-                        // Certain AMC files also apparently have a ':1' or whatever after the Space
-                        //  Group, which also provides extra information to other programs...
-                        if ( strpos($sg, ':') !== false )
-                            $sg = substr($sg, 0, strpos($sg, ':'));
-
-                        // The Lattice, Point Group, and Crystal System are then derived from the Space Group
-                        $lattice = substr($sg, 0, 1);
-                        $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
-                        $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
-
-                        $value_mapping['Crystal System'] = $cs;
-                        $value_mapping['Point Group'] = $pg;
-                        $value_mapping['Space Group'] = $sg;
-                        $value_mapping['Lattice'] = $lattice;
-                    }
+                    // ...only interested in it because it gets used to determine the contents for
+                    //  the 'AMC File Contents' and 'AMC File Contents (short)' fields
+                    $database_code_line = $line_num;
                 }
-            }
-            else if ( $line_num > 2 && $database_code_line === -999 ) {
-                // The pressure/temperature are usually before "_database_code_amcsd" (I think)
-                // ...but aren't on a guaranteed line
-
-                // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
-                //  ...but can also have a tolerance
-                $matches = array();
-                if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $line, $matches) === 1 )
-                    $value_mapping['Pressure'] = $matches[1].' '.$matches[2];
-
-                // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
-                $matches = array();
-                if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $line, $matches) === 1)
-                    $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
-                // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
-                $matches = array();
-                if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $line, $matches) === 1 )
-                    $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
-
-
-                // TODO - I forget whether these values have to be normalized to GPa and K...
             }
 
             // Save every line from the file, as well
@@ -1736,108 +1690,316 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * Reads the given CIF file, converting its contents into an array that's indexed by the
      * "name" property of the fields defined in the "required_fields" section of AMCSDPlugin.yml
      *
-     * @param resource $handle
+     * @param string $filepath
      *
      * @return array
      */
-    private function readCIFFile($handle)
+    private function readCIFFile($filepath, $amcsd_code)
     {
         $value_mapping = array();
-        $all_lines = array();
 
-        // Ensure we're at the beginning of the file
-        fseek($handle, 0, SEEK_SET);
-        while ( !feof($handle) ) {
-            $line = fgets($handle);
+        // Due to the complexity of CIF files, and because other parts of ODR might feel
+        //  like reading them...use a static function from elsewhere
+        $file_contents = file_get_contents($filepath);
+        $cif_lines = CrystallographyDef::readCIFFile($file_contents);
 
-            if ( strpos($line, '_chemical_formula_sum') === 0 ) {
-                // This line needs to have at least two pieces in it
-                $pieces = explode(' ', $line);
-                if ( count($pieces) >= 2 ) {
-                    // This line has the chemical formula of the compound
-                    $space = strpos($line, ' ');
-                    $formula = trim( substr($line, $space+1) );
+        // The returned array is organized by line, but most of what ODR cares about is easier to
+        //  get at when it's organized by key...
+        $cif_data = array();
+        foreach ($cif_lines as $line_num => $data) {
+            // Not interested in the "table" sections of the CIF...
+            if ( isset($data['key']) && $data['key'] !== '' ) {
+                // ...if 'key' exists, then 'value' does too
+                $key = $data['key'];
+                $value = $data['value'];
 
-                    // The formula *should* have single quotes around it...get rid of them
-                    $value_mapping['Chemistry'] = self::stripQuotes($formula);
-
-                    // The value for the "Chemistry Elements" field is derived from this field, using
-                    //  pretty much the same process as the IMA List
-                    $ima_pattern = '/(REE|[A-Z][a-z]?)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter
-                    $ima_matches = array();
-                    preg_match_all($ima_pattern, $formula, $ima_matches);
-
-                    // Create a unique list of tokens from the array of elements
-                    $chemistry_elements = array();
-                    foreach ($ima_matches[1] as $num => $elem)
-                        $chemistry_elements[$elem] = 1;
-                    $chemistry_elements = array_keys($chemistry_elements);
-
-                    $value_mapping['Chemistry Elements'] = implode(" ", $chemistry_elements);
-                }
+                $cif_data[$key] = $value;
             }
-            else if ( strpos($line, '_chemical_compound_source') === 0 ) {
-                // This (optional) line has either 'Synthetic', or the locality of the physical sample
-                $space = strpos($line, ' ');
-                $locality = trim( substr($line, $space+1) );
-
-                // The locality *should* have single quotes around it...get rid of them
-                $locality = substr($locality, 1, -1);
-
-                // Replace either "smart quote" with the ascii equivalent
-                $locality = str_replace(array("‘","’"), "'", $locality);    // U+2018 and U+2019
-                $locality = str_replace(array("“","”"), "\"", $locality);    // U+201C and U+201D
-
-                $value_mapping['Locality'] = $locality;
-            }
-            else if ( strpos($line, '_cell_volume') === 0 ) {
-                // This line should have a decimal value for the volume
-                $pieces = explode(' ', $line);
-                if ( count($pieces) === 2 )
-                    $value_mapping['Volume'] = $pieces[1];
-            }
-            else if ( strpos($line, '_exptl_crystal_density_diffrn') === 0 ) {
-                // This line should have a decimal value for the density
-                $part = trim( substr($line, 29) );
-                $value_mapping['Crystal Density'] = $part;
-            }
-
-            // Save every line from the file, as well
-            $all_lines[] = $line;
         }
 
-        // Want all file contents in a single field
-        $value_mapping['CIF File Contents'] = implode("", $all_lines);
+        // As a result of the previous foreach loop, we can now use isset() to check whether the
+        //  various pieces of data that ODR cares about actually exist in the file
 
+        // ----------------------------------------
+        // mineral/compound name
+        if ( isset($cif_data['_chemical_name_mineral']) ) {
+            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_mineral']) )
+                $value_mapping['Mineral'] = $cif_data['_chemical_name_mineral'];
+        }
+        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_chemical_name_systematic']) ) {
+            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_systematic']) )
+                $value_mapping['Mineral'] = $cif_data['_chemical_name_systematic'];
+        }
+        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_chemical_name_common']) ) {
+            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
+                $value_mapping['Mineral'] = $cif_data['_chemical_name_common'];
+        }
+        // If the above don't work, fall back to the generic data thingy...
+        if ( !isset($value_mapping['Mineral']) ) {
+            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
+                $value_mapping['Mineral'] = $cif_data['data'];
+            else
+                $value_mapping['Mineral'] = substr($cif_data['data'], 0, 64);
+        }
+
+        // ----------------------------------------
+        // Chemistry formula/elements
+        if ( isset($cif_data['_chemical_formula_sum']) ) {
+            // NOTE: of the alternatives... _chemical_formula_analytical and _chemical_formula_iupac
+            //  look like the most probable to also check...
+            $formula = $cif_data['_chemical_formula_sum'];
+
+            // The value might have been split into multiple lines
+            $formula = str_replace(array("\r", "\n"), ' ', $formula);
+            $formula = str_replace('  ', ' ', $formula);
+            if ( ValidUtility::isValidLongVarchar($formula) ) {
+                $value_mapping['Chemistry'] = str_replace('  ', ' ', $formula);
+
+                // The value for the "Chemistry Elements" field is derived from this field, using
+                //  pretty much the same process as the IMA List
+                $ima_pattern = '/(REE|[A-Z][a-z]?)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter
+                $ima_matches = array();
+                preg_match_all($ima_pattern, $formula, $ima_matches);
+
+                // Create a unique list of tokens from the array of elements
+                $chemistry_elements = array();
+                foreach ($ima_matches[1] as $num => $elem)
+                    $chemistry_elements[$elem] = 1;
+                $chemistry_elements = array_keys($chemistry_elements);
+
+                $value_mapping['Chemistry Elements'] = implode(" ", $chemistry_elements);
+            }
+        }
+
+        // ----------------------------------------
+        // Compound source
+        if ( isset($cif_data['_chemical_compound_source']) ) {
+            // This optional line has either 'Synthetic', or the locality of the physical sample
+            $locality = $cif_data['_chemical_compound_source'];
+
+            // Replace either "smart quote" with the ascii equivalent
+            $locality = str_replace(array("‘","’"), "'", $locality);    // U+2018 and U+2019
+            $locality = str_replace(array("“","”"), "\"", $locality);    // U+201C and U+201D
+
+            // The value might have been split into multiple lines
+            $locality = str_replace(array("\r", "\n"), ' ', $locality);
+            $locality = str_replace('  ', ' ', $locality);
+
+            if ( ValidUtility::isValidLongVarchar($cif_data['_chemical_compound_source']) )
+                $value_mapping['Locality'] = $locality;
+        }
+
+        // ----------------------------------------
+        // Cell parameters and volume
+        $tmp = array();
+        if ( isset($cif_data['_cell_length_a']) )
+            $tmp['a'] = $cif_data['_cell_length_a'];
+        if ( isset($cif_data['_cell_length_b']) )
+            $tmp['b'] = $cif_data['_cell_length_b'];
+        if ( isset($cif_data['_cell_length_c']) )
+            $tmp['c'] = $cif_data['_cell_length_c'];
+        if ( isset($cif_data['_cell_angle_alpha']) )
+            $tmp['alpha'] = $cif_data['_cell_angle_alpha'];
+        if ( isset($cif_data['_cell_angle_beta']) )
+            $tmp['beta'] = $cif_data['_cell_angle_beta'];
+        if ( isset($cif_data['_cell_angle_gamma']) )
+            $tmp['gamma'] = $cif_data['_cell_angle_gamma'];
+        if ( isset($cif_data['_cell_volume']) )
+            $tmp['Volume'] = $cif_data['_cell_volume'];
+
+        foreach ($tmp as $key => $val) {
+            if ( ValidUtility::isValidDecimal($val) )
+                $value_mapping[$key] = $val;
+        }
+
+        // ----------------------------------------
+        // Density values...optional
+        if ( isset($cif_data['_exptl_crystal_density_diffrn']) ) {
+            if ( ValidUtility::isValidDecimal($cif_data['_exptl_crystal_density_diffrn']) )
+                $value_mapping['Crystal Density'] = $cif_data['_exptl_crystal_density_diffrn'];
+        }
+
+        // ----------------------------------------
+        // Pressure and Temperature are optional, but ideally come from these entries...
+        if ( isset($cif_data['_cell_measurement_temperature']) )
+            $value_mapping['Temperature'] = $cif_data['_cell_measurement_temperature'].' K';
+        if ( !isset($value_mapping['Temperature']) && isset($cif_data['_diffrn_ambient_temperature']) )
+            $value_mapping['Temperature'] = $cif_data['_diffrn_ambient_temperature'].' K';
+
+        if ( isset($cif_data['_cell_measurement_pressure']) )
+            $value_mapping['Pressure'] = $cif_data['_cell_measurement_pressure'].' KPa';
+        if ( !isset($value_mapping['Pressure']) && isset($cif_data['_diffrn_ambient_pressure']) )
+            $value_mapping['Pressure'] = $cif_data['_diffrn_ambient_pressure'].' KPa';
+
+        // ...but Bob's CIF files have Temperature/Pressure in the article title
+        if ( !isset($value_mapping['Temperature']) && isset($cif_data['_publ_section_title']) ) {
+            $title_line = $cif_data['_publ_section_title'];
+
+            // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
+            $matches = array();
+            if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $title_line, $matches) === 1 )
+                $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
+            // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
+            $matches = array();
+            if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $title_line, $matches) === 1 )
+                $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
+        }
+        if ( !isset($value_mapping['Pressure']) && isset($cif_data['_publ_section_title']) ) {
+            $title_line = $cif_data['_publ_section_title'];
+
+            // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
+            //  ...but can also have a tolerance
+            $matches = array();
+            if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $title_line, $matches) === 1 )
+                $value_mapping['Pressure'] = $matches[1].' '.$matches[2];
+        }
+
+        // ----------------------------------------
+        // Crystal system, Point Group, Space Group, and Lattice
+        $hm_space_group = '';
+        if ( isset($cif_data['_space_group_name_H-M_alt']) ) {
+            // IUCr prefers Hermann-Mauguin symbols in this format...
+            if ( ValidUtility::isValidShortVarchar($cif_data['_space_group_name_H-M_alt']) )
+                $hm_space_group = $cif_data['_space_group_name_H-M_alt'];
+        }
+        if ( $hm_space_group === '' && isset($cif_data['_symmetry_space_group_name_H-M']) ) {
+            // ...but they can also be provided with this deprecated key
+            if ( ValidUtility::isValidShortVarchar($cif_data['_symmetry_space_group_name_H-M']) )
+                $hm_space_group = $cif_data['_symmetry_space_group_name_H-M'];
+        }
+
+        if ( $hm_space_group !== '' ) {
+            // If one of these was provided, then it needs to be converted into the Wyckoff notation
+            //  because that's what ODR uses
+            $sg = CrystallographyDef::convertHermannMauguinToWyckoffSpaceGroup($hm_space_group);
+
+            // The Lattice, Point Group, and Crystal System are then derived from the Space Group
+            $lattice = substr($sg, 0, 1);
+            $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
+            $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
+
+            $value_mapping['Crystal System'] = $cs;
+            $value_mapping['Point Group'] = $pg;
+            $value_mapping['Space Group'] = $sg;
+            $value_mapping['Lattice'] = $lattice;
+        }
+
+        // IUCr also defines a "_space_group_IT_number", but that needs extra work to determine
+        //  which synonym to use...there's also a "_space_group_name_Hall", but I don't know how
+        //  to convert that to Wyckoff
+
+        // ----------------------------------------
+        // CIF Contents are going to be a pain...SHELXL CIFs tend to also have the DIF data in them,
+        //  resulting in thousands of lines of data
+        $cif_contents_raw = array();
+
+        // Going to use a blacklist to attempt to filter out most of the DIF data...
+        $blacklist = array(
+            '_exptl_' => 0,
+            '_diffrn_' => 0,
+            '_reflns_' => 0,
+            '_computing_' => 0,
+            '_refine_' => 0,
+            '_olex2_' => 0,
+//            '_atom_' => 0,
+            '_geom_' => 0,
+            '_shelx_' => 0,
+            '_oxdiff_' => 0,
+        );
+        // ...but need a couple of the keys still
+        $whitelist = array(
+            '_shelx_SHELXL_version_number' => 1,
+            '_exptl_crystal_density_diffrn' => 1,
+//            '_atom_type_symbol' => 1,
+//            '_atom_site_label' => 1,
+//            '_atom_site_aniso_label' => 1,
+        );
+
+        // ODR wants the CIFs to have a _database_code_amcsd line in them
+        $has_amcsd_code = false;
+
+        foreach ($cif_lines as $line_num => $data) {
+            if ( isset($data['key']) ) {
+                $key = $data['key'];
+                if ( $key === '' ) {
+                    // ignore empty lines?
+                }
+                else if ( $key === 'data' || $key === 'comment' ) {
+                    // want comments, since they might have proprietary info
+                    $cif_contents_raw[] = $data;
+                }
+                else {
+                    // regular key/value pair
+                    $fragment = substr($key, 0, strpos($key, '_', 1)+1);
+                    // If the key is considered "extra", then skip to the next node
+                    if ( isset($blacklist[$fragment]) && !isset($whitelist[$key]) )
+                        continue;
+
+                    // Otherwise, going to be saving this key
+                    $cif_contents_raw[] = $data;
+
+                    if ( $key === '_database_code_amcsd' )
+                        $has_amcsd_code = true;
+                }
+            }
+            else if ( isset($data['keys']) ) {
+                // Loop structure
+                $keys = $data['keys'];
+                foreach ($keys as $num => $key) {
+                    $fragment = substr($key, 0, strpos($key, '_', 1)+1);
+                    // If the key is considered "extra", then skip to the next node
+                    if ( isset($blacklist[$fragment]) && !isset($whitelist[$key]) )
+                        continue 2;
+                }
+
+                // Otherwise, going to be saving the entire loop
+                $cif_contents_raw[] = $data;
+            }
+        }
+
+        // Now that we've filtered out the nodes we definitely don't want (TM) in the CIF, we need
+        //  to get the text values of the nodes that remain
+        $cif_contents = '';
+        foreach ($cif_contents_raw as $num => $data) {
+            if ( $has_amcsd_code || isset($data['keys']) ) {
+                // If the raw contents already has the amcsd code, then don't need to keep checking
+                //  for the insertion point...also, just dump any loops into the contents since the
+                //  insertion point for the amcsd code has nothing to do with loops
+                $cif_contents .= $data['text'];
+            }
+            else {
+                // If the raw contents doesn't have the amcsd code, then want to insert it
+                if ( $data['key'] === '_chemical_compound_source' ) {
+                    // The old AMCSD preferred to have the database code before this line...
+                    $cif_contents .= '_database_code_amcsd '.$amcsd_code."\r\n";
+
+                    // Don't need to continue checking
+                    $has_amcsd_code = true;
+                }
+                else if ( $data['key'] === '_chemical_formula_sum' ) {
+                    // ...but if the locality line doesn't exist then it came before this line
+                    $cif_contents .= '_database_code_amcsd '.$amcsd_code."\r\n";
+
+                    // Don't need to continue checking
+                    $has_amcsd_code = true;
+                }
+
+                // Still need this line of data in there
+                $cif_contents .= $data['text'];
+            }
+        }
+
+
+        // ----------------------------------------
         // Ensure the values are trimmed before they're saved
         foreach ($value_mapping as $rpf_name => $value)
             $value_mapping[$rpf_name] = trim($value);
 
+        // Don't want to trim the CIF contents
+        $value_mapping['CIF File Contents'] = $cif_contents;
+
         // All data gathered, return the mapping array
         return $value_mapping;
-    }
-
-
-    /**
-     * Most of the values in the CIF file are supposed to be quoted, but I'm not going to blindly
-     * assume that...
-     *
-     * @param string $value
-     * @return string
-     */
-    private function stripQuotes($value)
-    {
-        $first = substr($value, 0, 1);
-        $last = substr($value, -1);
-
-        if ( ($first === "'" && $last === "'" )
-            || ($first === '"' && $last === '"')
-        ) {
-            return substr($value, 1, -1);
-        }
-        else {
-            return $value;
-        }
     }
 
 
@@ -2121,36 +2283,34 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             return array();
         $render_plugin_map = $render_plugin_instance['renderPluginMap'];
 
-        // The AMCSD plugin derives almost all of its fields from the contents of the file uploaded
-        //  to the "AMC File" field
+        // The AMCSD plugin derives almost all of its fields from the contents of the three different
+        // files that get uploaded...
         $amc_file_df_id = $render_plugin_map['AMC File']['id'];
-        $mineral_name_df_id = $render_plugin_map['Mineral']['id'];
-        $authors_df_id = $render_plugin_map['Authors']['id'];
         $amc_file_contents_df_id = $render_plugin_map['AMC File Contents']['id'];
         $amc_file_contents_short_df_id = $render_plugin_map['AMC File Contents (short)']['id'];
+        $authors_df_id = $render_plugin_map['Authors']['id'];
+
+        $cif_file_df_id = $render_plugin_map['CIF File']['id'];
+        $cif_file_contents_df_id = $render_plugin_map['CIF File Contents']['id'];
+        $mineral_name_df_id = $render_plugin_map['Mineral']['id'];
         $a_df_id = $render_plugin_map['a']['id'];
         $b_df_id = $render_plugin_map['b']['id'];
         $c_df_id = $render_plugin_map['c']['id'];
         $alpha_df_id = $render_plugin_map['alpha']['id'];
         $beta_df_id = $render_plugin_map['beta']['id'];
         $gamma_df_id = $render_plugin_map['gamma']['id'];
+        $volume_df_id = $render_plugin_map['Volume']['id'];
         $crystal_system_df_id = $render_plugin_map['Crystal System']['id'];
         $point_group_df_id = $render_plugin_map['Point Group']['id'];
         $space_group_df_id = $render_plugin_map['Space Group']['id'];
         $lattice_df_id = $render_plugin_map['Lattice']['id'];
         $pressure_df_id = $render_plugin_map['Pressure']['id'];
         $temperature_df_id = $render_plugin_map['Temperature']['id'];
-
-        // ...but there are several fields that are supposed to come from the "CIF File" field
-        $cif_file_df_id = $render_plugin_map['CIF File']['id'];
-        $cif_file_contents_df_id = $render_plugin_map['CIF File Contents']['id'];
-        $volume_df_id = $render_plugin_map['Volume']['id'];
         $chemistry_df_id = $render_plugin_map['Chemistry']['id'];
         $chemistry_elements_df_id = $render_plugin_map['Chemistry Elements']['id'];
         $locality_df_id = $render_plugin_map['Locality']['id'];
         $density_df_id = $render_plugin_map['Crystal Density']['id'];
 
-        // ...and another that's supposed to come from the "DIF File" field
         $dif_file_df_id = $render_plugin_map['DIF File']['id'];
         $diffraction_search_values_df_id = $render_plugin_map['Diffraction Search Values']['id'];
 
@@ -2158,25 +2318,25 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Since a datafield could be derived from multiple datafields, the source datafields need
         //  to be in an array (even though that's not the case for this Plugin)
         return array(
-            $mineral_name_df_id => array($amc_file_df_id),
-            $authors_df_id => array($amc_file_df_id),
             $amc_file_contents_df_id => array($amc_file_df_id),
             $amc_file_contents_short_df_id => array($amc_file_df_id),
-            $a_df_id => array($amc_file_df_id),
-            $b_df_id => array($amc_file_df_id),
-            $c_df_id => array($amc_file_df_id),
-            $alpha_df_id => array($amc_file_df_id),
-            $beta_df_id => array($amc_file_df_id),
-            $gamma_df_id => array($amc_file_df_id),
-            $crystal_system_df_id => array($amc_file_df_id), // crystal system, point group, and lattice are technically derived from the space group...
-            $point_group_df_id => array($amc_file_df_id),    // ...but doesn't matter since you can't edit space group directly anyways
-            $space_group_df_id => array($amc_file_df_id),
-            $lattice_df_id => array($amc_file_df_id),
-            $pressure_df_id => array($amc_file_df_id),
-            $temperature_df_id => array($amc_file_df_id),
+            $authors_df_id => array($amc_file_df_id),
 
             $cif_file_contents_df_id => array($cif_file_df_id),
+            $mineral_name_df_id => array($cif_file_df_id),
+            $a_df_id => array($cif_file_df_id),
+            $b_df_id => array($cif_file_df_id),
+            $c_df_id => array($cif_file_df_id),
+            $alpha_df_id => array($cif_file_df_id),
+            $beta_df_id => array($cif_file_df_id),
+            $gamma_df_id => array($cif_file_df_id),
             $volume_df_id => array($cif_file_df_id),
+            $crystal_system_df_id => array($cif_file_df_id), // crystal system, point group, and lattice are technically derived from the space group...
+            $point_group_df_id => array($cif_file_df_id),    // ...but doesn't matter since you can't edit space group directly anyways
+            $space_group_df_id => array($cif_file_df_id),
+            $lattice_df_id => array($cif_file_df_id),
+            $pressure_df_id => array($cif_file_df_id),
+            $temperature_df_id => array($cif_file_df_id),
             $chemistry_df_id => array($cif_file_df_id),
             $chemistry_elements_df_id => array($cif_file_df_id),
             $locality_df_id => array($cif_file_df_id),
