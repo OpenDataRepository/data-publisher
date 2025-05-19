@@ -141,6 +141,13 @@ async function app() {
                         'journal': await findValue(record.reference_record_map.journal, record_data),
                         'pages': await findValue(record.reference_record_map.pages, record_data),
                         'volume': await findValue(record.reference_record_map.volume, record_data),
+                        'book_title': await findValue(record.reference_record_map.book_title, record_data),
+                        'issue': await findValue(record.reference_record_map.issue, record_data),
+                        'url': await findValue(record.reference_record_map.url, record_data),
+                        'month': await findValue(record.reference_record_map.month, record_data),
+                        'annotation': await findValue(record.reference_record_map.annotation, record_data),
+                        'publisher': await findValue(record.reference_record_map.publisher, record_data),
+                        'publisher_location': await findValue(record.reference_record_map.publisher_location, record_data),
                         'record_uuid': record_data.record_uuid,
                         'internal_id': record_data.internal_id
                     };

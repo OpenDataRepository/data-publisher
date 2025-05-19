@@ -1,3 +1,4 @@
 config.yml
 parameters.yml
 security.yml
+routing.yml
