@@ -36,8 +36,9 @@ interface DatafieldReloadOverrideInterface
      * @param DataRecord $datarecord
      * @param Theme $theme
      * @param ODRUser $user
+     * @param bool $is_datatype_admin
      *
      * @return array
      */
-    public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user);
+    public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user, $is_datatype_admin);
 }

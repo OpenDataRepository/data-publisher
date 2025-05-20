@@ -2102,6 +2102,10 @@ function SaveRecordData(form_id, interval, callback) {
         data: post_data,
         success: function(data, textStatus, xhr) {
             if ( data.d.change_made ) {
+                // Should trigger the save icon fading out here, since the callback could have a
+                //  timeout attached to it
+                $(form_id).find('.ODRSaveIndicator').fadeOut('350');
+
                 // Remove any warnings about uniqueness conflicts
                 $(form_id).removeClass('ODRInputError');
                 // Could potentially be a jquery validate error message in here too...since the save
@@ -2133,7 +2137,6 @@ function SaveRecordData(form_id, interval, callback) {
                 // Load the data of the given xdebug token into the current toolbar wrapper
                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
             }
-            $(form_id).find('.ODRSaveIndicator').fadeOut('350');
         }
     });
 }

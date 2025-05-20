@@ -3,7 +3,7 @@ odr_plugins.rruff.cell_parameters:
     category: RRUFF
     plugin_type: datatype
     render: odr_plugins.rruff.cell_parameters
-    version: 1.0.0
+    version: 1.1.0
     override_fields: true
     override_field_reload: true
     override_child: false

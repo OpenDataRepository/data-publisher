@@ -60,6 +60,20 @@
                         {% set is_symmetry_field = true %}
                     {% endif %}
 
+                    {% set is_dimension_field = false %}
+                    {% if plugin_fields[ datafield.id ] is defined and
+                        (plugin_fields[ datafield.id ]['rpf_name'] == "a"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "b"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "c"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "alpha"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "beta"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "gamma"
+                        or plugin_fields[ datafield.id ]['rpf_name'] == "Volume")
+                    %}
+                        {% set is_dimension_field = true %}
+                    {% endif %}
+
+
                     {% if theme_datafield.hidden == 0 or edit_shows_all_fields %}
                         <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
                              id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}"
@@ -86,7 +100,7 @@
                                 } %}
                             {% elseif is_symmetry_field %}
                                 {# These three fields use a popup interface for editing, because changing one could mean changing the other two #}
-                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_datafield.html.twig' with {
+                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_symmetry_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
 
@@ -100,6 +114,19 @@
                                     'crystal_systems': crystal_systems,
                                     'point_groups': point_groups,
                                     'space_groups': space_groups,
+                                } %}
+                            {% elseif is_dimension_field %}
+                                {# The a/b/c/alpha/beta/gamma fields use different reloading javascript, and the volume field needs an info icon #}
+                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_dimension_datafield.html.twig' with {
+                                    'datarecord': datarecord,
+                                    'datafield': datafield,
+
+                                    'is_link': is_link,
+                                    'token_list': token_list,
+                                    'is_datatype_admin': is_datatype_admin,
+
+                                    'plugin_fields': plugin_fields,
+                                    'calculated_volume': calculated_volume,
                                 } %}
                             {% else %}
                                 {# user is allowed to edit datafield #}

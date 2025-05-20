@@ -1056,7 +1056,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * @inheritDoc
      */
-    public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user)
+    public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user, $is_datatype_admin)
     {
         // Only override when called from the 'display' or 'edit' contexts...though at the moment,
         //  ODR only calls this via the 'edit' context
