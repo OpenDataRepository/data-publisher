@@ -114,6 +114,10 @@ class CSVTablePlugin implements DatafieldPluginInterface
             else
                 $ret = self::readXYZData($datarecord, $datafield);
 
+            // If either function couldn't finish, don't execute the plugin
+            if ( is_null($ret) )
+                return '';
+
             // Convert the contents of the file/field into a format that Handsontable can use
             $data_array = json_encode( $ret['data'] );
             $num_columns = $ret['num_columns'];
@@ -151,7 +155,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
      * @param array $datarecord
      * @param array $datafield
      *
-     * @return array
+     * @return array|null
      */
     private function readFile($datarecord, $datafield)
     {
@@ -211,7 +215,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 foreach ($files_to_delete as $file_path)
                     unlink($file_path);
 
-                return '';
+                return null;
             }
 
             $csv_data = fgetcsv($handle, 1000, $delimiter);
@@ -375,7 +379,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
      * @param array $datarecord
      * @param array $datafield
      *
-     * @return array
+     * @return array|null
      */
     private function readXYZData($datarecord, $datafield)
     {

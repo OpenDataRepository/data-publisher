@@ -210,10 +210,12 @@ class SearchSidebarService
             $sidebar_array = self::constructDefaultSidebarArray($sidebar_datatype_array);
         }
 
-        // Read the datatype array to get the info required so users can change which descendants
-        //  the search includes in the results
-        $tmp = self::createDescendantSelector($sidebar_array['datatype_array'], array($target_datatype_id => 1), '', '');
-        $sidebar_array['descendant_selection'] = $tmp;
+        if ( !isset($search_params['inverse']) ) {
+            // Read the datatype array to get the info required so users can change which descendants
+            //  the search includes in the results
+            $tmp = self::createDescendantSelector($sidebar_array['datatype_array'], array($target_datatype_id => 1), '', '');
+            $sidebar_array['descendant_selection'] = $tmp;
+        }
 
         if ( !empty($search_params) ) {
             // If a set of initial search params was provided, then ensure the correct radio options

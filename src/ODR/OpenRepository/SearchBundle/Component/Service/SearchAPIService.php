@@ -1914,8 +1914,24 @@ class SearchAPIService
             // If the datatype is linked...then the backend query to rebuild the cache entry is
             //  different, as is the insertion of the resulting datarecords into the "inflated" list
             $is_linked_type = false;
-            if ( isset($datatree_array['linked_from'][$dt_id]) )
-                $is_linked_type = true;
+            if ( is_null($inverse_permitted_datatypes) ) {
+                // When run in a normal search, any datatype in both $permissions_array and the
+                //  'linked_from' section
+                if ( isset($datatree_array['linked_from'][$dt_id]) )
+                    $is_linked_type = true;
+            }
+            else {
+                // When doing an inverse search, need to perform a slightly different lookup to
+                //  determine if this is a linked datatype...
+                // TODO - this is more correct than before, but it seems to want to treat child records as linked records.  investigate harder.
+                foreach ($permissions_array as $tmp_dt_id => $tmp) {
+                    if ( isset($datatree_array['linked_from'][$tmp_dt_id])
+                        && in_array($dt_id, $datatree_array['linked_from'][$tmp_dt_id])
+                    ) {
+                        $is_linked_type = true;
+                    }
+                }
+            }
 
             // If this is the datatype being searched on (or one of the datatypes directly derived
             //  from the template being searched on), then $is_linked_type needs to be false, so

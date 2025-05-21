@@ -61,6 +61,7 @@ class SearchAPIServiceTest extends WebTestCase
      */
     public function testPerformSearchCompleteDatarecordList($search_params, $expected_datarecord_ids, $search_as_super_admin)
     {
+        exec('redis-cli flushall');
         $client = static::createClient();
         if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
             $this->markTestSkipped('Wrong database');

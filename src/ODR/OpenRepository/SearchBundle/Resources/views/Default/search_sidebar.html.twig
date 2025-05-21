@@ -105,7 +105,7 @@
                             <i class="fa fa-lg fa-edit ODREditSearchNotes" title="Edit the search page notes."></i>
                             {% endif %}
                         {% endif %}
-                        {% if sidebar_array['datatype_array']|length > 1 %}
+                        {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
                             <i class="fa fa-lg fa-th-list ODRChangeSearchedDescendants" title="Temporarily change which descendants are searched."></i>
                         {% endif %}
                     </label>
@@ -116,7 +116,7 @@
                     {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
                 </div>
                 {% endif %}
-                {% if sidebar_array['datatype_array']|length > 1 %}
+                {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
                 <div id="ODRChangeSearchedDescendants_div" class="pure-u-1 ODRHidden">
                     {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_wrapper.html.twig' with {
                         'sidebar_array': sidebar_array,
