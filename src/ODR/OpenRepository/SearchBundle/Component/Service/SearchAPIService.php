@@ -233,17 +233,17 @@ class SearchAPIService
 
 
     /**
-     * This function fulfills a purpose similar to {@link getSearchableDatafieldsForUser()}...both
-     * a "regular" search and a "template" search need to know which datafields the user is allowed
+     * This function fulfills a purpose similar to {@link self::getSearchableDatafieldsForUser()}...
+     * both a "regular" search and a "template" search need to know which datafields the user is allowed
      * to view...but a "template" search may easily involve hundreds of datatypes that are derived
      * from the template being searched on.
      *
-     * As such, the strategy used by {@link getSearchableDatafieldsForUser()} of loading info for one
-     * datatype at a time is unviable...this function instead loads the relevant data for every single
-     * relevant derived datatypes/datafields at once.  Caching this data is unfeasible, unfortunately,
-     * which is why it only gets used for template searches.
+     * As such, the strategy used by {@link self::getSearchableDatafieldsForUser()} of loading info
+     * for one datatype at a time is unviable...this function instead loads the relevant data for
+     * every single relevant derived datatypes/datafields at once.  Caching this data is unfeasible,
+     * unfortunately, which is why it only gets used for template searches.
      *
-     * Additionally, the array returned by {@link getSearchableDatafieldsForUser()} contains each
+     * Additionally, the array returned by {@link self::getSearchableDatafieldsForUser()} contains each
      * datafield's typeclass and searchable status, but the array returned by this function does not.
      *
      * @param string[] $datafield_uuids The uuids of the datafields being searched on
@@ -367,7 +367,7 @@ class SearchAPIService
         //  user is allowed to view
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' || $key === 'ignore' ) {
                 // Don't need to do anything special with these keys
                 $filtered_search_params[$key] = $value;
             }
@@ -501,7 +501,8 @@ class SearchAPIService
         // ----------------------------------------
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
 
-        // This really shouldn't be null, but just in case...
+        // This typically shouldn't be null, but phpunit testing is unable to provide a hydrated
+        //  datatype entity
         if ( is_null($datatype) )
             $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
 
@@ -542,9 +543,12 @@ class SearchAPIService
         // Get the base information needed so getSearchArrays() can properly setup the search arrays
         $search_permissions = self::getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions, $search_as_super_admin);
 
+        // Determine whether the search should completely any linked descendants
+        $ignored_prefixes = self::getIgnoredPrefixes($search_params, $datatype);
+
         // Going to need three arrays so mergeSearchResults() can correctly determine which records
         //  end up matching the search
-        $search_arrays = self::getSearchArrays($datatype->getId(), $search_permissions, $inverse_target_datatype_id);
+        $search_arrays = self::getSearchArrays($datatype->getId(), $search_permissions, $ignored_prefixes, $inverse_target_datatype_id);
         $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
         $search_datatree = $search_arrays['search_datatree'];
@@ -1626,8 +1630,8 @@ class SearchAPIService
      *
      * @param array $records
      * @param array $labels
-     * @param array $searchable_datafields {@link getSearchableDatafieldsForUser()}
-     * @param array $flattened_list {@link getSearchArrays()}
+     * @param array $searchable_datafields {@link self::getSearchableDatafieldsForUser()}
+     * @param array $flattened_list {@link self::getSearchArrays()}
      *
      * @return array
      */
@@ -1664,9 +1668,9 @@ class SearchAPIService
 
 
     /**
-     * It's easier for {@link performSearch()} when {@link getSearchArrays()} returns arrays that
-     * already contain the user's permissions and which datatypes are being searched on...this
-     * utility function gathers that required info in a single spot.
+     * It's easier for {@link self::performSearch()} when {@link self::getSearchArrays()} returns
+     * arrays that already contain the user's permissions and which datatypes are being searched on...
+     * this utility function gathers that required info in a single spot.
      *
      * @param DataType[] $hydrated_datatypes
      * @param int[] $affected_datatypes {@link SearchKeyService::convertSearchKeyToCriteria()}
@@ -1738,32 +1742,84 @@ class SearchAPIService
 
 
     /**
+     * ODR can end up in situations with complicated database structures that are rather nighmarish
+     * to search...to use a real-world examples:
+     * <pre>
+     * AMCSD (or RRUFF Samples)
+     * |- RRUFF References (link)
+     * |- IMA Mineral List (link)
+     *     |- RRUFF References (link)
+     *     |- Status Notes (child)
+     *         |- RRUFF References (link)
+     *      |- Reference A (child)
+     *          |- RRUFF References (link)
+     *      |- Reference B (child)
+     *          |- RRUFF References (link)
+     * </pre>
+     *
+     * In the case of RRUFF Samples, the user typically doesn't care which RRUFF Reference link
+     * matches...but in the case of AMCSD, they very much do care, and usually don't want to involve
+     * any descendants of the IMA Mineral List.  Until they do want to run that search.  =')
+     *
+     * Fortunately, because of the rules ODR follows when permitting links, each of them can be
+     * uniquely identified by a "prefix".  This permits {@link self::getSearchArrays()} to "selectively
+     * ignore" parts of the various arrays it would otherwise build...that lack of info ends up
+     * causing {@link self::mergeSearchResults()} to behave as if those links don't exist.
+     *
+     * Due to differences in storing the prefixes and actually using them, it's easier to use a
+     * function as an in-between.
+     *
+     * @param array $search_params
+     * @param DataType $datatype
+     *
+     * @return array
+     */
+    private function getIgnoredPrefixes($search_params, $datatype)
+    {
+        $ignored_prefixes = array();
+
+        if ( isset($search_params['ignore']) ) {
+            // If this key is set, then use its contents
+            $ignored_prefixes = array_flip($search_params['ignore']);
+        }
+        else {
+            // Otherwise, fall back to whatever the default is for this datatype
+            $ignored_prefixes = array();    // TODO
+        }
+
+        return $ignored_prefixes;
+    }
+
+
+    /**
      * Returns three arrays that are required for determining which datarecords match a search.
      * Technically a search run on a top-level datatype doesn't need all this, but any search that
-     *  involves a child/linked datatype does.
+     * involves a child/linked datatype does.
      *
      * The first array is a "flattened" list of all records that could end up matching the search,
-     *  and is primarily utilized so the rest of the searching doesn't have to deal with recursion
-     *  when computing search results.  It consists of an array of <datarecord_id> => <num> pairs,
-     *  where <num> is some composite of the various binary flags defined at the top of the SearchAPIService.
+     * and is primarily utilized so the rest of the searching doesn't have to deal with recursion
+     * when computing search results.  It consists of an array of <datarecord_id> => <num> pairs,
+     * where <num> is some composite of the various binary flags defined at the top of the SearchAPIService.
      *
      * The second array is an "inflated" array of all records and their descendants, because the
-     *  hierarchy of "ancestor" -> "descendant" is critical to determining which "ancestors" end up
-     *  matching the search. See {@link buildDatarecordTree()}.  When $inverse_target_datatype_id is
-     *  not null, then the linked relations are inverted, while the parent/child relations remain the same.
+     * hierarchy of "ancestor" -> "descendant" is critical to determining which "ancestors" end up
+     * matching the search. See {@link self::buildDatarecordTree()}.  When $inverse_target_datatype_id
+     * is not null, then the linked relations are inverted, while the parent/child relations remain
+     * the same.
      *
-     * The third array {@link buildSearchDatatree()} is used as a guide for merging the various
-     *  facets of records that matched the search. {@link mergeSearchResults()}
+     * The third array {@link self::buildSearchDatatree()} is used as a guide for merging the various
+     * facets of records that matched the search. {@link self::mergeSearchResults()}
      *
      * @param int $target_datatype_id
-     * @param array $permissions_array {@link getSearchPermissionsArray()}
+     * @param array $permissions_array {@link self::getSearchPermissionsArray()}
+     * @param array $ignored_prefixes {@link self::getIgnoredPrefixes()}
      * @param int|null $inverse_target_datatype_id If null, then the returned arrays contains info
      *                                             from the descendant datatypes...otherwise, they
      *                                             refer to the ancestor datatypes
      *
      * @return array
      */
-    public function getSearchArrays($target_datatype_id, $permissions_array, $inverse_target_datatype_id = null)
+    public function getSearchArrays($target_datatype_id, $permissions_array, $ignored_prefixes, $inverse_target_datatype_id = null)
     {
         // ----------------------------------------
         // Intentionally not caching the results of this function for two reasons
@@ -1797,11 +1853,10 @@ class SearchAPIService
         $inflated_list = array(0 => array());
         $inflated_list[0][$target_datatype_id] = array();
 
-        // @see self::buildSearchDatatree()
-        $search_datatree = self::buildSearchDatatree($datatree_array, array($target_datatype_id => 0), $inverse_permitted_datatypes);
+        $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, array($target_datatype_id => 0), $inverse_permitted_datatypes);
 
         // Actually build the flattened and inflated lists
-        self::getSearchArrays_Worker($datatree_array, $permissions_array, array($target_datatype_id => 0), $flattened_list, $inflated_list, $inverse_permitted_datatypes);
+        self::getSearchArrays_Worker($ignored_prefixes, '', $datatree_array, $permissions_array, array($target_datatype_id => 0), $flattened_list, $inflated_list, $inverse_permitted_datatypes);
 
 
         // ----------------------------------------
@@ -1822,10 +1877,12 @@ class SearchAPIService
 
 
     /**
-     * This is split off from {@link getSearchArrays()} for readability reasons.
+     * This is split off from {@link self::getSearchArrays()} for readability reasons.
      *
+     * @param array $ignored_prefixes {@link self::getIgnoredPrefixes()}
+     * @param string $prev_prefix
      * @param array $datatree_array {@link DatatreeInfoService::getDatatreeArray()}
-     * @param array $permissions_array {@link getSearchPermissionsArray()}
+     * @param array $permissions_array {@link self::getSearchPermissionsArray()}
      * @param array $top_level_datatype_ids
      * @param array &$flattened_list
      * @param array &$inflated_list
@@ -1834,11 +1891,23 @@ class SearchAPIService
      *
      * @return void
      */
-    private function getSearchArrays_Worker($datatree_array, $permissions_array, $top_level_datatype_ids, &$flattened_list, &$inflated_list, $inverse_permitted_datatypes)
+    private function getSearchArrays_Worker($ignored_prefixes, $prev_prefix, $datatree_array, $permissions_array, $top_level_datatype_ids, &$flattened_list, &$inflated_list, $inverse_permitted_datatypes)
     {
         foreach ($permissions_array as $dt_id => $permissions) {
             // Ensure that the user is allowed to view this datatype before doing anything with it
-            if (!$permissions['can_view_datatype'])
+            if ( !$permissions['can_view_datatype'] )
+                continue;
+
+            // Determine the prefix of the datatype currently being looked at
+            $current_prefix = '';
+            if ( $prev_prefix === '' )
+                $current_prefix = $dt_id;
+            else
+                $current_prefix = $prev_prefix.'_'.$dt_id;
+
+            // If it matches one of the ignored prefixes, then don't gather any data about this
+            //  datatype
+            if ( isset($ignored_prefixes[$current_prefix]) )
                 continue;
 
 
@@ -1929,7 +1998,7 @@ class SearchAPIService
 
 
     /**
-     * Recursively builds an array of the following form for {@link mergeSearchResults()} to use:
+     * Recursively builds an array of the following form for {@link self::mergeSearchResults()} to use:
      * <pre>
      * <datatype_id> => array(
      *     'dr_list' => <datarecord_list>,
@@ -1943,6 +2012,8 @@ class SearchAPIService
      * The <datarecord_list> stores whatever {@link SearchService::getCachedSearchDatarecordList()}
      *  returns for the current datatype.
      *
+     * @param array $ignored_prefixes {@link self::getIgnoredPrefixes()}
+     * @param string $prev_prefix
      * @param array $datatree_array
      * @param array $top_level_datatype_ids
      * @param array|null $inverse_permitted_datatypes If provided, then only load datarecords for
@@ -1951,16 +2022,30 @@ class SearchAPIService
      *
      * @return array
      */
-    private function buildSearchDatatree($datatree_array, $top_level_datatype_ids, $inverse_permitted_datatypes = null, $is_linked_type = false)
+    private function buildSearchDatatree($ignored_prefixes, $prev_prefix, $datatree_array, $top_level_datatype_ids, $inverse_permitted_datatypes = null, $is_linked_type = false)
     {
         $tmp = array();
 
         foreach ($top_level_datatype_ids as $dt_id => $num) {
+            // Going to store basic info in this array structure
             $tmp[$dt_id] = array(
                 'dr_list' => array(),
                 'children' => array(),
                 'links' => array(),
             );
+
+            // Determine the prefix of the datatype currently being looked at
+            $current_prefix = '';
+            if ( $prev_prefix === '' )
+                $current_prefix = $dt_id;
+            else
+                $current_prefix = $prev_prefix.'_'.$dt_id;
+
+            // If it matches one of the ignored prefixes, then don't gather any data about this
+            //  datatype
+            if ( isset($ignored_prefixes[$current_prefix]) )
+                continue;
+
 
             // Need to store all datarecords of this datatype...
             if ( is_null($inverse_permitted_datatypes) )
@@ -1977,7 +2062,8 @@ class SearchAPIService
                     $children[$child_dt_id] = 1;
             }
             if ( !empty($children) )
-                $tmp[$dt_id]['children'] = self::buildSearchDatatree($datatree_array, $children, $inverse_permitted_datatypes);
+                $tmp[$dt_id]['children'] = self::buildSearchDatatree($ignored_prefixes, $current_prefix, $datatree_array, $children, $inverse_permitted_datatypes);
+
 
             // ...but which links to get depend on the value of $inverse
             $links = array();
@@ -2002,7 +2088,7 @@ class SearchAPIService
             // Regardless of which set of datatypes could be in $links...
             if ( !empty($links) ) {
                 // ...if it has something, then recursively continue digging for related datatypes
-                $tmp[$dt_id]['links'] = self::buildSearchDatatree($datatree_array, $links, $inverse_permitted_datatypes, true);
+                $tmp[$dt_id]['links'] = self::buildSearchDatatree($ignored_prefixes, $current_prefix, $datatree_array, $links, $inverse_permitted_datatypes, true);
             }
         }
 
@@ -2083,10 +2169,10 @@ class SearchAPIService
 
 
     /**
-     * The "template" analog of {@link getSearchArrays()} does mostly the same thing, but it doesn't
-     * attempt to get the list of records from cached data...instead, it uses a handful of specific
-     * queries to load all records that the user is allowed to see, with as little overhead as
-     * possible. {@link getSearchArrays()}
+     * The "template" analog of {@link self::getSearchArrays()} does mostly the same thing, but it
+     * doesn't attempt to get the list of records from cached data...instead, it uses a handful of
+     * specific queries to load all records that the user is allowed to see, with as little overhead
+     * as possible.
      *
      * @param string $template_uuid
      * @param array $top_level_datatype_ids An array where the keys are top-level datatype ids that
@@ -2124,7 +2210,8 @@ class SearchAPIService
 
         // @see self::buildSearchDatatree()
         $datatree_array = $this->datatree_info_service->getDatatreeArray();
-        $search_datatree = self::buildSearchDatatree($datatree_array, array($template_dt_id => 1));
+        $ignored_prefixes = array();    // TODO
+        $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, array($template_dt_id => 1));
 
 
         // ----------------------------------------
@@ -2375,8 +2462,8 @@ class SearchAPIService
 
 
     /**
-     * Recursively builds an array of the following form for self::mergeSearchResults() to use for
-     * a template search:
+     * Recursively builds an array of the following form for {@link self::mergeSearchResults()} to
+     * use for a template search:
      * <pre>
      * <datatype_id> => array(
      *     'dr_list' => <datarecord_list>,
@@ -2387,11 +2474,11 @@ class SearchAPIService
      * ...where the array structure is recursively repeated inside 'children' and 'links', depending
      * on whether the descendant is a child or a linked datatype.
      *
-     * This function requires that self::buildSearchDatatree() is run on the template datatype first,
-     * so it can modify that result to "pretend" that the template datatypes "own" all records from
-     * all datatypes derived from their relevant templates. See {@link mergeSearchResults()}
+     * This function requires that {@link self::buildSearchDatatree()} is run on the template datatype
+     * first, so it can modify that result to "pretend" that the template datatypes "own" all records
+     * from all datatypes derived from their relevant templates. See {@link self::mergeSearchResults()}
      *
-     * @param array $search_datatree {@link buildSearchDatatree()}
+     * @param array $search_datatree
      * @param array $all_datatypes
      * @param array $all_datarecords
      * @param bool $is_link
@@ -2460,7 +2547,7 @@ class SearchAPIService
      * The primary difficulty with searching in ODR is that the datarecords/datatypes are all
      * effectively "in the same bucket"...there's no viable method to get useful table joins when
      * the backend database is content-agnostic, and when there can be an arbitrarily deep tree of
-     * child/linked datatypes.  Additionally, MYSQL doesn't really like joining these "all in one"
+     * child/linked datatypes.  Additionally, MYSQL really DOES NOT LIKE joining these "all in one"
      * tables together.
      *
      * Therefore, ODR has to explicitly perform much of the logic that a properly defined MYSQL
@@ -2491,9 +2578,9 @@ class SearchAPIService
      * @param array $criteria {@link SearchKeyService::convertSearchKeyToCriteria()}
      * @param bool $is_top_level
      * @param int $datatype_id
-     * @param array $search_datatree {@link buildSearchDatatree()}
+     * @param array $search_datatree {@link self::buildSearchDatatree()}
      * @param array $facet_dr_list
-     * @param array $flattened_list {@link getSearchArrays()}
+     * @param array $flattened_list {@link self::getSearchArrays()}
      * @param bool $differentiate_search_types
      *
      * @return array
@@ -2912,7 +2999,7 @@ class SearchAPIService
      *
      * The recursion looks a little strange in order to avoid recursing into an empty child array.
      *
-     * @param array $flattened_list {@link getSearchArrays()}
+     * @param array $flattened_list {@link self::getSearchArrays()}
      * @param array $inflated_list
      *
      * @return array
@@ -2951,7 +3038,7 @@ class SearchAPIService
      *
      * The recursion looks a little strange in order to avoid recursing into an empty child array.
      *
-     * @param array $flattened_list {@link getSearchArrays()}
+     * @param array $flattened_list {@link self::getSearchArrays()}
      * @param array $dt_list
      *
      * @return array

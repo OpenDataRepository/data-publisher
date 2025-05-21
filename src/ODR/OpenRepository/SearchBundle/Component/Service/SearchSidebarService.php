@@ -210,6 +210,11 @@ class SearchSidebarService
             $sidebar_array = self::constructDefaultSidebarArray($sidebar_datatype_array);
         }
 
+        // Read the datatype array to get the info required so users can change which descendants
+        //  the search includes in the results
+        $tmp = self::createDescendantSelector($sidebar_array['datatype_array'], array($target_datatype_id => 1), '', '');
+        $sidebar_array['descendant_selection'] = $tmp;
+
         if ( !empty($search_params) ) {
             // If a set of initial search params was provided, then ensure the correct radio options
             //  and tags get selected
@@ -737,6 +742,56 @@ class SearchSidebarService
                 }
             }
         }
+    }
+
+
+    /**
+     * There are situations where the user may not want to search all of this datatype's descendants,
+     * necessitating a UI to allow them to change this.  {@link SearchAPIService::getIgnoredPrefixes()}
+     *
+     * @param array $datatype_array
+     * @param array $datatype_ids
+     * @param string $prev_prefix
+     * @param string $prev_label
+     *
+     * @return array
+     */
+    private function createDescendantSelector($datatype_array, $datatype_ids, $prev_prefix, $prev_label)
+    {
+        $descendant_info = array();
+
+        foreach ($datatype_ids as $dt_id => $num) {
+            $dt = $datatype_array[$dt_id];
+
+            $current_prefix = $current_label = '';
+            if ( $prev_prefix === '' ) {
+                $current_prefix = $dt_id;
+                $current_label = $dt['dataTypeMeta']['shortName'];
+            }
+            else {
+                $current_prefix = $prev_prefix.'_'.$dt_id;
+                $current_label = /*$prev_label.' >> '.*/$dt['dataTypeMeta']['shortName'];
+            }
+
+            $descendant_info[$dt_id] = array(
+                'prefix' => $current_prefix,
+                'label' => $current_label,
+                'descendants' => array(),
+            );
+
+            $descendant_ids = array();
+            if ( isset($dt['descendants']) ) {
+                foreach ($dt['descendants'] as $child_dt_id => $child_dt)
+                    $descendant_ids[$child_dt_id] = 0;
+            }
+
+            if ( !empty($descendant_ids) ) {
+                $child_descendant_info = self::createDescendantSelector($datatype_array, $descendant_ids, $current_prefix, $current_label);
+                $descendant_info[$dt_id]['descendants'] = $child_descendant_info;
+            }
+        }
+
+        return $descendant_info;
     }
 
 

@@ -1,0 +1,29 @@
+{% spaceless %}
+
+{% set first_level = '' %}
+{% for dt_id,dt_info in sidebar_array['descendant_selection'] %}
+    {# will only be one at this point #}
+    {% set first_level = dt_info %}
+{% endfor %}
+
+<div class="ODRChangeSearchedDescendants_wrapper">
+    <input id="ODRIgnoredPrefix_list" type="hidden" name="ignore" value="" />
+
+    <label>Use the checkboxes below to change which databases get searched:</label>
+
+    <li class="ODRTagItem">
+        <label>{{ first_level['label'] }}</label>
+
+        <ul class="ODRTagGroup">
+        {% for child_dt_id,child_dt_info in first_level['descendants'] %}
+            {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_entry.html.twig' with {
+                'dt_info': child_dt_info,
+                'search_params': search_params,
+                'parent_is_selected': true,
+            } %}
+        {% endfor %}
+        </ul>
+    </li>
+</div>
+
+{% endspaceless %}

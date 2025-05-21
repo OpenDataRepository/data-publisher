@@ -1,0 +1,37 @@
+{% spaceless %}
+
+<li class="ODRTagItem"  title="Include results from this descendant">
+    {% set prefix = dt_info['prefix'] %}
+    {% set label = dt_info['label'] %}
+
+    {% set is_selected = parent_is_selected %}
+    {% if is_selected == true and search_params['ignore'] is defined %}
+        {% for num,ignore_prefix in search_params['ignore'] %}
+            {% if prefix == ignore_prefix %}
+                {% set is_selected = false %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <label id="ODRSearchPrefix_{{ prefix }}" for="ODRSearchDescendant_{{ prefix }}">
+        <span id="ODRSearchDescendant_{{ prefix }}" class="ODRTwostateCheckbox">
+            <i class="fa {% if is_selected %}fa-check{% endif %}"></i>
+            <input type="hidden" value="{{ prefix }}" />
+        </span>
+        {{ label }}
+    </label>
+
+    {% if dt_info['descendants']|length > 0 %}
+    <ul class="ODRTagGroup">
+        {% for child_dt_id,child_dt_info in dt_info['descendants'] %}
+            {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_entry.html.twig' with {
+                'dt_info': child_dt_info,
+                'search_params': search_params,
+                'parent_is_selected': is_selected,
+            } %}
+        {% endfor %}
+    </ul>
+    {% endif %}
+</li>
+
+{% endspaceless %}
