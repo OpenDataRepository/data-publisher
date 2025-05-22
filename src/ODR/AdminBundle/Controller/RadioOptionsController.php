@@ -1475,6 +1475,11 @@ class RadioOptionsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1591,10 +1596,6 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -1607,10 +1608,6 @@ class RadioOptionsController extends ODRCustomController
 
             // Mark this datarecord as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }

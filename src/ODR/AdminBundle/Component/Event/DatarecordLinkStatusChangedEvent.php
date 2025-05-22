@@ -41,6 +41,11 @@ class DatarecordLinkStatusChangedEvent extends Event implements ODREventInterfac
      */
     private $user;
 
+    /**
+     * @var bool
+     */
+    private $mark_as_updated;
+
 
     /**
      * DatarecordLinkStatusChangedEvent constructor.
@@ -48,15 +53,18 @@ class DatarecordLinkStatusChangedEvent extends Event implements ODREventInterfac
      * @param int[] $datarecord_ids
      * @param DataType $descendant_datatype
      * @param ODRUser $user
+     * @param bool $mark_as_updated
      */
     public function __construct(
         $datarecord_ids,
         DataType $descendant_datatype,
-        ODRUser $user
+        ODRUser $user,
+        bool $mark_as_updated = false
     ) {
         $this->datarecord_ids = $datarecord_ids;
         $this->descendant_datatype = $descendant_datatype;
         $this->user = $user;
+        $this->mark_as_updated = $mark_as_updated;
     }
 
 
@@ -101,6 +109,17 @@ class DatarecordLinkStatusChangedEvent extends Event implements ODREventInterfac
 
 
     /**
+     * Returns whether the event also needs to handle setting ancestor records as updated.
+     *
+     * @return bool
+     */
+    public function getMarkAsUpdated()
+    {
+        return $this->mark_as_updated;
+    }
+
+
+    /**
      * {@inheritDoc}
      */
     public function getEventName()
@@ -117,7 +136,8 @@ class DatarecordLinkStatusChangedEvent extends Event implements ODREventInterfac
         return array(
             self::NAME,
             'dr_ids '.implode(',', $this->datarecord_ids),
-            'dt '.$this->descendant_datatype->getId()
+            'dt '.$this->descendant_datatype->getId(),
+            'mark_as_updated: '.$this->mark_as_updated,
         );
     }
 }

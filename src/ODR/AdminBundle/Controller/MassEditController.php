@@ -1809,15 +1809,16 @@ class MassEditController extends ODRCustomController
             // Locate all datarecords that link to any of the datarecords that will be deleted...
             //  they will need to have their cache entries rebuilt
             $query = $em->createQuery(
-               'SELECT gp.id AS dr_id, gp.unique_id AS dr_uuid
+               'SELECT ancestor.id AS dr_id, ancestor.unique_id AS dr_uuid
                 FROM ODRAdminBundle:LinkedDataTree AS ldt
                 JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS gp WITH ancestor.grandparent = gp
                 WHERE ldt.descendant IN (:datarecord_ids)
-                AND ldt.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND gp.deletedAt IS NULL'
+                AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
             )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
             $results = $query->getArrayResult();
+            // NOTE - the grandparent record intentionally isn't loaded here, for the same reason as
+            //  EntityDeletionService...but it's irrelevant here, because MassEdit only deletes
+            //  top-level records
 
             $dr_ids = array();
             $dr_uuids = array();
@@ -1915,7 +1916,7 @@ class MassEditController extends ODRCustomController
             // -----------------------------------
             // Ensure no records think they're still linked to this now-deleted record
             try {
-                $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user);
+                $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user, true);
                 $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
             }
             catch (\Exception $e) {

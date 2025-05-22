@@ -647,7 +647,7 @@ class EditController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Need to fire off a DatarecordModified event because a file's public status was changed
+            // Need to fire off a DatarecordModified event because a file got renamed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
@@ -783,7 +783,7 @@ class EditController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Need to fire off a DatarecordModified event because a file's public status was changed
+            // Need to fire off a DatarecordModified event because a file got renamed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);

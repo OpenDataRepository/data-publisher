@@ -651,15 +651,15 @@ class EntityDeletionService
             // Locate all datarecords that link to any of the datarecords that will be deleted...
             //  they will need to have their cache entries rebuilt
             $query = $this->em->createQuery(
-               'SELECT DISTINCT(gp.id) AS ancestor_id
+               'SELECT DISTINCT(ancestor.id) AS ancestor_id
                 FROM ODRAdminBundle:LinkedDataTree AS ldt
                 JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS gp WITH ancestor.grandparent = gp
                 WHERE ldt.descendant IN (:datarecord_ids)
-                AND ldt.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND gp.deletedAt IS NULL'
+                AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
             )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
             $results = $query->getArrayResult();
+            // NOTE - the grandparent record intentionally isn't loaded here...the DatarecordModifiedEvent
+            //  and the DatarecordLinkStatusChangedEvent don't assume they're getting grandparent records
 
             $ancestor_datarecord_ids = array();
             foreach ($results as $result)
@@ -765,7 +765,7 @@ class EntityDeletionService
             if ( $is_top_level ) {
                 // ...then ensure no other datarecords think they're still linked to it
                 try {
-                    $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user);
+                    $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user, true);
                     $this->event_dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
                 }
                 catch (\Exception $e) {
