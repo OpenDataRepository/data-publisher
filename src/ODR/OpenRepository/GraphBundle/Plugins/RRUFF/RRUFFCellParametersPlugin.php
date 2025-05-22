@@ -267,15 +267,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $problem_fields[$df_id] = $problem;
             }
 
-            // If all six cellparameter enties exist...
-            $calculated_volume = '';
-            if ( !($field_values['a'] === '' || $field_values['b'] === '' || $field_values['c'] === ''
-                || $field_values['alpha'] === '' || $field_values['beta'] === '' || $field_values['gamma'] === '')
-            ) {
-                // ...then calculate (an approximation of) the volume
-                $calculated_volume = self::calculateVolume($field_values['a'], $field_values['b'], $field_values['c'], $field_values['alpha'], $field_values['beta'], $field_values['gamma']);
-            }
-
 
             // ----------------------------------------
             // Going to need several field identifiers, so various fields can be saved/reloaded at
@@ -287,7 +278,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 'Lattice' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Lattice']['id'],
 
                 // Need this one for the a/b/c/alpha/beta/gamma fields
-                'Volume' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Volume']['id'],
+                'Calculated Volume' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Calculated Volume']['id'],
             );
 
             // Output depends on which context the plugin is being executed from
@@ -299,11 +290,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 if ( isset($field_values['Space Group']) )
                     $field_values['Space Group'] = self::applySymmetryCSS($field_values['Space Group']);
 
-                // If the user hasn't entered a value for volume...
-                if ( !isset($field_values['Volume']) || $field_values['Volume'] === '' ) {
-                    // ...then use the calculated volume directly
-                    $field_values['Volume'] = '<i>'.$calculated_volume.'</i>';
-                }
+                // Surround the calculated volume with italics for display purposes
+                if ( isset($field_values['Calculated Volume']) && $field_values['Calculated Volume'] !== '' )
+                    $field_values['Calculated Volume'] = '<i>'.$field_values['Calculated Volume'].'</i>';
 
                 $record_display_view = 'single';
                 if ( isset($rendering_options['record_display_view']) )
@@ -333,7 +322,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         'problem_fields' => $problem_fields,
 
                         'field_values' => $field_values,
-                        'calculated_volume' => $calculated_volume,
                     )
                 );
             }
@@ -386,7 +374,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         'field_identifiers' => $field_identifiers,
                         'form_token' => $form_token,
 
-                        'calculated_volume' => $calculated_volume,
                         'crystal_systems' => CrystallographyDef::$crystal_systems,
                         'point_groups' => $point_groups,
                         'space_groups' => $space_groups,
@@ -560,6 +547,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     case 'beta':
                     case 'gamma':
                     case 'Volume':
+                    case 'Calculated Volume':
 //                case 'Chemistry':
 //                case 'Pressure':
 //                case 'Temperature':
@@ -605,6 +593,13 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only interested in the contents of datafields mapped to these rpf entries
         $derivations = array(
             'Space Group' => 'Lattice',
+
+            'a' => 'Calculated Volume',
+            'b' => 'Calculated Volume',
+            'c' => 'Calculated Volume',
+            'alpha' => 'Calculated Volume',
+            'beta' => 'Calculated Volume',
+            'gamma' => 'Calculated Volume',
         );
 
         $problems = array();
@@ -615,8 +610,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 // If the source field has a value and the destination field does not, then need to
                 //  locate the id of the destination field
                 foreach ($fields as $df_id => $df_data) {
-                    if ( $df_data['rpf_name'] === $dest_rpf_name ) {
+                    if ( $dest_rpf_name === 'Lattice' && $df_data['rpf_name'] === $dest_rpf_name ) {
                         $problems[$df_id] = 'There seems to be a problem with the contents of the "'.$source_rpf_name.'" field.';
+                    }
+                    else if ( $dest_rpf_name === 'Calculated Volume' && $df_data['rpf_name'] === $dest_rpf_name ) {
+                        $problems[$df_id] = 'Unable to calculate the value for the "Calculated Volume" field.';
                     }
                 }
             }
@@ -687,6 +685,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $alpha = self::getBaseValue($alpha);
         $beta = self::getBaseValue($beta);
         $gamma = self::getBaseValue($gamma);
+
+        // If any of the values are the empty string, then return the empty string as well
+        if ( $a == '' || $b == '' || $c == '' || $alpha == '' || $beta == '' || $gamma == '' )
+            return '';
 
         // The angles need to be converted into radians first...
         $alpha = $alpha * M_PI / 180.0;
@@ -924,7 +926,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
             // Only care about a change to specific fields of a datatype using this render plugin...
             $rpf_name = self::isEventRelevant($datafield);
-            if ( !is_null($rpf_name) ) {
+            if ( !is_null($rpf_name) && $rpf_name !== 'Calculated Volume' ) {
+                // NOTE: the 'Calculated Volume' field is considered relevant in order to make the
+                //  MassEditTrigger event work...but for a PostUpdate event, it makes zero sense to
+                //  execute
+
                 // ----------------------------------------
                 // One of the relevant datafields got changed
                 $source_value = $source_entity->getValue();
@@ -933,17 +939,50 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onPostUpdate()'));
 
                 // Store the renderpluginfield name that will be modified
+                $is_dimension_field = false;
                 $dest_rpf_name = null;
-                if ($rpf_name === 'Space Group')
+                if ($rpf_name === 'Space Group') {
                     $dest_rpf_name = 'Lattice';
+                }
+                elseif ($rpf_name === 'a' || $rpf_name === 'b' || $rpf_name === 'c' || $rpf_name === 'alpha' || $rpf_name === 'beta' || $rpf_name === 'gamma') {
+                    $is_dimension_field = true;
+                    $dest_rpf_name = 'Calculated Volume';
+                }
 
                 // Locate the destination entity for the relevant source datafield
                 $destination_entity = self::findDestinationEntity($user, $datatype, $datarecord, $dest_rpf_name);
 
                 // Derive the new value for the destination entity
                 $derived_value = null;
-                if ($rpf_name === 'Space Group')
+                if ($rpf_name === 'Space Group') {
                     $derived_value = substr($source_value, 0, 1);
+                }
+                else if ($is_dimension_field) {
+                    // The Calculated Volume field depends on six fields, but only have the one here
+                    $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                    $dr_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);
+
+                    // The value for $is_datatype_admin shouldn't matter, but make it throw an
+                    //  exception if something is wrong
+                    $dt = $dt_array[$datatype->getId()];
+                    $dr = $dr_array[$datarecord->getId()];
+                    $ret = self::getPluginData($dt, $dr, false);
+                    $field_values = $ret['values'];
+
+                    // The catch with doing it this way is that the datarecord array has the old
+                    //  value for the field that got changed...need to replace the old value with
+                    //  the new value prior to running the calculation
+                    $field_values[$rpf_name] = $source_value;
+
+                    $derived_value = self::calculateVolume(
+                        $field_values['a'],
+                        $field_values['b'],
+                        $field_values['c'],
+                        $field_values['alpha'],
+                        $field_values['beta'],
+                        $field_values['gamma']
+                    );
+                }
 
                 // ...which is saved in the storage entity for the datafield
                 $this->entity_modify_service->updateStorageEntity(
@@ -1044,17 +1083,49 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onMassEditTrigger()'));
 
                     // Store the renderpluginfield name that will be modified
+                    $is_dimension_field = false;
                     $dest_rpf_name = null;
                     if ($rpf_name === 'Space Group')
                         $dest_rpf_name = 'Lattice';
+                    elseif ($rpf_name === 'Calculated Volume') {
+                        // The Calculated Volume field is handled differently...
+                        $is_dimension_field = true;
+                        $dest_rpf_name = 'Calculated Volume';
+                    }
 
                     // Locate the destination entity for the relevant source datafield
                     $destination_entity = self::findDestinationEntity($user, $datatype, $datarecord, $dest_rpf_name);
 
                     // Derive the new value for the destination entity
                     $derived_value = null;
-                    if ($rpf_name === 'Space Group')
+                    if ($rpf_name === 'Space Group') {
                         $derived_value = substr($source_value, 0, 1);
+                    }
+                    else if ($is_dimension_field) {
+                        // The Calculated Volume field depends on six fields, but only have the one here
+                        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                        $dr_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);
+
+                        // The value for $is_datatype_admin shouldn't matter, but make it throw an
+                        //  exception if something is wrong
+                        $dt = $dt_array[$datatype->getId()];
+                        $dr = $dr_array[$datarecord->getId()];
+                        $ret = self::getPluginData($dt, $dr, false);
+                        $field_values = $ret['values'];
+
+                        // Unlike with PostUpdate event, the MassEditTrigger event only happens when
+                        //  nothing got changed...so there's no need to overwrite an existing value
+                        //  from the cached datarecord array
+
+                        $derived_value = self::calculateVolume(
+                            $field_values['a'],
+                            $field_values['b'],
+                            $field_values['c'],
+                            $field_values['alpha'],
+                            $field_values['beta'],
+                            $field_values['gamma']
+                        );
+                    }
 
                     // ...which is saved in the storage entity for the datafield
                     $this->entity_modify_service->updateStorageEntity(
@@ -1112,6 +1183,17 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only interested in changes made to the datafields mapped to these rpf entries
         $relevant_datafields = array(
             'Space Group' => 'Lattice',
+
+            // Need to define it this way for PostUpdateEvent...
+            'a' => 'Calculated Volume',
+            'b' => 'Calculated Volume',
+            'c' => 'Calculated Volume',
+            'alpha' => 'Calculated Volume',
+            'beta' => 'Calculated Volume',
+            'gamma' => 'Calculated Volume',
+
+            // Need to also define it this way for MassEditTriggerEvent...
+            'Calculated Volume' => 'Calculated Volume',
         );
 
         foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
@@ -1179,15 +1261,24 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             return array();
         $render_plugin_map = $render_plugin_instance['renderPluginMap'];
 
-        // This plugin has one derived field...
+        // This plugin has two derived fields...
         //  - "Lattice" is derived from "Space Group"
         $lattice_df_id = $render_plugin_map['Lattice']['id'];
         $space_group_df_id = $render_plugin_map['Space Group']['id'];
+        //  - "Calculated Volume", which depends on six other fields
+        $a_df_id = $render_plugin_map['a']['id'];
+        $b_df_id = $render_plugin_map['b']['id'];
+        $c_df_id = $render_plugin_map['c']['id'];
+        $alpha_df_id = $render_plugin_map['alpha']['id'];
+        $beta_df_id = $render_plugin_map['beta']['id'];
+        $gamma_df_id = $render_plugin_map['gamma']['id'];
+        $calculated_volume_df_id = $render_plugin_map['Calculated Volume']['id'];
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
-        //  to be in an array (even though that's not the case here)
+        //  to be in an array
         return array(
             $lattice_df_id => array($space_group_df_id),
+            $calculated_volume_df_id => array($a_df_id, $b_df_id, $c_df_id, $alpha_df_id, $beta_df_id, $gamma_df_id),
         );
     }
 
@@ -1330,9 +1421,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             'Point Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Point Group'],
             'Space Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Space Group'],
             'Lattice' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Lattice'],
-
-            // Need this one for the a/b/c/alpha/beta/gamma fields
-            'Volume' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Volume'],
         );
 
         if ( $rpf_name === 'Crystal System'
@@ -1367,27 +1455,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 'space_groups' => $space_groups,
             );
         }
-        else if (
-            $rpf_name === 'a' || $rpf_name === 'b' || $rpf_name === 'c'
-            || $rpf_name === 'alpha' || $rpf_name === 'beta' || $rpf_name === 'gamma'
-            || $rpf_name === 'Volume'
-        ) {
-            $calculated_volume = '';
-            if ( !($field_values['a'] === '' || $field_values['b'] === '' || $field_values['c'] === ''
-                || $field_values['alpha'] === '' || $field_values['beta'] === '' || $field_values['gamma'] === '')
-            ) {
-                // ...then calculate (an approximation of) the volume
-                $calculated_volume = self::calculateVolume($field_values['a'], $field_values['b'], $field_values['c'], $field_values['alpha'], $field_values['beta'], $field_values['gamma']);
-            }
-
-            return array(
-                'token_list' => array(),    // so ODRRenderService generates CSRF tokens
-                'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_dimension_datafield.html.twig',
-
-                'plugin_fields' => $plugin_fields,
-                'calculated_volume' => $calculated_volume,
-            );
-        }
 
         // Otherwise, don't want to override the default reloading for this field
         return array();
@@ -1405,6 +1472,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
             'Space Group' => 'Lattice',
+
+            // Due to the calculated volume requiring six different fields, it's better to have the
+            //  thingy on the one field...
+            'Calculated Volume' => 'Calculated Volume',
         );
 
         $ret = array();
@@ -1425,6 +1496,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
             'Space Group' => 'Lattice',
+
+            // Due to the calculated volume requiring six different fields, it's better to have the
+            //  thingy on the one field...
+            'Calculated Volume' => 'Calculated Volume',
         );
 
         $trigger_fields = array();
@@ -1454,13 +1529,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             switch ($rpf_name) {
                 case 'Point Group':
                 case 'Space Group':
-                case 'a':
-                case 'b':
-                case 'c':
-                case 'alpha':
-                case 'beta':
-                case 'gamma':
-                case 'Volume':
+                case 'Calculated Volume':
                     // This is a field of interest...
                     $df_id = $rpf['id'];
                     $current_values[$rpf_name] = array(
@@ -1486,20 +1555,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $values[$space_group_df_id] = self::applySymmetryCSS( $current_values['Space Group']['value'] );
         }
 
-        // The Volume needs to be calculated if it does not already exist...
-        if ( $current_values['Volume']['value'] === '' ) {
-            $volume_df_id = $current_values['Volume']['id'];
-
-            // ...but only if the six cellparameter values exist
-            $a = $current_values['a']['value'];
-            $b = $current_values['b']['value'];
-            $c = $current_values['c']['value'];
-            $alpha = $current_values['alpha']['value'];
-            $beta = $current_values['beta']['value'];
-            $gamma = $current_values['gamma']['value'];
-
-            if ( $a !== '' && $b !== '' && $c !== '' && $alpha !== '' && $beta !== '' && $gamma !== '')
-                $values[$volume_df_id] = '<i>'.self::calculateVolume($a, $b, $c, $alpha, $beta, $gamma).'</i>';
+        // The Calculated Volume field should also get italics here
+        if ( $current_values['Calculated Volume']['value'] !== '' ) {
+            $calculated_volume_df_id = $current_values['Calculated Volume']['id'];
+            $values[$calculated_volume_df_id] = '<i>'.$current_values['Calculated Volume']['value'].'</i>';
         }
 
         // Return all modified values

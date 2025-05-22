@@ -35,18 +35,6 @@
 {% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
 {% set input_name = field_typeclass ~ 'Form[value]' %}
 
-{% set is_volume_field = false %}
-{% if plugin_fields[ datafield.id ]['rpf_name'] == "Volume" %}
-    {% set is_volume_field = true %}
-{% endif %}
-
-{% set volume_df_id = '' %}
-{% for df_id,df in plugin_fields %}
-    {% if df['rpf_name'] == "Volume" %}
-        {% set volume_df_id = df_id %}
-    {% endif %}
-{% endfor %}
-
     <form
         autocomplete="off"
         action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
@@ -65,9 +53,6 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
-                {% if is_volume_field %}
-                &nbsp;<i class="fa fa-info-circle Info" title="Calculated volume: {{ calculated_volume }}"></i>
-                {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
@@ -140,36 +125,12 @@
             submitHandler: function(form) {
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
-                    {{ field_typeclass }}Interval_{{ unique_id }}
-                {% if not is_volume_field %}, setTimeout( "ReloadEditDatafield({{ datarecord.id }}, {{ volume_df_id }})", 1000 ){% endif %}
-                );    {# IMPORTANT - need to reload the datafield on a timeout so that the save can actually go through before ODR attempts to reload the field #}
-
-                {# TODO - this is not the correct way of saving changes to these properties... #}
-                {# TODO - the server needs to automatically run these so loss of network won't leave the database out of sync with its metadata #}
-                // Need to check if this is a datatype properties value
-                var field_reference = jQuery('#Input_{{ unique_id }}').children(':first-child').attr('rel');
-                switch(field_reference) {
-                    case 'database_name':
-                        // Update datatype meta with this value for short and long name
-                        if(typeof saveDatatypeMeta === "function") {
-                            saveDatatypeMeta(
-                                field_reference,
-                                jQuery('#Input_{{ unique_id }}').children(':first-child').val()
-                            )
-                        }
-                        break;
-
-                    case 'database_description':
-                        // Update datatype meta with this value for description
-                        if(typeof saveDatatypeMeta === "function") {
-                            saveDatatypeMeta(
-                                field_reference,
-                                jQuery('#Input_{{ unique_id }}').children(':first-child').val()
-                            )
-                        }
-                        break;
-
-                }
+                    {{ field_typeclass }}Interval_{{ unique_id }},
+                    function() {
+                        {# want to reload whichever datafield depends on this field's value #}
+                        ReloadEditDatafield( {{ datarecord.id }}, {{ derived_datafield_id }} );
+                    }
+                );
             }
             // focusInvalid: false
         });

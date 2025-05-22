@@ -3,7 +3,7 @@ odr_plugins.rruff.cell_parameters:
     category: RRUFF
     plugin_type: datatype
     render: odr_plugins.rruff.cell_parameters
-    version: 1.1.0
+    version: 1.2.0
     override_fields: true
     override_field_reload: true
     override_child: false
@@ -29,6 +29,7 @@ odr_plugins.rruff.cell_parameters:
             name: Cell Parameter ID
             description: An external ID used for the data
             type: IntegerValue
+            display_order: 1
             properties:
                 - is_optional    # optional because this plugin is also used for RRUFF X-Ray Diffraction, which doesn't need this...
                 - autogenerate_values
@@ -48,6 +49,7 @@ odr_plugins.rruff.cell_parameters:
             name: Crystal System
             description:
             type: ShortVarchar
+            display_order: 2
 #            properties:
 #                - no_user_edits
         # ...a grand total of 32 point groups...
@@ -55,6 +57,7 @@ odr_plugins.rruff.cell_parameters:
             name: Point Group
             description:
             type: ShortVarchar
+            display_order: 3
 #            properties:
 #                - no_user_edits
         # ...and a grand total of 230 "official" space groups...though basically all of them allow
@@ -63,6 +66,7 @@ odr_plugins.rruff.cell_parameters:
             name: Space Group
             description:
             type: ShortVarchar
+            display_order: 4
 #            properties:
 #                - no_user_edits
 
@@ -74,6 +78,7 @@ odr_plugins.rruff.cell_parameters:
             name: Lattice
             description:
             type: ShortVarchar
+            display_order: 5
             properties:
                 - is_derived
                 - no_user_edits
@@ -84,32 +89,47 @@ odr_plugins.rruff.cell_parameters:
             name: a
             description:
             type: ShortVarchar
+            display_order: 6
         b:
             name: b
             description:
             type: ShortVarchar
+            display_order: 7
         c:
             name: c
             description:
             type: ShortVarchar
+            display_order: 8
         alpha:
             name: alpha
             description:
             type: ShortVarchar
+            display_order: 9
         beta:
             name: beta
             description:
             type: ShortVarchar
+            display_order: 10
         gamma:
             name: gamma
             description:
             type: ShortVarchar
-        # ...but allowed the user to override the volume, typically used when the reference authors
+            display_order: 11
+        # ...but allowed the user to enter the volume, typically used when the reference authors
         #  bothered to actually calculate it
         volume:
             name: Volume
             description:
             type: ShortVarchar
+            display_order: 12
+        calculated_volume:
+            name: Calculated Volume
+            description:
+            type: ShortVarchar
+            display_order: 13
+            properties:
+                - is_derived
+                - no_user_edits
 
         # ----------------------------------------
         # These fields only exist to make the data easier to import
@@ -117,24 +137,28 @@ odr_plugins.rruff.cell_parameters:
             name: Chemistry
             description:
             type: LongVarchar
+            display_order: 14
             properties:
                 - is_optional
         pressure:
             name: Pressure
             description:
             type: ShortVarchar
+            display_order: 15
             properties:
                 - is_optional
         temperature:
             name: Temperature
             description:
             type: ShortVarchar
+            display_order: 16
             properties:
                 - is_optional
         notes:
             name: Notes
             description:
             type: LongText
+            display_order: 17
             properties:
                 - is_optional
 

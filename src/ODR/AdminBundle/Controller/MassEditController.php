@@ -1177,7 +1177,7 @@ class MassEditController extends ODRCustomController
 
             // If the datafield is set to prevent user edits, then prevent this controller action
             //  from making a change to it
-            if ( $datafield->getPreventUserEdits() )
+            if ( $datafield->getPreventUserEdits() && empty($event_trigger) )
                 throw new ODRForbiddenException('MassEditCommand.php: Datafield '.$datafield_id.' is set to prevent_user_edits, skipping');
 
             // Do not make changes to the record if edits are blocked
@@ -1195,7 +1195,7 @@ class MassEditController extends ODRCustomController
                 // Ensure a datarecordfield entity exists...
                 $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
-                if ( !is_null($value) ) {
+                if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
                     // Load all selection objects attached to this radio object
                     $radio_selections = array();
                     /** @var RadioSelection[] $tmp */
@@ -1270,7 +1270,7 @@ class MassEditController extends ODRCustomController
                 // Ensure a datarecordfield entity exists...
                 $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
-                if ( !is_null($value) ) {
+                if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
                     // Need to ensure the values are numeric
                     $selections = array();
                     foreach ($value as $tag_id => $val)
@@ -1312,7 +1312,7 @@ class MassEditController extends ODRCustomController
                 if ( count($results) > 0 )
                     $has_files = true;
 
-                if ( !is_null($value) && $value !== 0 && $has_files ) {
+                if ( !$datafield->getPreventUserEdits() && !is_null($value) && $value !== 0 && $has_files ) {
                     // Only makes sense to do stuff if there's at least one file uploaded
                     $files_changed = array();
 
@@ -1401,7 +1401,7 @@ class MassEditController extends ODRCustomController
                 if ( count($results) > 0 )
                     $has_images = true;
 
-                if ( !is_null($value) && $value !== 0 && $has_images ) {
+                if ( !$datafield->getPreventUserEdits() && !is_null($value) && $value !== 0 && $has_images ) {
                     // Only makes sense to do stuff if there's at least one image uploaded
                     $images_changed = array();
 
@@ -1482,7 +1482,7 @@ class MassEditController extends ODRCustomController
                 $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
                 $old_value = $storage_entity->getStringValue();
 
-                if ( !is_null($value) ) {
+                if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
                         $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
@@ -1540,7 +1540,7 @@ class MassEditController extends ODRCustomController
             }
             else {
                 // For every other fieldtype...
-                if ( !is_null($value) ) {
+                if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
                     // Ensure the storage entity exists, since it'll get a value anyways
                     /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
                     $storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);

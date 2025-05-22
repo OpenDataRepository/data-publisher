@@ -40,7 +40,7 @@
                     {% if plugin_fields[ datafield.id ] is defined and
                         (plugin_fields[ datafield.id ]['rpf_name'] == "Point Group"
                             or plugin_fields[ datafield.id ]['rpf_name'] == "Space Group"
-                            or plugin_fields[ datafield.id ]['rpf_name'] == "Volume"
+                            or plugin_fields[ datafield.id ]['rpf_name'] == "Calculated Volume"
                         )
                     %}
                         {% set rpf_name = plugin_fields[ datafield.id ]['rpf_name'] %}
@@ -58,7 +58,6 @@
 
                                 'rpf_name': rpf_name,
                                 'field_values': field_values,
-                                'calculated_volume': calculated_volume,
                             } %}
                         {% else %}
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
