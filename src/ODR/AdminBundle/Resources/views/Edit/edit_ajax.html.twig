@@ -2019,12 +2019,16 @@ function DeleteLinkedRecord(datarecord_id) {
     url = url.substring(0,(url.length - 3));
     url += datarecord_id + '/1';
 
-    // Store true parent record so we can reload parent
-    var parent_data = $("#FieldArea_" + datarecord_id).closest(".ODRChildDatatype").attr('id').split(/_/);
-    // console.log('Parent data: ', parent_data);
+    // Locate each HTML element that has to be reloaded as a result of this deletion
+    var parent_data = [];
+    $(".ODRDataType").find("#FieldArea_" + datarecord_id).each(function(index,elem) {
+        var parent = $(elem).closest(".ODRChildDatatype").attr('id').split(/_/);
+        var datatype_id = parent[1];
+        var parent_id = parent[2];
 
-    var datatype_id = parent_data[1];
-    var parent_id = parent_data[2];
+        parent_data.push({datatype_id, parent_id});
+    });
+    // console.log('Parent data: ', parent_data);  return;
 
     $.ajax({
         cache: false,
@@ -2033,7 +2037,9 @@ function DeleteLinkedRecord(datarecord_id) {
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             // Refresh child wrapper area
-            ReloadEditChild(datatype_id, parent_id);
+            for (const data of parent_data) {
+                ReloadEditChild(data['datatype_id'], data['parent_id']);
+            }
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error

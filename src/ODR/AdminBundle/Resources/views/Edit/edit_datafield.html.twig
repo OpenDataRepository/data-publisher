@@ -531,7 +531,8 @@
             submitHandler: function(form) {
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
-                    {{ field_typeclass }}Interval_{{ unique_id }}
+                    {{ field_typeclass }}Interval_{{ unique_id }},
+                    notifySaved()
                 );
             }
         });
