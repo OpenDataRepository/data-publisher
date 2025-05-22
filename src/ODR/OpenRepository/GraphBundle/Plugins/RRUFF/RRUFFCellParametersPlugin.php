@@ -545,39 +545,41 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             }
 
             // Might need to reference the values of each of these fields
-            $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-            switch ($rpf_name) {
+            if ( !is_null($df) ) {
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                switch ($rpf_name) {
 //                case 'Cell Parameter ID':
-                case 'Crystal System':
-                case 'Point Group':
-                case 'Space Group':
-                case 'Lattice':
-                case 'a':
-                case 'b':
-                case 'c':
-                case 'alpha':
-                case 'beta':
-                case 'gamma':
-                case 'Volume':
+                    case 'Crystal System':
+                    case 'Point Group':
+                    case 'Space Group':
+                    case 'Lattice':
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                    case 'alpha':
+                    case 'beta':
+                    case 'gamma':
+                    case 'Volume':
 //                case 'Chemistry':
 //                case 'Pressure':
 //                case 'Temperature':
 //                case 'Notes':
 
-                    $value = '';
-                    if ($typeclass === 'ShortVarchar' &&
-                        isset($datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'])
-                    ) {
-                        $value = $datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'];
-                    }
-                    else if ($typeclass === 'DecimalValue' &&
-                        isset($datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'])
-                    ) {
-                        $value = $datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'];
-                    }
+                        $value = '';
+                        if ($typeclass === 'ShortVarchar' &&
+                            isset($datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'])
+                        ) {
+                            $value = $datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'];
+                        }
+                        else if ($typeclass === 'DecimalValue' &&
+                            isset($datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'])
+                        ) {
+                            $value = $datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'];
+                        }
 
-                    $field_values[$rpf_name] = $value;
-                    break;
+                        $field_values[$rpf_name] = $value;
+                        break;
+                }
             }
         }
 
