@@ -3905,7 +3905,8 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRSearchHelp,
 .ODRChooseSidebarLayout,
-.ODREditSearchNotes {
+.ODREditSearchNotes,
+.ODRChangeSearchedDescendants {
     padding-left: 5px;
     cursor: pointer;
 }
@@ -5493,4 +5494,51 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     position: relative;
     width: 99%;
     top: 0.5em;
+}
+
+.ODRTwostateCheckbox {
+    cursor: pointer;
+    border: 2px solid #666;
+    border-radius: 5px;
+    height: 1.5em;
+    width: 1.5em;
+    display: inline-block;
+    margin-right: 5px;
+    float: left;
+}
+.ODRTwostateCheckbox > .fa {
+    line-height: 1.6em;
+    padding: 0 0 0 0 !important;
+    margin: 0 0 0 0 !important;
+    position: relative;
+    top: -3px;
+    left: 3px;
+}
+.ODRTwostateCheckbox:hover, .ODRTwostateCheckbox:active, .ODRTwostateCheckbox:focus {
+    background: #9cd4d4;
+}
+.ODRTwostateCheckbox > .fa-check {
+    color: green;
+}
+.ODRTwostateCheckbox > .partial {
+    color: grey !important;
+}
+
+.ODRChangeSearchedDescendants_wrapper label {
+    margin-left: 5px !important;
+}
+.ODRChangeSearchedDescendants_wrapper li {
+    list-style-type: none;
+}
+.ODRChangeSearchedDescendants_wrapper .ODRTagLabel {
+    margin-left: 4px !important;
+    cursor: default;
+    display: inline !important;
+}
+.ODRChangeSearchedDescendants_wrapper .ODRTagLabel p {
+    display: inline;
+}
+.ODRChangeSearchedDescendants_wrapper > .ODRTagGroup:before {
+    /* no vertical line on left for top-level tags */
+    background-color: inherit;
 }

@@ -101,6 +101,12 @@ class SearchKeyService
      */
     public function encodeSearchKey($search_params)
     {
+        // If this parameter exists and is in array format...
+        if ( isset($search_params['ignore']) && is_array($search_params['ignore']) ) {
+            // ...convert it back into a string
+            $search_params['ignore'] = implode(',', $search_params['ignore']);
+        }
+
         // Always sort the array to ensure it comes out the same
         ksort($search_params);
         // Encode the search string and strip any padding characters at the end
@@ -130,6 +136,11 @@ class SearchKeyService
         }
         else {
             ksort($array);
+
+            // Slightly easier if this parameter is converted into an array...
+            if ( isset($array['ignore']) )
+                $array['ignore'] = explode(',', $array['ignore']);
+
             return $array;
         }
     }
@@ -683,6 +694,16 @@ class SearchKeyService
                         throw new ODRBadRequestException('Invalid search key: element '.$num.' in "sort_by" segment, sort_df_id "'.$sort_df_id.'" cannot be sorted', $exception_code);
                 }
             }
+            else if ( $key === 'ignore' ) {
+                // self::decodeSearchKey() has already exploded this value if it exists
+                foreach ($value as $num => $prefix) {
+                    $dt_ids = explode('_', $prefix);
+                    foreach ($dt_ids as $num => $dt_id) {
+                        if ( !isset($datatype_array[$dt_id]) )
+                            throw new ODRBadRequestException('Invalid search key: the prefix "'.$prefix.'" refers to a descendant that is not related to this datatype', $exception_code);
+                    }
+                }
+            }
             else if ( is_numeric($key) ) {
                 // Ensure the datafield is valid to search on
                 $df_id = intval($key);
@@ -980,7 +1001,7 @@ class SearchKeyService
 
         foreach ($search_params as $key => $value) {
 
-            if ( $key === 'dt_id' || $key === 'inverse' ) {
+            if ( $key === 'dt_id' || $key === 'inverse' || $key === 'ignore' ) {
                 // Don't want to do anything with these keys
                 continue;
             }
@@ -2085,7 +2106,7 @@ class SearchKeyService
         $readable_search_key = array();
         foreach ($search_params as $key => $value) {
             // Ignore these keys
-            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' )
+            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' || $key === 'ignore' )
                 continue;
 
             if ( $key === 'gen' || $key === 'gen_lim' ) {

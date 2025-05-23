@@ -418,7 +418,9 @@ class CryptoService
         }
 
         try {
-            $event = new DatarecordModifiedEvent($datarecord, $user, false);    // Do NOT mark the record as updated in the database
+            // Do NOT mark the record as updated in the database after encryption finished...stuff
+            //  was already marked as updated when the initial upload was completed
+            $event = new DatarecordModifiedEvent($datarecord, $user, false);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
         catch (\Exception $e) {

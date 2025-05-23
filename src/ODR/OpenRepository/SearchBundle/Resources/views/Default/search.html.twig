@@ -112,6 +112,13 @@
             callback = function() {}
 
         // ----------------------------------------
+        var top_level_tag_group = $(context).find(".ODRChangeSearchedDescendants_wrapper").children("li.ODRTagItem").children("ul.ODRTagGroup").first();
+        var ignored_prefixes = determineIgnoredPrefixes(top_level_tag_group);
+        if ( ignored_prefixes.length > 0 )
+            $("#ODRIgnoredPrefix_list").val( ignored_prefixes.join(',') ).prop('disabled', false);
+        else
+            $("#ODRIgnoredPrefix_list").val('').prop('disabled', true);    // TODO - won't be the case when default ignored prefixes exist
+
         // Values for Radio datafields need to be manually set
         $(context).find(".ODRRadioSearchDiv").each(function () {
             var data = $(this).attr('id').split(/_/);
@@ -428,7 +435,6 @@
 
     /**
      * Filters the displayed options/tags for a field in the search sidebar.
-     *
      * @param {HTMLElement} context
      * @param {number} df_id
      */
@@ -487,6 +493,38 @@
                 });
             }
         }
+    }
+
+    /**
+     * Returns which descendants the search should ignore, if any.
+     * @param {HTMLElement} tag_group
+     * @return array
+     */
+    function determineIgnoredPrefixes(tag_group) {
+        var prefixes = [];
+
+        $(tag_group).children('li.ODRTagItem').each(function(index,elem) {
+            var info_span =  $(elem).children('label').children('span').first();
+            var icon = $(info_span).children('i');
+            var prefix_val = $(info_span).children('input').val();
+
+            if ( $(icon).hasClass('fa-check') ) {
+                // User does want to search this descendant...if it has a descendant of its own...
+                var child_tag_group = $(elem).children('ul.ODRTagGroup');
+                if ( $(child_tag_group).length > 0 ) {
+                    var child_prefixes = determineIgnoredPrefixes( $(child_tag_group) );
+                    if ( child_prefixes.length > 0 )
+                        prefixes.push(...child_prefixes);
+                }
+            }
+            else {
+                // User does not want to search this descendant...don't need to check any of this
+                //  descendant's descendants
+                prefixes.push( prefix_val );
+            }
+        });
+
+        return prefixes;
     }
 </script>
 

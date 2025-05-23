@@ -61,6 +61,7 @@ class SearchAPIServiceTest extends WebTestCase
      */
     public function testPerformSearchCompleteDatarecordList($search_params, $expected_datarecord_ids, $search_as_super_admin)
     {
+        exec('redis-cli flushall');
         $client = static::createClient();
         if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
             $this->markTestSkipped('Wrong database');
@@ -90,6 +91,37 @@ class SearchAPIServiceTest extends WebTestCase
      * @dataProvider provideInverseSearchParams
      */
     public function testInverseSearch($search_params, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $client->getContainer()->get('odr.search_key_service');
+
+        // Convert each array of search params into a search key, then run the search
+        $search_key = $search_key_service->encodeSearchKey($search_params);
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,         // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),      // search testing is with either zero permissions, or super-admin permissions
+            false,        // only want grandparent datarecord ids here
+            array(),      // testing doesn't need a specific set of sort datafields...
+            array(),      // ...or a specific sort order
+            $search_as_super_admin
+        );
+
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
+    /**
+     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
+     * @dataProvider provideIgnoreDescendantsSearchParams
+     */
+    public function testIgnoreDescendants($search_params, $expected_grandparent_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
@@ -1514,6 +1546,62 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 array(1,35,63,83),  // should only have the four references that directly mention "abelsonite", despite "532" matching pretty much every RRUFF Sample...
                                     // ...9 and 77 shouldn't match due to the article_title
+                true
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function provideIgnoreDescendantsSearchParams()
+    {
+        /*
+         * These tests are for a "ignoring descendants"...the underlying database has these relations:
+         * RRUFF Sample
+         *  - IMA Mineral (linked to RRUFF Sample)
+         *     - RRUFF Reference (linked to IMA Mineral)
+         *  - RRUFF Reference (linked to RRUFF Sample)
+         *  - Raman Spectra (child of RRUFF Sample)
+         *
+         * As you notice, RRUFF Reference is "in there twice"...ODR already "smears" the merging so
+         * that a hit in either link eventually bubbles up, but it can be useful to get ODR to "ignore"
+         * one of the links in order to focus on the other.
+         *
+         * In this specific layout, for instance, disabling the IMA Mineral -> RRUFF Reference link
+         * allows you to figure out which RRUFF Samples link directly to a RRUFF Reference.  It can
+         * also be useful to limit how much general search can run amok.
+         */
+
+        return [
+            // ----------------------------------------
+            'RRUFF Sample: search for article title not blank, but ignore IMA Mineral link...including non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    2 => '!""',
+                    'ignore' => "3_2"  // Ignore everything from IMA Mineral and its descendants
+                ),
+                array(107, 126),  // These are the only two records from RRUFF Sample that link directly to RRUFF Reference
+                true
+            ],
+
+            'RRUFF Sample: search for article title containing "Abelsonite", but ignore the direct link...including non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    2 => 'abelsonite',
+                    'ignore' => "3_1"  // Ignore everything from the RRUFF Samples -> RRUFF Reference link
+                ),
+                array(98, /*126*/),  // 98 has the reference linked via IMA, while 126 has the reference directly linked
+                true
+            ],
+
+            'RRUFF Sample: search for mineral name containing "b", but ignore IMA Mineral Link...including non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '17' => "b",
+                    'ignore' => "3_2"  // Ignore everything from IMA Mineral and its descendants
+                ),
+                array(),  // Will be no results due to ignoring IMA Mineral
                 true
             ],
         ];

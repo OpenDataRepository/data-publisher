@@ -150,7 +150,7 @@ class PluginsController extends ODRCustomController
                 continue;
 
             // Don't want the interfaces in the directory...
-            if ( strrpos($plugin_category, '.php', -4) !== false )
+            if ( substr($plugin_category, -4) === '.php' )
                 continue;
 
             $plugin_directory = $plugin_base_dir.'/'.$plugin_category;
@@ -160,7 +160,7 @@ class PluginsController extends ODRCustomController
                     continue;
 
                 // Only want names of php files...
-                if ( strrpos($filename, '.php', -4) !== false ) {
+                if ( substr($filename, -4) === '.php' ) {
                     // ...in order to get to their yml config files...
                     $stub = substr($filename, 0, -4);
                     $config_filename = $stub.'.yml';

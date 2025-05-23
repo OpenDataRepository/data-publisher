@@ -1217,8 +1217,18 @@ class LinkController extends ODRCustomController
                 // Locate and delete all Datatree and LinkedDatatree entries for the previous link
                 $datarecords_to_update = self::deleteDatatreeEntries($em, $user, $previous_datatree, $local_datatype_id, $previous_remote_datatype_id);
 
-                // Mark all Datarecords that used to link to the remote datatype as updated
-                self::updateDatarecordEntries($em, $user, $datarecords_to_update, $previous_remote_datatype);
+                // Locate and clear all cache entries claiming that a datarecord links to something
+                //  in $datarecord_ids
+                try {
+                    $event = new DatarecordLinkStatusChangedEvent($datarecords_to_update, $previous_remote_datatype, $user, true);
+                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
 
                 // ----------------------------------------
                 // Determine whether one of the local datatype's name/sortfields belongs to a remote
@@ -1821,57 +1831,6 @@ class LinkController extends ODRCustomController
 
         // Return a list of datarecord ids that need to get recached
         return $datarecord_ids;
-    }
-
-
-    /**
-     * Given a list of datarecord ids compiled by {@link self::deleteDatatreeEntries}, marks all those
-     * datarecord ids as updated and deletes related cache entries.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param ODRUser $user
-     * @param int[] $datarecord_ids
-     * @param DataType $previous_remote_datatype
-     */
-    private function updateDatarecordEntries($em, $user, $datarecord_ids, $previous_remote_datatype)
-    {
-        // Do NOT want to fire off DatarecordModified events here...it could require hydration of
-        //  thousands of datarecords
-
-        // ...since DatarecordModified events aren't being used, that means all relevant datarecords
-        //  can be marked as updated with a single DQL statement
-        $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:DataRecord AS dr
-            SET dr.updated = :now, dr.updatedBy = :user_id
-            WHERE dr.id IN (:datarecord_ids) AND dr.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'now' => new \DateTime(),
-                'user_id' => $user->getId(),
-                'datarecord_ids' => $datarecord_ids,
-            )
-        );
-        $query->execute();
-
-        // Clearing the datarecord cache entries is handled by the DatatypeModified event that gets
-        //  fired later on
-
-        // Locate and clear all cache entries claiming that a datarecord links to something
-        //  in $datarecord_ids
-        try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-            /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
-            $event = new DatarecordLinkStatusChangedEvent($datarecord_ids, $previous_remote_datatype, $user);
-            $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
-        }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
-        }
     }
 
 
@@ -2797,8 +2756,10 @@ class LinkController extends ODRCustomController
                         // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
                         // Setup for figuring out which cache entries need deleted
-                        $gp_dr = $ldt->getAncestor()->getGrandparent();
-                        $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
+                        $dr = $ldt->getAncestor();
+                        $records_needing_events[ $dr->getId() ] = $dr;
+                        // NOTE - the record may not be top-level...the two events that depend on the
+                        //  $records_needing_events array will adjust for this
 
                         // Delete the linked_datatree entry
                         $ldt->setDeletedBy($user);
@@ -2872,13 +2833,15 @@ class LinkController extends ODRCustomController
                 $entity_create_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
 
                 // Setup for figuring out which cache entries need deleted
-                $gp_dr = $ancestor_datarecord->getGrandparent();
-                $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
+                $records_needing_events[ $ancestor_datarecord->getId() ] = $ancestor_datarecord;
+                // NOTE - the record may not be top-level...the two events that depend on the
+                //  $records_needing_events array will adjust for this
 
                 // If there's a "secondary" datatree for this relation...
                 if ( $has_secondary_datatree ) {
                     // ...then due to the rules, we can satisfy it by calling createDatarecordLink()
                     //  again with the grandparent datarecord
+                    $gp_dr = $ancestor_datarecord->getGrandparent();
                     $entity_create_service->createDatarecordLink($user, $gp_dr, $descendant_datarecord);
                 }
 
@@ -3145,8 +3108,10 @@ class LinkController extends ODRCustomController
                     // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
                     // Setup for figuring out which cache entries need deleted
-                    $gp_dr = $ldt->getAncestor()->getGrandparent();
-                    $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
+                    $dr = $ldt->getAncestor();
+                    $records_needing_events[ $dr->getId() ] = $dr;
+                    // NOTE - the record may not be top-level...the two events that depend on the
+                    //  $records_needing_events array will adjust for this
 
                     // Delete the linked_datatree entry
                     $ldt->setDeletedBy($user);
@@ -3801,8 +3766,7 @@ class LinkController extends ODRCustomController
 
 
                 // Each ancestor record being modified is going to need a DatarecordModified Event
-                $gp_dr = $old_ancestor_record->getGrandparent();
-                $datarecord_modified_events[ $gp_dr->getId() ] = $gp_dr;
+                $datarecord_modified_events[ $old_ancestor_record->getId() ] = $old_ancestor_record;
 
                 // Also need to fire off a DatarecordLinkStatusChanged Event for the datatype of
                 //  the record being replaced...

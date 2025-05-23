@@ -27,15 +27,12 @@
 
 <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
     {# This is guaranteed to only be called on "Short Text" fields #}
-{#    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}#}
     <fieldset>
-        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+            {{ datafield_meta.fieldName }}
+        </label>
         <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-            {% if rpf_name == 'Point Group' or rpf_name == 'Space Group' %}
-                <div class="ODRRenderPluginField">{{ valuefield_value|raw }}</div>
-            {% else %}
-                <input id="{{ input_id }}" class="pure-u-1 Cursor" type="text" value="{{ valuefield_value }}" readonly="readonly"/>
-            {% endif %}
+            <div class="ODRRenderPluginField">{{ valuefield_value|raw }}</div>
         </div>
     </fieldset>
 

@@ -242,101 +242,25 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
 
+
+            // ----------------------------------------
             // Retrieve mapping between datafields and render plugin fields
-            $plugin_fields = array();
-            $field_values = array();
+            $plugin_data = self::getPluginData($datatype, $datarecord, $is_datatype_admin);
+            // If the previous function decided there was a plugin config issue, then don't execute
+            //  the plugin
+            if ( is_null($plugin_data) )
+                return '';
 
-            // Want to locate the values for most of the mapped datafields
-            $optional_fields = array(
-                'Cell Parameter ID' => 0,    // this one can be non-public
-
-                // These four only exist to make the data easier to import
-                'Chemistry' => 0,
-                'Pressure' => 0,
-                'Temperature' => 0,
-                'Notes' => 0
-            );
-
-            foreach ($fields as $rpf_name => $rpf_df) {
-                // Need to find the real datafield entry in the primary datatype array
-                $rpf_df_id = $rpf_df['id'];
-
-                // Need to tweak display parameters for several of the fields...
-                $plugin_fields[$rpf_df_id] = $rpf_df;
-                $plugin_fields[$rpf_df_id]['rpf_name'] = $rpf_name;
-
-                $df = null;
-                if ( isset($datatype['dataFields'][$rpf_df_id]) )
-                    $df = $datatype['dataFields'][$rpf_df_id];
-
-                if ($df == null) {
-                    // Optional fields don't have to exist for this plugin to work
-                    if ( isset($optional_fields[$rpf_name]) )
-                        continue;
-
-                    // If the datafield doesn't exist in the datatype_array, then either the datafield
-                    //  is non-public and the user doesn't have permissions to view it (most likely),
-                    //  or the plugin somehow isn't configured correctly
-
-                    // Technically, the only time when the plugin shouldn't execute is when any of the
-                    //  Crystal System/Point Group/Space Group fields don't exist, and the user is
-                    //  in Edit mode...and that's already handled by RRUFFCellparamsController...
-
-                    if ( !$is_datatype_admin )
-                        // ...but there are zero compelling reasons to run the plugin if something is missing
-                        return '';
-                    else
-                        // ...if a datatype admin is seeing this, then they need to fix it
-                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
-                }
-                else {
-                    // The non-optional fields really should all be public...so actually throw an
-                    //  error if any of them aren't and the user can do something about it
-                    if ( isset($optional_fields[$rpf_name]) )
-                        continue;
-
-                    // If the datafield is non-public...
-                    $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
-                    if ( $df_public_date == '2200-01-01 00:00:00' ) {
-                        if ( !$is_datatype_admin )
-                            // ...but the user can't do anything about it, then just refuse to execute
-                            return '';
-                        else
-                            // ...the user can do something about it, so they need to fix it
-                            throw new \Exception('The field "'.$rpf_name.'" is not public...all fields which are a part of this render plugin MUST be public.');
-                    }
-                }
-
-                // Might need to reference the values of each of these fields
-                switch ($rpf_name) {
-                    case 'Crystal System':
-                    case 'Point Group':
-                    case 'Space Group':
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'alpha':
-                    case 'beta':
-                    case 'gamma':
-                    case 'Volume':
-                        $value = '';
-                        if ( isset($datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value']) )
-                            $value = $datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'];
-                        $field_values[$rpf_name] = $value;
-                        break;
-                }
-            }
+            // Otherwise, get the returned data
+            $plugin_fields = $plugin_data['fields'];
+            $field_values = $plugin_data['values'];
 
 
             // ----------------------------------------
-            // Need to check the derived fields so that any problems with them can get displayed
-            //  to the user
-            $relevant_fields = self::getRelevantFields($datatype, $datarecord);
-
+            // Need to check for derivation problems before rendering...
             $problem_fields = array();
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
-                // Need to check for derivation problems first...
-                $derivation_problems = self::findDerivationProblems($relevant_fields);
+                $derivation_problems = self::findDerivationProblems($plugin_data);
 
                 // Can't use array_merge() since that destroys the existing keys
                 foreach ($derivation_problems as $df_id => $problem)
@@ -345,7 +269,19 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
 
             // ----------------------------------------
-            // Otherwise, output depends on which context the plugin is being executed from
+            // Going to need several field identifiers, so various fields can be saved/reloaded at
+            //  the same time
+            $field_identifiers = array(
+                'Crystal System' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Crystal System']['id'],
+                'Point Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Point Group']['id'],
+                'Space Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Space Group']['id'],
+                'Lattice' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Lattice']['id'],
+
+                // Need this one for the a/b/c/alpha/beta/gamma fields
+                'Calculated Volume' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Calculated Volume']['id'],
+            );
+
+            // Output depends on which context the plugin is being executed from
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
                 // Point Groups and Space Groups should be modified with CSS for display mode
@@ -354,16 +290,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 if ( isset($field_values['Space Group']) )
                     $field_values['Space Group'] = self::applySymmetryCSS($field_values['Space Group']);
 
-                // If the user hasn't entered a value for volume...
-                if ( !isset($field_values['Volume']) || $field_values['Volume'] === '' ) {
-                    // ...and all six cell parameter values exist...
-                    if ( !($field_values['a'] === '' || $field_values['b'] === '' || $field_values['c'] === ''
-                        || $field_values['alpha'] === '' || $field_values['beta'] === '' || $field_values['gamma'] === '')
-                    ) {
-                        // ...then calculate (an approximation of) the volume
-                        $field_values['Volume'] = self::calculateVolume($field_values['a'], $field_values['b'], $field_values['c'], $field_values['alpha'], $field_values['beta'], $field_values['gamma']);
-                    }
-                }
+                // Surround the calculated volume with italics for display purposes
+                if ( isset($field_values['Calculated Volume']) && $field_values['Calculated Volume'] !== '' )
+                    $field_values['Calculated Volume'] = '<i>'.$field_values['Calculated Volume'].'</i>';
 
                 $record_display_view = 'single';
                 if ( isset($rendering_options['record_display_view']) )
@@ -397,15 +326,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 );
             }
             else if ( $rendering_options['context'] === 'edit' ) {
-                // Going to need several field identifiers, so all the symmetry fields can be saved
-                //  at the same time via the popup
-                $field_identifiers = array(
-                    'Crystal System' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Crystal System']['id'],
-                    'Point Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Point Group']['id'],
-                    'Space Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Space Group']['id'],
-                    'Lattice' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Lattice']['id'],
-                );
-
                 // Tweak the point group and space group arrays so that they're in order...they're
                 //  not defined in order, because it's considerably easier to fix any problems with
                 //  them when they're arranged by category instead of by name
@@ -415,9 +335,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 // Also going to need a token for the custom form submission, since it uses its
                 //  own controller action...
                 $token_id = 'RRUFFCellParams_'.$initial_datatype_id.'_'.$datarecord['id'];
-                $token_id .= '_'.$relevant_fields['Crystal System']['id'];
-                $token_id .= '_'.$relevant_fields['Point Group']['id'];
-                $token_id .= '_'.$relevant_fields['Space Group']['id'];
+                $token_id .= '_'.$fields['Crystal System']['id'];
+                $token_id .= '_'.$fields['Point Group']['id'];
+                $token_id .= '_'.$fields['Space Group']['id'];
                 $token_id .= '_Form';
                 $form_token = $this->token_manager->getToken($token_id)->getValue();
 
@@ -482,15 +402,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $special_tokens[$df_id] = $token;
                 }
 
-                // Going to need several field identifiers, so all the symmetry fields can be saved
-                //  at the same time via the popup
-                $field_identifiers = array(
-                    'Crystal System' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Crystal System']['id'],
-                    'Point Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Point Group']['id'],
-                    'Space Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Space Group']['id'],
-                    'Lattice' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$relevant_fields['Lattice']['id'],
-                );
-
                 // Tweak the point group and space group arrays so that they're in alphabetical order
                 // They're defined by category because it's considerably easier to fix any problems
                 //  with them when they're arranged by category instead of by name
@@ -536,6 +447,181 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Need two different groupings of the data in order to execute the plugin for both regular
+     * uses and for reloads...
+     *
+     * @param array $datatype
+     * @param array $datarecord
+     * @param bool $is_datatype_admin
+     * @return null|array
+     */
+    private function getPluginData($datatype, $datarecord, $is_datatype_admin)
+    {
+        $plugin_fields = array();
+        $field_values = array();
+
+        // Locate the relevant render plugin instance
+        $rpm_entries = null;
+        foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
+            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
+                $rpm_entries = $rpi['renderPluginMap'];
+                break;
+            }
+        }
+
+        // Want to locate the values for most of the mapped datafields
+        $optional_fields = array(
+            'Cell Parameter ID' => 0,    // this one can be non-public
+
+            // These four only exist to make the data easier to import
+            'Chemistry' => 0,
+            'Pressure' => 0,
+            'Temperature' => 0,
+            'Notes' => 0
+        );
+
+        foreach ($rpm_entries as $rpf_name => $rpf_df) {
+            // Need to find the real datafield entry in the primary datatype array
+            $rpf_df_id = $rpf_df['id'];
+
+            // Need to tweak display parameters for several of the fields...
+            $plugin_fields[$rpf_df_id] = $rpf_df;
+            $plugin_fields[$rpf_df_id]['rpf_name'] = $rpf_name;
+
+            $df = null;
+            if ( isset($datatype['dataFields'][$rpf_df_id]) )
+                $df = $datatype['dataFields'][$rpf_df_id];
+
+            if ($df == null) {
+                // Optional fields don't have to exist for this plugin to work
+                if ( !isset($optional_fields[$rpf_name]) ) {
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // Technically, the only time when the plugin shouldn't execute is when any of the
+                    //  Crystal System/Point Group/Space Group fields don't exist, and the user is
+                    //  in Edit mode...and that's already handled by RRUFFCellparamsController...
+
+                    if ( !$is_datatype_admin )
+                        // ...but there are zero compelling reasons to run the plugin if something
+                        //  is missing
+                        return null;
+                    else
+                        // ...if a datatype admin is seeing this, then they need to fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
+            }
+            else {
+                // The non-optional fields really should all be public...
+                if ( !isset($optional_fields[$rpf_name]) ) {
+                    $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
+                    if ( $df_public_date == '2200-01-01 00:00:00' ) {
+                        if ( !$is_datatype_admin )
+                            // ...but the user can't do anything about it, so just refuse to execute
+                            return null;
+                        else
+                            // ...the user can do something about it, so they need to fix it
+                            throw new \Exception('The field "'.$rpf_name.'" is not public...all fields which are a part of this render plugin MUST be public.');
+                    }
+                }
+            }
+
+            // Might need to reference the values of each of these fields
+            if ( !is_null($df) ) {
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                switch ($rpf_name) {
+//                case 'Cell Parameter ID':
+                    case 'Crystal System':
+                    case 'Point Group':
+                    case 'Space Group':
+                    case 'Lattice':
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                    case 'alpha':
+                    case 'beta':
+                    case 'gamma':
+                    case 'Volume':
+                    case 'Calculated Volume':
+//                case 'Chemistry':
+//                case 'Pressure':
+//                case 'Temperature':
+//                case 'Notes':
+
+                        $value = '';
+                        if ($typeclass === 'ShortVarchar' &&
+                            isset($datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'])
+                        ) {
+                            $value = $datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'];
+                        }
+                        else if ($typeclass === 'DecimalValue' &&
+                            isset($datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'])
+                        ) {
+                            $value = $datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'];
+                        }
+
+                        $field_values[$rpf_name] = $value;
+                        break;
+                }
+            }
+        }
+
+        return array(
+            'fields' => $plugin_fields,
+            'values' => $field_values,
+        );
+    }
+
+
+    /**
+     * Need to check for and warn if a derived field is blank when the source field is not.
+     *
+     * @param array $field_values {@link self::getPluginData()}
+     *
+     * @return array
+     */
+    private function findDerivationProblems($plugin_data)
+    {
+        $fields = $plugin_data['fields'];
+        $values = $plugin_data['values'];
+
+        // Only interested in the contents of datafields mapped to these rpf entries
+        $derivations = array(
+            'Space Group' => 'Lattice',
+
+            'a' => 'Calculated Volume',
+            'b' => 'Calculated Volume',
+            'c' => 'Calculated Volume',
+            'alpha' => 'Calculated Volume',
+            'beta' => 'Calculated Volume',
+            'gamma' => 'Calculated Volume',
+        );
+
+        $problems = array();
+        foreach ($derivations as $source_rpf_name => $dest_rpf_name) {
+            if ( (isset($values[$source_rpf_name]) && $values[$source_rpf_name] !== '')
+                && (!isset($values[$dest_rpf_name]) || $values[$dest_rpf_name] === '')
+            ) {
+                // If the source field has a value and the destination field does not, then need to
+                //  locate the id of the destination field
+                foreach ($fields as $df_id => $df_data) {
+                    if ( $dest_rpf_name === 'Lattice' && $df_data['rpf_name'] === $dest_rpf_name ) {
+                        $problems[$df_id] = 'There seems to be a problem with the contents of the "'.$source_rpf_name.'" field.';
+                    }
+                    else if ( $dest_rpf_name === 'Calculated Volume' && $df_data['rpf_name'] === $dest_rpf_name ) {
+                        $problems[$df_id] = 'Unable to calculate the value for the "Calculated Volume" field.';
+                    }
+                }
+            }
+        }
+
+        // Return a list of any problems found
+        return $problems;
     }
 
 
@@ -600,6 +686,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $beta = self::getBaseValue($beta);
         $gamma = self::getBaseValue($gamma);
 
+        // If any of the values are the empty string, then return the empty string as well
+        if ( $a == '' || $b == '' || $c == '' || $alpha == '' || $beta == '' || $gamma == '' )
+            return '';
+
         // The angles need to be converted into radians first...
         $alpha = $alpha * M_PI / 180.0;
         $beta = $beta * M_PI / 180.0;
@@ -648,6 +738,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         return $tmp;
     }
 
+
     /**
      * It's considerably easier to find space groups in a dropdown if they're ordered by name...
      *
@@ -674,103 +765,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
         $this->cache_service->set('cached_space_groups', $tmp);
         return $tmp;
-    }
-
-
-    /**
-     * Due to needing to detect several types of problems with the values of the fields in this plugin,
-     * it's easier to collect the relevant data separately.
-     *
-     * @param array $datatype
-     * @param array $datarecord
-     *
-     * @return array
-     */
-    private function getRelevantFields($datatype, $datarecord)
-    {
-        $relevant_datafields = array(
-            'Crystal System' => array(),
-            'Point Group' => array(),
-            'Space Group' => array(),
-            'Lattice' => array(),
-        );
-
-        // Locate the relevant render plugin instance
-        $rpm_entries = null;
-        foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
-            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
-                $rpm_entries = $rpi['renderPluginMap'];
-                break;
-            }
-        }
-
-        // Determine the datafield ids of the relevant rpf entries
-        foreach ($relevant_datafields as $rpf_name => $tmp) {
-            // If any of the rpf entries are missing, that's a problem...
-            if ( !isset($rpm_entries[$rpf_name]) )
-                throw new ODRException('The renderPluginField "'.$rpf_name.'" is not mapped to the current database');
-
-            // Otherwise, store the datafield id...
-            $df_id = $rpm_entries[$rpf_name]['id'];
-            $relevant_datafields[$rpf_name]['id'] = $df_id;
-
-            // ...and locate the datafield's value from the datarecord array if it exists
-            if ( !isset($datarecord['dataRecordFields'][$df_id]) ) {
-                $relevant_datafields[$rpf_name]['value'] = '';
-            }
-            else {
-                $drf = $datarecord['dataRecordFields'][$df_id];
-
-                // Don't know the typeclass, so brute force it
-                unset( $drf['id'] );
-                unset( $drf['created'] );
-                unset( $drf['file'] );
-                unset( $drf['image'] );
-                unset( $drf['dataField'] );
-
-                // Should only be one entry left at this point
-                foreach ($drf as $typeclass => $data) {
-                    $relevant_datafields[$rpf_name]['typeclass'] = $typeclass;
-
-                    if ( !isset($data[0]) || !isset($data[0]['value']) )
-                        $relevant_datafields[$rpf_name]['value'] = '';
-                    else
-                        $relevant_datafields[$rpf_name]['value'] = $data[0]['value'];
-                }
-            }
-        }
-
-        return $relevant_datafields;
-    }
-
-
-    /**
-     * Need to check for and warn if a derived field is blank when the source field is not.
-     *
-     * @param array $relevant_datafields @see self::getRelevantFields()
-     *
-     * @return array
-     */
-    private function findDerivationProblems($relevant_datafields)
-    {
-        // Only interested in the contents of datafields mapped to these rpf entries
-        $derivations = array(
-            'Space Group' => 'Lattice',
-        );
-
-        $problems = array();
-
-        foreach ($derivations as $source_rpf => $dest_rpf) {
-            if ( $relevant_datafields[$source_rpf]['value'] !== ''
-                && $relevant_datafields[$dest_rpf]['value'] === ''
-            ) {
-                $dest_df_id = $relevant_datafields[$dest_rpf]['id'];
-                $problems[$dest_df_id] = 'There seems to be a problem with the contents of the "'.$source_rpf.'" field.';
-            }
-        }
-
-        // Return a list of any problems found
-        return $problems;
     }
 
 
@@ -932,7 +926,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
             // Only care about a change to specific fields of a datatype using this render plugin...
             $rpf_name = self::isEventRelevant($datafield);
-            if ( !is_null($rpf_name) ) {
+            if ( !is_null($rpf_name) && $rpf_name !== 'Calculated Volume' ) {
+                // NOTE: the 'Calculated Volume' field is considered relevant in order to make the
+                //  MassEditTrigger event work...but for a PostUpdate event, it makes zero sense to
+                //  execute
+
                 // ----------------------------------------
                 // One of the relevant datafields got changed
                 $source_value = $source_entity->getValue();
@@ -941,17 +939,50 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onPostUpdate()'));
 
                 // Store the renderpluginfield name that will be modified
+                $is_dimension_field = false;
                 $dest_rpf_name = null;
-                if ($rpf_name === 'Space Group')
+                if ($rpf_name === 'Space Group') {
                     $dest_rpf_name = 'Lattice';
+                }
+                elseif ($rpf_name === 'a' || $rpf_name === 'b' || $rpf_name === 'c' || $rpf_name === 'alpha' || $rpf_name === 'beta' || $rpf_name === 'gamma') {
+                    $is_dimension_field = true;
+                    $dest_rpf_name = 'Calculated Volume';
+                }
 
                 // Locate the destination entity for the relevant source datafield
                 $destination_entity = self::findDestinationEntity($user, $datatype, $datarecord, $dest_rpf_name);
 
                 // Derive the new value for the destination entity
                 $derived_value = null;
-                if ($rpf_name === 'Space Group')
+                if ($rpf_name === 'Space Group') {
                     $derived_value = substr($source_value, 0, 1);
+                }
+                else if ($is_dimension_field) {
+                    // The Calculated Volume field depends on six fields, but only have the one here
+                    $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                    $dr_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);
+
+                    // The value for $is_datatype_admin shouldn't matter, but make it throw an
+                    //  exception if something is wrong
+                    $dt = $dt_array[$datatype->getId()];
+                    $dr = $dr_array[$datarecord->getId()];
+                    $ret = self::getPluginData($dt, $dr, false);
+                    $field_values = $ret['values'];
+
+                    // The catch with doing it this way is that the datarecord array has the old
+                    //  value for the field that got changed...need to replace the old value with
+                    //  the new value prior to running the calculation
+                    $field_values[$rpf_name] = $source_value;
+
+                    $derived_value = self::calculateVolume(
+                        $field_values['a'],
+                        $field_values['b'],
+                        $field_values['c'],
+                        $field_values['alpha'],
+                        $field_values['beta'],
+                        $field_values['gamma']
+                    );
+                }
 
                 // ...which is saved in the storage entity for the datafield
                 $this->entity_modify_service->updateStorageEntity(
@@ -1052,17 +1083,49 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onMassEditTrigger()'));
 
                     // Store the renderpluginfield name that will be modified
+                    $is_dimension_field = false;
                     $dest_rpf_name = null;
                     if ($rpf_name === 'Space Group')
                         $dest_rpf_name = 'Lattice';
+                    elseif ($rpf_name === 'Calculated Volume') {
+                        // The Calculated Volume field is handled differently...
+                        $is_dimension_field = true;
+                        $dest_rpf_name = 'Calculated Volume';
+                    }
 
                     // Locate the destination entity for the relevant source datafield
                     $destination_entity = self::findDestinationEntity($user, $datatype, $datarecord, $dest_rpf_name);
 
                     // Derive the new value for the destination entity
                     $derived_value = null;
-                    if ($rpf_name === 'Space Group')
+                    if ($rpf_name === 'Space Group') {
                         $derived_value = substr($source_value, 0, 1);
+                    }
+                    else if ($is_dimension_field) {
+                        // The Calculated Volume field depends on six fields, but only have the one here
+                        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                        $dr_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);
+
+                        // The value for $is_datatype_admin shouldn't matter, but make it throw an
+                        //  exception if something is wrong
+                        $dt = $dt_array[$datatype->getId()];
+                        $dr = $dr_array[$datarecord->getId()];
+                        $ret = self::getPluginData($dt, $dr, false);
+                        $field_values = $ret['values'];
+
+                        // Unlike with PostUpdate event, the MassEditTrigger event only happens when
+                        //  nothing got changed...so there's no need to overwrite an existing value
+                        //  from the cached datarecord array
+
+                        $derived_value = self::calculateVolume(
+                            $field_values['a'],
+                            $field_values['b'],
+                            $field_values['c'],
+                            $field_values['alpha'],
+                            $field_values['beta'],
+                            $field_values['gamma']
+                        );
+                    }
 
                     // ...which is saved in the storage entity for the datafield
                     $this->entity_modify_service->updateStorageEntity(
@@ -1120,6 +1183,17 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only interested in changes made to the datafields mapped to these rpf entries
         $relevant_datafields = array(
             'Space Group' => 'Lattice',
+
+            // Need to define it this way for PostUpdateEvent...
+            'a' => 'Calculated Volume',
+            'b' => 'Calculated Volume',
+            'c' => 'Calculated Volume',
+            'alpha' => 'Calculated Volume',
+            'beta' => 'Calculated Volume',
+            'gamma' => 'Calculated Volume',
+
+            // Need to also define it this way for MassEditTriggerEvent...
+            'Calculated Volume' => 'Calculated Volume',
         );
 
         foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
@@ -1187,15 +1261,24 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             return array();
         $render_plugin_map = $render_plugin_instance['renderPluginMap'];
 
-        // This plugin has one derived field...
+        // This plugin has two derived fields...
         //  - "Lattice" is derived from "Space Group"
         $lattice_df_id = $render_plugin_map['Lattice']['id'];
         $space_group_df_id = $render_plugin_map['Space Group']['id'];
+        //  - "Calculated Volume", which depends on six other fields
+        $a_df_id = $render_plugin_map['a']['id'];
+        $b_df_id = $render_plugin_map['b']['id'];
+        $c_df_id = $render_plugin_map['c']['id'];
+        $alpha_df_id = $render_plugin_map['alpha']['id'];
+        $beta_df_id = $render_plugin_map['beta']['id'];
+        $gamma_df_id = $render_plugin_map['gamma']['id'];
+        $calculated_volume_df_id = $render_plugin_map['Calculated Volume']['id'];
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
-        //  to be in an array (even though that's not the case here)
+        //  to be in an array
         return array(
             $lattice_df_id => array($space_group_df_id),
+            $calculated_volume_df_id => array($a_df_id, $b_df_id, $c_df_id, $alpha_df_id, $beta_df_id, $gamma_df_id),
         );
     }
 
@@ -1270,7 +1353,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     /**
      * {@inheritDoc}
      */
-    public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user)
+    public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user, $is_datatype_admin)
     {
         // Only override when called from the 'edit' context...the 'display' context might be a
         //  possibility in the future, but this plugin doesn't need to override there
@@ -1287,25 +1370,22 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             return array();
 
 
-        // Want the derived fields to complain if they're blank, but their source field isn't
+        // Need to check some things with the data...
         $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
         $dr_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);
 
-        // Locate any problems with the values
-        $relevant_fields = self::getRelevantFields($dt_array[$datatype->getId()], $dr_array[$datarecord->getId()]);
-
-        $relevant_rpf = null;
-        foreach ($relevant_fields as $rpf_name => $data) {
-            if ( $data['id'] === $datafield->getId() ) {
-                $relevant_rpf = $rpf_name;
-                break;
-            }
-        }
+        $dt_entry = $dt_array[$datatype->getId()];
+        $dr_entry = $dr_array[$datarecord->getId()];
+        $plugin_data = self::getPluginData($dt_entry, $dr_entry, $is_datatype_admin);
+        // If the previous function decided there was a plugin config issue, then don't execute
+        //  the plugin
+        if ( is_null($plugin_data) )
+            return array();
 
         // Only need to check for derivation/uniqueness problems when reloading in edit mode
         if ( $rendering_context === 'edit' ) {
             // Can't have uniqueness problems if there are derivation problems...
-            $derivation_problems = self::findDerivationProblems($relevant_fields);
+            $derivation_problems = self::findDerivationProblems($plugin_data);
             if ( isset($derivation_problems[$datafield->getId()]) ) {
                 // The derived field does not have a value, but the source field does...render the
                 //  plugin's template instead of the default
@@ -1318,20 +1398,36 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         }
 
 
-        if ( $relevant_rpf === 'Crystal System'
-            || $relevant_rpf === 'Point Group'
-            || $relevant_rpf === 'Space Group'
+        // ----------------------------------------
+        // Otherwise, get the returned data
+        $plugin_fields = $plugin_data['fields'];
+        $field_values = $plugin_data['values'];
+
+        // Attempt to locate the name of the field being reloaded
+        $rpf_name = '';
+        if ( isset($plugin_fields[$datafield->getId()]['rpf_name']) )
+            $rpf_name = $plugin_fields[$datafield->getId()]['rpf_name'];
+        if ( $rpf_name === '' )
+            return array();
+
+        // Going to need several field identifiers, so various fields can be saved/reloaded at the
+        //  same time
+        $df_lookup = array();
+        foreach ($plugin_fields as $df_id => $df)
+            $df_lookup[ $df['rpf_name'] ] = $df_id;
+
+        $field_identifiers = array(
+            'Crystal System' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Crystal System'],
+            'Point Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Point Group'],
+            'Space Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Space Group'],
+            'Lattice' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Lattice'],
+        );
+
+        if ( $rpf_name === 'Crystal System'
+            || $rpf_name === 'Point Group'
+            || $rpf_name === 'Space Group'
         ) {
             // All reloads of these fields need to be overridden, to show the popup trigger button
-
-            // Going to need several field identifiers, so all the symmetry fields can be saved
-            //  at the same time via the popup
-            $field_identifiers = array(
-                'Crystal System' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$relevant_fields['Crystal System']['id'],
-                'Point Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$relevant_fields['Point Group']['id'],
-                'Space Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$relevant_fields['Space Group']['id'],
-                'Lattice' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$relevant_fields['Lattice']['id'],
-            );
 
             // Tweak the point group and space group arrays so that they're in order...they're
             //  not defined in order, because it's considerably easier to fix any problems with
@@ -1341,15 +1437,15 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
             // Also going to need a token for the custom form submission...
             $token_id = 'RRUFFCellParams_'.$datafield->getDataType()->getId().'_'.$datarecord->getId();
-            $token_id .= '_'.$relevant_fields['Crystal System']['id'];
-            $token_id .= '_'.$relevant_fields['Point Group']['id'];
-            $token_id .= '_'.$relevant_fields['Space Group']['id'];
+            $token_id .= '_'.$df_lookup['Crystal System'];
+            $token_id .= '_'.$df_lookup['Point Group'];
+            $token_id .= '_'.$df_lookup['Space Group'];
             $token_id .= '_Form';
             $form_token = $this->token_manager->getToken($token_id)->getValue();
 
             return array(
                 'token_list' => array(),    // so ODRRenderService generates CSRF tokens
-                'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_datafield.html.twig',
+                'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_symmetry_datafield.html.twig',
 
                 'field_identifiers' => $field_identifiers,
                 'form_token' => $form_token,
@@ -1376,6 +1472,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
             'Space Group' => 'Lattice',
+
+            // Due to the calculated volume requiring six different fields, it's better to have the
+            //  thingy on the one field...
+            'Calculated Volume' => 'Calculated Volume',
         );
 
         $ret = array();
@@ -1396,6 +1496,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
             'Space Group' => 'Lattice',
+
+            // Due to the calculated volume requiring six different fields, it's better to have the
+            //  thingy on the one field...
+            'Calculated Volume' => 'Calculated Volume',
         );
 
         $trigger_fields = array();
@@ -1425,13 +1529,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             switch ($rpf_name) {
                 case 'Point Group':
                 case 'Space Group':
-                case 'a':
-                case 'b':
-                case 'c':
-                case 'alpha':
-                case 'beta':
-                case 'gamma':
-                case 'Volume':
+                case 'Calculated Volume':
                     // This is a field of interest...
                     $df_id = $rpf['id'];
                     $current_values[$rpf_name] = array(
@@ -1457,20 +1555,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $values[$space_group_df_id] = self::applySymmetryCSS( $current_values['Space Group']['value'] );
         }
 
-        // The Volume needs to be calculated if it does not already exist...
-        if ( $current_values['Volume']['value'] === '' ) {
-            $volume_df_id = $current_values['Volume']['id'];
-
-            // ...but only if the six cellparameter values exist
-            $a = $current_values['a']['value'];
-            $b = $current_values['b']['value'];
-            $c = $current_values['c']['value'];
-            $alpha = $current_values['alpha']['value'];
-            $beta = $current_values['beta']['value'];
-            $gamma = $current_values['gamma']['value'];
-
-            if ( $a !== '' && $b !== '' && $c !== '' && $alpha !== '' && $beta !== '' && $gamma !== '')
-                $values[$volume_df_id] = self::calculateVolume($a, $b, $c, $alpha, $beta, $gamma);
+        // The Calculated Volume field should also get italics here
+        if ( $current_values['Calculated Volume']['value'] !== '' ) {
+            $calculated_volume_df_id = $current_values['Calculated Volume']['id'];
+            $values[$calculated_volume_df_id] = '<i>'.$current_values['Calculated Volume']['value'].'</i>';
         }
 
         // Return all modified values

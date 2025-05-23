@@ -105,12 +105,23 @@
                             <i class="fa fa-lg fa-edit ODREditSearchNotes" title="Edit the search page notes."></i>
                             {% endif %}
                         {% endif %}
+                        {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
+                            <i class="fa fa-lg fa-th-list ODRChangeSearchedDescendants" title="Temporarily change which descendants are searched."></i>
+                        {% endif %}
                     </label>
                 </div>
 
                 {% if intent != 'stored_search_keys' %}
                 <div id="ODRSearchHelp_div" class="pure-u-1 ODRHidden">
                     {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+                </div>
+                {% endif %}
+                {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
+                <div id="ODRChangeSearchedDescendants_div" class="pure-u-1 ODRHidden">
+                    {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_wrapper.html.twig' with {
+                        'sidebar_array': sidebar_array,
+                        'search_params': search_params,
+                    } %}
                 </div>
                 {% endif %}
             </fieldset>
@@ -945,6 +956,34 @@
             });
         });
 {% endif %}
+
+        $(context).find(".ODRChangeSearchedDescendants").unbind('click').click(function() {
+            $("#ODRChangeSearchedDescendants_div").toggleClass('ODRHidden');
+        });
+        $(context).find("#ODRChangeSearchedDescendants_div").find(".ODRTwostateCheckbox").unbind('click').click(function() {
+            var icon_div = $(this).children('i').first();
+            var li_parent = $(this).parent().parent();
+
+            if ( $(icon_div).hasClass('fa-check') ) {
+                // Ensure this checkbox's deactivation also deactivates its descendants
+                $(li_parent).find(".ODRTwostateCheckbox").each(function(index,elem) {
+                    $(elem).children('i').first().removeClass('fa-check');
+                    $(elem).parent().parent().prop('title', 'Ignore results from this descendant');
+                });
+            }
+            else {
+                // Ensure this checkbox's activation also activates its parents
+                $(this).parents(".ODRTagItem").each(function(index,elem) {
+                    $(elem).children('label').children('span').children('i').first().addClass('fa-check');
+                    $(elem).prop('title', 'Include results from this descendant');
+                });
+                // Feels a lot better if activating a parent also activates its descendants
+                $(li_parent).find(".ODRTwostateCheckbox").each(function(index,elem) {
+                    $(elem).children('i').first().addClass('fa-check');
+                    $(elem).parent().parent().prop('title', 'Include results from this descendant');
+                });
+            }
+        });
 
         // Close all accordions...
         $(context).find(".ODRAdvSearch_header").trigger('click');

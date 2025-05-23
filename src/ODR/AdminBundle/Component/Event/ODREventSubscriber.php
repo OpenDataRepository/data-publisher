@@ -25,6 +25,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
+use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -802,6 +803,72 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
     /**
+     * Originally, changes made to a datarecord would also change that datarecord's updated property,
+     * as well as the the updated property of that datarecord's parent...repeated until it hit the
+     * datarecord's grandparent.
+     *
+     * After external applications started checking the updated property to determine when stuff
+     * changed, it became apparent that the scope needed to expand to include every single possible
+     * ancestor of the datarecord...otherwise, the external applications had to recheck basically
+     * everything.
+     *
+     * This "every possible ancestor" logic needs to be applied to multiple places, and is easier
+     * anyways when it's off in its own function.
+     *
+     * @param int[] $datarecords_to_process
+     * @return int[]
+     */
+    private function findAllAncestors($datarecords_to_process)
+    {
+        $conn = $this->em->getConnection();
+
+        $all_datarecord_ids = array();
+        foreach ($datarecords_to_process as $num => $dr_id)
+            $all_datarecord_ids[$dr_id] = 0;
+
+        while ( !empty($datarecords_to_process) ) {
+            $query =
+               'SELECT ddr.id AS ddr_id, ddr.parent_id AS parent_id, adr.id AS linked_ancestor_id
+                FROM odr_data_record ddr
+                LEFT JOIN odr_linked_data_tree ldt ON ldt.descendant_id = ddr.id AND ldt.deletedAt IS NULL
+                LEFT JOIN odr_data_record adr ON ldt.ancestor_id = adr.id
+                WHERE ddr.id IN (?)
+                AND ddr.deletedAt IS NULL';
+            $parameters = array(1 => $datarecords_to_process);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $results = $conn->fetchAll($query, $parameters, $types);
+
+            $datarecords_to_process = array();
+            foreach ($results as $result) {
+                $ddr_id = intval($result['ddr_id']);
+                $all_datarecord_ids[$ddr_id] = 0;
+
+                // Store this datarecord's ancestor regardless of whether it was a child or a link
+                if ( !is_null($result['parent_id']) ) {
+                    $parent_id = intval($result['parent_id']);
+                    if (  $ddr_id !== $parent_id ) {
+                        $datarecords_to_process[$parent_id] = 0;
+                        $all_datarecord_ids[$parent_id] = 0;
+                    }
+                }
+                if ( !is_null($result['linked_ancestor_id']) ) {
+                    $linked_ancestor_id = intval($result['linked_ancestor_id']);
+                    $datarecords_to_process[$linked_ancestor_id] = 0;
+                    $all_datarecord_ids[$linked_ancestor_id] = 0;
+                }
+            }
+
+            // The loop requires the datarecord ids to be values, not keys
+            $datarecords_to_process = array_keys($datarecords_to_process);
+        }
+
+        // The resulting list of datarecords should also be returned as values, not keys
+        $all_datarecord_ids = array_keys($all_datarecord_ids);
+        return $all_datarecord_ids;
+    }
+
+
+    /**
      * Handles dispatched DatarecordModified events
      *
      * @param DatarecordModifiedEvent $event
@@ -828,38 +895,34 @@ class ODREventSubscriber implements EventSubscriberInterface
 //            }
 
             // ----------------------------------------
-            // Whenever an edit is made to a datarecord, each of its parents (if it has any) also need
-            //  to be marked as updated
-            $dr = $datarecord;
-            while ($dr->getId() !== $dr->getParent()->getId()) {
-                if ( $update_database ) {
-                    // Mark this (non-top-level) datarecord as updated by this user
-                    $dr->setUpdatedBy($user);
-                    $dr->setUpdated(new \DateTime());
-                    $this->em->persist($dr);
-                }
-
-                // Continue locating parent datarecords...
-                $dr = $dr->getParent();
-            }
-
-            // $dr is now the grandparent of $datarecord, save all changes made
+            // Whenever an edit is made to a datarecord, then its ancestors need to be marked as
+            //  updated...originally this only went up to the datarecord's grandparent, but that
+            //  requirement got extended to include every single possible ancestor
             if ( $update_database ) {
-                $dr->setUpdatedBy($user);
-                $dr->setUpdated(new \DateTime());
+                $dr_list = self::findAllAncestors( array($datarecord->getId()) );
+                if ( $this->debug )
+                    $this->logger->debug('ODREventSubscriber::onDatarecordModified() for datarecord '.$datarecord->getId().'...updated datarecord ids: '.implode(', ', $dr_list));
 
-                $this->em->persist($dr);
-                $this->em->flush();
+                $query_str =
+                   'UPDATE odr_data_record AS dr
+                    SET dr.updated = NOW(), dr.updatedBy = '.$user->getId().'
+                    WHERE dr.id IN (?) AND dr.deletedAt IS NULL';
+                $parameters = array(1 => $dr_list);
+                $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+
+                $conn = $this->em->getConnection();
+                $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
             }
 
-            // Delete all regular cache entries that need to be rebuilt due to whatever change
-            //  triggered this event
-            $this->cache_service->delete('cached_datarecord_'.$dr->getId());
-            $this->cache_service->delete('cached_table_data_'.$dr->getId());
-            $this->cache_service->delete('json_record_' . $dr->getUniqueId());
+            // ----------------------------------------
+            // Only need to delete the cache entries for the datarecord's grandparent, however
+            $grandparent = $datarecord->getGrandparent();
+            $this->cache_service->delete('cached_datarecord_'.$grandparent->getId());
+            $this->cache_service->delete('cached_table_data_'.$grandparent->getId());
+            $this->cache_service->delete('json_record_' . $grandparent->getUniqueId());
 
             // Also delete the related dashboard entry
-            $this->cache_service->delete('dashboard_'.$dr->getDataType()->getId());
+            $this->cache_service->delete('dashboard_'.$grandparent->getDataType()->getId());
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -1050,7 +1113,8 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Determine whether any render plugins should run something in response to this event
             $datarecord_ids = $event->getDatarecordIds();
             $datatype = $event->getDescendantDatatype();
-//            $user = $event->getUser();
+            $user = $event->getUser();
+            $mark_as_updated = $event->getMarkAsUpdated();
 
             // This event currently isn't allowed to fire for render plugins
 //            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
@@ -1092,31 +1156,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  render A.  However, this means that linking/unlinking of datarecords between B/C,
             //  C/D, etc also affects which datarecords A needs to load...so any linking/unlinking
             //  needs to be propagated upwards...
-            $records_to_check = $datarecord_ids;
-            $records_to_clear = $records_to_check;
-
-            while ( !empty($records_to_check) ) {
-                // Determine whether anything links to the given datarecords...
-                $query = $this->em->createQuery(
-                   'SELECT grandparent.id AS ancestor_id
-                    FROM ODRAdminBundle:LinkedDataTree AS ldt
-                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS grandparent WITH ancestor.grandparent = grandparent
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                    WHERE descendant.id IN (:datarecords)
-                    AND ldt.deletedAt IS NULL
-                    AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
-                    AND grandparent.deletedAt IS NULL'
-                )->setParameters( array('datarecords' => $records_to_check) );
-                $results = $query->getArrayResult();
-
-                $records_to_check = array();
-                foreach ($results as $result) {
-                    $ancestor_id = $result['ancestor_id'];
-                    $records_to_clear[] = $ancestor_id;
-                    $records_to_check[] = $ancestor_id;
-                }
-            }
+            $records_to_clear = self::findAllAncestors($datarecord_ids);
 
             // Clearing this cache entry for each of the ancestor records found ensures that the
             //  newly linked/unlinked datarecords show up (or not) when they should
@@ -1125,6 +1165,24 @@ class ODREventSubscriber implements EventSubscriberInterface
 
             // These particular ancestors don't need their 'cached_datarecord_<dr_id>' (and other)
             //  entries cleared, because those don't directly reference the records in this event
+
+            // Additionally, if this event needs to partially shoulder the work usually done by the
+            //  DatarecordModifiedEvent...
+            if ( $mark_as_updated ) {
+                // ...then also mark all of these records as updated
+                if ( $this->debug )
+                    $this->logger->debug('ODREventSubscriber::onDatarecordLinkStatusChanged()...updated datarecord ids: '.implode(', ', $records_to_clear));
+
+                $query_str =
+                   'UPDATE odr_data_record AS dr
+                    SET dr.updated = NOW(), dr.updatedBy = '.$user->getId().'
+                    WHERE dr.id IN (?) AND dr.deletedAt IS NULL';
+                $parameters = array(1 => $records_to_clear);
+                $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+
+                $conn = $this->em->getConnection();
+                $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            }
 
 
             // ----------------------------------------

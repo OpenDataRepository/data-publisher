@@ -14,6 +14,9 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
+
 class CrystallographyDef
 {
 
@@ -38,8 +41,8 @@ class CrystallographyDef
 
     /**
      * Defines the 32 official crystallographic point groups in terms of which crystal system they
-     * belong to.  The names of the point groups were given to me by Bob Downs, so blame him if
-     * they're "non-standard"...any differences are probably because his focus is in mineralogy.
+     * belong to.  The names of the point groups come from the American Mineralogy Crystal Structure
+     * Database (AMCSD) and the RRUFF Project.
      *
      * @var array
      */
@@ -91,7 +94,7 @@ class CrystallographyDef
         '4mm' => array(99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110),
         '-42m' => array(111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122),
         '4/m2/m2/m' => array(123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142),
-        // hexagonal (also known as trigonal/rhomobohedral outside the US)
+        // hexagonal (this subset is also known as trigonal/rhomobohedral outside the US)
         '3' => array(143, 144, 145, 146),
         '-3' => array(147, 148),
         '322' => array(149, 150, 151, 152, 153, 154, 155),
@@ -116,11 +119,11 @@ class CrystallographyDef
 
     /**
      * Defines the 230 official crystallographic space groups by their official number, along with
-     * (some of) the acceptable labels for said space groups..."P1" and "A1" both mean space group
-     * #1, for instance.
+     * (some of) the acceptable labels for said space groups in Wyckoff notation..."P1" and "A1"
+     * both mean space group #1, for instance.
      *
-     * Roughly speaking, the choice of which space group label gets actually used depends on which
-     * axes/angles get assigned to the a/b/c/α/β/γ values.  It's a convenience feature, mostly.
+     * The synonyms exist because which label actually gets used depends on which axes/angles get
+     * assigned to the a/b/c/α/β/γ values.  It's a convenience feature, mostly.
      *
      * @var array[]
      */
@@ -378,8 +381,8 @@ class CrystallographyDef
 
 
     /**
-     * The space groups can (almost) always be derived back into their point group...the algorithm
-     * for doing so isn't difficult.
+     * The space groups can (almost) always be directly derived back into their point group...the
+     * algorithm for doing so isn't difficult.
      *
      * @var string $space_group
      * @return string
@@ -403,7 +406,8 @@ class CrystallographyDef
 
     /**
      * There are a couple space groups that self::derivePointGroupFromSpaceGroup() doesn't quite
-     * arrive at the "correct" answer for...this array maps those errors to the correct ones.
+     * arrive at the "correct" answer that AMCSD/RRUFF/ODR expect...this array maps those "errors"
+     * to the expected ones.
      *
      * @var string[]
      */
@@ -467,5 +471,386 @@ class CrystallographyDef
         // Round it to three decimal places...technically incorrect, as the calculation really should
         //  take significant figures into account...
         return round($volume, 3);
+    }
+
+
+    /**
+     * There are several different notations to indicate space groups, but the American Mineralogy
+     * Crystal Structure Database (AMCSD), the RRUFF Project...and by extension, ODR...use Wyckoff
+     * notation.
+     *
+     * This particular function converts the Hermann–Mauguin notation into the Wyckoff notation. It
+     * was created by experimenting on the 21k+ CIF files in AMCSD as of May 2025.
+     *
+     * @param string $hm_space_group
+     * @return string
+     */
+    public static function convertHermannMauguinToWyckoffSpaceGroup($hm_space_group)
+    {
+        // The Hermann–Mauguin space group notation has 2-4 pieces...lattice is the first one, then
+        //  it's followed by up to three other elements.  Those other elements are just '1' in a fair
+        //  number of cases, which the Wyckoff notation doesn't bother to display...presumably
+        //  because they don't affect the symmetry.  Don't quote me on that, I lack the background.
+        $num_spaces = 0;
+        for ($i = 0; $i < strlen($hm_space_group); $i++) {
+            if ( $hm_space_group[$i] === ' ' )
+                $num_spaces++;
+        }
+
+        $wyckoff_space_group = $hm_space_group;
+        if ( $num_spaces > 1 && strpos($hm_space_group, 'P 3') === false && strpos($hm_space_group, 'P -3') === false) {
+            // These '1's aren't "extra" if there's only two elements total, or if it describes a
+            //  hexagonal crystal system...everywhere else they should be removed
+            $wyckoff_space_group = str_replace(' 1', '', $wyckoff_space_group);
+        }
+
+        // The Wyckoff notation also tends to use subscripts for certain symmetry operations, which
+        //  the Hermann–Mauguin notation does not
+        $wyckoff_space_group = str_replace(
+            array(' :', '21', '31', '32', '41', '42', '43', '61', '62', '63', '64', '65'),
+            array('', '2_1', '3_1', '3_2', '4_1', '4_2', '4_3', '6_1', '6_2', '6_3', '6_4', '6_5'),
+            $wyckoff_space_group
+        );
+
+        // The remaining spaces can now get removed to finish the conversion...
+        $wyckoff_space_group = str_replace(' ', '', $wyckoff_space_group);
+        // ...except the triclinc space group #1 has typically been mangled by this point and needs
+        //  to have a '1' added back in
+        if ( strlen($wyckoff_space_group) === 1 )
+            $wyckoff_space_group = $wyckoff_space_group.'1';
+
+        return $wyckoff_space_group;
+    }
+
+
+    /**
+     * Attempts to read a CIF file.
+     *
+     * The theory is to break the file apart into "nodes" which either consist of a
+     * 1) key/value pair
+     * 2) table-ish structure
+     * The original text making up the node is also stored, which means the return also has blank
+     * nodes for lines without data.
+     *
+     * @param string $file_contents
+     * @return array
+     */
+    public static function readCIFFile($file_contents)
+    {
+        $structure = array();
+
+        // Ensure carriage returns aren't in the file to make my life easier...
+        $file_contents = str_replace("\r", '', $file_contents);
+        $lines = explode("\n", $file_contents);
+
+        for ($i = 0; $i < count($lines); $i++) {
+            $line = trim($lines[$i]);
+
+            if ( strpos($line, '_') === 0 ) {
+                // should be a regular data line
+                $space = strpos($line, ' ');
+
+                if ( $space !== false ) {
+                    // The value is on the same line as the key
+                    $key = substr($line, 0, $space);
+                    $value = trim( substr($line, $space + 1) );
+                    if ( $value !== "''" )
+                        $value = self::stripQuotes( $value );
+
+                    $structure[] = array(
+                        'key' => $key,
+                        'value' => $value,
+                        'text' => $lines[$i]."\r\n",
+                    );
+                }
+                else {
+                    // If the value is split across multiple lines, then the current line is the key
+                    $key = $line;
+
+                    // Need to store slightly different versions for the value and the text
+                    $inside_semicolon = false;
+                    $multiline_value = '';
+                    $multiline_text = $lines[$i]."\r\n";
+                    for ($j = $i+1; $j < count($lines); $j++) {
+                        $multiline_value .= $lines[$j]."\r\n";
+                        $multiline_text .= $lines[$j]."\r\n";
+                        $loop_line = trim($lines[$j]);
+
+                        if ( strpos($loop_line, ';') === 0 ) {
+                            // ...semicolons are the legitimate method to indicate multiple lines
+                            if ( !$inside_semicolon ) {
+                                // Don't do anything special for the first semicolon...
+                                $inside_semicolon = true;
+                            }
+                            else {
+                                // ...but when the second one is encountered, finish up
+
+                                // first get rid of the semicolons on their own lines...
+                                $multiline_value = str_replace(";\r\n", '', $multiline_value);
+                                // ...then get rid of any semicolons that weren't on their own lines
+                                $multiline_value = str_replace(';', '', $multiline_value);
+
+                                $structure[] = array(
+                                    'key' => $key,
+                                    'value' => trim($multiline_value),
+                                    'text' => $multiline_text,
+                                );
+                                break;
+                            }
+                        }
+                        else if ( !$inside_semicolon ) {
+                            // ...while semicolons are the legitimate method, apparently just allowing
+                            //  another line is also "legal"
+                            $structure[] = array(
+                                'key' => $key,
+                                'value' => self::stripQuotes( $loop_line ),
+                                'text' => $multiline_text,
+                            );
+                            break;
+                        }
+                    }
+
+                    // Set the outer loop to read the correct line
+                    $i = $j;
+                }
+            }
+            else if ( strpos($line, 'loop_') === 0 ) {
+                // loop construct, needs extra work
+                $current_node = array('keys' => array(), 'values' => array(), 'text' => $line."\r\n");
+                $key_count = 0;
+                $loop_values = array();
+                $in_data = false;
+
+                // Need to read lines independently of the outer loop...
+                for ($j = $i+1; $j < count($lines); $j++) {
+                    $loop_line = trim($lines[$j]);
+
+                    if ( !$in_data ) {
+                        if ( strpos($loop_line, '_') === 0 ) {
+                            // Still reading keys for the loop...
+                            $current_node['keys'][] = $loop_line;
+                            // Ensure the key is stored with the node text
+                            $current_node['text'] .= $lines[$j]."\r\n";
+                        }
+                        else {
+                            // No longer reading keys
+                            $in_data = true;
+
+                            $key_count = count($current_node['keys']);
+                            for ($k = 0; $k < $key_count; $k++)
+                                $current_node['values'][$k] = array();
+                        }
+                    }
+
+                    if ( $in_data ) {
+                        // CIFs don't have something like 'endloop_'...
+                        if ( $loop_line === '' || strpos($loop_line, '_') === 0 || strpos($loop_line, 'loop_') === 0 ) {
+                            // ...if it's a blank line or another line of data, then end the loop
+                            $structure[] = $current_node;
+                            $current_node = null;
+
+                            // Set the outer loop variable so it reads this line next
+                            $i = $j-1;
+                            break;
+                        }
+                        else {
+                            // Read in a line of data
+                            $multiline_abort = false;
+                            $tmp = self::splitLoopValueLine($loop_line, $multiline_abort);
+
+                            if ( !$multiline_abort) {
+                                // It's apparently legal to softwrap lines of data inside a "loop_"
+                                //  construct, presumably for compatibility with absolutely ancient
+                                //  programs and/or terminals that have hard limits.
+                                // This is an absolute pain to deal with.
+                                for ($k = 0; $k < count($tmp); $k++)
+                                    $loop_values[] = $tmp[$k];
+                            }
+                            else {
+                                // ...even worse, it's also seemingly "legal" to splice the
+                                //  semicolon-delimited multiline construct into here
+                                $semicolon_multiline = $lines[$j]."\r\n";
+                                $current_node['text'] .= $lines[$j]."\r\n";
+                                do {
+                                    // Keep advancing lines until a closing semicolon is hit
+                                    $j++;
+                                    $semicolon_multiline .= $lines[$j]."\r\n";
+
+                                    // Also ensure the text is stored
+                                    $current_node['text'] .= $lines[$j]."\r\n";
+                                } while ( trim($lines[$j]) !== ';' );
+
+                                // Store the entire construct, minus the semicolons, by first
+                                //  getting rid of the semicolons on their own lines...
+                                $semicolon_multiline = str_replace(";\r\n", '', $semicolon_multiline);
+                                // ...then by getting rid of any remaining semicolons
+                                $semicolon_multiline = str_replace(';', '', $semicolon_multiline);
+
+                                // Store the resulting value
+                                $loop_values[] = trim($semicolon_multiline);
+                            }
+
+                            if ( count($loop_values) > $key_count ) {
+                                // ...naturally, allowing softwraps in loops means somebody can screw
+                                //  it up
+                                throw new ODRException('Invalid CIF file: broken softwrap in loop_ around line '.$j);
+                                // ...or I could screw up the processing too, either/or
+                            }
+                            else if ( count($loop_values) === $key_count ) {
+                                // If the counts match, then transfer this row's data into the node
+                                for ($k = 0; $k < count($loop_values); $k++)
+                                    $current_node['values'][$k][] = $loop_values[$k];
+
+                                // Ensure the line is stored with the node text
+                                if ( !$multiline_abort )
+                                    $current_node['text'] .= $lines[$j]."\r\n";
+                                // Reset the storage for loop values
+                                $loop_values = array();
+                            }
+                            else {
+                                // ...this line didn't have enough pieces of data, so need to read
+                                //  another line and hope it has the rest...
+                                $current_node['text'] .= $lines[$j]."\r\n";
+                            }
+                        }
+                    }
+                }
+            }
+            else if ( strpos($line, '#') === 0 ) {
+                // Comment...want to compress consecutive comments together into a single node
+                $current_node = array('key' => 'comment', 'value' => '', 'text' => '');
+
+                while (true) {
+                    // Get the next line...
+                    $line = $lines[$i];
+                    if ( strpos($line, '#') === 0 ) {
+                        // Still in comment block...continue to store the text
+                        $current_node['text'] .= $line."\r\n";
+                        $i++;
+                    }
+                    else {
+                        // No longer in comment block...decrement number so next outer loop iteration
+                        //  works without additional effort
+                        $i--;
+                        // Exit the loop
+                        break;
+                    }
+                }
+
+                // Reset for actual data
+                $structure[] = $current_node;
+                $current_node = null;
+            }
+            else if ( strpos($line, 'data_') === 0 ) {
+                // Don't particularly want to store this, but it might be needed for a mineral name
+                $structure[] = array(
+                    'key' => 'data',
+                    'value' => substr($line, 5),
+                    'text' => $line."\r\n"
+                );
+            }
+            else {
+                // empty line
+                $structure[] = array(
+                    'key' => '',
+                    'value' => $line,
+                    'text' => $line."\r\n"
+                );
+            }
+        }
+
+        return $structure;
+    }
+
+
+    /**
+     * The values in the CIF file tend to be quoted, but it's better for ODR if they're not...
+     *
+     * @param string $value
+     * @return string
+     */
+    private static function stripQuotes($value)
+    {
+        $first = substr($value, 0, 1);
+        $last = substr($value, -1);
+
+        if ( ($first === "'" && $last === "'" )
+            || ($first === '"' && $last === '"')
+        ) {
+            return substr($value, 1, -1);
+        }
+        else {
+            return $value;
+        }
+    }
+
+
+    /**
+     * Since CIF files permit tables of arbitrary number of columns, it's easier to split them apart
+     * into an array of values in its own function.
+     *
+     * The caveat is that sometimes the value is semicolon delimited and spread across multiple lines,
+     * so the function uses an extra parameter to return that case...
+     *
+     * @param string $line should be trimmed already
+     * @param bool $multiline_abort
+     * @return array
+     */
+    private static function splitLoopValueLine($line, &$multiline_abort)
+    {
+        $data = array();
+
+        $tmp = '';
+        $in_quotes = false;
+        for ($i = 0; $i < strlen($line); $i++) {
+            if ( $line[$i] === "'" ) {
+                if ( !$in_quotes ) {
+                    // Start of new quote
+                    $in_quotes = true;
+                }
+                else {
+                    // End of the quote, store the data and reset
+                    $in_quotes = false;
+                    $data[] = $tmp;
+                    $tmp = '';
+                    $i += 1;
+                }
+
+                // Don't want to store the quotation mark
+            }
+            else if ( $line[$i] === ' ' ) {
+                // Hit a space...
+                if ( $in_quotes ) {
+                    // ...if in quotes, save it
+                    $tmp .= $line[$i];
+                }
+                else if ( $tmp !== '' ) {
+                    // ...if not in quotes, then store the previous piece when there was something
+                    //  in it and not just space justification
+                    $data[] = $tmp;
+                    $tmp = '';
+                }
+            }
+            else if ( $line[$i] === ';' && !$in_quotes ) {
+                // It's apparently "legal" to softwrap lines of data inside a "loop_" construct,
+                //  presumably for compatibility with absolutely ancient programs and/or terminals
+                //   that have hard limits.
+
+                // This is incredibly painful, because operating on a single line of data is easier...
+                $multiline_abort = true;
+                // There shouldn't be any lingering piece to store here
+//                $data[] = $tmp;
+                return $data;
+            }
+            else {
+                // Store any other character
+                $tmp .= $line[$i];
+            }
+        }
+
+        // Store any lingering piece and return
+        if ( $tmp !== '' )
+            $data[] = $tmp;
+        return $data;
     }
 }

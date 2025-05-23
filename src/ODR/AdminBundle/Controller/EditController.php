@@ -647,7 +647,7 @@ class EditController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Need to fire off a DatarecordModified event because a file's public status was changed
+            // Need to fire off a DatarecordModified event because a file got renamed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
@@ -783,7 +783,7 @@ class EditController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Need to fire off a DatarecordModified event because a file's public status was changed
+            // Need to fire off a DatarecordModified event because a file got renamed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
@@ -2901,6 +2901,7 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
 
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
@@ -2963,7 +2964,15 @@ class EditController extends ODRCustomController
                 $render_plugin = $this->container->get($render_plugin_classname);
 
                 // Request a set of parameters from the render plugin for ODRRenderService to use
-                $extra_parameters = $render_plugin->getOverrideParameters('edit', $render_plugin_instance, $datafield, $datarecord, $master_theme, $user);
+                $extra_parameters = $render_plugin->getOverrideParameters(
+                    'edit',
+                    $render_plugin_instance,
+                    $datafield,
+                    $datarecord,
+                    $master_theme,
+                    $user,
+                    $is_datatype_admin
+                );
 
                 // If the render plugin is going to do something...
                 if ( isset($extra_parameters['template_name']) ) {
