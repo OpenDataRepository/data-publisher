@@ -13,8 +13,8 @@ parameters:
     secret: [[ ENTER RANDOM KEY HERE - Text String ]]
 
     #  IMA List Data Files
-    api_user: 'nate@opendatarepository.org'
-    api_key: 'dBWskX6kv*'
+    api_user: '-----------------'
+    api_key: '----------'
     ima_uuid: '8737e9e4212f5eac3703aeeb5cae'
     ima_template_uuid: 'a865bffe37e967554ef299f53b74'
     cell_params_uuid:  '8877cadc651bc3e745aab4218b13'
