@@ -702,7 +702,13 @@ function initPage() {
                 success: function(data, textStatus, jqXHR) {
                     // Refresh child wrapper area
                     // console.log('Unlink Record: ', data);
-                    ReloadEditChild(datatype_id, parent_id);
+                    ReloadEditChild(
+                        datatype_id,
+                        parent_id,
+                        function() {
+                            selectRecordFieldArea(parent_id);
+                        }
+                    );
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
@@ -846,7 +852,7 @@ function initPage() {
                                 function() {
                                     // Select the newly linked datarecord after ReloadEditChild()
                                     //  gets called
-                                    selectRecordFieldArea(ui.item.record_id);
+                                    selectRecordFieldArea(ui.item.record_id, local_record_id);
                                 }
                             );
                         }
@@ -1708,7 +1714,7 @@ function AddChildRecord(child_datatype_id, parent_datarecord_id) {
             var new_datarecord_id = data.d.new_datarecord_id;
 
             ReloadEditChild(child_datatype_id, parent_datarecord_id, function() {
-                selectRecordFieldArea(new_datarecord_id);
+                selectRecordFieldArea(new_datarecord_id, parent_datarecord_id);
             });
         },
         error: function(jqXHR, textStatus, errorThrown) {
@@ -1892,7 +1898,7 @@ function AddLinkedRecord(remote_datatype_id, parent_datarecord_id) {
             initPage();
 
             // Ensure the fake reord is visible
-            selectRecordFieldArea(fake_dr_id);
+            selectRecordFieldArea(fake_dr_id, parent_datarecord_id);
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error
@@ -2310,7 +2316,7 @@ function saveFakeRecordData(fake_record_id, is_inline_link) {
                 function() {
                     // Select the newly created datarecord after
                     //  ReloadEditChild() gets called
-                    selectRecordFieldArea(new_record_id);
+                    selectRecordFieldArea(new_record_id, local_record_id);
                 }
             );
         },
