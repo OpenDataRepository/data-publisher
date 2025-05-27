@@ -1734,9 +1734,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
                 $value_mapping['Mineral'] = $cif_data['_chemical_name_common'];
         }
+        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_amcsd_formula_title']) ) {
+            if ( ValidUtility::isValidMediumVarchar($cif_data['_amcsd_formula_title']) )
+                $value_mapping['Mineral'] = $cif_data['_amcsd_formula_title'];
+        }
         // If the above don't work, fall back to the generic data thingy...
         if ( !isset($value_mapping['Mineral']) ) {
-            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
+            if ( ValidUtility::isValidMediumVarchar($cif_data['data']) )
                 $value_mapping['Mineral'] = $cif_data['data'];
             else
                 $value_mapping['Mineral'] = substr($cif_data['data'], 0, 64);
