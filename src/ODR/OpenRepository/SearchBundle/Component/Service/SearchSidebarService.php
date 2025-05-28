@@ -763,33 +763,35 @@ class SearchSidebarService
         $descendant_info = array();
 
         foreach ($datatype_ids as $dt_id => $num) {
-            $dt = $datatype_array[$dt_id];
+            if ( isset($datatype_array[$dt_id]) ) {
+                $dt = $datatype_array[$dt_id];
 
-            $current_prefix = $current_label = '';
-            if ( $prev_prefix === '' ) {
-                $current_prefix = $dt_id;
-                $current_label = $dt['dataTypeMeta']['shortName'];
-            }
-            else {
-                $current_prefix = $prev_prefix.'_'.$dt_id;
-                $current_label = /*$prev_label.' >> '.*/$dt['dataTypeMeta']['shortName'];
-            }
+                $current_prefix = $current_label = '';
+                if ( $prev_prefix === '' ) {
+                    $current_prefix = $dt_id;
+                    $current_label = $dt['dataTypeMeta']['shortName'];
+                }
+                else {
+                    $current_prefix = $prev_prefix.'_'.$dt_id;
+                    $current_label = /*$prev_label.' >> '.*/$dt['dataTypeMeta']['shortName'];
+                }
 
-            $descendant_info[$dt_id] = array(
-                'prefix' => $current_prefix,
-                'label' => $current_label,
-                'descendants' => array(),
-            );
+                $descendant_info[$dt_id] = array(
+                    'prefix' => $current_prefix,
+                    'label' => $current_label,
+                    'descendants' => array(),
+                );
 
-            $descendant_ids = array();
-            if ( isset($dt['descendants']) ) {
-                foreach ($dt['descendants'] as $child_dt_id => $child_dt)
-                    $descendant_ids[$child_dt_id] = 0;
-            }
+                $descendant_ids = array();
+                if ( isset($dt['descendants']) ) {
+                    foreach ($dt['descendants'] as $child_dt_id => $child_dt)
+                        $descendant_ids[$child_dt_id] = 0;
+                }
 
-            if ( !empty($descendant_ids) ) {
-                $child_descendant_info = self::createDescendantSelector($datatype_array, $descendant_ids, $current_prefix, $current_label);
-                $descendant_info[$dt_id]['descendants'] = $child_descendant_info;
+                if ( !empty($descendant_ids) ) {
+                    $child_descendant_info = self::createDescendantSelector($datatype_array, $descendant_ids, $current_prefix, $current_label);
+                    $descendant_info[$dt_id]['descendants'] = $child_descendant_info;
+                }
             }
         }
 
