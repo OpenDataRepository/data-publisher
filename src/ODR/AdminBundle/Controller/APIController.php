@@ -7523,6 +7523,11 @@ class APIController extends ODRCustomController
             // if (!$pm_service->canAddDatarecord($user, $dataset_datatype))
             // throw new ODRForbiddenException();
 
+            if(preg_match('/\|/', $job_type)) {
+                $job_type = explode('|', $job_type);
+            } else {
+                $job_type = array($job_type);
+            }
 
             // Get the Job
             $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
@@ -7743,6 +7748,12 @@ class APIController extends ODRCustomController
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            if(preg_match('/\|/', $job_type)) {
+                $job_type = explode('|', $job_type);
+            } else {
+                $job_type = array($job_type);
+            }
+
             // Get the Job
             $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
             /** @var TrackedJob[] $tracked_jobs */
@@ -7750,7 +7761,7 @@ class APIController extends ODRCustomController
                 'SELECT tj 
                     FROM ODRAdminBundle:TrackedJob tj
                     WHERE tj.createdBy = :createdBy
-                    AND tj.job_type like :job_type
+                    AND tj.job_type IN (:job_type)
                     AND tj.completed IS NOT NULL
                     ORDER BY tj.completed DESC'
                 )
