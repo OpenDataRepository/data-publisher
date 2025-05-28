@@ -75,7 +75,7 @@ async function app() {
 
                     // Only process if record UUID is in this set:
                     // Process Sample Images for All Records
-                    // await processSampleImages(record_data);
+                    await processSampleImages(record_data);
 
                     // If found print record data
                     for(let i = 0; i < record_data['records_' + record_data.template_uuid].length; i++) {
