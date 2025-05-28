@@ -150,6 +150,8 @@ async function app() {
                     // for(let i = 185; i < 190; i++) {
                     // for(let i = 500; i < 1800; i++) {
                         let record = rruff_record_data.records[i];
+                        // console.log('RRUFF RECORD: ', record.unique_id);
+                        // if(record.unique_id === 'd8ee4450053d073cec8bbc45fd28') {
                         // if(record.unique_id === '0b3152bc5a408202a2d6a1dea3de') {
                             // console.log(record);
                             record.api_user = data.api_user;
