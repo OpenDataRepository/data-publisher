@@ -1721,6 +1721,22 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         //  various pieces of data that ODR cares about actually exist in the file
 
         // ----------------------------------------
+        // ODR wants the CIFs to have a _database_code_amcsd line in them...
+        $has_amcsd_code = false;
+        if ( isset($cif_data['_database_code_amcsd']) ) {
+            $has_amcsd_code = true;
+
+            // If the file has a value for '_database_code_amcsd', then ensure the field gets that
+            //  value regardless of whatever ODR auto-generated for the value
+            $value_mapping['database_code_amcsd'] = $cif_data['_database_code_amcsd'];
+        }
+        else {
+            // If the file does not have a value for '_database_code_amcsd', then ensure the field
+            //  uses the auto-generated value
+            $value_mapping['database_code_amcsd'] = $amcsd_code;
+        }
+
+        // ----------------------------------------
         // mineral/compound name
         if ( isset($cif_data['_chemical_name_mineral']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_mineral']) )
@@ -1734,9 +1750,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
                 $value_mapping['Mineral'] = $cif_data['_chemical_name_common'];
         }
+        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_amcsd_formula_title']) ) {
+            if ( ValidUtility::isValidMediumVarchar($cif_data['_amcsd_formula_title']) )
+                $value_mapping['Mineral'] = $cif_data['_amcsd_formula_title'];
+        }
         // If the above don't work, fall back to the generic data thingy...
         if ( !isset($value_mapping['Mineral']) ) {
-            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
+            if ( ValidUtility::isValidMediumVarchar($cif_data['data']) )
                 $value_mapping['Mineral'] = $cif_data['data'];
             else
                 $value_mapping['Mineral'] = substr($cif_data['data'], 0, 64);
@@ -1915,9 +1935,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 //            '_atom_site_aniso_label' => 1,
         );
 
-        // ODR wants the CIFs to have a _database_code_amcsd line in them
-        $has_amcsd_code = false;
-
         foreach ($cif_lines as $line_num => $data) {
             if ( isset($data['key']) ) {
                 $key = $data['key'];
@@ -1937,9 +1954,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     // Otherwise, going to be saving this key
                     $cif_contents_raw[] = $data;
-
-                    if ( $key === '_database_code_amcsd' )
-                        $has_amcsd_code = true;
                 }
             }
             else if ( isset($data['keys']) ) {

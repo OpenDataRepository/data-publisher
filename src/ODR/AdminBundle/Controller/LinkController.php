@@ -2104,7 +2104,7 @@ class LinkController extends ODRCustomController
                         // Fall back to identifying the remote datarecord using its grandparent
                         //  datarecord id...
                         $dr_name = $gdr_id;
-                        if ( isset($sorted_dr_names[$gdr_id]) ) {
+                        if ( isset($sorted_dr_names[$gdr_id]) && trim($sorted_dr_names[$gdr_id]) !== '' ) {
                             // ...but if the datatype has a name field(s), then get its name
                             $dr_name = $sorted_dr_names[$gdr_id];
                         }

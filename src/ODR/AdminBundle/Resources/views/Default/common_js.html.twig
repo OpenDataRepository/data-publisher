@@ -1092,15 +1092,25 @@
      * Scrolls to and displays the requested datarecord.
      *
      * @param {string|number} target_datarecord_id
+     * @param {string|number} parent_datarecord_id
      */
-    function selectRecordFieldArea(target_datarecord_id) {
+    function selectRecordFieldArea(target_datarecord_id, parent_datarecord_id = '') {
         // The requested datarecord could be a descendant...if so, its ancestors need to be visible
         //  first starting from the top
         var dr_ids = [];
-        $("#FieldArea_" + target_datarecord_id).parents('.ODRFieldArea').each(function(index, elem) {
-            var dr_id = $(elem).attr('id').split(/_/)[1];
-            dr_ids.push(dr_id);
-        });
+        if ( parent_datarecord_id === '' ) {
+            $("#FieldArea_" + target_datarecord_id).parents('.ODRFieldArea').each(function(index, elem) {
+                var dr_id = $(elem).attr('id').split(/_/)[1];
+                dr_ids.push(dr_id);
+            });
+        }
+        else {
+            $("#FieldArea_" + parent_datarecord_id + " #FieldArea_" + target_datarecord_id).parents('.ODRFieldArea').each(function(index, elem) {
+                var dr_id = $(elem).attr('id').split(/_/)[1];
+                dr_ids.push(dr_id);
+            });
+        }
+
         dr_ids = dr_ids.reverse();
         dr_ids.push(target_datarecord_id);
         // console.log('datarecord order', dr_ids);
