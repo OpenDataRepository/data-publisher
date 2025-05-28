@@ -42,11 +42,11 @@
 
             'intent': intent,
         } %}
-
+{#
         <div id="mass_download_dialog_wrapper">
             {% include 'ODRAdminBundle:Default:mass_download_dialog.html.twig' %}
         </div>
-
+#}
     {% else %}
         <div class="ODRShortResults_empty">
             {% if logged_in %}No Datarecords found{% else %}No Datarecords found...try logging in.{% endif %}
