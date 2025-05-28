@@ -1546,17 +1546,17 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         }
 
         // The Point Group and the Space Group need to have some CSS applied to them
-        if ( $current_values['Point Group']['value'] !== '' ) {
+        if ( isset($current_values['Point Group']) && $current_values['Point Group']['value'] !== '' ) {
             $point_group_df_id = $current_values['Point Group']['id'];
             $values[$point_group_df_id] = self::applySymmetryCSS( $current_values['Point Group']['value'] );
         }
-        if ( $current_values['Space Group']['value'] !== '' ) {
+        if ( isset($current_values['Space Group']) && $current_values['Space Group']['value'] !== '' ) {
             $space_group_df_id = $current_values['Space Group']['id'];
             $values[$space_group_df_id] = self::applySymmetryCSS( $current_values['Space Group']['value'] );
         }
 
         // The Calculated Volume field should also get italics here
-        if ( $current_values['Calculated Volume']['value'] !== '' ) {
+        if ( isset($current_values['Calculated Volume']) && $current_values['Calculated Volume']['value'] !== '' ) {
             $calculated_volume_df_id = $current_values['Calculated Volume']['id'];
             $values[$calculated_volume_df_id] = '<i>'.$current_values['Calculated Volume']['value'].'</i>';
         }
