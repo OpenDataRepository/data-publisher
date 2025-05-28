@@ -503,7 +503,7 @@ odr_api_completed_jobs:
   methods: [ GET ]
   requirements:
     version: 'v\d+'
-    job_type: '^[A-Za-z_0-9]+$'
+    job_type: '^[A-Za-z_0-9|]+$'
     count: '\d+'
     _format: '|json|xml'
 
@@ -547,7 +547,7 @@ odr_api_running_job_list:
   methods: [ GET ]
   requirements:
     version: 'v\d+'
-    job_type: '^[A-Za-z_0-9]+$'
+    job_type: '^[A-Za-z_0-9|]+$'
     _format: '|json|xml'
 
 #

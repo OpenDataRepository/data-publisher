@@ -218,6 +218,20 @@ odr_ima_list_update:
     requirements:
         version: 'v\d+'
 
+odr_build_rruff_files:
+    path: /build_rruff_files
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateRRUFFFiles, version: 'v4', recent: false }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+
+odr_update_rruff_files:
+    path: /update_rruff_files
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateRRUFFFiles, version: 'v4', recent: true }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+
 # need a realtime seed call - reseed specific database now (recent changes)
 odr_search_seed_elastic:
     path: /elastic

@@ -503,7 +503,7 @@ async function getCitationLink(data_map, record) {
         // console.log('Reference Found');
         return await findValue(data_map.cite_link, reference_record)
     }
-
+    return '';
 }
 
 /**
