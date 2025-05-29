@@ -841,17 +841,20 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Check the non-array properties of the render plugin...
             $plugins_needing_updates[$plugin_classname] = array();
-            if ( $installed_plugin_data['pluginName'] !== $plugin_config['name'] ) {
+
+            // NOTE: using '==' because yaml files are going to be empty string, while
+            //  database could be null instead
+            if ( $installed_plugin_data['pluginName'] != $plugin_config['name'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'name';
                 $readable_plugin_updates[$plugin_classname][] = 'name changed to '.$plugin_config['name'];
             }
 
-            if ( $installed_plugin_data['description'] !== $plugin_config['description'] ) {
+            if ( $installed_plugin_data['description'] != $plugin_config['description'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'description';
                 $readable_plugin_updates[$plugin_classname][] = 'description changed';
             }
 
-            if ( $installed_plugin_data['category'] !== $plugin_config['category'] ) {
+            if ( $installed_plugin_data['category'] != $plugin_config['category'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'category';
                 $readable_plugin_updates[$plugin_classname][] = 'category changed to '.$plugin_config['category'];
             }
@@ -860,47 +863,47 @@ class PluginsController extends ODRCustomController
             if ( $plugin_config['render'] === false )
                 $plugin_config['render'] = 'false';
 
-            if ( $installed_plugin_data['render'] !== $plugin_config['render'] ) {
+            if ( $installed_plugin_data['render'] != $plugin_config['render'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'render';
                 $readable_plugin_updates[$plugin_classname][] = 'render changed to '.$plugin_config['render'];
             }
 
-            if ( $installed_plugin_data['overrideChild'] !== $plugin_config['override_child'] ) {
+            if ( $installed_plugin_data['overrideChild'] != $plugin_config['override_child'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_child';
                 $readable_plugin_updates[$plugin_classname][] = 'override_child changed to '.$plugin_config['override_child'];
             }
 
-            if ( $installed_plugin_data['overrideFields'] !== $plugin_config['override_fields'] ) {
+            if ( $installed_plugin_data['overrideFields'] != $plugin_config['override_fields'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_fields';
                 $readable_plugin_updates[$plugin_classname][] = 'override_fields changed to '.$plugin_config['override_fields'];
             }
 
-            if ( $installed_plugin_data['overrideFieldReload'] !== $plugin_config['override_field_reload'] ) {
+            if ( $installed_plugin_data['overrideFieldReload'] != $plugin_config['override_field_reload'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_field_reload';
                 $readable_plugin_updates[$plugin_classname][] = 'override_field_reload changed to '.$plugin_config['override_field_reload'];
             }
 
-            if ( $installed_plugin_data['overrideTableFields'] !== $plugin_config['override_table_fields'] ) {
+            if ( $installed_plugin_data['overrideTableFields'] != $plugin_config['override_table_fields'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_table_fields';
                 $readable_plugin_updates[$plugin_classname][] = 'override_table_fields changed to '.$plugin_config['override_table_fields'];
             }
 
-            if ( $installed_plugin_data['overrideExport'] !== $plugin_config['override_export'] ) {
+            if ( $installed_plugin_data['overrideExport'] != $plugin_config['override_export'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_export';
                 $readable_plugin_updates[$plugin_classname][] = 'override_export changed to '.$plugin_config['override_export'];
             }
 
-            if ( $installed_plugin_data['overrideSearch'] !== $plugin_config['override_search'] ) {
+            if ( $installed_plugin_data['overrideSearch'] != $plugin_config['override_search'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_search';
                 $readable_plugin_updates[$plugin_classname][] = 'override_search changed to '.$plugin_config['override_search'];
             }
 
-            if ( $installed_plugin_data['overrideSort'] !== $plugin_config['override_sort'] ) {
+            if ( $installed_plugin_data['overrideSort'] != $plugin_config['override_sort'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_sort';
                 $readable_plugin_updates[$plugin_classname][] = 'override_sort changed to '.$plugin_config['override_sort'];
             }
 
-            if ( $installed_plugin_data['suppressNoFieldsNote'] !== $plugin_config['suppress_no_fields_note'] ) {
+            if ( $installed_plugin_data['suppressNoFieldsNote'] != $plugin_config['suppress_no_fields_note'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'suppress_no_fields_note';
                 $readable_plugin_updates[$plugin_classname][] = 'suppress_no_fields_note changed to '.$plugin_config['suppress_no_fields_note'];
             }
@@ -1027,7 +1030,9 @@ class PluginsController extends ODRCustomController
                         // This field exists in the database...
                         $existing_data = $tmp[$fieldname];
 
-                        if ( $existing_data['description'] === $data['description'] )
+                        // NOTE: using '==' because yaml files are going to be empty string, while
+                        //  database could be null instead
+                        if ( $existing_data['description'] == $data['description'] )
                             unset( $tmp[$fieldname]['description'] );
 
                         // Need to use array_diff() both ways in order to catch when the database has
@@ -1146,7 +1151,9 @@ class PluginsController extends ODRCustomController
                         // This option exists in the database...
                         $existing_data = $tmp[$option_key];
 
-                        if ( $existing_data['name'] === $data['name'] )
+                        // NOTE: using '==' because yaml files are going to be empty string, while
+                        //  database could be null instead
+                        if ( $existing_data['name'] == $data['name'] )
                             unset( $tmp[$option_key]['name'] );
 
                         // The YAML parser converts numeric/boolean values away from strings, whereas
@@ -1162,14 +1169,14 @@ class PluginsController extends ODRCustomController
                                 unset( $tmp[$option_key]['default'] );
                             }
                         }
-                        else if ( $existing_data['default'] === $data['default'] )
+                        else if ( $existing_data['default'] == $data['default'] )
                             unset( $tmp[$option_key]['default'] );
 
-                        if ( $existing_data['description'] === $data['description'] )
+                        if ( $existing_data['description'] == $data['description'] )
                             unset( $tmp[$option_key]['description'] );
 
                         if ( isset($data['choices']) ) {
-                            if ( $existing_data['choices'] === $data['choices'] )
+                            if ( $existing_data['choices'] == $data['choices'] )
                                 unset( $tmp[$option_key]['choices'] );
                         }
 
@@ -1181,7 +1188,7 @@ class PluginsController extends ODRCustomController
                             $data['display_order'] = 0;
 
                         if ( isset($data['display_order']) ) {
-                            if ( $existing_data['display_order'] === $data['display_order'] )
+                            if ( $existing_data['display_order'] == $data['display_order'] )
                                 unset( $tmp[$option_key]['display_order'] );
                         }
 
@@ -1190,7 +1197,7 @@ class PluginsController extends ODRCustomController
                             $data['uses_custom_render'] = false;
 
                         if ( isset($data['uses_custom_render']) ) {
-                            if ( $existing_data['uses_custom_render'] === $data['uses_custom_render'] )
+                            if ( $existing_data['uses_custom_render'] == $data['uses_custom_render'] )
                                 unset( $tmp[$option_key]['uses_custom_render'] );
                         }
 
