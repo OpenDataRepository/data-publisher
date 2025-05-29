@@ -164,11 +164,12 @@ async function app() {
                             record.base_path = basepath;
                             record.base_url = data.base_url;
 
+                            // Put it in the tube
                             await file_builder_client.use(file_builder_tube);
-
                             let jobId = await file_builder_client.put(JSON.stringify(record));
+                            // console.log('RRUFF FILE Record Job ID: ', jobId);
+
                             job_count++;
-                            console.log('RRUFF FILE Record Job ID: ', jobId);
                         // }
                     }
 
