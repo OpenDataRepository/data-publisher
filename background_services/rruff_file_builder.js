@@ -85,18 +85,44 @@ async function app() {
                         let record = undefined;
 
                         // RAMAN FILES
-                        record = await findRecordByTemplateUUID(
-                            child_record['records_' + child_record.template_uuid],
-                            template_uuids['raman_file_record']
-                        );
-                        await processRamanFiles(record);
+                        if(child_record !== undefined
+                            && child_record.template_uuid === template_uuids['raman_child']
+                        ) {
+                            // Maybe do a search here?
+                            let raman_record = child_record;
+                            // console.log('RAMAN Record found');
+                            if(raman_record['records_' + raman_record.template_uuid] !== undefined) {
+                                for(let j= 0; j < raman_record['records_' + raman_record.template_uuid] .length; j++) {
+                                    // console.log('RAMAN Child Record: ', raman_record['records_' + raman_record.template_uuid][j].template_uuid);
+                                    if(raman_record['records_' + raman_record.template_uuid][j].template_uuid === template_uuids['raman_file_record']) {
+                                        // Maybe do a search here?
+                                        // console.log('RAMAN Record found');
+                                        let raman_file_record = raman_record['records_' + raman_record.template_uuid][j];
+                                        await processRamanFiles(raman_file_record);
+                                    }
+                                }
+                            }
+                        }
 
                         //  BROAD SCAN RAMAN FILES
-                        record = await findRecordByTemplateUUID(
-                            child_record['records_' + child_record.template_uuid],
-                            template_uuids['broad_scan_raman_child']
-                        );
-                        await processRamanFiles(record);
+                        if(child_record !== undefined
+                            && child_record.template_uuid === template_uuids['broad_scan_raman_child']
+                        ) {
+                            // Maybe do a search here?
+                            let raman_record = child_record;
+                            console.log('BROAD SCAN RAMAN Record found');
+                            if(raman_record['records_' + raman_record.template_uuid] !== undefined) {
+                                for(let j= 0; j < raman_record['records_' + raman_record.template_uuid] .length; j++) {
+                                    console.log('BROAD SCAN RAMAN Child Record: ', raman_record['records_' + raman_record.template_uuid][j].template_uuid);
+                                    if(raman_record['records_' + raman_record.template_uuid][j].template_uuid === template_uuids['raman_broad_scan_file_record']) {
+                                        // Maybe do a search here?
+                                        // console.log('RAMAN Record found');
+                                        let raman_file_record = raman_record['records_' + raman_record.template_uuid][j];
+                                        await processRamanFiles(raman_file_record);
+                                    }
+                                }
+                            }
+                        }
 
                         // Powder Files
                         record = await findRecordByTemplateUUID(
@@ -391,7 +417,7 @@ template_uuids['raman_file_record'] = 'd5634cdabb04b3e771c072afe5b4';
 template_uuids['raw_raman_file'] = '9cf77fe1d4068f96c1f7b182bab2';
 template_uuids['processed_raman_file'] = '87c62d2fb2edf24842de7eba2106';
 
-template_uuids['broad_scan_raman_child'] = '6a2ac522a7798625593023855b40';
+template_uuids['broad_scan_raman_child'] = '6a525a1868d7eef32e30e586dc74';
 template_uuids['raman_broad_scan_file_record'] = '6a2ac522a7798625593023855b40';
 template_uuids['raw_broad_scan_raman_file'] = '1478c4188a1dca0e817aa820243e';
 template_uuids['processed_broad_scan_raman_file'] = 'dd805d174cda22a92f1238ae16d5';
@@ -405,12 +431,12 @@ async function processRamanFiles(file_record) {
     // Files that should be present
     let valid_files = [];
 
-    // console.log('Child Record Match: ', file_record.template_uuid);
+    console.log('Child Record Match: ', file_record.template_uuid);
     if (
         file_record.template_uuid === template_uuids['raman_file_record']
         || file_record.template_uuid === template_uuids['raman_broad_scan_file_record']
     ) {
-        // console.log('File Record Match: ', file_record.template_uuid);
+        console.log('File Record Match: ', file_record.template_uuid);
         // This is a RAMAN Record
         for (let k = 0; k < file_record['fields_' + file_record.template_uuid].length; k++) {
             let child_field = file_record['fields_' + file_record.template_uuid][k];
@@ -430,37 +456,37 @@ async function processRamanFiles(file_record) {
             let file_type = '';
             if (child_field[key].template_field_uuid === template_uuids['raw_raman_file']) {
                 // RAW File Field
-                // console.log('RAW File Field: ', child_field[key].files[0].original_name);
-                // console.log('RAW File Quality: ', child_field[key].files[0]._file_metadata._quality);
+                console.log('RAW File Field: ', child_field[key].files[0].original_name);
+                console.log('RAW File Quality: ', child_field[key].files[0]._file_metadata._quality);
                 file = child_field[key].files[0];
             } else if (child_field[key].template_field_uuid === template_uuids['processed_raman_file']) {
                 // Processed File Field
-                // console.log('Processed File Field: ', child_field[key].files[0].original_name);
-                // console.log('Processed File Quality: ', child_field[key].files[0]._file_metadata._quality);
+                console.log('Processed File Field: ', child_field[key].files[0].original_name);
+                console.log('Processed File Quality: ', child_field[key].files[0]._file_metadata._quality);
                 file = child_field[key].files[0];
             } else if (child_field[key].template_field_uuid === template_uuids['processed_broad_scan_raman_file']) {
                 // Processed File Field
-                // console.log('Processed BROAD SCAN File Field: ', child_field[key].files[0].original_name);
-                // console.log('Processed BROAD SCAN File Quality: ', child_field[key].files[0]._file_metadata._quality);
+                console.log('Processed BROAD SCAN File Field: ', child_field[key].files[0].original_name);
+                console.log('Processed BROAD SCAN File Quality: ', child_field[key].files[0]._file_metadata._quality);
                 file = child_field[key].files[0];
                 file_type = 'broad_scan';
             } else if (child_field[key].template_field_uuid === template_uuids['raw_broad_scan_raman_file']) {
                 // Raw File Field
-                // console.log('Raw BROAD SCAN File Field: ', child_field[key].files[0].original_name);
-                // console.log('Raw BROAD SCAN File Quality: ', child_field[key].files[0]._file_metadata._quality);
+                console.log('Raw BROAD SCAN File Field: ', child_field[key].files[0].original_name);
+                console.log('Raw BROAD SCAN File Quality: ', child_field[key].files[0]._file_metadata._quality);
                 file = child_field[key].files[0];
                 file_type = 'broad_scan';
             }
 
             if (file !== undefined) {
                 let file_uuid = child_field[key].files[0].file_uuid;
-                // console.log('File UUID: ', file_uuid);
+                console.log('File UUID: ', file_uuid);
                 let file_name = child_field[key].files[0].original_name;
-                // console.log('File Name: ', file_name);
+                console.log('File Name: ', file_name);
                 let file_url = child_field[key].files[0].href;
-                // console.log('File URL: ', file_url);
+                console.log('File URL: ', file_url);
                 let file_quality = child_field[key].files[0]._file_metadata._quality;
-                // console.log('File Quality: ', file_quality);
+                console.log('File Quality: ', file_quality);
 
                 // Determine Directory Name
                 let output_file_directory = '';
