@@ -53,6 +53,14 @@ odr_plugins.base.file_header_inserter:
             description: If set to the "Windows" option, then the plugin uses the "\r\n" sequence for newlines in the header.  If set to the "Linux" option, then the plugin uses "\n".
             display_order: 3
 
+        replace_newlines_in_fields:
+            name: Replace Newlines in Fields?
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: If "yes", then the plugin will replace any "\r" or "\n" characters in a field's value with " ".
+            display_order: 4
+
         # TODO - when there's no value for a datafield, probably need an option to switch between "print out the header line, just with no value" and "don't print out this header line"
         # TODO - option(s) for how to handle multiple values in a datafield?  do nothing, pick first, pick last, merge together?  meh...
 
