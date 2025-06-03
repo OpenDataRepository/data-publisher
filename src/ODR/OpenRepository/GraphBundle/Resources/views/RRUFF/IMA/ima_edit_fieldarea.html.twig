@@ -52,6 +52,7 @@
 
                     {% set derived_datafield_name = null %}
                     {% set is_chemistry_field = false %}
+                    {% set is_ascii_field = false %}
                     {% if plugin_fields[ datafield.id ] is defined %}
                         {% if plugin_fields[ datafield.id ]['rpf_name'] == "IMA Formula" %}
                             {% set derived_datafield_name = "Chemistry Elements" %}
@@ -59,17 +60,22 @@
                         {% elseif plugin_fields[ datafield.id ]['rpf_name'] == "RRUFF Formula" %}
                             {% set derived_datafield_name = "Valence Elements" %}
                             {% set is_chemistry_field = true %}
+                        {% elseif plugin_fields[ datafield.id ]['rpf_name'] == "Mineral ASCII Name" %}
+                            {% set is_ascii_field = true %}
+                        {% elseif plugin_fields[ datafield.id ]['rpf_name'] == "Mineral Display Name" %}
+                            {% set mineral_display_name_df_id = true %}
                         {% endif %}
                     {% endif %}
 
                     {% set derived_datafield_id = null %}
-                    {% if derived_datafield_name is not null %}
-                        {% for df_id, rpf_data in plugin_fields %}
-                            {% if rpf_data['rpf_name'] == derived_datafield_name %}
-                                {% set derived_datafield_id = df_id %}
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
+                    {% set mineral_display_name_df_id = null %}
+                    {% for df_id, rpf_data in plugin_fields %}
+                        {% if rpf_data['rpf_name'] == "Mineral Display Name" %}
+                            {% set mineral_display_name_df_id = df_id %}
+                        {% elseif derived_datafield_name is not null and rpf_data['rpf_name'] == derived_datafield_name %}
+                            {% set derived_datafield_id = df_id %}
+                        {% endif %}
+                    {% endfor %}
 
                     {% if theme_datafield.hidden == 0 or edit_shows_all_fields %}
                         <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
@@ -93,9 +99,9 @@
 
                                     'is_datatype_admin': is_datatype_admin,
                                 } %}
-                            {% elseif (derived_datafield_id is not null or is_chemistry_field) %}
-                                {# The "source" datafields require slightly different saving javascript #}
-                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_datafield.html.twig' with {
+                            {% elseif is_chemistry_field %}
+                                {# The two chemistry datafields require slightly different saving javascript #}
+                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_chemistry_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
 
@@ -105,6 +111,16 @@
 
                                     'derived_datafield_id': derived_datafield_id,
                                     'is_chemistry_field': is_chemistry_field,
+                                } %}
+                            {% elseif is_ascii_field %}
+                                {# The mineral ascii name datafield also requires slightly different saving javascript #}
+                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_ascii_name_datafield.html.twig' with {
+                                    'datarecord': datarecord,
+                                    'datafield': datafield,
+
+                                    'is_link': is_link,
+                                    'token_list': token_list,
+                                    'is_datatype_admin': is_datatype_admin,
                                 } %}
                             {% else %}
                                 {# user is allowed to edit datafield #}
