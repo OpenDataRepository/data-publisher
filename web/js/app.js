@@ -47,6 +47,28 @@ var SaveTimeout = 2000;
         return this.optional(element) || /^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(value);
 
     }, "Please enter a valid Decimal value.");
+    jQuery.validator.addMethod('ODRAscii', function(value, element, params) {
+        // https://stackoverflow.com/a/20240240  dynamic error message for jquery validate
+        if ( value == '' ) {
+            // No point running a regex if the field has no value
+            if ( params.required == true ) {
+                jQuery.validator.messages.ODRAscii = 'This field should not be empty';
+                return false;
+            }
+
+            return true;
+        }
+        else {
+            // Only permit alphanumeric characters and a couple symbols
+            var found = value.match(/[^a-zA-Z0-9\-\+\(\)\[\]]/);
+            if ( found !== null ) {
+                jQuery.validator.messages.ODRAscii = 'The character "' + found[0] + '" probably should not be in this field';
+                return false;
+            }
+
+            return true;
+        }
+    }, '');
 
     jQuery.validator.setDefaults({
         // Specify a custom html class for displaying errors...this is also applied to the error label

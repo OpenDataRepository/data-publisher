@@ -45,20 +45,20 @@ odr_plugins.base.file_renamer:
             description: If "auto", then the uploaded file's extension is not changed.  Must not be blank or end with a period.
             display_order: 2
 
-        append_file_uuid:
-            name: Append File UUID?
-            type: string
-            default: yes
-            choices: no||No,yes||Yes
-            description: If "yes", then the file's UUID will be appended to the filename.
-            display_order: 3
+#        append_file_uuid:
+#            name: Append File UUID?
+#            type: string
+#            default: yes
+#            choices: no||No,yes||Yes
+#            description: If "yes", then the file's UUID will be appended to the filename.
+#            display_order: 3
 
         delete_invalid_characters:
             name: Delete Invalid Characters?
             type: string
             default: yes
             choices: no||No,yes||Yes
-            description: If "no", then the plugin refuse to rename a file when the filename contains invalid characters.
+            description: If "no", then the plugin refuse to rename a file when the filename contains "invalid" characters, such as "/", "?", "*", ">", etc.
             display_order: 4
 
         fire_on_pre_encrypt:

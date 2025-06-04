@@ -405,6 +405,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private function getRelevantFields($datatype, $datarecord)
     {
         $relevant_datafields = array(
+            'Mineral ASCII Name' => array(),
             'Mineral Display Name' => array(),
             'Mineral Display Abbreviation' => array(),
             'Chemistry Elements' => array(),
@@ -478,14 +479,17 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         );
 
         $problems = array();
-        foreach ($derivations as $source_rpf => $dest_rpf) {
-            if ( $relevant_datafields[$source_rpf]['value'] !== ''
-                && $relevant_datafields[$dest_rpf]['value'] === ''
+        foreach ($derivations as $source_rpf_name => $dest_rpf_name) {
+            if ( $relevant_datafields[$source_rpf_name]['value'] !== ''
+                && $relevant_datafields[$dest_rpf_name]['value'] === ''
             ) {
-                $dest_df_id = $relevant_datafields[$dest_rpf]['id'];
-                $problems[$dest_df_id] = 'There seems to be a problem with the contents of the "'.$source_rpf.'" field.';
+                $dest_df_id = $relevant_datafields[$dest_rpf_name]['id'];
+                $problems[$dest_df_id] = 'There seems to be a problem with the contents of the "'.$source_rpf_name.'" field.';
             }
         }
+
+        // Due to needing the jquery validate plugin, it's better to not actually trigger an entry
+        //  in here if the Mineral ASCII Name has a problem...
 
         // Return a list of any problems found
         return $problems;

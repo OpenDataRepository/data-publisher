@@ -121,6 +121,8 @@
                 .html("{{ problem_fields[datafield.id] }}")
                 .appendTo("#Input_{{ datarecord.id }}_{{ datafield.id }}");
         });
+
+        {# NOTE: this doesn't need to have saving javascript because it's only called on fields that can't be directly edited by the user #}
     </script>
     {% endif %}
 
