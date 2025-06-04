@@ -105,8 +105,6 @@
             onkeyup: false,    // If the datafield fires off a remote event to check uniqueness, then don't trigger validation on every keyup event
             {% endif %}
 
-            debug: true,
-
             submitHandler: function(form) {
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
