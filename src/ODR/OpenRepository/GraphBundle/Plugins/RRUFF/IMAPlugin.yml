@@ -96,4 +96,10 @@ odr_plugins.rruff.ima:
             type: Tag
             display_order: 8
 
+        mineral_aliases:
+            name: Mineral Aliases
+            description: A comma-separated list of old/alternate names for this mineral.
+            type: LongText
+            display_order: 9
+
     config_options:
