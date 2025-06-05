@@ -346,8 +346,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     if ( isset($rpi['renderPluginOptionsMap']['file_extension']) )
                         $file_extension = trim($rpi['renderPluginOptionsMap']['file_extension']);
                     $append_file_uuid = 'yes';
-//                    if ( isset($rpi['renderPluginOptionsMap']['append_file_uuid']) )
-//                        $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
+                    if ( isset($rpi['renderPluginOptionsMap']['append_file_uuid']) )
+                        $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
                     $delete_invalid_characters = 'yes';
                     if ( isset($rpi['renderPluginOptionsMap']['delete_invalid_characters']) )
                         $delete_invalid_characters = trim($rpi['renderPluginOptionsMap']['delete_invalid_characters']);
