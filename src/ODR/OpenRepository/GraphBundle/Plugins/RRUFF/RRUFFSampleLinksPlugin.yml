@@ -12,10 +12,16 @@ odr_plugins.rruff.rruff_sample_links:
     override_search: false
     override_sort: false
     suppress_no_fields_note: false
-    description: This plugin creates two "quicksearch" links back to the RRUFF Sample dataype, depending on the IMA mineral that the sample is linked to.
+    description: This plugin creates two "quicksearch" links back to the RRUFF Sample dataype and one to the AMCSD datatype, depending on the IMA mineral that the sample is linked to.
     registered_events:
 
     required_theme_elements: 1
 
     required_fields:
     config_options:
+        amcsd_database_id:
+            name: AMCSD Database ID
+            type: number
+            default: 0
+            description: The ID of the AMCSD Database on ODR
+            display_order: 0

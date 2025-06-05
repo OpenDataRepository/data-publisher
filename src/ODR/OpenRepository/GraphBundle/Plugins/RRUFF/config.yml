@@ -94,6 +94,7 @@ services:
     odr_plugins.rruff.rruff_sample_links:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSampleLinksPlugin'
         arguments:
+            $database_info_service: '@odr.database_info_service'
             $search_key_service: "@odr.search_key_service"
             $router: "@router"
             $templating: "@templating"
