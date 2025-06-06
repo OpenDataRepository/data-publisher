@@ -74,6 +74,7 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
@@ -113,6 +114,11 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
     private $datatree_info_service;
 
     /**
+     * @var EntityDeletionService
+     */
+    private $entity_deletion_service;
+
+    /**
      * @var ODRUploadService
      */
     private $upload_service;
@@ -141,6 +147,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
+     * @param EntityDeletionService $entity_deletion_service
      * @param ODRUploadService $upload_service
      * @param string $odr_tmp_directory
      * @param EngineInterface $templating
@@ -152,6 +159,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
         DatatreeInfoService $datatree_info_service,
+        EntityDeletionService $entity_deletion_service,
         ODRUploadService $upload_service,
         string $odr_tmp_directory,
         EngineInterface $templating,
@@ -162,6 +170,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         $this->database_info_service = $database_info_service;
         $this->datarecord_info_service = $datarecord_info_service;
         $this->datatree_info_service = $datatree_info_service;
+        $this->entity_deletion_service = $entity_deletion_service;
         $this->upload_service = $upload_service;
         $this->odr_tmp_directory = $odr_tmp_directory;
         $this->templating = $templating;
@@ -380,6 +389,13 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                         $replace_newlines_in_fields = false;
                     }
 
+                    $replace_existing_files = true;
+                    if ( isset($rpi['renderPluginOptionsMap']['replace_existing_file'])
+                        && trim($rpi['renderPluginOptionsMap']['replace_existing_file']) === 'no'
+                    ) {
+                        $replace_existing_files = false;
+                    }
+
                     // The newline separator is easier for the plugin if it's the actual character
                     //  sequence
                     if ( $newline_separator === 'windows' )
@@ -447,6 +463,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                         'placeholder' => $placeholder,
                         'newline_separator' => $newline_separator,
                         'replace_newlines_in_fields' => $replace_newlines_in_fields,
+                        'replace_existing_files' => $replace_existing_files,
                         'fields' => $field_ids,
                         'header' => $header_text,
                     );
@@ -1283,15 +1300,39 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                     $tmp_filepath = $this->odr_tmp_directory.'/'.$destination_folder.'/File_'.$file->getId().'.'.$file->getExt();
                     rename($filepath, $tmp_filepath);
 
-                    // ...rewrite it to have the new header
-                    self::insertNewHeader($tmp_filepath, $new_header, $plugin_config);
-                    $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                    if ( $plugin_config['replace_existing_files'] === false ) {
+                        // Because changing the header means there's going to be a new file, there's
+                        //  no point replacing the header...the FilePreEncryptEvent is going to be
+                        //  fired regardless, so might as well let self::onFilePreEncrypt() handle it
 
-                    // ...and then have the upload service replace the existing file
-                    $this->upload_service->replaceExistingFile($file, $tmp_filepath, $user);
-                    $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                        // Do need to save two properties of the previous file prior to its deletion
+                        $prev_public_date = $file->getPublicDate();
+                        $prev_quality = $file->getQuality();
 
-                    // replaceExistingFile() will end up triggering the required events
+                        // Delete the previous file, and fire off its events
+                        $this->entity_deletion_service->deleteFile($file, $user);
+                        // TODO - this fires off DatafieldModified and DatarecordModified events...are they superfluous?
+
+                        // Need to refresh the Doctrine-cached version of this entity, otherwise other
+                        //  FilePreEncryptEvent handlers will only have references to the now-deleted
+                        //  file
+                        $this->em->refresh($drf);
+
+                        // Have the upload service create a new file
+                        $this->upload_service->uploadNewFile($tmp_filepath, $user, $drf, null, $prev_public_date, $prev_quality, false);
+                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                    }
+                    else {
+                        // Update the headers in the decrypted version of the file
+                        self::insertNewHeader($tmp_filepath, $new_header, $plugin_config);
+                        $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+
+                        // Have the upload service replace the existing file with the modified version
+                        $this->upload_service->replaceExistingFile($file, $tmp_filepath, $user);
+                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+
+                        // replaceExistingFile() will end up triggering the required events
+                    }
                 }
                 else {
                     $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));

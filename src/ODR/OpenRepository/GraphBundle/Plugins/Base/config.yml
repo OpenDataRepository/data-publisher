@@ -119,6 +119,7 @@ services:
             $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
+            $entity_deletion_service: "@odr.entity_deletion_service"
             $upload_service: "@odr.upload_service"
             $odr_tmp_directory: '%odr_tmp_directory%'
             $templating: '@templating'
