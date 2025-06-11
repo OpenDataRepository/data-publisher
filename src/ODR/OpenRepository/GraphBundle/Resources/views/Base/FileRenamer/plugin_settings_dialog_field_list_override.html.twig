@@ -131,15 +131,25 @@
         });
 
         $(".ODRRenderPlugin_FileRenamer_dt_header").unbind('click').click(function() {
-            if ( $(this).next().hasClass('ODRHidden') ) {
-                $(this).next().removeClass('ODRHidden');
+            var is_open = $(this).children('span.FRight').children('i').hasClass('fa-caret-right');
+
+            if ( is_open ) {
                 $(this).children('span.FRight').children('i').removeClass('fa-caret-right').addClass('fa-caret-down');
+                $(this).next().children('li').each(function(index,elem) {
+                    if ( $(elem).find('i.fa-check').length == 0 )
+                        $(elem).addClass('ODRHidden');
+                    else
+                        $(elem).removeClass('ODRHidden');
+                });
             }
             else {
-                $(this).next().addClass('ODRHidden');
                 $(this).children('span.FRight').children('i').removeClass('fa-caret-down').addClass('fa-caret-right');
+                $(this).next().children('li').each(function(index,elem) {
+                    $(elem).removeClass('ODRHidden');
+                });
             }
         });
+        $(".ODRRenderPlugin_FileRenamer_dt_header").trigger('click');
 
         $(".ODRRenderPlugin_FileRenamer.ODRTristateCheckbox").unbind('click').click(function() {
             var icon_div = $(this).children('.fa').first();

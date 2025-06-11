@@ -113,6 +113,20 @@ services:
             $templating: "@templating"
             $logger: "@logger"
 
+    odr_plugins.rruff.file_header_inserter:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFFileHeaderInserterPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $crypto_service: "@odr.crypto_service"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $entity_deletion_service: "@odr.entity_deletion_service"
+            $upload_service: "@odr.upload_service"
+            $odr_tmp_directory: '%odr_tmp_directory%'
+            $templating: '@templating'
+            $logger: "@logger"
+
 
     # ----------------------------------------
     # Temporary datatype plugins

@@ -19,6 +19,12 @@ odr_plugin_file_header_inserter_rebuild:
     requirements:
         dr_id: \d+
         df_id: \d+
+odr_plugin_rruff_file_header_inserter_rebuild:
+    path:  /edit/plugins/rruff_file_header_inserter/rebuild/{dr_id}/{df_id}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFFileHeaderInserter:rebuild }
+    requirements:
+        dr_id: \d+
+        df_id: \d+
 
 odr_plugin_cellparam_save:
     path:  /edit/plugins/cellparams/save

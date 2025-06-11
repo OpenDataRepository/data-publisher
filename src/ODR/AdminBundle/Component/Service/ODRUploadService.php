@@ -184,7 +184,7 @@ class ODRUploadService
         // Additionally, CryptoService handles firing all other events for files
 
         // ----------------------------------------
-        // Reload the file incase the FilePreEncryptEvent screwed with the filepath
+        // Reload the file incase the FilePreEncryptEvent screwed with the filepath or the filesize
         $this->em->refresh($file);
         $file_meta = $file->getFileMeta();
         $this->em->refresh($file_meta);

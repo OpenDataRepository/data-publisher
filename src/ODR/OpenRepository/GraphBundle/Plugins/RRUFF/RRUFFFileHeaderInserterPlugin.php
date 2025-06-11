@@ -2,55 +2,25 @@
 
 /**
  * Open Data Repository Data Publisher
- * File Header Inserter Plugin
+ * RRUFF File Header Inserter Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The RRUFF Project database (originally at rruff.info) inserted several header lines into most of
- * the data files that got uploaded, so people who downloaded them would be able to tell at a glance
- * which mineral/sample/locality/chemistry/etc properties ended up creating this particular file of
- * raman/infrared/powder data.
+ * The same rant for the default FileHeaderInserter plugin applies here too.
+ * {@link \ODR\OpenRepository\GraphBundle\Plugins\Base\FileHeaderInserterPlugin}
  *
- * The problem with this is that getting these various pieces of data only really works when you have
- * a database with a known/pre-defined structure...and unfortunately, *THE PRIMARY DESIGN PRINCIPLE*
- * of ODR is that users need to be able to change the structure of their database, and it needs to
- * try to keep working even if they change stuff on a whim.
+ * The reason there's two of them is because making the default plugin work for RRUFF was untenable.
+ * The headers for RRUFF's spectra files require conditional logic based on whether something exists
+ * (i.e. no powder diffraction means no line for cell parameters), and several of the lines require
+ * transformation into a more readable format (i.e. measured chemistry + chemistry notes and
+ * oriented raman data)
  *
- *
- * Unsurprisingly then, this plugin has to do many terrible things to ODR.  The plugin has to be able
- * to read and modify uploaded files prior to encryption (see FilePreEncryptEvent), and it also needs
- * to be able to modify this header in the future (see ODRUploadService::replaceExistingFile()).
- *
- * The contents of this header need to (at least partially) come from "relevant fields"...but these
- * fields aren't guaranteed to be in the same database, so the plugin has to go out of its way to
- * locate fields that the user is allowed to use.  Unlike the File Renamer Plugin, these fields can't
- * be restricted so this plugin has at most one value per field...so it has to also potentially
- * choose between multiple values for each header line.
- *
- * Because the database structure can change on a whim, there's no reliable method for the file field
- * in question to "depend on" the "relevant fields" this plugin is configured to use...and therefore
- * it's quite literally impossible for changes made to these other fields to automatically update the
- * relevant uploaded files.  Even a specialized system would have trouble doing this, by the way.
- *
- * On top of this, the "relevant fields" can come from a linked database, so any config made for this
- * plugin has a very real chance of getting invalidated due to changes made by a user that doesn't
- * even have permissions to touch the plugin's config in the first place.  There is no solution for
- * this problem that won't violate the autonomy of one of the relevant datatype admin.  Additionally,
- * this means that the plugin violates one of the other primary design principles of ODR...which is
- * that each database can be handled as its own self-contained unit.
- *
- * Finally, automatically checking whether the header is out of sync is incredibly expensive,
- * as doing so requires the file to be decrypted and then read...and ODR is already slow enough.  As
- * such, there's no way to notify the user when a header is "out of date".  The next easiest method
- * involves hijacking the Edit and MassEdit controllers so the user at least has the option of manually
- * triggering a rewrite...and that still requires additional events and controllers to work correctly.
- *
- *
- * Given how many of ODR's design principles this plugin violates, I'm surprised it works at all.
+ * In the long run, it's just easier to have a different plugin with a different config to gather
+ * the information to deal with it.
  */
 
-namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
+namespace ODR\OpenRepository\GraphBundle\Plugins\RRUFF;
 
 // ODR
 use ODR\AdminBundle\Entity\DataFields;
@@ -69,6 +39,7 @@ use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
@@ -76,6 +47,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
+use ODR\OpenRepository\GraphBundle\Plugins\Base\FileHeaderInserterPlugin;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
@@ -85,7 +57,7 @@ use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
+class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
 {
 
     /**
@@ -140,7 +112,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
 
     /**
-     * File Header Inserter Plugin constructor.
+     * RRUFF File Header Inserter Plugin constructor.
      *
      * @param EntityManager $entity_manager
      * @param CryptoService $crypto_service
@@ -193,7 +165,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            // The FileHeaderInserter Plugin should work in the 'edit' context
+            // The RRUFF FileHeaderInserter Plugin should work in the 'edit' context
             if ( $context === 'edit' )
                 return true;
 
@@ -238,11 +210,11 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 //                    break;
                 }
 
-                // Due to both this plugin and the RRUFFFileHeaderInserterPlugin sharing a render
-                //  value, the RenderPlugin system doesn't stop them from both being active at the
-                //  same time...because I'm not inclined to overhaul the plugin system at this time,
+                // Due to both this plugin and the FileHeaderInserterPlugin sharing a render value,
+                //  the RenderPlugin system doesn't stop them from both being active at the same
+                //  time...because I'm not inclined to overhaul the plugin system at this time,
                 //  I'm going to throw an exception here
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter' ) {
+                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
                     $datafield_name = $datafield['dataFieldMeta']['fieldName'];
                     throw new ODRException('The datafield "'.$datafield_name.'" should not have both the Base FileHeaderInserter and the RRUFF FileHeaderInserter plugin active simultaneously');
                 }
@@ -253,7 +225,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                 // TODO - also work in the 'display' context?  but finding errors to display is expensive...
 
 //                $output = $this->templating->render(
-//                    'ODROpenRepositoryGraphBundle:Base:FileRenamer/display_file_datafield.html.twig',
+//                    'ODROpenRepositoryGraphBundle:RRUFF:FileRenamer/display_file_datafield.html.twig',
 //                    array(
 //                        'datafield' => $datafield,
 //                        'datarecord' => $datarecord,
@@ -264,7 +236,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/file_header_inserter_edit_datafield.html.twig',
+                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/file_header_inserter_edit_datafield.html.twig',
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
@@ -306,16 +278,16 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
         $is_correct_plugin = false;
         foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
+            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter' ) {
                 // Datafield is using the correct plugin...
                 $is_correct_plugin = true;
             }
 
-            // Due to both this plugin and the RRUFFFileHeaderInserterPlugin sharing a render
-            //  value, the RenderPlugin system doesn't stop them from both being active at the
-            //  same time...because I'm not inclined to overhaul the plugin system at this time,
-            //  I'm going to throw an exception here
-            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter' ) {
+            // Due to both this plugin and the FileHeaderInserterPlugin sharing a render value, the
+            //  RenderPlugin system doesn't stop them from both being active at the same time...
+            //  ...because I'm not inclined to overhaul the plugin system at this time, I'm going to
+            //  throw an exception here
+            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
                 $datafield_name = $datafield->getFieldName();
                 throw new ODRException('The datafield "'.$datafield_name.'" should not have both the Base FileHeaderInserter and the RRUFF FileHeaderInserter plugin active simultaneously');
             }
@@ -332,19 +304,16 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
     /**
      * Locates the configuration for the plugin if it exists, and converts it into a more useful
      * array format for actual use.  For instance...
-     *
+     * <code>
      * array(
      *     'prefix' => '3_44_47',
      *     'comment_prefix' => '##',
      *     'allowed_extensions' => array('txt'),
-     *     'placeholder' => '?:',
      *     'newline_separator' => "\r\n",
-     *     'fields' => array(17,34,182),
-     *     'header' =>
-     *         "NAME=?:17
-     *          RRUFFID=?:34
-     *          MEASURED CHEMISTRY=?:182"
+     *     'field_list' => array('mineral_name' => 17,...),
+     *      ...
      * );
+     * </code>
      *
      * The 'prefix' entry is a string of datatype ids which indicate the "ultimate ancestor" of a
      * record that is about to have one of its uploaded files modified.  It also assists with actually
@@ -356,10 +325,6 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * should be inserted in the 'header' entry, and the 'fields' array is a shortcut to the
      * datafield ids listed in the header.
      *
-     * NOTE: the fields are supposed to belong to the given prefix, but since the user is typing stuff
-     * into a textarea this isn't exactly guaranteed.  The field list needs to be verified before it
-     * actually gets used.  It may also be blank.
-     *
      * The 'newline_separator' is going to be either "\r\n" or "\n", and determines what the plugin
      * actually uses for the newlines when writing the header to a file.
      *
@@ -367,6 +332,9 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * on.  This is an attempt to stop the plugin from wrecking files which aren't plain-text...
      * such as PDF or JPEG files...but there's nothing stopping the user from doing so if they really
      * want to.
+     *
+     * The main difference between the base FileHeaderInserterPlugin and this one is that the user
+     * can't arbitrarily create their own header, but instead maps fields to pre-defined roles.
      *
      * @param DataFields $datafield
      * @return array
@@ -389,27 +357,20 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         if ( !empty($df['renderPluginInstances']) ) {
             // The datafield could have more than one renderPluginInstance
             foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
+                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter' ) {
                     // Need to get all the regular configuration options for the plugin
                     $comment_prefix = '##';
-                    if ( isset($rpi['renderPluginOptionsMap']['comment_prefix']) )
-                        $comment_prefix = trim($rpi['renderPluginOptionsMap']['comment_prefix']);
                     $allowed_extensions = 'txt';
-                    if ( isset($rpi['renderPluginOptionsMap']['allowed_extensions']) )
-                        $allowed_extensions = trim($rpi['renderPluginOptionsMap']['allowed_extensions']);
-                    $placeholder = '?:';
-                    if ( isset($rpi['renderPluginOptionsMap']['placeholder']) )
-                        $placeholder = trim($rpi['renderPluginOptionsMap']['placeholder']);
                     $newline_separator = 'windows';
-                    if ( isset($rpi['renderPluginOptionsMap']['newline_separator']) )
-                        $newline_separator = trim($rpi['renderPluginOptionsMap']['newline_separator']);
-
                     $replace_newlines_in_fields = true;
-                    if ( isset($rpi['renderPluginOptionsMap']['replace_newlines_in_fields'])
-                        && trim($rpi['renderPluginOptionsMap']['replace_newlines_in_fields']) === 'no'
-                    ) {
-                        $replace_newlines_in_fields = false;
-                    }
+
+                    $baseurl = '';
+                    if ( isset($rpi['renderPluginOptionsMap']['baseurl']) )
+                        $baseurl = trim($rpi['renderPluginOptionsMap']['baseurl']);
+
+                    $context = '';
+                    if ( isset($rpi['renderPluginOptionsMap']['context']) )
+                        $context = trim($rpi['renderPluginOptionsMap']['context']);
 
                     $replace_existing_files = true;
                     if ( isset($rpi['renderPluginOptionsMap']['replace_existing_file'])
@@ -428,66 +389,57 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                     // The extensions probably should be converted into an array
                     $allowed_extensions = explode(',', $allowed_extensions);
 
-                    // The placeholder needs to be converted into a regex for later
-                    $datafield_id_regex = '/'.preg_quote($placeholder).'(\d+)/';  // The placeholder, followed by at least one digit
-
 
                     // ----------------------------------------
                     // Need to also get the semi-encoded option containing the header data
                     $header_data = trim($rpi['renderPluginOptionsMap']['header_data']);
 
-                    // If the plugin is supposed to only use "\n", then need to ensure there are
-                    //  no "\r" characters in the header data...browsers tend to submit them as part
-                    //  of the form data...
-                    if ( $newline_separator === "\n" )
-                        $header_data = str_replace("\r", "", $header_data);
+                    // Unlike the base version, the user doesn't define what the header looks like
+                    // It instead demands mappings for two dozen plus fields, which are stored in a
+                    //  comma-separated list
+                    $header_data = explode(',', $header_data);
 
-                    // The first line of this header data will always be the prefix, but since all
-                    //  the subsequent lines are the header, it doesn't make sense to explode everything
-                    //  into individual lines
                     $prefix = '';
-                    $header_text = '';
-                    if ( strpos($header_data, $newline_separator) !== false ) {
-                        $first_newline = strpos($header_data, $newline_separator);
-                        $prefix = substr($header_data, 0, $first_newline);
-                        $header_text = substr($header_data, $first_newline + strlen($newline_separator));
-                    }
-                    else {
-                        // ...there is the chance that the user (me, most likely...) wants no header
-                        //  on these files.  In this case, the only thing in $header_data will be
-                        //  the datatype prefix.
-                        $prefix = $header_data;
-                        $header_text = '';
-                    }
+                    $fields_by_name = array();
+                    foreach ($header_data as $num => $line) {
+                        $data = explode('=', $line);
+                        $key = trim($data[0]);
+                        $value = trim($data[1]);
 
-                    // Need to get extract the datafield ids out of the header, and the easiest way
-                    //  to do that is to regexp the header itself
-                    $matches = array();
-                    $ret = preg_match_all($datafield_id_regex, $header_text, $matches);
-
-                    // The header might not have had any datafield ids...
-                    $field_ids = array();
-                    if ( $ret !== false ) {
-                        // ...but if it does, then extract them from the regex results and convert
-                        //  into integers
-                        foreach ($matches[1] as $num => $match) {
-                            // It's possible for the header to reference a field more than once
-                            $df_id = intval($match);
-                            $field_ids[$df_id] = 1;
+                        if ( $data[0] === 'prefix' ) {
+                            $prefix = $value;
                         }
-                        $field_ids = array_keys($field_ids);
+                        else {
+                            $value = intval($value);
+                            $fields_by_name[$key] = $value;
+                            // Doing it this way in case there are undefined fields
+                        }
                     }
+
+                    // Require the datatype prefix to exist and all fields to be mapped for the config
+                    //  to be valid
+                    $invalid = false;
+                    if ( $baseurl === '' || $context === '' )
+                        $invalid = true;
+                    if ( $prefix === '' || $prefix === 'undefined' )
+                        $invalid = true;
+                    if ( count($fields_by_name) !== 28 )
+                        $invalid = true;
 
                     $config = array(
+                        'invalid' => $invalid,
+
+                        'baseurl' => $baseurl,
+                        'context' => $context,
+
                         'prefix' => $prefix,
                         'comment_prefix' => $comment_prefix,
                         'allowed_extensions' => $allowed_extensions,
-                        'placeholder' => $placeholder,
                         'newline_separator' => $newline_separator,
                         'replace_newlines_in_fields' => $replace_newlines_in_fields,
                         'replace_existing_files' => $replace_existing_files,
-                        'fields' => $field_ids,
-                        'header' => $header_text,
+
+                        'fields_by_name' => $fields_by_name,
                     );
                 }
             }
@@ -499,28 +451,10 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
 
     /**
-     * This plugin attempts to insert a header block into files uploaded to the datafield it's
-     * attached to...this header typically (but not always) uses values from various acceptable
-     * datafields that are related (sometimes loosely) to the datafield using the plugin.
+     * This works identically to {@link FileHeaderInserterPlugin::getAvailableConfigurations()}.
      *
-     * A field is considered "acceptable" if it's a text/number field or a single radio/select...it
-     * also has to belong to one of the following datatypes:
-     * 1) the current datatype
-     * 2) an ancestor of this datatype (whether it's linked or not)
-     * 3) a descendant of any datatype from 1 or 2
-     *
-     * The FileRenamer plugin has almost the same requirements, with the MAJOR difference being that
-     * this plugin allows ANY descendant in step 3...the FileRenamer plugin only permits descendants
-     * that can have at most one record.  Unfortunately, RRUFF demands the plugin work like this.
-     *
-     * This requirement makes the "config prefix" less useful for this plugin, but it's still
-     * convenient enough to keep around...it mostly limits how far the plugin has to go to find
-     * values to use for the header.
-     *
-     * Unfortunately, due to how ODR works, there could be multiple datatypes that link to the
-     * datatype this plugin is getting attached to, so there could be multiple possible prefixes. The
-     * user will be forced to choose a single prefix in the render plugin settings dialog, and their
-     * chosen prefix will be the one saved to the database.
+     * The user still needs a list of fields to map to the correct roles, even if there's technically
+     * only one "correct config" at the end of the day.
      *
      * @param DataFields $datafield
      * @return array
@@ -774,10 +708,46 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
 
         // ----------------------------------------
+        // Need to have the names of the fields
+        $field_names = array(
+            'mineral_name' => 'Mineral Name',
+            'rruff_id' => 'RRUFF ID',
+            'ima_formula' => 'IMA Formula',
+            'sample_loc' => 'Sample Location',
+            'sample_owner' => 'Sample Owner',
+            'sample_source' => 'Sample Source',
+            'sample_desc' => 'Sample Description',
+            'sample_status' => 'Sample Status',
+
+            'probe_formula' => 'Measured Chemistry',
+            'probe_notes' => 'Measured Chemistry Notes',
+
+            'pin_id' => 'Pin ID',
+            'pin_parallel_x' => 'Vector Parallel X',
+            'pin_parallel_y' => 'Vector Parallel Y',
+            'pin_parallel_z' => 'Vector Parallel Z',
+            'pin_parallel_ref' => 'Vector Parallel Ref Space',
+            'pin_perp_x' => 'Vector Perpendicular X',
+            'pin_perp_y' => 'Vector Perpendicular Y',
+            'pin_perp_z' => 'Vector Perpendicular Z',
+            'pin_perp_ref' => 'Vector Perpendicular Ref Space',
+
+            'powder_desc' => 'Powder Description',
+            'powder_a' => 'a',
+            'powder_b' => 'b',
+            'powder_c' => 'c',
+            'powder_alpha' => 'alpha',
+            'powder_beta' => 'beta',
+            'powder_gamma' => 'gamma',
+            'powder_vol' => 'volume',
+            'powder_crys' => 'crystal system',
+        );
+
         return array(
             'prefixes' => $prefixes,
             'name_data' => $name_data,
             'allowed_datatypes' => $descendants_by_prefix,
+            'field_names' => $field_names,
         );
     }
 
@@ -815,8 +785,9 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      *
      * This process consists of taking the datarecord that just had a file uploaded to it, then
      * finding its "ultimate ancestor" datarecord through a targeted database query...due to the
-     * rules enforced by self::getAvailableConfigurations(), once this "ultimate ancestor" record is
-     * loaded from the cache entries, it'll contain all the possible values the header could use.
+     * rules enforced by {@link self::getAvailableConfigurations()}, once this "ultimate ancestor"
+     * record is loaded from the cache entries, it'll contain all the possible values the header
+     * could use.
      *
      * The cached entry can then be iterated over with the rest of the config info to find the values
      * to use for the header...though if the plugin isn't configured correctly, or told to run on
@@ -824,26 +795,26 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * plugin has to attempt to compensate for this...
      *
      * @param DataRecordFields $original_drf
-     * @param array $config_info @see self::getCurrentPluginConfig()
+     * @param array $config_info {@link self::getCurrentPluginConfig()}
      * @return string
      */
     public function getFileHeader($original_drf, $config_info)
     {
         // ----------------------------------------
         if ( is_null($original_drf) )
-            throw new ODRBadRequestException('Unable to create a header for a null drf', 0x8636600d);
+            throw new ODRBadRequestException('Unable to create a header for a null drf', 0x65554240);
 
         // If the plugin isn't properly configured, then don't attempt to do anything
-        if ( !isset($config_info['prefix']) )
-            throw new ODRBadRequestException('The FileHeaderInserter plugin is not properly configured', 0x8636600d);
+        if ( !isset($config_info['invalid']) || $config_info['invalid'] == true )
+            throw new ODRBadRequestException('The RRUFFFileHeaderInserter plugin is not properly configured', 0x65554240);
 
+        $baseurl = $config_info['baseurl'];
+        $context = $config_info['context'];
         $prefix = $config_info['prefix'];
         $comment_prefix = $config_info['comment_prefix'];
         $allowed_extensions = $config_info['allowed_extensions'];
-        $placeholder = $config_info['placeholder'];
         $newline_separator = $config_info['newline_separator'];
-        $fields = $config_info['fields'];
-        $header_text = $config_info['header'];
+        $fields_by_name = $config_info['fields_by_name'];
 
 
         // ----------------------------------------
@@ -852,12 +823,12 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         $df = $original_drf->getDataField();
         $typeclass = $df->getFieldType()->getTypeClass();
         if ( $typeclass !== 'File' )
-            throw new ODRBadRequestException('Unable to create a header for a '.$typeclass.' field', 0x8636600d);
+            throw new ODRBadRequestException('Unable to create a header for a '.$typeclass.' field', 0x65554240);
 
         // Makes no sense to run all this stuff if the field has no files in it
         $entities = $original_drf->getFile()->toArray();
         if ( empty($entities) )
-            throw new ODRBadRequestException('There are no files uploaded to this datafield for the FileHeaderInserter plugin to run on', 0x8636600d);
+            throw new ODRBadRequestException('There are no files uploaded to this datafield for the RRUFFFileHeaderInserter plugin to run on', 0x65554240);
         /** @var File[] $entities */
 
         // Need to determine whether at least one of the files uploaded to the datafield has an
@@ -872,14 +843,8 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
         // ...if none of the files match, then don't attempt to do anything
         if ( !$has_valid_file )
-            throw new ODRBadRequestException('None of the files uploaded to this datafield are valid for the FileHeaderInserter plugin to operate on', 0x8636600d);
+            throw new ODRBadRequestException('None of the files uploaded to this datafield are valid for The RRUFFFileHeaderInserter plugin to operate on', 0x65554240);
         // Not strictly an exception, but makes it obvious...
-
-
-        // If, for some reason, the user wants no header in here, then there's no point actually
-        //  digging through the database/cached arrays for values...just return the empty string
-        if ( $header_text === '' )
-            return '';
 
 
         // ----------------------------------------
@@ -1002,9 +967,9 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             // Regardless of why there's a problem, it means that there's no way to get the correct
             //  values to use for a file header...so nothing should happen at all
             if ( count($results) < 1 )
-                throw new ODRBadRequestException("Unable to find the correct ancestors for datarecord ".$dr->getId()."...most likely, one of the ancestors is supposed to be a linked record, but it hasn't been linked to.", 0x8636600d);
+                throw new ODRBadRequestException("Unable to find the correct ancestors for datarecord ".$dr->getId()."...most likely, one of the ancestors is supposed to be a linked record, but it hasn't been linked to.", 0x65554240);
             else if ( count($results) > 1 )
-                throw new ODRBadRequestException("Multiple possible ancestors for datarecord ".$dr->getId()."...plugin is likely either configured wrong, or being used incorrectly.", 0x8636600d);
+                throw new ODRBadRequestException("Multiple possible ancestors for datarecord ".$dr->getId()."...plugin is likely either configured wrong, or being used incorrectly.", 0x65554240);
 
             // It"ll be useful to save each of the datarecord ids found in the previous query...
             for ($i = 0; $i < $dr_num; $i++)
@@ -1018,7 +983,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         // This variable shouldn't be null at this point, but make sure...if it is, then there's no
         //  way to determine what values to use for the header
         if ( is_null($ancestor_dr_id) )
-            throw new ODRBadRequestException("Unable to find the correct ancestors for datarecord ".$dr->getId()."...no clue why.", 0x8636600d);
+            throw new ODRBadRequestException("Unable to find the correct ancestors for datarecord ".$dr->getId()."...no clue why.", 0x65554240);
 
 
         // ----------------------------------------
@@ -1037,8 +1002,9 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         $dr_array = $this->datarecord_info_service->getDatarecordArray($grandparent_dr_id);
         // Don't want to stack this array, because that would force the use of recursion later on
 
-        // This renderPlugin dialog has no way to ensure the datafields entered by the user are valid,
-        //  so there's nothing stopping them from entering ids of datafields which...
+        // While not quite as free-form as the regular FileHeaderInserter Plugin, the dialog for this
+        //  plugin still has no way to know when the user selects datafields which are invalid. As
+        //  such, it still needs to do validation. The fields can't...
         // 1) have an invalid typeclass (e.g. Image field)
         // 2) belong to a datatype that's unrelated to the prefix
         // 3) are non-public
@@ -1101,7 +1067,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         )->setParameters(
             array(
                 'datatype_ids' => $valid_datatypes,
-                'datafield_ids' => $fields,
+                'datafield_ids' => array_values($fields_by_name),
                 'fieldtype_ids' => $valid_fieldtypes,
                 'public_date' => '2200-01-01 00:00:00',
             )
@@ -1116,8 +1082,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             $datafield_names[$id] = $field_name;
         }
 
-        // NOTE: because the header might not require any values from fields, $datafield_names might
-        //  be empty
+        // NOTE: the header might technically be empty, though it really shouldn't be
 
 
         // ----------------------------------------
@@ -1186,40 +1151,70 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         //  to a single IMA Mineral, so there will only be at most one mineral name...but it won't
         //  be in $filtered_mapping, because IMA Mineral isn't an ancestor of RRUFF Spectra.
 
-        // The reason for this logical split is because the FileHeaderInserter plugin is forced to
+        // The reason for this logical split is because the RRUFFFileHeaderInserter plugin is forced to
         //  also permit descendants of multiple-allowed datatypes...e.g. the user wants to use values
         //  from references that the RRUFF Sample links to as part of the header for a Raman Spectra
         //  file.  The only solution in this case is to pick one, or to merge all of them together.
 
+        // ...and while the above is completely true in general, it's still undesireable behavior
+        //  when the plugin is dealing with raman data...due to permitting descendants of multiple-
+        //  allowed datatypes, $original_mapping will contain all of the oriented pins, and the loop
+        //  that builds $header_values will just pick the first one (which isn't necessarily correct)
+
+        // The fix is to do an extra step...one that requires specific knowledge of RRUFF's structure
+        //  ...and only keep the oriented pin data when it's more tightly related to the file being
+        //  checked
+        $pin_fields = array(
+            $fields_by_name['pin_id'],
+            $fields_by_name['pin_parallel_x'],
+            $fields_by_name['pin_parallel_y'],
+            $fields_by_name['pin_parallel_z'],
+            $fields_by_name['pin_parallel_ref'],
+            $fields_by_name['pin_perp_x'],
+            $fields_by_name['pin_perp_y'],
+            $fields_by_name['pin_perp_z'],
+            $fields_by_name['pin_perp_ref'],
+        );
+        foreach ($pin_fields as $df_id) {
+            if ( isset($original_mapping[$df_id]) ) {
+                // This RRUFF sample could have multiple oriented raman sub-samples
+                $dr_values = $original_mapping[$df_id];
+
+                // Because we know the structure of this database, we know that the parent
+                //  of the raman spectra record and the pin data record is the second entry
+                //  in $intermediate_dr_ids
+                $correct_parent_dr_id = array_search(1, $intermediate_dr_ids);
+
+                // We can then use this id to unset the "unrelated" values inside the pin fields
+                foreach ($dr_values as $dr_id => $val) {
+                    if ( !isset($dr_array[$dr_id]) || $dr_array[$dr_id]['parent']['id'] !== $correct_parent_dr_id ) {
+                        // Going to unset the entry in $original_mapping instead of inserting
+                        //  the value into $filtered_mapping
+                        unset( $original_mapping[$df_id][$dr_id] );
+                    }
+                }
+            }
+        }
+
 
         // ----------------------------------------
-        // At this point we have all the possible values from datafields to use in this header, if
-        //  the plugin is configured as such...note that there might legitimately be no values to use
+        // At this point we have all the possible values from datafields to use in this header,
+        //  assuming that the plugin is correctly configured and the fields have values.
 
-        // The values should be substituted first, to prevent newlines in text fields from screwing
-        //  up the final header value
-
-        // Additionally, the substitutions should happen in order from the datafield with the highest
-        //  id to the datafield with the lowest id...don't want ?:1 to override :?100, for instance
-        rsort($fields);
-
-        // NOTE: intentionally using $fields here despite it potentially containing illegal
-        //  datafields, primarily to prevent placeholders from remaining in the header text
-
-        $searches = array();
-        $replacements = array();
-        foreach ($fields as $num => $df_id) {
-            $searches[] = $placeholder.$df_id;
-
+        // Because the RRUFFFileHeaderInserter plugin has a pre-defined structure, it's better to
+        //  call a template file to do the work...but it's easier on twig if php figures out the
+        //  values first...
+        $header_values = array();
+        foreach ($fields_by_name as $name => $df_id) {
             // Prefer to use values from the $filtered_mapping array first...
             if ( isset($filtered_mapping[$df_id]) && !empty($filtered_mapping[$df_id]) ) {
                 foreach ($filtered_mapping[$df_id] as $dr_id => $value) {
                     // While there should only be one value in here, there's no way to know the
                     //  $dr_id beforehand
                     if ( $config_info['replace_newlines_in_fields'] )
-                        $replacements[] = str_replace(array("\r", "\n"), " ", $value);
+                        $header_values[$name] = str_replace(array("\r", "\n"), " ", $value);
                     else
-                        $replacements[] = $value;
+                        $header_values[$name] = $value;
                     break;
                 }
             }
@@ -1227,9 +1222,9 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                 // ...but fall back to the $original_mapping array if a filtered value doesn't exist
                 foreach ($original_mapping[$df_id] as $dr_id => $value) {
                     if ( $config_info['replace_newlines_in_fields'] )
-                        $replacements[] = str_replace(array("\r", "\n"), " ", $value);
+                        $header_values[$name] = str_replace(array("\r", "\n"), " ", $value);
                     else
-                        $replacements[] = $value;
+                        $header_values[$name] = $value;
                     // Might as well just use the first value, since there's no way to determine
                     //  which of the potential values is "more correct"
                     break;
@@ -1239,24 +1234,172 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             }
             else {
                 // ...and use a blank value if neither have anything
-                $replacements[] = '';
-
-                // TODO - provide an option to not display a line if it doesn't have a value?
+                $header_values[$df_id] = '';
             }
         }
 
-        // Replace all the placeholders in the header text with their actual values
-        $header_text = str_replace($searches, $replacements, $header_text);
+        // ...and easier still when php combines a couple of them together
+        // Specifically, the oriented data needs to be converted from 8 fields into two entries
+        self::determineOrientedVectors($header_values);
 
-        // The header text needs to have the comment_prefix prepended to it...
-        $header_lines = explode($newline_separator, $header_text);
-        foreach ($header_lines as $num => $line)
-            $header_lines[$num] = $comment_prefix.$line;
+        // ...and the two microprobe fields need to be recombined into a single field
+        if ( isset($header_values['probe_formula']) && !isset($header_values['probe_notes']) ) {
+            $header_values['measured_chemistry'] = $header_values['probe_formula'];
+        }
+        else if ( !isset($header_values['probe_formula']) && isset($header_values['probe_notes']) ) {
+            $header_values['measured_chemistry'] = $header_values['probe_notes'];
+        }
+        else if ( isset($header_values['probe_formula']) && isset($header_values['probe_notes']) ) {
+            $header_values['measured_chemistry'] = $header_values['probe_formula'].' ; '.$header_values['probe_notes'];
+        }
+        // Regardless of which if statement executed, no longer need the two probe fields
+        unset( $header_values['probe_formula'] );
+        unset( $header_values['probe_notes'] );
 
-        // ...so it can then be imploded back into a string
-        $new_header_text = implode($newline_separator, $header_lines).$newline_separator;    // Seems to work better if there's an additional newline after the header text
-        // Need to return this as an array though, to distinguish between valid headers and soft-errors
-        return $new_header_text;
+        // Don't leave blanks around just in case
+        foreach ($header_values as $field_name => $field_value) {
+            if ( $field_value === '' )
+                unset($header_values[$field_name] );
+        }
+
+        // Get twig to render the header
+        $header_text = $this->templating->render(
+            'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/file_header.txt.twig',
+            array(
+                'header_values' => $header_values,
+
+                'baseurl' => $baseurl,
+                'context' => $context,
+                'comment_prefix' => $comment_prefix,
+                'newline_separator' => $newline_separator,
+            )
+        );
+
+        // Clean up any duplicated newlines and return
+        $header_text = str_replace("\r\n\r\n", "\r\n", $header_text);
+        $header_text = str_replace("\n\n", "\n", $header_text);
+        return $header_text;
+    }
+
+
+    /**
+     * Converts the eight separate oriented values into two strings.
+     *
+     * @param array $header_values
+     */
+    private function determineOrientedVectors(&$header_values)
+    {
+        if ( isset($header_values['pin_parallel_x'])
+            && isset($header_values['pin_parallel_y'])
+            && isset($header_values['pin_parallel_z'])
+            && isset($header_values['pin_parallel_ref'])
+        ) {
+            $header_values['vector_p'] = self::getVectorStr(
+                $header_values['pin_parallel_x'],
+                $header_values['pin_parallel_y'],
+                $header_values['pin_parallel_z'],
+                $header_values['pin_parallel_ref']
+            );
+        }
+
+        if ( isset($header_values['pin_perp_x'])
+            && isset($header_values['pin_perp_y'])
+            && isset($header_values['pin_perp_z'])
+            && isset($header_values['pin_perp_ref'])
+        ) {
+            $header_values['vector_f'] = self::getVectorStr(
+                $header_values['pin_perp_x'],
+                $header_values['pin_perp_y'],
+                $header_values['pin_perp_z'],
+                $header_values['pin_perp_ref']
+            );
+        }
+
+        // Remove any of the original vector data
+        unset( $header_values['pin_parallel_x'] );
+        unset( $header_values['pin_parallel_y'] );
+        unset( $header_values['pin_parallel_z'] );
+        unset( $header_values['pin_parallel_ref'] );
+        unset( $header_values['pin_perp_x'] );
+        unset( $header_values['pin_perp_y'] );
+        unset( $header_values['pin_perp_z'] );
+        unset( $header_values['pin_perp_ref'] );
+    }
+
+
+    /**
+     * Converts the selected pin data into a single string.
+     *
+     * @param string $x
+     * @param string $y
+     * @param string $z
+     * @param string $ref
+     * @return string
+     */
+    private function getVectorStr($x, $y, $z, $ref)
+    {
+        $vector_str = $x.' '.$y.' '.$z;
+
+        $dir = '';
+        switch ($vector_str) {
+            // Aligned to a single direction
+            case '-1 0 0':
+                $dir = '-a';
+                break;
+            case '1 0 0':
+                $dir = 'a';
+                break;
+            case '0 -1 0':
+                $dir = '-b';
+                break;
+            case '0 1 0':
+                $dir = 'b';
+                break;
+            case '0 0 -1':
+                $dir = '-c';
+                break;
+            case '0 0 1':
+                $dir = 'c';
+                break;
+
+            // Aligned to more than one direction
+            case '0 1 1':
+            case '1 0 1':
+            case '1 1 0':
+            case '1 1 1':
+                $dir = '';
+                break;
+
+            // Nothing else is allowed
+            default:
+                $vector_str = '';
+                break;
+        }
+
+        if ( $vector_str === '' ) {
+            // Not a valid alignment
+            return $vector_str;
+        }
+        else {
+            if ( $ref === 'direct' ) {
+                $vector_str = '['.$vector_str.']';
+
+                if ( $dir !== '' )
+                    $vector_str = $dir.' '.$vector_str;
+                return $vector_str;
+            }
+            else if ( $ref === 'reciprocal' ) {
+                $vector_str = '('.$vector_str.')';
+
+                if ( $dir !== '' )
+                    $vector_str = $dir.'* '.$vector_str;
+                return $vector_str;
+            }
+            else {
+                // Some other problem
+                return '';
+            }
+        }
     }
 
 
@@ -1298,6 +1441,10 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         // ----------------------------------------
         // Going to need the plugin config for later
         $plugin_config = self::getCurrentPluginConfig($drf->getDataField());
+        if ( $plugin_config['invalid'] ) {
+            $this->logger->debug('Plugin config for files in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId().' is not valid, aborting', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            return;
+        }
 
         // Determine what the header should be for files in this field
         $new_header = self::getFileHeader($drf, $plugin_config);
@@ -1569,6 +1716,10 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
                 // Going to need the plugin config for later
                 $plugin_config = self::getCurrentPluginConfig($drf->getDataField());
+                if ( $plugin_config['invalid'] ) {
+                    $this->logger->debug('...plugin config for File '.$entity->getId().' is not valid, aborting', array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
+                    return;
+                }
 
                 // Determine what the header should be for files in this field
                 $new_header = self::getFileHeader($drf, $plugin_config);
@@ -1687,45 +1838,33 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                 $available_prefixes = $available_configurations['prefixes'];
                 $available_fields = $available_configurations['name_data'];
                 $allowed_datatypes = $available_configurations['allowed_datatypes'];
+                $field_names = $available_configurations['field_names'];
 
                 // ...and also need to figure out what the current config is if possible...
                 $current_plugin_config = self::getCurrentPluginConfig($datafield);
+                // NOTE: don't care if the config isn't vaild here...the user needs a chance to fix it
+
                 $current_prefix = '';
                 if ( isset($current_plugin_config['prefix']) )
                     $current_prefix = $current_plugin_config['prefix'];
-                $current_placeholder = '';
-                if ( isset($current_plugin_config['placeholder']) )
-                    $current_placeholder = $current_plugin_config['placeholder'];
-                $current_fields = '';
-                if ( isset($current_plugin_config['fields']) )
-                    $current_fields = array_flip($current_plugin_config['fields']);    // want this flipped to more easily determine $field_mapping
-                $current_header = '';
-                if ( isset($current_plugin_config['header']) )
-                    $current_header = $current_plugin_config['header'];
 
-                // ...to create a mapping from "df_uuid" => "df_name"...
-                $field_mapping = array();
-                foreach ($available_fields as $dt_id => $dt_data) {
-                    foreach ($dt_data['fields'] as $df_id => $df_name) {
-                        if ( isset($current_fields[$df_id]) )
-                            $field_mapping[$df_id] = $df_name;
-                    }
-                }
+                $fields_by_name = array();
+                if ( isset($current_plugin_config['fields_by_name']) )
+                    $fields_by_name = $current_plugin_config['fields_by_name'];
 
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
+                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
                     array(
                         'rpo_id' => $rpo->getId(),
 
                         'available_prefixes' => $available_prefixes,
                         'available_fields' => $available_fields,
                         'current_prefix' => $current_prefix,
-                        'current_placeholder' => $current_placeholder,
-                        'current_header' => $current_header,
 
                         'allowed_datatypes' => $allowed_datatypes,
-                        'field_mapping' => $field_mapping,
+                        'field_names' => $field_names,
+                        'fields_by_name' => $fields_by_name,
                     )
                 );
             }

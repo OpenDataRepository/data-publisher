@@ -625,6 +625,42 @@ function initPage() {
             }
         });
     });
+    $(".ODRRRUFFFileHeaderInserter_rebuild").unbind('click').click(function() {
+        var id_data = $(this).parents('form').first().attr('id').split('_');
+        var dr_id = id_data[1];
+        var df_id = id_data[2];
+
+        var url = "{{ path('odr_plugin_rruff_file_header_inserter_rebuild', {'dr_id': 0, 'df_id': 0}) }}";
+        url = url.substr(0, url.length-3);
+        url += dr_id + '/' + df_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Reload the datafield so the new filenames show up
+                ReloadEditDatafield(dr_id, df_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    });
 
     $("select.ODRFileQuality_selector, input.ODRFileQuality_selector").unbind('change').change(function() {
         handleQualityChange( $(this) );

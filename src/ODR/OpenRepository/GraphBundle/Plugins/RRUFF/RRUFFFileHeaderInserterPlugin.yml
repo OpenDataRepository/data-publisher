@@ -1,0 +1,100 @@
+odr_plugins.rruff.file_header_inserter:
+    name: RRUFF File Header Inserter Plugin
+    category: RRUFF
+    plugin_type: datafield
+    render: odr_plugins.base.file_manipulation    # shared with the odr_plugins.base.file_header_inserter plugin
+    version: 1.0.0
+    override_fields: true
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: This plugin attempts to insert a header to any file that gets uploaded to the attached field, based on the values of other related datafields.  This is an advanced plugin that only works on a proper relational database setup...certain usage requirements force the plugin to provide every possible configuration, even though most of the available configurations will be completely worthless.  IMPORTANT - detaching this plugin does not delete the inserted headers, and changing the Comment Prefix after headers are inserted will result in duplicate headers.
+    registered_events:
+        FilePreEncryptEvent: onFilePreEncrypt
+        MassEditTriggerEvent: onMassEditTrigger
+
+    required_fields:
+        file_field:
+            name: File Field
+            description: Files uploaded to this field should receive header lines
+            type: File
+
+    config_options:
+#        comment_prefix:
+#            name: Comment Prefix
+#            type: string
+#            default: "##"    # due to '#' being a comment, '##' must be quoted for the YAML parser to accept it
+#            description: The character sequence to place before each header line.  This cannot be the empty string, or consist solely of whitespace characters.  CHANGE WITH CAUTION.
+#            display_order: 0
+#
+#        allowed_extensions:
+#            name: Allowed Extensions
+#            type: string
+#            default: txt
+#            description: A comma-separated list of the file extensions this plugin is allowed to run on.  Extensions which are not plain-text files...e.g. DOCX, XLSX, PDF, JPEG, etc...should not be put in here, because inserting a header into those files WILL DESTROY them.
+#            display_order: 1
+#
+#        placeholder:
+#            name: Placeholder
+#            type: string
+#            default: "?:"
+#            description: The character sequence used to indicate where in the header to insert the value of a datafield.  Cannot be blank.
+#            display_order: 2
+#
+#        newline_separator:
+#            name: Newline Separator
+#            type: string
+#            default: windows
+#            choices: windows||Windows,linux||Linux
+#            description: If set to the "Windows" option, then the plugin uses the "\r\n" sequence for newlines in the header.  If set to the "Linux" option, then the plugin uses "\n".
+#            display_order: 3
+#
+#        replace_newlines_in_fields:
+#            name: Replace Newlines in Fields?
+#            type: string
+#            default: yes
+#            choices: no||No,yes||Yes
+#            description: If "yes", then the plugin will replace any "\r" or "\n" characters in a field's value with " ".
+#            display_order: 4
+
+        baseurl:
+            name: Baseurl
+            type: string
+            default: ''
+            description: URL to reach the sample.  Should have a trailing slash.
+            display_order: 1
+
+        context:
+            name: Context
+            type: string
+            default: ''
+            description: A string to help control when certain lines are displayed.
+            display_order: 2
+
+        replace_existing_file:
+            name: Replace Existing Files?
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: If "yes", then the plugin will silently overwrite existing files to bring them up to date.  If "no", then the plugin will delete an out-of-date file before uploading a new file.
+            display_order: 3
+
+        # TODO - when there's no value for a datafield, probably need an option to switch between "print out the header line, just with no value" and "don't print out this header line"
+        # TODO - option(s) for how to handle multiple values in a datafield?  do nothing, pick first, pick last, merge together?  meh...
+
+        # Because the plugin needs to access an uknown number of datafields that might also be in
+        #  linked datatypes, the renderPlugin settings dialog needs to be partially hijacked to work
+        #  correctly
+        header_data:
+            # These four properties aren't really used, but are still required by the database
+            name: Field List
+            type: string
+            default:
+            description: TODO
+            display_order: 10
+            # This optional property is the one that triggers the hijack of the dialog
+            uses_custom_render: true
