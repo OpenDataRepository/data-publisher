@@ -1614,6 +1614,11 @@ odr_find_duplicate_storage_entries:
     defaults: { _controller: ODRAdminBundle:Validation:findduplicatestorageentries }
     requirements:
         type: boolean|integer|decimal|shortvarchar|mediumvarchar|longvarchar|longtext|datetime
+odr_find_orphaned_storage_entries:
+    path: /admin/find_orphaned_storage_entries/{type}
+    defaults: { _controller: ODRAdminBundle:Validation:findorphanedstorageentries }
+    requirements:
+        type: boolean|integer|decimal|shortvarchar|mediumvarchar|longvarchar|longtext|datetime
 
 # Locate/delete a pile of child entities that make no sense when their parent entities are deleted
 # This needs to be run repeatedly until it stops making changes

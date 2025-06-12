@@ -4213,7 +4213,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
-            $results = $conn->executeQuery($query);
+            $results = $conn->fetchAll($query);
 
             $dt_ids = array();
             foreach ($results as $result)
@@ -4230,6 +4230,7 @@ class ValidationController extends ODRCustomController
             print '<pre>';
             foreach ($dt_ids as $dt_id) {
                 $params = array('dt_id' => $dt_id);
+//                $results = $conn->fetchAll($query, $params);    // runs into memory issues
                 $results = $conn->executeQuery($query, $params);
 
                 print 'dt: '.$dt_id."\n";
@@ -4260,6 +4261,7 @@ class ValidationController extends ODRCustomController
             print '<pre>UPDATE odr_data_record_fields drf SET drf.deletedAt = NOW() WHERE drf.id IN ('.implode(',', $drfs_to_delete).');</pre>';
         }
         catch (\Exception $e) {
+            print '</pre>';
             $source = 0xcb1a9183;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
@@ -4323,7 +4325,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
-            $results = $conn->executeQuery($query);
+            $results = $conn->fetchAll($query);
 
             $dt_ids = array();
             foreach ($results as $result) {
@@ -4344,6 +4346,7 @@ class ValidationController extends ODRCustomController
             print '<pre>';
             foreach ($dt_ids as $dt_id) {
                 $params = array('dt_id' => $dt_id);
+//                $results = $conn->fetchAll($query, $params);    // runs into memory issues
                 $results = $conn->executeQuery($query, $params);
 
                 print 'dt: '.$dt_id."\n";
@@ -4367,6 +4370,7 @@ class ValidationController extends ODRCustomController
             print '</pre>';
         }
         catch (\Exception $e) {
+            print '</pre>';
             $source = 0xcc591e1d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
@@ -4430,7 +4434,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
-            $results = $conn->executeQuery($query);
+            $results = $conn->fetchAll($query);
 
             $dt_ids = array();
             foreach ($results as $result)
@@ -4450,6 +4454,7 @@ class ValidationController extends ODRCustomController
             print '<pre>';
             foreach ($dt_ids as $dt_id) {
                 $params = array('dt_id' => $dt_id);
+//                $results = $conn->fetchAll($query, $params);    // runs into memory issues
                 $results = $conn->executeQuery($query, $params);
 
                 print 'dt: '.$dt_id."\n";
@@ -4480,7 +4485,154 @@ class ValidationController extends ODRCustomController
             print '<pre>UPDATE '.$typeclass.' e SET e.deletedAt = NOW() WHERE e.id IN ('.implode(',', $entities_to_delete).');</pre>';
         }
         catch (\Exception $e) {
+            print '</pre>';
             $source = 0xb7743598;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Finds and returns storage entries where its drf points to a deleted drf
+     *
+     * @param string $type
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function findorphanedstorageentriesAction($type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            // Don't want to deal with the soft-deleted filter, so use raw sql
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+
+            $typeclass = '';
+            if ($type === 'boolean')
+                $typeclass = 'odr_boolean';
+            else if ($type === 'integer')
+                $typeclass = 'odr_integer_value';
+            else if ($type === 'decimal')
+                $typeclass = 'odr_decimal_value';
+            else if ($type === 'shortvarchar')
+                $typeclass = 'odr_short_varchar';
+            else if ($type === 'mediumvarchar')
+                $typeclass = 'odr_medium_varchar';
+            else if ($type === 'longvarchar')
+                $typeclass = 'odr_long_varchar';
+            else if ($type === 'longtext')
+                $typeclass = 'odr_long_text';
+            else if ($type === 'datetime')
+                $typeclass = 'odr_datetime_value';
+            else
+                throw new ODRBadRequestException('invalid typeclass');
+
+
+            // ----------------------------------------
+            $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594 AND dt.id != 681';
+            $results = $conn->fetchAll($query);
+
+            $dt_ids = array();
+            foreach ($results as $result) {
+//                if ( intval( $result['id'] ) > 594 )
+                $dt_ids[] = $result['id'];
+            }
+
+            // Need to do two queries to solve this, unfortunately
+            $changes = array();
+            print '<pre>';
+            foreach ($dt_ids as $dt_id) {
+                print 'dt: '.$dt_id."\n";
+
+                // Run the query to get the list of storage entities
+                $storage_query  = 'SELECT e.id AS e_id, dr.id AS dr_id, e.data_field_id AS df_id, e.data_record_fields_id AS drf_id ';
+                $storage_query .= 'FROM '.$typeclass.' e ';
+                $storage_query .= 'JOIN odr_data_record dr ON e.data_record_id = dr.id ';
+                $storage_query .= 'WHERE dr.data_type_id = '.$dt_id.' ';
+                $storage_query .= 'AND dr.deletedat IS NULL AND e.deletedat IS NULL ';
+//                $results = $conn->fetchAll($storage_query);    // runs into memory issues
+                $results = $conn->executeQuery($storage_query);
+
+                $df_list = array();
+                $storage_entities = array();
+                foreach ($results as $result) {
+                    $e_id = $result['e_id'];
+                    $dr_id = $result['dr_id'];
+                    $df_id = $result['df_id'];
+                    $drf_id = $result['drf_id'];
+
+                    if ( !isset($storage_entities[$dr_id]) )
+                        $storage_entities[$dr_id] = array();
+                    $storage_entities[$dr_id][$df_id] = array($drf_id => $e_id);
+
+                    $df_list[$df_id] = 1;
+                }
+
+                // If no entities of this typeclass for this datatype, then skip to the next
+                if ( empty($df_list) ) {
+                    print "\n\n";
+                    continue;
+                }
+
+                // Now that the list of storage entities exists, run a second query to get the list
+                //  of drf entries
+                $drf_query  = 'SELECT drf.id AS drf_id, dr.id AS dr_id, drf.data_field_id AS df_id ';
+                $drf_query .= 'FROM odr_data_record_fields drf ';
+                $drf_query .= 'JOIN odr_data_record dr ON drf.data_record_id = dr.id ';
+                $drf_query .= 'WHERE dr.data_type_id = '.$dt_id.' AND drf.data_field_id IN ('.implode(',', array_keys($df_list)).') ';
+                $drf_query .= 'AND dr.deletedat IS NULL AND drf.deletedat IS NULL ';
+//                $results = $conn->fetchAll($drf_query);    // runs into memory issues
+                $results = $conn->executeQuery($drf_query);
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+                    $df_id = $result['df_id'];
+                    $drf_id = $result['drf_id'];
+
+                    if ( isset($storage_entities[$dr_id][$df_id]) && !isset($storage_entities[$dr_id][$df_id][$drf_id]) ) {
+                        $e_id = '';
+                        $bad_drf_id = '';
+                        foreach ($storage_entities[$dr_id][$df_id] as $key => $value) {
+                            // Should only be one
+                            $bad_drf_id = $key;
+                            $e_id = $value;
+                        }
+                        print ' -- entity '.$storage_entities[$dr_id][$df_id][$bad_drf_id].' (dr '.$dr_id.', df '.$df_id.') points to a deleted drf '.$bad_drf_id.', instead of the undeleted drf '.$drf_id."\n";
+                        $changes[] = 'UPDATE '.$typeclass.' SET data_record_fields_id = '.$drf_id.' WHERE id = '.$e_id.';';
+                    }
+                }
+
+                print "\n\n";
+            }
+            print '</pre>';
+
+            print '<pre>';
+            foreach ($changes as $num => $change)
+                print $change."\n";
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            print '</pre>';
+            $source = 0x93061cb5;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
