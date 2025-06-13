@@ -360,17 +360,24 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
                     // Need to get all the regular configuration options for the plugin
-                    $comment_prefix = trim($rpi['renderPluginOptionsMap']['comment_prefix']);
-                    $allowed_extensions = trim($rpi['renderPluginOptionsMap']['allowed_extensions']);
-                    $placeholder = trim($rpi['renderPluginOptionsMap']['placeholder']);
-                    $newline_separator = trim($rpi['renderPluginOptionsMap']['newline_separator']);
+                    $comment_prefix = '##';
+                    if ( isset($rpi['renderPluginOptionsMap']['comment_prefix']) )
+                        $comment_prefix = trim($rpi['renderPluginOptionsMap']['comment_prefix']);
+                    $allowed_extensions = 'txt';
+                    if ( isset($rpi['renderPluginOptionsMap']['allowed_extensions']) )
+                        $allowed_extensions = trim($rpi['renderPluginOptionsMap']['allowed_extensions']);
+                    $placeholder = '?:';
+                    if ( isset($rpi['renderPluginOptionsMap']['placeholder']) )
+                        $placeholder = trim($rpi['renderPluginOptionsMap']['placeholder']);
+                    $newline_separator = 'windows';
+                    if ( isset($rpi['renderPluginOptionsMap']['newline_separator']) )
+                        $newline_separator = trim($rpi['renderPluginOptionsMap']['newline_separator']);
 
-                    // None of these options are allowed to be empty...if any are, then the plugin
-                    //  isn't properly configured
-                    if ( $comment_prefix === '' || $allowed_extensions === ''
-                        || $placeholder === '' || $newline_separator === ''
+                    $replace_newlines_in_fields = true;
+                    if ( isset($rpi['renderPluginOptionsMap']['replace_newlines_in_fields'])
+                        && trim($rpi['renderPluginOptionsMap']['replace_newlines_in_fields']) === 'no'
                     ) {
-                        return array();
+                        $replace_newlines_in_fields = false;
                     }
 
                     // The newline separator is easier for the plugin if it's the actual character
@@ -439,6 +446,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                         'allowed_extensions' => $allowed_extensions,
                         'placeholder' => $placeholder,
                         'newline_separator' => $newline_separator,
+                        'replace_newlines_in_fields' => $replace_newlines_in_fields,
                         'fields' => $field_ids,
                         'header' => $header_text,
                     );
@@ -1169,14 +1177,20 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                 foreach ($filtered_mapping[$df_id] as $dr_id => $value) {
                     // While there should only be one value in here, there's no way to know the
                     //  $dr_id beforehand
-                    $replacements[] = $value;
+                    if ( $config_info['replace_newlines_in_fields'] )
+                        $replacements[] = str_replace(array("\r", "\n"), " ", $value);
+                    else
+                        $replacements[] = $value;
                     break;
                 }
             }
             else if ( isset($original_mapping[$df_id]) && !empty($original_mapping[$df_id]) ) {
                 // ...but fall back to the $original_mapping array if a filtered value doesn't exist
                 foreach ($original_mapping[$df_id] as $dr_id => $value) {
-                    $replacements[] = $value;
+                    if ( $config_info['replace_newlines_in_fields'] )
+                        $replacements[] = str_replace(array("\r", "\n"), " ", $value);
+                    else
+                        $replacements[] = $value;
                     // Might as well just use the first value, since there's no way to determine
                     //  which of the potential values is "more correct"
                     break;

@@ -30,7 +30,6 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
-use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -46,9 +45,9 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
-use ODR\OpenRepository\GraphBundle\Component\Service\AMCSDUpdateService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
+use Doctrine\DBAL\Connection as DBALConnection;
 use Pheanstalk\Pheanstalk;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -1473,69 +1472,50 @@ $ret .= '  Set current to '.$count."\n";
                 throw new ODRForbiddenException();
             // --------------------
 
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
-//            $lookup = 'reference';
-//            $lookup = 'mineral';
-//            $lookup = 'instrument';
-            $lookup = 'xray';
-
-            $props = array();
-            if ( $lookup === 'reference' ) {
-                $props = array(
-                    'table' => 'odr_integer_value',
-                    'datatype_id' => 734,
-                    'datafield_id' => 7049,
-                );
-            }
-            else if ( $lookup === 'mineral' ) {
-                $props = array(
-                    'table' => 'odr_integer_value',
-                    'datatype_id' => 736,
-                    'datafield_id' => 7050,
-                );
-            }
-            else if ( $lookup === 'instrument' ) {
-                $props = array(
-                    'table' => 'odr_short_varchar',
-                    'datatype_id' => 741,
-                    'datafield_id' => 7080,
-                );
-            }
-            else if ( $lookup === 'xray' ) {
-                $props = array(
-                    'table' => 'odr_medium_varchar',
-                    'datatype_id' => 763,
-                    'datafield_id' => 7150,
-                );
-            }
-            else
-                throw new ODRException('Unknown lookup type');
-
-
-            // ----------------------------------------
             $query =
-               'SELECT dr.unique_id, e.value AS ref_id
+               'SELECT iv.value AS mineral_id, mv.value AS display_name
                 FROM odr_data_record dr
-                LEFT JOIN odr_data_record_fields drf ON dr.id = drf.data_record_id
-                LEFT JOIN '.$props['table'].' e ON e.data_record_fields_id = drf.id
-                WHERE dr.data_type_id = '.$props['datatype_id'].' AND e.data_field_id = '.$props['datafield_id'].'
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+                LEFT JOIN odr_data_record_fields iv_drf ON (iv_drf.data_record_id = dr.id AND iv_drf.data_field_id = 7050 AND iv_drf.deletedAt IS NULL)
+                LEFT JOIN odr_integer_value iv ON (iv.data_record_fields_id = iv_drf.id AND iv.deletedAt IS NULL)
+                LEFT JOIN odr_data_record_fields mv_drf ON (mv_drf.data_record_id = dr.id AND mv_drf.data_field_id = 7052 AND mv_drf.deletedAt IS NULL)
+                LEFT JOIN odr_medium_varchar mv ON (mv.data_record_fields_id = mv_drf.id AND mv.deletedAt IS NULL)
+                WHERE dr.data_type_id = 736
+                AND dr.deletedAt IS NULL';
             $results = $conn->executeQuery($query);
 
-            print '<table border="1">';
-            print '<tr><th>ref_id</th><th>unique_id</th></tr>';
+            print '<table border=1><tr><th>mineral id</th><th>display name</th><th>ascii name</th></tr>';
             foreach ($results as $result) {
-                $unique_id = $result['unique_id'];
-                $ref_id = $result['ref_id'];
+                $matches = array();
+                $ascii_name = str_replace(
+                    array('Å', 'Á', 'á', 'à', 'ä', 'å', 'ã', 'ă', 'Č', 'ć', 'ç', 'č', 'É', 'é', 'ë', 'ê', 'è', 'ĕ', 'ě', 'ę', 'í', 'ï', 'ł', 'ň', 'ñ', 'ń', 'Ö', 'ö', 'ø', 'ő', 'ó', 'ô', 'ř', 'Š', 'š', 'ş', 'ţ', 'ü', 'ú', 'ý', 'Ż', 'ž', 'ż'),
+                    array('A', 'A', 'a', 'a', 'a', 'a', 'a', 'a', 'C', 'c', 'c', 'c', 'E', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'i', 'i', 'l', 'n', 'n', 'n', 'O', 'o', 'o', 'o', 'o', 'o', 'r', 'S', 's', 's', 't', 'u', 'u', 'y', 'Z', 'z', 'z'),
+                    $result['display_name']
+                );
 
-                print '<tr>';
-                print '<td>'.$ref_id.'</td>';
-                print '<td>'.$unique_id.'</td>';
-                print '</tr>';
+                $ascii_name = str_replace(
+                    array("'", '<i>', '</i>', '_', '^'),
+                    '',
+                    $ascii_name
+                );
+
+                if ( preg_match('/[^a-zA-Z0-9\-\+\_\^\(\)]/', $ascii_name, $matches) === 1 ) {
+                    print '<tr>';
+                    print '<td>'.$result['mineral_id'].'</td>';
+                    print '<td>'.$result['display_name'].'</td>';
+                    print '<td>'.$ascii_name.'</td>';
+                    print '</tr>';
+                }
+                else {
+                    print '<tr>';
+                    print '<td>'.$result['mineral_id'].'</td>';
+                    print '<td>'.$result['display_name'].'</td>';
+                    print '<td>'.$ascii_name.'</td>';
+                    print '</tr>';
+                }
             }
             print '</table>';
 

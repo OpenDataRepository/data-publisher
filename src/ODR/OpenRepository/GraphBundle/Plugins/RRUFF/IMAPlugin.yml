@@ -3,7 +3,7 @@ odr_plugins.rruff.ima:
     category: RRUFF
     plugin_type: datatype
     render: odr_plugins.rruff.ima
-    version: 1.1.0
+    version: 1.2.0
     override_fields: true
     override_field_reload: true
     override_child: false
@@ -27,50 +27,64 @@ odr_plugins.rruff.ima:
     required_fields:
         mineral_id:
             name: Mineral ID
-            description: An external ID used for the data
+            description: An external ID used for the data.
             type: IntegerValue
+            display_order: 1
             properties:
                 - autogenerate_values
                 - must_be_unique
 
         # The IMA Plugin used to derive a "display" name/abbreviation into an ascii-only version
-        # Once people realized ODR's mysql database collation didn't care about (certain) unicode/ascii differences, the ascii-only fields got removed
+        # ...this version was removed after realizing ODR's mysql database collation didn't care about (certain) unicode/ascii differences
+        # ...but was re-added because it's needed for filenames, and it's far more accurate to have a human enter it
+        mineral_ascii_name:
+            name: Mineral ASCII Name
+            description: A version of the IMA mineral name without UTF-8 characters, primarily for use in filenames.
+            type: MediumVarchar
+            display_order: 2
+
         mineral_display_name:
             name: Mineral Display Name
-            description:
+            description: The "official" name of the IMA ineral.  Subscripts should be bracketed with the "_" character, and superscripts should be bracketed with the "^" character.
             type: MediumVarchar
+            display_order: 3
             properties:
                 - must_be_unique
         mineral_display_abbrev:
             name: Mineral Display Abbreviation
-            description:
+            description: The "official" abbreviation of the IMA mineral.  Subscripts should be bracketed with the "_" character, and superscripts should be bracketed with the "^" character.
             type: ShortVarchar
+            display_order: 4
             properties:
-#                - must_be_unique    # should theoretically be unique, but a lot of blank values
+#                - must_be_unique    # should theoretically be unique, but it has a lot of blank values
 
-        chemistry_elements:
-            name: Chemistry Elements
-            description:
-            type: LongVarchar
-            properties:
-                - no_user_edits
-                - is_derived
         ima_formula:
             name: IMA Formula
-            description:
+            description: The "official" formula of the IMA mineral.
             type: LongVarchar
-
-        valence_elements:
-            name: Valence Elements
-            description:
+            display_order: 4
+        chemistry_elements:
+            name: Chemistry Elements
+            description: The contents of this field will be automatically generated from the "IMA Formula" field.
             type: LongVarchar
+            display_order: 5
             properties:
                 - no_user_edits
                 - is_derived
+
         rruff_formula:
             name: RRUFF Formula
-            description:
+            description: A version of the IMA formula that may contain valence information.
             type: LongVarchar
+            display_order: 6
+        valence_elements:
+            name: Valence Elements
+            description: The contents of this field will be automatically generated from the "RRUFF Formula" field.
+            type: LongVarchar
+            display_order: 7
+            properties:
+                - no_user_edits
+                - is_derived
 
         # NOTE - rruff.info also had Fleischer, Handbook of Mineralogy, and End Member chemistry, but those aren't being imported
         # NOTE - ...it also had End Member Elements (derived from the RRUFF formula for some reason)
@@ -78,31 +92,14 @@ odr_plugins.rruff.ima:
         # Required by the "RRUFF Sample Links" plugin
         tags:
             name: Tags
-            description:
+            description: A set of tags that are useful for categorization of the various minerals.
             type: Tag
+            display_order: 8
 
-
-        # ----------------------------------------
-        # These fields are temporary...they only exist to make it easier to import
         mineral_aliases:
             name: Mineral Aliases
-            description:
+            description: A comma-separated list of old/alternate names for this mineral.
             type: LongText
-        ima_number:
-            name: IMA Number
-            description:
-            type: ShortVarchar
-        locality_country:
-            name: Locality Country
-            description:
-            type: LongVarchar
-        year_first_published:
-            name: Year First Published
-            description:
-            type: ShortVarchar
-        notes:
-            name: Notes
-            description:
-            type: LongText
+            display_order: 9
 
     config_options:

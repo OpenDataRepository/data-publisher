@@ -58,7 +58,7 @@ odr_plugins.base.file_renamer:
             type: string
             default: yes
             choices: no||No,yes||Yes
-            description: If "no", then the plugin refuse to rename a file when the filename contains invalid characters.
+            description: If "no", then the plugin refuse to rename a file when the filename contains "invalid" characters, such as "/", "?", "*", ">", etc.
             display_order: 4
 
         fire_on_pre_encrypt:

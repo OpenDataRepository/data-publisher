@@ -10,23 +10,9 @@
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
     {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
 
-    {% if field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
-        {% set valuefield = datarecordfield.decimalValue[0] %}
-        {% set valuefield_value = valuefield.original_value %}
-    {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
-        {% set valuefield = datarecordfield.integerValue[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Paragraph Text" and datarecordfield.longText[0] is defined %}
-        {% set valuefield = datarecordfield.longText[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Long Text" and datarecordfield.longVarchar[0] is defined %}
+    {# The chemistry fields are only allowed to be longvarchars #}
+    {% if field_typename == "Long Text" and datarecordfield.longVarchar[0] is defined %}
         {% set valuefield = datarecordfield.longVarchar[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Medium Text" and datarecordfield.mediumVarchar[0] is defined %}
-        {% set valuefield = datarecordfield.mediumVarchar[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
-        {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
     {% endif %}
 {% endif %}
@@ -58,7 +44,6 @@
 
         <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
 
-    {% if field_typename == "Paragraph Text" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
                 {% if is_datatype_admin %}
@@ -66,42 +51,12 @@
                 {% endif %}
                 {{ datafield_meta.fieldName }}
 
-            {% if is_chemistry_field %}
+                {# Always do the popup for these fields #}
                 {% include 'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_popup.html.twig' with {
                     'field_typename': field_typename,
                     'unique_id': unique_id,
                     'input_id': input_id,
                 } %}    {# TODO - different subscript/superscript delimiters? #}
-            {% endif %}
-            </label>
-            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-                <textarea
-                    id="{{ input_id }}"
-                    class="pure-u-1"
-                    name="{{ input_name }}"
-                    {% if datafield_meta.required == 1 %}required="required"{% endif %}
-                    data-error-type="inline"
-                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
-                >{{ valuefield_value }}</textarea>
-                <i class="fa fa-save ODRSaveIndicator{% if is_chemistry_field %} ODRChemistryPlugin_SaveIndicator {% endif %}"></i>
-            </div>
-        </fieldset>
-
-    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
-        <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin %}
-                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
-                {% endif %}
-                {{ datafield_meta.fieldName }}
-
-            {% if is_chemistry_field %}
-                {% include 'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_popup.html.twig' with {
-                    'field_typename': field_typename,
-                    'unique_id': unique_id,
-                    'input_id': input_id,
-                } %}    {# TODO - different subscript/superscript delimiters? #}
-            {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
@@ -113,19 +68,12 @@
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
                 />
-                <i class="fa fa-save ODRSaveIndicator{% if is_chemistry_field %} ODRChemistryPlugin_SaveIndicator {% endif %}"></i>
+                <i class="fa fa-save ODRSaveIndicator ODRChemistryPlugin_SaveIndicator"></i>
             </div>
         </fieldset>
-    {% endif %}
     </form>
 
-    {% if field_typename == "Integer"
-        or field_typename == "Decimal"
-        or field_typename == "Paragraph Text"
-        or field_typename == "Long Text"
-        or field_typename == "Medium Text"
-        or field_typename == "Short Text"
-    %}
+    {% if field_typename == "Long Text" %}
     <script>
         var {{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
@@ -136,13 +84,7 @@
         $("#EditForm_{{ unique_id }}").validate({
             rules: {
                 "{{ input_name }}": {
-                {% if field_typename == "Integer" %}
-                    ODRInteger: {},  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
-                {% elseif field_typename == "Decimal" %}
-                    ODRDecimal: {},  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
-                {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
                     maxlength: {{ max_length }},
-                {% endif %}
 
                 {% if datafield_meta.is_unique %}
                     required: true,
@@ -170,21 +112,14 @@
             {% endif %}
 
             submitHandler: function(form) {
-            {% if derived_datafield_id is not null %}
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }},
                     function() {
-                        {# want to reload whichever datafield depends on this field's value #}
+                        {# want to reload whichever datafield depends on this chemistry field #}
                         ReloadEditDatafield( {{ datarecord.id }}, {{ derived_datafield_id }} );
                     }
                 );
-            {% else %}
-                SaveRecordData(
-                    '#EditForm_{{ unique_id }}',
-                    {{ field_typeclass }}Interval_{{ unique_id }}
-                );
-            {% endif %}
             }
             // focusInvalid: false
         });

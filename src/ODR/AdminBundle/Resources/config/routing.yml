@@ -1840,8 +1840,16 @@ odr_amcsd_update_trigger:
     defaults: { _controller: ODRAdminBundle:Worker:amcsdupdatetrigger }
 
 odr_asdf:
-    path: /admin/asdf
+    path: /admin/asdf/
     defaults: { _controller: ODRAdminBundle:Worker:asdf }
+
+#odr_qwer:
+#    path: /admin/qwer/
+#    defaults: { _controller: ODRAdminBundle:Worker:qwer }
+#
+#odr_zxcv:
+#    path: /admin/zxcv/
+#    defaults: { _controller: ODRAdminBundle:Worker:zxcv }
 
 imports:
     resource: api.yml
