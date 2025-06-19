@@ -1,0 +1,25 @@
+{% spaceless %}
+
+<div>
+    <span class="bold">{{ src_df['dataFieldMeta']['fieldName'] }}</span>
+    <div class="SpacerLeft">
+    {% for num,src_ro in src_ro_array %}
+        {% set src_ro_id = src_ro['id'] %}
+        <div id="ODRMigration_src_ro_{{ src_ro_id }}" class="ODRMigration_src_ro">
+            <span>{{ src_ro['radioOptionMeta']['optionName'] }}&nbsp;</span>
+            <select class="ODRMigration_dest_ro">
+                <option value=""></option>
+                {% for num,dest_ro in dest_ro_array %}
+                    {% set dest_ro_id = dest_ro['id'] %}
+                    <option value="{{ dest_ro_id }}">{{ dest_ro['radioOptionMeta']['optionName'] }}</option>
+                {% endfor %}
+            </select>
+            <span class="ODRInputError ODRHidden">
+                <i class="fa fa-exclamation-triangle">&nbsp;duplicate option selected</i>
+            </span>
+        </div>
+    {% endfor %}
+    </div>
+</div>
+
+{% endspaceless %}

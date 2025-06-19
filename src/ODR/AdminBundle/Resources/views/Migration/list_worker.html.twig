@@ -1,0 +1,64 @@
+{% spaceless %}
+
+{% if side == 'src' %}
+<div>
+    <span class="bold">{{ datatype['dataTypeMeta']['shortName'] }}</span><span class="ODRMigration_DestDatatype_types SpacerLeft" rel="{{ datatype['id'] }}"></span>
+    <div class="SpacerLeft">
+    {% for df_id,df in datatype['dataFields'] %}
+        <div id="ODRMigration_src_df_{{ df_id }}" class="ODRMigration_src_df" rel="{{ df['dataFieldMeta']['fieldType']['typeName'] }}">
+            <span>{{ df['dataFieldMeta']['fieldName'] }} &lt;{{ df['dataFieldMeta']['fieldType']['typeName'] }}&gt;</span>
+            <span class="ODRMigration_DestDatatype_fields SpacerLeft"></span>
+        </div>
+    {% endfor %}
+
+    {% if datatype['descendants'] is defined and datatype['descendants']|length > 0 %}
+        {% for child_dt_id,child_dt_data in datatype['descendants'] %}
+            {% if child_dt_data['datatype']|length > 0 %}
+                {% set child_dt = child_dt_data['datatype'][child_dt_id] %}
+                <div>
+                    {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+                        'datatype': child_dt,
+                        'side': side,
+                    } %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    </div>
+</div>
+{% elseif side == "fields" %}
+    <optgroup label="{{ datatype['dataTypeMeta']['shortName'] }}">
+    {% for df_id, df in datatype['dataFields'] %}
+        <option value="{{ df_id }}" rel="{{ df['dataFieldMeta']['fieldType']['typeName'] }}">{{ df['dataFieldMeta']['fieldName'] }} &lt;{{ df['dataFieldMeta']['fieldType']['typeName'] }}&gt; </option>
+    {% endfor %}
+    </optgroup>
+
+    {% if datatype['descendants'] is defined and datatype['descendants']|length > 0 %}
+        {% for child_dt_id,child_dt_data in datatype['descendants'] %}
+            {% if child_dt_data['datatype']|length > 0 %}
+                {% set child_dt = child_dt_data['datatype'][child_dt_id] %}
+                    {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+                        'datatype': child_dt,
+                        'side': side,
+                    } %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% else %}
+    <option value="{{ datatype['id'] }}">{{ datatype['dataTypeMeta']['shortName'] }}</option>
+
+    {% if datatype['descendants'] is defined and datatype['descendants']|length > 0 %}
+        {% for child_dt_id,child_dt_data in datatype['descendants'] %}
+            {% if child_dt_data['datatype']|length > 0 %}
+                {% set child_dt = child_dt_data['datatype'][child_dt_id] %}
+                {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+                    'datatype': child_dt,
+                    'side': side,
+                } %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endif %}
+
+
+{% endspaceless %}

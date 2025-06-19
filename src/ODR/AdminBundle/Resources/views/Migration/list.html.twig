@@ -1,0 +1,35 @@
+{% spaceless %}
+
+{% if side == 'src' %}
+    {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+        'datatype': datatype,
+        'side': side,
+    } %}
+{% elseif side == 'fields' %}
+    <select class="ODRMigration_DestDatatype_field_select">
+        <option rel=""></option>
+        {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+            'datatype': datatype,
+            'side': side,
+        } %}
+    </select>
+    <span class="ODRMigration_duplicate_warning ODRInputError ODRHidden">
+        <i class="fa fa-exclamation-triangle"></i>&nbsp;Duplicate selection
+    </span>
+    <span class="ODRMigration_fieldtype_warning ODRInputError ODRHidden">
+        <i class="fa fa-exclamation-triangle"></i>&nbsp;Fieldtype mismatch
+    </span>
+{% elseif side == 'types' %}
+    <select class="ODRMigration_DestDatatype_type_select">
+        <option rel=""></option>
+        {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+            'datatype': datatype,
+            'side': side,
+        } %}
+    </select>
+    <span class="ODRMigration_duplicate_warning ODRInputError ODRHidden">
+        <i class="fa fa-exclamation-triangle"></i>&nbsp;Duplicate selection
+    </span>
+{% endif %}
+
+{% endspaceless %}

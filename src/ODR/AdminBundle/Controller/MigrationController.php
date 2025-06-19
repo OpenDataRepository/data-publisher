@@ -16,20 +16,27 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 // Symfony
 use FOS\UserBundle\Doctrine\UserManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-
+use Symfony\Component\Templating\EngineInterface;
 
 
 class MigrationController extends ODRCustomController
@@ -690,6 +697,829 @@ class MigrationController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Renders the cached array of a particular datatype.
+     *
+     * @param int $datatype_id
+     * @param string $side
+     * @param Request $request
+     * @return Response
+     */
+    public function renderdatatypearrayAction($datatype_id, $side, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            if ( $datatype->getGrandparent()->getId() !== $datatype->getId() )
+                throw new ODRBadRequestException('Only permitted on top-level datatypes');
+
+            $datatype_array = $database_info_service->getDatatypeArray($datatype_id, false);    // TODO - ...don't want links, right?
+            $datatype_array = $database_info_service->stackDatatypeArray($datatype_array, $datatype_id);
+
+            // ----------------------------------------
+            // Render and return a tree structure of data
+            if ( $side === 'src' ) {
+                $return['d'] = $templating->render(
+                    'ODRAdminBundle:Migration:list.html.twig',
+                    array(
+                        'datatype' => $datatype_array,
+                        'side' => 'src',
+                    )
+                );
+            }
+            else {
+                $return['d'] = array(
+                    'datafields' => $templating->render(
+                        'ODRAdminBundle:Migration:list.html.twig',
+                        array(
+                            'datatype' => $datatype_array,
+                            'side' => 'fields',
+                        ),
+                    ),
+                    'datatypes' => $templating->render(
+                        'ODRAdminBundle:Migration:list.html.twig',
+                        array(
+                            'datatype' => $datatype_array,
+                            'side' => 'types',
+                        )
+                    ),
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xcc07ffea;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders the cached array of a particular datatype.
+     *
+     * @param int $src_datafield_id
+     * @param int $dest_datafield_id
+     * @param Request $request
+     * @return Response
+     */
+    public function renderradiooptionsarrayAction($src_datafield_id, $dest_datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            if ( $src_datafield_id == $dest_datafield_id )
+                throw new ODRBadRequestException('datafields should not be the same');
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            /** @var DataFields $src_datafield */
+            $src_datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($src_datafield_id);
+            if ($src_datafield == null)
+                throw new ODRNotFoundException('Source Datafield');
+            $src_dt_id = $src_datafield->getDatatype()->getId();
+
+            /** @var DataFields $dest_datafield */
+            $dest_datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($dest_datafield_id);
+            if ($dest_datafield == null)
+                throw new ODRNotFoundException('Dest Datafield');
+            $dest_dt_id = $dest_datafield->getDatatype()->getId();
+
+            if ( $src_datafield->getFieldType()->getTypeClass() !== 'Radio'
+                || $dest_datafield->getFieldType()->getTypeClass() !== 'Radio'
+            ) {
+                throw new ODRBadRequestException('datafields are wrong typeclass');
+            }
+
+            $src_dt_array = $database_info_service->getDatatypeArray($src_datafield->getDataType()->getGrandparent()->getId(), false);
+            $src_ro_array = array();
+            if ( isset($src_dt_array[$src_dt_id]['dataFields'][$src_datafield_id]['radioOptions']) )
+                $src_ro_array = $src_dt_array[$src_dt_id]['dataFields'][$src_datafield_id]['radioOptions'];
+
+            $dest_dt_array = $database_info_service->getDatatypeArray($dest_datafield->getDataType()->getGrandparent()->getId(), false);
+            $dest_ro_array = array();
+            if ( isset($dest_dt_array[$dest_dt_id]['dataFields'][$dest_datafield_id]['radioOptions']) )
+                $dest_ro_array = $dest_dt_array[$dest_dt_id]['dataFields'][$dest_datafield_id]['radioOptions'];
+
+            // ----------------------------------------
+            // Render and return a tree structure of data
+            $return['d'] = array(
+                'radio_options' => $templating->render(
+                    'ODRAdminBundle:Migration:radio_option_list.html.twig',
+                    array(
+                        'src_df' => $src_dt_array[$src_dt_id]['dataFields'][$src_datafield_id],
+
+                        'src_ro_array' => $src_ro_array,
+                        'dest_ro_array' => $dest_ro_array,
+                    ),
+                ),
+
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xcc07ffea;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Generates an HTML page to
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function createtemplatefromdatatypestartAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+        }
+        catch (\Exception $e) {
+            $source = 0xbf53149e;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Parses a POST into a set of mysql commands to
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function createtemplatefromdatatypeAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+        }
+        catch (\Exception $e) {
+            $source = 0xe05966f3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Generates some HTML so a super-admin can map the fields in a datatype to use a master template.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function makedatatypeusetemplatestartAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+        }
+        catch (\Exception $e) {
+            $source = 0x2c644397;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Parses a POST to generate some mysql to convert a datatype to use a master template.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function makedatatypeusetemplateAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+        }
+        catch (\Exception $e) {
+            $source = 0x8eb41a68;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Generates some HTML so a super-admin can convert all fields/records in one datatype to be
+     * another datatype instead.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function movedatatypecontentsstartAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            $top_level_dataypes = $datatree_info_service->getTopLevelDatatypes();
+
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.shortName
+                FROM ODRAdminBundle:DataType dt
+                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids) AND dt.is_master_type = 0
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                ORDER BY dtm.shortName'
+            )->setParameters( array('datatype_ids' => $top_level_dataypes) );
+            $results = $query->getArrayResult();
+
+            $datatypes = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dt_name = $result['shortName'];
+
+                $datatypes[$dt_id] = $dt_name;
+            }
+
+            // Render and return a tree structure of data
+            $return['d'] = array(
+                'html' =>$templating->render(
+                    'ODRAdminBundle:Migration:move_datatype_contents.html.twig',
+                    array(
+                        'datatypes' => $datatypes,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xde66f0db;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Parses a POST to generate mysql to convert all fields/records in one datatype to be another
+     * datatype instead.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function movedatatypecontentsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            $post = $request->request->all();
+            if ( !isset($post['src_dt_id']) || !isset($post['dest_dt_id']) || empty($post['datatypes']) || empty($post['datafields']) )
+                throw new ODRBadRequestException('Invalid form');
+
+            $src_dt_id = intval($post['src_dt_id']);
+            $dest_dt_id = intval($post['dest_dt_id']);
+            $datatypes = $post['datatypes'];
+            $datafields = $post['datafields'];
+
+            $radio_options = array();
+            if ( isset($post['radio_options']) )
+                $radio_options = $post['radio_options'];
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+
+            /** @var DataType $src_datatype */
+            $src_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($src_dt_id);
+            if ($src_datatype == null)
+                throw new ODRNotFoundException('Source Datatype');
+
+            /** @var DataType $dest_datatype */
+            $dest_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dest_dt_id);
+            if ($dest_datatype == null)
+                throw new ODRNotFoundException('Destination Datatype');
+
+            if ( $src_datatype->getGrandparent()->getId() !== $src_datatype->getId() )
+                throw new ODRBadRequestException('Only permitted on top-level datatypes');
+            if ( $dest_datatype->getGrandparent()->getId() !== $dest_datatype->getId() )
+                throw new ODRBadRequestException('Only permitted on top-level datatypes');
+
+            $src_datatype_array = $database_info_service->getDatatypeArray($src_dt_id, false);    // TODO - ...don't want links, right?
+            $dest_datatype_array = $database_info_service->getDatatypeArray($dest_dt_id, false);    // TODO - ...don't want links, right?
+
+            $src_types = array();
+            $src_fields = array();
+            $src_df_lookup = array();
+            foreach ($src_datatype_array as $dt_id => $dt) {
+                $src_types[$dt_id] = 1;
+                if ( isset($dt['dataFields']) ) {
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        if ( isset($datafields[$df_id]) ) {
+                            $src_fields[$df_id] = $df['dataFieldMeta']['fieldType']['typeClass'];
+                            $src_df_lookup[$df_id] = $df;
+                        }
+                    }
+                }
+            }
+
+            $dest_datatypes = array();
+            $dest_fields = array();
+            $dest_df_lookup = array();
+            foreach ($dest_datatype_array as $dt_id => $dt) {
+                $dest_datatypes[$dt_id] = 1;
+                if ( isset($dt['dataFields']) ) {
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        if ( in_array($df_id, $datafields) ) {
+                            $dest_fields[$df_id] = $df['dataFieldMeta']['fieldType']['typeClass'];
+                            $dest_df_lookup[$df_id] = $df;
+                        }
+                    }
+                }
+            }
+
+            foreach ($datafields as $src_df_id => $dest_df_id) {
+                if ( !isset($src_fields[$src_df_id]))
+                    throw new ODRBadRequestException('src df '.$src_df_id.' not found');
+                if ( !isset($dest_fields[$dest_df_id]) )
+                    throw new ODRBadRequestException('dest df '.$dest_df_id.' not found');
+
+                if ( $src_fields[$src_df_id] !== $dest_fields[$dest_df_id] )
+                    throw new ODRBadRequestException('src df '.$src_df_id.' and dest df '.$dest_df_id.' typeclasses do not match');
+            }
+
+            foreach ($datatypes as $src_dt_id => $dest_dt_id) {
+                if ( !isset($src_types[$src_dt_id]))
+                    throw new ODRBadRequestException('src dt '.$src_dt_id.' not found');
+                if ( !isset($dest_datatypes[$dest_dt_id]) )
+                    throw new ODRBadRequestException('dest dt '.$dest_dt_id.' not found');
+            }
+
+            foreach ($radio_options as $src_df_id => $ro_list) {
+                if ( !isset($src_fields[$src_df_id]) )
+                    throw new ODRBadRequestException('df '.$src_df_id.' from radio option list not found');
+                if ( $src_fields[$src_df_id] !== 'Radio' )
+                    throw new ODRBadRequestException('df '.$src_df_id.' is not a radio typeclass');
+
+                $src_df = $src_df_lookup[$src_df_id];
+                $src_ro_list = array();
+                foreach ($src_df['radioOptions'] as $num => $src_ro)
+                    $src_ro_list[ $src_ro['id'] ] = 1;
+
+                $dest_df =  $dest_df_lookup[ $datafields[$src_df_id] ];
+                $dest_ro_list = array();
+                foreach ($dest_df['radioOptions'] as $num => $dest_ro)
+                    $dest_ro_list[ $dest_ro['id'] ] = 1;
+
+                foreach ($ro_list as $src_ro_id => $dest_ro_id) {
+                    if ( !isset($src_ro_list[$src_ro_id]) )
+                        throw new ODRBadRequestException('src ro '.$src_ro_id.' not found');
+                    if ( !isset($dest_ro_list[$dest_ro_id]) )
+                        throw new ODRBadRequestException('dest ro '.$dest_ro_id.' not found');
+                }
+            }
+
+
+            // ----------------------------------------
+            // Now that the submitted form is valid enough...
+
+            // ...need to gather some other sets of ids to make soft-deleting easier
+            $src_datatype_ids = array_keys($datatypes);
+            $query = $em->createQuery(
+               'SELECT dt.id
+                FROM ODRAdminBundle:DataType dt
+                WHERE dt.id IN (:datatype_ids) OR dt.metadata_for IN (:datatype_ids) OR dt.grandparent IN (:datatype_ids)'
+            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $src_datatype_ids = array();
+            foreach ($results as $result)
+                $src_datatype_ids[ $result['id'] ] = 1;
+            $src_datatype_ids = array_keys($src_datatype_ids);
+
+            // datafield ids
+            $query = $em->createQuery(
+               'SELECT df.id
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.dataType IN (:datatype_ids)'
+            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $src_datafield_ids = array();
+            foreach ($results as $result)
+                $src_datafield_ids[ $result['id'] ] = 1;
+            $src_datafield_ids = array_keys($src_datafield_ids);
+
+            // radio options
+            $query = $em->createQuery(
+               'SELECT ro.id
+                FROM ODRAdminBundle:RadioOptions ro
+                WHERE ro.dataField IN (:datafield_ids)'
+            ) ->setParameters( array('datafield_ids' => $src_datafield_ids) );
+            $results = $query->getArrayResult();
+
+            $src_ro_ids = array();
+            foreach ($results as $result)
+                $src_ro_ids[ $result['id'] ] = 1;
+            $src_ro_ids = array_keys($src_ro_ids);
+
+            // render plugin instances
+            $query = $em->createQuery(
+               'SELECT rpi.id
+                FROM ODRAdminBundle:RenderPluginInstance rpi
+                WHERE rpi.dataType IN (:datatype_ids)'
+            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $src_rpi_ids = array();
+            foreach ($results as $result)
+                $src_rpi_ids[ $result['id'] ] = 1;
+            $src_rpi_ids = array_keys($src_rpi_ids);
+
+            // groups
+            $query = $em->createQuery(
+               'SELECT g.id
+                FROM ODRAdminBundle:Group g
+                WHERE g.dataType IN (:datatype_ids)'
+            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $src_group_ids = array();
+            foreach ($results as $result)
+                $src_group_ids[ $result['id'] ] = 1;
+            $src_group_ids = array_keys($src_group_ids);
+
+            // datatree entries
+            $query = $em->createQuery(
+               'SELECT dt.id
+                FROM ODRAdminBundle:DataTree dt
+                WHERE dt.ancestor IN (:datatype_ids) OR dt.descendant IN (:datatype_ids)'
+            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $src_datatree_ids = array();
+            foreach ($results as $result)
+                $src_datatree_ids[ $result['id'] ] = 1;
+            $src_datatree_ids  = array_keys($src_datatree_ids);
+
+            // sidebar layouts
+            $query = $em->createQuery(
+               'SELECT sl.id
+                FROM ODRAdminBundle:SidebarLayout sl
+                WHERE sl.dataType IN (:datatype_ids)'
+            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $src_sidebar_layout_ids = array();
+            foreach ($results as $result)
+                $src_sidebar_layout_ids[ $result['id'] ] = 1;
+            $src_sidebar_layout_ids  = array_keys($src_sidebar_layout_ids);
+
+            // themes
+            $query = $em->createQuery(
+               'SELECT t.id
+                FROM ODRAdminBundle:Theme t
+                WHERE t.dataType IN (:datatype_ids)'
+            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $src_theme_ids = array();
+            foreach ($results as $result)
+                $src_theme_ids[ $result['id'] ] = 1;
+            $src_theme_ids = array_keys($src_theme_ids);
+
+            // themeelements
+            $query = $em->createQuery(
+               'SELECT te.id
+                FROM ODRAdminBundle:ThemeElement te
+                WHERE te.theme IN (:theme_ids)'
+            ) ->setParameters( array('theme_ids' => $src_theme_ids) );
+            $results = $query->getArrayResult();
+
+            $src_themeelement_ids = array();
+            foreach ($results as $result)
+                $src_themeelement_ids[ $result['id'] ] = 1;
+            $src_themeelement_ids = array_keys($src_themeelement_ids);
+
+
+            // ----------------------------------------
+            $lines = array();
+            $lines[] = 'START TRANSACTION;';
+
+            // All datarecords need to get moved to the destination datatypes
+            foreach ($datatypes as $src_dt_id => $dest_dt_id)
+                $lines[] = 'UPDATE odr_data_record dr SET dr.data_type_id = '.$dest_dt_id.' WHERE dr.data_type_id = '.$src_dt_id.';';
+            $lines[] = '';
+            // Don't need to do anything with datarecordMeta entries
+
+            // All related datarecordfield entries need to update the datafield they point to
+            foreach ($datafields as $src_df_id => $dest_df_id)
+                $lines[] = 'UPDATE odr_data_record_fields drf SET drf.data_field_id = '.$dest_df_id.' WHERE drf.data_field_id = '.$src_df_id.';';
+            $lines[] = '';
+
+            // Each related storage entity also needs to change the datafield it points to
+            $typeclass_map = array(
+                'Boolean' => 'odr_boolean',
+                'File' => 'odr_file',
+                'Image' => 'odr_image',
+                'IntegerValue' => 'odr_integer_value',
+                'DecimalValue' =>  'odr_decimal_value',
+                'ShortVarchar' =>  'odr_short_varchar',
+                'MediumVarchar' =>  'odr_medium_varchar',
+                'LongVarchar' =>  'odr_long_varchar',
+                'LongText' => 'odr_long_text',
+                'DatetimeValue' => 'odr_datetime_value',
+                'XYZData' => 'odr_xyz_data'
+            );
+            foreach ($src_fields as $src_df_id => $typeclass) {
+                if ( isset($typeclass_map[$typeclass]) ) {
+                    $dest_df_id = $datafields[$src_df_id];
+                    $lines[] = 'UPDATE '.$typeclass_map[$typeclass].' e SET e.data_field_id = '.$dest_df_id.' WHERE e.data_field_id = '.$src_df_id.';';
+
+                    if ( $typeclass === 'Image' )
+                        $lines[] = 'UPDATE odr_image_sizes i SET i.deletedAt = NOW() WHERE i.data_fields_id = '.$src_df_id.';';
+                }
+            }
+            $lines[] = '';
+
+            // Radio and tag fields need special attention...
+            foreach ($src_fields as $src_df_id => $typeclass) {
+                if ( $typeclass === 'Radio' ) {
+                    foreach ($radio_options[$src_df_id] as $src_ro_id => $dest_ro_id)
+                        $lines[] = 'UPDATE odr_radio_selection rs SET rs.radio_option_id = '.$dest_ro_id.' WHERE rs.radio_option_id = '.$src_ro_id.';';
+                    $lines[] = '';
+                }
+            }
+            if ( !empty($src_ro_ids) ) {
+                // This is not inside the loop because the user might not have mapped some of the radio options...
+                //  ...but they all need to get marked as deleted
+                $lines[] = 'UPDATE odr_radio_options_meta rom SET rom.deletedAt = NOW() WHERE rom.radio_option_id IN ('.implode(',', $src_ro_ids).') AND rom.deletedAt IS NULL;';
+                $lines[] = 'UPDATE odr_radio_options ro SET ro.deletedAt = NOW(), ro.deletedBy = '.$user->getId().' WHERE ro.data_fields_id IN ('.implode(',', $src_ro_ids).') AND ro.deletedAt IS NULL;';
+                $lines[] = '';
+            }
+
+            foreach ($src_fields as $src_df_id => $typeclass) {
+                if ( $typeclass === 'Tags' ) {
+                    throw new ODRNotImplementedException('tags are a pain');
+                }
+            }
+            $lines[] = '';
+
+
+            // ----------------------------------------
+            // soft-delete anything remaining that references the old datatypes/datafields
+
+            // render plugin instances...
+            $lines[] = 'UPDATE odr_theme_render_plugin_instance trpi SET trpi.deletedAt = NOW(), trpi.deletedBy = '.$user->getId().' WHERE trpi.render_plugin_instance_id IN ('.implode(',', $src_rpi_ids).') AND trpi.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_render_plugin_map rpm SET rpm.deletedAt = NOW() WHERE rpm.render_plugin_instance_id IN ('.implode(',', $src_rpi_ids).') AND rpm.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_render_plugin_map rpm SET rpm.deletedAt = NOW() WHERE rpm.data_type_id IN ('.implode(',', $src_datatype_ids).') AND rpm.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_render_plugin_options_map rpom SET rpom.deletedAt = NOW() WHERE rpom.render_plugin_instance_id IN ('.implode(',', $src_rpi_ids).') AND rpom.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_render_plugin_instance rpi SET rpi.deletedAt = NOW() WHERE rpi.id IN ('.implode(',', $src_rpi_ids).') AND rpi.deletedAt IS NULL;';
+            $lines[] = '';
+
+            // sidebar layouts...
+            if ( !empty($src_sidebar_layout_ids) ) {
+                $lines[] = 'UPDATE odr_sidebar_layout_map slm SET slm.deletedAt = NOW() WHERE slm.sidebar_layout_id IN ('.implode(',', $src_sidebar_layout_ids).') AND slm.deletedAt IS NULL;';
+                $lines[] = 'UPDATE odr_sidebar_layout_preferences slp SET slp.deletedAt = NOW() WHERE slp.sidebar_layout_id IN ('.implode(',', $src_sidebar_layout_ids).') AND slp.deletedAt IS NULL;';
+                $lines[] = 'UPDATE odr_sidebar_layout_meta slm SET slm.deletedAt = NOW() WHERE slm.sidebar_layout_id IN ('.implode(',', $src_sidebar_layout_ids).') AND slm.deletedAt IS NULL;';
+                $lines[] = 'UPDATE odr_sidebar_layout sl SET sl.deletedAt = NOW(), sl.deletedBy = '.$user->getId().' WHERE sl.id IN ('.implode(',', $src_sidebar_layout_ids).') AND sl.deletedAt IS NULL;';
+                $lines[] = '';
+            }
+
+            // regular layouts...
+            $lines[] = 'UPDATE odr_theme_data_type tdt SET tdt.deletedAt = NOW() WHERE tdt.theme_element_id IN ('.implode(',', $src_themeelement_ids).') AND tdt.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_theme_data_type tdt SET tdt.deletedAt = NOW() WHERE tdt.data_type_id IN ('.implode(',', $src_datatype_ids).') AND tdt.deletedAt IS NULL;';
+
+            $lines[] = 'UPDATE odr_theme_data_field tdf SET tdf.deletedAt = NOW() WHERE tdf.theme_element_id IN ('.implode(',', $src_themeelement_ids).') AND tdf.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_theme_element_meta tem SET tem.deletedAt = NOW() WHERE tem.theme_element_id IN ('.implode(',', $src_themeelement_ids).') AND tem.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_theme_element te SET te.deletedAt = NOW() WHERE te.id IN ('.implode(',', $src_themeelement_ids).') AND te.deletedAt IS NULL;';
+
+            $lines[] = 'UPDATE odr_theme_preferences tp SET tp.deletedAt = NOW() WHERE tp.theme_id IN ('.implode(',', $src_theme_ids).') AND tp.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_theme_meta tm SET tm.deletedAt = NOW() WHERE tm.theme_id IN ('.implode(',', $src_theme_ids).') AND tm.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_theme t SET t.deletedAt = NOW(), t.deletedBy = '.$user->getId().' WHERE t.id IN ('.implode(',', $src_theme_ids).') AND t.deletedAt IS NULL;';
+            $lines[] = '';
+
+            // groups...
+            $lines[] = 'UPDATE odr_user_group ug SET ug.deletedAt = NOW() WHERE ug.group_id IN ('.implode(',', $src_group_ids).') AND ug.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_group_datatype_permissions gdtp SET gdtp.deletedAt = NOW() WHERE gdtp.group_id IN ('.implode(',', $src_group_ids).') AND gdtp.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_group_datafield_permissions gdfp SET gdfp.deletedAt = NOW() WHERE gdfp.group_id IN ('.implode(',', $src_group_ids).') AND gdfp.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_group_meta gm SET gm.deletedAt = NOW() WHERE gm.group_id IN ('.implode(',', $src_group_ids).') AND gm.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_group g SET g.deletedAt = NOW(), g.deletedBy = '.$user->getId().' WHERE g.id IN ('.implode(',', $src_group_ids).') AND g.deletedAt IS NULL;';
+            $lines[] = '';
+
+            // datatrees...
+            $lines[] = 'UPDATE odr_data_tree_meta dtm SET dtm.deletedAt = NOW() WHERE dtm.data_tree_id IN ('.implode(',', $src_datatree_ids).') AND dtm.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_data_tree dt SET dt.deletedAt = NOW(), dt.deletedBy = '.$user->getId().' WHERE dt.id IN ('.implode(',', $src_datatree_ids).') AND dt.deletedAt IS NULL;';
+            $lines[] = '';
+            // NOTE: don't need to change odr_linked_data_tree...though that will leave behind dangling entries if not dealt with
+
+            // other cleanup...
+            $lines[] = 'UPDATE odr_data_type_special_fields dtsf SET dtsf.deletedAt = NOW(), dtsf.deletedBy = '.$user->getId().' WHERE (dtsf.data_type_id IN ('.implode(',', $src_datatype_ids).') OR dtsf.data_field_id IN ('.implode(',', $src_datafield_ids).')) AND dtsf.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_stored_search_keys ssk SET ssk.deletedAt = NOW(), ssk.deletedBy = '.$user->getId().' WHERE ssk.data_type_id IN ('.implode(',', $src_datatype_ids).') AND ssk.deletedAt IS NULL;';
+            $lines[] = '';
+
+            // datafields...
+            $lines[] = 'UPDATE odr_data_fields_meta dfm SET dfm.deletedAt = NOW() WHERE dfm.data_field_id IN ('.implode(',', $src_datafield_ids).') AND dfm.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_data_fields df SET df.deletedAt = NOW(), df.deletedBy = '.$user->getId().' WHERE df.id IN ('.implode(',', $src_datafield_ids).') AND df.deletedAt IS NULL;';
+            $lines[] = '';
+
+            // datatypes...
+            $lines[] = 'UPDATE odr_data_type_meta dtm SET dtm.deletedAt = NOW() WHERE dtm.data_type_id IN ('.implode(',', $src_datatype_ids).') AND dtm.deletedAt IS NULL;';
+            $lines[] = 'UPDATE odr_data_type dt SET dt.deletedAt = NOW(), dt.deletedBy = '.$user->getId().' WHERE dt.id IN ('.implode(',', $src_datatype_ids).') AND dt.deletedAt IS NULL;';
+            $lines[] = '';
+
+//            $lines[] = 'ROLLBACK;';
+            $lines[] = 'COMMIT;';
+
+            $return['d'] = implode("\n", $lines);
+        }
+        catch (\Exception $e) {
+            $source = 0xcdddc09c;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 }

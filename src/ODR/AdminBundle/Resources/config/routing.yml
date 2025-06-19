@@ -1736,11 +1736,47 @@ odr_apply_theme:
 odr_migrate_1.0:
     path:  /admin/migrate/1.0
     defaults: { _controller: ODRAdminBundle:Migration:migrate_1_0_ }
-
 odr_migrate_1.1:
     path:  /admin/migrate/1.1
     defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
 
+
+odr_render_datatype_array:
+    path:  /admin/get_datatype_array/{side}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Migration:renderdatatypearray }
+    requirements:
+        side: '|src|dest'
+        datatype_id: \d+
+odr_render_radio_options_array:
+    path:  /admin/get_radio_options_array/{src_datafield_id}/{dest_datafield_id}
+    defaults: { _controller: ODRAdminBundle:Migration:renderradiooptionsarray }
+    requirements:
+        src_datafield_id: \d+
+        dest_datafield_id: \d+
+
+odr_create_template_from_datatype_start:
+    path:  /admin/create_template_from_datatype
+    defaults: { _controller: ODRAdminBundle:Migration:createtemplatefromdatatypestart }
+odr_create_template_from_datatype:
+    path:  /admin/create_template_from_datatype_post
+    defaults: { _controller: ODRAdminBundle:Migration:createtemplatefromdatatype }
+    methods: POST
+
+odr_make_datatype_use_template_start:
+    path:  /admin/make_datatype_use_template
+    defaults: { _controller: ODRAdminBundle:Migration:makedatatypeusetemplatestart }
+odr_make_datatype_use_template:
+    path:  /admin/make_datatype_use_template_post
+    defaults: { _controller: ODRAdminBundle:Migration:makedatatypeusetemplate }
+    methods: POST
+
+odr_move_datatype_contents_start:
+    path:  /admin/move_datatype_contents
+    defaults: { _controller: ODRAdminBundle:Migration:movedatatypecontentsstart }
+odr_move_datatype_contents:
+    path:  /admin/move_datatype_contents_post
+    defaults: { _controller: ODRAdminBundle:Migration:movedatatypecontents }
+    methods: POST
 
 #-----------------------------------------
 # Tracking Controller
