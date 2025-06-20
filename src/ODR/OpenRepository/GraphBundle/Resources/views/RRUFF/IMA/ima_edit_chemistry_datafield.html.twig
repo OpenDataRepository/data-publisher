@@ -118,6 +118,10 @@
                     function() {
                         {# want to reload whichever datafield depends on this chemistry field #}
                         ReloadEditDatafield( {{ datarecord.id }}, {{ derived_datafield_id }} );
+
+                        // Refresh the preview div
+                        var text = $("#{{ input_id }}").val();
+                        $("#EditForm_{{ unique_id }}").find('.ODRFileInfo').html(text);
                     }
                 );
             }

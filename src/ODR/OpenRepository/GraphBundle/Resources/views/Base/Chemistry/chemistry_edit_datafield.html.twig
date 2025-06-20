@@ -147,7 +147,12 @@
         submitHandler: function(form) {
             SaveRecordData(
                 '#EditForm_{{ unique_id }}',
-                {{ field_typeclass }}Interval_{{ unique_id }}
+                {{ field_typeclass }}Interval_{{ unique_id }},
+                function() {
+                    // Refresh the preview div
+                    var text = $("#{{ input_id }}").val();
+                    $("#EditForm_{{ unique_id }}").find('.ODRFileInfo').html(text);
+                }
             );
         }
     });
