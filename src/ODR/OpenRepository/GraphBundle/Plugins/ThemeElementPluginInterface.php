@@ -36,11 +36,13 @@ interface ThemeElementPluginInterface
      * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
+     * @param array $datatype_permissions
+     * @param array $datafield_permissions
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
+    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array());
 
     /**
      * Returns placeholder HTML for a themeElement RenderPlugin for design mode.

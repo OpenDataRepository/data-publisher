@@ -1,0 +1,14 @@
+{% spaceless %}
+
+<div id="DataType_{{ reference_datatype_array['id'] }}" class="ODRAccordionWrapper">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <a>{% if plugin_options['header_text'] != 'auto' %}{{ plugin_options['header_text'] }}{% else %}{{ reference_datatype_array['dataTypeMeta']['shortName'] }}{% endif %}</a>
+    </h3>
+    {% for num,ref_text in references %}
+    <div class="ODRRenderPluginContent ODRReference">
+        {{ ref_text|raw }}
+    </div>
+    {% endfor %}
+</div>
+
+{% endspaceless %}

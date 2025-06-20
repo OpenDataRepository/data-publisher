@@ -60,7 +60,7 @@
         {% endif %}
 
         {% if can_execute_plugin %}
-            {% set content = datarecord|theme_element_plugin(datatype, render_plugin_instance, theme_array, rendering_options) %}
+            {% set content = datarecord|theme_element_plugin(datatype, render_plugin_instance, theme_array, rendering_options, datatype_permissions, datafield_permissions) %}
             {% if content|length > 0 %}
             <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
             <div class="ODRInnerBox">

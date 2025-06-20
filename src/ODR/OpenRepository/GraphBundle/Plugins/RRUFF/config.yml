@@ -100,6 +100,12 @@ services:
             $templating: "@templating"
             $logger: "@logger"
 
+    odr_plugins.rruff.rruff_special_reference:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSpecialReferencePlugin'
+        arguments:
+            $templating: "@templating"
+            $logger: "@logger"
+
 
     # ----------------------------------------
     # Datafield plugins

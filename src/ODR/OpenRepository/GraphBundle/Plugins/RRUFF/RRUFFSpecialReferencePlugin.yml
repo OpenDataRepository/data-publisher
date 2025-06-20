@@ -1,0 +1,27 @@
+odr_plugins.rruff.rruff_special_reference:
+    name: RRUFF Special Reference Plugin
+    category: RRUFF
+    plugin_type: themeElement
+    render: false    # NOTE: due to being a themeElement plugin_type, the render parameter does nothing
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: This plugin creates an additional themeElement to display the RRUFF Reference(s) that the RRUFF Sample directly links to.  Intended as a work-around for using the LinkedDescendantMerger Plugin.  Only works on RRUFF Samples.
+    registered_events:
+
+    required_theme_elements: 1
+
+    required_fields:
+    config_options:
+        header_text:
+            name: Header Text
+            type: string
+            default: auto
+            description: The header to use for this themeElement
+            display_order: 0

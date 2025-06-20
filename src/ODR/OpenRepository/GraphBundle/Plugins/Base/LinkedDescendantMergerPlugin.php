@@ -60,7 +60,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
     /**
      * @var DatabaseInfoService
      */
-    private $dbi_service;
+    private $database_info_service;
 
     /**
      * @var SortService
@@ -92,7 +92,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
         EngineInterface $templating,
         Logger $logger
     ) {
-        $this->dbi_service = $database_info_service;
+        $this->database_info_service = $database_info_service;
         $this->sort_service = $sort_service;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -147,7 +147,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
         //  rest of the function has a cached array to work off of...
         $dt = $datatype;
         if ( $datatype instanceof DataType ) {
-            $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());    // don't need links
+            $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());    // don't need links
             $dt = $dt_array[ $datatype->getId() ];
         }
 
@@ -233,8 +233,8 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
     {
         // For whatever reason, this is easier for my brain to comprehend when it's using a stacked
         //  datatype array.  Dang long covid.
-        $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
-        $stacked_dt = $this->dbi_service->stackDatatypeArray($dt_array, $datatype->getId());
+        $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
+        $stacked_dt = $this->database_info_service->stackDatatypeArray($dt_array, $datatype->getId());
 
         // Going to recursively dig through the stacked datatype array, building up every possible
         //  prefix along the way
@@ -424,6 +424,9 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
             //  could have multiple datarecords...
             $modified_datarecord_array = array();
             foreach ($datarecord_array as $datarecord_id => $datarecord) {
+                // Need to have a copy of the original children datarecords in the top-level datarecord...
+                $datarecord['original_children'] = $datarecord['children'];
+
                 // For each datarecord belonging to this datatype...
                 $dr_list = array();
                 foreach ($plugin_config as $num => $dt_group) {
@@ -491,7 +494,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
         // If the new prefix doesn't have an underscore, then the descendant is bottom-level...
         if ( strpos($new_prefix, '_') === false ) {
             // ...which means recursion is no longer necessary
-            if ( isset($datarecord['children']) && isset($datarecord['children'][$new_prefix]) ) {
+            if ( isset($datarecord['children'][$new_prefix]) ) {
                 // This record has descendants of this datatype...
                 $tmp = $datarecord['children'][$new_prefix];
 
@@ -514,7 +517,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
         else {
             // This descendant isn't bottom-level yet, so need more recursion...if it exists, that is
             $descendant_dt_id = substr($new_prefix, 0, strpos($new_prefix, '_'));
-            if ( isset($datarecord['children']) && isset($datarecord['children'][$descendant_dt_id]) ) {
+            if ( isset($datarecord['children'][$descendant_dt_id]) ) {
                 // There could be multiple descendant datarecords, so need to loop over all of them
                 $dr_list = array();
 
