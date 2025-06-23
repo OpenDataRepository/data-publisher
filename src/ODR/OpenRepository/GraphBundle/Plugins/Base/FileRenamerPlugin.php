@@ -989,7 +989,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     else if ( isset($drf['mediumVarchar']) )
                         $mapping[$df_id][$dr_id] = $drf['mediumVarchar'][0]['value'];
                     else if ( isset($drf['decimalValue']) )
-                        $mapping[$df_id][$dr_id] = $drf['decimalValue'][0]['value'];
+                        $mapping[$df_id][$dr_id] = $drf['decimalValue'][0]['original_value'];
                     else if ( isset($drf['datetimeValue']) )
                         $mapping[$df_id][$dr_id] = $drf['datetimeValue'][0]['value'];
                     else if ( isset($drf['radioSelection']) ) {

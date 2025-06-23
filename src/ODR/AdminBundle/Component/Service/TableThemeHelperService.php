@@ -547,7 +547,7 @@ class TableThemeHelperService
                         break;
                     case 'Decimal':
                         if ( isset($drf['decimalValue'][0]) )
-                            $df_value = $drf['decimalValue'][0]['value'];
+                            $df_value = $drf['decimalValue'][0]['original_value'];
                         break;
                     case 'Paragraph Text':
                         if ( isset($drf['longText'][0]) )

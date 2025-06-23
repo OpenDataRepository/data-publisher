@@ -560,9 +560,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                             $value = $datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'];
                         }
                         else if ($typeclass === 'DecimalValue' &&
-                            isset($datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'])
+                            isset($datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['original_value'])
                         ) {
-                            $value = $datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['value'];
+                            $value = $datarecord['dataRecordFields'][$rpf_df_id]['decimalValue'][0]['original_value'];
                         }
 
                         $field_values[$rpf_name] = $value;
@@ -581,7 +581,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     /**
      * Need to check for and warn if a derived field is blank when the source field is not.
      *
-     * @param array $field_values {@link self::getPluginData()}
+     * @param array $plugin_data {@link self::getPluginData()}
      *
      * @return array
      */

@@ -299,7 +299,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, SearchOverrideIn
                                 $value = $drf['integerValue'][0]['value'];
                                 break;
                             case 'DecimalValue':
-                                $value = $drf['decimalValue'][0]['value'];
+                                $value = $drf['decimalValue'][0]['original_value'];
                                 break;
                             case 'ShortVarchar':
                                 $value = $drf['shortVarchar'][0]['value'];
