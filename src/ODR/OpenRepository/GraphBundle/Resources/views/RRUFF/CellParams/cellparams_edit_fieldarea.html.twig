@@ -61,6 +61,7 @@
                     {% endif %}
 
                     {% set is_dimension_field = false %}
+                    {% set derived_datafield_name = null %}
                     {% if plugin_fields[ datafield.id ] is defined and
                         (plugin_fields[ datafield.id ]['rpf_name'] == "a"
                         or plugin_fields[ datafield.id ]['rpf_name'] == "b"
