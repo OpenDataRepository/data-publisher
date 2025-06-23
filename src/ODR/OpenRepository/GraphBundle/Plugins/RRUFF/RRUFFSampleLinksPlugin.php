@@ -27,6 +27,26 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 {
 
     /**
+     * @var string
+     */
+    private $baseurl;
+
+    /**
+     * @var string
+     */
+    private $wordpress_site_baseurl;
+
+    /**
+     * @var bool
+     */
+    private $odr_wordpress_integrated;
+
+    /**
+     * @var string
+     */
+    private $environment;
+
+    /**
      * @var DatabaseInfoService
      */
     private $database_info_service;
@@ -55,6 +75,10 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
     /**
      * RRUFF Sample Links Plugin constructor
      *
+     * @param string $baseurl
+     * @param string $wordpress_site_baseurl
+     * @param bool $odr_wordpress_integrated
+     * @param string $environment
      * @param DatabaseInfoService $database_info_service
      * @param SearchKeyService $search_key_service
      * @param Router $router
@@ -62,12 +86,20 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
      * @param Logger $logger
      */
     public function __construct(
+        string $baseurl,
+        string $wordpress_site_baseurl,
+        bool $odr_wordpress_integrated,
+        string $environment,
         DatabaseInfoService $database_info_service,
         SearchKeyService $search_key_service,
         Router $router,
         EngineInterface $templating,
         Logger $logger
     ) {
+        $this->baseurl = $baseurl;
+        $this->wordpress_site_baseurl = $wordpress_site_baseurl;
+        $this->odr_wordpress_integrated = $odr_wordpress_integrated;
+        $this->environment = $environment;
         $this->database_info_service = $database_info_service;
         $this->search_key_service = $search_key_service;
         $this->router = $router;
@@ -271,6 +303,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 );
             }
 
+            $amcsd_search_slug = '';
             $amcsd_search_url = '';
             if ( !is_null($mineral_name_value) && $amcsd_dt_id !== 0 ) {
                 // Need to also consider AMCSD's default search key if it has one...
@@ -280,6 +313,20 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
                 // AMCSD's default search key is stored in its datatype array...
                 $amcsd_dt_array = $this->database_info_service->getDatatypeArray($amcsd_dt_id, false);
+                $amcsd_search_slug = $amcsd_dt_array[$amcsd_dt_id]['dataTypeMeta']['searchSlug'];
+                if ( $this->environment === 'dev' )
+                    $amcsd_search_slug = 'app_dev.php/'.$amcsd_search_slug;
+
+                // TODO - probably should move this into a service...
+                $amcsd_baseurl = 'https:';
+                if ( !$this->odr_wordpress_integrated )
+                    $amcsd_baseurl .= $this->baseurl;
+                else
+                    $amcsd_baseurl .= $this->wordpress_site_baseurl;
+                $amcsd_baseurl .= '/'.$amcsd_search_slug.'#';
+                if ( $this->odr_wordpress_integrated )
+                    $amcsd_baseurl .= '/odr';
+
                 if ( $amcsd_dt_array[$amcsd_dt_id]['default_search_key'] !== '' )
                     $params = $this->search_key_service->decodeSearchKey( $datatype['default_search_key'] );
 
@@ -289,7 +336,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
                 // (Re)Encode the search key for use by the plugin
                 $mineral_name_search_key = $this->search_key_service->encodeSearchKey($params);
-                $amcsd_search_url = $this->router->generate(
+                $amcsd_search_url = $amcsd_baseurl.$this->router->generate(
                     'odr_search_render',
                     array(
                         'search_theme_id' => 0,

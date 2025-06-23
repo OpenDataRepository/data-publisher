@@ -94,6 +94,10 @@ services:
     odr_plugins.rruff.rruff_sample_links:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSampleLinksPlugin'
         arguments:
+            $baseurl: '%site_baseurl%'
+            $wordpress_site_baseurl: '%wordpress_site_baseurl%'
+            $odr_wordpress_integrated: '%odr_wordpress_integrated%'
+            $environment: "%kernel.environment%"
             $database_info_service: '@odr.database_info_service'
             $search_key_service: "@odr.search_key_service"
             $router: "@router"
