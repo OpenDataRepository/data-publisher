@@ -104,7 +104,7 @@ odr_api_datarecord_list:
     _format: '|json|xml'
 
 odr_api_recent_dataset_record_list:
-  path:  /api/{version}/dataset/{dataset_uuid}/modified/records/{recent}/{limit}/{offset}.{_format}
+  path:  /api/{version}/dataset/{datatype_uuid}/modified/records/{recent}/{limit}/{offset}.{_format}
   defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, recent: true, _format: json }
   methods: [ GET ]
   requirements:
