@@ -1,5 +1,5 @@
-odr_plugins.rruff.rruff_sample_links:
-    name: RRUFF Sample Links Plugin
+odr_plugins.rruff.rruff_special_reference:
+    name: RRUFF Special Reference Plugin
     category: RRUFF
     plugin_type: themeElement
     render: false    # NOTE: due to being a themeElement plugin_type, the render parameter does nothing
@@ -12,16 +12,16 @@ odr_plugins.rruff.rruff_sample_links:
     override_search: false
     override_sort: false
     suppress_no_fields_note: false
-    description: This plugin creates two "quicksearch" links back to the RRUFF Sample dataype and one to the AMCSD datatype, depending on the IMA mineral that the sample is linked to.
+    description: This plugin creates an additional themeElement to display the RRUFF Reference(s) that the RRUFF Sample directly links to.  Intended as a work-around for using the LinkedDescendantMerger Plugin.  Only works on RRUFF Samples.
     registered_events:
 
     required_theme_elements: 1
 
     required_fields:
     config_options:
-        amcsd_database_id:
-            name: AMCSD Database ID
-            type: number
-            default: 0
-            description: The ID of the AMCSD Database on ODR
+        header_text:
+            name: Header Text
+            type: string
+            default: auto
+            description: The header to use for this themeElement
             display_order: 0

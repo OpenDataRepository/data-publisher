@@ -9,34 +9,34 @@
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
     {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
 
-    {% if field_typename == "Boolean" %}
+    {% if field_typename == "Boolean" and datarecordfield.boolean[0] is defined %}
         {% set valuefield = datarecordfield.boolean[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "File" %}
         {% set valuefield = datarecordfield.file %}
     {% elseif field_typename == "Image" %}
         {% set valuefield = datarecordfield.image %}
-    {% elseif field_typename == "Decimal" %}
+    {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
         {% set valuefield = datarecordfield.decimalValue[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Integer" %}
+        {% set valuefield_value = valuefield.original_value %}
+    {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
         {% set valuefield = datarecordfield.integerValue[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Paragraph Text" %}
+    {% elseif field_typename == "Paragraph Text" and datarecordfield.longText[0] is defined %}
         {% set valuefield = datarecordfield.longText[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Long Text" %}
+    {% elseif field_typename == "Long Text" and datarecordfield.longVarchar[0] is defined %}
         {% set valuefield = datarecordfield.longVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Medium Text" %}
+    {% elseif field_typename == "Medium Text" and datarecordfield.mediumVarchar[0] is defined %}
         {% set valuefield = datarecordfield.mediumVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typeclass == "Radio" %}
         {% set valuefield = datarecordfield.radioSelection %}
-    {% elseif field_typename == "Short Text" %}
+    {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
         {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "DateTime" %}
+    {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
         {% set valuefield = datarecordfield.datetimeValue[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "Markdown" %}

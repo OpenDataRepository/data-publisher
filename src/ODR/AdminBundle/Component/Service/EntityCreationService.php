@@ -1337,7 +1337,7 @@ class EntityCreationService
 
         // ...these properties can be set immediately...
         $file->setExt($extension);
-        $file->setFilesize($filesize);
+        $file->setFilesize($filesize);    // NOTE: listeners to the FilePreEncryptEvent might change this
 
         // The local_filename property will get changed to the web-accessible directory later
         $file->setLocalFileName($dirname);

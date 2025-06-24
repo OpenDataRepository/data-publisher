@@ -53,7 +53,7 @@ class ODRUploadService
     /**
      * @var EntityCreationService
      */
-    private $ec_service;
+    private $entity_creation_service;
 
     /**
      * @var EventDispatcherInterface
@@ -115,7 +115,7 @@ class ODRUploadService
     ) {
         $this->em = $entity_manager;
         $this->crypto_service = $crypto_service;
-        $this->ec_service = $entity_creation_service;
+        $this->entity_creation_service = $entity_creation_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->pheanstalk = $pheanstalk;
         $this->router = $router;
@@ -140,19 +140,20 @@ class ODRUploadService
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      * @param \DateTime|null $public_date If provided, then the public date is set to this
      * @param int $quality If provided, then the quality property is set to this
+     * @param bool $use_beanstalk If false, then the file is directly encrypted
      *
      * @return File The new incomplete File entity for the file at $filepath...The beanstalk process
      *              will be deleting the file at $filepath and modifying the File entity at some
      *              unknown time in the future.  USE WITH CAUTION.
      */
-    public function uploadNewFile($filepath, $user, $drf, $created = null, $public_date = null, $quality = null)
+    public function uploadNewFile($filepath, $user, $drf, $created = null, $public_date = null, $quality = null, $use_beanstalk = true)
     {
         // Ensure the filepath is valid
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('The file at "'.$filepath.'" does not exist on the server', true, 0x6fe6e25d);
 
         // The user uploaded a File...create a database entry with as much info as possible
-        $file = $this->ec_service->createFile($user, $drf, $filepath, $created, $public_date, $quality);
+        $file = $this->entity_creation_service->createFile($user, $drf, $filepath, $created, $public_date, $quality);
 
 
         // ----------------------------------------
@@ -175,15 +176,15 @@ class ODRUploadService
         }
 
         // NOTE - the event is dispatched prior to the file encryption so that file encryption
-        //  doesn't have to become a TrackedJob...which would also require the page would to
-        //  check for and handle the event dispatching completion...
+        //  doesn't have to become a TrackedJob...which would also require the page to check for and
+        //  handle the event dispatching completion...
 
         // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
 
         // Additionally, CryptoService handles firing all other events for files
 
         // ----------------------------------------
-        // Reload the file incase the FilePreEncryptEvent screwed with the filepath
+        // Reload the file incase the FilePreEncryptEvent screwed with the filepath or the filesize
         $this->em->refresh($file);
         $file_meta = $file->getFileMeta();
         $this->em->refresh($file_meta);
@@ -191,38 +192,47 @@ class ODRUploadService
         $filepath = $file->getLocalFileName().'/'.$file_meta->getOriginalFileName();
 
         // ----------------------------------------
-//        $this->crypto_service->encryptFile($file->getId(), $filepath);
 
-        // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
+        if ( !$use_beanstalk ) {
+            // In specific situations, directly encrypting the file is preferable
+            $this->crypto_service->encryptFile($file->getId(), $filepath);
 
-        // Generate the url for cURL to use
-        $url = $this->router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            // Returning because the other branch does, though I believe this return is considerably
+            //  more safe than the other.  STILL, USE WITH CAUTION.
+            return $file;
+        }
+        else {
+            // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
 
-        // Insert the new job into the queue
-        $priority = 1024;   // should be roughly default priority
-        $payload = json_encode(
-            array(
-                "object_type" => 'file',
-                "object_id" => $file->getId(),
-                "crypto_type" => 'encrypt',
+            // Generate the url for cURL to use
+            $url = $this->router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
-                "local_filename" => $filepath,
-                "archive_filepath" => '',
-                "desired_filename" => '',
+            // Insert the new job into the queue
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    "object_type" => 'file',
+                    "object_id" => $file->getId(),
+                    "crypto_type" => 'encrypt',
 
-                "redis_prefix" => $this->redis_prefix,    // debug purposes only
-                "url" => $url,
-                "api_key" => $this->api_key,
-            )
-        );
+                    "local_filename" => $filepath,
+                    "archive_filepath" => '',
+                    "desired_filename" => '',
 
-        $delay = 1;
-        $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                    "redis_prefix" => $this->redis_prefix,    // debug purposes only
+                    "url" => $url,
+                    "api_key" => $this->api_key,
+                )
+            );
 
-        // Returning the file despite it still being unencrypted, and also despite that beanstalk
-        //  will eventually encrypt it (deleting the file at $filepath) at some unknown time in the
-        //  future.  USE WITH CAUTION.
-        return $file;
+            $delay = 1;
+            $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+
+            // Returning the file despite it still being unencrypted, and also despite that beanstalk
+            //  will eventually encrypt it (deleting the file at $filepath) at some unknown time in the
+            //  future.  USE WITH CAUTION.
+            return $file;
+        }
     }
 
 
@@ -250,7 +260,7 @@ class ODRUploadService
             throw new ODRNotFoundException('The image at "'.$filepath.'" does not exist on the server', true, 0x5a301f18);
 
         // The user uplaoded an Image...create a database entry with as much info as possible
-        $image = $this->ec_service->createImage($user, $drf, $filepath, $created, $public_date, $display_order, $quality);
+        $image = $this->entity_creation_service->createImage($user, $drf, $filepath, $created, $public_date, $display_order, $quality);
 
 
         // ----------------------------------------
@@ -288,7 +298,7 @@ class ODRUploadService
 
         // Create thumbnails (and any other reiszed versions) of the original image before it gets
         //  encrypted
-        $resized_images = $this->ec_service->createResizedImages($image, $filepath);
+        $resized_images = $this->entity_creation_service->createResizedImages($image, $filepath);
 
         // Encrypt the resized image...this will also set the localFilename, encryptKey, and
         //  originalChecksum properties
@@ -451,7 +461,7 @@ class ODRUploadService
                 $this->em->persist($im);
             }
             // Don't need to change the width/height of an existing resized Image...it'll get
-            //  changed inside $ec_service->createResizedImages() later
+            //  changed inside $entity_creation_service->createResizedImages() later
 
             $this->em->persist($i);
         }
@@ -460,7 +470,7 @@ class ODRUploadService
         $this->em->flush();
 
         // Recreate all the necessary resized versions of the image
-        $resized_images = $this->ec_service->createResizedImages($existing_image, $filepath, true);
+        $resized_images = $this->entity_creation_service->createResizedImages($existing_image, $filepath, true);
 
         // Encrypt all the resized versions first
         $dirname = pathinfo($filepath, PATHINFO_DIRNAME);

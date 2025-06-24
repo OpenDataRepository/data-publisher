@@ -14,9 +14,10 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\RRUFF;
 
 // Services
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
-// Symfony
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+// Symfony
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\Routing\Router;
@@ -24,6 +25,31 @@ use Symfony\Component\Routing\Router;
 
 class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 {
+
+    /**
+     * @var string
+     */
+    private $baseurl;
+
+    /**
+     * @var string
+     */
+    private $wordpress_site_baseurl;
+
+    /**
+     * @var bool
+     */
+    private $odr_wordpress_integrated;
+
+    /**
+     * @var string
+     */
+    private $environment;
+
+    /**
+     * @var DatabaseInfoService
+     */
+    private $database_info_service;
 
     /**
      * @var SearchKeyService
@@ -49,17 +75,32 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
     /**
      * RRUFF Sample Links Plugin constructor
      *
+     * @param string $baseurl
+     * @param string $wordpress_site_baseurl
+     * @param bool $odr_wordpress_integrated
+     * @param string $environment
+     * @param DatabaseInfoService $database_info_service
      * @param SearchKeyService $search_key_service
      * @param Router $router
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
+        string $baseurl,
+        string $wordpress_site_baseurl,
+        bool $odr_wordpress_integrated,
+        string $environment,
+        DatabaseInfoService $database_info_service,
         SearchKeyService $search_key_service,
         Router $router,
         EngineInterface $templating,
         Logger $logger
     ) {
+        $this->baseurl = $baseurl;
+        $this->wordpress_site_baseurl = $wordpress_site_baseurl;
+        $this->odr_wordpress_integrated = $odr_wordpress_integrated;
+        $this->environment = $environment;
+        $this->database_info_service = $database_info_service;
         $this->search_key_service = $search_key_service;
         $this->router = $router;
         $this->templating = $templating;
@@ -100,17 +141,27 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
      * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
+     * @param array $datatype_permissions
+     * @param array $datafield_permissions
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options)
+    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array())
     {
         try {
             // ----------------------------------------
             // Shouldn't happen, but make sure this only executes in display mode
             if ( !isset($rendering_options['context']) || $rendering_options['context'] !== 'display' )
                 return '';
+
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
+
+            // Want a link to the AMCSD database, but RRUFF Sample isn't directly related to it
+            // ...therefore, need to have this as a config option...
+            $amcsd_dt_id = 0;
+            if ( isset($options['amcsd_database_id']) )
+                $amcsd_dt_id = intval($options['amcsd_database_id']);
 
 
             // ----------------------------------------
@@ -194,13 +245,24 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
 
             // ----------------------------------------
+            // If the RRUFF Sample datatype has a default search key...
+            $default_search_params = array('dt_id' => $datatype['id']);
+            if ( !is_null($mineral_name_value) || !is_null($structural_group_tag_data) ) {
+                if ( $datatype['default_search_key'] !== '' ) {
+                    // ...then two of the three generated links need to be based off of it
+                    $default_search_params = $this->search_key_service->decodeSearchKey( $datatype['default_search_key'] );
+                }
+            }
+
             // Generate the search keys for the values that aren't blank
             $mineral_search_url = '';
             if ( !is_null($mineral_name_value) ) {
-                $params = array(
-                    'dt_id' => $datatype['id'],
-                    $mineral_name_df_id => '"'.$mineral_name_value.'"',
-                );
+                // Replace whatever default criteria existed for the mineral name (though there really
+                //  shouldn't be anything there)
+                $params = $default_search_params;
+                $params[$mineral_name_df_id] = '"'.$mineral_name_value.'"';
+
+                // (Re)Encode the search key for use by the plugin
                 $mineral_name_search_key = $this->search_key_service->encodeSearchKey($params);
                 $mineral_search_url = $this->router->generate(
                     'odr_search_render',
@@ -216,16 +278,69 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             if ( !is_null($structural_group_tag_data) ) {
                 $structural_group_value = $structural_group_tag_data['value'];
 
-                $params = array(
-                    'dt_id' => $datatype['id'],
-                    $tags_df_id => '+'.$structural_group_tag_data['id'],
-                );
+                // Going to create a search key for this that's based off the default for this
+                //  database...
+                $params = $default_search_params;
+
+                // If the tag datafield is already part of the criteria...
+                if ( isset($params[$tags_df_id]) ) {
+                    // ...then splice the requested tag after the existing tag criteria
+                    $params[$tags_df_id] .= ',+'.$structural_group_tag_data['id'];
+                }
+                else {
+                    // ...otherwise, just set the value
+                    $params[$tags_df_id] = '+'.$structural_group_tag_data['id'];
+                }
+
+                // (Re)Encode the search key for use by the plugin
                 $structural_group_search_key = $this->search_key_service->encodeSearchKey($params);
                 $structural_group_search_url = $this->router->generate(
                     'odr_search_render',
                     array(
                         'search_theme_id' => 0,
                         'search_key' => $structural_group_search_key
+                    )
+                );
+            }
+
+            $amcsd_search_slug = '';
+            $amcsd_search_url = '';
+            if ( !is_null($mineral_name_value) && $amcsd_dt_id !== 0 ) {
+                // Need to also consider AMCSD's default search key if it has one...
+                $params = array(
+                    'dt_id' => $amcsd_dt_id
+                );
+
+                // AMCSD's default search key is stored in its datatype array...
+                $amcsd_dt_array = $this->database_info_service->getDatatypeArray($amcsd_dt_id, false);
+                $amcsd_search_slug = $amcsd_dt_array[$amcsd_dt_id]['dataTypeMeta']['searchSlug'];
+                if ( $this->environment === 'dev' )
+                    $amcsd_search_slug = 'app_dev.php/'.$amcsd_search_slug;
+
+                // TODO - probably should move this into a service...
+                $amcsd_baseurl = 'https:';
+                if ( !$this->odr_wordpress_integrated )
+                    $amcsd_baseurl .= $this->baseurl;
+                else
+                    $amcsd_baseurl .= $this->wordpress_site_baseurl;
+                $amcsd_baseurl .= '/'.$amcsd_search_slug.'#';
+                if ( $this->odr_wordpress_integrated )
+                    $amcsd_baseurl .= '/odr';
+
+                if ( $amcsd_dt_array[$amcsd_dt_id]['default_search_key'] !== '' )
+                    $params = $this->search_key_service->decodeSearchKey( $datatype['default_search_key'] );
+
+                // Replace whatever default criteria existed for the mineral name (though there really
+                //  shouldn't be anything there)
+                $params[$mineral_name_df_id] = '"'.$mineral_name_value.'"';
+
+                // (Re)Encode the search key for use by the plugin
+                $mineral_name_search_key = $this->search_key_service->encodeSearchKey($params);
+                $amcsd_search_url = $amcsd_baseurl.$this->router->generate(
+                    'odr_search_render',
+                    array(
+                        'search_theme_id' => 0,
+                        'search_key' => $mineral_name_search_key
                     )
                 );
             }
@@ -244,6 +359,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
                     'structural_group_search_url' => $structural_group_search_url,
                     'mineral_search_url' => $mineral_search_url,
+                    'amcsd_search_url' => $amcsd_search_url,
                 )
             );
         }

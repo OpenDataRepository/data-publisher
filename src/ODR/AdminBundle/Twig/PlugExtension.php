@@ -478,7 +478,7 @@ class PlugExtension extends \Twig_Extension
      * @return string
      * @throws \Exception
      */
-    public function themeElementPluginFilter($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options)
+    public function themeElementPluginFilter($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array())
     {
         try {
             // Ensure this only is run on a render plugin for a datatype
@@ -489,7 +489,7 @@ class PlugExtension extends \Twig_Extension
             // Load and execute the render plugin
             /** @var ThemeElementPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
+            return $svc->execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions, $datafield_permissions);
         }
         catch (\Exception $e) {
             if ( $this->container->getParameter('kernel.environment') === 'dev' )

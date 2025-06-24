@@ -94,8 +94,19 @@ services:
     odr_plugins.rruff.rruff_sample_links:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSampleLinksPlugin'
         arguments:
+            $baseurl: '%site_baseurl%'
+            $wordpress_site_baseurl: '%wordpress_site_baseurl%'
+            $odr_wordpress_integrated: '%odr_wordpress_integrated%'
+            $environment: "%kernel.environment%"
+            $database_info_service: '@odr.database_info_service'
             $search_key_service: "@odr.search_key_service"
             $router: "@router"
+            $templating: "@templating"
+            $logger: "@logger"
+
+    odr_plugins.rruff.rruff_special_reference:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSpecialReferencePlugin'
+        arguments:
             $templating: "@templating"
             $logger: "@logger"
 
@@ -110,6 +121,20 @@ services:
             $search_service: "@odr.search_service"
             $sort_service: "@odr.sort_service"
             $templating: "@templating"
+            $logger: "@logger"
+
+    odr_plugins.rruff.file_header_inserter:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFFileHeaderInserterPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $crypto_service: "@odr.crypto_service"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $entity_deletion_service: "@odr.entity_deletion_service"
+            $upload_service: "@odr.upload_service"
+            $odr_tmp_directory: '%odr_tmp_directory%'
+            $templating: '@templating'
             $logger: "@logger"
 
 

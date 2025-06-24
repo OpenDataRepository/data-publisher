@@ -1,0 +1,17 @@
+{{ comment_prefix }}NAMES={% if header_values['mineral_name'] is defined %}{{ header_values['mineral_name'] }}{% endif %}{{ newline_separator }}
+{{ comment_prefix }}RRUFFID={% if header_values['rruff_id'] is defined %}{{ header_values['rruff_id'] }}{% endif %}{{ newline_separator }}
+{{ comment_prefix }}IDEAL CHEMISTRY={% if header_values['ima_formula'] is defined %}{{ header_values['ima_formula'] }}{% endif %}{{ newline_separator }}
+{{ comment_prefix }}LOCALITY={% if header_values['sample_loc'] is defined %}{{ header_values['sample_loc'] }}{% endif %}{{ newline_separator }}
+{{ comment_prefix }}OWNER={% if header_values['sample_owner'] is defined %}{{ header_values['sample_owner'] }}{% endif %}{{ newline_separator }}
+{{ comment_prefix }}SOURCE={% if header_values['sample_source'] is defined %}{{ header_values['sample_source'] }}{% endif %}{{ newline_separator }}
+{{ comment_prefix }}DESCRIPTION={% if header_values['sample_desc'] is defined %}{{ header_values['sample_desc'] }}{% endif %}{{ newline_separator }}
+{{ comment_prefix }}STATUS={% if header_values['sample_status'] is defined %}{{ header_values['sample_status'] }}{% endif %}{{ newline_separator }}
+{% if header_values['rruff_id'] is defined %}{{ comment_prefix }}URL={{ baseurl }}{{ header_values['rruff_id'] }}{{ newline_separator }}{% endif %}
+{% if header_values['measured_chemistry'] is defined %}{{ comment_prefix }}MEASURED CHEMISTRY={{ header_values['measured_chemistry'] }}{{ newline_separator }}{% endif %}
+{% if context == 'raman' %}
+{% if header_values['pin_id'] is defined %}{{ comment_prefix }}PIN_ID={{ header_values['pin_id'] }}{{ newline_separator }}{% endif %}
+{% if header_values['vector_p'] is defined %}{{ comment_prefix }}ORIENTATION=Laser parallel to {{ header_values['vector_p'] }}.{% endif %}{% if header_values['vector_f'] is defined %} Fiducial mark perpendicular to laser is parallel to {{ header_values['vector_f'] }}{{ newline_separator }}{% endif %}
+{% endif %}
+{% if header_values['powder_desc'] is defined %}{{ comment_prefix }}DIFFRACTION SAMPLE DESCRIPTION={{ header_values['powder_desc'] }}{{ newline_separator }}{% endif %}
+{% if header_values['powder_a'] is defined %}{{ comment_prefix }}CELL PARAMETERS=a: {{ header_values['powder_a'] }} b: {{ header_values['powder_b'] }} c: {{ header_values['powder_c'] }} alpha: {{ header_values['powder_alpha'] }} beta: {{ header_values['powder_beta'] }} gamma: {{ header_values['powder_gamma'] }} volume: {{ header_values['powder_vol'] }} crystal system: {{ header_values['powder_crys'] }}{{ newline_separator }}{% endif %}
+{{ newline_separator }}

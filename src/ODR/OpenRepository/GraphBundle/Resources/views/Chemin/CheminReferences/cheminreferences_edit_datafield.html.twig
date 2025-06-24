@@ -236,6 +236,12 @@
                 {{ field_typeclass }}Interval_{{ unique_id }},
                 function() {
                     ODRReferencePlugin_ReloadPreview_{{ datarecord.id }}();
+
+                    {% if chemistry_plugin_fields[ datafield.id ] is defined %}
+                    // Refresh the preview div
+                    var text = $("#{{ input_id }}").val();
+                    $("#EditForm_{{ unique_id }}").find('.ODRFileInfo').html(text);
+                    {% endif %}
                 }
             );
 

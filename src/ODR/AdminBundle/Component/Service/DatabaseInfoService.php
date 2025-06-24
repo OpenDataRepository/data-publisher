@@ -219,6 +219,9 @@ class DatabaseInfoService
         //  more than one of either, and both of them have their own displayOrder
         $special_fields = self::getSpecialFields($grandparent_datatype_id);
 
+        // Might as well treat the StoredSearchKeys entry the same way
+        $default_search_keys = self::getDefaultSearchKey($grandparent_datatype_id);
+
         // The doctrine hydrator apparently sometimes has issues loading renderPluginEvents, so the
         //  renderPlugin data has to be loaded in its own function too...
         $render_plugin_data = self::getRenderPluginData($grandparent_datatype_id);
@@ -324,6 +327,11 @@ class DatabaseInfoService
                 if ( !empty($special_fields[$dt_id]['sort']) )
                     $datatype_data[$dt_num]['sortFields'] = $special_fields[$dt_id]['sort'];
             }
+
+            // Store the default search key for this datatype if it has one
+            $datatype_data[$dt_num]['default_search_key'] = '';
+            if ( isset($default_search_keys[$dt_id]) )
+                $datatype_data[$dt_num]['default_search_key'] = $default_search_keys[$dt_id];
 
 
             // ----------------------------------------
@@ -655,6 +663,33 @@ class DatabaseInfoService
         }
 
         return $special_fields;
+    }
+
+
+    /**
+     * The database is set up so that it can technically have multiple stored search keys for a
+     * datatype, but at the moment only one is stored...keep this function in case that ever changes.
+     *
+     * @param int $grandparent_datatype_id
+     * @return array
+     */
+    private function getDefaultSearchKey($grandparent_datatype_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS dt_id, ssk.searchKey
+            FROM ODRAdminBundle:DataType AS dt
+            LEFT JOIN ODRAdminBundle:StoredSearchKey AS ssk WITH ssk.dataType = dt
+            WHERE dt.grandparent = :grandparent_datatype_id AND ssk.isDefault = 1
+            AND dt.deletedAt IS NULL AND ssk.deletedAt IS NULL'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        $results = $query->getArrayResult();
+
+        $keys = array();
+        foreach ($results as $result) {
+            $keys[ $result['dt_id'] ] = $result['searchKey'];
+        }
+
+        return $keys;
     }
 
 

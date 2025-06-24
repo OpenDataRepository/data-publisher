@@ -38,7 +38,7 @@
                         {% if dt_data['fields']|length == 0 %}
                         <span class="FRight">(No valid fields)</span>
                         {% else %}
-                        <span class="FRight"><i class="fa fa-caret-right"></i></span>
+                        <span class="FRight"><i class="fa fa-caret-down"></i></span>
                         {% endif %}
                     </div>
                     <ul class="{# ODRHidden #} ODRRenderPlugin_FileHeaderInserter_df_list">
@@ -117,15 +117,25 @@
         });
 
         $(".ODRRenderPlugin_FileHeaderInserter_dt_header").unbind('click').click(function() {
-            if ( $(this).next().hasClass('ODRHidden') ) {
-                $(this).next().removeClass('ODRHidden');
+            var show = true;
+            if ( $(this).children('span.FRight').children('i').hasClass('fa-caret-down') )
+                show = false;
+
+            if ( show ) {
+                $(this).next().children('li').each(function(index,elem) {
+                    $(elem).removeClass('ODRHidden');
+                });
                 $(this).children('span.FRight').children('i').removeClass('fa-caret-right').addClass('fa-caret-down');
             }
             else {
-                $(this).next().addClass('ODRHidden');
+                $(this).next().children('li').each(function(index,elem) {
+                    if ( !$(elem).children('span.ODRTristateCheckbox').children('i').hasClass('fa-check') )
+                        $(elem).addClass('ODRHidden');
+                });
                 $(this).children('span.FRight').children('i').removeClass('fa-caret-down').addClass('fa-caret-right');
             }
         });
+        $(".ODRRenderPlugin_FileHeaderInserter_dt_header").trigger('click');
 
         $(".ODRRenderPlugin_FileHeaderInserter.ODRTristateCheckbox").unbind('click').click(function() {
             var icon_div = $(this).children('.fa').first();

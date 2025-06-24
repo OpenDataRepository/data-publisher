@@ -162,8 +162,20 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $context = $rendering_options['context'];
 
             // The FileRenamer Plugin should work in the 'edit' context
-            if ( $context === 'edit' )
+            if ( $context === 'edit' ) {
+                // This plugin technically coexists with the FileHeaderInserter and RRUFFFileHeaderInserter
+                //  plugins...but it's better for this plugin to refuse to activate and let the other
+                //  two insert this plugin's icon if they're also attached to this field
+                foreach ($datafield['renderPluginInstances'] as $rpi_id => $rpi) {
+                    if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter'
+                        || $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter'
+                    ) {
+                        return false;
+                    }
+                }
+
                 return true;
+            }
 
             // TODO - also work in the 'display' context?  but finding errors to display is expensive...
         }
@@ -197,13 +209,14 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             // ODR is designed so that render plugins can completely override the rendering system...
             //  which makes it difficult for plugins to cooperatively change the HTML
 
-            // This plugin needs to cooperate with the FileHeaderInserter Plugin, and the easiest way
-            //  to do it is to have one of the plugins handle both
-            $uses_file_header_inserter_plugin = false;
+            // This plugin technically coexists with the FileHeaderInserter and RRUFFFileHeaderInserter
+            //  plugins...but it's better for this plugin to refuse to activate and let the other
+            //  two insert this plugin's icon if they're also attached to this field
             foreach ($datafield['renderPluginInstances'] as $rpi_id => $rpi) {
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
-                    $uses_file_header_inserter_plugin = true;
-                    break;
+                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter'
+                    || $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter'
+                ) {
+                    return '';
                 }
             }
 
@@ -227,8 +240,6 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-
-                        'uses_file_header_inserter_plugin' => $uses_file_header_inserter_plugin,
                     )
                 );
             }
@@ -385,12 +396,15 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // If there's no separator, then the plugin isn't configured
         if ( isset($config['separator']) && $config['separator'] === '' )
             return array();
-        // If the file extension is blank, then it's not configured correctly
-        if ( isset($config['file_extension']) && $config['file_extension'] === '' )
-            return array();
-        // If the file extension ends with a period, then it's not valid
-        if ( substr($config['file_extension'], -1) === '.' )
-            return array();
+
+        if ( isset($config['file_extension']) ) {
+            // If the file extension is blank, then it's not configured correctly
+            if ( $config['file_extension'] === '' )
+                return array();
+            // If the file extension ends with a period, then it's not valid
+            if ( substr($config['file_extension'], -1) === '.' )
+                return array();
+        }
 
         // Otherwise, attempt to return the plugin's config
         return $config;
@@ -975,7 +989,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     else if ( isset($drf['mediumVarchar']) )
                         $mapping[$df_id][$dr_id] = $drf['mediumVarchar'][0]['value'];
                     else if ( isset($drf['decimalValue']) )
-                        $mapping[$df_id][$dr_id] = $drf['decimalValue'][0]['value'];
+                        $mapping[$df_id][$dr_id] = $drf['decimalValue'][0]['original_value'];
                     else if ( isset($drf['datetimeValue']) )
                         $mapping[$df_id][$dr_id] = $drf['datetimeValue'][0]['value'];
                     else if ( isset($drf['radioSelection']) ) {

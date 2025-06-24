@@ -1,0 +1,164 @@
+{% spaceless %}
+<div class="pure-u-1">
+    <div class="pure-u-1 ODRRenderPlugin_FileHeaderInserter_header">
+        <div class="pure-u-1">
+            Inserting headers into files based on the contents of other fields is not something ODR can easily do.
+            The options in this box enumerate all the databases the plugin can search in for these fields...
+            generally, you should try to select the fewest amount of databases as possible to get the fields you want.
+        </div>
+        <div class="ODRRenderPlugin_FileHeaderInserter_prefix_list">
+            <div id="ODRRenderPlugin_FileHeaderInserter_prefix_list_warning" class="ODRInputError ODRHidden"><i class="fa fa-exclamation-triangle"></i>&nbsp;A prefix must be selected</div>
+        {% for key,value in available_prefixes %}
+            <span class="ODRRenderPlugin_FileHeaderInserter_label" rel="{{ key }}"><i class="fa {% if key == current_prefix %}fa-check-square-o{% else %}fa-square-o{% endif %}"></i>&nbsp;{{ value }}</span><br>
+        {% endfor %}
+        </div>
+    </div>
+
+    <div class="pure-u-1 ODRRenderPlugin_FileHeaderInserter_header">
+        The RRUFF Spectra files require over two dozen fields total to determine their header information.
+        All of these fields must be mapped for the plugin to work.
+    </div>
+
+    <div class="pure-u-1 ODRRenderPlugin_FileHeaderInserter_source">
+        <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]"></textarea>
+
+    {% for rp_df_key,rp_df_name in field_names %}
+        {% set rp_df_id = '' %}
+        {% if fields_by_name[rp_df_key] is defined %}
+            {% set rp_df_id = fields_by_name[rp_df_key] %}
+        {% endif %}
+
+        <form class="pure-form pure-form-aligned"><fieldset>
+            <label for="ODRRenderPlugin_FileHeaderInserter_{{ rp_df_key }}" class="ODRInputError">
+                <i class="fa fa-exclamation-triangle"></i>
+                {{ rp_df_name }}:
+            </label>
+            <select id="ODRRenderPlugin_FileHeaderInserter_{{ rp_df_key }}" class="ODRRenderPlugin_FileHeaderInserter_select" rel="{{ rp_df_key }}">
+                <option rel=""></option>
+            {% for dt_id,dt_data in available_fields %}
+                {% if dt_data['fields']|length > 0 %}
+                <optgroup label="{{ dt_data['name'] }}" class="ODRRenderPlugin_FileHeaderInserter_optgroup ODRRenderPlugin_FileHeaderInserter_optgroup_{{ dt_id }}">
+                {% for df_id,df_name in dt_data['fields'] %}
+                    <option class="ODRRenderPlugin_FileHeaderInserter_option" rel="{{ df_id }}" {% if df_id == rp_df_id %}selected{% endif %}>{{ df_name }}</option>
+                {% endfor %}
+                </optgroup>
+                {% endif %}
+            {% endfor %}
+            </select>
+        </fieldset></form>
+    {% endfor %}
+    </div>
+</div>
+
+<script>
+    var RRUFFFileHeaderInserter_timeout = null;
+    var RRUFFFileHeaderInserter_SaveTimeout = 500;
+
+    $(function() {
+        // Since the resizing apparently refuses to pick up the actual height of the items inside
+        //  it for this particular application, force the modal to use the entire screen.
+        resetRemodalInnerHeight(true);
+
+        $(".ODRRenderPlugin_FileHeaderInserter_label").unbind('click').click(function() {
+            var selected = $(this).attr('rel');
+            $(".ODRRenderPlugin_FileHeaderInserter_label").each(function(index,elem) {
+                if ( $(elem).attr('rel') == selected )
+                    $(elem).children('i').first().removeClass('fa-square-o').addClass('fa-check-square-o');
+                else
+                    $(elem).children('i').first().removeClass('fa-check-square-o').addClass('fa-square-o');
+            });
+
+            RRUFFFileHeaderInserter_updateVisibleDatatypes();
+        });
+
+        $(".ODRRenderPlugin_FileHeaderInserter_select").unbind('change').change(function() {
+            // Need to keep the frontend warnings up to date
+            RRUFFFileHeaderInserter_updateWarnings();
+
+            // Need to keep the backend values up to date
+            clearTimeout( RRUFFFileHeaderInserter_timeout );
+            RRUFFFileHeaderInserter_timeout = setTimeout(RRUFFFileHeaderInserter_updateValue, RRUFFFileHeaderInserter_SaveTimeout);
+        });
+
+        // Need to setup both frontend and backend warnings
+        RRUFFFileHeaderInserter_updateWarnings();
+        RRUFFFileHeaderInserter_updateValue();
+    });
+
+    /**
+     * Updates which datatypes are visible inside the dropdowns.
+     */
+    function RRUFFFileHeaderInserter_updateVisibleDatatypes() {
+        var prefix = $(".ODRRenderPlugin_FileHeaderInserter_prefix_list").find(".fa-check-square-o").first().parent().attr('rel');
+        $(".ODRRenderPlugin_FileHeaderInserter_optgroup").addClass('ODRHidden');
+
+        // Locate which datatypes should be visible as a result of the selected prefix
+    {% for prefix,data in allowed_datatypes %}
+        if ( prefix === '{{ prefix }}' ) {
+        {% for dt_id,num in data %}
+            $(".ODRRenderPlugin_FileHeaderInserter_optgroup_{{ dt_id }}").removeClass('ODRHidden');
+        {% endfor %}
+        }
+    {% endfor %}
+
+        // Need to keep the frontend warnings up to date
+        RRUFFFileHeaderInserter_updateWarnings();
+
+        // Need to keep the backend values up to date
+        clearTimeout( RRUFFFileHeaderInserter_timeout );
+        RRUFFFileHeaderInserter_timeout = setTimeout(RRUFFFileHeaderInserter_updateValue, RRUFFFileHeaderInserter_SaveTimeout);
+    }
+
+    /**
+     * Updates which fields have warnings displayed
+     */
+    function RRUFFFileHeaderInserter_updateWarnings() {
+        // If any selected options are supposed to be hidden, change classes so they're eash to spot
+        $(".ODRRenderPlugin_FileHeaderInserter_select").find(':selected').each(function(index,elem) {
+            var label = $(elem).parent().parent().prev();
+            var empty_option = false;
+            if ( $(elem).parent().is('select') ) {
+                empty_option = true;
+                label = $(elem).parent().prev();
+            }
+
+            if ( $(elem).parent().hasClass('ODRHidden') || empty_option ) {
+                $(label).children('i').removeClass('ODRHidden');
+                $(label).addClass('ODRInputError');
+            }
+            else {
+                $(label).children('i').addClass('ODRHidden');
+                $(label).removeClass('ODRInputError');
+            }
+        });
+    }
+
+    /**
+     * Updates the hidden input to store the values.  Ignores the frontend warnings because the config
+     * stuff could get lost in the event of a field change in one of the underlying datatypes.
+     */
+    function RRUFFFileHeaderInserter_updateValue() {
+        var all_values = [];
+        $(".ODRRenderPlugin_FileHeaderInserter_select").each(function(index,elem) {
+            var name = $(elem).attr('rel');
+            var val = $(elem).find('option:selected').attr('rel');
+
+            all_values.push(name + '=' + val);
+        });
+        all_values.sort();
+
+        var selected_prefix = $(".ODRRenderPlugin_FileHeaderInserter_prefix_list").find('i.fa-check-square-o').parent().attr('rel');
+        // console.log(selected_prefix);
+        if ( selected_prefix == '' ) {
+            $("#ODRRenderPlugin_FileHeaderInserter_prefix_list_warning").removeClass('ODRHidden');
+        }
+        else {
+            $("#ODRRenderPlugin_FileHeaderInserter_prefix_list_warning").addClass('ODRHidden');
+        }
+        all_values.unshift('prefix=' + selected_prefix);
+
+        // console.log(all_values);
+        $("#plugin_option_{{ rpo_id }}").html( all_values.join(',') );
+    }
+</script>
+{% endspaceless %}

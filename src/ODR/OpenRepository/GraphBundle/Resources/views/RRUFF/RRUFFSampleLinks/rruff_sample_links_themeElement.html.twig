@@ -3,13 +3,19 @@
 <div style="margin: 5px 10px;">
 {% if structural_group_value != '' %}
     <div>
-        <b>Mineral Group:</b> [ <a href="#{{ structural_group_search_url }}">{{ structural_group_value }}</a> ]
+        <b>Mineral Group:</b> [ <a target="_blank" href="#{{ structural_group_search_url }}">{{ structural_group_value }}</a> ]
     </div>
 {% endif %}
 
 {% if mineral_name_value != '' %}
     <div>
-        <b>Quick Search:</b> [ <a href="#{{ mineral_search_url }}">All {{ mineral_name_value }} samples</a> ]
+        <b>Quick Search:</b> [ <a target="_blank" href="#{{ mineral_search_url }}">All {{ mineral_name_value }} samples</a> ]
+    </div>
+{% endif %}
+
+{% if amcsd_search_url != '' %}
+    <div>
+        <b>American Mineralogist Crystal Structure Database:</b> [ <a target="_blank" href="{{ amcsd_search_url }}">{{ mineral_name_value }}</a> ]
     </div>
 {% endif %}
 </div>
