@@ -797,7 +797,7 @@ class APIController extends ODRCustomController
                 if(preg_match("/^\d+$/",$recent)) {
                     // Recent is a time stamp
                     // Updated last 12 hours...
-                    $updated_date = new \DateTime('@' . $recent/1000);
+                    $updated_date = new \DateTime('@' . floor($recent/1000));
                 }
                 // return new JsonResponse(['done' => $updated_date]);
                 /*
@@ -5803,6 +5803,7 @@ class APIController extends ODRCustomController
                     throw new ODRNotFoundException('unrecognized email: "' . $user_email . '"');
             }
 
+            $user = $logged_in_user;
             if ($user == null)
                 throw new ODRNotFoundException('User');
 
