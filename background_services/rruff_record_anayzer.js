@@ -127,9 +127,9 @@ async function app() {
                         let stats = fs.statSync(
                             '/home/rruff/data-publisher/app/rruff_files/last_updated.txt'
                         );
-                        let mtime = stats.mtime;
+                        let mtime = stats.mtime.getMilliseconds();
                         data.full_rruff_url = data.full_rruff_url.replace(/99999999/,mtime);
-                        console.log(mtime);
+                        console.log('Updating files modified since: ' + mtime);
                     }
                     else {
                         // touch the time file

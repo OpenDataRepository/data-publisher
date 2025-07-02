@@ -797,7 +797,7 @@ class APIController extends ODRCustomController
                 if(preg_match("/^\d+$/",$recent)) {
                     // Recent is a time stamp
                     // Updated last 12 hours...
-                    $updated_date = new \DateTime('@' . $recent/1000);
+                    $updated_date = new \DateTime('@' . floor($recent/1000));
                 }
                 // return new JsonResponse(['done' => $updated_date]);
                 /*
@@ -1756,7 +1756,15 @@ class APIController extends ODRCustomController
 
                     // Determine field type
                     $data_field = null;
-                    if ( isset($field['template_field_uuid']) && $field['template_field_uuid'] !== null ) {
+                    // 0719c6187a235650b437bb742bf9
+            $logger = $this->get('logger');
+            $logger->info('Field: ' . $field['field_uuid']);
+                    if ( 
+                        isset($field['template_field_uuid']) 
+                        && $field['template_field_uuid'] !== null 
+                        && preg_match("/^[a-z0-9]{20,36}$/", $field['template_field_uuid'])
+                    ) {
+            $logger->info('Template Field Section');
                         /** @var DataFields $data_field */
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
@@ -1768,7 +1776,12 @@ class APIController extends ODRCustomController
                         if ($data_field == null)
                             throw new ODRNotFoundException('Unable to find the datafield with template_field_uuid "'.$field['template_field_uuid'].'" for the database "'.$data_type->getUniqueId().'"', true, $exception_source);
                     }
-                    else if ( isset($field['field_uuid']) && $field['field_uuid'] !== null ) {
+                    else if ( 
+                        isset($field['field_uuid']) 
+                        && $field['field_uuid'] !== null 
+                        && preg_match("/^[a-z0-9]{20,36}$/", $field['field_uuid'])
+                    ) {
+            $logger->info('Field Section');
                         /** @var DataFields $data_field */
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
@@ -2904,7 +2917,11 @@ class APIController extends ODRCustomController
 
                     // Guaranteed to have either "template_field_uuid" or "field_uuid" at this point...
                     $data_field = null;
-                    if ( isset($field['template_field_uuid']) && $field['template_field_uuid'] !== null ) {
+                    if ( 
+                        isset($field['template_field_uuid']) 
+                        && $field['template_field_uuid'] !== null 
+                        && preg_match("/^[a-z0-9]{20,36}$/", $field['template_field_uuid'])
+                    ) {
                         /** @var DataFields $data_field */
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
@@ -4535,21 +4552,22 @@ class APIController extends ODRCustomController
     public function updatedatasetAction($version, Request $request)
     {
 
-        /*
         $content = $request->getContent();
         if (!empty($content)) {
             $dataset_data = json_decode($content, true); // 2nd param to get as array
-            $dataset = $dataset_data['dataset'];
+            $dataset = $dataset_data;
             $logger = $this->get('logger');
             $logger->info('DATA FROM UPDATEDATASET: ' . json_encode($dataset));
+            $logger->info('DATA FROM UPDATEDATASET: ' . var_export($content, true));
+            $logger->info('DATA FROM UPDATEDATASET: ' . var_export($_POST, true));
 
-            $response = new Response('Updated', 200);
-            $response->headers->set('Content-Type', 'application/json');
-            $response->setContent(json_encode($dataset));
-            return $response;
+            // $response = new Response('Updated', 200);
+            // $response->headers->set('Content-Type', 'application/json');
+            // $response->setContent(json_encode($dataset));
+            // return $response;
         }
         // exit();
-        */
+        // */
 
         /*
         $record_uuid = $dataset['record_uuid'];
@@ -5803,6 +5821,7 @@ class APIController extends ODRCustomController
                     throw new ODRNotFoundException('unrecognized email: "' . $user_email . '"');
             }
 
+            $user = $logged_in_user;
             if ($user == null)
                 throw new ODRNotFoundException('User');
 

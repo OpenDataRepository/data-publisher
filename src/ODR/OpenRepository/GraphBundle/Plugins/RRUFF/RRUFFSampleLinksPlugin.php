@@ -324,8 +324,8 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 else
                     $amcsd_baseurl .= $this->wordpress_site_baseurl;
                 $amcsd_baseurl .= '/'.$amcsd_search_slug.'#';
-                if ( $this->odr_wordpress_integrated )
-                    $amcsd_baseurl .= '/odr';
+//                if ( $this->odr_wordpress_integrated )
+//                    $amcsd_baseurl .= '/odr';
 
                 if ( $amcsd_dt_array[$amcsd_dt_id]['default_search_key'] !== '' )
                     $params = $this->search_key_service->decodeSearchKey( $datatype['default_search_key'] );
