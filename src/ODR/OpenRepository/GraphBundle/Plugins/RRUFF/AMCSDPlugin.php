@@ -45,6 +45,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
+use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\XYZDataHelperService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\CrystallographyDef;
@@ -99,6 +100,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private $lock_service;
 
     /**
+     * @var ODRUploadService
+     */
+    private $upload_service;
+
+    /**
      * @var XYZDataHelperService
      */
     private $xyzdata_helper_service;
@@ -137,6 +143,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param EntityCreationService $entity_create_service
      * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
+     * @param ODRUploadService $upload_service
      * @param XYZDataHelperService $xyzdata_helper_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
@@ -151,6 +158,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         EntityCreationService $entity_create_service,
         EntityMetaModifyService $entity_modify_service,
         LockService $lock_service,
+        ODRUploadService $upload_service,
         XYZDataHelperService $xyzdata_helper_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
@@ -164,6 +172,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $this->entity_create_service = $entity_create_service;
         $this->entity_modify_service = $entity_modify_service;
         $this->lock_service = $lock_service;
+        $this->upload_service = $upload_service;
         $this->xyzdata_helper_service = $xyzdata_helper_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
@@ -325,6 +334,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Crystal Density':
                         // These fields can't be edited, since they're from the CIF file
 
+                    case 'Original Cif File Contents':
+                        // This field can't be edited, since it's from the Original CIF file
+
                     case 'Diffraction Search Values':
                         // This field can't be edited, since it's from the DIF file
                         break;
@@ -482,6 +494,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Determine if any of the categories of fields have a problem
                 $amc_problems = self::amcFileHasProblem($plugin_fields, $value_mapping);
                 $cif_problems = self::cifFileHasProblem($plugin_fields, $value_mapping);
+                $original_cif_problems = self::originalcifFileHasProblem($plugin_fields, $value_mapping);
                 $dif_problems = self::difFileHasProblem($plugin_fields, $value_mapping);
                 $symmetry_problems = self::symmetryHasProblem($plugin_fields, $value_mapping);
 
@@ -522,6 +535,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         array(
                             'rpf_name' => 'CIF File',
                             'problem_fields' => self::formatProblemFields($cif_problems),
+                            'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
+                        )
+                    );
+
+                    $output = $error_div . $output;
+                }
+
+                if ( !empty($original_cif_problems) ) {
+                    // Determine whether the user can edit the "Original CIF File" datafield
+                    $can_edit_relevant_datafield = false;
+                    if ( $is_datatype_admin )
+                        $can_edit_relevant_datafield = true;
+
+                    $df_id = array_search('Original CIF File', $editable_datafields);
+                    if ( isset($datafield_permissions[$df_id]['edit']) )
+                        $can_edit_relevant_datafield = true;
+
+                    $error_div = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        array(
+                            'rpf_name' => 'Original CIF File',
+                            'problem_fields' => self::formatProblemFields($original_cif_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
                         )
                     );
@@ -770,6 +805,56 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
+     * Like the "CIF File" field, the "Original CIF File" field is used to derive the contents of other
+     * fields...but this one doesn't need to provide as many values.  Still, if there was an
+     * error, then the user needs to be notified...
+     *
+     * @param array $plugin_fields
+     * @param array $value_mapping
+     *
+     * @return array A list of fields which could not be derived from the DIF File
+     */
+    private function originalcifFileHasProblem($plugin_fields, $value_mapping)
+    {
+        // Need to locate the "Original CIF File" datafield...
+        $df_id = null;
+        foreach ($plugin_fields as $num => $rpf_df) {
+            // NOTE - technically $num is the datafield_id, but don't want to overwrite $df_id yet
+            if ( $rpf_df['rpf_name'] === 'Original CIF File' ) {
+                $df_id = $rpf_df['id'];
+                break;
+            }
+        }
+        // The "Original CIF File" field can't have a problem if there is no file uploaded...
+        if ( empty($value_mapping[$df_id]) )
+            return array();
+
+        // Otherwise, there's something uploaded to the "Original CIF File" datafield...therefore,
+        //  the other fields defined by this render plugin should all have a value
+        $problem_fields = array();
+
+        foreach ($plugin_fields as $df_id => $rpf_df) {
+            switch ( $rpf_df['rpf_name'] ) {
+                // These fields are derived from the Original CIF File
+                case 'Original CIF File Contents':
+                    // If the Original CIF file is valid, then every one of these fields will have a value
+                    if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
+                        $problem_fields[] = $rpf_df['rpf_name'];
+                    break;
+
+                default:
+                    // Every other field the plugin specifies doesn't matter when trying to determine
+                    //  if a File has problems
+                    break;
+            }
+        }
+
+        // Return which fields (if any) lack a value
+        return $problem_fields;
+    }
+
+
+    /**
      * Like the "AMC File" field, the "DIF File" field is used to derive the contents of other
      * fields...but the "DIF File" doesn't need to provide as many values.  Still, if there was an
      * error, then the user needs to be notified...
@@ -905,8 +990,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Determines whether the file that just finished getting uploaded belongs to the "AMC File"
-     * field of a datatype using the AMCSD render plugin...if so, the file is read, and the values
+     * Determines whether the file that just finished getting uploaded belongs to one of the file
+     * fields of a datatype using the AMCSD render plugin...if so, the file is read, and the values
      * from the file saved into other datafields required by the render plugin.
      *
      * @param FilePreEncryptEvent $event
@@ -973,40 +1058,91 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 //  file can get saved into the database
                 $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
 
+                // Since ODR is supposed to handle autogenerating the AMCSD database code, it needs
+                //  to also handle inserting said code into the uploaded files...
+                $database_code_df_id = $datafield_mapping['database_code_amcsd'];
+                if ( isset($storage_entities[$database_code_df_id]) ) {
+                    $database_code_sv = $storage_entities[$database_code_df_id];
+                    $amcsd_database_code = $database_code_sv->getValue();
+                    // Don't want this specific entity in this array, otherwise self::saveOnError()
+                    //  can clear its value
+                    unset( $storage_entities[$database_code_df_id] );
+                }
+                else {
+                    // If it doesn't exist, throw an exception to ensure files don't get bad data
+                    throw new ODRException('The "database_code_amcsd" field does not have a value', 500);
+                }
+
 
                 // ----------------------------------------
                 // The provided file hasn't been encrypted yet, so it should be able to be read
                 //  directly
-                $handle = fopen($local_filepath, 'r');
-                if ($handle === false)
-                    throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
 
                 $value_mapping = array();
                 if ( $relevant_rpf_name === 'AMC File' ) {
-                    // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readAMCFile($handle);
+                    // Ensure the AMC File has the correct AMCSD database code
+                    self::insertAMCSDCodeIntoAMCFile($local_filepath, $amcsd_database_code);
 
-                    // No longer need the file to be open
-                    fclose($handle);
+                    // Extract as many pieces of data from the file as possible
+                    $value_mapping = self::readAMCFile($local_filepath);
+
+//                    // Want to save the Mineral field value only when the field doesn't already have
+//                    //  a value  TODO
+//                    if ( isset($datafield_mapping['Mineral']) ) {
+//                        $mineral_df_id = $datafield_mapping['Mineral'];
+//                        if ( isset($storage_entities[$mineral_df_id]) )
+//                            unset( $value_mapping['Mineral'] );
+//                    }
                 }
                 else if ( $relevant_rpf_name === 'CIF File' ) {
-                    // Don't actually want the file handle here
-                    fclose($handle);
-
-                    // Do need the database code
-                    $database_code_df_id = $datafield_mapping['database_code_amcsd'];
-                    $database_code_sv = $storage_entities[$database_code_df_id];
-                    $amcsd_database_code = $database_code_sv->getValue();
+                    // Ensure the (minimal) CIF File has the correct AMCSD database code
+                    self::insertAMCSDCodeIntoCIFFile($local_filepath, $amcsd_database_code);
 
                     // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readCIFFile($local_filepath, $amcsd_database_code);
+                    $value_mapping = self::readEitherCIFFile($local_filepath);
+                    if ( isset($value_mapping['contents']) ) {
+                        // Due to the function reading either CIF file, the contents needs renamed
+                        //  to the correct field
+                        $value_mapping['CIF File Contents'] = $value_mapping['contents'];
+                        unset( $value_mapping['contents'] );
+                    }
+
+                    // Want to always use the values from this file when possible...but this also
+                    //  means there needs to be a safety check so existing values aren't converted
+                    //  into blanks  TODO
+                }
+                else if ( $relevant_rpf_name === 'Original CIF File' ) {
+                    // Do not want to insert the AMCSD database code into an original cif file
+
+                    // Extract as many pieces of data from the file as possible
+                    $value_mapping = self::readEitherCIFFile($local_filepath);
+                    // Want to attempt to use values from the Original CIF, but ONLY IF there is no
+                    //  "minimal" CIF uploaded  TODO
+                    foreach ($value_mapping as $key => $value) {
+                        if ( $key !== 'contents' && $key !== 'Mineral' )
+                            unset($value_mapping[$key]);
+                    }
+                    if ( isset($value_mapping['contents']) ) {
+                        // Due to the function reading either CIF file, the contents needs renamed
+                        //  to the correct field
+                        $value_mapping['Original CIF File Contents'] = $value_mapping['contents'];
+                        unset( $value_mapping['contents'] );
+                    }
                 }
                 else if ( $relevant_rpf_name === 'DIF File' ) {
-                    // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readDIFFile($handle);
+                    // Ensure the DIF File has the correct AMCSD database code
+                    self::insertAMCSDCodeIntoDIFFile($local_filepath, $amcsd_database_code);
 
-                    // No longer need the file to be open
-                    fclose($handle);
+                    // Extract as many pieces of data from the file as possible
+                    $value_mapping = self::readDIFFile($local_filepath);
+
+//                    // Want to save the Mineral field value only when the field doesn't already have
+//                    //  a value  TODO
+//                    if ( isset($datafield_mapping['Mineral']) ) {
+//                        $mineral_df_id = $datafield_mapping['Mineral'];
+//                        if ( isset($storage_entities[$mineral_df_id]) )
+//                            unset( $value_mapping['Mineral'] );
+//                    }
                 }
 
                 // File hasn't been encrypted yet, so DO NOT delete it
@@ -1030,6 +1166,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 else {
                     // Each piece of data from the file is referenced by its RenderPluginField name...
                     foreach ($value_mapping as $rpf_name => $value) {
+                        // Never update the database code field
+                        if ( $rpf_name === 'database_code_amcsd' )
+                            continue;
+
                         // ...from which the actual datafield id can be located...
                         $df_id = $datafield_mapping[$rpf_name];
                         // ...which gives the hydrated storage entity...
@@ -1136,6 +1276,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 //  file can get saved into the database
                 $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
 
+                // Don't need to remove the 'database_code_amcsd' field from the array here, the rest
+                //  of this function can't change it
+
 
                 // ----------------------------------------
                 if ( $relevant_rpf_name === 'DIF File' ) {
@@ -1153,6 +1296,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // Each relevant field required by the render plugin needs to be cleared...
                     foreach ($storage_entities as $df_id => $entity) {
                         $rpf_name = array_search($df_id, $datafield_mapping);
+
+                        // Never clear the database code field
+                        if ( $rpf_name === 'database_code_amcsd' )
+                            continue;
 
                         /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
                         $this->entity_modify_service->updateStorageEntity(
@@ -1270,45 +1417,105 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     //  file can get saved into the database
                     $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
 
+                    // Since ODR is supposed to handle autogenerating the AMCSD database code, it
+                    //  needs to also handle updating any existing code in the files...
+                    $database_code_df_id = $datafield_mapping['database_code_amcsd'];
+                    if ( isset($storage_entities[$database_code_df_id]) ) {
+                        $database_code_sv = $storage_entities[$database_code_df_id];
+                        $amcsd_database_code = $database_code_sv->getValue();
+                        // Don't want this specific entity in this array, otherwise self::saveOnError()
+                        //  can clear its value
+                        unset( $storage_entities[$database_code_df_id] );
+                    }
+                    else {
+                        // If it doesn't exist, throw an exception to ensure files don't get bad data
+                        throw new ODRException('The "database_code_amcsd" field does not have a value', 500);
+                    }
 
                     // ----------------------------------------
                     // The provided file may not exist on the server...
+                    $change_made = false;
                     $local_filepath = $this->crypto_service->decryptFile($file->getId());
-                    // ...once it does, open it
-                    $handle = fopen($local_filepath, 'r');
-                    if ($handle === false)
-                        throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
 
                     $value_mapping = array();
                     if ( $relevant_rpf_name === 'AMC File' ) {
-                        // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readAMCFile($handle);
+                        // Ensure the AMC File has the correct AMCSD database code
+                        $change_made = self::insertAMCSDCodeIntoAMCFile($local_filepath, $amcsd_database_code);
 
-                        // No longer need the file to be open
-                        fclose($handle);
+                        // Extract as many pieces of data from the file as possible
+                        $value_mapping = self::readAMCFile($local_filepath);
+
+//                        // Want to save the Mineral field value only when the field doesn't already have
+//                        //  a value
+//                        if ( isset($datafield_mapping['Mineral']) ) {
+//                            $mineral_df_id = $datafield_mapping['Mineral'];
+//                            if ( isset($storage_entities[$mineral_df_id]) )
+//                                unset( $value_mapping['Mineral'] );
+//                        }
                     }
                     else if ( $relevant_rpf_name === 'CIF File' ) {
-                        // Don't actually want the file handle here
-                        fclose($handle);
-
-                        // Do need the database code
-                        $database_code_df_id = $datafield_mapping['database_code_amcsd'];
-                        $database_code_sv = $storage_entities[$database_code_df_id];
-                        $amcsd_database_code = $database_code_sv->getValue();
+                        // Ensure the (minimal) CIF File has the correct AMCSD database code
+                        $change_made = self::insertAMCSDCodeIntoCIFFile($local_filepath, $amcsd_database_code);
 
                         // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readCIFFile($local_filepath, $amcsd_database_code);
+                        $value_mapping = self::readEitherCIFFile($local_filepath);
+                        if ( isset($value_mapping['contents']) ) {
+                            // Due to the function reading either CIF file, the contents needs renamed
+                            //  to the correct field
+                            $value_mapping['CIF File Contents'] = $value_mapping['contents'];
+                            unset( $value_mapping['contents'] );
+                        }
+
+                        // Want to always use the values from this file when possible...but this also
+                        //  means there needs to be a safety check so existing values aren't converted
+                        //  into blanks  TODO
+                    }
+                    else if ( $relevant_rpf_name === 'Original CIF File' ) {
+                        // Do not want to insert the AMCSD database code into an original cif file
+
+                        // Extract as many pieces of data from the file as possible
+                        $value_mapping = self::readEitherCIFFile($local_filepath);
+                        // Want to attempt to use values from the Original CIF, but ONLY IF there is no
+                        //  "minimal" CIF uploaded  TODO
+                        foreach ($value_mapping as $key => $value) {
+                            if ( $key !== 'contents' && $key !== 'Mineral' )
+                                unset($value_mapping[$key]);
+                        }
+                        if ( isset($value_mapping['contents']) ) {
+                            // Due to the function reading either CIF file, the contents needs renamed
+                            //  to the correct field
+                            $value_mapping['Original CIF File Contents'] = $value_mapping['contents'];
+                            unset( $value_mapping['contents'] );
+                        }
+
+                        // Want to attempt to use values from the Original CIF, but ONLY IF there is no
+                        //  "minimal" CIF uploaded  TODO
                     }
                     else if ( $relevant_rpf_name === 'DIF File' ) {
-                        // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readDIFFile($handle);
+                        // Ensure the DIF File has the correct AMCSD database code
+                        $change_made = self::insertAMCSDCodeIntoDIFFile($local_filepath, $amcsd_database_code);
 
-                        // No longer need the file to be open
-                        fclose($handle);
+                        // Extract as many pieces of data from the file as possible
+                        $value_mapping = self::readDIFFile($local_filepath);
+
+//                        // Want to save the Mineral field value only when the field doesn't already have
+//                        //  a value  TODO
+//                        if ( isset($datafield_mapping['Mineral']) ) {
+//                            $mineral_df_id = $datafield_mapping['Mineral'];
+//                            if ( isset($storage_entities[$mineral_df_id]) )
+//                                unset( $value_mapping['Mineral'] );
+//                        }
                     }
 
-                    // If the File isn't public, then delete its decrypted version off the server
-                    if ( !$file->isPublic() )
+                    if ( $change_made ) {
+                        // If the file's contents got changed to include a database code, then
+                        //  replace the existing file on the server
+                        $this->upload_service->replaceExistingFile($file, $local_filepath, $user);
+                    }
+
+                    // If the file got modified or is not public, then ensure its older version
+                    //  doesn't remain on the server
+                    if ( $change_made || !$file->isPublic() )
                         unlink($local_filepath);
 
 
@@ -1330,6 +1537,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     else {
                         // Each piece of data from the file is referenced by its RenderPluginField name...
                         foreach ($value_mapping as $rpf_name => $value) {
+                            // Never update the database code field
+                            if ( $rpf_name === 'database_code_amcsd' )
+                                continue;
+
                             // ...from which the actual datafield id can be located...
                             $df_id = $datafield_mapping[$rpf_name];
                             // ...which gives the hydrated storage entity...
@@ -1404,6 +1615,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // ...and the datafield that triggered the event is the "CIF File" datafield
                     return 'CIF File';
                 }
+                else if ( isset($rpi['renderPluginMap']['Original CIF File'])
+                    && $rpi['renderPluginMap']['Original CIF File']['id'] === $datafield->getId()
+                ) {
+                    // ...and the datafield that triggered the event is the "Original CIF File" datafield
+                    return 'Original CIF File';
+                }
                 else if ( isset($rpi['renderPluginMap']['DIF File'])
                     && $rpi['renderPluginMap']['DIF File']['id'] === $datafield->getId()
                 ) {
@@ -1474,6 +1691,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'Locality':
                 case 'Crystal Density':
 
+                case 'Original CIF File Contents':
+
                 case 'Diffraction Search Values':
                     $datafield_mapping[$rpf_name] = $rpf_df_id;
                     break;
@@ -1481,6 +1700,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Don't want any of these fields, or any other field, in the final array
 //                case 'AMC File':
 //                case 'CIF File':
+//                case 'Original Cif File':
 //                case 'DIF File':
                 default:
                     break;
@@ -1511,10 +1731,18 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($datafield_mapping as $rpf_name => $df_id) {
             if ( $relevant_rpf_name === 'AMC File' ) {
                 switch ($rpf_name) {
+                    case 'database_code_amcsd':
+                        // Not going to actually change this field, but want it in case it needs to
+                        //  be added to an AMC file
+
+                    case 'Mineral':
+                        // Only going to change this field if the record doesn't have a value for
+                        //  it already  TODO
+
                     case 'AMC File Contents':
                     case 'AMC File Contents (short)':
                     case 'Authors':
-                        // When called on an "AMC File", all of these fields should be hydrated
+                        // When called on "AMC File", all of these fields should be hydrated
                         break;
 
                     default:
@@ -1548,7 +1776,27 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Chemistry Elements':
                     case 'Locality':
                     case 'Crystal Density':
-                        // When called on a "CIF File", all of these fields should be hydrated
+                        // When called on "CIF File", all of these fields should be hydrated
+                        break;
+
+                    default:
+                        // ...any other field should not
+                        unset( $datafield_mapping[$rpf_name] );
+                        break;
+                }
+            }
+            else if ( $relevant_rpf_name === 'Original CIF File' ) {
+                switch ($rpf_name) {
+                    case 'database_code_amcsd':
+                        // Not going to actually change this field, but want it in case it needs to
+                        //  be added to a CIF file
+
+                    case 'Mineral':
+                        // Only going to change this field if the record doesn't have a value for
+                        //  it already  TODO
+
+                    case 'Original CIF File Contents':
+                        // When called on "Original CIF File", all of these fields should be hydrated
                         break;
 
                     default:
@@ -1559,8 +1807,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             else if ( $relevant_rpf_name === 'DIF File' ) {
                 switch ($rpf_name) {
+                    case 'database_code_amcsd':
+                        // Not going to actually change this field, but want it in case it needs to
+                        //  be added to a DIF file
+
+//                    case 'Mineral':
+                        // Only going to change this field if the record doesn't have a value for
+                        //  it already  TODO
+
                     case 'Diffraction Search Values':
-                        // When called on a "DIF File", all of these fields should be hydrated
+                        // When called on "DIF File", all of these fields should be hydrated
                         break;
 
                     default:
@@ -1609,21 +1865,357 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Reads the given AMC file, converting its contents into an array that's indexed by the
-     * "name" property of the fields defined in the "required_fields" section of AMCSDPlugin.yml
+     * Ensures the _database_code_amcsd line in the given AMC file matches the given code, inserting
+     * a line if required.
      *
-     * @param resource $handle
-     *
-     * @return array
+     * @param string $local_filepath
+     * @param string $amcsd_code
+     * @return bool true if the file got modified, false otherwise
      */
-    private function readAMCFile($handle)
+    private function insertAMCSDCodeIntoAMCFile($local_filepath, $amcsd_code)
     {
-        $value_mapping = array();
-        $all_lines = array();
+        // ----------------------------------------
+        // Open the file
+        $handle = fopen($local_filepath, "r");
+        if ( !$handle )
+            throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
 
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
 
+        $lines = array();
+        while ( !feof($handle) ) {
+            $line = fgets($handle);
+
+            if ( strpos($line, '_database_code_amcsd') === 0 ) {
+                $pieces = explode(' ', $line);
+
+                // Need to have 2 values in this line
+                if ( count($pieces) === 2 ) {
+                    $existing_amcsd_code = trim($pieces[1]);
+
+                    if ( $existing_amcsd_code === $amcsd_code ) {
+                        // If the amcsd code in the file matches the code ODR wants it to have, then
+                        //  don't need to continue reading the file...no chances are needed
+                        fclose($handle);
+                        return false;
+                    }
+                    else {
+                        // If the amcsd code in the file does not match the code ODR wants it to have,
+                        //  then need to replace it
+
+                        // Pretend the line with the database code does not exist, so the next block
+                        //  will work correctly
+//                        $lines[] = '';
+
+                        // Continue reading the rest of the file
+                    }
+                }
+            }
+            else if ( !feof($handle) ) {
+                // If this is not the line with the amcsd code, then store it for later
+                $lines[] = $line;
+            }
+        }
+
+        // ----------------------------------------
+        // At this point, $lines will never have an entry for the database code
+        $database_code_line_num = null;
+        for ($i = count($lines) - 1; $i >= 0; $i--) {
+            // It's easier to locate the insertion point fo the database code by going in reverse
+            $line = $lines[$i];
+            if ( strpos($line, 'atom') === 0 ) {
+                // There are two possibilities for the line before the line starting with 'atom'...
+                $database_code_line_num = $i-1;
+                $prev_line = $lines[$database_code_line_num];
+
+                // If the prev line is entirely numeric...
+                if ( preg_match('/^[\.\d\s]+$/', $prev_line) === 1 ) {
+                    // ...then the file also has some kind of occupancy data (i believe), and needs
+                    //  adjusted back by one more line
+                    $database_code_line_num--;
+                }
+
+                // The variable now points to the correct line...don't need to continue looking
+                break;
+            }
+        }
+
+        $new_lines = array();
+        foreach ($lines as $num => $line) {
+            if ($num !== $database_code_line_num) {
+                // Copy over this line of data
+                $new_lines[] = $line;
+            }
+            else {
+                // If this line is supposed to have the database code, insert the correct value
+                $new_lines[] = '_database_code_amcsd '.$amcsd_code."\r\n";
+                // ...then continue copying over data
+                $new_lines[] = $line;
+            }
+        }
+
+        // ----------------------------------------
+        // Close the existing file, and reopen it to replace the contents
+        fclose($handle);
+        $handle = fopen($local_filepath, "w");
+        if ( !$handle )
+            throw new \Exception('Unable to rewrite existing file at "'.$local_filepath.'"');
+
+        // Write each line to the file...
+        foreach ($new_lines as $num => $line)
+            fwrite($handle, $line);
+        // ...and close it again after we're done
+        fclose($handle);
+
+        // Return that changes were made
+        return true;
+    }
+
+
+    /**
+     * Ensures the _database_code_amcsd line in the given CIF file matches the given code, inserting
+     * a line if required.
+     *
+     * @param string $local_filepath
+     * @param string $amcsd_code
+     */
+    private function insertAMCSDCodeIntoCIFFile($local_filepath, $amcsd_code)
+    {
+        // ----------------------------------------
+        // Open the file
+        $handle = fopen($local_filepath, "r");
+        if ( !$handle )
+            throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
+
+        // Ensure we're at the beginning of the file
+        fseek($handle, 0, SEEK_SET);
+
+        $lines = array();
+        while ( !feof($handle) ) {
+            $line = fgets($handle);
+
+            if ( strpos($line, '_database_code_amcsd') === 0 ) {
+                $pieces = explode(' ', $line);
+
+                // Need to have 2 values in this line
+                if ( count($pieces) === 2 ) {
+                    $existing_amcsd_code = trim($pieces[1]);
+
+                    if ( $existing_amcsd_code === $amcsd_code ) {
+                        // If the amcsd code in the file matches the code ODR wants it to have, then
+                        //  don't need to continue reading the file...no chances are needed
+                        fclose($handle);
+                        return false;
+                    }
+                    else {
+                        // If the amcsd code in the file does not match the code ODR wants it to have,
+                        //  then need to replace it
+
+                        // Pretend the line with the database code does not exist, so the next block
+                        //  will work correctly
+//                        $lines[] = '';
+
+                        // Continue reading the rest of the file
+                    }
+                }
+            }
+            else if ( !feof($handle) ) {
+                // If this is not the line with the amcsd code, then store it for later
+                $lines[] = $line;
+            }
+        }
+
+        // ----------------------------------------
+        // At this point, $lines will never have an entry for the database code
+        $database_code_line_num = null;
+        for ($i = 0; $i < count($lines); $i++) {
+            $line = $lines[$i];
+            if ( strpos($line, '_chemical_compound_source') !== false ) {
+                // The database code is preferably supposed to come before this line
+                $database_code_line_num = $i;
+                break;
+            }
+            else if ( strpos($line, '_chemical_formula_sum') !== false ) {
+                // ...but before this line if the locality doesn't exist...
+                $database_code_line_num = $i;
+                break;
+            }
+            else if ( strpos($line, '_cell_length_a') !== false ) {
+                // ...and before the cell parameter data as a last-ditch fallback
+                $database_code_line_num = $i;
+                break;
+            }
+        }
+
+        $new_lines = array();
+        foreach ($lines as $num => $line) {
+            if ($num !== $database_code_line_num) {
+                // Copy over this line of data
+                $new_lines[] = $line;
+            }
+            else {
+                // If this line is supposed to have the database code, then insert the database code...
+                $new_lines[] = '_database_code_amcsd '.$amcsd_code."\r\n";
+                // ...and then copy over the existing line of data
+                $new_lines[] = $line;
+            }
+        }
+
+        // ----------------------------------------
+        // Close the existing file, and reopen it to replace the contents
+        fclose($handle);
+        $handle = fopen($local_filepath, "w");
+        if ( !$handle )
+            throw new \Exception('Unable to rewrite existing file at "'.$local_filepath.'"');
+
+        // Write each line to the file...
+        foreach ($new_lines as $num => $line)
+            fwrite($handle, $line);
+        // ...and close it again after we're done
+        fclose($handle);
+
+        // Return that changes were made
+        return true;
+    }
+
+
+    /**
+     * Ensures the _database_code_amcsd line in the given DIF file matches the given code, inserting
+     * a line if required.
+     *
+     * @param string $local_filepath
+     * @param string $amcsd_code
+     * @return bool true if the file got modified, false otherwise
+     */
+    private function insertAMCSDCodeIntoDIFFile($local_filepath, $amcsd_code)
+    {
+        // ----------------------------------------
+        // Open the file
+        $handle = fopen($local_filepath, "r");
+        if ( !$handle )
+            throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
+
+        // Ensure we're at the beginning of the file
+        fseek($handle, 0, SEEK_SET);
+
+        $lines = array();
+        while ( !feof($handle) ) {
+            $line = fgets($handle);
+
+            if ( strpos($line, '_database_code_amcsd') !== false ) {
+                $pieces = explode(' ', trim($line));
+
+                // Need to have 2 values in this line
+                if ( count($pieces) === 2 ) {
+                    $existing_amcsd_code = trim($pieces[1]);
+
+                    if ( $existing_amcsd_code === $amcsd_code ) {
+                        // If the amcsd code in the file matches the code ODR wants it to have, then
+                        //  don't need to continue reading the file...no chances are needed
+                        fclose($handle);
+                        return false;
+                    }
+                    else {
+                        // If the amcsd code in the file does not match the code ODR wants it to have,
+                        //  then need to replace it
+
+                        // Pretend the line with the database code does not exist, so the next block
+                        //  will work correctly
+//                        $lines[] = '';
+
+                        // Continue reading the rest of the file
+                    }
+                }
+            }
+            else if ( !feof($handle) ) {
+                // If this is not the line with the amcsd code, then store it for later
+                $lines[] = $line;
+            }
+        }
+
+        // ----------------------------------------
+        // At this point, $lines will never have an entry for the database code
+        $database_code_line_num = null;
+        $has_blank_line = false;
+        for ($i = 0; $i < count($lines); $i++) {
+            $line = $lines[$i];
+            if ( strpos($line, 'CELL PARAMETERS') !== false ) {
+                // The cell parameters line is supposed to be preceeded by a blank line
+                $database_code_line_num = $i-1;
+                $prev_line = $lines[$database_code_line_num];
+                if ( trim($prev_line) === '' ) {
+                    $has_blank_line = true;
+                    $database_code_line_num--;
+                }
+
+                // The variable now points to the correct line...don't need to continue looking
+                break;
+            }
+        }
+
+        $new_lines = array();
+        foreach ($lines as $num => $line) {
+            if ($num !== $database_code_line_num) {
+                // Copy over this line of data
+                $new_lines[] = $line;
+            }
+            else {
+                // If this line is supposed to have the database code, copy over the existing line
+                //  first...
+                $new_lines[] = $line;
+
+                // ...then copy over the line for the database code
+                // The DIF files I looked at have six spaces at the beginning, then more for the table...
+                $new_lines[] = '      _database_code_amcsd '.$amcsd_code."\r\n";
+
+                // If the file didn't have a blank line before the cell parameters line, then add it
+                if ( !$has_blank_line )
+                    $new_lines[] = "\r\n";
+            }
+        }
+
+        // ----------------------------------------
+        // Close the existing file, and reopen it to replace the contents
+        fclose($handle);
+        $handle = fopen($local_filepath, "w");
+        if ( !$handle )
+            throw new \Exception('Unable to rewrite existing file at "'.$local_filepath.'"');
+
+        // Write each line to the file...
+        foreach ($new_lines as $num => $line)
+            fwrite($handle, $line);
+        // ...and close it again after we're done
+        fclose($handle);
+
+        // Return that changes were made
+        return true;
+    }
+
+
+    /**
+     * Reads the given AMC file, converting its contents into an array that's indexed by the
+     * "name" property of the fields defined in the "required_fields" section of AMCSDPlugin.yml
+     *
+     * @param string $local_filepath
+     *
+     * @return array
+     */
+    private function readAMCFile($local_filepath)
+    {
+        $value_mapping = array();
+        $all_lines = array();
+
+        // ----------------------------------------
+        // Open the file
+        $handle = fopen($local_filepath, "r");
+        if ( !$handle )
+            throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
+
+        // Ensure we're at the beginning of the file
+        fseek($handle, 0, SEEK_SET);
+
+        // ----------------------------------------
         $database_code_line = -999;
         $line_num = 0;
         while ( !feof($handle) ) {
@@ -1632,8 +2224,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
             if ($line_num == 1) {
-//                if ( ValidUtility::isValidMediumVarchar($line) )
-//                    $value_mapping['Mineral'] = $line;
+                if ( ValidUtility::isValidMediumVarchar($line) )
+                    $value_mapping['Mineral'] = $line;
             }
             // Second line is the authors...the field has no length limit
             elseif ($line_num == 2) {
@@ -1681,26 +2273,29 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($value_mapping as $rpf_name => $value)
             $value_mapping[$rpf_name] = trim($value);
 
-        // All data gathered, return the mapping array
+        // All data gathered, close the file and return the mapping array
+        fclose($handle);
         return $value_mapping;
     }
 
 
     /**
-     * Reads the given CIF file, converting its contents into an array that's indexed by the
-     * "name" property of the fields defined in the "required_fields" section of AMCSDPlugin.yml
+     * Both the "minimal" and the "original" CIF files are supposed to have the same format, so they
+     * should both be readable by the same function.  Values in the file are converted into an array
+     * that's indexed by the "name" property of the fields defined in the "required_fields" section
+     * of AMCSDPlugin.yml
      *
-     * @param string $filepath
+     * @param string $local_filepath
      *
      * @return array
      */
-    private function readCIFFile($filepath, $amcsd_code)
+    private function readEitherCIFFile($local_filepath)
     {
         $value_mapping = array();
 
         // Due to the complexity of CIF files, and because other parts of ODR might feel
         //  like reading them...use a static function from elsewhere
-        $file_contents = file_get_contents($filepath);
+        $file_contents = file_get_contents($local_filepath);
         $cif_lines = CrystallographyDef::readCIFFile($file_contents);
 
         // The returned array is organized by line, but most of what ODR cares about is easier to
@@ -1720,21 +2315,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // As a result of the previous foreach loop, we can now use isset() to check whether the
         //  various pieces of data that ODR cares about actually exist in the file
 
-        // ----------------------------------------
-        // ODR wants the CIFs to have a _database_code_amcsd line in them...
-        $has_amcsd_code = false;
-        if ( isset($cif_data['_database_code_amcsd']) ) {
-            $has_amcsd_code = true;
-
-            // If the file has a value for '_database_code_amcsd', then ensure the field gets that
-            //  value regardless of whatever ODR auto-generated for the value
-            $value_mapping['database_code_amcsd'] = $cif_data['_database_code_amcsd'];
-        }
-        else {
-            // If the file does not have a value for '_database_code_amcsd', then ensure the field
-            //  uses the auto-generated value
-            $value_mapping['database_code_amcsd'] = $amcsd_code;
-        }
 
         // ----------------------------------------
         // mineral/compound name
@@ -1742,13 +2322,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_mineral']) )
                 $value_mapping['Mineral'] = $cif_data['_chemical_name_mineral'];
         }
-        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_chemical_name_systematic']) ) {
-            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_systematic']) )
-                $value_mapping['Mineral'] = $cif_data['_chemical_name_systematic'];
-        }
         if ( !isset($value_mapping['Mineral']) && isset($cif_data['_chemical_name_common']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
                 $value_mapping['Mineral'] = $cif_data['_chemical_name_common'];
+        }
+        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_chemical_name_systematic']) ) {
+            if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_systematic']) )
+                $value_mapping['Mineral'] = $cif_data['_chemical_name_systematic'];
         }
         if ( !isset($value_mapping['Mineral']) && isset($cif_data['_amcsd_formula_title']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['_amcsd_formula_title']) )
@@ -1828,7 +2408,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $tmp['Volume'] = $cif_data['_cell_volume'];
 
         foreach ($tmp as $key => $val) {
-            if ( ValidUtility::isValidDecimal($val) )
+            if ( ValidUtility::isValidShortVarchar($val) )
                 $value_mapping[$key] = $val;
         }
 
@@ -1909,14 +2489,15 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         //  to convert that to Wyckoff
 
         // ----------------------------------------
-        // CIF Contents are going to be a pain...SHELXL CIFs tend to also have the DIF data in them,
-        //  resulting in thousands of lines of data
+        // CIF Contents are a pain...SHELXL CIFs tend to also have the DIF data in them, resulting
+        //  in thousands of lines of data
         $cif_contents_raw = array();
 
         // Going to use a blacklist to attempt to filter out most of the DIF data...
         $blacklist = array(
             '_exptl_' => 0,
             '_diffrn_' => 0,
+            '_refln_' => 0,
             '_reflns_' => 0,
             '_computing_' => 0,
             '_refine_' => 0,
@@ -1971,46 +2552,20 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
         }
 
+
+        // ----------------------------------------
         // Now that we've filtered out the nodes we definitely don't want (TM) in the CIF, we need
         //  to get the text values of the nodes that remain
         $cif_contents = '';
-        foreach ($cif_contents_raw as $num => $data) {
-            if ( $has_amcsd_code || isset($data['keys']) ) {
-                // If the raw contents already has the amcsd code, then don't need to keep checking
-                //  for the insertion point...also, just dump any loops into the contents since the
-                //  insertion point for the amcsd code has nothing to do with loops
-                $cif_contents .= $data['text'];
-            }
-            else {
-                // If the raw contents doesn't have the amcsd code, then want to insert it
-                if ( $data['key'] === '_chemical_compound_source' ) {
-                    // The old AMCSD preferred to have the database code before this line...
-                    $cif_contents .= '_database_code_amcsd '.$amcsd_code."\r\n";
+        foreach ($cif_contents_raw as $num => $data)
+            $cif_contents .= $data['text'];
 
-                    // Don't need to continue checking
-                    $has_amcsd_code = true;
-                }
-                else if ( $data['key'] === '_chemical_formula_sum' ) {
-                    // ...but if the locality line doesn't exist then it came before this line
-                    $cif_contents .= '_database_code_amcsd '.$amcsd_code."\r\n";
-
-                    // Don't need to continue checking
-                    $has_amcsd_code = true;
-                }
-
-                // Still need this line of data in there
-                $cif_contents .= $data['text'];
-            }
-        }
-
-
-        // ----------------------------------------
         // Ensure the values are trimmed before they're saved
         foreach ($value_mapping as $rpf_name => $value)
             $value_mapping[$rpf_name] = trim($value);
 
         // Don't want to trim the CIF contents
-        $value_mapping['CIF File Contents'] = $cif_contents;
+        $value_mapping['contents'] = $cif_contents;
 
         // All data gathered, return the mapping array
         return $value_mapping;
@@ -2021,11 +2576,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * Reads the given DIF file, converting its contents into an array of values for an XYZData
      * field so it can be searched.
      *
-     * @param resource $handle
+     * @param string $local_filepath
      *
      * @return array
      */
-    private function readDIFFile($handle)
+    private function readDIFFile($local_filepath)
     {
         // The relevant section of the DIF file has seven columns...2-THETA, INTENSITY, D-SPACING,
         //  H, K, L, and Multiplicity...this regex extracts the first three columns, and discards
@@ -2033,14 +2588,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $pattern = '/(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:[^\n]+)/';
         $all_values = array();
 
+        // ----------------------------------------
+        // Open the file
+        $handle = fopen($local_filepath, "r");
+        if ( !$handle )
+            throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
+
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
 
+        // ----------------------------------------
         $header_line = -999;
         $line_num = 0;
         while ( !feof($handle) ) {
             $line = fgets($handle);
             $line_num++;
+
+//            // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
+//            if ($line_num == 1) {
+//                $line = trim($line);
+//                if ( ValidUtility::isValidMediumVarchar($line) )
+//                    $value_mapping['Mineral'] = $line;
+//            }
 
             if ( strpos($line, 'INTENSITY') !== false && strpos($line, 'D-SPACING') !== false ) {
                 // This line needs to have at least two pieces in it
@@ -2067,7 +2636,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Want all file contents in a single field
         $value_mapping['Diffraction Search Values'] = implode("|", $all_values);
 
-        // All data gathered, return the mapping array
+        // All data gathered, close the file and return the mapping array
+        fclose($handle);
         return $value_mapping;
     }
 
@@ -2279,7 +2849,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($results as $result)
             $current_value = $result['value'];
         // ...but if there's not for some reason, use this value as the "current".  onDatarecordCreate()
-        //  will increment it so that the value "00001" is what will actually get saved.
+        //  will increment it so that the value "0000001" is what will actually get saved.
         if ( is_null($current_value) )
             $current_value = '0000000';
 
@@ -2325,6 +2895,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $locality_df_id = $render_plugin_map['Locality']['id'];
         $density_df_id = $render_plugin_map['Crystal Density']['id'];
 
+        $original_cif_file_df_id = $render_plugin_map['Original CIF File']['id'];
+        $original_cif_file_contents_df_id = $render_plugin_map['Original CIF File Contents']['id'];
+
         $dif_file_df_id = $render_plugin_map['DIF File']['id'];
         $diffraction_search_values_df_id = $render_plugin_map['Diffraction Search Values']['id'];
 
@@ -2356,6 +2929,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $locality_df_id => array($cif_file_df_id),
             $density_df_id => array($cif_file_df_id),
 
+            $original_cif_file_contents_df_id => array($original_cif_file_df_id),
+
             $diffraction_search_values_df_id => array($dif_file_df_id),
         );
     }
@@ -2377,6 +2952,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $relevant_datafields = array(
             'AMC File' => 1,
             'CIF File' => 1,
+            'Original CIF File' => 1,
             'DIF File' => 1,
         );
 
@@ -2403,6 +2979,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $relevant_datafields = array(
             'AMC File' => 1,
             'CIF File' => 1,
+            'Original CIF File' => 1,
             'DIF File' => 1,
         );
 

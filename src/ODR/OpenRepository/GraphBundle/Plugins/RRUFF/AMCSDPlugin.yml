@@ -71,11 +71,18 @@ odr_plugins.rruff.amcsd:
             display_order: 4
             properties:
                 - single_uploads_only
+        original_cif_file:
+            name: Original CIF File
+            description: An externally-provided CIF file for this dataset
+            type: File
+            display_order: 5
+            properties:
+                - single_uploads_only
         dif_file:
             name: DIF File
             description: The DIF file for this dataset
             type: File
-            display_order: 5
+            display_order: 6
             properties:
                 - single_uploads_only
 
@@ -83,7 +90,7 @@ odr_plugins.rruff.amcsd:
             name: AMC File Contents
             description: A copy of the entire AMC File's contents
             type: LongText
-            display_order: 6
+            display_order: 7
             properties:
                 - no_user_edits
                 - is_derived
@@ -91,7 +98,7 @@ odr_plugins.rruff.amcsd:
             name: AMC File Contents (short)
             description: A copy of the AMC File's contents, but without the atom positions
             type: LongText
-            display_order: 7
+            display_order: 8
             properties:
                 - no_user_edits
                 - is_derived
@@ -99,7 +106,15 @@ odr_plugins.rruff.amcsd:
             name: CIF File Contents
             description: A copy of the CIF File's contents
             type: LongText
-            display_order: 8
+            display_order: 9
+            properties:
+                - no_user_edits
+                - is_derived
+        original_cif_file_contents:
+            name: Original CIF File Contents
+            description: A somewhat reduced copy of the Original CIF File's contents
+            type: LongText
+            display_order: 10
             properties:
                 - no_user_edits
                 - is_derived
@@ -108,7 +123,7 @@ odr_plugins.rruff.amcsd:
             name: Diffraction Search Values
             description: A copy of the values in the DIF File which are relevant for searching
             type: XYZData
-            display_order: 9
+            display_order: 11
             properties:
                 - no_user_edits
                 - is_derived
@@ -117,7 +132,7 @@ odr_plugins.rruff.amcsd:
             name: Mineral
             description: The name of the mineral or compound that was examined
             type: MediumVarchar
-            display_order: 10
+            display_order: 12
             properties:
                 - no_user_edits
                 - is_derived
@@ -125,7 +140,7 @@ odr_plugins.rruff.amcsd:
             name: a
             description: The value for "a" listed in the AMC File
             type: DecimalValue
-            display_order: 11
+            display_order: 13
             properties:
                 - no_user_edits
                 - is_derived
@@ -133,7 +148,7 @@ odr_plugins.rruff.amcsd:
             name: b
             description: The value for "b" listed in the AMC File
             type: DecimalValue
-            display_order: 12
+            display_order: 14
             properties:
                 - no_user_edits
                 - is_derived
@@ -141,7 +156,7 @@ odr_plugins.rruff.amcsd:
             name: c
             description: The value for "c" listed in the AMC File
             type: DecimalValue
-            display_order: 13
+            display_order: 15
             properties:
                 - no_user_edits
                 - is_derived
@@ -149,7 +164,7 @@ odr_plugins.rruff.amcsd:
             name: alpha
             description: The value for "alpha" listed in the AMC File
             type: DecimalValue
-            display_order: 14
+            display_order: 16
             properties:
                 - no_user_edits
                 - is_derived
@@ -157,7 +172,7 @@ odr_plugins.rruff.amcsd:
             name: beta
             description: The value for "beta" listed in the AMC File
             type: DecimalValue
-            display_order: 15
+            display_order: 17
             properties:
                 - no_user_edits
                 - is_derived
@@ -165,7 +180,7 @@ odr_plugins.rruff.amcsd:
             name: gamma
             description: The value for "gamma" listed in the AMC File
             type: DecimalValue
-            display_order: 16
+            display_order: 18
             properties:
                 - no_user_edits
                 - is_derived
@@ -173,7 +188,7 @@ odr_plugins.rruff.amcsd:
             name: Volume
             description: The value of the "_cell_volume" field from the CIF File
             type: DecimalValue
-            display_order: 17
+            display_order: 19
             properties:
                 - no_user_edits
                 - is_derived
@@ -182,7 +197,7 @@ odr_plugins.rruff.amcsd:
             name: Crystal System
             description: For convenience, the "Crystal System" value is derived from the value of the "Space Group" field in the AMC File
             type: ShortVarchar
-            display_order: 18
+            display_order: 20
             properties:
                 - no_user_edits
                 - is_derived
@@ -190,7 +205,7 @@ odr_plugins.rruff.amcsd:
             name: Point Group
             description: For convenience, the "Point Group" value is derived from the value of the "Space Group" field in the AMC File
             type: ShortVarchar
-            display_order: 19
+            display_order: 21
             properties:
                 - no_user_edits
                 - is_derived
@@ -198,7 +213,7 @@ odr_plugins.rruff.amcsd:
             name: Space Group
             description: The value for "Space Group" listed in the AMC File
             type: ShortVarchar
-            display_order: 20
+            display_order: 22
             properties:
                 - no_user_edits
                 - is_derived
@@ -206,7 +221,7 @@ odr_plugins.rruff.amcsd:
             name: Lattice
             description: For convenience, the "Lattice" value is derived from the value of the "Space Group" field in the AMC File
             type: ShortVarchar
-            display_order: 21
+            display_order: 23
             properties:
                 - no_user_edits
                 - is_derived
@@ -215,7 +230,7 @@ odr_plugins.rruff.amcsd:
             name: Pressure
             description: The value for "Pressure" listed in the AMC File
             type: ShortVarchar
-            display_order: 22
+            display_order: 24
             properties:
                 - no_user_edits
                 - is_derived
@@ -223,7 +238,7 @@ odr_plugins.rruff.amcsd:
             name: Temperature
             description: The value for "Temperature" listed in the AMC File
             type: ShortVarchar
-            display_order: 23
+            display_order: 25
             properties:
                 - no_user_edits
                 - is_derived
@@ -232,7 +247,7 @@ odr_plugins.rruff.amcsd:
             name: Chemistry
             description: The value of the "_chemical_formula_sum" field in the CIF File
             type: LongVarchar
-            display_order: 24
+            display_order: 26
             properties:
                 - no_user_edits    # TODO - allow editing?  On one hand, all the chemical formulas lack subscripts...on the other, the CIF File value is "official"...
                 - is_derived
@@ -240,7 +255,7 @@ odr_plugins.rruff.amcsd:
             name: Chemistry Elements
             description: The individual elements from the "_chemical_formula_sum" field in the CIF File
             type: LongVarchar
-            display_order: 25
+            display_order: 27
             properties:
                 - no_user_edits
                 - is_derived
@@ -249,7 +264,7 @@ odr_plugins.rruff.amcsd:
             name: Locality
             description: The value of the "_chemical_compound_source" field in the CIF File
             type: LongVarchar
-            display_order: 26
+            display_order: 28
             properties:
                 - no_user_edits
                 - is_derived
@@ -258,7 +273,7 @@ odr_plugins.rruff.amcsd:
             name: Crystal Density
             description: The value of the "_exptl_crystal_density_diffrn" field in the CIF File
             type: DecimalValue
-            display_order: 27
+            display_order: 29
             properties:
                 - no_user_edits
                 - is_derived
