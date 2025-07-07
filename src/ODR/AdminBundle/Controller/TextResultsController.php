@@ -359,7 +359,10 @@ class TextResultsController extends ODRCustomController
                 $original_datarecord_list = $search_api_service->performSearch(
                     $datatype,
                     $search_key,
-                    $user_permissions
+                    $user_permissions,
+                    false,  // only want the grandparent datarecord ids that match the search
+                    $sort_datafields,
+                    $sort_directions
                 );    // this only returns grandparent datarecords
                 $viewable_datarecord_list = $original_datarecord_list;
             }
