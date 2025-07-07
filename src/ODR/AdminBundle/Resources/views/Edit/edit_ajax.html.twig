@@ -1267,6 +1267,8 @@ function initPage() {
         if ( $(elem).attr('rel') === 'link' )
             is_link = true;
 
+        var is_top_level = false;
+
         var ancestor_elem = null;
         var ancestor_datatype = '';
         var ancestor_name = '';
@@ -1274,7 +1276,10 @@ function initPage() {
         var dt = $(elem).parents('.ODRDataType').first();
         var parent_dr = $(dt).parents('.ODRFieldArea').first();
         var parent_dr_id = $(parent_dr).attr('id').split(/_/)[1];
-        // console.log( $(elem), $(dt), $(parent_dr) );
+        // console.log('----------');
+        // console.log( 'icon', $(elem) );
+        // console.log( 'icon datatype', $(dt) );
+        // console.log( 'parent record', $(parent_dr) );
 
         // Accordion/List headers have the record name in an <h3> element, before the $(parent_dr) div
         // Tabbed headers have a single .ODRTabButtonHeader div immediately after the <h3> element
@@ -1297,25 +1302,34 @@ function initPage() {
         else {
             // The parent is the top-level record
             ancestor_name = $("#ODRRecordName_top").val();
-            ancestor_datatype = $("#ODRRecordName_top").data('parent-name')
+            ancestor_datatype = $("#ODRRecordName_top").data('parent-name');
             // console.log( 'found ' + ancestor_datatype + ': "' + ancestor_name + '" as top-level' );
+            is_top_level = true;
         }
-        // console.log( $(ancestor_elem) );
+        // console.log( 'ancestor elem', $(ancestor_elem) );
 
-        if ( ancestor_name === '' ) {
+        if ( is_top_level ) {
+            if ( !is_link )
+                $(elem).attr('title', 'Child of ' + ancestor_datatype + ': "' + ancestor_name + '"');
+            else
+                $(elem).attr('title', 'Linked to by ' + ancestor_datatype + ': "' + ancestor_name + '"');
+        }
+        else if ( ancestor_name === '' ) {
             if ( $(ancestor_elem).is('select') ) {
                 // Ancestor name is in a <select> element...find the <option> that matches the parent
                 //  datarecord's id
                 ancestor_name = $(ancestor_elem).children('option[value=' + parent_dr_id + ']').text().trim();
-                ancestor_datatype = $(ancestor_elem).data('parent-name')
+                ancestor_datatype = $(ancestor_elem).data('parent-name');
                 // console.log( 'found ' + ancestor_datatype + ': "' + ancestor_name + '" inside a select' );
             }
             else if ( $(ancestor_elem).length === 0 ) {
                 // Ancestor name is in a <button> element
-                ancestor_elem = $(parent_dr).parent().first().children('div.ODRTabButtonHeader').first();
-                ancestor_name = $(ancestor_elem).children('button[rel=' + parent_dr_id + ']').html().trim();
-                ancestor_datatype = $(ancestor_elem).data('parent-name')
+                var tab_header = $(parent_dr).parent().first().children('div.ODRTabButtonHeader').first();
+                ancestor_elem = $(tab_header).children('button[rel=' + parent_dr_id + ']');
+                // console.log( 'fixed ancestor elem', $(ancestor_elem) );
 
+                ancestor_name = $(ancestor_elem).html().trim();
+                ancestor_datatype = $(ancestor_elem).data('parent-name');
                 // console.log( 'found ' + ancestor_datatype + ': "' + ancestor_name + '" inside a button' );
             }
             else {
