@@ -26,7 +26,7 @@
 {% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
 
 <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
-    {# This is guaranteed to only be called on "Short Text" fields #}
+    {# This is guaranteed to only be called on the "Point Group" or "Space Group" fields, which are both "Short Text" #}
 {#    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}#}
     <fieldset>
         <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
