@@ -2712,15 +2712,37 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // ----------------------------------------
         // Pressure and Temperature are optional, but ideally come from these entries...
-        if ( isset($cif_data['_cell_measurement_temperature']) )
-            $file_values['Temperature'] = $cif_data['_cell_measurement_temperature'].' K';
-        if ( !isset($file_values['Temperature']) && isset($cif_data['_diffrn_ambient_temperature']) )
-            $file_values['Temperature'] = $cif_data['_diffrn_ambient_temperature'].' K';
+        if ( isset($cif_data['_cell_measurement_temperature']) ) {
+            $temp = $cif_data['_cell_measurement_temperature'];
+            if ( $temp !== '0' && $temp !== '0 K' )
+                $file_values['Temperature'] = $cif_data['_cell_measurement_temperature'];
+        }
+        if ( !isset($file_values['Temperature']) && isset($cif_data['_diffrn_ambient_temperature']) ) {
+            $temp = $cif_data['_diffrn_ambient_temperature'];
+            if ( $temp !== '0' && $temp !== '0 K' )
+                $file_values['Temperature'] = $cif_data['_diffrn_ambient_temperature'];
+        }
+        if ( isset($file_values['Temperature']) ) {
+            $temp = $file_values['Temperature'];
+            if ( strpos($temp, 'K') === false || strpos($temp, 'C') === false )
+                $file_values['Temperature'] .= 'K';
+        }
 
-        if ( isset($cif_data['_cell_measurement_pressure']) )
-            $file_values['Pressure'] = $cif_data['_cell_measurement_pressure'].' KPa';
-        if ( !isset($file_values['Pressure']) && isset($cif_data['_diffrn_ambient_pressure']) )
-            $file_values['Pressure'] = $cif_data['_diffrn_ambient_pressure'].' KPa';
+        if ( isset($cif_data['_cell_measurement_pressure']) ) {
+            $pressure = $cif_data['_cell_measurement_pressure'];
+            if ( $pressure !== '0' && $pressure !== '0 KPa' && $pressure !== '0 GPa' )
+                $file_values['Pressure'] = $cif_data['_cell_measurement_pressure'];
+        }
+        if ( !isset($file_values['Pressure']) && isset($cif_data['_diffrn_ambient_pressure']) ) {
+            $pressure = $cif_data['_diffrn_ambient_pressure'];
+            if ( $pressure !== '0' && $pressure !== '0 KPa' && $pressure !== '0 GPa' )
+                $file_values['Pressure'] = $cif_data['_diffrn_ambient_pressure'];
+        }
+        if ( isset($file_values['Pressure']) ) {
+            $temp = $file_values['Pressure'];
+            if ( strpos($temp, 'KPa') === false || strpos($temp, 'GPa') === false )
+                $file_values['Pressure'] .= 'KPa';
+        }
 
         // ...but Bob's CIF files have Temperature/Pressure in the article title
         if ( !isset($file_values['Temperature']) && isset($cif_data['_publ_section_title']) ) {
