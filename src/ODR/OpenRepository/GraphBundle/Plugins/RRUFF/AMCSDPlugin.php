@@ -334,7 +334,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Crystal Density':
                         // These fields can't be edited, since they're from the CIF file
 
-                    case 'Original Cif File Contents':
+                    case 'Original CIF File Contents':
                         // This field can't be edited, since it's from the Original CIF file
 
                     case 'Diffraction Search Values':
@@ -675,9 +675,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Most of the fields defined by this plugin derive their values from a file uploaded into the
-     * "AMC File" field...if there's an error where the values can't be derived, then the user needs
-     * to be notified...
+     * Most of the values that AMCSD cares about can come from multiple files...but each file has
+     * at least one field that is unique to it.  If there was an error during reading, that field
+     * is guaranteed to be blank...
      *
      * @param array $plugin_fields
      * @param array $value_mapping
@@ -719,7 +719,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 default:
                     // Every other field the plugin specifies doesn't matter when trying to determine
-                    //  if a File has problems
+                    //  if this File has problems
                     break;
             }
         }
@@ -730,9 +730,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Like the "AMC File" field, the "CIF File" field is used to derive the contents of other
-     * fields...but the "CIF File" doesn't need to provide as many values.  Still, if there was an
-     * error, then the user needs to be notified...
+     * Most of the values that AMCSD cares about can come from multiple files...but each file has
+     * at least one field that is unique to it.  If there was an error during reading, that field
+     * is guaranteed to be blank...
      *
      * @param array $plugin_fields
      * @param array $value_mapping
@@ -805,9 +805,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Like the "CIF File" field, the "Original CIF File" field is used to derive the contents of other
-     * fields...but this one doesn't need to provide as many values.  Still, if there was an
-     * error, then the user needs to be notified...
+     * Most of the values that AMCSD cares about can come from multiple files...but each file has
+     * at least one field that is unique to it.  If there was an error during reading, that field
+     * is guaranteed to be blank...
      *
      * @param array $plugin_fields
      * @param array $value_mapping
@@ -855,9 +855,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Like the "AMC File" field, the "DIF File" field is used to derive the contents of other
-     * fields...but the "DIF File" doesn't need to provide as many values.  Still, if there was an
-     * error, then the user needs to be notified...
+     * Most of the values that AMCSD cares about can come from multiple files...but each file has
+     * at least one field that is unique to it.  If there was an error during reading, that field
+     * is guaranteed to be blank...
      *
      * @param array $plugin_fields
      * @param array $value_mapping
@@ -1034,17 +1034,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
                 // ----------------------------------------
-                // Create as much of the mappings as possible, since they could be needed during
-                //  error recovery...
-
                 // Map the field definitions in the render plugin to datafields
-                $datafield_mapping = self::getRenderPluginFieldsMapping($datatype);
+                $rpf_mapping = self::getRenderPluginFieldsMapping($datatype);
 
                 // If this is a request off a DIF file field...
                 if ( $relevant_rpf_name === 'DIF File' ) {
                     // ...then want $datafield to refer to the XYZData datafield instead of the DIF
                     //  File field ASAP in case of an error
-                    $df_id = $datafield_mapping['Diffraction Search Values'];
+                    $df_id = $rpf_mapping['Diffraction Search Values'];
 
                     /** @var DataFields $xyz_df */
                     $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
@@ -1054,127 +1051,113 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $datafield = $xyz_df;
                 }
 
-                // Need to hydrate the storage entities for each datafield so the values from the
-                //  file can get saved into the database
-                $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
+                // Get the current values in these fields from the datarecord
+                $current_values = self::getCurrentValues($datarecord);
 
-                // Since ODR is supposed to handle autogenerating the AMCSD database code, it needs
-                //  to also handle inserting said code into the uploaded files...
-                $database_code_df_id = $datafield_mapping['database_code_amcsd'];
-                if ( isset($storage_entities[$database_code_df_id]) ) {
-                    $database_code_sv = $storage_entities[$database_code_df_id];
-                    $amcsd_database_code = $database_code_sv->getValue();
-                    // Don't want this specific entity in this array, otherwise self::saveOnError()
-                    //  can clear its value
-                    unset( $storage_entities[$database_code_df_id] );
+                // Since ODR is supposed to handle autogenerating the AMCSD database code...
+                $database_code_df_id = $rpf_mapping['database_code_amcsd'];
+                if ( isset($current_values[$database_code_df_id]) ) {
+                    // ...it needs to also handle updating any existing code in the files
+                    $amcsd_database_code = $current_values[$database_code_df_id];
                 }
                 else {
                     // If it doesn't exist, throw an exception to ensure files don't get bad data
                     throw new ODRException('The "database_code_amcsd" field does not have a value', 500);
                 }
 
-
                 // ----------------------------------------
                 // The provided file hasn't been encrypted yet, so it should be able to be read
                 //  directly
 
-                $value_mapping = array();
+                $file_values = array();
                 if ( $relevant_rpf_name === 'AMC File' ) {
                     // Ensure the AMC File has the correct AMCSD database code
                     self::insertAMCSDCodeIntoAMCFile($local_filepath, $amcsd_database_code);
 
                     // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readAMCFile($local_filepath);
+                    $file_values = self::readAMCFile($local_filepath);
 
-//                    // Want to save the Mineral field value only when the field doesn't already have
-//                    //  a value  TODO
-//                    if ( isset($datafield_mapping['Mineral']) ) {
-//                        $mineral_df_id = $datafield_mapping['Mineral'];
-//                        if ( isset($storage_entities[$mineral_df_id]) )
-//                            unset( $value_mapping['Mineral'] );
-//                    }
+                    // The values from the AMC file should overwrite data from the Original CIF
+                    //  or DIF files, but not overwrite data from the Minimal CIF
+                    self::filterFileValues($file_values, $current_values, $rpf_mapping, $relevant_rpf_name);
                 }
                 else if ( $relevant_rpf_name === 'CIF File' ) {
                     // Ensure the (minimal) CIF File has the correct AMCSD database code
                     self::insertAMCSDCodeIntoCIFFile($local_filepath, $amcsd_database_code);
 
                     // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readEitherCIFFile($local_filepath);
-                    if ( isset($value_mapping['contents']) ) {
+                    $file_values = self::readEitherCIFFile($local_filepath);
+                    if ( isset($file_values['contents']) ) {
                         // Due to the function reading either CIF file, the contents needs renamed
                         //  to the correct field
-                        $value_mapping['CIF File Contents'] = $value_mapping['contents'];
-                        unset( $value_mapping['contents'] );
+                        $file_values['CIF File Contents'] = $file_values['contents'];
+                        unset( $file_values['contents'] );
                     }
 
-                    // Want to always use the values from this file when possible...but this also
-                    //  means there needs to be a safety check so existing values aren't converted
-                    //  into blanks  TODO
+                    // The values from the Minimal CIF file should overwrite data from any other
+                    //  file...don't do anything here
                 }
                 else if ( $relevant_rpf_name === 'Original CIF File' ) {
                     // Do not want to insert the AMCSD database code into an original cif file
 
                     // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readEitherCIFFile($local_filepath);
-                    // Want to attempt to use values from the Original CIF, but ONLY IF there is no
-                    //  "minimal" CIF uploaded  TODO
-                    foreach ($value_mapping as $key => $value) {
-                        if ( $key !== 'contents' && $key !== 'Mineral' )
-                            unset($value_mapping[$key]);
-                    }
-                    if ( isset($value_mapping['contents']) ) {
+                    $file_values = self::readEitherCIFFile($local_filepath);
+                    if ( isset($file_values['contents']) ) {
                         // Due to the function reading either CIF file, the contents needs renamed
                         //  to the correct field
-                        $value_mapping['Original CIF File Contents'] = $value_mapping['contents'];
-                        unset( $value_mapping['contents'] );
+                        $file_values['Original CIF File Contents'] = $file_values['contents'];
+                        unset( $file_values['contents'] );
                     }
+
+                    // Most of the values from the Original CIF file should only get used when
+                    //  there is no other option
+                    self::filterFileValues($file_values, $current_values, $rpf_mapping, $relevant_rpf_name);
                 }
                 else if ( $relevant_rpf_name === 'DIF File' ) {
                     // Ensure the DIF File has the correct AMCSD database code
                     self::insertAMCSDCodeIntoDIFFile($local_filepath, $amcsd_database_code);
 
                     // Extract as many pieces of data from the file as possible
-                    $value_mapping = self::readDIFFile($local_filepath);
+                    $file_values = self::readDIFFile($local_filepath);
 
-//                    // Want to save the Mineral field value only when the field doesn't already have
-//                    //  a value  TODO
-//                    if ( isset($datafield_mapping['Mineral']) ) {
-//                        $mineral_df_id = $datafield_mapping['Mineral'];
-//                        if ( isset($storage_entities[$mineral_df_id]) )
-//                            unset( $value_mapping['Mineral'] );
-//                    }
+                    // Most of the values from the DIF file should only get used when there is
+                    //  no other option
+                    self::filterFileValues($file_values, $current_values, $rpf_mapping, $relevant_rpf_name);
                 }
 
                 // File hasn't been encrypted yet, so DO NOT delete it
 
 
                 // ----------------------------------------
-                if ( $relevant_rpf_name === 'DIF File' ) {
-                    // Should only be one piece of data...
-                    foreach ($value_mapping as $rpf_name => $value) {
-                         $this->xyzdata_helper_service->updateXYZData(
+                // Only hydrate the fields that might be getting updated
+                $storage_entities = self::hydrateStorageEntities($rpf_mapping, $file_values, $user, $datarecord);
+                // <df_id> => <rpf_name> is more useful here
+                $df_mapping = array_flip($rpf_mapping);
+
+                foreach ($storage_entities as $df_id => $entity) {
+                    if ( $entity instanceof DataFields ) {
+                        // This is an XYZData entry...it doesn't have a singular storage entity
+                        $rpf_name = $df_mapping[$df_id];
+                        $value = $file_values[$rpf_name];
+
+                        $this->xyzdata_helper_service->updateXYZData(
                             $user,
                             $datarecord,
                             $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
                             new \DateTime(),
                             $value,
-                            true    // shouldn't be anything in the field, but replace everything anyways
+                            true    // Ensure the field's contents are completely replaced
                         );
                         $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
                     }
-                }
-                else {
-                    // Each piece of data from the file is referenced by its RenderPluginField name...
-                    foreach ($value_mapping as $rpf_name => $value) {
+                    else {
+                        /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
+                        $rpf_name = $df_mapping[$df_id];
+
                         // Never update the database code field
                         if ( $rpf_name === 'database_code_amcsd' )
                             continue;
-
-                        // ...from which the actual datafield id can be located...
-                        $df_id = $datafield_mapping[$rpf_name];
-                        // ...which gives the hydrated storage entity...
-                        $entity = $storage_entities[$df_id];
-                        /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
+                        $value = $file_values[$rpf_name];
 
                         // ...which is saved in the storage entity for the datafield
                         $this->entity_modify_service->updateStorageEntity(
@@ -1186,13 +1169,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         );
                         $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
 
-                        // This only works because the datafields getting updated aren't files/images or
-                        //  radio/tag fields
+                        // This method doesn't work on files, images, radio, tag, or xyzdata fields
                     }
-
-                    // Now that all the fields have their correct value, flush all changes
-                    $this->em->flush();
                 }
+
+                // Now that all the fields have their correct value, flush all changes
+                $this->em->flush();
             }
         }
         catch (\Exception $e) {
@@ -1252,17 +1234,17 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $this->logger->debug('Attempting to clear values derived from deleted "'.$relevant_rpf_name.'"...', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
 
                 // ----------------------------------------
-                // Create as much of the mappings as possible, since they could be needed during
-                //  error recovery...
-
                 // Map the field definitions in the render plugin to datafields
-                $datafield_mapping = self::getRenderPluginFieldsMapping($datatype);
+                $rpf_mapping = self::getRenderPluginFieldsMapping($datatype);
+
+                // Get the current values in these fields from the datarecord
+                $current_values = self::getCurrentValues($datarecord);
 
                 // If this is a request off a DIF file field...
                 if ( $relevant_rpf_name === 'DIF File' ) {
                     // ...then want $datafield to refer to the XYZData datafield instead of the DIF
                     //  File field ASAP in case of an error
-                    $df_id = $datafield_mapping['Diffraction Search Values'];
+                    $df_id = $rpf_mapping['Diffraction Search Values'];
 
                     /** @var DataFields $xyz_df */
                     $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
@@ -1272,30 +1254,186 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $datafield = $xyz_df;
                 }
 
-                // Need to hydrate the storage entities for each datafield so the values from the
-                //  file can get saved into the database
-                $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
+                // ----------------------------------------
+                // Which entities should get cleared depends on which file is getting deleted, and
+                //  which other files are still uploaded
+                $file_values = array();
 
-                // Don't need to remove the 'database_code_amcsd' field from the array here, the rest
-                //  of this function can't change it
+                $amc_uploaded = $minimal_cif_uploaded = $original_cif_uploaded = $dif_uploaded = false;
+                if ( isset($rpf_mapping['AMC File']) ) {
+                    $amc_file_df_id = $rpf_mapping['AMC File'];
+                    if ( isset($current_values[$amc_file_df_id]) )
+                        $amc_uploaded = true;
+                }
+                if ( isset($rpf_mapping['CIF File']) ) {
+                    $cif_file_df_id = $rpf_mapping['CIF File'];
+                    if ( isset($current_values[$cif_file_df_id]) )
+                        $minimal_cif_uploaded = true;
+                }
+                if ( isset($rpf_mapping['Original CIF File']) ) {
+                    $original_cif_file_df_id = $rpf_mapping['Original CIF File'];
+                    if ( isset($current_values[$original_cif_file_df_id]) )
+                        $original_cif_uploaded = true;
+                }
+                if ( isset($rpf_mapping['DIF File']) ) {
+                    $dif_file_df_id = $rpf_mapping['DIF File'];
+                    if ( isset($current_values[$dif_file_df_id]) )
+                        $dif_uploaded = true;
+                }
 
+                // NOTE: I believe these are "before" the deletion...but since this only triggers on
+                //  one delete at a time, the rest of the values are still valid
+
+                if ( $relevant_rpf_name === 'AMC File' ) {
+                    // These fields should always get cleared when an AMC File is deleted
+                    $file_values['AMC File Contents'] = '';
+                    $file_values['AMC File Contents (short)'] = '';
+
+                    // The authors should only get cleared when the DIF file doesn't exist
+                    if ( !$dif_uploaded )
+                        $file_values['Authors'] = '';
+
+                    // The cell parameter values should only get cleared when no other file exists
+                    if ( !$minimal_cif_uploaded && !$original_cif_uploaded && !$dif_uploaded ) {
+                        $file_values['Mineral'] = '';
+
+                        $file_values['a'] = '';
+                        $file_values['b'] = '';
+                        $file_values['c'] = '';
+                        $file_values['alpha'] = '';
+                        $file_values['beta'] = '';
+                        $file_values['gamma'] = '';
+                        $file_values['Volume'] = '';
+
+                        $file_values['Crystal System'] = '';
+                        $file_values['Point Group'] = '';
+                        $file_values['Space Group'] = '';
+                        $file_values['Lattice'] = '';
+
+                        $file_values['Pressure'] = '';
+                        $file_values['Temperature'] = '';
+                    }
+                }
+                else if ( $relevant_rpf_name === 'CIF File' ) {
+                    // These fields should always get cleared when an AMC File is deleted
+                    $file_values['CIF File Contents'] = '';
+
+                    // These fields should get cleared when the other CIF file doesn't exist
+                    if ( !$original_cif_uploaded ) {
+                        $file_values['Chemistry'] = '';
+                        $file_values['Chemistry Elements'] = '';
+                        $file_values['Locality'] = '';
+                        $file_values['Crystal Density'] = '';
+                    }
+
+                    // The cell parameter values should only get cleared when no other file exists
+                    if ( !$amc_uploaded && !$original_cif_uploaded && !$dif_uploaded ) {
+                        $file_values['Mineral'] = '';
+
+                        $file_values['a'] = '';
+                        $file_values['b'] = '';
+                        $file_values['c'] = '';
+                        $file_values['alpha'] = '';
+                        $file_values['beta'] = '';
+                        $file_values['gamma'] = '';
+                        $file_values['Volume'] = '';
+
+                        $file_values['Crystal System'] = '';
+                        $file_values['Point Group'] = '';
+                        $file_values['Space Group'] = '';
+                        $file_values['Lattice'] = '';
+
+                        $file_values['Pressure'] = '';
+                        $file_values['Temperature'] = '';
+                    }
+                }
+                else if ( $relevant_rpf_name === 'Original CIF File' ) {
+                    // These fields should always get cleared when an AMC File is deleted
+                    $file_values['Original CIF File Contents'] = '';
+
+                    // These fields should get cleared when the other CIF file doesn't exist
+                    if ( !$minimal_cif_uploaded ) {
+                        $file_values['Chemistry'] = '';
+                        $file_values['Chemistry Elements'] = '';
+                        $file_values['Locality'] = '';
+                        $file_values['Crystal Density'] = '';
+                    }
+
+                    // The cell parameter values should only get cleared when no other file exists
+                    if ( !$amc_uploaded && !$minimal_cif_uploaded && !$dif_uploaded ) {
+                        $file_values['Mineral'] = '';
+
+                        $file_values['a'] = '';
+                        $file_values['b'] = '';
+                        $file_values['c'] = '';
+                        $file_values['alpha'] = '';
+                        $file_values['beta'] = '';
+                        $file_values['gamma'] = '';
+                        $file_values['Volume'] = '';
+
+                        $file_values['Crystal System'] = '';
+                        $file_values['Point Group'] = '';
+                        $file_values['Space Group'] = '';
+                        $file_values['Lattice'] = '';
+
+                        $file_values['Pressure'] = '';
+                        $file_values['Temperature'] = '';
+                    }
+                }
+                else if ( $relevant_rpf_name === 'DIF File' ) {
+                    // These fields should always get cleared when an AMC File is deleted
+                    $file_values['Diffraction Search Values'] = '';
+
+                    // The authors should only get cleared when the AMC file doesn't exist
+                    if ( !$amc_uploaded )
+                        $file_values['Authors'] = '';
+
+                    // The cell parameter values should only get cleared when no other file exists
+                    if ( !$amc_uploaded && !$minimal_cif_uploaded && !$original_cif_uploaded ) {
+                        $file_values['Mineral'] = '';
+
+                        $file_values['a'] = '';
+                        $file_values['b'] = '';
+                        $file_values['c'] = '';
+                        $file_values['alpha'] = '';
+                        $file_values['beta'] = '';
+                        $file_values['gamma'] = '';
+                        $file_values['Volume'] = '';
+
+                        $file_values['Crystal System'] = '';
+                        $file_values['Point Group'] = '';
+                        $file_values['Space Group'] = '';
+                        $file_values['Lattice'] = '';
+
+                        $file_values['Pressure'] = '';
+                        $file_values['Temperature'] = '';
+                    }
+                }
 
                 // ----------------------------------------
-                if ( $relevant_rpf_name === 'DIF File' ) {
-                    $this->xyzdata_helper_service->updateXYZData(
-                        $user,
-                        $datarecord,
-                        $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
-                        new \DateTime(),
-                        '',
-                        true    // ensure everything in the field is deleted
-                    );
-                    $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' (Diffraction Search Values) to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$event->getDatafield()->getId(), 'dr '.$datarecord->getId()));
-                }
-                else {
-                    // Each relevant field required by the render plugin needs to be cleared...
-                    foreach ($storage_entities as $df_id => $entity) {
-                        $rpf_name = array_search($df_id, $datafield_mapping);
+                // Only hydrate the fields that might be getting updated
+                $storage_entities = self::hydrateStorageEntities($rpf_mapping, $file_values, $user, $datarecord);
+                // <df_id> => <rpf_name> is more useful here
+                $df_mapping = array_flip($rpf_mapping);
+
+                foreach ($storage_entities as $df_id => $entity) {
+                    if ( $entity instanceof DataFields ) {
+                        // This is an XYZData entry...it doesn't have a singular storage entity
+                        $rpf_name = $df_mapping[$df_id];
+
+                        $this->xyzdata_helper_service->updateXYZData(
+                            $user,
+                            $datarecord,
+                            $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
+                            new \DateTime(),
+                            '',
+                            true    // ensure everything in the field is deleted
+                        );
+                        $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' (Diffraction Search Values) to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$event->getDatafield()->getId(), 'dr '.$datarecord->getId()));
+                    }
+                    else {
+                        /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
+                        $rpf_name = $df_mapping[$df_id];
 
                         // Never clear the database code field
                         if ( $rpf_name === 'database_code_amcsd' )
@@ -1310,11 +1448,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             false    // don't fire PostUpdate event...nothing depends on these fields
                         );
                         $this->logger->debug('-- updating datafield '.$df_id.' ('.$rpf_name.') to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
-                    }
 
-                    // Now that all the fields have their correct value, flush all changes
-                    $this->em->flush();
+                        // This method doesn't work on files, images, radio, tag, or xyzdata fields
+                    }
                 }
+
+                // Now that all the fields have their correct value, flush all changes
+                $this->em->flush();
 
                 // The HTML on the page has already been set up to do a complete/partial reload so
                 //  the changes to the rest of the fields get displayed properly
@@ -1393,17 +1533,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
                     // ----------------------------------------
-                    // Create as much of the mappings as possible, since they could be needed during
-                    //  error recovery...
-
-                    // Map the field definitions in the render plugin to datafields
-                    $datafield_mapping = self::getRenderPluginFieldsMapping($datatype);
+                    // Map the field definitions in the render plugin to datafield ids
+                    $rpf_mapping = self::getRenderPluginFieldsMapping($datatype);
 
                     // If this is a request off a DIF file field...
                     if ( $relevant_rpf_name === 'DIF File' ) {
                         // ...then want $datafield to refer to the XYZData datafield instead of the DIF
                         //  File field ASAP in case of an error
-                        $df_id = $datafield_mapping['Diffraction Search Values'];
+                        $df_id = $rpf_mapping['Diffraction Search Values'];
 
                         /** @var DataFields $xyz_df */
                         $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
@@ -1413,19 +1550,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $datafield = $xyz_df;
                     }
 
-                    // Need to hydrate the storage entities for each datafield so the values from the
-                    //  file can get saved into the database
-                    $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
+                    // Get the currently uploaded files and the values in these fields from the datarecord
+                    $current_values = self::getCurrentValues($datarecord);
 
-                    // Since ODR is supposed to handle autogenerating the AMCSD database code, it
-                    //  needs to also handle updating any existing code in the files...
-                    $database_code_df_id = $datafield_mapping['database_code_amcsd'];
-                    if ( isset($storage_entities[$database_code_df_id]) ) {
-                        $database_code_sv = $storage_entities[$database_code_df_id];
-                        $amcsd_database_code = $database_code_sv->getValue();
-                        // Don't want this specific entity in this array, otherwise self::saveOnError()
-                        //  can clear its value
-                        unset( $storage_entities[$database_code_df_id] );
+                    // Since ODR is supposed to handle autogenerating the AMCSD database code...
+                    $database_code_df_id = $rpf_mapping['database_code_amcsd'];
+                    if ( isset($current_values[$database_code_df_id]) ) {
+                        // ...it needs to also handle updating any existing code in the files
+                        $amcsd_database_code = $current_values[$database_code_df_id];
                     }
                     else {
                         // If it doesn't exist, throw an exception to ensure files don't get bad data
@@ -1437,74 +1569,59 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $change_made = false;
                     $local_filepath = $this->crypto_service->decryptFile($file->getId());
 
-                    $value_mapping = array();
+                    $file_values = array();
                     if ( $relevant_rpf_name === 'AMC File' ) {
                         // Ensure the AMC File has the correct AMCSD database code
                         $change_made = self::insertAMCSDCodeIntoAMCFile($local_filepath, $amcsd_database_code);
 
                         // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readAMCFile($local_filepath);
+                        $file_values = self::readAMCFile($local_filepath);
 
-//                        // Want to save the Mineral field value only when the field doesn't already have
-//                        //  a value
-//                        if ( isset($datafield_mapping['Mineral']) ) {
-//                            $mineral_df_id = $datafield_mapping['Mineral'];
-//                            if ( isset($storage_entities[$mineral_df_id]) )
-//                                unset( $value_mapping['Mineral'] );
-//                        }
+                        // The values from the AMC file should overwrite data from the Original CIF
+                        //  or DIF files, but not overwrite data from the Minimal CIF
+                        self::filterFileValues($file_values, $current_values, $rpf_mapping, $relevant_rpf_name);
                     }
                     else if ( $relevant_rpf_name === 'CIF File' ) {
                         // Ensure the (minimal) CIF File has the correct AMCSD database code
                         $change_made = self::insertAMCSDCodeIntoCIFFile($local_filepath, $amcsd_database_code);
 
                         // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readEitherCIFFile($local_filepath);
-                        if ( isset($value_mapping['contents']) ) {
+                        $file_values = self::readEitherCIFFile($local_filepath);
+                        if ( isset($file_values['contents']) ) {
                             // Due to the function reading either CIF file, the contents needs renamed
                             //  to the correct field
-                            $value_mapping['CIF File Contents'] = $value_mapping['contents'];
-                            unset( $value_mapping['contents'] );
+                            $file_values['CIF File Contents'] = $file_values['contents'];
+                            unset( $file_values['contents'] );
                         }
 
-                        // Want to always use the values from this file when possible...but this also
-                        //  means there needs to be a safety check so existing values aren't converted
-                        //  into blanks  TODO
+                        // The values from the Minimal CIF file should overwrite data from any other
+                        //  file...don't do anything here
                     }
                     else if ( $relevant_rpf_name === 'Original CIF File' ) {
                         // Do not want to insert the AMCSD database code into an original cif file
 
                         // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readEitherCIFFile($local_filepath);
-                        // Want to attempt to use values from the Original CIF, but ONLY IF there is no
-                        //  "minimal" CIF uploaded  TODO
-                        foreach ($value_mapping as $key => $value) {
-                            if ( $key !== 'contents' && $key !== 'Mineral' )
-                                unset($value_mapping[$key]);
-                        }
-                        if ( isset($value_mapping['contents']) ) {
+                        $file_values = self::readEitherCIFFile($local_filepath);
+                        if ( isset($file_values['contents']) ) {
                             // Due to the function reading either CIF file, the contents needs renamed
                             //  to the correct field
-                            $value_mapping['Original CIF File Contents'] = $value_mapping['contents'];
-                            unset( $value_mapping['contents'] );
+                            $file_values['Original CIF File Contents'] = $file_values['contents'];
+                            unset( $file_values['contents'] );
                         }
 
-                        // Want to attempt to use values from the Original CIF, but ONLY IF there is no
-                        //  "minimal" CIF uploaded  TODO
+                        // Most of the values from the Original CIF file should only get used when
+                        //  there is no other option
+                        self::filterFileValues($file_values, $current_values, $rpf_mapping, $relevant_rpf_name);
                     }
                     else if ( $relevant_rpf_name === 'DIF File' ) {
                         // Ensure the DIF File has the correct AMCSD database code
                         $change_made = self::insertAMCSDCodeIntoDIFFile($local_filepath, $amcsd_database_code);
 
                         // Extract as many pieces of data from the file as possible
-                        $value_mapping = self::readDIFFile($local_filepath);
-
-//                        // Want to save the Mineral field value only when the field doesn't already have
-//                        //  a value  TODO
-//                        if ( isset($datafield_mapping['Mineral']) ) {
-//                            $mineral_df_id = $datafield_mapping['Mineral'];
-//                            if ( isset($storage_entities[$mineral_df_id]) )
-//                                unset( $value_mapping['Mineral'] );
-//                        }
+                        $file_values = self::readDIFFile($local_filepath);
+                        // Most of the values from the DIF file should only get used when there is
+                        //  no other option
+                        self::filterFileValues($file_values, $current_values, $rpf_mapping, $relevant_rpf_name);
                     }
 
                     if ( $change_made ) {
@@ -1520,9 +1637,17 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
                     // ----------------------------------------
-                    if ( $relevant_rpf_name === 'DIF File' ) {
-                        // Should only be one piece of data...
-                        foreach ($value_mapping as $rpf_name => $value) {
+                    // Only hydrate the fields that might be getting updated
+                    $storage_entities = self::hydrateStorageEntities($rpf_mapping, $file_values, $user, $datarecord);
+                    // <df_id> => <rpf_name> is more useful here
+                    $df_mapping = array_flip($rpf_mapping);
+
+                    foreach ($storage_entities as $df_id => $entity) {
+                        if ( $entity instanceof DataFields ) {
+                            // This is an XYZData entry...it doesn't have a singular storage entity
+                            $rpf_name = $df_mapping[$df_id];
+                            $value = $file_values[$rpf_name];
+
                             $this->xyzdata_helper_service->updateXYZData(
                                 $user,
                                 $datarecord,
@@ -1533,19 +1658,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             );
                             $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
                         }
-                    }
-                    else {
-                        // Each piece of data from the file is referenced by its RenderPluginField name...
-                        foreach ($value_mapping as $rpf_name => $value) {
+                        else {
+                            /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
+                            $rpf_name = $df_mapping[$df_id];
+
                             // Never update the database code field
                             if ( $rpf_name === 'database_code_amcsd' )
                                 continue;
-
-                            // ...from which the actual datafield id can be located...
-                            $df_id = $datafield_mapping[$rpf_name];
-                            // ...which gives the hydrated storage entity...
-                            $entity = $storage_entities[$df_id];
-                            /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
+                            $value = $file_values[$rpf_name];
 
                             // ...which is saved in the storage entity for the datafield
                             $this->entity_modify_service->updateStorageEntity(
@@ -1557,13 +1677,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             );
                             $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
 
-                            // This only works because the datafields getting updated aren't files/images or
-                            //  radio/tag fields
+                            // This method doesn't work on files, images, radio, tag, or xyzdata fields
                         }
-
-                        // Now that all the fields have their correct value, flush all changes
-                        $this->em->flush();
                     }
+
+                    // Now that all the fields have their correct value, flush all changes
+                    $this->em->flush();
                 }
             }
         }
@@ -1636,9 +1755,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Uses the cached datatype array to create a mapping from the "name" property of the fields
-     * defined in the "required_fields" section of AMCSDPlugin.yml to the datafield id that is
-     * mapped to that specific renderpluginfield.
+     * Uses the cached datatype array to return an array("rpf_name" => <df_id>) mapping for this
+     * instance of the plugin.
      *
      * @param DataType $datatype
      *
@@ -1660,16 +1778,18 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
         }
 
-        $datafield_mapping = array();
+        $rpf_mapping = array();
         foreach ($renderPluginMap as $rpf_name => $rpf_df) {
             $rpf_df_id = $rpf_df['id'];
 
             // Only want a subset of the fields required by the AMCSD plugin in the final array
             switch ($rpf_name) {
+                case 'AMC File':
                 case 'AMC File Contents':
                 case 'AMC File Contents (short)':
                 case 'Authors':
 
+                case 'CIF File':
                 case 'CIF File Contents':
                 case 'database_code_amcsd':
                 case 'Mineral':
@@ -1691,143 +1811,223 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'Locality':
                 case 'Crystal Density':
 
+                case 'Original CIF File':
                 case 'Original CIF File Contents':
 
+                case 'DIF File':
                 case 'Diffraction Search Values':
-                    $datafield_mapping[$rpf_name] = $rpf_df_id;
+                    $rpf_mapping[$rpf_name] = $rpf_df_id;
                     break;
 
                 // Don't want any of these fields, or any other field, in the final array
-//                case 'AMC File':
-//                case 'CIF File':
-//                case 'Original Cif File':
-//                case 'DIF File':
                 default:
                     break;
             }
         }
 
-        return $datafield_mapping;
+        return $rpf_mapping;
     }
 
 
     /**
-     * Using the mapping generated by {@link self::getRenderPluginFieldsMapping()}, ensures that a storage
-     * entity exists for each mapped datafield.
+     * Uses the cached datarecord array to return an array of the current values stored in this record.
      *
-     * @param array $datafield_mapping
+     * @param DataRecord $datarecord
+     *
+     * @return array
+     */
+    private function getCurrentValues($datarecord)
+    {
+        // Going to use the cached datarecord array for this
+        $datarecord_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);    // don't want linked datatypes
+        $dr = $datarecord_array[$datarecord->getId()];
+
+        $current_values = array();
+        foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+            $typeclass = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
+            switch ($typeclass) {
+                case 'File':
+                    // Want to store whether there's a file uploaded to this field or not
+                    $current_values[$df_id] = false;
+                    if ( isset($drf['file'][0]['id']) )
+                        $current_values[$df_id] = true;
+                    break;
+
+                case 'IntegerValue':
+                case 'DecimalValue':
+                case 'ShortVarchar':
+                case 'MediumVarchar':
+                case 'LongVarchar':
+                case 'LongText':
+                    // Only want to store values from these typeclasses
+                    $typeclass = lcfirst($typeclass);
+                    if ( isset($drf[$typeclass][0]['value']) )
+                        $current_values[$df_id] = $drf[$typeclass][0]['value'];
+                    break;
+            }
+        }
+
+        return $current_values;
+    }
+
+
+    /**
+     * Most of the values relevant to AMCSD can be found in multiple files, necessitating a
+     * hierarchy of sorts to determine whether values from a file get saved or not
+     *
+     * @param array &$file_values {@link self::readAMCFile()} {@link self::readEitherCIFFile()} {@link self::readDIFFile()}
+     * @param array $current_values {@link self::getCurrentValues()}
+     * @param array $rpf_mapping {@link self::getRenderPluginFieldsMapping()}
+     * @param string $relevant_rpf_name
+     */
+    private function filterFileValues(&$file_values, $current_values, $rpf_mapping, $relevant_rpf_name)
+    {
+        // Values read from the Minimal CIF file should always take precedence
+        if ( $relevant_rpf_name === 'CIF File' )
+            return;
+
+        // Which values get saved from the other files depends on which files are already uploaded
+        $amc_uploaded = $minimal_cif_uploaded = $original_cif_uploaded = $dif_uploaded = false;
+        if ( isset($rpf_mapping['AMC File']) ) {
+            $amc_file_df_id = $rpf_mapping['AMC File'];
+            if ( isset($current_values[$amc_file_df_id]) )
+                $amc_uploaded = true;
+        }
+        if ( isset($rpf_mapping['CIF File']) ) {
+            $cif_file_df_id = $rpf_mapping['CIF File'];
+            if ( isset($current_values[$cif_file_df_id]) )
+                $minimal_cif_uploaded = true;
+        }
+        if ( isset($rpf_mapping['Original CIF File']) ) {
+            $original_cif_file_df_id = $rpf_mapping['Original CIF File'];
+            if ( isset($current_values[$original_cif_file_df_id]) )
+                $original_cif_uploaded = true;
+        }
+        if ( isset($rpf_mapping['DIF File']) ) {
+            $dif_file_df_id = $rpf_mapping['DIF File'];
+            if ( isset($current_values[$dif_file_df_id]) )
+                $dif_uploaded = true;
+        }
+
+        if ( $relevant_rpf_name === 'AMC File' ) {
+            if ( !$minimal_cif_uploaded ) {
+                // If the Minimal CIF isn't uploaded, then don't filter anything so the values from
+                //  the AMC File replace anything that was read from the Original CIF and DIF files
+            }
+            else {
+                // If the Minimal CIF is uploaded...
+                foreach ($file_values as $rpf_name => $df_value) {
+                    // ...the AMC File is always authoritative for these fields
+                    if ( $rpf_name === 'AMC File Contents' || $rpf_name === 'AMC File Contents (short)'
+                        || $rpf_name === 'Authors'
+                    ) {
+                        continue;
+                    }
+
+                    // The remainder of the values that could be in the AMC File should only be saved
+                    //  when they're not already listed in the Minimal CIF
+                    $df_id = $rpf_mapping[$rpf_name];
+                    if ( isset($current_values[$df_id]) )
+                        unset( $file_values[$rpf_name] );
+                }
+            }
+        }
+        else if ( $relevant_rpf_name === 'DIF File' ) {
+            if ( $minimal_cif_uploaded || $amc_uploaded ) {
+                // If either of these files are uploaded...
+                foreach ($file_values as $rpf_name => $df_value) {
+                    // ...the DIF File remains authoritative for this field...
+                    if ( $rpf_name === 'Diffraction Search Values' )
+                        continue;
+
+                    // ...but the remainder of the values defer to whatever was read from the
+                    //  Minimal CIF and/or AMC files
+                    $df_id = $rpf_mapping[$rpf_name];
+                    if ( isset($current_values[$df_id]) )
+                        unset( $file_values[$rpf_name] );
+                }
+            }
+            else if ( $original_cif_uploaded) {
+                // If the Original CIF file is uploaded...
+                foreach ($file_values as $rpf_name => $df_value) {
+                    // ...the DIF File remains authoritative for the Mineral and Author fields...
+                    if ( $rpf_name === 'Mineral' || $rpf_name === 'Authors' )
+                        continue;
+
+                    // ...but the remainder of the values defer to whatever was read from the
+                    //  Original CIF file
+                    $df_id = $rpf_mapping[$rpf_name];
+                    if ( isset($current_values[$df_id]) )
+                        unset( $file_values[$rpf_name] );
+                }
+            }
+            else {
+                // If none of the other files are uploaded, then use the values from the DIF file
+                // The cell parameters will probably look slightly odd, but they'll still work
+            }
+        }
+        else if ( $relevant_rpf_name === 'Original CIF File' ) {
+            if ( $minimal_cif_uploaded || $amc_uploaded ) {
+                // If either of these files are uploaded...
+                foreach ($file_values as $rpf_name => $df_value) {
+                    // ...the Original CIF File remains authoritative for this field...
+                    if ( $rpf_name === 'Original CIF File Contents' )
+                        continue;
+
+                    // ...but the remainder of the values defer to whatever was read from the
+                    //   Minimal CIF and/or AMC files
+                    $df_id = $rpf_mapping[$rpf_name];
+                    if ( isset($current_values[$df_id]) )
+                        unset( $file_values[$rpf_name] );
+                }
+            }
+            else if ( $dif_uploaded ) {
+                // If the DIF file is uploaded...
+                foreach ($file_values as $rpf_name => $df_value) {
+                    // ...the Original CIF File is not authoritative for the Mineral and Author fields...
+                    if ( $rpf_name === 'Mineral' || $rpf_name === 'Authors' )
+                        unset( $file_values[$rpf_name] );
+
+                    // ...but is for the remainder of the values
+                }
+            }
+            else {
+                // If none of the other files are uploaded, then use the values from the Original
+                //  CIF file...the cell parameters are going to be accurate, but the rest of the
+                //  data is going to be at least slightly questionable
+            }
+        }
+    }
+
+
+    /**
+     * Hydrates the datafields listed in $file_values, ensuring there's a storage entity for each
+     * of them.
+     *
+     * @param array $rpf_mapping
+     * @param array $file_values
      * @param ODRUser $user
      * @param DataRecord $datarecord
-     * @param string $relevant_rpf_name
      *
      * @throws \Exception
      *
      * @return array
      */
-    private function hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name)
+    private function hydrateStorageEntities($rpf_mapping, $file_values, $user, $datarecord)
     {
-        // Need to hydrate various datafields, depending on which File field just got something uploaded...
+        // No point attempting to hydrate if no fields can get changed
+        if ( empty($file_values) )
+            return array();
+
+        // Only hydrate the listed datafields
         $df_ids = array();
-        foreach ($datafield_mapping as $rpf_name => $df_id) {
-            if ( $relevant_rpf_name === 'AMC File' ) {
-                switch ($rpf_name) {
-                    case 'database_code_amcsd':
-                        // Not going to actually change this field, but want it in case it needs to
-                        //  be added to an AMC file
+        foreach ($file_values as $rpf_name => $value) {
+            if ( !isset($rpf_mapping[$rpf_name]) )
+                throw new ODRException('hydrateStorageEntities(): $rpf_mapping missing expected field "'.$rpf_name.'"');
 
-                    case 'Mineral':
-                        // Only going to change this field if the record doesn't have a value for
-                        //  it already  TODO
-
-                    case 'AMC File Contents':
-                    case 'AMC File Contents (short)':
-                    case 'Authors':
-                        // When called on "AMC File", all of these fields should be hydrated
-                        break;
-
-                    default:
-                        // ...any other field should not
-                        unset( $datafield_mapping[$rpf_name] );
-                        break;
-                }
-            }
-            else if ( $relevant_rpf_name === 'CIF File' ) {
-                switch ($rpf_name) {
-                    case 'database_code_amcsd':
-                        // Not going to actually change this field, but want it in case it needs to
-                        //  be added to a CIF file
-
-                    case 'CIF File Contents':
-                    case 'Mineral':
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'alpha':
-                    case 'beta':
-                    case 'gamma':
-                    case 'Volume':
-                    case 'Crystal System':
-                    case 'Point Group':
-                    case 'Space Group':
-                    case 'Lattice':
-                    case 'Pressure':
-                    case 'Temperature':
-                    case 'Chemistry':
-                    case 'Chemistry Elements':
-                    case 'Locality':
-                    case 'Crystal Density':
-                        // When called on "CIF File", all of these fields should be hydrated
-                        break;
-
-                    default:
-                        // ...any other field should not
-                        unset( $datafield_mapping[$rpf_name] );
-                        break;
-                }
-            }
-            else if ( $relevant_rpf_name === 'Original CIF File' ) {
-                switch ($rpf_name) {
-                    case 'database_code_amcsd':
-                        // Not going to actually change this field, but want it in case it needs to
-                        //  be added to a CIF file
-
-                    case 'Mineral':
-                        // Only going to change this field if the record doesn't have a value for
-                        //  it already  TODO
-
-                    case 'Original CIF File Contents':
-                        // When called on "Original CIF File", all of these fields should be hydrated
-                        break;
-
-                    default:
-                        // ...any other field should not
-                        unset( $datafield_mapping[$rpf_name] );
-                        break;
-                }
-            }
-            else if ( $relevant_rpf_name === 'DIF File' ) {
-                switch ($rpf_name) {
-                    case 'database_code_amcsd':
-                        // Not going to actually change this field, but want it in case it needs to
-                        //  be added to a DIF file
-
-//                    case 'Mineral':
-                        // Only going to change this field if the record doesn't have a value for
-                        //  it already  TODO
-
-                    case 'Diffraction Search Values':
-                        // When called on "DIF File", all of these fields should be hydrated
-                        break;
-
-                    default:
-                        // ...any other field should not
-                        unset( $datafield_mapping[$rpf_name] );
-                        break;
-                }
-            }
+            $df_ids[] = $rpf_mapping[$rpf_name];
         }
 
-        $df_ids = array_values($datafield_mapping);
         $query = $this->em->createQuery(
            'SELECT df
             FROM ODRAdminBundle:Datafields AS df
@@ -1846,9 +2046,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Need to sure that a storage entity exists for each of these datafields...it's highly
         //  likely they don't, and $entity_modify_service->updateStorageEntity() requires one
         $storage_entities = array();
-        foreach ($datafield_mapping as $rpf_name => $df_id) {
+        foreach ($file_values as $rpf_name => $value) {
+            $df_id = $rpf_mapping[$rpf_name];
+
             if ( $rpf_name === 'Diffraction Search Values' ) {
                 // Do NOT attempt to run $entity_create_service->createXYZValue()
+                $storage_entities[$df_id] = $hydrated_datafields[$df_id];
             }
             else {
                 $df = $hydrated_datafields[$df_id];
@@ -2203,7 +2406,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function readAMCFile($local_filepath)
     {
-        $value_mapping = array();
+        $file_values = array();
         $all_lines = array();
 
         // ----------------------------------------
@@ -2222,14 +2425,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $line_num++;
             $line = fgets($handle);
 
-            // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
             if ($line_num == 1) {
+                // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
                 if ( ValidUtility::isValidMediumVarchar($line) )
-                    $value_mapping['Mineral'] = $line;
+                    $file_values['Mineral'] = $line;
             }
-            // Second line is the authors...the field has no length limit
             elseif ($line_num == 2) {
-                $value_mapping['Authors'] = $line;
+                // Authors can be broken up into multiple lines, unfortunately...second line of the
+                //  AMC File is guaranteed to be authors...
+                $file_values['Authors'] = $line;
+            }
+            else if ($line_num == 3) {
+                // ...but the third line could be either Authors or Reference...since the reference
+                //  (always?) has a parenthesis in it due to (always?) having a Year, a line without
+                //  a parenthesis is a continuation of the Authors data
+                if ( strpos($line, '(') === false ) {
+                    // Get rid of the newlines in the earlier line before appending this line to it
+                    $second_line = trim($file_values['Authors']);
+                    $file_values['Authors'] = $second_line.' '.$line;
+
+                    // Ensure no duplicate spaces
+                    $file_values['Authors'] = str_replace('  ', ' ', $file_values['Authors']);
+                }
             }
 
             // Next there's usually two (sometimes three) lines of stuff the plugin doesn't care about
@@ -2241,11 +2458,85 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Need to have 2 values in this line
                 if ( count($pieces) === 2 ) {
                     // ...not actually going to save this line to ODR
-//                    $value_mapping['database_code_amcsd'] = $pieces[1];
+//                    $file_values['database_code_amcsd'] = $pieces[1];
                     // ...only interested in it because it gets used to determine the contents for
                     //  the 'AMC File Contents' and 'AMC File Contents (short)' fields
                     $database_code_line = $line_num;
                 }
+            }
+            // The line after that contains the a/b/c/alpha/beta/gamma/space group values
+            elseif ( ($database_code_line+1) === $line_num ) {
+                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
+                // The replacement could end up stripping the newline from the end, which is bad
+                if ( strpos($line, "\n") === false )
+                    $line .= "\n";
+                $pieces = explode(' ', $line);
+
+                // Need to have 7 values in this line
+                if (count($pieces) === 7) {
+                    // The first six need to be valid decimal values
+                    if (ValidUtility::isValidShortVarchar($pieces[0]))
+                        $file_values['a'] = $pieces[0];
+                    if (ValidUtility::isValidShortVarchar($pieces[1]))
+                        $file_values['b'] = $pieces[1];
+                    if (ValidUtility::isValidShortVarchar($pieces[2]))
+                        $file_values['c'] = $pieces[2];
+                    if (ValidUtility::isValidShortVarchar($pieces[3]))
+                        $file_values['alpha'] = $pieces[3];
+                    if (ValidUtility::isValidShortVarchar($pieces[4]))
+                        $file_values['beta'] = $pieces[4];
+                    if (ValidUtility::isValidShortVarchar($pieces[5]))
+                        $file_values['gamma'] = $pieces[5];
+
+                    // Space Group are usually 5-12ish characters long, so they fit inside a ShortVarchar
+                    if (ValidUtility::isValidShortVarchar($pieces[6])) {
+                        $sg = trim($pieces[6]);
+
+                        // For historical reasons, AMC files might have a '*' before the space group
+                        //  ...this apparently meant that the calculated x/y/z coords of the atoms
+                        //  in the file were shifted, compared to would be "expected" based on the
+                        //  space group.  This '*' character shouldn't be saved if it exists
+                        if (strpos($sg, '*') === 0)
+                            $sg = substr($sg, 1);
+
+                        // Certain AMC files also apparently have a ':1' or whatever after the Space
+                        //  Group, which also provides extra information to other programs...
+                        if (strpos($sg, ':') !== false)
+                            $sg = substr($sg, 0, strpos($sg, ':'));
+
+                        // The Lattice, Point Group, and Crystal System are then derived from the Space Group
+                        $lattice = substr($sg, 0, 1);
+                        $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
+                        $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
+
+                        $file_values['Crystal System'] = $cs;
+                        $file_values['Point Group'] = $pg;
+                        $file_values['Space Group'] = $sg;
+                        $file_values['Lattice'] = $lattice;
+                    }
+                }
+            }
+            else if ( $line_num > 2 && $database_code_line === -999 ) {
+                // The pressure/temperature are usually before "_database_code_amcsd" (I think)
+                // ...but aren't on a guaranteed line
+
+                // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
+                //  ...but can also have a tolerance
+                $matches = array();
+                if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $line, $matches) === 1 )
+                    $file_values['Pressure'] = $matches[1].' '.$matches[2];
+
+                // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
+                $matches = array();
+                if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $line, $matches) === 1)
+                    $file_values['Temperature'] = $matches[1].' '.$matches[2];
+                // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
+                $matches = array();
+                if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $line, $matches) === 1 )
+                    $file_values['Temperature'] = $matches[1].' '.$matches[2];
+
+
+                // TODO - I forget whether these values have to be normalized to GPa and K...
             }
 
             // Save every line from the file, as well
@@ -2253,7 +2544,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
 
         // Want all file contents in a single field
-        $value_mapping['AMC File Contents'] = implode("", $all_lines);
+        $file_values['AMC File Contents'] = implode("", $all_lines);
 
         // Also want a shorter version of this file's contents without the atom positions...
         $short_lines = array();
@@ -2267,15 +2558,15 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         for ($i = 0; $i < $short_ending_line; $i++)
             $short_lines[] = $all_lines[$i];
-        $value_mapping['AMC File Contents (short)'] = implode("", $short_lines);
+        $file_values['AMC File Contents (short)'] = implode("", $short_lines);
 
         // Ensure all values are trimmed before they're saved
-        foreach ($value_mapping as $rpf_name => $value)
-            $value_mapping[$rpf_name] = trim($value);
+        foreach ($file_values as $rpf_name => $value)
+            $file_values[$rpf_name] = trim($value);
 
         // All data gathered, close the file and return the mapping array
         fclose($handle);
-        return $value_mapping;
+        return $file_values;
     }
 
 
@@ -2291,7 +2582,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function readEitherCIFFile($local_filepath)
     {
-        $value_mapping = array();
+        $file_values = array();
 
         // Due to the complexity of CIF files, and because other parts of ODR might feel
         //  like reading them...use a static function from elsewhere
@@ -2320,26 +2611,26 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // mineral/compound name
         if ( isset($cif_data['_chemical_name_mineral']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_mineral']) )
-                $value_mapping['Mineral'] = $cif_data['_chemical_name_mineral'];
+                $file_values['Mineral'] = $cif_data['_chemical_name_mineral'];
         }
-        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_chemical_name_common']) ) {
+        if ( !isset($file_values['Mineral']) && isset($cif_data['_chemical_name_common']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_common']) )
-                $value_mapping['Mineral'] = $cif_data['_chemical_name_common'];
+                $file_values['Mineral'] = $cif_data['_chemical_name_common'];
         }
-        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_chemical_name_systematic']) ) {
+        if ( !isset($file_values['Mineral']) && isset($cif_data['_chemical_name_systematic']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['_chemical_name_systematic']) )
-                $value_mapping['Mineral'] = $cif_data['_chemical_name_systematic'];
+                $file_values['Mineral'] = $cif_data['_chemical_name_systematic'];
         }
-        if ( !isset($value_mapping['Mineral']) && isset($cif_data['_amcsd_formula_title']) ) {
+        if ( !isset($file_values['Mineral']) && isset($cif_data['_amcsd_formula_title']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['_amcsd_formula_title']) )
-                $value_mapping['Mineral'] = $cif_data['_amcsd_formula_title'];
+                $file_values['Mineral'] = $cif_data['_amcsd_formula_title'];
         }
         // If the above don't work, fall back to the generic data thingy...
-        if ( !isset($value_mapping['Mineral']) ) {
+        if ( !isset($file_values['Mineral']) ) {
             if ( ValidUtility::isValidMediumVarchar($cif_data['data']) )
-                $value_mapping['Mineral'] = $cif_data['data'];
+                $file_values['Mineral'] = $cif_data['data'];
             else
-                $value_mapping['Mineral'] = substr($cif_data['data'], 0, 64);
+                $file_values['Mineral'] = substr($cif_data['data'], 0, 64);
         }
 
         // ----------------------------------------
@@ -2353,7 +2644,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $formula = str_replace(array("\r", "\n"), ' ', $formula);
             $formula = str_replace('  ', ' ', $formula);
             if ( ValidUtility::isValidLongVarchar($formula) ) {
-                $value_mapping['Chemistry'] = str_replace('  ', ' ', $formula);
+                $file_values['Chemistry'] = str_replace('  ', ' ', $formula);
 
                 // The value for the "Chemistry Elements" field is derived from this field, using
                 //  pretty much the same process as the IMA List
@@ -2367,7 +2658,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $chemistry_elements[$elem] = 1;
                 $chemistry_elements = array_keys($chemistry_elements);
 
-                $value_mapping['Chemistry Elements'] = implode(" ", $chemistry_elements);
+                $file_values['Chemistry Elements'] = implode(" ", $chemistry_elements);
             }
         }
 
@@ -2386,7 +2677,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $locality = str_replace('  ', ' ', $locality);
 
             if ( ValidUtility::isValidLongVarchar($cif_data['_chemical_compound_source']) )
-                $value_mapping['Locality'] = $locality;
+                $file_values['Locality'] = $locality;
         }
 
         // ----------------------------------------
@@ -2409,49 +2700,49 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         foreach ($tmp as $key => $val) {
             if ( ValidUtility::isValidShortVarchar($val) )
-                $value_mapping[$key] = $val;
+                $file_values[$key] = $val;
         }
 
         // ----------------------------------------
         // Density values...optional
         if ( isset($cif_data['_exptl_crystal_density_diffrn']) ) {
             if ( ValidUtility::isValidDecimal($cif_data['_exptl_crystal_density_diffrn']) )
-                $value_mapping['Crystal Density'] = $cif_data['_exptl_crystal_density_diffrn'];
+                $file_values['Crystal Density'] = $cif_data['_exptl_crystal_density_diffrn'];
         }
 
         // ----------------------------------------
         // Pressure and Temperature are optional, but ideally come from these entries...
         if ( isset($cif_data['_cell_measurement_temperature']) )
-            $value_mapping['Temperature'] = $cif_data['_cell_measurement_temperature'].' K';
-        if ( !isset($value_mapping['Temperature']) && isset($cif_data['_diffrn_ambient_temperature']) )
-            $value_mapping['Temperature'] = $cif_data['_diffrn_ambient_temperature'].' K';
+            $file_values['Temperature'] = $cif_data['_cell_measurement_temperature'].' K';
+        if ( !isset($file_values['Temperature']) && isset($cif_data['_diffrn_ambient_temperature']) )
+            $file_values['Temperature'] = $cif_data['_diffrn_ambient_temperature'].' K';
 
         if ( isset($cif_data['_cell_measurement_pressure']) )
-            $value_mapping['Pressure'] = $cif_data['_cell_measurement_pressure'].' KPa';
-        if ( !isset($value_mapping['Pressure']) && isset($cif_data['_diffrn_ambient_pressure']) )
-            $value_mapping['Pressure'] = $cif_data['_diffrn_ambient_pressure'].' KPa';
+            $file_values['Pressure'] = $cif_data['_cell_measurement_pressure'].' KPa';
+        if ( !isset($file_values['Pressure']) && isset($cif_data['_diffrn_ambient_pressure']) )
+            $file_values['Pressure'] = $cif_data['_diffrn_ambient_pressure'].' KPa';
 
         // ...but Bob's CIF files have Temperature/Pressure in the article title
-        if ( !isset($value_mapping['Temperature']) && isset($cif_data['_publ_section_title']) ) {
+        if ( !isset($file_values['Temperature']) && isset($cif_data['_publ_section_title']) ) {
             $title_line = $cif_data['_publ_section_title'];
 
             // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
             $matches = array();
             if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $title_line, $matches) === 1 )
-                $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
+                $file_values['Temperature'] = $matches[1].' '.$matches[2];
             // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
             $matches = array();
             if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $title_line, $matches) === 1 )
-                $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
+                $file_values['Temperature'] = $matches[1].' '.$matches[2];
         }
-        if ( !isset($value_mapping['Pressure']) && isset($cif_data['_publ_section_title']) ) {
+        if ( !isset($file_values['Pressure']) && isset($cif_data['_publ_section_title']) ) {
             $title_line = $cif_data['_publ_section_title'];
 
             // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
             //  ...but can also have a tolerance
             $matches = array();
             if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $title_line, $matches) === 1 )
-                $value_mapping['Pressure'] = $matches[1].' '.$matches[2];
+                $file_values['Pressure'] = $matches[1].' '.$matches[2];
         }
 
         // ----------------------------------------
@@ -2478,10 +2769,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
             $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
 
-            $value_mapping['Crystal System'] = $cs;
-            $value_mapping['Point Group'] = $pg;
-            $value_mapping['Space Group'] = $sg;
-            $value_mapping['Lattice'] = $lattice;
+            $file_values['Crystal System'] = $cs;
+            $file_values['Point Group'] = $pg;
+            $file_values['Space Group'] = $sg;
+            $file_values['Lattice'] = $lattice;
         }
 
         // IUCr also defines a "_space_group_IT_number", but that needs extra work to determine
@@ -2561,14 +2852,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $cif_contents .= $data['text'];
 
         // Ensure the values are trimmed before they're saved
-        foreach ($value_mapping as $rpf_name => $value)
-            $value_mapping[$rpf_name] = trim($value);
+        foreach ($file_values as $rpf_name => $value)
+            $file_values[$rpf_name] = trim($value);
 
         // Don't want to trim the CIF contents
-        $value_mapping['contents'] = $cif_contents;
+        $file_values['contents'] = $cif_contents;
 
         // All data gathered, return the mapping array
-        return $value_mapping;
+        return $file_values;
     }
 
 
@@ -2582,11 +2873,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function readDIFFile($local_filepath)
     {
+        // ----------------------------------------
         // The relevant section of the DIF file has seven columns...2-THETA, INTENSITY, D-SPACING,
         //  H, K, L, and Multiplicity...this regex extracts the first three columns, and discards
         //  the remainder
         $pattern = '/(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:[^\n]+)/';
-        $all_values = array();
+        $diffraction_values = array();
+
+        // Also want to get the rest of the values from this file when possible, even if they're
+        //  not likely to be used
+        $file_values = array();
 
         // ----------------------------------------
         // Open the file
@@ -2598,18 +2894,118 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         fseek($handle, 0, SEEK_SET);
 
         // ----------------------------------------
+        $database_code_line = -999;
         $header_line = -999;
         $line_num = 0;
         while ( !feof($handle) ) {
             $line = fgets($handle);
             $line_num++;
 
-//            // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
-//            if ($line_num == 1) {
-//                $line = trim($line);
-//                if ( ValidUtility::isValidMediumVarchar($line) )
-//                    $value_mapping['Mineral'] = $line;
-//            }
+            if ($line_num == 1) {
+                // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
+                $mineral = trim($line);
+                if ( ValidUtility::isValidMediumVarchar($mineral) )
+                    $file_values['Mineral'] = $mineral;
+            }
+            elseif ($line_num == 2) {
+                // Authors can be broken up into multiple lines, unfortunately...second line of the
+                //  DIF File is guaranteed to be authors...
+                $authors = trim($line);
+                $file_values['Authors'] = $authors;
+            }
+            else if ($line_num == 3) {
+                // ...but the third line could be either Authors or Reference...since the reference
+                //  (always?) has a parenthesis in it due to (always?) having a Year, a line without
+                //  a parenthesis is a continuation of the Authors data
+                if ( strpos($line, '(') === false ) {
+                    // Get rid of the newlines in the earlier line before appending this line to it
+                    $second_line = trim($file_values['Authors']);
+                    $file_values['Authors'] = $second_line.' '.$line;
+
+                    // Ensure no duplicate spaces
+                    $file_values['Authors'] = preg_replace('/\s+/', ' ', $file_values['Authors']);
+                }
+            }
+            elseif ( strpos($line, '_database_code_amcsd') !== false ) {
+                $pieces = explode(' ', $line);
+
+                // Need to have 2 values in this line
+                if ( count($pieces) === 2 ) {
+                    // ...not actually going to save this line to ODR
+//                    $file_values['database_code_amcsd'] = $pieces[1];
+                    // ...only interested in it because it gets used to determine the contents for
+                    //  the 'AMC File Contents' and 'AMC File Contents (short)' fields
+                    $database_code_line = $line_num;
+                }
+            }
+            elseif ( strpos($line, 'CELL PARAMETERS:') !== false ) {
+                $matches = array();
+                if ( preg_match('/\s+CELL PARAMETERS:\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)/', $line, $matches) === 1 ) {
+                    if (ValidUtility::isValidShortVarchar($matches[1]))
+                        $file_values['a'] = $matches[1];
+                    if (ValidUtility::isValidShortVarchar($matches[2]))
+                        $file_values['b'] = $matches[2];
+                    if (ValidUtility::isValidShortVarchar($matches[3]))
+                        $file_values['c'] = $matches[3];
+                    if (ValidUtility::isValidShortVarchar($matches[4]))
+                        $file_values['alpha'] = $matches[4];
+                    if (ValidUtility::isValidShortVarchar($matches[5]))
+                        $file_values['beta'] = $matches[5];
+                    if (ValidUtility::isValidShortVarchar($matches[6]))
+                        $file_values['gamma'] = $matches[6];
+                }
+            }
+            elseif ( strpos($line, 'SPACE GROUP:') !== false ) {
+                // Space Group are usually 5-12ish characters long, so they fit inside a ShortVarchar
+                $matches = array();
+                if ( preg_match('/\s+SPACE GROUP:\s+([^\s]+)/', $line, $matches) === 1 ) {
+                    $sg = trim($matches[1]);
+
+                    // For historical reasons, AMC files might have a '*' before the space group
+                    //  ...this apparently meant that the calculated x/y/z coords of the atoms
+                    //  in the file were shifted, compared to would be "expected" based on the
+                    //  space group.  This '*' character shouldn't be saved if it exists
+                    if (strpos($sg, '*') === 0)
+                        $sg = substr($sg, 1);
+
+                    // Certain AMC files also apparently have a ':1' or whatever after the Space
+                    //  Group, which also provides extra information to other programs...
+                    if (strpos($sg, ':') !== false)
+                        $sg = substr($sg, 0, strpos($sg, ':'));
+
+                    // The Lattice, Point Group, and Crystal System are then derived from the Space Group
+                    $lattice = substr($sg, 0, 1);
+                    $pg = CrystallographyDef::derivePointGroupFromSpaceGroup($sg);
+                    $cs = CrystallographyDef::deriveCrystalSystemFromPointGroup($pg);
+
+                    $file_values['Crystal System'] = $cs;
+                    $file_values['Point Group'] = $pg;
+                    $file_values['Space Group'] = $sg;
+                    $file_values['Lattice'] = $lattice;
+                }
+            }
+            else if ( $line_num > 2 && $database_code_line === -999 ) {
+                // The pressure/temperature are usually before "_database_code_amcsd" (I think)
+                // ...but aren't on a guaranteed line
+
+                // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
+                //  ...but can also have a tolerance
+                $matches = array();
+                if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $line, $matches) === 1 )
+                    $file_values['Pressure'] = $matches[1].' '.$matches[2];
+
+                // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
+                $matches = array();
+                if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $line, $matches) === 1)
+                    $file_values['Temperature'] = $matches[1].' '.$matches[2];
+                // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
+                $matches = array();
+                if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $line, $matches) === 1 )
+                    $file_values['Temperature'] = $matches[1].' '.$matches[2];
+
+
+                // TODO - I forget whether these values have to be normalized to GPa and K...
+            }
 
             if ( strpos($line, 'INTENSITY') !== false && strpos($line, 'D-SPACING') !== false ) {
                 // This line needs to have at least two pieces in it
@@ -2628,17 +3024,17 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $d_spacing = $matches[3];
 
                     if ( floatval($intensity) >= 4.0)
-                        $all_values[] = '('.$d_spacing.','.$intensity.','.$two_theta.')';
+                        $diffraction_values[] = '('.$d_spacing.','.$intensity.','.$two_theta.')';
                 }
             }
         }
 
         // Want all file contents in a single field
-        $value_mapping['Diffraction Search Values'] = implode("|", $all_values);
+        $file_values['Diffraction Search Values'] = implode("|", $diffraction_values);
 
         // All data gathered, close the file and return the mapping array
         fclose($handle);
-        return $value_mapping;
+        return $file_values;
     }
 
 
@@ -2709,9 +3105,15 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     {
         // Because multiple datafields got updated, multiple cache entries need to be wiped
         foreach ($storage_entities as $df_id => $entity) {
+            $df = null;
+            if ( $entity instanceof DataFields )
+                $df = $entity;
+            else
+                $df = $entity->getDataField();
+
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                $event = new DatafieldModifiedEvent($entity->getDataField(), $user);
+                $event = new DatafieldModifiedEvent($df, $user);
                 $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
             catch (\Exception $e) {
