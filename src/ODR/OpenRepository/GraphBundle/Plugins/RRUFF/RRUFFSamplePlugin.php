@@ -265,32 +265,66 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         $datarecord = $event->getDatarecord();
         $datatype = $datarecord->getDataType();
 
-        // Need to locate the "mineral_id" field for this render plugin...
+        // Need to locate the "sample_id" and "rruff_id" fields for this render plugin...
         $query = $this->em->createQuery(
-           'SELECT df
+           'SELECT rpf.fieldName, df
             FROM ODRAdminBundle:RenderPlugin rp
             JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
             JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
             JOIN ODRAdminBundle:DataFields df WITH rpm.dataField = df
             JOIN ODRAdminBundle:RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
             WHERE rp.pluginClassName = :plugin_classname AND rpi.dataType = :datatype
-            AND rpf.fieldName = :field_name
+            AND rpf.fieldName IN (:field_names)
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
             AND df.deletedAt IS NULL'
         )->setParameters(
             array(
                 'plugin_classname' => 'odr_plugins.rruff.rruff_sample',
                 'datatype' => $datatype->getId(),
-                'field_name' => 'Sample ID'
+                'field_names' => array('Sample ID', 'RRUFF ID'),
             )
         );
         $results = $query->getResult();
-        if ( count($results) !== 1 )
-            throw new ODRException('Unable to find the "Sample ID" field for the RenderPlugin "RRUFF Sample", attached to Datatype '.$datatype->getId());
 
-        // Will only be one result, at this point
-        $datafield = $results[0];
-        /** @var DataFields $datafield */
+        $fields = array();
+        foreach ($results as $result) {
+            $df = $result[0];
+            $rpf_name = $result['fieldName'];
+
+            $fields[$rpf_name] = $df;
+        }
+        if ( !isset($fields['Sample ID']) )
+            throw new ODRException('Unable to find the "Sample ID" field for the RenderPlugin "RRUFF Sample", attached to Datatype '.$datatype->getId());
+        if ( !isset($fields['RRUFF ID']) )
+            throw new ODRException('Unable to find the "RRUFF ID" field for the RenderPlugin "RRUFF Sample", attached to Datatype '.$datatype->getId());
+        /** @var DataFields[] $fields */
+
+        // ----------------------------------------
+        // Need to run another query to figure out what the "prefix" for the RRUFF ID should be...
+        $query = $this->em->createQuery(
+           'SELECT rpod.name AS option_name, rpom.value AS option_value
+            FROM ODRAdminBundle:RenderPlugin rp
+            JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+            JOIN ODRAdminBundle:RenderPluginOptionsMap rpom WITH rpom.renderPluginInstance = rpi
+            JOIN ODRAdminBundle:RenderPluginOptionsDef rpod WITH rpom.renderPluginOptionsDef = rpod
+            WHERE rp.pluginClassName = :plugin_classname AND rpi.dataType = :datatype
+            AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
+            AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'plugin_classname' => 'odr_plugins.rruff.rruff_sample',
+                'datatype' => $datatype->getId(),
+            )
+        );
+        $results = $query->getResult();
+
+        $options = array();
+        foreach ($results as $result) {
+            $option_name = $result['option_name'];
+            $option_value = $result['option_value'];
+
+            $options[$option_name] = $option_value;
+        }
 
 
         // ----------------------------------------
@@ -301,41 +335,44 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
             $lockHandler->acquire(true);
         }
 
-        // Now that a lock is acquired, need to find the "most recent" value for the field that is
+        // Now that a lock is acquired, need to find the "most recent" value for the fields that are
         //  getting incremented...
-        $old_value = self::findCurrentValue($datafield->getId());
+        foreach ($fields as $rpf_name => $df) {
+            $new_value = '';
+            if ( $rpf_name === 'Sample ID' )
+                $new_value = self::getNewSampleIDValue($df->getId());
+            else if ( $rpf_name === 'RRUFF ID' )
+                $new_value = self::getNewRRUFFIDValue($df->getId(), $options);
 
-        // Since the "most recent" mineral id is already an integer, just add 1 to it
-        $new_value = $old_value + 1;
-
-        // Create a new storage entity with the new value
-        $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
-        $this->logger->debug('Setting df '.$datafield->getId().' "Sample ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
+            // Create a new storage entity with the new value
+            $this->entity_create_service->createStorageEntity($user, $datarecord, $df, $new_value, false);    // guaranteed to not need a PostUpdate event
+            $this->logger->debug('Setting df '.$df->getId().' "Sample ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
+        }
 
         // No longer need the lock
         $lockHandler->release();
 
 
         // ----------------------------------------
-        // Fire off an event notifying that the modification of the datafield is done
-        try {
-            $event = new DatafieldModifiedEvent($datafield, $user);
-            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
-        }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
+        // Fire off events notifying that the modification of the datafield is done
+        foreach ($fields as $rpf_name => $df) {
+            try {
+                $event = new DatafieldModifiedEvent($df, $user);
+                $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
         }
     }
 
 
     /**
-     * For this database, the sample_id needs to be autogenerated.
-     *
      * Don't particularly like random render plugins finding random stuff from the database, but
-     * there's no other way to satisfy the design requirements.
+     * there's no other way to satisfy the design requirements...
      *
      * @param int $datafield_id
      *
@@ -343,10 +380,10 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
      *
      * @throws \Doctrine\DBAL\DBALException
      */
-    private function findCurrentValue($datafield_id)
+    private function getNewSampleIDValue($datafield_id)
     {
         // Going to use native SQL...DQL can't use limit without using querybuilder...
-        // NOTE - deleting a record doesn't delete the related storage entities, so deleted minerals
+        // NOTE - deleting a record doesn't delete the related storage entities, so deleted samples
         //  are still considered in this query
         $query =
            'SELECT e.value
@@ -365,12 +402,73 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         foreach ($results as $result)
             $current_value = intval( $result['value'] );
 
-        // ...but if there's not for some reason, return zero as the "current".  onDatarecordCreate()
-        //  will increment it so that the value one is what will actually get saved.
-        // NOTE - this shouldn't happen for the existing IMA list
+        // ...but if there's not for some reason, then use zero as the "current"
         if ( is_null($current_value) )
             $current_value = 0;
 
-        return $current_value;
+        $new_value = $current_value + 1;
+        return $new_value;
+    }
+
+
+    /**
+     * Don't particularly like random render plugins finding random stuff from the database, but
+     * there's no other way to satisfy the design requirements...
+     *
+     * @param int $datafield_id
+     * @param array $options
+     *
+     * @return string
+     *
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    private function getNewRRUFFIDValue($datafield_id, $options)
+    {
+        $prefix = $options['rruff_id_prefix'];
+        if ( $prefix === '' )
+            return '';
+
+        // Going to use native SQL...DQL can't use limit without using querybuilder...
+        // NOTE - deleting a record doesn't delete the related storage entities, so deleted samples
+        //  are still considered in this query
+        $query =
+           'SELECT e.value
+            FROM odr_short_varchar e
+            WHERE e.data_field_id = :datafield AND e.value LIKE :prefix
+            AND e.deletedAt IS NULL
+            ORDER BY e.value DESC
+            LIMIT 0,1';
+        $params = array(
+            'datafield' => $datafield_id,
+            'prefix' => $prefix.'%'
+        );
+        $conn = $this->em->getConnection();
+        $results = $conn->executeQuery($query, $params);
+
+        // Should only be one value in the result...
+        $current_value = null;
+        foreach ($results as $result)
+            $current_value = $result['value'];
+
+        if ( is_null($current_value) ) {
+            // If there's no value, then start incrementing from zero
+            $current_value = 0;
+        }
+        else {
+            // If there is a value...
+            $num = substr($current_value, 3);
+            $current_value = intval($num);
+        }
+
+        // The integer needs to be incremented by one...
+        $new_value = strval($current_value + 1);
+        $new_value = str_pad($new_value, 4, '0', STR_PAD_LEFT);
+
+        // ...and then spliced into a string that includes the prefix and the year
+        $now = new \DateTime();
+        $year = $now->format('y');
+
+        $str = $prefix.$year.$new_value;
+        return $str;
     }
 }
