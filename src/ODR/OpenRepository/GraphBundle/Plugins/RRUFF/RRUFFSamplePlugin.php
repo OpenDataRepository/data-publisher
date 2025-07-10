@@ -456,7 +456,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         }
         else {
             // If there is a value...
-            $num = substr($current_value, 3);
+            $num = substr($current_value, 4);
             $current_value = intval($num);
         }
 
