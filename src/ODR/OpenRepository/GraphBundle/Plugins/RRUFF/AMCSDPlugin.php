@@ -2428,7 +2428,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ($line_num == 1) {
                 // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
                 if ( ValidUtility::isValidMediumVarchar($line) )
-                    $file_values['Mineral'] = $line;
+                    $file_values['Mineral'] = ucfirst($line);
             }
             elseif ($line_num == 2) {
                 // Authors can be broken up into multiple lines, unfortunately...second line of the
@@ -2632,6 +2632,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             else
                 $file_values['Mineral'] = substr($cif_data['data'], 0, 64);
         }
+        if ( isset($file_values['Mineral']) )
+            $file_values['Mineral'] = ucfirst($file_values['Mineral']);
+
 
         // ----------------------------------------
         // Chemistry formula/elements
@@ -2927,7 +2930,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // First line is supposed to be the mineral name...needs to fit in a MediumVarchar
                 $mineral = trim($line);
                 if ( ValidUtility::isValidMediumVarchar($mineral) )
-                    $file_values['Mineral'] = $mineral;
+                    $file_values['Mineral'] = ucfirst($mineral);
             }
             elseif ($line_num == 2) {
                 // Authors can be broken up into multiple lines, unfortunately...second line of the
@@ -3327,35 +3330,37 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
-        //  to be in an array (even though that's not the case for this Plugin)
+        //  to be in an array
         return array(
+            $authors_df_id => array($amc_file_df_id, $dif_file_df_id),
+
             $amc_file_contents_df_id => array($amc_file_df_id),
             $amc_file_contents_short_df_id => array($amc_file_df_id),
-            $authors_df_id => array($amc_file_df_id),
-
             $cif_file_contents_df_id => array($cif_file_df_id),
-            $mineral_name_df_id => array($cif_file_df_id),
-            $a_df_id => array($cif_file_df_id),
-            $b_df_id => array($cif_file_df_id),
-            $c_df_id => array($cif_file_df_id),
-            $alpha_df_id => array($cif_file_df_id),
-            $beta_df_id => array($cif_file_df_id),
-            $gamma_df_id => array($cif_file_df_id),
-            $volume_df_id => array($cif_file_df_id),
-            $crystal_system_df_id => array($cif_file_df_id), // crystal system, point group, and lattice are technically derived from the space group...
-            $point_group_df_id => array($cif_file_df_id),    // ...but doesn't matter since you can't edit space group directly anyways
-            $space_group_df_id => array($cif_file_df_id),
-            $lattice_df_id => array($cif_file_df_id),
-            $pressure_df_id => array($cif_file_df_id),
-            $temperature_df_id => array($cif_file_df_id),
-            $chemistry_df_id => array($cif_file_df_id),
-            $chemistry_elements_df_id => array($cif_file_df_id),
-            $locality_df_id => array($cif_file_df_id),
-            $density_df_id => array($cif_file_df_id),
-
             $original_cif_file_contents_df_id => array($original_cif_file_df_id),
-
             $diffraction_search_values_df_id => array($dif_file_df_id),
+
+            $mineral_name_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $a_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $b_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $c_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $alpha_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $beta_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $gamma_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $volume_df_id => array(/*$amc_file_df_id,*/ $cif_file_df_id, /*$dif_file_df_id,*/ $original_cif_file_df_id),
+
+            $crystal_system_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id), // crystal system, point group, and lattice are technically derived from the space group...
+            $point_group_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),    // ...but doesn't matter since you can't edit space group directly anyways
+            $space_group_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $lattice_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+
+            $pressure_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $temperature_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+
+            $chemistry_df_id => array($cif_file_df_id, $original_cif_file_df_id),
+            $chemistry_elements_df_id => array($cif_file_df_id, $original_cif_file_df_id),
+            $locality_df_id => array($cif_file_df_id, $original_cif_file_df_id),
+            $density_df_id => array($cif_file_df_id, $original_cif_file_df_id),
         );
     }
 
