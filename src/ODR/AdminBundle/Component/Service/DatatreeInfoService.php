@@ -143,6 +143,8 @@ class DatatreeInfoService
     /**
      * Returns an array of top-level datatype ids.
      *
+     * Note: this also includes top-level "master templates"
+     *
      * @return int[]
      */
     public function getTopLevelDatatypes()
@@ -179,7 +181,44 @@ class DatatreeInfoService
         return $top_level_datatypes;
     }
 
-    // TODO - create something to return top-level templates?
+
+    /**
+     * Returns an array of top-level datatypes that are specifically "master templates".
+     *
+     * @return int[]
+     */
+    public function getTopLevelTemplates()
+    {
+        // ----------------------------------------
+        // If list of top level datatypes exists in cache, return that
+//        $top_level_templates = $this->cache_service->get('top_level_templates');
+//        if ( $top_level_templates !== false && count($top_level_templates) > 0 )
+//            return $top_level_templates;
+
+
+        // ----------------------------------------
+        // Otherwise, rebuild the list of top-level templates
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS datatype_id
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
+            WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
+            AND dt.is_master_type = 1
+            AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+        )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
+        $results = $query->getArrayResult();
+
+        // AND dt.metadataFor IS NULL
+        $top_level_templates = array();
+        foreach ($results as $result)
+            $top_level_templates[] = $result['datatype_id'];
+
+
+        // ----------------------------------------
+        // Store the list in the cache and return
+//        $this->cache_service->set('top_level_templates', $top_level_templates);
+        return $top_level_templates;
+    }
 
 
     /**
