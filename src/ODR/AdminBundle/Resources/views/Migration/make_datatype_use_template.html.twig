@@ -1,0 +1,311 @@
+{% spaceless %}
+
+<div class="pure-u-1">
+    <form id="ODRMigration_form" method="POST"></form>
+    <div class="pure-u-1-2">
+        <label for="ODRMigration_SrcDatatype_select">Datatype to modify:&nbsp;</label>
+        <select id="ODRMigration_SrcDatatype_select">
+            <option rel=""></option>
+         {% for num,dt_id in datatypes %}
+             {% set dt_name = names[dt_id] %}
+             <option value="{{ dt_id }}">{{ dt_name }} (id: {{ dt_id }})</option>
+         {% endfor %}
+        </select>
+    </div>
+    <div class="pure-u-1-2">
+        <label for="ODRMigration_DestDatatype_select">Template:&nbsp;</label>
+        <select id="ODRMigration_DestDatatype_select">
+            <option rel=""></option>
+        {% for num,dt_id in templates %}
+            {% set dt_name = names[dt_id] %}
+            <option value="{{ dt_id }}">{{ dt_name }} (id: {{ dt_id }})</option>
+        {% endfor %}
+        </select>
+        <span class="ODRInputError ODRHidden">
+            <i class="fa fa-exclamation-triangle">&nbsp;Src/Dest datatype are identical</i>
+        </span>
+    </div>
+</div>
+
+<div class="pure-u-1">
+    <div id="ODRMigration_SrcDatatype_data" class="pure-u-1-2"></div>
+    <div id="ODRMigration_SrcDatatype_radio_options" class="pure-u-1-2"></div>
+</div>
+
+<button id="ODRMigration_submit">Submit</button>
+<div class="pure-u-1"><pre id="ODRMigration_result"></pre></div>
+
+<script>
+    $(function() {
+        $("#ODRMigration_SrcDatatype_select").unbind('change').change(function() {
+
+            var datatype_id = $(this).children('option:selected').val();
+            if ( datatype_id == '' ) {
+                $("#ODRMigration_SrcDatatype_data").html('');
+                return;
+            }
+
+            var url = "{{ path('odr_render_datatype_array', {'side': 'src', 'datatype_id': 0}) }}";
+            url = url.substr(0, url.length-1);
+            url += datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function (data) {
+                    $("#ODRMigration_SrcDatatype_data").html(data.d);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function (jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $("#ODRMigration_DestDatatype_select").unbind('change').change(function() {
+
+            var datatype_id = $(this).children('option:selected').val();
+            if ( datatype_id == '' ) {
+                $("#ODRMigration_DestDatatype_data").html('');
+                return;
+            }
+
+            var src_datatype_id = $("#ODRMigration_SrcDatatype_select").children('option:selected').val();
+            if ( src_datatype_id == '' ) {
+                return;
+            }
+
+            if ( src_datatype_id == datatype_id )
+                $(this).next().removeClass('ODRHidden');
+            else
+                $(this).next().addClass('ODRHidden');
+
+            var url = "{{ path('odr_render_datatype_array', {'side': 'dest', 'datatype_id': 0}) }}";
+            url = url.substr(0, url.length-1);
+            url += datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function (data) {
+                    $(".ODRMigration_DestDatatype_types").html(data.d.datatypes);
+                    $(".ODRMigration_DestDatatype_fields").html(data.d.datafields);
+
+                    attachDestHandlers();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function (jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $("#ODRMigration_submit").unbind('click').click(function(event) {
+            event.preventDefault();
+            ODRMigration_submitForm();
+        });
+    });
+
+    /**
+     * Update some of the warnings on the page.
+     */
+    function ODRMigration_UpdateWarnings() {
+        var selected_values = new Map();
+        $(".ODRMigration_DestDatatype_field_select").each(function(index,elem) {
+            var src_typename = $(elem).parent().parent().attr('rel');
+            var dest_typename = $(elem).find('option:selected').attr('rel');
+            var dest_df_id = $(elem).find('option:selected').val();
+
+            if ( dest_df_id == '' ) {
+                $(elem).next().addClass('ODRHidden');
+            }
+            else if ( !selected_values.has(dest_df_id) ) {
+                selected_values.set(dest_df_id, 1);
+                $(elem).next().addClass('ODRHidden');
+            }
+            else {
+                $(elem).next().removeClass('ODRHidden');
+            }
+
+            if ( dest_typename == '' || src_typename == dest_typename )
+                $(elem).next().next().addClass('ODRHidden');
+            else
+                $(elem).next().next().removeClass('ODRHidden');
+        });
+
+        var selected_values = new Map();
+        $(".ODRMigration_DestDatatype_type_select").each(function(index,elem) {
+            var dest_dt_id = $(elem).find('option:selected').val();
+
+            if ( dest_dt_id == '' ) {
+                $(elem).next().addClass('ODRHidden');
+            }
+            else if ( !selected_values.has(dest_dt_id) ) {
+                selected_values.set(dest_dt_id, 1);
+                $(elem).next().addClass('ODRHidden');
+            }
+            else {
+                $(elem).next().removeClass('ODRHidden');
+            }
+        });
+    }
+
+    /**
+     * easier to have these off in another function
+     */
+    function attachDestHandlers() {
+        $(".ODRMigration_DestDatatype_field_select").unbind('change').change(function() {
+            ODRMigration_UpdateWarnings();
+
+            var selected_typename = $(this).find('option:selected').attr('rel');
+            if ( selected_typename == 'Single Select' || selected_typename == 'Multiple Select'
+                || selected_typename == 'Single Radio' || selected_typename == 'Multiple Radio'
+            ) {
+                var src_df_id = $(this).parent().parent().attr('id').split(/_/)[3];
+                var dest_df_id = $(this).find('option:selected').val();
+
+                var url = "{{ path('odr_render_radio_options_array', {'src_datafield_id': 0, 'dest_datafield_id': 0}) }}";
+                url = url.substr(0, url.length-3);
+                url += src_df_id + '/' + dest_df_id;
+
+                $("#ODRMigration_SrcDatatype_radio_options").find('#ODRMigration_radio_option_mapping_' + src_df_id).remove();
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function (data) {
+                        var element = $("<div>", {"id": "ODRMigration_radio_option_mapping_" + src_df_id});
+                        $("#ODRMigration_SrcDatatype_radio_options").append(element);
+                        $("#ODRMigration_radio_option_mapping_" + src_df_id).html(data.d.radio_options);
+
+                        // TODO - probably want a duplicate warning for this one too
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function (jqXHR) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                        }
+                    }
+                });
+
+            }
+        });
+
+        $(".ODRMigration_DestDatatype_type_select").unbind('change').change(function() {
+            ODRMigration_UpdateWarnings();
+        });
+    }
+
+    /**
+     * easier to have this off in its own function
+     */
+    function ODRMigration_submitForm() {
+        $("#ODRMigration_form").children('input').remove();
+
+        var src_dt_id = $("#ODRMigration_SrcDatatype_select").find('option:selected').val();
+        var element = $("<input>", {"type": "hidden", "value": src_dt_id, "name": "src_dt_id"});
+        $("#ODRMigration_form").append(element);
+
+        var dest_dt_id = $("#ODRMigration_DestDatatype_select").find('option:selected').val();
+        var element = $("<input>", {"type": "hidden", "value": dest_dt_id, "name": "dest_dt_id"});
+        $("#ODRMigration_form").append(element);
+
+        $(".ODRMigration_DestDatatype_types").each(function(index,elem) {
+            var dt_id = $(elem).attr('rel');
+            var dest_dt_id = $(elem).find('select.ODRMigration_DestDatatype_type_select').find('option:selected').val();
+
+            var element = $("<input>", {"type": "hidden", "value": dest_dt_id, "name": "datatypes[" + dt_id + "]"});
+            $("#ODRMigration_form").append(element);
+        });
+
+        $(".ODRMigration_src_df").each(function(index,elem) {
+            var df_id = $(elem).attr('id').split(/_/)[3];
+            var dest_df_id = $(elem).find('select.ODRMigration_DestDatatype_field_select').find('option:selected').val();
+
+            var element = $("<input>", {"type": "hidden", "value": dest_df_id, "name": "datafields[" + df_id + "]"});
+            $("#ODRMigration_form").append(element);
+        });
+
+        $("#ODRMigration_SrcDatatype_radio_options").children().each(function(index,div) {
+            var src_df_id = $(div).attr('id').split(/_/)[4];
+            $(div).find('.ODRMigration_src_ro').each(function(index,ro_div) {
+                var src_ro_id = $(ro_div).attr('id').split(/_/)[3];
+                var dest_ro_id = $(ro_div).find('.ODRMigration_dest_ro').find('option:selected').val();
+
+                var element = $("<input>", {"type": "hidden", "value": dest_ro_id, "name": "radio_options[" + src_df_id + "][" + src_ro_id + "]"});
+                $("#ODRMigration_form").append(element);
+            });
+        });
+
+        var url = "{{ path('odr_make_datatype_use_template') }}";
+        var post_data = $("#ODRMigration_form").serialize();
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data) {
+                $("#ODRMigration_result").html(data.d);
+            },
+            error: function() {
+
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

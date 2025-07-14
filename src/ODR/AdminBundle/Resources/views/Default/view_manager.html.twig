@@ -47,7 +47,7 @@
         {% set display_download_files = true %}
     {% endif %}
 
-    {% if has_datarecords %}
+    {% if has_datarecords and user != 'anon.' %}
         {% set display_csv_export = true %}
     {% endif %}
 

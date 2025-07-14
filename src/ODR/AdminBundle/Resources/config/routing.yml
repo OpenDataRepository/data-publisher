@@ -1778,6 +1778,22 @@ odr_move_datatype_contents:
     defaults: { _controller: ODRAdminBundle:Migration:movedatatypecontents }
     methods: POST
 
+odr_convert_link_to_childtype_start:
+    path:  /admin/convert_link_to_childtype
+    defaults: { _controller: ODRAdminBundle:Migration:convertlinktochildtypestart }
+odr_convert_link_to_childtype:
+    path:  /admin/convert_link_to_childtype_post
+    defaults: { _controller: ODRAdminBundle:Migration:convertlinktochildtype }
+    methods: POST
+
+odr_convert_childtype_to_link_start:
+    path:  /admin/convert_childtype_to_link
+    defaults: { _controller: ODRAdminBundle:Migration:convertchildtypetolinkstart }
+odr_convert_childtype_to_link:
+    path:  /admin/convert_childtype_to_link_post
+    defaults: { _controller: ODRAdminBundle:Migration:convertchildtypetolink }
+    methods: POST
+
 #-----------------------------------------
 # Tracking Controller
 #odr_track_datafield_changes:
