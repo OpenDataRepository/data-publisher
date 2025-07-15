@@ -720,7 +720,7 @@ class LinkController extends ODRCustomController
      * in B/C -> R also gets linked in A -> R.
      *
      * Due to the existing rules for which datatypes can be linked to, a datatree entry is only
-     * going to have at most one valid datatree to link to, assuming it matches the stringen prereqs
+     * going to have at most one valid datatree to link to, assuming it matches the stringent prereqs
      * at all.
      *
      * Both determining and verifying this setting is valid needs the same info.

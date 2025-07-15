@@ -1,0 +1,79 @@
+{% spaceless %}
+
+<div class="pure-u-1">
+    <form id="ODRMigration_form" method="POST"></form>
+    <div class="pure-u-1-2">
+        <label for="ODRMigration_SrcDatatype_select">Datatype to convert:&nbsp;</label>
+        <select id="ODRMigration_SrcDatatype_select">
+            <option rel=""></option>
+         {% for ancestor_dt_id,descendant_dt_list in datatypes %}
+             {% set ancestor_dt_name = names[ancestor_dt_id] %}
+            <optgroup label="{{ ancestor_dt_name }} (dt: {{ ancestor_dt_id }})">
+            {% for num, descendant_dt_id in descendant_dt_list %}
+                {% set descendant_dt_name = names[descendant_dt_id] %}
+                <option value="{{ descendant_dt_id }}">{{ descendant_dt_name }} (id: {{ descendant_dt_id }})</option>
+            {% endfor %}
+            </optgroup>
+         {% endfor %}
+        </select>
+    </div>
+</div>
+
+<button id="ODRMigration_submit">Submit</button>
+<div class="pure-u-1">
+    <div id="ODRMigration_metadata"></div>
+    <pre id="ODRMigration_result"></pre>
+</div>
+
+<script>
+    $(function() {
+        $("#ODRMigration_submit").unbind('click').click(function(event) {
+            event.preventDefault();
+            ODRMigration_submitForm();
+        });
+    });
+
+    /**
+     * easier to have this off in its own function
+     */
+    function ODRMigration_submitForm() {
+        $("#ODRMigration_form").children('input').remove();
+
+        var src_dt_id = $("#ODRMigration_SrcDatatype_select").find('option:selected').val();
+        var element = $("<input>", {"type": "hidden", "value": src_dt_id, "name": "target_dt_id"});
+        $("#ODRMigration_form").append(element);
+
+        var url = "{{ path('odr_convert_link_to_childtype') }}";
+        var post_data = $("#ODRMigration_form").serialize();
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data) {
+                $("#ODRMigration_metadata").html(data.d.metadata_html);
+                $("#ODRMigration_result").html(data.d.sql);
+            },
+            error: function() {
+
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

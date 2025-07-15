@@ -210,7 +210,8 @@
         </div>
 
         {# deletion link for this datatype #}
-        {% if is_datatype_admin and not is_metadata_datatype %}
+{#        {% if is_datatype_admin and not is_metadata_datatype %}#}    {# Need to be able to delete metadata datatypes #}
+        {% if is_datatype_admin %}
         <div>&nbsp;</div>    {# spacer div so it's harder to unintentionally click on the deletion link #}
 
         <div>
@@ -282,7 +283,8 @@
         // Get the sparkline plugin to work on the smaller graphs
         $(".sparkline").sparkline('html', {type: 'bar', barWidth: '8', height: '50', stackedBarColor: ['#04710a', '#9f1915']});
 
-{% if is_datatype_admin and not is_metadata_datatype %}
+{#{% if is_datatype_admin and not is_metadata_datatype %}#}    {# Need to be able to delete metadata datatypes #}
+{% if is_datatype_admin %}
         $(".ODRDeleteDatatype").unbind('click').click(function() {
             var datatype_name = $("#ODRDatarecordList_{{ datatype.id }}_name").html();
 
