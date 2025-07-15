@@ -2282,6 +2282,26 @@ class LinkController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // ----------------------------------------
+            // Need to detour a bit here, and check whether the search slug ends with "/admin"...
+            $referrer = $request->server->get('HTTP_REFERER');
+            if ( substr($referrer, -6) === '/admin' ) {
+                // ...because if it does, then the search sidebar won't work properly
+                $baseurl = substr($referrer, 0, -5).$ancestor_datatype->getSearchSlug();
+                $fragment = $request->server->get('PHP_SELF');
+                $url = $baseurl.'#'.$fragment;
+
+                // Can't use $this->redirect(...) because of the fragment
+                $return = array(
+                    'r' => 3,
+                    't' => 'html',
+                    'd' => array('url' => $url)
+                );
+                $response = new Response(json_encode($return));
+                $response->headers->set('Content-Type', 'application/json');
+                return $response;
+            }
+
 
             // ----------------------------------------
             // Determine which datatype we're trying to create a link with
