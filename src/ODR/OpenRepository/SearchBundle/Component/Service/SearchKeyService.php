@@ -279,7 +279,7 @@ class SearchKeyService
 
 
     /**
-     * Splits a string that has been run through {@link clean()} into an array of terms that
+     * Splits a string that has been run through {@link self::clean()} into an array of terms that
      * were separated by logical operators...e.g.
      * <pre>
      * "Gold" => array("Gold")
@@ -296,7 +296,7 @@ class SearchKeyService
      * The current implementation is ONLY useful for the current version of general search...in the
      * future this will need to get completely rewritten to return an expression tree instead.
      *
-     * {@link tokenizeGeneralSearch()} should probably be the only function that calls this.
+     * {@link self::tokenizeGeneralSearch()} should probably be the only function that calls this.
      *
      * @param string $str
      *
@@ -443,7 +443,8 @@ class SearchKeyService
 
 
     /**
-     * Modifies a value meant for a general search so the search system can work correctly with it.
+     * Modifies a search term meant for a general search so the rest of the search system can work
+     * correctly with it.
      *
      * @param string $value
      * @return array
@@ -455,17 +456,6 @@ class SearchKeyService
          * to find all records where at least one of the searchable fields contains "Gold"
          * e.g. (field_1 = Gold OR field_2 = Gold OR field_3 = Gold OR ...)
          *
-         * A general search for "Gold OR Quartz" needs to find all records where at least
-         * one of the searchable fields contains "Gold", OR one of the searchable fields
-         * contains "Quartz"  e.g.
-         * (field_1 = "Gold" OR field_2 = "Gold" OR field_3 = "Gold" OR ...)
-         * OR
-         * (field_1 = "Quartz" OR field_2 = "Quartz" OR field_3 = "Quartz" OR ...)
-         *
-         * Because ORs are associative and commutative, the above is equvalent to
-         * (field_1 = "Gold OR Quartz" OR field_2 = "Gold OR Quartz" OR ...)
-         *
-         *
          * However, a general search for "Gold AND Quartz" needs to find all records where
          * at least one of the searchable fields contains "Gold", AND at least one field
          * IN THE SAME RECORD contains "Quartz"  e.g.
@@ -474,24 +464,31 @@ class SearchKeyService
          * The above query is already fully simplified, and CAN NOT be simplified further.
          * Attempting to distribute the search terms creates an exponentional increase in
          * the amount of work that searching has to do to return the correct result.
+         *
+         *
+         * Furthermore, searches involving negation such as "!Gold" also require special handling...
+         * (field_1 = !Gold OR field_2 = !Gold OR ...)  WILL NOT RETURN THE CORRECT RESULT.
+         * Instead, it MUST to be the result of !(field_1 = Gold OR field_2 = Gold OR ...).
+         * The result of (field_1 = !Gold AND field_2 = !Gold AND ...) WILL NOT WORK either, because
+         * of the whole "inability to directly search for the empty string" issue ODR has.
+         *
+         * Due to the previous two requirements, it's better for the general search to be completely
+         * split apart into tokens.  Technically this splitting isn't required when the search term
+         * is comprised completely of ORs without any negation, such as "Gold OR Quartz"...but is
+         * required again when searching on something such as "!Gold OR Quartz".
          */
-
         // Attempt to split the general search string into tokens
         $tokens = self::tokenize($value);
 
         /**
          * The existing implementation of general search can't deal with search queries that
-         * combine both OR and AND...due to ODR's lack of grouping operators, you're stuck
-         * with writing ambiguous queries like "Gold OR Silver AND Quartz"...which due to the
-         * relative precedence of the operators actually means "Gold OR (Silver AND Quartz)"
+         * combine both OR and AND...I'm not entirely sure there is a viable generic methodology to
+         * handle that, even.  Furthermore, due to ODR's lack of grouping operators, you're stuck
+         * writing ambiguous queries like "Gold OR Silver AND Quartz".
          *
-         * Unfortunately, ODR needs to have ANDs on the top level for query result merging
-         * to return the correct answer...so the above would need to get wrapped into a
-         * multi-level expression structure...which causes a cascade of problems down the
-         * line.
-         *
-         * Rather than undertake a prohibitive amount of work to implement this correctly,
-         * I'm assuming this is going to be rare enough to just throw an Exception for now.
+         * I'm going to just throw an Exception in this situation, because the alternative is to
+         * completely rewrite the results merging to be able to handle arbitrary combinations of
+         * logical operators.  It would probably be easier to refactor to use Prolog at that point.
          */
         $has_or = $has_and = false;
         foreach ($tokens as $token) {
@@ -503,25 +500,7 @@ class SearchKeyService
         if ( $has_or && $has_and )
             throw new ODRNotImplementedException("Unable to correctly perform a General Search that combines both OR and AND conditions");
 
-        // Do stuff to the list of tokens so it's in a format useful for general search
-        if ( isset($tokens[1]) ) {
-            if ( $tokens[1] === '||' ) {
-                // Since all the tokens are connected by ORs, they can all get merged back
-                //  into a single string (see above for reasoning)
-                $tokens = array(0 => implode(' ', $tokens));
-            }
-            else {
-                // Since all the tokens are connected by ANDs, the tokens can be turned
-                //  directly into separate facets for searching purposes
-                foreach ($tokens as $token_num => $token) {
-                    // Don't want the '&&' tokens in the array, however
-                    if ( $token === '&&' )
-                        unset( $tokens[$token_num] );
-                }
-                $tokens = array_values($tokens);
-            }
-        }
-
+        // Intentionally leaving the logical connectors in the array
         return $tokens;
     }
 
@@ -926,16 +905,18 @@ class SearchKeyService
      *         ...
      *     ),
      *     ['general'] => array(    // This only exists when a general search term is defined
+     *         'merge_type' = '<AND>' or '<OR>'
      *         0 => array(
      *             'facet_type' => 'general',
      *             'merge_type' = 'OR',
+     *             ['negated'] => true    // optional entry, triggers dealing with negations later on
      *             'search_terms' => array(
      *                 '<df_id>' => array(
      *                     'value' => ...,
      *                     'entity_type' => 'datafield',
-     *                     'entity_id' => <df_id>
+     *                     'entity_id' => <df_id>,
      *                 ),
-     *                 '<additional datafields>' => array(...),
+     *                 ['<additional datafield ids>'] => array(...),
      *                 ...
      *             )
      *         ),
@@ -947,13 +928,13 @@ class SearchKeyService
      *             'facet_type' => 'single',
      *             'merge_type' = 'AND',
      *             'search_terms' => array(
-     *                 '[<df_id>]' => array(
+     *                 '<df_id>' => array(
      *                     'value' => ...,
      *                     'entity_type' => 'datafield',
      *                     'entity_id' => <df_id>
      *                 ),
-     *                 '[<additional datafield ids>]' => array(...),
-     *                 '[<additional metadata keys such as created, createdBy, etc>]' => array(...),
+     *                 ['<additional datafield ids>'] => array(...),
+     *                 ['<additional metadata keys such as created, createdBy, etc>'] => array(...),
      *                 ...
      *             )
      *         )
@@ -1022,12 +1003,34 @@ class SearchKeyService
                 // Attempt to split the general search string into tokens
                 $tokens = self::tokenizeGeneralSearch($value);
 
+                if ( count($tokens) == 1 ) {
+                    // There's only a single search token in the general search...e.g. "Gold"
+                    $criteria['general']['merge_type'] = 'AND';
+
+                    // It technically doesn't matter whether this is 'AND' or 'OR' from a boolean
+                    //  logic standpoint, because there will never be multiple facets to merge
+                    //  together with only one token
+                }
+                else {
+                    // ...otherwise, there are multiple tokens...e.g. "Gold OR Quartz"
+                    // Because self::tokenizeGeneralSearch() would've thrown an error if ANDs and ORs
+                    //  were mixed, we can just use the second entry in the array
+                    if ( $tokens[1] === '||' )
+                        $criteria['general']['merge_type'] = 'OR';
+                    else
+                        $criteria['general']['merge_type'] = 'AND';
+                }
+
                 // For each token in the search string...
                 foreach ($tokens as $token_num => $token) {
+                    // Don't create criteria entries for the logical operators
+                    if ( $token === '&&' || $token === '||' )
+                        continue;
+
                     // Need to find each datafield that qualifies for general search...
                     foreach ($searchable_datafields as $dt_id => $df_list) {
                         // Don't create criteria for fields from descendant datatypes if the user
-                        //  only wants the to-level datatype
+                        //  only wants the top-level datatype
                         if ( $key === 'gen_lim' && $dt_id !== $datatype_id )
                             continue;
 
@@ -1041,6 +1044,11 @@ class SearchKeyService
                                 'search_terms' => array()
                             );
                         }
+
+                        // Save a bit of effort later on...
+                        if ( substr($token, 0, 1) === '!' )
+                            $criteria['general'][$token_num]['negated'] = true;
+
 
                         foreach ($df_list as $df_id => $df_data) {
                             // General search needs both the searchable flag and the typeclass

@@ -551,6 +551,7 @@ class SearchAPIService
         $search_arrays = self::getSearchArrays($datatype->getId(), $search_permissions, $ignored_prefixes, $inverse_target_datatype_id);
         $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
+        $datatype_dr_lists = $search_arrays['datatype_dr_lists'];
         $search_datatree = $search_arrays['search_datatree'];
 
         // An "empty" search run with no criteria needs to return all top-level datarecord ids
@@ -564,12 +565,28 @@ class SearchAPIService
             $facet_dr_list[$dt_id] = array();
 
             foreach ($facet_list as $facet_num => $facet) {
-                // ...and also keep track of the matches for each facet within this datatype individually
-                $facet_dr_list[$dt_id][$facet_num] = null;
+                // Skip the top-level merge flag for general search
+                if ( $dt_id === 'general' && $facet_num === 'merge_type' )
+                    continue;
 
                 $facet_type = $facet['facet_type'];
                 $merge_type = $facet['merge_type'];
                 $search_terms = $facet['search_terms'];
+
+                // ...and also keep track of the matches for each facet within this datatype individually
+                if ( $dt_id !== 'general' ) {
+                    $facet_dr_list[$dt_id][$facet_num] = null;
+                }
+                else {
+                    // General seach might need to negate the resulting datarecord lists, so they
+                    //  need to be stored individually too
+                    foreach ($search_terms as $search_term) {
+                        $facet_dt_id = $search_term['datatype_id'];
+                        if ( !isset($facet_dr_list['general'][$facet_num][$facet_dt_id]) )
+                            $facet_dr_list['general'][$facet_num][$facet_dt_id] = null;
+                    }
+                }
+
 
                 // For each search term within this facet...
                 foreach ($search_terms as $key => $search_term) {
@@ -603,6 +620,13 @@ class SearchAPIService
                         $rpf_list = $tmp['renderPluginFields'];
                         $rpo = $tmp['renderPluginOptions'];
 
+                        if ( $facet_type === 'general' && isset($facet['negated']) ) {
+                            // In the hope that the render plugins don't actually need to deal with
+                            //  this themselves...attempt to pre-emptively deal with any negation
+                            //  required out here...
+                            $search_term['value'] = substr($search_term['value'], 1);
+                        }
+
                         // The plugin will return the same format that the regular searches do
                         $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo);
 
@@ -623,6 +647,11 @@ class SearchAPIService
                             $dr_list = $this->search_service->searchBooleanDatafield($entity, $search_term['value']);
                         }
                         else if ($typeclass === 'Radio' && $facet_type === 'general') {
+                            // Pre-emptively deal with any negation required out here...the actual
+                            //  negation will happen later
+                            if ( isset($facet['negated']) )
+                                $search_term['value'] = substr($search_term['value'], 1);
+
                             // General search only provides a string, and only wants selected radio options
                             $dr_list = $this->search_service->searchForSelectedRadioOptions($entity, $search_term['value']);
                         }
@@ -631,6 +660,11 @@ class SearchAPIService
                             $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections']);
                         }
                         else if ($typeclass === 'Tag' && $facet_type === 'general') {
+                            // Pre-emptively deal with any negation required out here...the actual
+                            //  negation will happen later
+                            if ( isset($facet['negated']) )
+                                $search_term['value'] = substr($search_term['value'], 1);
+
                             // General search only provides a string, and only wants selected tags
                             $dr_list = $this->search_service->searchForSelectedTags($entity, $search_term['value']);
                         }
@@ -692,6 +726,13 @@ class SearchAPIService
 //                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
 //                            }
                         }
+                        else if ($facet_type === 'general') {
+                            // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
+                            $dr_list = $this->search_service->searchTextOrNumberDatafieldGeneral($entity, $search_term['value']);
+
+                            // Don't need to do anything with 'guard' here...the methods required
+                            //  to deal with negation in general search terms supersede it
+                        }
                         else {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
                             $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
@@ -708,26 +749,42 @@ class SearchAPIService
 
 
                     // ----------------------------------------
-                    // Need to merge this result with the existing matches for this facet
-                    if ($merge_type === 'OR') {
-                        if ( is_null($facet_dr_list[$dt_id][$facet_num]) )
-                            $facet_dr_list[$dt_id][$facet_num] = array();
+                    // Need to merge this result with the existing matches for this facet...
+                    if ( $dt_id === 'general' ) {
+                        // ...a general search needs to separate the datarecord lists by datatype,
+                        //  because they can't get negated properly if they're all smashed together
+                        $facet_dt_id = $search_term['datatype_id'];
 
-                        // When merging by 'OR', every datarecord returned by the SearchService
-                        //  functions ends up matching
+                        if ( is_null($facet_dr_list[$dt_id][$facet_num][$facet_dt_id]) )
+                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id] = array();
+
+                        // Every datarecord returned by the SearchService functions ends up matching
+                        //  at this point in time...
                         foreach ($dr_list['records'] as $dr_id => $num)
-                            $facet_dr_list[$dt_id][$facet_num][$dr_id] = $num;
+                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id][$dr_id] = $num;
                     }
                     else {
-                        // When merging by 'AND'...if this is the first (or only) facet of criteria...
-                        if ( is_null($facet_dr_list[$dt_id][$facet_num]) ) {
-                            // ...use the datarecord list returned by the first SearchService call
-                            $facet_dr_list[$dt_id][$facet_num] = $dr_list['records'];
+                        // ...a search directly on a datafield already has the datatype info
+                        if ($merge_type === 'OR') {
+                            if ( is_null($facet_dr_list[$dt_id][$facet_num]) )
+                                $facet_dr_list[$dt_id][$facet_num] = array();
+
+                            // When merging by 'OR', every datarecord returned by the SearchService
+                            //  functions ends up matching
+                            foreach ($dr_list['records'] as $dr_id => $num)
+                                $facet_dr_list[$dt_id][$facet_num][$dr_id] = $num;
                         }
                         else {
-                            // ...otherwise, intersect the list returned by the search with the
-                            //  currently stored list
-                            $facet_dr_list[$dt_id][$facet_num] = array_intersect_key($facet_dr_list[$dt_id][$facet_num], $dr_list['records']);
+                            // When merging by 'AND'...if this is the first (or only) facet of criteria...
+                            if ( is_null($facet_dr_list[$dt_id][$facet_num]) ) {
+                                // ...use the datarecord list returned by the first SearchService call
+                                $facet_dr_list[$dt_id][$facet_num] = $dr_list['records'];
+                            }
+                            else {
+                                // ...otherwise, intersect the list returned by the search with the
+                                //  currently stored list
+                                $facet_dr_list[$dt_id][$facet_num] = array_intersect_key($facet_dr_list[$dt_id][$facet_num], $dr_list['records']);
+                            }
                         }
                     }
                 }
@@ -748,14 +805,62 @@ class SearchAPIService
         else {
             // Determine whether a 'general' search was executed...
             $was_general_seach = false;
-            if ( isset($facet_dr_list['general']) )
+            if ( isset($facet_dr_list['general']) ) {
+                // ...the existence of this facet means a general search was run
                 $was_general_seach = true;
+                $general_search_facet_list = $facet_dr_list['general'];
+
+                // There are two more operations that need to be performed on this list before it
+                //  gets passed to self::mergeSearchResults()...
+                foreach ($criteria['general'] as $key => $value) {
+                    if ( $key === 'merge_type' )
+                        continue;
+
+                    // The first step is to deal with any negated queries...
+                    if ( isset($value['negated']) ) {
+                        // This particular token is negated...
+                        $old_dr_list = $general_search_facet_list[$key];
+                        // ...but at the moment all datarecord lists of results for this token are
+                        //  for the un-negated query
+
+                        foreach ($old_dr_list as $dt_id => $dr_list) {
+                            // In order to negate, we need the full list of datarecords for this
+                            //  datatype so we can subtract the "un-negated" results from them
+                            $own_dr_list = $datatype_dr_lists[$dt_id];
+
+                            $new_dr_list = array();
+                            foreach ($own_dr_list as $dr_id => $num) {
+                                if ( !isset($dr_list[$dr_id]) )
+                                    $new_dr_list[$dr_id] = $num;
+                            }
+
+                            // The resulting "negated list" of datarecords needs to replace the
+                            //  previous list
+                            $general_search_facet_list[$key][$dt_id] = $new_dr_list;
+                        }
+                    }
+
+                    // The second step is to then combine the lists for each datatype into a single
+                    //  list...
+                    $old_dr_list = $general_search_facet_list[$key];
+
+                    $new_dr_list = array();
+                    foreach ($old_dr_list as $dt_id => $dr_list) {
+                        foreach ($dr_list as $dr_id => $num)
+                            $new_dr_list[$dr_id] = $num;
+                    }
+
+                    // ...and once that new list is stored in $facet_dr_list, the merging process
+                    //  can do its job properly
+                    $facet_dr_list['general'][$key] = $new_dr_list;
+                }
+            }
 
             // Determine whether an 'advanced' search was executed...
             $was_advanced_search = false;
             foreach ($facet_dr_list as $key => $facet_list) {
-                // ...then just need to save that an advanced search was run
                 if ( is_numeric($key) && !empty($facet_list) ) {
+                    // ...the existence of a numeric key means an advanced search was run
                     $was_advanced_search = true;
                     break;
                 }
@@ -871,7 +976,7 @@ class SearchAPIService
         }
 
         $dr_list = array();
-        if($return_as_list) {
+        if ($return_as_list) {
             $str =
                 'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
                 FROM ODRAdminBundle:DataRecord AS dr
@@ -1792,7 +1897,7 @@ class SearchAPIService
 
 
     /**
-     * Returns three arrays that are required for determining which datarecords match a search.
+     * Returns four arrays that are required for determining which datarecords match a search.
      * Technically a search run on a top-level datatype doesn't need all this, but any search that
      * involves a child/linked datatype does.
      *
@@ -1807,7 +1912,12 @@ class SearchAPIService
      * is not null, then the linked relations are inverted, while the parent/child relations remain
      * the same.
      *
-     * The third array {@link self::buildSearchDatatree()} is used as a guide for merging the various
+     * The third array is primarily used by general search when it encounters negated values...in
+     * order to return the correct results, the queries have been run as if the search term wasn't
+     * negated, and therefore the negation has to happen before the results get merged together.
+     * {@link SearchKeyService::tokenizeGeneralSearch()}
+     *
+     * The fourth array {@link self::buildSearchDatatree()} is used as a guide for merging the various
      * facets of records that matched the search. {@link self::mergeSearchResults()}
      *
      * @param int $target_datatype_id
@@ -1849,6 +1959,7 @@ class SearchAPIService
 
         // ----------------------------------------
         // Base setup for both arrays...
+        $datatype_dr_lists = array();
         $flattened_list = array();
         $inflated_list = array(0 => array());
         $inflated_list[0][$target_datatype_id] = array();
@@ -1856,7 +1967,7 @@ class SearchAPIService
         $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, array($target_datatype_id => 0), $inverse_permitted_datatypes);
 
         // Actually build the flattened and inflated lists
-        self::getSearchArrays_Worker($ignored_prefixes, '', $datatree_array, $permissions_array, array($target_datatype_id => 0), $flattened_list, $inflated_list, $inverse_permitted_datatypes);
+        self::getSearchArrays_Worker($ignored_prefixes, '', $datatree_array, $permissions_array, array($target_datatype_id => 0), $datatype_dr_lists, $flattened_list, $inflated_list, $inverse_permitted_datatypes);
 
 
         // ----------------------------------------
@@ -1871,6 +1982,7 @@ class SearchAPIService
             'flattened' => $flattened_list,
             'inflated' => $inflated_list,
 
+            'datatype_dr_lists' => $datatype_dr_lists,
             'search_datatree' => $search_datatree,
         );
     }
@@ -1881,6 +1993,7 @@ class SearchAPIService
      *
      * @param array $ignored_prefixes {@link self::getIgnoredPrefixes()}
      * @param string $prev_prefix
+     * @param array $datatype_dr_lists
      * @param array $datatree_array {@link DatatreeInfoService::getDatatreeArray()}
      * @param array $permissions_array {@link self::getSearchPermissionsArray()}
      * @param array $top_level_datatype_ids
@@ -1891,7 +2004,7 @@ class SearchAPIService
      *
      * @return void
      */
-    private function getSearchArrays_Worker($ignored_prefixes, $prev_prefix, $datatree_array, $permissions_array, $top_level_datatype_ids, &$flattened_list, &$inflated_list, $inverse_permitted_datatypes)
+    private function getSearchArrays_Worker($ignored_prefixes, $prev_prefix, $datatree_array, $permissions_array, $top_level_datatype_ids, &$datatype_dr_lists, &$flattened_list, &$inflated_list, $inverse_permitted_datatypes)
     {
         foreach ($permissions_array as $dt_id => $permissions) {
             // Ensure that the user is allowed to view this datatype before doing anything with it
@@ -1958,6 +2071,14 @@ class SearchAPIService
             // When doing an "inverse" search, then #2 changes to provide an array of the ids this
             //  record links to instead...this effectively inverts the "ancestor" -> "descendant"
             //  relation, and fortunately the merging logic doesn't care about the change
+
+
+            // ----------------------------------------
+            // In order for negation to work correctly in general search, the pre-merging needs
+            //  access to a list of datarecord ids for each datatype.  $search_datatree has this
+            //  info too, but that's in a format that requires recursion to access...
+            foreach ($list as $dr_id => $value)
+                $datatype_dr_lists[$dt_id][$dr_id] = 1;
 
 
             // ----------------------------------------
@@ -2936,32 +3057,45 @@ class SearchAPIService
         // Determining which records match a general search is quite different than the same process
         //  for an advanced search, unfortunately.
         if ( isset($facet_dr_list['general']) ) {
-            // Combine the records from this datatype that match the general search with the records
-            //  that match because their descendants match the the general search...the quickest way
-            //  to do this is to overwrite the local copy of $facet_dr_list, effectively causing a
-            //  merge by OR, whereas advanced search merges by AND.
+            // The records from this datatype that match the general search need to be merged with
+            //  the records that match because their descendants match the the general search.
+            // The catch is whether this is done depends on whether the search was negated or not...
             foreach ($facets['gen'] as $facet_num => $dr_list) {
                 foreach ($dr_list as $dr_id => $num) {
-                    // Note that the facets themselves aren't merged together...this is done so that
-                    //  a general search with multiple facets (e.g. "downs quartz") doesn't necessarily
-                    //  require a record to have both "downs" and "quartz" in it at the same time...
-
-                    // A top-level record should match that example search even when descendant A
-                    //  only matches "downs", and descendant B only matches "quartz".  Obviously,
-                    //  the behavior should be the same when A == B...and if a dataype doesn't have
-                    //  descendants, then it obviously should still have to match both "downs" and
-                    //  "quartz" itself...
-                    $facet_dr_list['general'][$facet_num][$dr_id] = 1;
+                    // What to do here depends on whether negation is involved...
+                    if ( !isset($criteria['general'][$facet_num]['negated']) ) {
+                        // ...if it isn't, then a general search is purely "does this exist".  Any
+                        //  records that are ancestors of those that match the search should be
+                        //  treated as if they directly match the search too
+                        $facet_dr_list['general'][$facet_num][$dr_id] = 1;
+                    }
+                    else {
+                        // ...if it is, then a general search means "this can't exist".  Because
+                        //  of how ODR's search system is torqued, the "correct" merge has effectively
+                        //  already been performed on the list of records
+                    }
                 }
+
+                // Note that the facets themselves aren't getting merged together yet...this is because
+                //  a general search with multiple facets (e.g. "downs quartz") doesn't necessarily
+                //  require a record to have both "downs" and "quartz" in it at the same time...
             }
 
             if ( $is_top_level ) {
-                // If this combination is taking place at the top-level datatype, then the facets
-                //  do need to be merged together by AND at this point...a top-level record has no
-                //  parents, so it needs to match all the facets of general search to be included
-                $final_dr_list = $own_dr_list;
-                foreach ($facet_dr_list['general'] as $facet_num => $dr_list)
-                    $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
+                // ...but once we hit the top-level datatype, everything does need to be merged
+                //  together into a single list of records
+                $final_dr_list = array();
+                if ( $criteria['general']['merge_type'] === 'AND' ) {
+                    $final_dr_list = $own_dr_list;
+                    foreach ($facet_dr_list['general'] as $facet_num => $dr_list)
+                        $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
+                }
+                else {
+                    foreach ($facet_dr_list['general'] as $facet_num => $dr_list) {
+                        foreach ($dr_list as $dr_id => $num)
+                            $final_dr_list[$dr_id] = $num;
+                    }
+                }
 
                 foreach ($final_dr_list as $dr_id => $num) {
                     // If the user is allowed to view this record...

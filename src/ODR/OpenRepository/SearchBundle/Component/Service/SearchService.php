@@ -1552,6 +1552,99 @@ class SearchService
         return $end_result;
     }
 
+    /**
+     * Searches the specified datafield for the specified value in the context of general search,
+     * returning an array of datarecord ids that match the search.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'dt_id' => <dt_id>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     *     'guard' => true
+     * )
+     * </pre>
+     *
+     * The difference between this function and {@link self::searchTextOrNumberDatafield()} is that
+     * negated search terms are silently ignored...e.g. a search for "!Gold" instead returns the
+     * results for "Gold".  As such, the 'guard' key is always true in the erturn.
+     *
+     * If it did search on "!Gold", then the general search results would only be accurate when
+     * there was only one field.  {@link SearchKeyService::tokenizeGeneralSearch()}
+     * The negation has to be applied at a later time and in a couple different places to work with
+     * multiple search terms and across ancestor/descendant relationships.
+     *
+     * @param DataFields $datafield
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchTextOrNumberDatafieldGeneral($datafield, $value)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $allowed_typeclasses = array(
+            'IntegerValue',
+            'DecimalValue',
+            'ShortVarchar',
+            'MediumVarchar',
+            'LongVarchar',
+            'LongText'
+        );
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( !in_array($typeclass, $allowed_typeclasses) )
+            throw new ODRBadRequestException('searchTextOrNumberDatafieldGeneral() called with '.$typeclass.' datafield', 0x5a207c9c);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
+        $cache_key = mb_strtolower($value);
+
+        // General searches that aren't negated...e.g. "Gold"...should be treated the same as a
+        //  regular search
+        $is_negated = false;
+        if ( substr($cache_key, 0, 1) === '!' )
+            $is_negated = true;
+
+        // General searches that are negated...e.g. "!Gold"...need to instead be searched without
+        //  the negation
+        if ( $is_negated )
+            $cache_key = substr($cache_key, 1);
+
+        // If the result is already cached, return that
+        if ( isset($cached_searches[$cache_key]) )
+            return $cached_searches[$cache_key];
+
+        // ----------------------------------------
+        // Otherwise, going to need to run the search again...
+        $result = $this->search_query_service->searchTextOrNumberDatafield(
+            $datafield->getDataType()->getId(),
+            $datafield->getId(),
+            $typeclass,
+            $cache_key
+        );
+
+        $end_result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => $result['records'],
+            'guard' => $result['guard'],
+        );
+
+        // ...then recache the search result
+        $cached_searches[$cache_key] = $end_result;
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+
+        // ...then return it
+        return $end_result;
+    }
+
 
     /**
      * Searches the specified template datafield for the specified value, and returns an array of
