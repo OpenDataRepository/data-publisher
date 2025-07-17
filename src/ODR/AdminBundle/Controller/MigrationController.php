@@ -2121,7 +2121,7 @@ class MigrationController extends ODRCustomController
             //  grandparent_id, and template_group updated
             $lines[] = 'UPDATE odr_data_type dt SET dt.parent_id = '.$ancestor_dt_id.' WHERE dt.id = '.$target_dt_id.';';
             foreach ($target_descendant_ids as $num => $dt_id)
-                $lines[] = 'UPDATE odr_data_type dt SET dt.grandparent_id = '.$ancestor_grandparent_id.', dt.template_group = "'.$ancestor_template_group.'" WHERE dt.id = '.$dt_id.';';
+                $lines[] = 'UPDATE odr_data_type dt SET dt.grandparent_id = '.$ancestor_grandparent_id.', dt.template_group = "'.$ancestor_template_group.'", dt.metadata_datatype_id = NULL WHERE dt.id = '.$dt_id.';';
             $lines[] = '';
 
             // The datatree entries need to get switched so these datatypes are no longer considered to be linked
