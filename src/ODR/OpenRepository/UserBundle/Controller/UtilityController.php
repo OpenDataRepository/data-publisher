@@ -136,7 +136,7 @@ class UtilityController extends Controller
             $default_search_theme = $theme_info_service->getDatatypeDefaultTheme($datatype_id, 'search_results');
 
             $search_theme_id = intval($route['search_theme_id']);
-            if ( $search_theme_id === $default_search_theme->getId() ) {
+            if ( is_null($default_search_theme) || $search_theme_id === $default_search_theme->getId() ) {
                 // Regenerate the route, but set the search_theme_id to "0"
                 $fragment = $router->generate(
                     'odr_search_render',
