@@ -429,6 +429,11 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
             return '';
 
         // Going to use native SQL...DQL can't use limit without using querybuilder...
+
+        // Need the year to help filter through the crap in the RRUFF ID field
+        $now = new \DateTime();
+        $year = $now->format('y');
+
         // NOTE - deleting a record doesn't delete the related storage entities, so deleted samples
         //  are still considered in this query
         $query =
@@ -440,7 +445,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
             LIMIT 0,1';
         $params = array(
             'datafield' => $datafield_id,
-            'prefix' => $prefix.'%'
+            'prefix' => $prefix.$year.'%'
         );
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
@@ -463,10 +468,6 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         // The integer needs to be incremented by one...
         $new_value = strval($current_value + 1);
         $new_value = str_pad($new_value, 4, '0', STR_PAD_LEFT);
-
-        // ...and then spliced into a string that includes the prefix and the year
-        $now = new \DateTime();
-        $year = $now->format('y');
 
         $str = $prefix.$year.$new_value;
         return $str;
