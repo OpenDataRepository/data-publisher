@@ -2860,9 +2860,21 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Loop structure
                 $keys = $data['keys'];
                 foreach ($keys as $num => $key) {
-                    $fragment = substr($key, 0, strpos($key, '_', 1)+1);
+                    $fragment_1 = $fragment_2 = null;
+                    $num_underscores = 0;
+                    for ($i = 0; $i < strlen($key); $i++) {
+                        if ( $key[$i] === '_' )
+                            $num_underscores++;
+                        if ( is_null($fragment_1) && $num_underscores === 2 )
+                            $fragment_1 = substr($key, 0, $i+1);
+                        else if ( is_null($fragment_2) && $num_underscores === 3 )
+                            $fragment_2 = substr($key, 0, $i+1);
+                    }
+
                     // If the key is considered "extra", then skip to the next node
-                    if ( isset($blacklist[$fragment]) && !isset($whitelist[$key]) )
+                    if ( !is_null($fragment_1) && isset($blacklist[$fragment_1]) && !isset($whitelist[$key]) )
+                        continue 2;
+                    if ( !is_null($fragment_2) && isset($blacklist[$fragment_2]) && !isset($whitelist[$key]) )
                         continue 2;
                 }
 
