@@ -855,8 +855,8 @@ class EntityDeletionService
             // --------------------
 
             // Don't directly delete a metadata datatype
-            if ( !is_null($datatype->getMetadataFor()) )
-                throw new ODRBadRequestException('Unable to delete a metadata datatype');
+//            if ( !is_null($datatype->getMetadataFor()) )
+//                throw new ODRBadRequestException('Unable to delete a metadata datatype');
 
             // Don't delete a child datatype when it's derived from a template
             if ( !$deleting_top_level_datatype && !is_null($datatype->getMasterDataType()) )

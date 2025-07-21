@@ -157,21 +157,21 @@ class SearchAPIServiceTest extends WebTestCase
         return [
             // ----------------------------------------
             // Sanity check searches
-            'RRUFF Reference: default search, including non-public records' => [
+            'RRUFF Reference: default search' => [
                 array(
                     'dt_id' => 1
                 ),
                 range(1, 90),
                 true
             ],
-            'IMA List: default search, including non-public records' => [
+            'IMA List: default search' => [
                 array(
                     'dt_id' => 2
                 ),
                 array(91,92,93,94,95,96,97,322),
                 true
             ],
-            'IMA List: default search, not logged in' => [
+            'IMA List: default search, without non-public records' => [
                 array(
                     'dt_id' => 2
                 ),
@@ -187,7 +187,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(35,36,49,66,68),
                 false
             ],
-            'IMA List: general search of "downs", not including descendants' => [
+            'IMA List: general search of "downs" not including descendants' => [
                 array(
                     'dt_id' => 2,
                     'gen_lim' => 'downs',
@@ -195,7 +195,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),    // None of the fields directly belonging to IMA have "downs" in them, so there will be no results
                 false
             ],
-            'IMA List: general search of "downs", including descendants' => [
+            'IMA List: general search of "downs" including descendants, without non-public records' => [
                 array(
                     'dt_id' => 2,
                     'gen' => 'downs',
@@ -203,12 +203,12 @@ class SearchAPIServiceTest extends WebTestCase
                 array(94,97),
                 false
             ],
-            'IMA List: general search of "downs", including non-public records' => [
+            'IMA List: general search of "downs"' => [
                 array(
                     'dt_id' => 2,
                     'gen' => 'downs',
                 ),
-                array(91,94,97),
+                array(91,94,97),    // Abelsonite, Aegirine, Anorthite are linked to references containing "downs"
                 true
             ],
             'RRUFF Sample: general search of "downs"' => [
@@ -217,16 +217,16 @@ class SearchAPIServiceTest extends WebTestCase
                     'gen' => 'downs',
                 ),
                 array(
-                    98,    // Abelsonite
-                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
+                    98,    // samples linked to Abelsonite
+                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // samples linked to Aegirine
+                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // samples linked to Anorthite
                 ),
                 true
             ],
 
             // ----------------------------------------
             // simple regular searches
-            'RRUFF Reference: article title containing "abelsonite", including non-public records' => [
+            'RRUFF Reference: article title containing "abelsonite"' => [
                 array(
                     'dt_id' => 1,
                     '2' => "abelsonite"
@@ -234,7 +234,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(1,35,63,83),
                 true
             ],
-            'RRUFF Reference: article title containing "structure", including non-public records' => [
+            'RRUFF Reference: article title containing "structure"' => [
                 array(
                     'dt_id' => 1,
                     '2' => "structure",
@@ -242,7 +242,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(1,4,6,7,10,12,23,25,35,46,65,69,72,82,85,87,89),
                 true
             ],
-            'RRUFF Reference: article title containing "abelsonite" AND "structure", including non-public records' => [
+            'RRUFF Reference: article title containing "abelsonite" AND "structure"' => [
                 array(
                     'dt_id' => 1,
                     '2' => "abelsonite structure"
@@ -250,7 +250,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(1,35),
                 true
             ],
-            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 1), including non-public records' => [
+            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 1)' => [
                 array(
                     'dt_id' => 1,
                     '2' => "abelsonite OR structure",
@@ -258,7 +258,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(1,4,6,7,10,12,23,25,35,46,63,65,69,72,82,83,85,87,89),
                 true
             ],
-            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 2), including non-public records' => [
+            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 2)' => [
                 array(
                     'dt_id' => 1,
                     '2' => "abelsonite || structure"
@@ -266,7 +266,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(1,4,6,7,10,12,23,25,35,46,63,65,69,72,82,83,85,87,89),
                 true
             ],
-            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 3), including non-public records' => [
+            'RRUFF Reference: article title containing "abelsonite" OR "structure" (variant 3)' => [
                 array(
                     'dt_id' => 1,
                     '2' => "abelsonite, structure",
@@ -274,7 +274,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(1,4,6,7,10,12,23,25,35,46,63,65,69,72,82,83,85,87,89),
                 true
             ],
-            'RRUFF Reference: article title containing the lteral string "abelsonite, the", including non-public records' => [
+            'RRUFF Reference: article title containing the literal string "abelsonite, the"' => [
                 array(
                     'dt_id' => 1,
                     '2' => "\"abelsonite, the\"",
@@ -283,7 +283,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'IMA List: mineral_names containing "b", including non-public records' => [
+            'IMA List: mineral_names containing "b"' => [
                 array(
                     'dt_id' => 2,
                     '17' => "b",
@@ -291,7 +291,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(91,92,95),
                 true
             ],
-            'IMA List: mineral_names containing "b"' => [
+            'IMA List: mineral_names containing "b", without non-public records' => [
                 array(
                     'dt_id' => 2,
                     '17' => "b",
@@ -299,7 +299,8 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,95),
                 false
             ],
-            'IMA List: records where the tag "Grandfathered" is selected, including non-public records' => [
+
+            'IMA List: records where the tag "Grandfathered" is selected' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19",
@@ -307,7 +308,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,96,97),
                 true
             ],
-            'IMA List: records where the tag "Abiotic" is selected, including non-public records' => [
+            'IMA List: records where the tag "Abiotic" is selected' => [
                 array(
                     'dt_id' => 2,
                     '28' => "41",
@@ -315,7 +316,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,94,97),
                 true
             ],
-            'IMA List: records where the tags "Grandfathered" and "Abiotic" are both selected, including non-public records' => [
+            'IMA List: records where the tags "Grandfathered" and "Abiotic" are both selected' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19,41",    // field is set to merge_by_AND by default, so no prefix needed
@@ -323,7 +324,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,97),
                 true
             ],
-            'IMA List: records with the tag "Grandfathered" and AT LEAST ONE OF the tags "Abiotic" (yes, only one tag in the category), including non-public records' => [
+            'IMA List: records with the tag "Grandfathered" and AT LEAST ONE OF the tags "Abiotic" (yes, only one tag in the category)' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19,~41",    // ...however, one of them having the prefix shouldn't change the results, as it's in the "AT LEAST ONE OF" category by itself
@@ -331,7 +332,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,97),
                 true
             ],
-            'IMA List: records with AT LEAST ONE OF the tags "Grandfathered" or "Abiotic", including non-public records' => [
+            'IMA List: records with AT LEAST ONE OF the tags "Grandfathered" or "Abiotic"' => [
                 array(
                     'dt_id' => 2,
                     '28' => "~19,~41",    // ...both of them need to have the prefix to do a proper merge_by_OR
@@ -339,7 +340,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(92,93,94,96,97),
                 true
             ],
-            'IMA List: records where the tag "Grandfathered" selected and the tag "Abiotic" is not selected, including non-public records' => [
+            'IMA List: records where the tag "Grandfathered" selected and the tag "Abiotic" is not selected' => [
                 array(
                     'dt_id' => 2,
                     '28' => "19,-41",
@@ -348,7 +349,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'IMA List: records where the tag "Fleischers Glossary 2008" is selected, including non-public records' => [
+            'IMA List: records where the tag "Fleischers Glossary 2008" is selected' => [
                 array(
                     'dt_id' => 2,
                     '28' => "16",
@@ -357,25 +358,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            // these two general searches need to hit the biotic/abiotic tag names
-            'IMA List: records with the string "biotic", including non-public records' => [
-                array(
-                    'dt_id' => 2,
-                    'gen' => "biotic",    // will also match "abiotic"
-                ),
-                array(91,92,93,94,96,97,),
-                true
-            ],
-            'IMA List: records with the string "\"biotic\"", including non-public records' => [
-                array(
-                    'dt_id' => 2,
-                    'gen' => "\"biotic\"",
-                ),
-                array(91,96),
-                true
-            ],
-
-            'RRUFF Sample: rruff_id contains "c", including non-public records' => [
+            'RRUFF Sample: rruff_id contains "c"' => [
                 array(
                     'dt_id' => 3,
                     '30' => "c",
@@ -386,7 +369,7 @@ class SearchAPIServiceTest extends WebTestCase
 
             // ----------------------------------------
             // Searches involving nulls and the empty string
-            'IMA List: mineral_aliases is blank, including non-public records' => [
+            'IMA List: mineral_aliases is blank' => [
                 array(
                     'dt_id' => 2,
                     '19' => '""',
@@ -394,7 +377,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(91,93,95,96,97,322),
                 true
             ],
-            'IMA List: mineral_aliases is not blank, including non-public records' => [
+            'IMA List: mineral_aliases is not blank' => [
                 array(
                     'dt_id' => 2,
                     '19' => '!""',
@@ -403,7 +386,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'Graph Test: records with files, with permissions' => [
+            'Graph Test: records with files' => [
                 array(
                     'dt_id' => 9,
                     '59' => '!""',
@@ -411,7 +394,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(305,306,307,308,309,310,311,312,313,315,317,320,321),
                 true
             ],
-            'Graph Test: records with files, but without permissions' => [
+            'Graph Test: records with files, without non-public records' => [
                 array(
                     'dt_id' => 9,
                     '59' => '!""',
@@ -419,7 +402,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(305,306,307,308,309,310,311,312,313,315,317,321),  // 320 has a non-public file they shouldn't know about
                 false
             ],
-            'Graph Test: records without files, with permissions' => [
+            'Graph Test: records without files' => [
                 array(
                     'dt_id' => 9,
                     '59' => '""',
@@ -427,7 +410,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(318,319),
                 true
             ],
-            'Graph Test: records without files, without permissions' => [
+            'Graph Test: records without files, without non-public records' => [
                 array(
                     'dt_id' => 9,
                     '59' => '""',
@@ -452,8 +435,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),
                 true
             ],
-
-            'Graph Test: no files OR csv, with permissions' => [
+            'Graph Test: no files OR csv' => [
                 array(
                     'dt_id' => 9,
                     '59' => '"" OR csv',
@@ -461,7 +443,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(305,306,308,317,318,319,321),
                 true
             ],
-            'Graph Test: no files OR csv, without permissions' => [
+            'Graph Test: no files OR csv, without non-public records' => [
                 array(
                     'dt_id' => 9,
                     '59' => '"" OR csv',
@@ -469,8 +451,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(305,306,308,317,318,320),  // 319 is non-public, but does include 320 or 321 because they don't know about the file
                 false
             ],
-
-            'Graph Test: no files OR txt, without permissions' => [
+            'Graph Test: no files OR txt, without non-public records' => [
                 array(
                     'dt_id' => 9,
                     '59' => '"" OR txt',
@@ -479,7 +460,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
-            'IMA List: records with dates, including non-public records' => [
+            'IMA List: records with dates' => [
                 array(
                     'dt_id' => 2,
                     '64' => '!""'
@@ -487,7 +468,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(91,92,95),
                 true
             ],
-            'IMA List: records without dates, including non-public records' => [
+            'IMA List: records without dates' => [
                 array(
                     'dt_id' => 2,
                     '64' => '""'
@@ -496,7 +477,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'IMA List: records with date on or after 1805-06-30, including non-public records' => [
+            'IMA List: records with date on or after 1805-06-30' => [
                 array(
                     'dt_id' => 2,
                     '64_s' => '1805-06-30'
@@ -504,7 +485,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(91,92,95),    // 92 is included because 'starting from 1805-06-30' includes the date
                 true
             ],
-            'IMA List: records with date before 2017-10-01, including non-public records' => [
+            'IMA List: records with date before 2017-10-01' => [
                 array(
                     'dt_id' => 2,
                     '64_e' => '2017-10-01'
@@ -513,7 +494,7 @@ class SearchAPIServiceTest extends WebTestCase
                                         // NOTE: this is only due to an adjustment by SearchKeyService::convertSearchKeyToCriteria()...ODR currently only stores the date, not the time
                 true
             ],
-            'IMA List: records with date between 1805-06-30 and 2017-10-01, including non-public records' => [
+            'IMA List: records with date between 1805-06-30 and 2017-10-01' => [
                 array(
                     'dt_id' => 2,
                     '64_s' => '1805-06-30',
@@ -525,7 +506,7 @@ class SearchAPIServiceTest extends WebTestCase
 
             // ----------------------------------------
             // Searches involving child/linked datatypes
-            'RRUFF Sample: samples where mineral_name contains "b", including non-public records' => [
+            'RRUFF Sample: samples where mineral_name contains "b"' => [
                 array(
                     'dt_id' => 3,
                     '17' => "b",
@@ -533,7 +514,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(98,124,126,122,121,108),
                 true
             ],
-            'RRUFF Sample: samples where mineral_name contains "b"' => [
+            'RRUFF Sample: samples where mineral_name contains "b", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '17' => "b",
@@ -541,7 +522,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(124,126,122,121,108),
                 false
             ],
-            'RRUFF Sample: samples where Raman Spectra::wavelength contains "780", including non-public records' => [
+            'RRUFF Sample: samples where Raman Spectra::wavelength contains "780"' => [
                 array(
                     'dt_id' => 3,
                     '41' => "780",
@@ -549,7 +530,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(102,118,107,125,109,126,131,124,123,103,120,119,100,105),
                 true
             ],
-            'RRUFF Sample: samples where Raman Spectra::wavelength contains "780"' => [
+            'RRUFF Sample: samples where Raman Spectra::wavelength contains "780", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '41' => "780",
@@ -557,7 +538,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(102,118,107,125,109,126,131,124,123,103,120,119,100,105),
                 false
             ],
-            'RRUFF Sample: samples where RRUFF Reference::Authors contains "downs", including non-public records' => [
+            'RRUFF Sample: samples where RRUFF Reference::Authors contains "downs"' => [
                 array(
                     'dt_id' => 3,
                     '1' => "downs",
@@ -565,7 +546,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(98,127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112),
                 true
             ],
-            'RRUFF Sample: samples where RRUFF Reference::Authors contains "downs"' => [
+            'RRUFF Sample: samples where RRUFF Reference::Authors contains "downs", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '1' => "downs",
@@ -574,7 +555,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
-            'IMA List: mineral_name contains "b" and RRUFF Reference::Authors contains "downs", including non-public records' => [
+            'IMA List: mineral_name contains "b" and RRUFF Reference::Authors contains "downs"' => [
                 array(
                     'dt_id' => 2,
                     '17' => "b",
@@ -583,7 +564,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(91),
                 true
             ],
-            'IMA List: mineral_name contains "b" and RRUFF Reference::Authors contains "downs"' => [
+            'IMA List: mineral_name contains "b" and RRUFF Reference::Authors contains "downs", without non-public records' => [
                 array(
                     'dt_id' => 2,
                     '17' => "b",
@@ -593,7 +574,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
-            'RRUFF Sample: IMA Mineral::mineral_name contains "b" and RRUFF Reference::Authors contains "downs", including non-public records' => [
+            'RRUFF Sample: IMA Mineral::mineral_name contains "b" and RRUFF Reference::Authors contains "downs"' => [
                 array(
                     'dt_id' => 3,
                     '17' => "b",
@@ -602,7 +583,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(98),
                 true
             ],
-            'RRUFF Sample: IMA Mineral::mineral_name contains "b" and RRUFF Reference::Authors contains "downs"' => [
+            'RRUFF Sample: IMA Mineral::mineral_name contains "b" and RRUFF Reference::Authors contains "downs", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '17' => "b",
@@ -614,7 +595,7 @@ class SearchAPIServiceTest extends WebTestCase
 
             // ----------------------------------------
             // want "exact searches" with a space character to use "LIKE" instead of "="
-            'RRUFF Reference: authors exactly matches "Effenberger H"' => [
+            'RRUFF Reference: authors exactly matches "Effenberger H", without non-public records' => [
                 array(
                     'dt_id' => 1,
                     '1' => "\"Effenberger H\""
@@ -622,7 +603,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(4, 37, 86),    // term is an exact match for 4 and 37, but only a subset of 86
                 false
             ],
-            'RRUFF Sample: contains the phrase "sample description"' => [
+            'RRUFF Sample: contains the phrase "sample description", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\"sample description\""
@@ -630,7 +611,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(134,110,135),
                 false
             ],
-            'RRUFF Sample: does not contain the phrase "associated with"' => [
+            'RRUFF Sample: does not contain the phrase "associated with", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "!\"associated with\""
@@ -638,7 +619,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(98,100,101,103,105,106,107,108,109,111,114,116,117,118,120,121,122,123,124,125,126,127,128,130,131,132,133,136,137,138,139,134,110,99,135,104),
                 false
             ],
-            'RRUFF Sample: does not contain the phrase "associated with" and does not contain "variety"' => [
+            'RRUFF Sample: does not contain the phrase "associated with" and does not contain "variety", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "!\"associated with\" !variety"
@@ -649,7 +630,7 @@ class SearchAPIServiceTest extends WebTestCase
 
             // ----------------------------------------
             // searches for a single doublequote should be handled differently than paired quotes
-            'RRUFF Sample: sample_descriptions containing "\""' => [
+            'RRUFF Sample: sample_descriptions containing "\"", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\""
@@ -657,7 +638,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(99,104,110,134,135),
                 false
             ],
-            'RRUFF Sample: sample_descriptions not containing "\""' => [
+            'RRUFF Sample: sample_descriptions not containing "\"", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "!\""
@@ -666,7 +647,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
-            'RRUFF Sample: sample_descriptions containing "\"a"' => [
+            'RRUFF Sample: sample_descriptions containing "\"a", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\"a"
@@ -674,7 +655,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(134,110),
                 false
             ],
-            'RRUFF Sample: sample_descriptions containing "\"description of"' => [
+            'RRUFF Sample: sample_descriptions containing "\"description of", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\"description of"
@@ -683,7 +664,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
-            'RRUFF Sample: sample_descriptions containing "description\""' => [
+            'RRUFF Sample: sample_descriptions containing "description\"", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "description\""
@@ -691,7 +672,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(134,110,135),
                 false
             ],
-            'RRUFF Sample: sample_descriptions containing "of a sample\""' => [
+            'RRUFF Sample: sample_descriptions containing "of a sample\"", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "of a sample\""
@@ -701,7 +682,7 @@ class SearchAPIServiceTest extends WebTestCase
             ],
 
             // single doublequotes followed by a space
-            'RRUFF Sample: sample_descriptions containing "z OR \""' => [
+            'RRUFF Sample: sample_descriptions containing "z OR \"", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "z OR \""
@@ -709,7 +690,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(102,115,127,132,134,110,99,135,104),
                 false
             ],
-            'RRUFF Sample: sample_descriptions containing "\"" OR "z"' => [
+            'RRUFF Sample: sample_descriptions containing "\"" OR "z", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\" OR z"
@@ -719,7 +700,7 @@ class SearchAPIServiceTest extends WebTestCase
             ],
 
             // no closing doublequote means this should search for "\"" AND "sample" AND "description"
-            'RRUFF Sample: sample_descriptions containing "\" sample description"' => [
+            'RRUFF Sample: sample_descriptions containing "\" sample description", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\" sample description"
@@ -728,7 +709,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
             // closing doublequote means this should search for the phrase " sample description"
-            'RRUFF Sample: sample_descriptions containing "\" sample description\""' => [
+            'RRUFF Sample: sample_descriptions containing "\" sample description\"", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\" sample description\""
@@ -738,7 +719,7 @@ class SearchAPIServiceTest extends WebTestCase
             ],
 
             // string tokens in a number field should return no results
-            'IMA List: mineral_id contains "abc"' => [
+            'IMA List: mineral_id contains "abc", without non-public records' => [
                 array(
                     'dt_id' => 2,
                     '16' => 'abc'
@@ -746,7 +727,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),
                 false
             ],
-            'IMA List: mineral_id contains "7 abc", including non-public records' => [
+            'IMA List: mineral_id contains "7 abc"' => [
                 array(
                     'dt_id' => 2,
                     '16' => '7 abc'
@@ -754,7 +735,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(91,94,96),    // the "7" token should end up matching mineral_ids 777, 788, and 790
                 true
             ],
-            'IMA List: mineral_id contains "7 abc"' => [
+            'IMA List: mineral_id contains "7 abc", without non-public records' => [
                 array(
                     'dt_id' => 2,
                     '16' => '7 abc'
@@ -764,7 +745,7 @@ class SearchAPIServiceTest extends WebTestCase
             ],
 
             // a sequence of unmatched operators should get ignored
-            'IMA List: mineral_id contains "<will be autogenerated>"' => [
+            'IMA List: mineral_id contains "<will be autogenerated>", without non-public records' => [
                 // gets initially processed to...array("<", "&&", "will", "&&", "be", "&&", "autogenerated", "&&", ">")
                 // then the non-numeric parts get dropped...array("<", "&&", "&&", ">")
                 // then the unmatched logical operators get dropped...array("<", ">")
@@ -785,7 +766,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '2' => '<'
                 ),
                 array(56),
-                false
+                true
             ],
             'RRUFF Reference: article_title containing ">"' => [
                 array(
@@ -793,7 +774,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '2' => '>'
                 ),
                 array(56),
-                false
+                true
             ],
 
             'RRUFF Reference: article_title containing "<i>"' => [
@@ -802,7 +783,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '2' => '<i>'
                 ),
                 array(56),   // this test is the entire point of this block...need to confirm that the parser can guess it's seeing HTML tags
-                false
+                true
             ],
 
             'RRUFF Reference: article_title containing "<i"' => [
@@ -821,7 +802,7 @@ class SearchAPIServiceTest extends WebTestCase
                     8,11,                           // starts with 'h'
                     78,                             // starts with '['
                 ),
-                false
+                true
             ],
             'RRUFF Reference: article_title containing "<i >g"' => [
                 array(
@@ -829,7 +810,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '2' => '<i >g'
                 ),
                 array(8,11),    // this should only get references with an article title that start with an 'h' or 'H'...but not trigger the title containing '<i>'
-                false
+                true
             ],
             'RRUFF Reference: article_title containing ">g <i"' => [
                 array(
@@ -837,93 +818,18 @@ class SearchAPIServiceTest extends WebTestCase
                     '2' => '>g <i'
                 ),
                 array(8,11),
-                false
-            ],
-
-            // ----------------------------------------
-            // mixing general and advanced searches
-            'RRUFF Reference: general search of "downs" and authors contains "d"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                    '1' => 'd',
-                ),
-                array(35,36,49,66,68),    // should be same as "gen" = "downs", obviously
-                false
-            ],
-            'RRUFF Reference: general search of "downs" and authors contains "f"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                    '1' => 'f',
-                ),
-                array(36,49,66),
-                false
-            ],
-            'RRUFF Reference: general search of "downs" and journal contains "mineral"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                    '3' => 'mineral',
-                ),
-                array(35,49,66,68),
-                false
-            ],
-
-            'IMA List: general search of "downs" and mineral_name contains "t", including non-public records' => [
-                array(
-                    'dt_id' => 2,
-                    'gen' => 'downs',
-                    '17' => "t",
-                ),
-                array(91,97),
-                true
-            ],
-
-            'RRUFF Sample: general search of "downs" and authors contains "f", including non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    'gen' => 'downs',
-                    '1' => 'f',
-                ),
-                array(
-                    98,    // Abelsonite...record 1 fulfills authors: "f", while record 35 fulfills gen: "downs"
-                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
-                ),
-                true
-            ],
-            'RRUFF Sample: general search of "downs" and mineral_name contains "t", including non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    'gen' => 'downs',
-                    '17' => 't',
-                ),
-                array(
-                    98,    // Abelsonite
-//                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
-                ),
                 true
             ],
 
             // ----------------------------------------
-            // More complicated general searches
-            'RRUFF Reference: general search of "downs mineral"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'downs mineral',
-                ),
-                array(35,49,66,68),
-                false
-            ],
+            // more complicated general searches
             'RRUFF Reference: general search of "\"downs mineral\""' => [
                 array(
                     'dt_id' => 1,
                     'gen' => '"downs mineral"',
                 ),
                 array(),    // no field has "downs mineral" in it at the same time
-                false
+                true
             ],
             'RRUFF Reference: general search of "\"downs hazen\""' => [
                 array(
@@ -931,62 +837,148 @@ class SearchAPIServiceTest extends WebTestCase
                     'gen' => '"downs hazen"',
                 ),
                 array(),    // authors have "downs" and "hazen" individually, but not the string "downs hazen"
-                false
-            ],
-/*
-            'RRUFF Reference: general search of "abelsonite"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'abelsonite',
-                ),
-                array(1,35,63,83),
-                false
-            ],
-            'RRUFF Reference: general search of "american"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'american',
-                ),
-                array(2,6,7,8,9,17,25,27,31,32,35,43,49,58,60,61,64,66,68,71,72,75,79,81,82,83),
-                false
-            ],
-*/
-            'RRUFF Reference: general search of "abelsonite OR american"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'abelsonite OR american',
-                ),
-                array(
-                    1,35,63,83,
-                    2,6,7,8,9,17,25,27,31,32,43,49,58,60,61,64,66,68,71,72,75,79,81,82,
-                ),
-                false
+                true
             ],
 
-            'IMA List: general search of "downs mineral"' => [
+            'RRUFF Reference: general search of "the"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'the',
+                ),
+                array(
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,/*36,*/37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,/*49,*/50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                    ),
+                true
+            ],
+            'RRUFF Reference: general search of "!the"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => '!the',    // NOTE: naively searching for "!the" in every field returns all records, because every reference has at least field that matches
+                ),
+                array(    // ...the correct answer is the difference of "all references" minus "those that match 'the'"
+                    /*1,2,3,4,*/5,/*6,7,*/8,9,10,
+                    11,/*12,*/13,/*14,15,16,*/17,/*18,19,20,*/
+                    /*21,22,23,24,25,*/26,/*27,28,*/29,/*30,*/
+                    31,32,33,/*34,35,*/36,/*37,38,39,*/40,
+                    41,/*42,43,44,45,46,*/47,/*48,*/49,/*50,*/
+                    /*51,52,*/53,54,/*55,*/56,/*57,*/58,/*59,*/60,
+                    /*61,*/62,/*63,64,65,66,67,68,*/69,70,
+                    /*71,72,*/73,74,75,/*76,*/77,78,79,/*80,*/
+                    81,/*82,83,84,85,86,87,*/88,/*89,*/90,
+                ),
+                true
+            ],
+
+/*
+            'RRUFF Reference: general search of "downs"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ),
+                array(35,36,49,66,68),
+                true
+            ],
+*/
+
+            'RRUFF Reference: general search of "the AND downs"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'the downs',
+                ),
+                array(35,/*36,49,*/66,68),    // 36 and 49 don't have "the"
+                true
+            ],
+            'RRUFF Reference: general search of "the OR downs"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'the OR downs',
+                ),
+                array(    // including 36 and 49 because of "downs"
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,36,37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,49,50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                ),
+                true
+            ],
+            'RRUFF Reference: general search of "!the AND downs"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => '!the downs',
+                ),
+                array(/*35,*/36,49,/*66,68*/),  // coincidentally the inverse of "the AND downs"
+                true
+            ],
+            'RRUFF Reference: general search of "!the OR downs"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => '!the OR downs',
+                ),
+                array(
+                    /*1,2,3,4,*/5,/*6,7,*/8,9,10,
+                    11,/*12,*/13,/*14,15,16,*/17,/*18,19,20,*/
+                    /*21,22,23,24,25,*/26,/*27,28,*/29,/*30,*/
+                    31,32,33,/*34,*/35,36,/*37,38,39,*/40,
+                    41,/*42,43,44,45,46,*/47,/*48,*/49,/*50,*/
+                    /*51,52,*/53,54,/*55,*/56,/*57,*/58,/*59,*/60,
+                    /*61,*/62,/*63,64,65,*/66,/*67,*/68,69,70,
+                    /*71,72,*/73,74,75,/*76,*/77,78,79,/*80,*/
+                    81,/*82,83,84,85,86,87,*/88,/*89,*/90,
+                ),
+                true
+            ],
+
+/*
+            'IMA List: general search of "downs"' => [
                 array(
                     'dt_id' => 2,
-                    'gen' => 'downs mineral',
+                    'gen' => 'downs',
                 ),
-                array(94,97),
-                false
+                array(91,94,97),
+                true
             ],
-/*
+            'RRUFF Sample: general search of "downs"' => [
+                array(
+                    'dt_id' => 3,
+                    'gen' => 'downs',
+                ),
+                array(
+                    98,    // samples of Abelsonite
+                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // samples of Aegirine
+                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // samples of Anorthite
+                ),
+                true
+            ],
+*/
+
             'RRUFF Reference: general search of "532"' => [
                 array(
                     'dt_id' => 1,
                     'gen' => '532',
                 ),
-                array(24),
-                false
+                array(24),    // '532' matches the page numbers for this reference
+                true
             ],
             'IMA List: general search of "532"' => [
                 array(
                     'dt_id' => 2,
                     'gen' => '532',
                 ),
-                array(94),    // Aegirine
-                false
+                array(94),    // ...the previously matched reference is linked to Aegirine
+                true
             ],
             'RRUFF Sample: general search of "532"' => [
                 array(
@@ -994,18 +986,18 @@ class SearchAPIServiceTest extends WebTestCase
                     'gen' => '532',
                 ),
                 array(
-                    // Samples of Aegirine
+                    // ...Samples which are linked to by Aegirine
                     101,114,117,127,130,136,
-                    // Samples with 532 spectra
+                    // Samples just with 532 spectra
                     98,100,102,103,105,107,109,115,116,118,
                     124,125,126,131,133,137,
                     // Samples of Aegirine with 532 spectra
                     111,113,119,120,123,129,139,
                 ),
-                false
+                true
             ],
-*/
-            'RRUFF Sample: general search of "downs OR 532", including non-public records' => [
+
+            'RRUFF Sample: general search of "downs OR 532"' => [
                 array(
                     'dt_id' => 3,
                     'gen' => 'downs OR 532',
@@ -1028,7 +1020,7 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 true
             ],
-            'RRUFF Sample: general search of "downs 532", including non-public records' => [
+            'RRUFF Sample: general search of "downs AND 532"' => [
                 array(
                     'dt_id' => 3,
                     'gen' => 'downs 532',
@@ -1045,6 +1037,134 @@ class SearchAPIServiceTest extends WebTestCase
 
                     // (The remaining) Samples of Aegirine, with 532 from pages in rruff reference
                     101,114,117,127,130,136,
+                ),
+                true
+            ],
+
+            // negation also needs to work for tags and radio options, and across descendants
+            'IMA List: records with the string "grandfathered"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "grandfathered",
+                ),
+                array(/*91,*/92,93,/*94,95,*/96,97,/*322*/),   // should be equivalent to earlier, but this runs a different method to get results
+                true
+            ],
+            'IMA List: records without the string "grandfathered", ignoring descendants' => [
+                array(
+                    'dt_id' => 2,
+                    'gen_lim' => "!grandfathered",
+                ),
+                array(91,/*92,93,*/94,95,/*96,97,*/322),
+                true
+            ],
+            'IMA List: records without the string "grandfathered", including descendants' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "!grandfathered",
+                ),
+                array(91,/*92,93,*/94,95,/*96,97,*/322),    //  same as before...these minerals don't have "grandfathered", and none of the references do either
+                true
+            ],
+
+            // General search where one term can only be found in a top-level, and the other in a descendant
+            // ...seems simple, but hits a particularly nasty part of the merge logic
+            'IMA List: general search of "grandfathered OR downs"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "grandfathered OR downs",
+                ),
+                array(91,92,93,94,/*95,*/96,97,/*322*/),
+                true
+            ],
+            'IMA List: general search of "grandfathered AND downs"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "grandfathered downs",
+                ),
+                array(/*91,92,93,94,95,96,*/97,/*322*/),
+                true
+            ],
+            'IMA List: general search of "!grandfathered OR downs"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "!grandfathered OR downs",
+                ),
+                array(91,/*92,93,*/94,95,/*96,*/97,322),
+                true
+            ],
+            'IMA List: general search of "!grandfathered AND downs"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => "!grandfathered downs",
+                ),
+                array(91,/*92,93,*/94,/*95,96,97,322*/),
+                true
+            ],
+
+            // ----------------------------------------
+            // mixing general and advanced searches
+            'RRUFF Reference: general search of "downs" and authors contains "d"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                    '1' => 'd',
+                ),
+                array(35,36,49,66,68),    // should be same as "gen" = "downs", obviously
+                true
+            ],
+            'RRUFF Reference: general search of "downs" and authors contains "f"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                    '1' => 'f',
+                ),
+                array(36,49,66),
+                true
+            ],
+            'RRUFF Reference: general search of "downs" and journal contains "mineral"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                    '3' => 'mineral',
+                ),
+                array(35,49,66,68),
+                true
+            ],
+
+            'IMA List: general search of "downs" and mineral_name contains "t"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => 'downs',
+                    '17' => "t",
+                ),
+                array(91,97),
+                true
+            ],
+
+            'RRUFF Sample: general search of "downs" and authors contains "f"' => [
+                array(
+                    'dt_id' => 3,
+                    'gen' => 'downs',
+                    '1' => 'f',
+                ),
+                array(
+                    98,    // Abelsonite...record 1 fulfills authors: "f", while record 35 fulfills gen: "downs"
+                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
+                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
+                ),
+                true
+            ],
+            'RRUFF Sample: general search of "downs" and mineral_name contains "t"' => [
+                array(
+                    'dt_id' => 3,
+                    'gen' => 'downs',
+                    '17' => 't',
+                ),
+                array(
+                    98,    // Abelsonite
+//                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
+                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
                 ),
                 true
             ],
@@ -1214,6 +1334,7 @@ class SearchAPIServiceTest extends WebTestCase
 
 
             // ----------------------------------------
+            // XYZData tests...
             'AMCSD test: silly precision search' => [
                 array(
                     'dt_id' => 16,
@@ -1266,6 +1387,7 @@ class SearchAPIServiceTest extends WebTestCase
             ],
 
             // ----------------------------------------
+            // More inequality tests...
             'Decimal test: shortvarchar > 4' => [
                 array(
                     'dt_id' => 22,
@@ -1344,21 +1466,21 @@ class SearchAPIServiceTest extends WebTestCase
         return [
             // ----------------------------------------
             // Sanity check searches
-            'RRUFF Reference: default search, including non-public records' => [
+            'RRUFF Reference: default search' => [
                 array(
                     'dt_id' => 1
                 ),
                 range(1, 90),
                 true
             ],
-            'IMA List: default search, including non-public records' => [
+            'IMA List: default search' => [
                 array(
                     'dt_id' => 2
                 ),
                 array_merge( range(1, 97), array(322) ),    // all RRUFF Reference records, plus the 8 IMA List records
                 true
             ],
-            'RRUFF Sample: default search, including non-public records' => [
+            'RRUFF Sample: default search' => [
                 array(
                     'dt_id' => 3
                 ),
@@ -1374,7 +1496,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'RRUFF Reference: authors containing "downs", including non-public records' => [
+            'RRUFF Reference: authors containing "downs"' => [
                 array(
                     'dt_id' => 1,
                     '1' => "downs"
@@ -1382,7 +1504,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(35,36,49,66,68),
                 true
             ],
-            'IMA List: authors containing "downs", including non-public records' => [
+            'IMA List: authors containing "downs"' => [
                 array(
                     'dt_id' => 2,
                     '1' => "downs"
@@ -1393,7 +1515,7 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 true
             ],
-            'RRUFF Sample: authors containing "downs", including non-public records' => [
+            'RRUFF Sample: authors containing "downs"' => [
                 array(
                     'dt_id' => 3,
                     '1' => "downs"
@@ -1425,6 +1547,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+/*
             'RRUFF Reference: general search of "downs"' => [
                 array(
                     'dt_id' => 1,
@@ -1433,6 +1556,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(35,36,49,66,68),
                 false
             ],
+*/
             'IMA List: general search of "downs"' => [
                 array(
                     'dt_id' => 2,
@@ -1549,7 +1673,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         return [
             // ----------------------------------------
-            'RRUFF Reference: inverse search towards RRUFF Reference, including non-public records' => [
+            'RRUFF Reference: inverse search towards RRUFF Reference' => [
                 array(
                     'dt_id' => 1,
                     'inverse' => 1,    // targetting RRUFF Reference should work
@@ -1557,7 +1681,7 @@ class SearchAPIServiceTest extends WebTestCase
                 range(1, 90),
                 true
             ],
-            'RRUFF Reference: inverse search towards IMA List, including non-public records' => [
+            'RRUFF Reference: inverse search towards IMA List' => [
                 array(
                     'dt_id' => 1,
                     'inverse' => 2,    // targetting IMA List should still return all references
@@ -1644,7 +1768,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         return [
             // ----------------------------------------
-            'RRUFF Sample: search for article title not blank, but ignore IMA Mineral link...including non-public records' => [
+            'RRUFF Sample: search for article title not blank, but ignore IMA Mineral link' => [
                 array(
                     'dt_id' => 3,
                     2 => '!""',
@@ -1654,7 +1778,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'RRUFF Sample: search for article title containing "Abelsonite", but ignore the direct link...including non-public records' => [
+            'RRUFF Sample: search for article title containing "Abelsonite", but ignore the direct link' => [
                 array(
                     'dt_id' => 3,
                     2 => 'abelsonite',
@@ -1664,7 +1788,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'RRUFF Sample: search for mineral name containing "b", but ignore IMA Mineral Link...including non-public records' => [
+            'RRUFF Sample: search for mineral name containing "b", but ignore IMA Mineral Link' => [
                 array(
                     'dt_id' => 3,
                     '17' => "b",

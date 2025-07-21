@@ -182,6 +182,9 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            // Need to be able to delete metadata datatypes...
+//            if ($datatype->getMetadataFor() != null)
+//                throw new ODRBadRequestException('Unable to delete metadata datatypes');
 
             // --------------------
             // Determine user privileges

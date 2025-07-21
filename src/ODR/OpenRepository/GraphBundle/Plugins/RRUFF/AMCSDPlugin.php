@@ -2728,7 +2728,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         if ( isset($file_values['Temperature']) ) {
             $temp = $file_values['Temperature'];
             if ( strpos($temp, 'K') === false || strpos($temp, 'C') === false )
-                $file_values['Temperature'] .= 'K';
+                $file_values['Temperature'] .= ' K';    // temps from these keys are supposed to be in kelvin
         }
 
         if ( isset($cif_data['_cell_measurement_pressure']) ) {
@@ -2744,7 +2744,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         if ( isset($file_values['Pressure']) ) {
             $temp = $file_values['Pressure'];
             if ( strpos($temp, 'KPa') === false || strpos($temp, 'GPa') === false )
-                $file_values['Pressure'] .= 'KPa';
+                $file_values['Pressure'] .= ' KPa';    // pressures from these keys are supposed to be in kilopascals
         }
 
         // ...but Bob's CIF files have Temperature/Pressure in the article title
@@ -2822,6 +2822,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             '_geom_' => 0,
             '_shelx_' => 0,
             '_oxdiff_' => 0,
+            '_jana_' => 0,
+            '_pd_calc_' => 0,
+            '_twin_' => 0,
         );
         // ...but need a couple of the keys still
         $whitelist = array(

@@ -720,7 +720,7 @@ class LinkController extends ODRCustomController
      * in B/C -> R also gets linked in A -> R.
      *
      * Due to the existing rules for which datatypes can be linked to, a datatree entry is only
-     * going to have at most one valid datatree to link to, assuming it matches the stringen prereqs
+     * going to have at most one valid datatree to link to, assuming it matches the stringent prereqs
      * at all.
      *
      * Both determining and verifying this setting is valid needs the same info.
@@ -2281,6 +2281,26 @@ class LinkController extends ODRCustomController
             if ( !$permissions_service->canViewDatatype($user, $descendant_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // ----------------------------------------
+            // Need to detour a bit here, and check whether the search slug ends with "/admin"...
+            $referrer = $request->server->get('HTTP_REFERER');
+            if ( substr($referrer, -6) === '/admin' ) {
+                // ...because if it does, then the search sidebar won't work properly
+                $baseurl = substr($referrer, 0, -5).$ancestor_datatype->getSearchSlug();
+                $fragment = $request->server->get('PHP_SELF');
+                $url = $baseurl.'#'.$fragment;
+
+                // Can't use $this->redirect(...) because of the fragment
+                $return = array(
+                    'r' => 3,
+                    't' => 'html',
+                    'd' => array('url' => $url)
+                );
+                $response = new Response(json_encode($return));
+                $response->headers->set('Content-Type', 'application/json');
+                return $response;
+            }
 
 
             // ----------------------------------------

@@ -305,6 +305,9 @@
                     if ( data.r == 2 ) {   // for redirects to another url
                         UpdateURL( data.d.url );
                     }
+                    else if ( data.r == 3 ) {  // for complete url replacements
+                        window.location = data.d.url;
+                    }
                     else {
                         $("#ODRSearchContent").html(data.d.html).fadeTo(200, 1.0);
                     }

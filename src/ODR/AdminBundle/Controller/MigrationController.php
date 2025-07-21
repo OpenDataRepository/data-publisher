@@ -17,6 +17,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
@@ -32,10 +33,12 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use FOS\UserBundle\Doctrine\UserManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Router;
 use Symfony\Component\Templating\EngineInterface;
 
 
@@ -1818,7 +1821,72 @@ class MigrationController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            throw new ODRNotImplementedException();
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            // Going to be easier to use the datatree array here...
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+
+            $all_datatype_ids = array();
+            $datatypes = array();
+            foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_dt_ids) {
+                // Only the datatypes that are linked to exactly once are eligible for this
+                if ( count($ancestor_dt_ids) > 1 )
+                    continue;
+                $ancestor_dt_id = $ancestor_dt_ids[0];
+
+                // Need to get the names for both of these datatypes
+                $all_datatype_ids[$ancestor_dt_id] = 1;
+                $all_datatype_ids[$descendant_dt_id] = 1;
+
+                // Need to store the datatypes in a way that's easier to understand
+                if ( !isset($datatypes[$ancestor_dt_id]) )
+                    $datatypes[$ancestor_dt_id] = array();
+                $datatypes[$ancestor_dt_id][] = $descendant_dt_id;
+            }
+
+
+            // Get the names of all of these datatypes
+            $all_datatype_ids = array_keys($all_datatype_ids);
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.shortName
+                FROM ODRAdminBundle:DataType dt
+                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.metadata_for IS NULL
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                ORDER BY dtm.shortName'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $all_datatype_ids,
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $names = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dt_name = $result['shortName'];
+
+                $names[$dt_id] = $dt_name;
+            }
+
+            // Render and return a tree structure of data
+            $return['d'] = array(
+                'html' =>$templating->render(
+                    'ODRAdminBundle:Migration:convert_link_to_childtype.html.twig',
+                    array(
+                        'datatypes' => $datatypes,
+
+                        'names' => $names,
+                    )
+                )
+            );
         }
         catch (\Exception $e) {
             $source = 0x93fbe5f5;
@@ -1859,7 +1927,301 @@ class MigrationController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            throw new ODRNotImplementedException();
+            $post = $request->request->all();
+            if ( !isset($post['target_dt_id']) )
+                throw new ODRBadRequestException('Invalid form');
+
+            $target_dt_id = intval($post['target_dt_id']);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+            /** @var Router $router */
+            $router = $this->get('router');
+
+            /** @var DataType $target_datatype */
+            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_dt_id);
+            if ($target_datatype == null)
+                throw new ODRNotFoundException('Target Datatype');
+
+            // Going to be easier to use the datatree array here...
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+
+            if ( !isset($datatree_array['linked_from'][$target_dt_id]) || count($datatree_array['linked_from'][$target_dt_id]) !== 1)
+                throw new ODRBadRequestException('Invalid Form');
+            $ancestor_dt_id = $datatree_array['linked_from'][$target_dt_id][0];
+
+            /** @var DataType $ancestor_datatype */
+            $ancestor_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($ancestor_dt_id);
+            if ($ancestor_datatype == null)
+                throw new ODRNotFoundException('Ancestor Datatype');
+            $ancestor_grandparent_id = $ancestor_datatype->getGrandparent()->getId();
+            $ancestor_template_group = $ancestor_datatype->getGrandparent()->getTemplateGroup();
+
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array(
+                    'ancestor' => $ancestor_datatype,
+                    'descendant' => $target_datatype
+                )
+            );
+            if ($datatree == null)
+                throw new ODRNotFoundException('DataTree');
+            $datatree_meta_id = $datatree->getDataTreeMeta()->getId();
+
+
+            // ----------------------------------------
+            // Now that the submitted form is valid enough...
+
+            // Get all descendants of this target datatype
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id
+                FROM ODRAdminBundle:DataType dt
+                WHERE dt.grandparent = :target_datatype_id
+                AND dt.deletedAt IS NULL'
+            )->setParameters( array('target_datatype_id' => $target_dt_id) );
+            $results = $query->getArrayResult();
+
+            $target_descendant_ids = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $target_descendant_ids[] = $dt_id;
+            }
+
+            // Locate their metadata datatypes
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id
+                FROM ODRAdminBundle:DataType dt
+                WHERE dt.metadata_for IN (:target_datatype_ids)
+                AND dt.deletedAt IS NULL'
+            )->setParameters( array('target_datatype_ids' => $target_descendant_ids) );
+            $results = $query->getArrayResult();
+
+            $metadata_datatype_ids = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $metadata_datatype_ids[] = $dt_id;
+            }
+
+            // Get all linked datarecord information
+            $query =
+               'SELECT ldt.id AS ldt_id, adr.grandparent_id AS gp_adr_id, adr.id AS adr_id, ddr.id AS ddr_id
+                FROM odr_data_record adr
+                JOIN odr_linked_data_tree ldt ON ldt.ancestor_id = adr.id
+                JOIN odr_data_record ddr ON ldt.descendant_id = ddr.id
+                WHERE adr.data_type_id = '.$ancestor_dt_id.' AND ddr.data_type_id = '.$target_dt_id.'
+                AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL';
+            $results = $conn->executeQuery($query);
+
+            $linked_datatree_ids = array();
+            $new_parent_ids = array();
+            foreach ($results as $result) {
+                $ldt_id = $result['ldt_id'];
+                $gp_adr_id = $result['gp_adr_id'];
+                $adr_id = $result['adr_id'];
+                $ddr_id = $result['ddr_id'];
+
+                $linked_datatree_ids[] = $ldt_id;
+
+                if ( isset($new_parent_ids[$ddr_id]) )
+                    throw new ODRException('descendant datarecord '.$ddr_id.' is linked to more than once...');
+                $new_parent_ids[$ddr_id] = array('parent' => $adr_id, 'grandparent' => $gp_adr_id);
+            }
+
+
+            // Get the ancestor datatype's master theme id
+            $ancestor_master_theme = $theme_info_service->getDatatypeMasterTheme($ancestor_grandparent_id);
+            $ancestor_master_theme_id = $ancestor_master_theme->getId();
+
+            // There are two sets of changes that need to be made to the theme table...
+            $query =
+               'SELECT t.id AS theme_id, t.data_type_id AS dt_id, t.parent_theme_id AS parent_theme_id
+                FROM odr_theme t
+                WHERE t.data_type_id IN ('.implode(',', $target_descendant_ids).')
+                AND t.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);    // fetchAll() instead of executeQuery() because the latter only allows one iteration through the results
+
+            // This needs to happen in three steps though...
+            $own_themes = array();
+            $new_master_theme_ids = array();
+            foreach ($results as $result) {
+                $theme_id = intval($result['theme_id']);
+                $dt_id = intval($result['dt_id']);
+                $parent_theme_id = intval($result['parent_theme_id']);
+
+                // ...the first step is to figure out which themes to top-level descendant "owns"
+                if ( $theme_id === $parent_theme_id ) {
+                    if ( !isset($own_themes[$theme_id]) )
+                        $own_themes[$theme_id] = 1;
+                }
+
+                // ...the second step is to figure out which theme is going to be the "new master"
+                //  theme for each of these datatypes...we're going to "promote" the "copy" of the
+                //  theme that "belongs to" $ancestor_master_theme_id
+                if ( $parent_theme_id === $ancestor_master_theme_id )
+                    $new_master_theme_ids[$dt_id] = $theme_id;
+            }
+
+            $themes_to_delete = array();
+            $themes_to_change = array();
+            foreach ($results as $result) {
+                $theme_id = intval($result['theme_id']);
+                $dt_id = intval($result['dt_id']);
+                $parent_theme_id = intval($result['parent_theme_id']);
+
+                // ...the third step is to find all themes that "belong to" the themes the top-level
+                //  descendant "owns"...all of these are going to get deleted
+                if ( isset( $own_themes[$parent_theme_id] )) {
+                    if ( !isset($themes_to_delete[$dt_id]) )
+                        $themes_to_delete[$dt_id] = array();
+                    $themes_to_delete[$dt_id][] = $theme_id;
+                }
+
+                // ...the fourth step is to "promote" what was originally the "copy" of the master
+                //  theme for each of these datatypes
+                if ( !isset($themes_to_change[$dt_id]) )
+                    $themes_to_change[$dt_id] = array();
+                $themes_to_change[$dt_id][$theme_id] = $new_master_theme_ids[$dt_id];
+                // Note that this will create lines for themes which $themes_to_delete is going to delete
+            }
+
+
+            // Since themes are getting deleted, should also delete their associated theme_elements...
+            $all_themes_to_delete = array();
+            foreach ($themes_to_delete as $dt_id => $list) {
+                foreach ($list as $num => $t_id)
+                    $all_themes_to_delete[] = $t_id;
+            }
+
+            $query = $em->createQuery(
+               'SELECT te.id AS te_id
+                FROM ODRAdminBundle:ThemeElement te
+                WHERE te.theme IN (:theme_ids)
+                AND te.deletedAt IS NULL'
+            )->setParameters( array('theme_ids' => $all_themes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $theme_elements_to_delete = array();
+            foreach ($results as $result) {
+                $te_id = $result['te_id'];
+                $theme_elements_to_delete[] = $te_id;
+            }
+
+
+            // ----------------------------------------
+            $lines = array();
+            $lines[] = 'START TRANSACTION;';
+
+            // The descendant datatype and all of its children need to have their parent_id,
+            //  grandparent_id, and template_group updated
+            $lines[] = 'UPDATE odr_data_type dt SET dt.parent_id = '.$ancestor_dt_id.' WHERE dt.id = '.$target_dt_id.';';
+            foreach ($target_descendant_ids as $num => $dt_id)
+                $lines[] = 'UPDATE odr_data_type dt SET dt.grandparent_id = '.$ancestor_grandparent_id.', dt.template_group = "'.$ancestor_template_group.'", dt.metadata_datatype_id = NULL WHERE dt.id = '.$dt_id.';';
+            $lines[] = '';
+
+            // The datatree entries need to get switched so these datatypes are no longer considered to be linked
+            $lines[] = 'INSERT INTO odr_data_tree_meta (data_tree_id, is_link, multiple_allowed, edit_behavior, created, createdBy, updated, updatedBy, deletedAt, secondary_data_tree_id)
+                        VALUES ('.$datatree->getId().', 0, '.$datatree->getMultipleAllowed().', '.$datatree->getEditBehavior().', NOW(), '.$user->getId().', NOW(), '.$user->getId().', NULL, NULL);';
+            $lines[] = 'UPDATE odr_data_tree_meta dtm SET dtm.deletedAt = NOW() where dtm.id = '.$datatree_meta_id.';';
+            $lines[] = '';
+
+
+            // ...easier if the "self-owned" themes for these descendant datatypes get deleted
+            foreach ($themes_to_delete as $dt_id => $theme_id_list) {
+                foreach ($theme_id_list as $num => $t_id) {
+                    $lines[] = 'UPDATE odr_theme t SET t.deletedAt = NOW(), t.deletedBy = '.$user->getId().' WHERE t.id = '.$t_id.';';
+                    $lines[] = 'UPDATE odr_theme_meta tm SET tm.deletedAt = NOW() WHERE tm.theme_id = '.$t_id.';';
+                }
+            }
+            $lines[] = '';
+
+            // ...so the various "copies" of the original master theme can get "promoted" to the new
+            //  master theme
+            foreach ($themes_to_change as $dt_id => $list) {
+                foreach ($list as $theme_id => $new_source_theme_id)
+                    $lines[] = 'UPDATE odr_theme t SET t.source_theme_id = '.$new_source_theme_id.' WHERE t.id = '.$theme_id.' AND t.deletedAt IS NULL;';
+            }
+            $lines[] = '';
+
+            // Delete the associated theme_elements...
+            foreach ($theme_elements_to_delete as $num => $te_id) {
+                $lines[] = 'UPDATE odr_theme_element te SET te.deletedAt = NOW(), te.deletedBy = '.$user->getId().' WHERE te.id = '.$te_id.' AND te.deletedAt IS NULL;';
+                $lines[] = 'UPDATE odr_theme_element_meta tem SET tem.deletedAt = NOW() WHERE tem.theme_element_id = '.$te_id.' AND tem.deletedAt IS NULL;';
+            }
+            $lines[] = '';
+
+            // ...theme_datafields...
+            foreach ($theme_elements_to_delete as $num => $te_id)
+                $lines[] = 'UPDATE odr_theme_data_field tdf SET tdf.deletedAt = NOW(), tdf.deletedBy = '.$user->getId().' WHERE tdf.theme_element_id = '.$te_id.' AND tdf.deletedAt IS NULL;';
+            $lines[] = '';
+
+            // ...theme_datatypes...
+            foreach ($theme_elements_to_delete as $num => $te_id)
+                $lines[] = 'UPDATE odr_theme_data_type tdt SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().' WHERE tdt.theme_element_id = '.$te_id.' AND tdt.deletedAt IS NULL;';
+            $lines[] = '';
+
+            // ...and theme_datatypes that point to the themes getting deleted
+            foreach ($themes_to_delete as $dt_id => $theme_id_list) {
+                foreach ($theme_id_list as $num => $t_id)
+                    $lines[] = 'UPDATE odr_theme_data_type tdt SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().' WHERE tdt.child_theme_id = '.$t_id.' AND tdt.deletedAt IS NULL;';
+            }
+            $lines[] = '';
+
+
+            if ( count($linked_datatree_ids) > 0 ) {
+                // The linked datatree entries need to get deleted
+                $subset = array();
+                foreach ($linked_datatree_ids as $num => $dt_id) {
+                    if ( count($subset) < 25 )
+                        $subset[] = $dt_id;
+                    else {
+                        $lines[] = 'UPDATE odr_linked_data_tree ldt SET ldt.deletedAt = NOW(), ldt.deletedBy = '.$user->getId().' WHERE ldt.id IN ('.implode(',', $subset).');';
+                        $subset = array();
+                    }
+                }
+                if ( count($subset) > 0 )
+                    $lines[] = 'UPDATE odr_linked_data_tree ldt SET ldt.deletedAt = NOW(), ldt.deletedBy = '.$user->getId().' WHERE ldt.id IN ('.implode(',', $subset).');';
+                $lines[] = '';
+            }
+
+            if ( count($new_parent_ids) > 0 ) {
+                // The datarecords need to have their parent_id and grandparent_id updated
+                foreach ($new_parent_ids as $descendant_dr_id => $ancestor_ids) {
+                    $lines[] = 'UPDATE odr_data_record dr SET dr.parent_id = '.$ancestor_ids['parent'].' WHERE dr.id = '.$descendant_dr_id.' AND dr.deletedAt IS NULL;';
+                    $lines[] = 'UPDATE odr_data_record dr SET dr.grandparent_id = '.$ancestor_ids['grandparent'].' WHERE dr.grandparent_id = '.$descendant_dr_id.' AND dr.deletedAt IS NULL;';
+                }
+                $lines[] = '';
+            }
+
+//            $lines[] = 'ROLLBACK;';
+            $lines[] = 'COMMIT;';
+
+            $str = implode("\n", $lines);
+            $hash = md5($str."\n");
+
+            $metadata_lines = array();
+            foreach ($metadata_datatype_ids as $num => $dt_id)
+                $metadata_lines[] = '<a target="_blank" href="#'.$router->generate('odr_datatype_landing', array('datatype_id' => $dt_id)).'">Metadata datatype: '.$dt_id.'</a>';
+            $metadata_lines[] = $hash;
+            $metadata_str = implode("</br>", $metadata_lines);
+
+            $odr_tmp_directory = $this->getParameter('odr_tmp_directory');
+            $handle = fopen($odr_tmp_directory.'/user_'.$user->getId().'/tmp.dmp', 'w');
+            if ( !$handle )
+                throw new ODRException('Unable to open file');
+            foreach ($lines as $line)
+                fwrite($handle, $line."\n");
+            fclose($handle);
+
+            $return['d'] = array(
+                'metadata_html' => $metadata_str,
+                'sql' => $str,
+            );
         }
         catch (\Exception $e) {
             $source = 0x86786c59;
