@@ -2587,7 +2587,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Due to the complexity of CIF files, and because other parts of ODR might feel
         //  like reading them...use a static function from elsewhere
         $file_contents = file_get_contents($local_filepath);
-        $cif_lines = CrystallographyDef::readCIFFile($file_contents);
+        $cif_lines = CrystallographyDef::readCIFFile($file_contents, true);    // apply blacklist during file reading
 
         // The returned array is organized by line, but most of what ODR cares about is easier to
         //  get at when it's organized by key...
@@ -2809,32 +2809,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         //  in thousands of lines of data
         $cif_contents_raw = array();
 
-        // Going to use a blacklist to attempt to filter out most of the DIF data...
-        $blacklist = array(
-            '_exptl_' => 0,
-            '_diffrn_' => 0,
-            '_refln_' => 0,
-            '_reflns_' => 0,
-            '_computing_' => 0,
-            '_refine_' => 0,
-            '_olex2_' => 0,
-//            '_atom_' => 0,
-            '_geom_' => 0,
-            '_shelx_' => 0,
-            '_oxdiff_' => 0,
-            '_jana_' => 0,
-            '_pd_calc_' => 0,
-            '_twin_' => 0,
-        );
-        // ...but need a couple of the keys still
-        $whitelist = array(
-            '_shelx_SHELXL_version_number' => 1,
-            '_exptl_crystal_density_diffrn' => 1,
-//            '_atom_type_symbol' => 1,
-//            '_atom_site_label' => 1,
-//            '_atom_site_aniso_label' => 1,
-        );
-
         foreach ($cif_lines as $line_num => $data) {
             if ( isset($data['key']) ) {
                 $key = $data['key'];
@@ -2847,38 +2821,15 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 }
                 else {
                     // regular key/value pair
-                    $fragment = substr($key, 0, strpos($key, '_', 1)+1);
-                    // If the key is considered "extra", then skip to the next node
-                    if ( isset($blacklist[$fragment]) && !isset($whitelist[$key]) )
-                        continue;
 
-                    // Otherwise, going to be saving this key
+                    // The contents have already been filtered, so save this key
                     $cif_contents_raw[] = $data;
                 }
             }
             else if ( isset($data['keys']) ) {
                 // Loop structure
-                $keys = $data['keys'];
-                foreach ($keys as $num => $key) {
-                    $fragment_1 = $fragment_2 = null;
-                    $num_underscores = 0;
-                    for ($i = 0; $i < strlen($key); $i++) {
-                        if ( $key[$i] === '_' )
-                            $num_underscores++;
-                        if ( is_null($fragment_1) && $num_underscores === 2 )
-                            $fragment_1 = substr($key, 0, $i+1);
-                        else if ( is_null($fragment_2) && $num_underscores === 3 )
-                            $fragment_2 = substr($key, 0, $i+1);
-                    }
 
-                    // If the key is considered "extra", then skip to the next node
-                    if ( !is_null($fragment_1) && isset($blacklist[$fragment_1]) && !isset($whitelist[$key]) )
-                        continue 2;
-                    if ( !is_null($fragment_2) && isset($blacklist[$fragment_2]) && !isset($whitelist[$key]) )
-                        continue 2;
-                }
-
-                // Otherwise, going to be saving the entire loop
+                // The contents have already been filtered, so save this loop
                 $cif_contents_raw[] = $data;
             }
         }

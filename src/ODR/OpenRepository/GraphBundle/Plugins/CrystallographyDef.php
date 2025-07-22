@@ -527,18 +527,66 @@ class CrystallographyDef
 
 
     /**
+     * CIF files allow a dizzying array of data in them...a lot of it has to do with diffraction
+     * patterns, but the AMCSD database on ODR would prefer CIFs to just have structure data.
+     *
+     * The following strings are prefixes to keys that AMCSD doesn't want to deal with.
+     *
+     * @var array
+     */
+    public static $cif_key_blacklist = array(
+        '_exptl_' => 0,
+        '_diffrn_' => 0,
+        '_refln_' => 0,
+        '_reflns_' => 0,
+        '_computing_' => 0,
+        '_refine_' => 0,
+        '_olex2_' => 0,
+//        '_atom_' => 0,
+        '_geom_' => 0,
+        '_shelx_' => 0,
+        '_oxdiff_' => 0,
+        '_jana_' => 0,
+//        '_pd_' => 0,
+        '_pd_calc_' => 0,
+        '_twin_' => 0,
+    );
+
+
+    /**
+     * There are several keys that match {@link self::$cif_key_blacklist}, but are actually useful
+     * ...so there also needs to be a whitelist to override the blacklist.
+     *
+     * @var array
+     */
+    public static $cif_key_whitelist = array(
+        '_shelx_SHELXL_version_number' => 1,
+        '_exptl_crystal_density_diffrn' => 1,
+//        '_atom_type_symbol' => 1,
+//        '_atom_site_label' => 1,
+//        '_atom_site_aniso_label' => 1,
+    );
+
+
+    /**
      * Attempts to read a CIF file.
      *
-     * The theory is to break the file apart into "nodes" which either consist of a
-     * 1) key/value pair
-     * 2) table-ish structure
+     * The theory is to break the file apart into "nodes", which are one of the following:
+     * 1) comment block
+     * 2) key/value pair
+     * 3) table-ish structure
      * The original text making up the node is also stored, which means the return also has blank
      * nodes for lines without data.
      *
+     * By default, this function ends up checking syntax and returning data from the entire file. If
+     * $apply_blacklist is set to true, then it will generally skip over anything blacklisted, and
+     * only return data from the allowed keys/loops.
+     *
      * @param string $file_contents
+     * @param bool $apply_blacklist
      * @return array
      */
-    public static function readCIFFile($file_contents)
+    public static function readCIFFile($file_contents, $apply_blacklist = false)
     {
         $structure = array();
 
@@ -560,11 +608,13 @@ class CrystallographyDef
                     if ( $value !== "''" )
                         $value = self::stripQuotes( $value );
 
-                    $structure[] = array(
-                        'key' => $key,
-                        'value' => $value,
-                        'text' => $lines[$i]."\r\n",
-                    );
+                    if ( !$apply_blacklist || !self::filterCIFEntity($key) ) {
+                        $structure[] = array(
+                            'key' => $key,
+                            'value' => $value,
+                            'text' => $lines[$i]."\r\n",
+                        );
+                    }
                 }
                 else {
                     // If the value is split across multiple lines, then the current line is the key
@@ -593,22 +643,26 @@ class CrystallographyDef
                                 // ...then get rid of any semicolons that weren't on their own lines
                                 $multiline_value = str_replace(';', '', $multiline_value);
 
-                                $structure[] = array(
-                                    'key' => $key,
-                                    'value' => trim($multiline_value),
-                                    'text' => $multiline_text,
-                                );
+                                if ( !$apply_blacklist || !self::filterCIFEntity($key) ) {
+                                    $structure[] = array(
+                                        'key' => $key,
+                                        'value' => trim($multiline_value),
+                                        'text' => $multiline_text,
+                                    );
+                                }
                                 break;
                             }
                         }
                         else if ( !$inside_semicolon ) {
                             // ...while semicolons are the legitimate method, apparently just allowing
                             //  another line is also "legal"
-                            $structure[] = array(
-                                'key' => $key,
-                                'value' => self::stripQuotes( $loop_line ),
-                                'text' => $multiline_text,
-                            );
+                            if ( !$apply_blacklist || !self::filterCIFEntity($key) ) {
+                                $structure[] = array(
+                                    'key' => $key,
+                                    'value' => self::stripQuotes($loop_line),
+                                    'text' => $multiline_text,
+                                );
+                            }
                             break;
                         }
                     }
@@ -623,6 +677,7 @@ class CrystallographyDef
                 $key_count = 0;
                 $loop_values = array();
                 $in_data = false;
+                $loop_is_blacklisted = false;
 
                 // Need to read lines independently of the outer loop...
                 for ($j = $i+1; $j < count($lines); $j++) {
@@ -642,6 +697,19 @@ class CrystallographyDef
                             $key_count = count($current_node['keys']);
                             for ($k = 0; $k < $key_count; $k++)
                                 $current_node['values'][$k] = array();
+
+                            // If the blacklist needs to be applied...
+                            if ( $apply_blacklist ) {
+                                // ...then each of the keys needs to be checked
+                                foreach ($current_node['keys'] as $num => $key) {
+                                    if ( self::filterCIFEntity($key) ) {
+                                        // If any of the keys triggers the blacklist, then the entire
+                                        //  loop should be skipped
+                                        $loop_is_blacklisted = true;
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -649,12 +717,20 @@ class CrystallographyDef
                         // CIFs don't have something like 'endloop_'...
                         if ( $loop_line === '' || strpos($loop_line, '_') === 0 || strpos($loop_line, 'loop_') === 0 ) {
                             // ...if it's a blank line or another line of data, then end the loop
-                            $structure[] = $current_node;
+                            if ( !$loop_is_blacklisted ) {
+                                // ...but only store the data if the loop wasn't entirely blacklisted
+                                $structure[] = $current_node;
+                            }
                             $current_node = null;
 
                             // Set the outer loop variable so it reads this line next
                             $i = $j-1;
                             break;
+                        }
+                        else if ( $loop_is_blacklisted ) {
+                            // If the loop is blacklisted, then don't attempt to actually process
+                            //  any of the lines of data inside the loop...just keep reading until
+                            //  the loop ends
                         }
                         else {
                             // Read in a line of data
@@ -855,5 +931,37 @@ class CrystallographyDef
         if ( $tmp !== '' )
             $data[] = $tmp;
         return $data;
+    }
+
+
+    /**
+     * Returns whether the given key is on {@link self::$cif_key_blacklist} and simultaneously not
+     * on {@link self::$cif_key_whitelist}.
+     *
+     * @param string $key
+     * @return bool true if the key is blacklisted, false if it is whitelisted
+     */
+    private static function filterCIFEntity($key) {
+        // Most of the blacklist only has a single string inbetween underscores...e.g. "_shelx_"...
+        //  but there are rarer situation where we want to be more specific...e.g.  "_pd_calc_"
+        $fragment_1 = $fragment_2 = null;
+        $num_underscores = 0;
+        for ($i = 0; $i < strlen($key); $i++) {
+            if ( $key[$i] === '_' )
+                $num_underscores++;
+            if ( is_null($fragment_1) && $num_underscores === 2 )
+                $fragment_1 = substr($key, 0, $i+1);
+            else if ( is_null($fragment_2) && $num_underscores === 3 )
+                $fragment_2 = substr($key, 0, $i+1);
+        }
+
+        // If the key is on the blacklist and not on the whitelist, then return true to filter it out
+        if ( !is_null($fragment_1) && isset(self::$cif_key_blacklist[$fragment_1]) && !isset(self::$cif_key_whitelist[$key]) )
+            return true;
+        if ( !is_null($fragment_2) && isset(self::$cif_key_blacklist[$fragment_2]) && !isset(self::$cif_key_whitelist[$key]) )
+            return true;
+
+        // Otherwise, AMCSD doesn't want the key filtered out
+        return false;
     }
 }
