@@ -241,8 +241,8 @@ class TableThemeHelperService
     /**
      * Returns a stripped-down array of data for rendering by the datatables plugin.
      *
-     * $datarecord_ids should already be a list of datarecords the user is able to view.  Otherwise,
-     *  filtering may cause this to return fewer rows than desired.
+     * $datarecord_ids should already be a filtered list of datarecords the user is able to view.
+     * Otherwise, this function might return fewer rows than the number of datarecords it was given.
      *
      * @param ODRUser $user
      * @param int[] $datarecord_ids
@@ -335,10 +335,10 @@ class TableThemeHelperService
                         }
 
                         // Don't want to save the sortfield_value of the linked datarecord...
-                        unset( $table_dr_data['sortField_value'] );
-                        // ...but save everything else in the datarecord being searched on
-                        foreach ($table_dr_data as $df_id => $df_data)
-                            $datarecord_array[$search_dr_id][$df_id] = $df_data;
+//                        unset( $table_dr_data['sortField_value'] );
+                        // ...but save everything else
+                        foreach ($table_dr_data as $dr_id => $dr_data)
+                            $datarecord_array[$search_dr_id][$dr_id] = $dr_data;
                     }
                 }
             }
@@ -348,24 +348,37 @@ class TableThemeHelperService
         // ----------------------------------------
         // Build the final array of data
         $rows = array();
-        foreach ($datarecord_array as $dr_id => $dr) {
-            $dr_data = array();
+        foreach ($datarecord_array as $top_level_dr_id => $dr_list) {
+            // Only include fields from a datarecord if the user can view said datarecord
+            $available_data = array();
+            foreach ($dr_list as $dr_id => $dr) {
+                $dt_id = $dr['dt_id'];
+                if ( $can_view_datarecord[$dt_id] || $dr['is_public'] ) {
+                    unset( $dr['dt_id'] );
+                    unset( $dr['is_public'] );
 
+                    foreach ($dr as $key => $value)
+                        $available_data[$key] = $value;
+                }
+            }
+
+            $dr_data = array();
             foreach ($table_df_array as $num => $df) {
                 // Attempt to pull the data from the cached entry...
                 $df_id = $df['id'];
                 $dt_id = $df['dataType']['id'];
 
-                if ( !isset($dr[$df_id]) ) {
-                    // ...data isn't set, so it's probably empty or null...store empty string
+                if ( !isset($available_data[$df_id]) ) {
+                    // Data isn't set, so it's probably empty or the user can't view it...store the
+                    //  empty string
                     $dr_data[] = '';
                 }
-                else if ( is_array($dr[$df_id]) ) {
-                    // Need to ensure that names/links to non-public Files aren't displayed
-                    //  to people that don't have permission to view them
-                    $file_publicDate = $dr[$df_id]['publicDate'];
-                    $file_url = $dr[$df_id]['url'];
-                    $file_name = $dr[$df_id]['filename'];
+                else if ( is_array($available_data[$df_id]) ) {
+                    // If an array, then this is for files...need to ensure that names/links to
+                    //  non-public Files aren't displayed if the user can't view them
+                    $file_ispublic = $available_data[$df_id]['publicDate'];
+                    $file_url = $available_data[$df_id]['url'];
+                    $file_name = $available_data[$df_id]['filename'];
 
                     // File fields also can be switched between displaying their full filename, or
                     //  just displaying an icon
@@ -373,10 +386,10 @@ class TableThemeHelperService
                     if ( isset($df['themeDataField']['useIconInTables']) )
                         $use_icon = $df['themeDataField']['useIconInTables'];
 
-                    if ($can_view_datarecord[$dt_id] || $file_publicDate != '2200-01-01') {
+                    if ( $can_view_datarecord[$dt_id] || $file_ispublic ) {
                         if ( !$use_icon )
                             $dr_data[] = '<a href="'.$file_url.'">'.$file_name.'</a>';
-                        else if ($file_publicDate == '2200-01-01')
+                        else if ($file_ispublic)
                             $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer ODRNotPublic"></i></a>';
                         else
                             $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer ODRPublic"></i></a>';
@@ -387,8 +400,8 @@ class TableThemeHelperService
                     }
                 }
                 else {
-                    // ...store it in the final array
-                    $dr_data[] = $dr[$df_id];
+                    // Does have a value, so store it in the final array
+                    $dr_data[] = $available_data[$df_id];
                 }
             }
 
@@ -403,7 +416,7 @@ class TableThemeHelperService
                     $row[] = '';
 
                 // Always want the datarecord id...
-                $row[] = strval($dr_id);
+                $row[] = strval($top_level_dr_id);
 
                 // ...and also always want an empty space for the datarecord's default sort value
                 // NOTE: filling in the value only (kinda) worked BEFORE multi-datafield sorting
@@ -417,7 +430,7 @@ class TableThemeHelperService
                     $row[] = strval($tmp);
 
                 // Append the public date
-                $row['is_public'] = $dr['is_public'];
+                $row['is_public'] = $dr_list[$top_level_dr_id]['is_public'];
 
                 $rows[] = $row;
             }
@@ -434,68 +447,92 @@ class TableThemeHelperService
      * plugin.
      *
      * @param array $dr_data
-     * @param int $datarecord_id
+     * @param int $top_level_dr_id
      *
      * @throws ODRException
      *
      * @return array
      */
-    private function buildTableData($dr_data, $datarecord_id)
+    private function buildTableData($dr_data, $top_level_dr_id)
     {
         // Need the cached data for the given datarecord...
-        $dr = $dr_data[$datarecord_id];
+        $top_level_dr = $dr_data[$top_level_dr_id];
 
         // Also need the datatype info in order to determine whether any render plugins need to run
-        $dt_id = $dr_data[$datarecord_id]['dataType']['id'];
-        $dt_data = $this->database_info_service->getDatatypeArray($dt_id, false);    // don't want links
-        $dt = $dt_data[$dt_id];
+        $top_level_dt_id = $top_level_dr['dataType']['id'];
+        $dt_data = $this->database_info_service->getDatatypeArray($top_level_dt_id, false);    // don't want links
 
 
         // ----------------------------------------
-        // Only want to save values from the top-level datarecord
-        $data = array('sortField_value' => $dr['sortField_value']);
-        // Need the public date in here too...
-        $data['is_public'] = false;
-        if ( ($dr['dataRecordMeta']['publicDate'])->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' )
-            $data['is_public'] = true;
-
-        // If the datatype is using a render plugin...
-        $overriden_field_values = array();
-        if ( !empty($dt['renderPluginInstances']) ) {
-            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
-                // ...and it wants to override the values displayed in table layouts...
-                $render_plugin = $rpi['renderPlugin'];
-                if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {
-                    // ...then load the render plugin...
-                    $plugin_classname = $render_plugin['pluginClassName'];
-                    /** @var TableResultsOverrideInterface $plugin */
-                    $plugin = $this->container->get($plugin_classname);
-
-                    try {
-                        // ...so it can do whatever it wants to determine the values for the fields
-                        $overriden_field_values = $plugin->getTableResultsOverrideValues($rpi, $dr);
+        // Need to locate any single-allowed child records, because those need to also exist in the
+        //  cache entry...
+        $dt_list = array($top_level_dt_id => 1);
+        $dts_to_check = array($top_level_dt_id => 1);
+        while ( !empty($dts_to_check) ) {
+            $tmp = array();
+            foreach ($dts_to_check as $dt_id => $num) {
+                if ( !empty($dt_data[$dt_id]['descendants']) ) {
+                    foreach ($dt_data[$dt_id]['descendants'] as $child_dt_id => $dt_info) {
+                        if ( $dt_info['is_link'] === 0 && $dt_info['multiple_allowed'] === 0 ) {
+                            $dt_list[$child_dt_id] = 1;
+                            $tmp[$child_dt_id] = 1;
+                        }
                     }
-                    catch (\Exception $e) {
-                        throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$dt['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
-                    }
-
-                    // The datatype should only have one render plugin that does this
-                    break;
                 }
             }
+            $dts_to_check = $tmp;
         }
 
-        // Need to find the values for all relevant fields in this datatype
-        foreach ($dt['dataFields'] as $df_id => $df) {
-            // The datarecord might not have an entry for this datafield...
-            $df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
-            $df_value = '';
-            $save_value = true;
+        $dr_list = array($top_level_dr_id => 1);
+        $drs_to_check = array($top_level_dr_id => 1);
+        while ( !empty($drs_to_check) ) {
+            $tmp = array();
+            foreach ($drs_to_check as $dr_id => $num) {
+                if ( !empty($dr_data[$dr_id]['children']) ) {
+                    foreach ($dr_data[$dr_id]['children'] as $child_dt_id => $child_dr_list) {
+                        if ( isset($dt_list[$child_dt_id]) ) {
+                            // Should only be at must one record here because it's single-allowed
+                            if ( isset($child_dr_list[0]) ) {
+                                $child_dr_id = $child_dr_list[0];
+                                $dr_list[$child_dr_id] = 1;
+                                $tmp[$child_dt_id] = 1;
+                            }
+                        }
+                    }
+                }
+            }
+            $drs_to_check = $tmp;
+        }
 
-            // If the datafield is using a render plugin....
-            $render_plugin_instance = null;
-            if ( !empty($df['renderPluginInstances']) ) {
-                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+
+        // ----------------------------------------
+        // Going to store data for each record individually...
+        $data = array();
+        foreach ($dr_list as $dr_id => $num)
+            $data[$dr_id] = array();
+
+        // Prior to multi-datafield sorting, the top-level record (kinda) needed to provide a
+        //  sortvalue to datatables.js...but ODR is forced to handle all sorting, so it makes no
+        //  sense to store this value now
+//        $data[$top_level_dr_id]['sortField_value'] = $top_level_dr['sortField_value'];
+
+        // Need to get the data for each of the datarecords in the list
+        foreach ($dr_list as $dr_id => $num) {
+            $dr = $dr_data[$dr_id];
+            $dt_id = $dr['dataType']['id'];
+            $dt = $dt_data[$dt_id];
+
+            // All datarecords need to store their datatype id and whether they're public
+            $data[$dr_id]['dt_id'] = $dt_id;
+            $data[$dr_id]['is_public'] = false;
+            if ( ($dr['dataRecordMeta']['publicDate'])->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' )
+                $data[$dr_id]['is_public'] = true;
+
+
+            // If the datatype is using a render plugin...
+            $overriden_field_values = array();
+            if ( !empty($dt['renderPluginInstances']) ) {
+                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     // ...and it wants to override the values displayed in table layouts...
                     $render_plugin = $rpi['renderPlugin'];
                     if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {
@@ -506,15 +543,10 @@ class TableThemeHelperService
 
                         try {
                             // ...so it can do whatever it wants to determine the values for the fields
-                            $tmp = $plugin->getTableResultsOverrideValues($rpi, $dr, $df);
-                            if ( isset($tmp[$df_id]) )
-                                $overriden_field_values[$df_id] = $tmp[$df_id];
-
-                            // If a datatype and a datafield both affect this field, then this means
-                            //  the value the datafield plugin returns will take precedence
+                            $overriden_field_values = $plugin->getTableResultsOverrideValues($rpi, $dr);
                         }
                         catch (\Exception $e) {
-                            throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
+                            throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$dt['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
                         }
 
                         // The datatype should only have one render plugin that does this
@@ -523,94 +555,144 @@ class TableThemeHelperService
                 }
             }
 
-            if ( isset($overriden_field_values[$df_id]) ) {
-                // A render plugin has already returned a string to use
-                $df_value = $overriden_field_values[$df_id];
-            }
-            else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
-                /* A drf entry hasn't been created for this storage entity...just use the empty string */
-            }
-            else {
-                // ...otherwise, (almost) directly transfer the data
-                $drf = $dr['dataRecordFields'][$df_id];
+            // Need to find the values for all relevant fields in this datatype
+            foreach ($dt['dataFields'] as $df_id => $df) {
+                // The datarecord might not have an entry for this datafield...
+                $df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                $df_value = '';
+                $save_value = true;
 
-                switch ($df_typename) {
-                    case 'Boolean':
-                        if ( isset($drf['boolean'][0]) ) {
-                            if ( $drf['boolean'][0]['value'] == 1 )
-                                $df_value = 'YES';
+                // If the datafield is using a render plugin....
+                $render_plugin_instance = null;
+                if ( !empty($df['renderPluginInstances']) ) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                        // ...and it wants to override the values displayed in table layouts...
+                        $render_plugin = $rpi['renderPlugin'];
+                        if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {
+                            // ...then load the render plugin...
+                            $plugin_classname = $render_plugin['pluginClassName'];
+                            /** @var TableResultsOverrideInterface $plugin */
+                            $plugin = $this->container->get($plugin_classname);
+
+                            try {
+                                // ...so it can do whatever it wants to determine the values for the fields
+                                $tmp = $plugin->getTableResultsOverrideValues($rpi, $dr, $df);
+                                if ( isset($tmp[$df_id]) )
+                                    $overriden_field_values[$df_id] = $tmp[$df_id];
+
+                                // If a datatype and a datafield both affect this field, then this means
+                                //  the value the datafield plugin returns will take precedence
+                            }
+                            catch (\Exception $e) {
+                                throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
+                            }
+
+                            // The datatype should only have one render plugin that does this
+                            break;
                         }
-                        break;
-                    case 'Integer':
-                        if ( isset($drf['integerValue'][0]) )
-                            $df_value = $drf['integerValue'][0]['value'];
-                        break;
-                    case 'Decimal':
-                        if ( isset($drf['decimalValue'][0]) )
-                            $df_value = $drf['decimalValue'][0]['original_value'];
-                        break;
-                    case 'Paragraph Text':
-                        if ( isset($drf['longText'][0]) )
-                            $df_value = $drf['longText'][0]['value'];
-                        break;
-                    case 'Long Text':
-                        if ( isset($drf['longVarchar'][0]) )
-                            $df_value = $drf['longVarchar'][0]['value'];
-                        break;
-                    case 'Medium Text':
-                        if ( isset($drf['mediumVarchar'][0]) )
-                            $df_value = $drf['mediumVarchar'][0]['value'];
-                        break;
-                    case 'Short Text':
-                        if ( isset($drf['shortVarchar'][0]) )
-                            $df_value = $drf['shortVarchar'][0]['value'];
-                        break;
-                    case 'DateTime':
-                        if ( isset($drf['datetimeValue'][0]) ) {
-                            $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
-                            if ($df_value == '9999-12-31')
-                                $df_value = '';
-                        }
-                        break;
+                    }
+                }
 
-                    case 'File':
-                        if ( isset($drf['file'][0]) ) {
-                            $file = $drf['file'][0];    // should only ever be one file in here anyways
+                if ( isset($overriden_field_values[$df_id]) ) {
+                    // A render plugin has already returned a string to use
+                    $df_value = $overriden_field_values[$df_id];
+                }
+                else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
+                    /* A drf entry hasn't been created for this storage entity...just use the empty string */
+                }
+                else {
+                    // ...otherwise, copy the data from the cached datarecord entry into what will
+                    //  be the cached table entry
+                    $drf = $dr['dataRecordFields'][$df_id];
 
-                            $url = $this->router->generate( 'odr_file_download', array('file_id' => $file['id']) );
-                            $df_value = array(
-                                'publicDate' => $file['fileMeta']['publicDate']->format('Y-m-d'),
-                                'url' => $url,
-                                'filename' => $file['fileMeta']['originalFileName'],
-                            );
-                        }
-                        break;
+                    switch ($df_typename) {
+                        case 'Boolean':
+                            if ( isset($drf['boolean'][0]) ) {
+                                if ( $drf['boolean'][0]['value'] == 1 )
+                                    $df_value = 'YES';
+                            }
+                            break;
+                        case 'Integer':
+                            if ( isset($drf['integerValue'][0]) )
+                                $df_value = $drf['integerValue'][0]['value'];
+                            break;
+                        case 'Decimal':
+                            if ( isset($drf['decimalValue'][0]) )
+                                $df_value = $drf['decimalValue'][0]['original_value'];
+                            break;
+                        case 'Paragraph Text':
+                            if ( isset($drf['longText'][0]) )
+                                $df_value = $drf['longText'][0]['value'];
+                            break;
+                        case 'Long Text':
+                            if ( isset($drf['longVarchar'][0]) )
+                                $df_value = $drf['longVarchar'][0]['value'];
+                            break;
+                        case 'Medium Text':
+                            if ( isset($drf['mediumVarchar'][0]) )
+                                $df_value = $drf['mediumVarchar'][0]['value'];
+                            break;
+                        case 'Short Text':
+                            if ( isset($drf['shortVarchar'][0]) )
+                                $df_value = $drf['shortVarchar'][0]['value'];
+                            break;
+                        case 'DateTime':
+                            if ( isset($drf['datetimeValue'][0]) ) {
+                                $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
+                                if ($df_value == '9999-12-31')
+                                    $df_value = '';
+                            }
+                            break;
 
-                    case 'Single Radio':
-                    case 'Single Select':
-                        if ( isset($drf['radioSelection']) ) {
-                            foreach ($drf['radioSelection'] as $ro_id => $rs) {
-                                if ( $rs['selected'] == 1 ) {
-                                    $df_value = $rs['radioOption']['optionName'];
-                                    break;
+                        case 'File':
+                            if ( isset($drf['file'][0]) ) {
+                                $file = $drf['file'][0];    // should only ever be one file in here anyways
+
+                                $url = $this->router->generate( 'odr_file_download', array('file_id' => $file['id']) );
+                                $is_public = false;
+                                if ( $file['fileMeta']['publicDate']->format('Y-m-d') !== '2200-01-01' )
+                                    $is_public = true;
+
+                                $df_value = array(
+                                    'publicDate' => $is_public,
+                                    'url' => $url,
+                                    'filename' => $file['fileMeta']['originalFileName'],
+                                );
+                            }
+                            break;
+
+                        case 'Single Radio':
+                        case 'Single Select':
+                            if ( isset($drf['radioSelection']) ) {
+                                foreach ($drf['radioSelection'] as $ro_id => $rs) {
+                                    if ( $rs['selected'] == 1 ) {
+                                        $df_value = $rs['radioOption']['optionName'];
+                                        break;
+                                    }
                                 }
                             }
-                        }
-                        break;
+                            break;
 
-                    // No other fieldtype is valid for a table layout
-                    default:
-                        $save_value = false;
-                        break;
+                        // No other fieldtype is valid for a table layout
+                        default:
+                            $save_value = false;
+                            break;
+                    }
                 }
-            }
 
-            if ($save_value)
-                $data[$df_id] = $df_value;
+                if ($save_value)
+                    $data[$dr_id][$df_id] = $df_value;
+            }
+        }
+
+        // No point storing records that don't have any fields/data
+        foreach ($data as $dr_id => $dr_data) {
+            if ( count($dr_data) === 2 )
+                unset( $data[$dr_id] );
         }
 
         // Save and return the cached version of the data
-        $this->cache_service->set('cached_table_data_'.$datarecord_id, $data);
+        $this->cache_service->set('cached_table_data_'.$top_level_dr_id, $data);
         return $data;
     }
 
