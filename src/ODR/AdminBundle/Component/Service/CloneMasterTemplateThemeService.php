@@ -111,12 +111,12 @@ class CloneMasterTemplateThemeService
         $dts = implode(',', $associated_datatypes);
         $this->logger->info('CloneMasterTemplateThemeService: cloning top-level themes for datatypes ['.$dts.']');
 
-        // Need to locate each theme that got created...
+        // Need to locate each theme for these datatypes, so they can all get cloned...
         /** @var Theme[] $results */
         $query = $this->em->createQuery(
            'SELECT t
             FROM ODRAdminBundle:Theme AS t
-            WHERE t.dataType IN (:datatype_ids) AND t = t.parentTheme
+            WHERE t.dataType IN (:datatype_ids) AND t.parentTheme = t
             AND t.deletedAt IS NULL'
         )->setParameters( array('datatype_ids' => $associated_datatypes) );
         $results = $query->getResult();
@@ -125,27 +125,33 @@ class CloneMasterTemplateThemeService
         $new_parent_themes = array();
         $this->source_themes = array();
         foreach ($results as $t) {
-            // TODO If we don't flush the theme, we can reassign datatypes before committing
             $new_theme = self::cloneSourceTheme(
                 $user,
-                $t,
+                $t,    // copy this theme
+                null,  // let the function set the parent theme
                 $t->getThemeType(),
                 $dt_mapping,
                 $df_mapping,
-                $rpi_mapping,
-                true
+                $rpi_mapping
             );
-
             $new_parent_themes[] = $new_theme;
         }
-
-        // Flush here so the correct theme ids are displayed in the log
+        // self::cloneSourceTheme never flushes, so have to do it manually
         $this->em->flush();
+
+        // ----------------------------------------
+        // At this point, the newly cloned themes do not have a sourceTheme set
+
+        // Easier for self::correctThemeData() if $dt_mapping is inverted
+        $reverse_dt_mapping = array();
+        foreach ($dt_mapping as $old_dt_id => $new_dt)
+            $reverse_dt_mapping[ $new_dt->getId() ] = $old_dt_id;
 
         /** @var Theme[] $new_parent_themes */
         foreach ($new_parent_themes as $t) {
             /** @var Theme $t */
-            self::correctThemeData($user, $t, $t, 0);
+            // Each of these new themes then needs to be updated with its correct source theme
+            self::correctThemeData($user, $t, $reverse_dt_mapping);
         }
 
         $this->logger->info('CloneMasterTemplateThemeService: finished cloning top-level themes for datatypes ['.$dts.']');
@@ -154,22 +160,26 @@ class CloneMasterTemplateThemeService
 
 
     /**
-     * This function creates a copy of an existing theme.  The only appreciable change is to the
-     * cloned theme's theme_type (e.g. "master" theme -> "search_results" theme).  This only makes
-     * sense when called on a top-level theme for a top-level datatype.
+     * This function creates a (mostly complete) copy of an existing theme.  DOES NOT FLUSH.
+     *
+     * IMPORTANT: the source theme(s) for the newly cloned (set of) theme(s) WILL NOT be set when
+     * when this function returns.  The caller MUST deal with this, otherwise ODR will throw errors
+     * later on.  Conveniently, {@link self::$source_themes} is filled out with the correct info as
+     * this function does its thing...
      *
      * @param ODRUser $user
-     * @param Theme $source_theme
+     * @param Theme $source_theme The theme to copy
+     * @param Theme|null $new_parent_theme Should be null when called on a top-level theme
      * @param string $dest_theme_type
-     * @param DataType[] $dest_datatype
-     * @param DataFields[] $dest_datafields
-     * @param RenderPluginInstance[] $dest_rpis
-     * @param bool $delay_flush
-     * @param int $indent
+     * @param DataType[] $dest_datatype {@link CloneMasterDatatypeService::createDatatypeFromMaster()}
+     * @param DataFields[] $dest_datafields {@link CloneMasterDatatypeService::createDatatypeFromMaster()}
+     * @param RenderPluginInstance[] $dest_rpis {@link CloneMasterDatatypeService::cloneRenderPlugins()}
+     * @param int $indent Internally used to make the debug output easier to read
+     * @param bool $is_new_master_theme Internally used to ensure {@link self::$source_themes} is correct
      *
      * @return Theme
      */
-    public function cloneSourceTheme($user, $source_theme, $dest_theme_type, $dest_datatype = array(), $dest_datafields = array(), $dest_rpis = array(), $delay_flush = false, $indent = 0)
+    private function cloneSourceTheme($user, $source_theme, $new_parent_theme, $dest_theme_type, $dest_datatype = array(), $dest_datafields = array(), $dest_rpis = array(), $indent = 0, $is_new_master_theme = false)
     {
         // Debugging assistance on recursive functions...
         $indent_text = '';
@@ -183,7 +193,16 @@ class CloneMasterTemplateThemeService
         $new_theme = clone $source_theme;
         $new_theme->setDataType($dest_datatype[$source_theme->getDataType()->getId()]);
         $new_theme->setThemeType($dest_theme_type);
-        $new_theme->setParentTheme($new_theme);
+        // Need to set the parent theme in here, because it's impossible to set correctly later
+        if ( is_null($new_parent_theme) )
+            $new_parent_theme = $new_theme;
+        $new_theme->setParentTheme($new_parent_theme);
+
+        // Used to also set the source theme in here, but that only worked when cloning a template
+        //  ...the previous logic effectively...latched...onto the first theme that got cloned as the
+        //  new source theme, which definitely does not work when copying a "normal datatype" because
+        //  the order is not guaranteed
+        $new_theme->setSourceTheme(null);
 
         // Also need to create a new ThemeMeta entry...
         $new_theme_meta = clone $source_theme->getThemeMeta();
@@ -192,37 +211,41 @@ class CloneMasterTemplateThemeService
 
         $new_theme->addThemeMetum($new_theme_meta);
 
-        $found_theme = false;
-        foreach ($this->source_themes as $dt_id => $t) {
-            if ($source_theme->getDataType()->getId() == $dt_id) {
-                $found_theme = true;
-                $new_theme->setSourceTheme( $t );
+        $this->em->persist($new_theme);
+        $this->em->persist($new_theme_meta);
 
-                $this->logger->debug('CloneMasterTemplateThemeService:'.$indent_text.' -- set new theme source to '.$t->getId());
-            }
-        }
-        if (!$found_theme) {
-            $new_theme->setSourceTheme( $new_theme );
+        // ---------------------------------------------
+        // This function can still find the correct "source" theme, though...
+        $source_theme_id = $source_theme->getId();
+        $source_theme_parent_id = $source_theme->getParentTheme()->getId();
+        $source_theme_source_id = $source_theme->getSourceTheme()->getId();
 
-            $this->logger->debug('CloneMasterTemplateThemeService:'.$indent_text.' -- set new theme source to self');
+        // ...if the theme that's getting cloned is both its parent and its own "source", then the
+        //  theme that gets copied from it should be the new "source" theme for this datatype
+        if ( $is_new_master_theme || ($source_theme_id === $source_theme_parent_id && $source_theme_id === $source_theme_source_id) ) {
+            $source_theme_datatype_id = $source_theme->getDataType()->getId();
 
-            // persist so we can work with it.
-            $this->em->persist($new_theme);
-            $this->source_themes[$source_theme->getDataType()->getId()] = $new_theme;
+            $this->logger->debug('CloneMasterTemplateThemeService:'.$indent_text.' ** marking this new theme as a "source" theme');
+            $this->source_themes[$source_theme_datatype_id] = $new_theme;
+
+            // Pass this to self::cloneThemeContents(), so that any themes it ends up attempting to
+            //  create for child descendants are also marked as "source" themes for the new children
+            $is_new_master_theme = true;
         }
 
         // ----------------------------------------
-        // Now that a theme exists, synchronize it with its source theme
+        // Now that a theme exists, copy the contents of its source theme into it
         self::cloneThemeContents(
             $user,
             $source_theme,
+            $new_parent_theme,
             $new_theme,
             $dest_theme_type,
             $dest_datatype,
             $dest_datafields,
             $dest_rpis,
-            $delay_flush,
-            ($indent+1)
+            ($indent+1),
+            $is_new_master_theme
         );
 
         $this->logger->info('CloneMasterTemplateThemeService:'.$indent_text.' finished cloning source theme '.$source_theme->getId().' from datatype '.$source_theme->getDataType()->getId().' "'.$source_theme->getDataType()->getShortName().'"...');
@@ -238,16 +261,17 @@ class CloneMasterTemplateThemeService
      * ThemeDatatype entries, and attaching them to $new_theme.
      *
      * @param ODRUser $user
-     * @param Theme $source_theme
-     * @param Theme $new_theme
+     * @param Theme $source_theme The theme being copied
+     * @param Theme $new_parent_theme The "group" of themes this new content belongs to
+     * @param Theme $new_theme The theme receiving the copied entities
      * @param string $dest_theme_type
-     * @param DataType[] $dest_datatype_array
-     * @param DataFields[] $dest_datafields
-     * @param RenderPluginInstance[] $dest_rpis
-     * @param bool $delay_flush
-     * @param int $indent
+     * @param DataType[] $dest_datatype_array {@link CloneMasterDatatypeService::createDatatypeFromMaster()}
+     * @param DataFields[] $dest_datafields {@link CloneMasterDatatypeService::createDatatypeFromMaster()}
+     * @param RenderPluginInstance[] $dest_rpis {@link CloneMasterDatatypeService::cloneRenderPlugins()}
+     * @param int $indent Internally used to make the debug output easier to read
+     * @param bool $is_new_master_theme Internally used to ensure {@link self::$source_themes} is correct
      */
-    private function cloneThemeContents($user, $source_theme, $new_theme, $dest_theme_type, $dest_datatype_array, $dest_datafields, $dest_rpis, $delay_flush, $indent)
+    private function cloneThemeContents($user, $source_theme, $new_parent_theme, $new_theme, $dest_theme_type, $dest_datatype_array, $dest_datafields, $dest_rpis, $indent, $is_new_master_theme)
     {
         // Debugging assistance on recursive functions...
         $indent_text = '';
@@ -323,25 +347,35 @@ class CloneMasterTemplateThemeService
             /** @var ThemeDataType[] $source_theme_dt_array */
             $source_theme_dt_array = $source_te->getThemeDataType();
             foreach ($source_theme_dt_array as $source_tdt) {
-
                 /** @var ThemeDataType $new_tdt */
                 $new_tdt = clone $source_tdt;
                 $new_tdt->setThemeElement($new_te);
 
+                // Need to get this entry to point to the newly cloned descendant datatype...
                 $child_datatype = $dest_datatype_array[ $source_tdt->getDataType()->getId() ];
                 $new_tdt->setDataType($child_datatype);
                 self::persistObject($new_tdt, $user, true);    // These don't need to be flushed/refreshed immediately...
 
+                // If this descendant datatype is not a child datatype, then the theme that'll be
+                //  cloned should not be the new datatype's "master" theme
+                $child_is_new_master_theme = $is_new_master_theme;
+                if ( $child_is_new_master_theme && $child_datatype->getId() === $child_datatype->getGrandparent()->getId() ) {
+                    $this->logger->debug('CloneMasterTemplateThemeService:'.$indent_text.' ** ** child datatype '.$child_datatype->getId().' ('. $child_datatype->getShortName().') is a linked descendant, discontinuing setting master theme...');
+                    $child_is_new_master_theme = false;
+                }
+
+                // Clone the theme for this descendant
                 /** @var Theme $tdt_theme */
                 $tdt_theme = self::cloneSourceTheme(
                     $user,
                     $source_tdt->getChildTheme(),
+                    $new_parent_theme,
                     $dest_theme_type,
                     $dest_datatype_array,
                     $dest_datafields,
                     $dest_rpis,
-                    $delay_flush,
-                    ($indent+2)
+                    ($indent+2),
+                    $child_is_new_master_theme
                 );
 
                 $new_tdt->setChildTheme($tdt_theme);
@@ -354,14 +388,14 @@ class CloneMasterTemplateThemeService
 
 
     /**
-     * Recursively sets all children of $theme to have $parent_theme as their parent.
+     * Recursively sets all children of the given theme to have a new parent_theme.
      *
      * @param ODRUser $user
-     * @param Theme $parent_theme
-     * @param Theme $theme
-     * @param int $indent
+     * @param Theme $theme The theme being corrected
+     * @param int[] $reverse_dt_mapping
+     * @param int $indent Internally used to make the debug output easier to read
      */
-    private function correctThemeData($user, $parent_theme, $theme, $indent)
+    private function correctThemeData($user, $theme, $reverse_dt_mapping, $indent = 0)
     {
         // Debugging assistance on recursive functions...
         $indent_text = '';
@@ -371,11 +405,17 @@ class CloneMasterTemplateThemeService
         // Reload the theme from the database so the logging info is correct
         $this->em->refresh($theme);
 
+        // Need to convert the new dt_id back into the dt_id it was copied from, because that's
+        //  what $this->source_themes uses
+        $new_parent_theme_dt_id = $theme->getDataType()->getId();
+        $old_dt_id = $reverse_dt_mapping[$new_parent_theme_dt_id];
+        $new_source_theme = $this->source_themes[$old_dt_id];
+
         // Set the theme to use the correct parent
-        $theme->setParentTheme($parent_theme);
+        $theme->setSourceTheme($new_source_theme);
         self::persistObject($theme, $user, true);    // don't flush immediately
 
-        $this->logger->debug('CloneMasterTemplateThemeService:'.$indent_text.' changed newly cloned theme '.$theme->getId().' to have the parent_theme '.$parent_theme->getId());
+        $this->logger->debug('CloneMasterTemplateThemeService:'.$indent_text.' changed newly cloned theme '.$theme->getId().' to have the source_theme '.$new_source_theme->getId());
 
         /** @var ThemeElement[] $te_array */
         $te_array = $theme->getThemeElements();
@@ -384,7 +424,7 @@ class CloneMasterTemplateThemeService
             /** @var ThemeDataType[] $tdt */
             foreach ($tdt_array as $tdt) {
                 $this->logger->debug('CloneMasterTemplateThemeService:'.$indent_text.' -- checking themeDatatype entries in newly cloned themeElement '.$te->getId().' for child themes...');
-                self::correctThemeData($user, $parent_theme, $tdt->getChildTheme(), ($indent+2));
+                self::correctThemeData($user, $tdt->getChildTheme(), $reverse_dt_mapping, ($indent+2));
             }
         }
     }

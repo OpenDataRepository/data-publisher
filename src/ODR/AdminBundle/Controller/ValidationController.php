@@ -3440,10 +3440,13 @@ class ValidationController extends ODRCustomController
             // ----------------------------------------
             // Set up the dmp file...
             $db_name = $this->getParameter('database_name');
-            fprintf($handle, "USE ".$db_name.";\n\n");
+            fprintf($handle, "USE ".$db_name.";\n");
+            fprintf($handle, "START TRANSACTION;\n\n");
 
             // Layout stuff first...
             if ( !empty($theme_element_ids) ) {
+                fprintf($handle, "DELETE FROM odr_theme_render_plugin_instance trpi WHERE trpi.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
+
                 fprintf($handle, "DELETE FROM odr_theme_data_field tdf WHERE tdf.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
                 fprintf($handle, "DELETE FROM odr_theme_data_type tdt WHERE tdt.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
                 fprintf($handle, "DELETE FROM odr_theme_element_meta tem WHERE tem.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
@@ -3553,9 +3556,13 @@ class ValidationController extends ODRCustomController
             }
 
             if ( !empty($datarecord_ids) ) {
-                fprintf($handle, "DELETE FROM odr_data_record_meta drm WHERE drm.data_record_id IN (".implode(',', $datarecord_ids).");\n");
-                fprintf($handle, "UPDATE odr_data_record dr SET dr.parent_id = NULL, dr.grandparent_id = NULL WHERE dr.id IN (".implode(',', $datarecord_ids).");\n");
-                fprintf($handle, "DELETE FROM odr_data_record dr WHERE dr.id IN (".implode(',', $datarecord_ids).");\n");
+                $dr_lists = array_chunk($datarecord_ids, 500);
+                foreach ($dr_lists as $dr_list)
+                    fprintf($handle, "DELETE FROM odr_data_record_meta drm WHERE drm.data_record_id IN (".implode(',', $dr_list).");\n");
+                foreach ($dr_lists as $dr_list)
+                    fprintf($handle, "UPDATE odr_data_record dr SET dr.parent_id = NULL, dr.grandparent_id = NULL WHERE dr.id IN (".implode(',', $dr_list).");\n");
+                foreach ($dr_lists as $dr_list)
+                    fprintf($handle, "DELETE FROM odr_data_record dr WHERE dr.id IN (".implode(',', $dr_list).");\n");
             }
             else {
                 fprintf($handle, "# No datarecords to delete\n");
@@ -3650,6 +3657,7 @@ class ValidationController extends ODRCustomController
             // ----------------------------------------
             print '</pre></body></html>';
 
+            fprintf($handle, "COMMIT;\n\n");
             fclose($handle);
         }
         catch (\Exception $e) {
