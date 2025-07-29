@@ -375,6 +375,7 @@ class CSVImportHelperService
                         $message = 'The external id value "'.$value.'" in the column "'.$data['file_headers'][$column_num].'" on line '.$line_num.' is a duplicate of line '.$future_values[$dr_id][$df_id]['line'];
                         $errors[] = array(
                             'level' => 'Error',
+                            'category' => 'Duplicate values in CSV File',
                             'body' => array(
                                 'line_num' => $line_num,
                                 'message' => $message,
@@ -411,6 +412,7 @@ class CSVImportHelperService
                         $message = 'The external id value "'.$value.'" in the column "'.$data['file_headers'][$column_num].'" on line '.$line_num.' is a duplicate of line '.$future_values[$dr_id][$child_dr_id][$df_id]['line'];
                         $errors[] = array(
                             'level' => 'Error',
+                            'category' => 'Duplicate values in CSV File',
                             'body' => array(
                                 'line_num' => $line_num,
                                 'message' => $message,
@@ -487,6 +489,7 @@ class CSVImportHelperService
 
                         $errors[] = array(
                             'level' => 'Error',
+                            'category' => 'Duplicate values in CSV File',
                             'body' => array(
                                 'line_num' => $line_num,
                                 'message' => $message,
@@ -530,6 +533,7 @@ class CSVImportHelperService
 
                             $errors[] = array(
                                 'level' => 'Error',
+                                'category' => 'Duplicate values in CSV File',
                                 'body' => array(
                                     'line_num' => $line_num,
                                     'message' => $message,
@@ -664,6 +668,7 @@ class CSVImportHelperService
 
                         $errors[] = array(
                             'level' => 'Warning',
+                            'category' => 'Potential overwrites',
                             'body' => array(
                                 'line_num' => $line_num,
                                 'message' => $message,
@@ -679,6 +684,7 @@ class CSVImportHelperService
                         //  telling what the child record will end up with
                         $errors[] = array(
                             'level' => 'Error',
+                            'category' => 'Duplicate values in CSV File',
                             'body' => array(
                                 'line_num' => $line_num,
                                 'message' => 'The Datarecord with the "'.$ancestor_external_id_field_name.'" value "'.$ancestor_external_id_value.'" is listed multiple times in the csv file',
@@ -719,6 +725,7 @@ class CSVImportHelperService
                     //  importer is allowed to continue
                     $errors[] = array(
                         'level' => 'Error',
+                        'category' => 'Database constraint violations',
                         'body' => array(
                             'line_num' => $line_num,
                             'message' => 'The relationship between the ancestor Datatype "'.$ancestor_datatype->getShortName().'" and its '.$rel_type_adj.' Datatype "'.$descendant_datatype->getShortName().'" only permits a single descendant, but line '.$line_num.' in the csv file will create another descendant for the ancestor Datarecord with the "'.$ancestor_external_id_field_name.'" value "'.$ancestor_external_id_value.'"'
