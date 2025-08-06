@@ -2587,7 +2587,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Due to the complexity of CIF files, and because other parts of ODR might feel
         //  like reading them...use a static function from elsewhere
         $file_contents = file_get_contents($local_filepath);
-        $cif_lines = CrystallographyDef::readCIFFile($file_contents, true);    // apply blacklist during file reading
+        $cif_lines = CrystallographyDef::readCIFFile($file_contents, true, true);    // apply blacklist during file reading and don't try to count columns of data inside loops
 
         // The returned array is organized by line, but most of what ODR cares about is easier to
         //  get at when it's organized by key...

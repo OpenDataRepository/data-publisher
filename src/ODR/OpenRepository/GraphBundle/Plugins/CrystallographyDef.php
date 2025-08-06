@@ -582,11 +582,17 @@ class CrystallographyDef
      * $apply_blacklist is set to true, then it will generally skip over anything blacklisted, and
      * only return data from the allowed keys/loops.
      *
+     * The function will also attempt to validate loop structures by default, but since loops are
+     * the most complicated part of the CIF definition and I keep having to fix the parser for them,
+     * there's another option to just skip attempting to parse them.  If this used, then the resulting
+     * loop nodes will have data for 'keys' and 'text', but will not have data for 'values'.
+     *
      * @param string $file_contents
      * @param bool $apply_blacklist
+     * @param bool $skip_loop_processing
      * @return array
      */
-    public static function readCIFFile($file_contents, $apply_blacklist = false)
+    public static function readCIFFile($file_contents, $apply_blacklist = false, $skip_loop_processing = false)
     {
         $structure = array();
 
@@ -715,8 +721,8 @@ class CrystallographyDef
 
                     if ( $in_data ) {
                         // CIFs don't have something like 'endloop_'...
-                        if ( $loop_line === '' || strpos($loop_line, '_') === 0 || strpos($loop_line, 'loop_') === 0 ) {
-                            // ...if it's a blank line or another line of data, then end the loop
+                        if ( $loop_line === '' || strpos($loop_line, '_') === 0 || strpos($loop_line, 'loop_') === 0 || strpos($loop_line, '#') === 0 ) {
+                            // ...if it's a blank line, another line of cif data, or a comment...then end the loop
                             if ( !$loop_is_blacklisted ) {
                                 // ...but only store the data if the loop wasn't entirely blacklisted
                                 $structure[] = $current_node;
@@ -731,6 +737,11 @@ class CrystallographyDef
                             // If the loop is blacklisted, then don't attempt to actually process
                             //  any of the lines of data inside the loop...just keep reading until
                             //  the loop ends
+                        }
+                        else if ( $skip_loop_processing ) {
+                            // If not attempting to parse the loop's content for the actual data,
+                            //  then just store the text value so it can be retrieved if needed
+                            $current_node['text'] .= $lines[$j]."\r\n";
                         }
                         else {
                             // Read in a line of data
@@ -930,6 +941,9 @@ class CrystallographyDef
         // Store any lingering piece and return
         if ( $tmp !== '' )
             $data[] = $tmp;
+
+        // TODO - apparently splitting a value of "-0.8" into "-" on one line and "0.8" on the next is legal.  WTF.
+
         return $data;
     }
 
