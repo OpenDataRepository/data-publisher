@@ -43,31 +43,31 @@ odr_plugins.rruff.powder_diffraction:
         a:
             name: a
             description:
-            type: ShortVarchar
+            type: DecimalValue
         b:
             name: b
             description:
-            type: ShortVarchar
+            type: DecimalValue
         c:
             name: c
             description:
-            type: ShortVarchar
+            type: DecimalValue
         alpha:
             name: alpha
             description:
-            type: ShortVarchar
+            type: DecimalValue
         beta:
             name: beta
             description:
-            type: ShortVarchar
+            type: DecimalValue
         gamma:
             name: gamma
             description:
-            type: ShortVarchar
+            type: DecimalValue
         volume:
             name: volume
             description:
-            type: ShortVarchar
+            type: DecimalValue
         crystal_system:
             name: Crystal System
             description:

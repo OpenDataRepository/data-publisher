@@ -31,8 +31,9 @@ class ODRDecimalToLocalizedStringTransformer extends NumberToLocalizedStringTran
 
 
     /**
-     * Overrides the parent function so that the empty string is still considered valid for
-     * transformation
+     * Override to bypass the parent transform function...it mostly seems to be used to run an
+     * is_numeric() check (which won't necessarily pass due to this field allowing values like
+     * "1.23(4)") and apply a decimal place formatter (which doesn't apply to ODR's data either)
      *
      * {@inheritDoc}
      */
@@ -41,10 +42,12 @@ class ODRDecimalToLocalizedStringTransformer extends NumberToLocalizedStringTran
         // The parent function throws an error when it receives the empty string, but apparently
         //  will happily convert <null> values into the empty string...
         $value = trim($value);
-        if ( $value === '' )
-            $value = null;
 
-        return parent::transform($value);
+        return $value;
+
+//        if ( $value === '' )
+//            $value = null;
+//        return parent::transform($value);
     }
 
 

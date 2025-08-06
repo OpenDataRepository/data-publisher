@@ -361,7 +361,7 @@ class UnitConversionsDef
         // Due to wanting the original value to have units, and because existence of decimal places
         //  are important, we can't just use floatval()...
         $decimal = '\d*(?:\.\d*)?';                         // standard decimal number regex
-        $exponent = '(?:e|E|x10|×10|⋅10|\*10)[\^\-\+]*\d+'; // exponent regex, matches a couple different varieties
+        $exponent = '(?:e|E|[x×⋅10*]10)[\^\-\+]*\d+'; // exponent regex, matches a couple different varieties
 
         $pattern =  '/';
 //        $pattern =  '/\(?';                         // optional open parens...for values with "global exponents" like "(12.3±5.0)×10-12"

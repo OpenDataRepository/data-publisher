@@ -139,7 +139,7 @@ odr_plugins.rruff.amcsd:
         a:
             name: a
             description: The value for "a" listed in the AMC File
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 13
             properties:
                 - no_user_edits
@@ -147,7 +147,7 @@ odr_plugins.rruff.amcsd:
         b:
             name: b
             description: The value for "b" listed in the AMC File
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 14
             properties:
                 - no_user_edits
@@ -155,7 +155,7 @@ odr_plugins.rruff.amcsd:
         c:
             name: c
             description: The value for "c" listed in the AMC File
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 15
             properties:
                 - no_user_edits
@@ -163,7 +163,7 @@ odr_plugins.rruff.amcsd:
         alpha:
             name: alpha
             description: The value for "alpha" listed in the AMC File
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 16
             properties:
                 - no_user_edits
@@ -171,7 +171,7 @@ odr_plugins.rruff.amcsd:
         beta:
             name: beta
             description: The value for "beta" listed in the AMC File
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 17
             properties:
                 - no_user_edits
@@ -179,7 +179,7 @@ odr_plugins.rruff.amcsd:
         gamma:
             name: gamma
             description: The value for "gamma" listed in the AMC File
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 18
             properties:
                 - no_user_edits
@@ -187,7 +187,7 @@ odr_plugins.rruff.amcsd:
         volume:
             name: Volume
             description: The value of the "_cell_volume" field from the CIF File
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 19
             properties:
                 - no_user_edits

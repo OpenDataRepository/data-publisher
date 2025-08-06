@@ -23,8 +23,6 @@ class ValidUtility
     const INTEGER_REGEX = "^0$|^-?[1-9][0-9]*$";
 
     // ----------------------------------------
-    // For ODR's DecimalValue, the main goal is to match whatever filter_var() says is a valid float
-
     // Note that php's definition at https://www.php.net/manual/en/language.types.float.php
     //  does not match the output of floatval() and filter_var(), even on PHP 7.4.x
     // e.g. floatval("1e") -> 1  but filter_var("1e", FILTER_VALIDATE_FLOAT) -> false
@@ -34,12 +32,42 @@ class ValidUtility
     //  - a sequence of digits followed by an optional period and more optional digits
     // OR
     //  - an optional sequence of digits followed by a mandatory period and at least one digit
-    // ...which can then be followed by another optional sequence...
-    // - 'e' or 'E', followed by an optional '-' or '+', followed by at least one digit
-    const DECIMAL_REGEX = "^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][+-]?[0-9]+)?$";
+    // ...which can then be followed by either...
+    //  - a couple different versions of specifying an exponent, followed by at least one digit
+    // OR
+    //  - a spectrographic tolerance...an open parenthesis, a decimal number, and a close parenthesis
+    const DECIMAL_REGEX = "^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:(?:e|E|[x×⋅*]10)[\^\-\+]*\d+|\((?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)\))?$";
+
+    // In order for mysql's CAST() to not throw a warning (because it gets upgraded to an error),
+    //  there needs to be two additional regexes...
+    // The first one only captures numbers with an optional exponent...
+    const DECIMAL_MIGRATE_REGEX_A = '^\s*[+-]?([0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)((e|E|[x×⋅*]10)[\^\-\+]*[0-9]+)?\s*$';
+
+    // ...while the second one only captures numbers with a non-optional spectrographic tolerance,
+    //  so mysql can use something like 'CAST(SUBSTR(e.value, 1, LOCATE("(",e.value)-1) AS DOUBLE)'
+    const DECIMAL_MIGRATE_REGEX_B = '^\s*[+-]?([0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)\s*\(([0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)\)\s*$';
+
+    // Both of these allow spaces before/after the numbers, because they'll get deleted during the
+    //  CAST() operation
+
+    // There are more complicated decimals that are legal in general (but not in ODR right now)...
+    //    "-12.3456(78)e-6", which means a base of -12.3456e-6 and a tolerance of 0.0078e-6...but requires CONCAT() of two SUBSTR()
+    //    "(3.141+/-0.001)E+02", which effectively means a base of 314.1 and a tolerance of 0.1...but is even worse to parse than above
+    //    "3.141E+02±0.001e2", which is the same as above...this one would work, but REGEXP to separate this one and the first example is nightmarish
+    // ...but making any of these more complicated ones work with mysql's CAST() is non-trivial
 
     /*
      * As a quick reference, there was an earlier decimal regex...
+     * ^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][+-]?[0-9]+)?$
+     * which matched...
+     * an optional '+' or '-' sign, followed by either...
+     *  - a sequence of digits followed by an optional period and more optional digits
+     * OR
+     *  - an optional sequence of digits followed by a mandatory period and at least one digit
+     * ...which can then be followed by another optional sequence...
+     *  - 'e' or 'E', followed by an optional '-' or '+', followed by at least one digit
+     *
+     * ...and an even earlier decimal regex...
      * /^0(\.[0-9]+)?$|^-?[1-9][0-9]*(\.[0-9]+)?$|^-0\.[0-9]*[1-9]+[0-9]*$/
      * which matched...
      *  - zero, optionally followed by a decimal point and at least one digit

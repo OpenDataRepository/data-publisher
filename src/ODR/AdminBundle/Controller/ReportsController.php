@@ -34,6 +34,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -955,6 +956,197 @@ class ReportsController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
+    /**
+     * Returns a list of all values in the given field and what mysql will attempt to convert said
+     * values into, if a migration to the DecimalValue fieldtype is triggered.
+     *
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function analyzedecimalmigrationAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Only run this on valid fieldtypes...
+            $typename = $datafield->getFieldType()->getTypeName();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ( $typename === 'Decimal' )
+                throw new ODRBadRequestException('This is already a Decimal field');
+
+            switch ($typename) {
+                case 'Integer':
+                case 'Short Text':
+                case 'Medium Text':
+                case 'Long Text':
+                case 'Paragraph Text':
+                    /* do nothing */
+                    break;
+
+                default:
+                    // All other fieldtypes lose all data when converting to a Decimal
+                    throw new ODRBadRequestException('"" is a "'.$typename.'", which loses all data during migration to a Decimal');
+            }
+
+            $mapping = array(
+                'IntegerValue' => 'odr_integer_value',
+                'ShortVarchar' => 'odr_short_varchar',
+                'MediumVarchar' => 'odr_medium_varchar',
+                'LongVarchar' => 'odr_long_varchar',
+                'LongText' => 'odr_long_text',
+            );
+
+            // ----------------------------------------
+            // Back when ODR was first designed, it used a beanstalkd queue to end up processing each
+            //  individual value...in March 2022 (04b13dd), the migration got changed to attempt to
+            //  use INSERT INTO...SELECT statements to greatly speed things up.
+
+            // This worked until the need to convert values with tolerances...such as "5.260(2)"...
+            //  into decimals.  The INSERT INTO...SELECT statements use mysql's CAST() function, which
+            //  throws warnings on values which aren't numeric...and the warnings get automatically
+            //  "upgraded" into errors, which kills the entire migration immediately.
+
+            // So, this report exists to help users (mostly me) figure out what's going to happen
+            //  if a field gets migrated.  To do that, need an array of the current string data...
+            $query =
+               'SELECT gdr.id AS dr_id, e.value AS value
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$mapping[$typeclass].' AS e ON  e.data_record_fields_id = drf.id
+                WHERE e.data_field_id = '.$datafield_id.'
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+            $results = $conn->executeQuery($query);
+
+            $data = array();
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $old_value = $result['value'];
+
+                $data[$dr_id] = array('old_value' => $old_value, 'new_value' => '', 'pass' => '');
+            }
+
+            // Going to use CAST() repeatedly to get other data...
+            // IMPORTANT: changes made here must also be transferred to WorkerController::migrateAction()
+            $query =
+               'SELECT gdr.id AS dr_id, e.value AS old_value, CAST(SUBSTR(e.value, 1, 255) AS DOUBLE) AS new_value
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$mapping[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                WHERE e.data_field_id = '.$datafield_id.' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_A.'")
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+            // Need to double-escape the backslashes for mysql
+            $query = str_replace("\\", "\\\\", $query);
+            $results = $conn->executeQuery($query);
+
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $old_value = $result['old_value'];
+                $new_value = $result['new_value'];
+
+                $data[$dr_id]['new_value'] = $new_value;
+                $data[$dr_id]['pass'] = 1;
+            }
+
+            // IMPORTANT: changes made here must also be transferred to WorkerController::migrateAction()
+            $query =
+               'SELECT gdr.id AS dr_id, e.value AS old_value, CAST(SUBSTR(e.value, 1, LOCATE("(",e.value)-1) AS DOUBLE) AS new_value
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$mapping[$typeclass].' AS e ON  e.data_record_fields_id = drf.id
+                WHERE e.data_field_id = '.$datafield_id.' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_B.'")
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+            // Need to double-escape the backslashes for mysql
+            $query = str_replace("\\", "\\\\", $query);
+            $results = $conn->executeQuery($query);
+
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $old_value = $result['old_value'];
+                $new_value = $result['new_value'];
+
+                if ( $data[$dr_id]['new_value'] !== '' )
+                    continue;
+
+                $data[$dr_id]['new_value'] = $new_value;
+                $data[$dr_id]['pass'] = 2;
+            }
+
+
+            // ----------------------------------------
+            $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:analyze_decimal_migration.html.twig',
+                    array(
+                        'baseurl' => $baseurl,
+                        'datafield' => $datafield,
+                        'datatype' => $datatype,
+
+                        'data' => $data,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x5107550f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 
 
     /**

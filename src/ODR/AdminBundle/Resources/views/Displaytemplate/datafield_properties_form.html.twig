@@ -95,6 +95,15 @@
                        title="Show all values stored in this Datafield..."
                     ><i class="fa fa-list fa-lg"></i></a>
                 </span>
+                    {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' %}
+                    <span>
+                        <a target="_blank"
+                           class="ODRDataInspector"
+                           href="#{{ path( 'odr_design_analyze_decimal_migration', {'datafield_id': datafield.id }) }}"
+                           title="Show the results of migrating to decimal..."
+                        ><i class="fa fa-fast-forward fa-lg"></i></a>
+                    </span>
+                    {% endif %}
                 {% elseif typeclass == 'Radio' %}
                 <span>
                     <a target="_blank"

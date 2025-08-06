@@ -307,6 +307,8 @@ class WorkerController extends ODRCustomController
 
 
                 // Each of the different migration types requires a slightly different query...
+                $select_query_fragments = $remaining_query_fragments = array();
+
                 if ( $old_is_text && $new_is_text && $old_length < $new_length ) {
                     // Shorter text values can be inserted into longer text values without any
                     // extra conversions
@@ -339,16 +341,47 @@ class WorkerController extends ODRCustomController
                     //  likely to encounter an "out of range" value, and crash the whole migration
                 }
                 else if ( $old_is_text && $new_typeclass === 'DecimalValue' ) {
-                    // Converting text into a decimal requires a cast for the value...
-                    $select_query .= 'CAST(SUBSTR(e.value, 1, 255) AS DOUBLE)';
-                    // ...but the original_value should just match the original text being converted
-                    $select_query .= ', SUBSTR(e.value, 1, 255)';    // TODO - this guarantees a fit inside a varchar(255), but it probably shouldn't even be varchar(32) due to precision
-                    // Only copy non-blank values
-                    $remaining_query .= ' AND e.value != ""';
+                    // There are two queries that need to be run...
 
-                    // It also needs a REGEX, otherwise an error will be thrown when encountering
-                    //  values that aren't valid doubles
-                    $remaining_query .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_REGEX.'")';
+                    // IMPORTANT: changes made here must also be transferred to
+                    //  ReportsController::analyzedecimalmigrationAction()
+
+                    // ----------------------------------------
+                    // The first is going to convert numbers with an optional exponent
+                    //  e.g. 12.34 OR 12.34e-3
+
+                    // Need to use mysql's CAST() to generate a double...
+                    $select_query_fragment = 'CAST(SUBSTR(e.value, 1, 32) AS DOUBLE)';
+                    // ...but the original_value should just match the original text being converted
+                    $select_query_fragment .= ', SUBSTR(e.value, 1, 32)';    // TODO - this guarantees a fit inside a varchar(255), but it probably shouldn't even be varchar(32) due to precision
+
+                    // Only cast non-blank values...
+                    $remaining_query_fragment = ' AND e.value != ""';
+                    // ...and only cast values that match a regex to prevent warnings/errors...for
+                    //  whatever reason, every warning gets "upgraded" to an error
+                    $remaining_query_fragment .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_A.'")';
+
+                    // This is the first of two queries
+                    $select_query_fragments = array(0 => $select_query_fragment);
+                    $remaining_query_fragments = array(0 => $remaining_query_fragment);
+
+                    // ----------------------------------------
+                    // The second is going to convert numbers with a spectrographic tolerance
+                    //  e.g. 12.34(56)
+
+                    // Only call CAST() on the stuff before the parenthesis...
+                    $select_query_fragment = 'CAST(SUBSTR(e.value, 1, LOCATE("(",e.value)-1) AS DOUBLE)';
+                    // ...but leave the original_value as the original text
+                    $select_query_fragment .= ', SUBSTR(e.value, 1, 32)';    // TODO - this guarantees a fit inside a varchar(255), but it probably shouldn't even be varchar(32) due to precision
+
+                    // Only cast non-blank values...
+                    $remaining_query_fragment = ' AND e.value != ""';
+                    // ...and only cast values that match a regex to prevent warnings/errors...for
+                    //  whatever reason, every warning gets "upgraded" to an error
+                    $remaining_query_fragment .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_B.'")';
+
+                    $select_query_fragments[1] = $select_query_fragment;
+                    $remaining_query_fragments[1] = $remaining_query_fragment;
                 }
                 else if ( $old_typeclass === 'IntegerValue' && $new_is_text ) {
                     // The string representation of a 4 byte integer is always able to fit into
@@ -405,11 +438,29 @@ class WorkerController extends ODRCustomController
 
 
                 // Stitch all parts of the query together and execute it
-                $final_query = $insert_query.$select_query.$remaining_query;
-                $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': '.$final_query);
+                if ( empty($select_query_fragments) ) {
+                    $final_query = $insert_query.$select_query.$remaining_query;
+                    $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': '.$final_query);
 
-                $rows = $conn->executeUpdate($final_query);
-                $logger->info('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': copied '.$rows.' rows of data from "'.$old_typeclass.'" to "'.$new_typeclass.'" for datafield '.$datafield->getId());
+                    $rows = $conn->executeUpdate($final_query);
+                    $logger->info('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': copied '.$rows.' rows of data from "'.$old_typeclass.'" to "'.$new_typeclass.'" for datafield '.$datafield->getId());
+                }
+                else {
+                    for ($i = 0; $i < count($select_query_fragments); $i++) {
+                        $select_query_fragment = $select_query_fragments[$i];
+                        $remaining_query_fragment = $remaining_query_fragments[$i];
+
+                        $final_query = $insert_query.$select_query.$select_query_fragment.$remaining_query.$remaining_query_fragment;
+                        // DecimalValue queries involve regexes, which need to have escaped backslashes
+                        //  for mysql...
+                        if ( $new_typeclass === 'DecimalValue' )
+                            $final_query = str_replace("\\", "\\\\", $final_query);
+                        $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': '.$final_query);
+
+                        $rows = $conn->executeUpdate($final_query);
+                        $logger->info('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': copied '.$rows.' rows of data from "'.$old_typeclass.'" to "'.$new_typeclass.'" for datafield '.$datafield->getId());
+                    }
+                }
 
 
                 // ----------------------------------------
