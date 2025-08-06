@@ -272,16 +272,15 @@ class TableThemeHelperService
         // Not using  $this->datatree_info_service->getAssociatedDatatypes($datatype_id)  here, since
         //  that includes datatypes which allow multiple descendant records...
         $associated_datatypes = array_keys($table_dt_array);
+        foreach ($associated_datatypes as $dt_id)
+            $can_view_datarecord[$dt_id] = false;
+
         foreach ($table_df_array as $num => $df) {
             $dt_id = $df['dataType']['id'];
 
-            if ( !isset($can_view_datarecord[$dt_id]) ) {
-                // Store whether the user can view non-public datarecords for this datatype
-                $can_view_datarecord[$dt_id] = false;
-
-                if ( isset($user_permissions['datatypes'][$dt_id]['dr_view']) )
-                    $can_view_datarecord[$dt_id] = true;
-            }
+            // Store whether the user can view non-public datarecords for this datatype
+            if ( isset($user_permissions['datatypes'][$dt_id]['dr_view']) )
+                $can_view_datarecord[$dt_id] = true;
 
             if ( $dt_id !== $datatype_id && in_array($dt_id, $associated_datatypes) ) {
                 // This datafield does not belong to the top-level datatype, and also does not
@@ -376,7 +375,7 @@ class TableThemeHelperService
                 else if ( is_array($available_data[$df_id]) ) {
                     // If an array, then this is for files...need to ensure that names/links to
                     //  non-public Files aren't displayed if the user can't view them
-                    $file_ispublic = $available_data[$df_id]['publicDate'];
+                    $file_ispublic = $available_data[$df_id]['ispublic'];
                     $file_url = $available_data[$df_id]['url'];
                     $file_name = $available_data[$df_id]['filename'];
 
@@ -390,9 +389,9 @@ class TableThemeHelperService
                         if ( !$use_icon )
                             $dr_data[] = '<a href="'.$file_url.'">'.$file_name.'</a>';
                         else if ($file_ispublic)
-                            $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer ODRNotPublic"></i></a>';
-                        else
                             $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer ODRPublic"></i></a>';
+                        else
+                            $dr_data[] = '<a href="'.$file_url.'" title="'.$file_name.'"><i class="fa fa-file Pointer ODRNotPublic"></i></a>';
                     }
                     else {
                         // User can't view the file, don't display anything
@@ -654,7 +653,7 @@ class TableThemeHelperService
                                     $is_public = true;
 
                                 $df_value = array(
-                                    'publicDate' => $is_public,
+                                    'ispublic' => $is_public,
                                     'url' => $url,
                                     'filename' => $file['fileMeta']['originalFileName'],
                                 );
