@@ -46,6 +46,11 @@
         {% endif %}
     {% endif %}
 
+    {% set needs_period = true %}
+    {% if article_title|last == '.' or article_title|last == '?' or article_title|last == '!' %}
+        {% set needs_period = false %}
+    {% endif %}
+
     {% set journal = '' %}
     {% if mapping.journal is defined %}
         {% if mapping.journal is iterable and mapping.journal|length > 0 %}
@@ -113,6 +118,7 @@
         'author': author,
         'year': year,
         'article_title': article_title,
+        'needs_period': needs_period,
         'journal': journal,
         'volume': volume,
         'issue': issue,
