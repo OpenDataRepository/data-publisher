@@ -88,44 +88,44 @@ odr_plugins.rruff.cell_parameters:
         a:
             name: a
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 6
         b:
             name: b
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 7
         c:
             name: c
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 8
         alpha:
             name: alpha
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 9
         beta:
             name: beta
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 10
         gamma:
             name: gamma
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 11
         # ...but allowed the user to enter the volume, typically used when the reference authors
         #  bothered to actually calculate it
         volume:
             name: Volume
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 12
         calculated_volume:
             name: Calculated Volume
             description:
-            type: ShortVarchar
+            type: DecimalValue
             display_order: 13
             properties:
                 - is_derived

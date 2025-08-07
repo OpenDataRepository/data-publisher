@@ -42,9 +42,11 @@ var SaveTimeout = 2000;
         //  - a sequence of digits followed by an optional period and more optional digits
         // OR
         //  - an optional sequence of digits followed by a mandatory period and at least one digit
-        // ...which can then be followed by another optional sequence...
-        // - 'e' or 'E', followed by an optional '-' or '+', followed by at least one digit
-        return this.optional(element) || /^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(value);
+        // ...which can then be followed by either...
+        //  - a couple different versions of specifying an exponent, followed by at least one digit
+        // OR
+        //  - a spectrographic tolerance...an open parenthesis, a decimal number, and a close parenthesis
+        return this.optional(element) || /^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:(?:e|E|[x×⋅*]10)[\^\-\+]*\d+|\((?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)\))?$/.test(value);
 
     }, "Please enter a valid Decimal value.");
     jQuery.validator.addMethod('ODRAscii', function(value, element, params) {

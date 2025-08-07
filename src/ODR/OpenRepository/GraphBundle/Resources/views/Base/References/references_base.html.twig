@@ -7,7 +7,7 @@
     ({{ year|raw }})
 {% endif %}
 {% if article_title != '' %}
-    {{ article_title|raw }}.
+    {{ article_title|raw }}{% if needs_period %}.{% endif %}
 {% endif %}
 {% if journal != '' %}
     {{ journal|raw }}

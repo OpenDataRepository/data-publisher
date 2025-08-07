@@ -3587,13 +3587,23 @@ class EditController extends ODRCustomController
             // Grab all values that the datafield has had across all fieldtypes
             $historical_values = array();
             foreach ($all_typeclasses as $num => $typeclass) {
-                $query = $em->createQuery(
+                $str =
                    'SELECT e.value AS value, ft.typeName AS typename, e.created AS created, created_by.firstName, created_by.lastName, created_by.username
                     FROM ODRAdminBundle:'.$typeclass.' AS e
                     JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
                     JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
-                    WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id'
-                )->setParameters(
+                    WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id';
+
+                if ( $typeclass === 'DecimalValue' ) {
+                    $str =
+                       'SELECT e.original_value AS value, ft.typeName AS typename, e.created AS created, created_by.firstName, created_by.lastName, created_by.username
+                        FROM ODRAdminBundle:'.$typeclass.' AS e
+                        JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
+                        JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
+                        WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id';
+                }
+
+                $query = $em->createQuery($str)->setParameters(
                     array(
                         'datarecord_id' => $datarecord->getId(),
                         'datafield_id' => $datafield->getId()

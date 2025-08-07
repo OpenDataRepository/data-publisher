@@ -4192,7 +4192,9 @@ class APIController extends ODRCustomController
                 $em->remove($option_selection);
             }
         }
-
+        // If something got deleted, then flush to ensure it saved...
+        if ( $fields_updated )
+            $em->flush();
 
         // Determine whether an existing option got selected, or a new option needs to get created
         $new_option_lookup = array();

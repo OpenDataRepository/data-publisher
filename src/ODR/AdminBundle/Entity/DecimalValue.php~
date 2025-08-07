@@ -125,78 +125,55 @@ class DecimalValue
     public function setValue($value)
     {
         // Don't try to process an empty/null value
-        if ($value === '' || is_null($value)) {     // needs to be '==='... a value of 0 == ''
+        if ( $value === '' || is_null($value) ) {
+            $this->original_value = null;
+            $this->value = null;
+
+            return $this;
+        }
+        $value = trim($value);
+
+        // Don't try to process an illegal value either
+        if ( !ValidUtility::isValidDecimal($value) ) {
             $this->original_value = null;
             $this->value = null;
 
             return $this;
         }
 
-        $value = strval(trim($value));
+        // floatval() will always return something sensible at this point
+        $this->value = floatval($value);
+        // Unlike mysql, php's floatval() doesn't choke on values like "12.34(56)"
 
-        // Store whether this was given a valid decimal value or not...
-        $original_value_is_valid = ValidUtility::isValidDecimal($value);
+        // There are only at most two changes that should be made to the "original" value...any
+        //  leading zeros should be eliminated, and a fractional value without a leading zero
+        //  e.g. ".12"  should have a leading zero added
 
-        // Preserve negative
+        // Temporarily remove the negative sign if it exists
         $negative = false;
-        if ( substr($value, 0, 1) == '-' ) {
+        if ( $value[0] === '-' ) {
             $negative = true;
             $value = substr($value, 1);
         }
 
-        // Always remove leading zeros
-        $leading = 0;
-        for ($i = 0; $i < strlen($value)-1; $i++) {
-            if ( substr($value, $i, 1) == '0' )
-                $leading++;
-            else
-                break;
+        // Strip all leading zeros
+        $value = ltrim($value, '0');
+
+        if ( $value === '' ) {
+            // If nothing remains, then the value was zero to begin with
+            $value = '0';
         }
-        $value = substr($value, $leading);
-
-        $period = strpos($value, '.');
-        if ( $period !== false ) {
-            // Break into right/left halves based on period
-            $left = substr($value, 0, $period);
-            $right = substr($value, $period+1);
-
-            // Strip trailing zeros from right side
-            // Actually, don't want to do this..."4.500" is valid, indicating confidence out to thousandths
-//            $trailing = 0;
-//            for ($i = strlen($right)-1; $i > 0; $i--) {
-//                if ( substr($right, $i, 1) == '0' )
-//                    $trailing++;
-//                else
-//                    break;
-//            }
-//            $right = substr($right, 0, strlen($right)-$trailing);
-
-            // If nothing remaining on the left side, default to 0
-            if ($left == '')
-                $left = '0';
-
-            // If nothing remaining on the right side, default to the left side...otherwise, recombine the two halves
-            if ($right == '' || $right == '0')
-                $value = $left;
-            else
-                $value = $left.'.'.$right;
+        else if ( $value[0] === '.' ) {
+            // If the first remaining character is a period, then re-add a zero in front of it
+            $value = '0'.$value;
         }
 
-        // Re-apply negative if necessary
-        if ($value == '')
-            $value = 0;
-        else if ($negative && $value !== '0')
+        // Reapply the negative sign, unless the resulting value is zero
+        if ( $negative && $this->value != 0 )
             $value = '-'.$value;
 
-        // Save the approximation for searching purposes
-        $this->value = floatval($value);
-
-        // If the original string was a valid decimal value, then store it...otherwise, store
-        //  whatever floatval() ended up returning
-        if ( $original_value_is_valid )
-            $this->original_value = $value;
-        else
-            $this->original_value = strval($this->value);
+        // Store the potentially modified value
+        $this->original_value = $value;
 
         return $this;
     }

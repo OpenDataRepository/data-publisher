@@ -607,7 +607,7 @@ class APIControllerTest_alt extends WebTestCase
             'user_email' => self::$api_username,
             'dataset' => $tmp_dataset,
         );
-        self::submitRecord_invalid($post_data, 404);
+        self::submitRecord_invalid($post_data, 400);
 
 
         // ----------------------------------------

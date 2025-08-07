@@ -1817,21 +1817,12 @@ class SearchQueryService
 
 
         // ----------------------------------------
-//        // Typehint the parameters so inequality searches work better
-//        $types = array();
-//        foreach ($search_params['params'] as $key => $value) {
-//            if ( is_numeric($value) )
-//                $types[$key] = ParameterType::INTEGER;
-//            else
-//                $types[$key] = ParameterType::STRING;
-//        }
+        // ODR used to try to typehint the parameters to try to get inequalities to work better,
+        //  but that doesn't actually work...the only typehint available converts the value to an
+        //  integer, which breaks searching on decimal fields
 
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-//        $results = $conn->fetchAll($query, $search_params['params'], $types);
-
-        // The typehinting stuff added in commit 9c16403 (22 Oct 2019) apparently doesn't work
-        //  as of 11 Jul 2025?
         $results = $conn->fetchAll($query, $search_params['params']);
 
         $datarecords = array();
@@ -1978,19 +1969,9 @@ class SearchQueryService
 
         $results = array();
         foreach ($typeclasses as $id => $typeclass) {
-//            // Typehint the parameters so inequality searches work better
-//            $types = array();
-//            foreach ($params[$id]['params'] as $key => $value) {
-//                if ( is_numeric($value) )
-//                    $types[$key] = ParameterType::INTEGER;
-//                else
-//                    $types[$key] = ParameterType::STRING;
-//            }
-
-//            $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params'], $types);
-
-            // The typehinting stuff added in commit 9c16403 (22 Oct 2019) apparently doesn't work
-            //  as of 11 Jul 2025?
+            // ODR used to try to typehint the parameters to try to get inequalities to work better,
+            //  but that doesn't actually work...the only typehint available converts the value to
+            //  an integer, which breaks searching on decimal fields
             $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params']);
         }
 
