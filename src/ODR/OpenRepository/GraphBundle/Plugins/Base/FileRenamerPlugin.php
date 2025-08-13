@@ -68,6 +68,7 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
@@ -304,23 +305,50 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
     /**
      * Locates the configuration for the plugin if it exists, and converts it into a more useful
      * array format for actual use.
-     *
-     * The first entry in the array is always the "prefix" entry...a string of datatype ids which
-     * indicate any datatype links that have to be followed to reach the "ultimate ancestor" of a
-     * record that is having a file/image renamed.  This "prefix" also assists with actually finding
-     * the correct values to use in the file/image filename later on...it will always have at least
-     * one datatype id in it.
-     *
-     * The remainder of the entries are either datafield uuids or string constants.  For instance...
+     * <pre>
      * array(
      *   'prefix' => '<prefix string>',
-     *   'config' => array(
-     *      0 => '4bbb2be0f76e2dede80796479d98',
-     *      1 => 'Sample_Photo',
-     *   )
+     *   'field_list' => array(
+     *       0 => 'a9d1d8a812ee000b8f477f07b775',
+     *       1 => 'original',
+     *       2 => '77bff846555653b1530001b25c23',
+     *       ...
+     *   ),
+     *   'alt_field_list' => array(
+     *       [0] => array(
+     *           0 => 'bff1b232f3fc50894e867a450867',
+     *           1 => 'unknown'
+     *       ),
+     *       ...
+     *   ),
+     *   'separator' => '<string>',
+     *   'period_substitute' => '<string>',
+     *   'file_extension' => '<string>',
+     *   'append_file_uuid' => <boolean>,
+     *   'delete_invalid_characters' => <boolean>,
      * );
-     * ...means "find the value of the datafield with uuid '4bbb2be0f76e2dede80796479d98', then append
-     * the string 'Sample_Photo'".
+     * </pre>
+     *
+     * The entries for 'separator', 'period_substitute', 'file_extension', 'append_file_uuid', and
+     * 'delete_invalid_characters are handled via the regular RenderPluginOptionsMap system...they're
+     * copied into this array for convenience.
+     *
+     * The 'prefix' entry is an underscore-separated string of datatype ids which indicate any linked
+     * datatypes that have to be traverserd to reach the "ultimate ancestor" of this record that
+     * this plugin is attached to...this traversal is how the plugin figures out all possible values
+     * that could get used in the resulting filename, and will always have at least one datatype id.
+     *
+     * The 'field_list' entry is an ordered list of either field uuids or strings to use in the filename,
+     * and the optional 'alts' entry specifies another ordered list of alternate field uuids or strings
+     * to use in case the "preferred" value doesn't exist.  It's done this way due to backwards
+     * compatability...
+     *
+     * The example config would end up attempting to find three items to use for the filename...
+     * the first items would preferrentially be the value for the field 'a9d1d8a812ee000b8f477f07b775',
+     * but falls back to the value for the field 'bff1b232f3fc50894e867a450867' if that doesn't
+     * exist, and would fallback further to the string "uknown" if neither of those fields have a
+     * value.  The second item is always the string "original", and the third item is the value for
+     * the field '77bff846555653b1530001b25c23' (or just be the empty string if that doesn't exist).
      *
      * The uuid of the file/image is always appended at the end, to ensure that filenames remain unique.
      *
@@ -363,20 +391,37 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     if ( isset($rpi['renderPluginOptionsMap']['delete_invalid_characters']) )
                         $delete_invalid_characters = trim($rpi['renderPluginOptionsMap']['delete_invalid_characters']);
 
-                    // ...and the semi-encoded value for the list of fields
+                    // ...and the semi-encoded value for the list of fields.
                     $field_list_value = trim($rpi['renderPluginOptionsMap']['field_list']);
+
+                    // The first line in this config value is the prefix, while each subsequent line
+                    //  is either a field uuid or a string constant
 
                     // Due to using newlines to separate values, the list of fields probably ends up
                     //  with "\r" characters following a browser submission...
                     $field_list_value = str_replace("\r", "", $field_list_value);
-                    $tmp = explode("\n", $field_list_value);
+                    $lines = explode("\n", $field_list_value);
 
-                    // The first line in the config value is the prefix, while each subsequent line
-                    //  is either a field uuid or a string constant
+                    $field_list = $alt_field_list = array();
+                    for ($i = 1; $i < count($lines); $i++) {
+                        if ( strpos($lines[$i], '|') !== false ) {
+                            // Has alternate fields/constants available
+                            $keys = explode("|", $lines[$i]);
+                            // The first one will be the primary
+                            $field_list[] = $keys[0];
+                            // Any remaining ones will be the alternates
+                            $alt_field_list[$i-1] = array_slice($keys, 1);
+                        }
+                        else {
+                            // No alternate values for this
+                            $field_list[] = $lines[$i];
+                        }
+                    }
 
                     $config = array(
-                        'prefix' => $tmp[0],
-                        'config' => array_slice($tmp, 1),
+                        'prefix' => $lines[0],
+                        'field_list' => $field_list,
+                        'alt_field_list' => $alt_field_list,
                         'separator' => $separator,
                         'period_substitute' => $period_substitute,
                         'file_extension' => $file_extension,
@@ -391,8 +436,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         if ( isset($config['prefix']) && $config['prefix'] === '' )
             return array();
         // If no fields or string constants were set, then the plugin isn't configured
-        if ( isset($config['config']) && empty($config['config']) )
+        if ( isset($config['field_list']) && empty($config['field_list']) )
             return array();
+        // The alt_field_list array can be empty
         // If there's no separator, then the plugin isn't configured
         if ( isset($config['separator']) && $config['separator'] === '' )
             return array();
@@ -942,7 +988,17 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         //  to fields by ids instead.  It's probably faster to run a quick query to create a mapping
         //  linking field id, uuid, and name (for error purposes, if needed), instead of digging
         //  through the cached array using strcmp() a bunch of times
-        $fields = $config_info['config'];
+        $query_field_uuids = array();
+        if ( is_array($config_info['field_list']) ) {
+            foreach ($config_info['field_list'] as $display_order => $value)
+                $query_field_uuids[] = $value;
+        }
+        if ( is_array($config_info['alt_field_list']) ) {
+            foreach ($config_info['alt_field_list'] as $replacement_num => $values) {
+                foreach ($values as $display_order => $value)
+                    $query_field_uuids[] = $value;
+            }
+        }
 
         $query = $this->em->createQuery(
            'SELECT df.id, df.fieldUuid, dfm.fieldName
@@ -950,7 +1006,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             LEFT JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
             WHERE df.fieldUuid IN (:uuids)
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-        )->setParameters( array('uuids' => $fields) );
+        )->setParameters( array('uuids' => $query_field_uuids) );
         $results = $query->getArrayResult();
 
         $uuid_mapping = array();
@@ -1034,7 +1090,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 // If no datarecord had a value for this datafield, then the filename will be missing
                 //  a required part...since the data could legitimately be blank, provide the empty string
 //                return "Unable to find a value for the \"".$datafield_names[$df_id]."\" datafield to use for renaming purposes...most likely, the field has no value or an expected record hasn't been linked to.";
-                $mapping[$df_id] = array(0 => '');
+                $mapping[$df_id] = '';
 
                 // This typically happens when the field hasn't been filled out, or when the config
                 //  tries to pull a value from a linked datarecord...that hasn't actually been linked
@@ -1045,25 +1101,61 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 //  value in a linked descendant that permits more than one datarecord to link to it
                 return "Found multiple values for the \"".$datafield_names[$df_id]."\" datafield...unable to determine which value to use for renaming the field.  Most likely, the plugin shouldn't be used on this field.";
             }
+            else {
+                // If there's just one piece of data, then it's slightly easier to flatten the array
+                //  at this point...
+                foreach ($data as $dr_id => $value)
+                    $mapping[$df_id] = $value;
+
+                // ...and also might as well apply one of the regexes to try to prevent illegal
+                //  characters in filenames at this point in time
+                if ( $config_info['delete_invalid_characters'] === 'yes' ) {
+                    // Delete these invalid characters by default
+                    $mapping[$df_id] = preg_replace(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, '', $mapping[$df_id]);
+                }
+            }
         }
 
-        // Since there's not guaranteed to only be one value per datafield, the $mapping array can
-        //  get flattened...
+        // Need to determine which values actually go into the filename now
         $values = array();
-        foreach ($fields as $display_order => $key) {
-            // Determine whether the config wants a field value or a string constant in this spot...
+        foreach ($config_info['field_list'] as $display_order => $key) {
+            // Attempt to locate the value tied to this uuid
             $value = null;
             $df_id = array_search($key, $uuid_mapping);
 
-            if ( $df_id !== false ) {
-                // ...if it's supposed to be a field value, then the previously determined mapping
-                //  should have the value
-                foreach ($mapping[$df_id] as $dr_id => $data)
-                    $value = $data;
+            if ( $df_id === false ) {
+                // ...if array_search() found nothing, then $key is a string constant...just use that
+                $value = $key;
             }
             else {
-                // ...if it's supposed to be a string constant, then just directly use that
-                $value = $key;
+                // ...otherwise, locate the value for this field in $mapping
+                $value = $mapping[$df_id];
+
+                // The value could be blank because there's no data for it...but if that's the case,
+                //  then we should attempt to check if there are any alternate values...
+                if ( $value === '' && isset($config_info['alt_field_list'][$display_order]) ) {
+                    // There are theoretically alternate values for this field...
+                    foreach ($config_info['alt_field_list'][$display_order] as $num => $alt_key) {
+                        $alt_df_id = array_search($alt_key, $uuid_mapping);
+                        if ( $alt_df_id === false ) {
+                            // This is a string constant, so it should already be valid for a filename
+                            $value = $alt_key;
+                            break;
+                        }
+                        else {
+                            // This is a field...
+                            if ( $mapping[$alt_df_id] === '' ) {
+                                // ...if it's blank, then continue looking
+                                continue;
+                            }
+                            else {
+                                // ...otherwise, use the value
+                                $value = $mapping[$alt_df_id];
+                                break;
+                            }
+                        }
+                    }
+                }
             }
 
             // Store the correct value to use for the new filename
@@ -1082,14 +1174,13 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         //  this plugin will skip attempting to save anything it thinks is invalid
 
         // Need to try to prevent illegal characters in the filenames...
-        $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
         if ( $config_info['delete_invalid_characters'] === 'yes' ) {
             // Delete these invalid characters by default
-            $base_filename = preg_replace($regex, '', $base_filename);
+            $base_filename = preg_replace(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, '', $base_filename);
         }
         else {
             // If the user doesn't want any invalid characters deleted...
-            if ( preg_match($regex, $base_filename) === 1 )
+            if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, $base_filename) === 1 )
                 // ...then refuse to continue executing the plugin when the filename has them
                 return array();
         }
@@ -1097,8 +1188,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         // ...also try to prevent leading/trailing spaces in the filename...
         $base_filename = trim($base_filename);
         // ...and other various illegal names in both linux and windows...
-        $regex = '/^(\.|\.\.|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i';
-        if ( preg_match($regex, $base_filename) === 1 )
+        if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_B, $base_filename) === 1 )
             return array();
         // ...and filenames starting with a dash are also bad
         if ( strpos($base_filename, '-') === 0 )
@@ -1403,19 +1493,16 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 $current_prefix = '';
                 if ( isset($current_plugin_config['prefix']) )
                     $current_prefix = $current_plugin_config['prefix'];
-                $current_config = '';
-                if ( isset($current_plugin_config['config']) )
-                    $current_config = array_flip($current_plugin_config['config']);
+
+                $field_list = '';
+                if ( isset($current_plugin_config['field_list']) )
+                    $field_list = $current_plugin_config['field_list'];
+                $alt_field_list = '';
+                if ( isset($current_plugin_config['alt_field_list']) )
+                    $alt_field_list = $current_plugin_config['alt_field_list'];
 
                 // ...to create a mapping from "df_uuid" => "df_name"...
-                $uuid_mapping = array();
-                foreach ($available_fields as $dt_id => $dt_data) {
-                    foreach ($dt_data['fields'] as $df_id => $df_data) {
-                        $df_uuid = $df_data['uuid'];
-                        if ( isset($current_config[$df_uuid]) )
-                            $uuid_mapping[$df_uuid] = $df_data['name'];
-                    }
-                }
+                $uuid_mapping = self::getUUIDMapping($available_fields, $field_list, $alt_field_list);
 
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
@@ -1426,7 +1513,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                         'available_prefixes' => $available_prefixes,
                         'available_fields' => $available_fields,
                         'current_prefix' => $current_prefix,
-                        'current_config' => $current_config,
+
+                        'field_list' => $field_list,
+                        'alt_field_list' => $alt_field_list,
 
                         'allowed_datatypes' => $allowed_datatypes,
 
@@ -1440,6 +1529,41 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         //  have custom rendering...it's solely determined by the contents of the array returned by
         //  this function.  As such, there's no validation whatsoever
         return $custom_rpo_html;
+    }
+
+
+    /**
+     * Slightly easier to get a field_uuid => field_name mapping if it's off in its own function...
+     *
+     * @param array $available_fields
+     * @param array $field_list Will be a string if no fields are set
+     * @param array $alt_field_list Will be a string if no fields are set
+     * @return array
+     */
+    private function getUUIDMapping($available_fields, $field_list, $alt_field_list)
+    {
+        $fields_in_use = array();
+        if ( is_array($field_list) ) {
+            foreach ($field_list as $display_order => $value)
+                $fields_in_use[$value] = 1;
+        }
+        if ( is_array($alt_field_list) ) {
+            foreach ($alt_field_list as $display_order => $alternates) {
+                foreach ($alternates as $alternate_order => $value)
+                    $fields_in_use[$value] = 1;
+            }
+        }
+
+        $uuid_mapping = array();
+        foreach ($available_fields as $dt_id => $dt_data) {
+            foreach ($dt_data['fields'] as $df_id => $df_data) {
+                $df_uuid = $df_data['uuid'];
+                if ( isset($fields_in_use[$df_uuid]) )
+                    $uuid_mapping[$df_uuid] = $df_data['name'];
+            }
+        }
+
+        return $uuid_mapping;
     }
 
 
