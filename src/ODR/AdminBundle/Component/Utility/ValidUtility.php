@@ -79,6 +79,13 @@ class ValidUtility
      * That older regex couldn't match exponents, and was overly strict on allowed leading zeros.
      */
 
+    // There are a bunch of illegal characters for filenames in both linux and windows...
+    // ...the 32 non-printable characters, ", *, /, :, <, >, ?, \, and |
+    const FILENAME_ILLEGAL_CHARACTERS_REGEX_A = '/[\x00-\x1f\x22\x2a\x2f\x3a\x3c\x3e\x3f\x5c\x7c\x7f]/';
+
+    // There are other strings that are illegal to use for filenames
+    const FILENAME_ILLEGAL_CHARACTERS_REGEX_B = "/^([\.]*|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i";
+
 
     /**
      * Returns whether the given value is a valid boolean.

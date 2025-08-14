@@ -1281,8 +1281,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $dif_uploaded = true;
                 }
 
-                // NOTE: I believe these are "before" the deletion...but since this only triggers on
-                //  one delete at a time, the rest of the values are still valid
+                // NOTE: I believe these values are from "before" the deletion...but since this only
+                //  triggers on one delete at a time, the rest of the values are still valid
 
                 if ( $relevant_rpf_name === 'AMC File' ) {
                     // These fields should always get cleared when an AMC File is deleted
@@ -1349,36 +1349,45 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 }
                 else if ( $relevant_rpf_name === 'Original CIF File' ) {
                     // These fields should always get cleared when an AMC File is deleted
-                    $file_values['Original CIF File Contents'] = '';
+                    $file_values = array(
+                        // These values will always get cleared
+                        'Original CIF File Contents' => '',
 
-                    // These fields should get cleared when the other CIF file doesn't exist
-                    if ( !$minimal_cif_uploaded ) {
-                        $file_values['Chemistry'] = '';
-                        $file_values['Chemistry Elements'] = '';
-                        $file_values['Locality'] = '';
-                        $file_values['Crystal Density'] = '';
-                    }
+                        // These other values depend on whether they're stored in the other files
+                        'Chemistry' => '',
+                        'Chemistry Elements' => '',
+                        'Locality' => '',
+                        'Crystal Density' => '',
 
-                    // The cell parameter values should only get cleared when no other file exists
-                    if ( !$amc_uploaded && !$minimal_cif_uploaded && !$dif_uploaded ) {
-                        $file_values['Mineral'] = '';
+                        'Mineral' => '',
 
-                        $file_values['a'] = '';
-                        $file_values['b'] = '';
-                        $file_values['c'] = '';
-                        $file_values['alpha'] = '';
-                        $file_values['beta'] = '';
-                        $file_values['gamma'] = '';
-                        $file_values['Volume'] = '';
+                        'a' => '',
+                        'b' => '',
+                        'c' => '',
+                        'alpha' => '',
+                        'beta' => '',
+                        'gamma' => '',
+                        'Volume' => '',
 
-                        $file_values['Crystal System'] = '';
-                        $file_values['Point Group'] = '';
-                        $file_values['Space Group'] = '';
-                        $file_values['Lattice'] = '';
+                        'Crystal System' => '',
+                        'Point Group' => '',
+                        'Space Group' => '',
+                        'Lattice' => '',
 
-                        $file_values['Pressure'] = '';
-                        $file_values['Temperature'] = '';
-                    }
+                        'Pressure' => '',
+                        'Temperature' => '',
+                    );
+
+                    // Unlike the other three files which all are created via the same process, the
+                    //  Original CIF can be vastly different
+                    // This mostly manifests itself in the temperature/pressure but if there are
+                    //  any values only from the Original CIF then we want to clear them when the
+                    //  Original CIF is deleted
+                    $other_file_contents = self::getOtherFileContents($rpf_mapping, $current_values);
+
+                    // Any values that are set in the other files should not be cleared here
+                    foreach ($other_file_contents as $rpf_name => $val)
+                        unset( $file_values[$rpf_name] );
                 }
                 else if ( $relevant_rpf_name === 'DIF File' ) {
                     // These fields should always get cleared when an AMC File is deleted
@@ -1474,6 +1483,81 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
+    }
+
+
+    /**
+     * Deleting an Original CIF file is slightly tricky...the other three types of files are all
+     * created via the same process and will have effectively the same data, but the Original CIF
+     * is almost always from a different source.
+     *
+     * While this file is the "least authoritative" out of the four, it could still have values that
+     * the other three files don't have (particularly pressure/temperature), and therefore we kind
+     * of want to ensure any values that are are only from the Original CIF get cleared when the
+     * Original CIF gets deleted...
+     *
+     * @param array $rpf_mapping {@link self::getRenderPluginFieldsMapping()}
+     * @param array $current_values {@link self::getCurrentValues()}
+     * @return array
+     */
+    private function getOtherFileContents($rpf_mapping, $current_values)
+    {
+        // All of these entries should be set in $rpf_mapping, but make sure...
+        $dif_file_df_id = $amc_file_df_id = $cif_file_df_id = null;
+        if ( isset($rpf_mapping['CIF File']) )
+            $cif_file_df_id = $rpf_mapping['CIF File'];
+        if ( isset($rpf_mapping['AMC File']) )
+            $amc_file_df_id = $rpf_mapping['AMC File'];
+        if ( isset($rpf_mapping['DIF File']) )
+            $dif_file_df_id = $rpf_mapping['DIF File'];
+
+        // Prefer to read the Minimal CIF file...the other two files are based off if it
+        $file_id = null;
+        $using_dif_file = $using_amc_file = $using_cif_file = false;
+        if ( isset($current_values[$cif_file_df_id]) ) {
+            $file_id = $current_values[$cif_file_df_id];
+            $using_cif_file = true;
+        }
+        else if ( isset($current_values[$amc_file_df_id]) ) {
+            $file_id = $current_values[$amc_file_df_id];
+            $using_amc_file = true;
+        }
+        else if ( isset($current_values[$dif_file_df_id]) ) {
+            $file_id = $current_values[$dif_file_df_id];
+            $using_cif_file = true;
+        }
+
+        // If no other file is uploaded, then don't bother trying to read them
+        if ( is_null($file_id) )
+            return array();
+
+        // Need to hydrate the file...
+        /** @var File $file */
+        $file = $this->em->getRepository('ODRAdminBundle:File')->find($file_id);
+        if ($file == null)
+            throw new ODRNotFoundException('File');
+
+        // ...because it's not necessarily guaranteed to be public or decrypted
+        $filename = 'File_'.$file_id.'.'.$file->getExt();
+        if ( !$file->isPublic() )
+            $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_0.'.$file->getExt());
+
+        // Ensure the file exists...
+        $local_filepath = $this->crypto_service->decryptFile($file_id, $filename);
+        // ...so it can be read
+        $other_file_contents = array();
+        if ( $using_cif_file )
+            $other_file_contents = self::readEitherCIFFile($local_filepath);
+        else if ( $using_amc_file )
+            $other_file_contents = self::readAMCFile($local_filepath);
+        else if ( $using_dif_file )
+            $other_file_contents = self::readDIFFile($local_filepath);
+
+        // If the file isn't public, then delete it off the server before returning the values
+        if ( !$file->isPublic() )
+            unlink($local_filepath);
+
+        return $other_file_contents;
     }
 
 
@@ -1848,9 +1932,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             switch ($typeclass) {
                 case 'File':
                     // Want to store whether there's a file uploaded to this field or not
-                    $current_values[$df_id] = false;
+                    $current_values[$df_id] = null;
                     if ( isset($drf['file'][0]['id']) )
-                        $current_values[$df_id] = true;
+                        $current_values[$df_id] = $drf['file'][0]['id'];
                     break;
 
                 case 'IntegerValue':
@@ -1927,7 +2011,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // The remainder of the values that could be in the AMC File should only be saved
                     //  when they're not already listed in the Minimal CIF
                     $df_id = $rpf_mapping[$rpf_name];
-                    if ( isset($current_values[$df_id]) )
+                    if ( isset($current_values[$df_id]) && $current_values[$df_id] !== '' )
                         unset( $file_values[$rpf_name] );
                 }
             }
@@ -1943,7 +2027,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // ...but the remainder of the values defer to whatever was read from the
                     //  Minimal CIF and/or AMC files
                     $df_id = $rpf_mapping[$rpf_name];
-                    if ( isset($current_values[$df_id]) )
+                    if ( isset($current_values[$df_id]) && $current_values[$df_id] !== '' )
                         unset( $file_values[$rpf_name] );
                 }
             }
@@ -1957,7 +2041,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // ...but the remainder of the values defer to whatever was read from the
                     //  Original CIF file
                     $df_id = $rpf_mapping[$rpf_name];
-                    if ( isset($current_values[$df_id]) )
+                    if ( isset($current_values[$df_id]) && $current_values[$df_id] !== '' )
                         unset( $file_values[$rpf_name] );
                 }
             }
@@ -1977,7 +2061,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // ...but the remainder of the values defer to whatever was read from the
                     //   Minimal CIF and/or AMC files
                     $df_id = $rpf_mapping[$rpf_name];
-                    if ( isset($current_values[$df_id]) )
+                    if ( isset($current_values[$df_id]) && $current_values[$df_id] !== '' )
                         unset( $file_values[$rpf_name] );
                 }
             }

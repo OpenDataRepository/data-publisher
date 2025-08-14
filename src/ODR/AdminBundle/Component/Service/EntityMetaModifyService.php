@@ -65,6 +65,8 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Events
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
+// Services
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -1248,21 +1250,19 @@ class EntityMetaModifyService
             $new_filename = $properties['original_filename'];
             $exception_source = 0x8098270f;
 
-            $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
-            if ( preg_match($regex, $new_filename) === 1 ) {
+            if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, $new_filename) === 1 ) {
                 // ...then refuse to continue executing the plugin when the filename has them
-                throw new ODRBadRequestException('Invalid characters in new filename', $exception_source);
+                throw new ODRBadRequestException('Invalid characters in new filename "'.$new_filename.'"', $exception_source);
             }
 
             // ...also try to prevent leading/trailing spaces in the filename...
             $new_filename = trim($new_filename);
             // ...and other various illegal names in both linux and windows...
-            $regex = '/^(\.|\.\.|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i';
-            if ( preg_match($regex, $new_filename) === 1 )
-                throw new ODRBadRequestException('Illegal filename', $exception_source);
+            if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_B, $new_filename) === 1 )
+                throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
             // ...and filenames starting with a dash are also bad
             if ( strpos($new_filename, '-') === 0 )
-                throw new ODRBadRequestException('Illegal filename', $exception_source);
+                throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
 
             $new_file_meta->setOriginalFileName( mb_scrub($new_filename) );
         }
@@ -1632,21 +1632,19 @@ class EntityMetaModifyService
             $new_filename = $properties['original_filename'];
             $exception_source = 0x41e90938;
 
-            $regex = '/[\x5c\/\:\*\?\"\<\>\|\x7f]|[\x00-\x1f]/';
-            if ( preg_match($regex, $new_filename) === 1 ) {
+            if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, $new_filename) === 1 ) {
                 // ...then refuse to continue executing the plugin when the filename has them
-                throw new ODRBadRequestException('Invalid characters in new filename', $exception_source);
+                throw new ODRBadRequestException('Invalid characters in new filename "'.$new_filename.'"', $exception_source);
             }
 
             // ...also try to prevent leading/trailing spaces in the filename...
             $new_filename = trim($new_filename);
             // ...and other various illegal names in both linux and windows...
-            $regex = '/^(\.|\.\.|CON|PRN|AUX|NUL|COM1|COM2|COM3|COM4|COM5|COM6|COM7|COM8|COM9|LPT1|LPT2|LPT3|LPT4|LPT5|LPT6|LPT7|LPT8|LPT9)$/i';
-            if ( preg_match($regex, $new_filename) === 1 )
-                throw new ODRBadRequestException('Illegal filename', $exception_source);
+            if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_B, $new_filename) === 1 )
+                throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
             // ...and filenames starting with a dash are also bad
             if ( strpos($new_filename, '-') === 0 )
-                throw new ODRBadRequestException('Illegal filename', $exception_source);
+                throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
 
             $new_image_meta->setOriginalFileName( mb_scrub($new_filename) );
         }

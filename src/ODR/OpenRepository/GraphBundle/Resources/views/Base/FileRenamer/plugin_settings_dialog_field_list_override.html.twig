@@ -1,4 +1,7 @@
 {% spaceless %}
+
+{% set FILENAME_REGEX = constant('ODR\\AdminBundle\\Component\\Utility\\ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A') %}
+
 <div class="pure-u-1">
     <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]"></textarea>
 
@@ -26,8 +29,9 @@
         <div class="pure-u-1-24"></div>
         <div class="pure-u-11-24">
             The right side shows the order the fields/constants will be applied in...the first is at the top.
-            Their position can be changed with the arrow icons, and the string constants can be deleted with the trash icon.
-            Removing a field is done through the left side.
+            The positions of the fields/constants can be changed with the up/down arrow icons.
+            The right arrow icon will turn a field/constant into an "alternate" for the item above it, and the left arrow icon will undo this.
+            Removing a field is done by deselecting it on the left side. The string constants can be removed via their trash icon.
             <br>
         </div>
     </div>
@@ -80,28 +84,41 @@
         <div class="pure-u-22-24">
             <div class="pure-u-1" style="min-height: 10px;"></div>
             <ul class="ODRRenderPlugin_FileRenamer_config">
-            {% for value,num in current_config %}
-                {% if uuid_mapping[value] is defined %}
-                <li class="ODRRenderPlugin_FileRenamer_config_container" rel="{{ value }}">
+            {% for num,value in field_list %}
+                <li class="ODRRenderPlugin_FileRenamer_config_container" {% if uuid_mapping[value] is defined %}rel="{{ value }}"{% endif %}>
                     <div class="ODRRenderPlugin_FileRenamer_config_item">
-                        <span class="ODRRenderPlugin_FileRenamer_warn ODRRenderPlugin_FileRenamer_hide_warn" title="This field isn't available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>
-                        <span style="visibility: hidden;"><i class="fa fa-lg fa-trash-o"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_warn ODRRenderPlugin_FileRenamer_hide_warn" title="{% if uuid_mapping[value] is defined %}This field isn't available for the chosen prefix{% else %}Illegal characters in value{% endif %}"><i class="fa fa-lg fa-warning"></i></span>
+                        <span {% if uuid_mapping[value] is defined %}style="visibility: hidden;"{% else %}class="ODRRenderPlugin_FileRenamer_trash" title="Delete this item"{% endif %}><i class="fa fa-lg fa-trash-o"></i></span>
                         <span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
                         <span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_right"><i class="fa fa-lg fa-caret-square-o-right"></i></span>
+                        {% if uuid_mapping[value] is defined %}
                         <span class="ODRRenderPlugin_FileRenamer_config_item_name">{{ uuid_mapping[value] }}</span>
+                        {% else %}
+                        <input class="ODRRenderPlugin_FileRenamer_config_item_name" value="{{ value }}" size="35" />
+                        {% endif %}
                     </div>
+                    {% if uuid_mapping[value] is defined %}<ul>{% endif %}
+                    {% if alt_field_list[num] is defined %}
+                        {% for num2,value2 in alt_field_list[num] %}
+                        <li class="ODRRenderPlugin_FileRenamer_config_container ODRRenderPlugin_FileRenamer_alternate_config_item" {% if uuid_mapping[value2] is defined %}rel="{{ value2 }}"{% endif %}>
+                            <div class="ODRRenderPlugin_FileRenamer_config_item">
+                                <span class="ODRRenderPlugin_FileRenamer_warn ODRRenderPlugin_FileRenamer_hide_warn" title="{% if uuid_mapping[value2] is defined %}This field isn't available for the chosen prefix{% else %}Illegal characters in value{% endif %}"><i class="fa fa-lg fa-warning"></i></span>
+                                <span {% if uuid_mapping[value2] is defined %}style="visibility: hidden;"{% else %}class="ODRRenderPlugin_FileRenamer_trash" title="Delete this item"{% endif %}><i class="fa fa-lg fa-trash-o"></i></span>
+                                <span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
+                                <span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
+                                <span class="ODRRenderPlugin_FileRenamer_left"><i class="fa fa-lg fa-caret-square-o-left"></i></span>
+                                {% if uuid_mapping[value2] is defined %}
+                                    <span class="ODRRenderPlugin_FileRenamer_config_item_name">{{ uuid_mapping[value2] }}</span>
+                                {% else %}
+                                    <input class="ODRRenderPlugin_FileRenamer_config_item_name" value="{{ value2 }}" size="35" />
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    {% endif %}
+                    {% if uuid_mapping[value] is defined %}</ul>{% endif %}
                 </li>
-                {% else %}
-                <li class="ODRRenderPlugin_FileRenamer_config_container">
-                    <div class="ODRRenderPlugin_FileRenamer_config_item">
-                        <span style="visibility: hidden;"><i class="fa fa-lg fa-warning"></i></span>
-                        <span class="ODRRenderPlugin_FileRenamer_trash" title="Delete this item"><i class="fa fa-lg fa-trash-o"></i></span>
-                        <span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
-                        <span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
-                        <input class="ODRRenderPlugin_FileRenamer_config_item_name" value="{{ value }}"  size="40" />
-                    </div>
-                </li>
-                {% endif %}
             {% endfor %}
             </ul>
         </div>
@@ -199,9 +216,12 @@
      */
     function FileRenamer_attachHandlers() {
         $(".ODRRenderPlugin_FileRenamer_up").unbind('click').click(function() {
-            var parent = $(this).parents('li');
+            var parent = $(this).parents('li').first();
 
+            // Because the "alternate" items are stored inside their parent, we don't need to use
+            //  anything more than prev() to check...
             if ( $(parent).prev().length > 0 ) {
+                // ...only move the item when it's not already the first item in the list
                 var copy = $(parent).clone();
                 $(parent).prev().before(copy);
                 $(parent).remove();
@@ -211,9 +231,12 @@
             }
         });
         $(".ODRRenderPlugin_FileRenamer_down").unbind('click').click(function() {
-            var parent = $(this).parents('li');
+            var parent = $(this).parents('li').first();
 
+            // Because the "alternate" items are stored inside their parent, we don't need to use
+            //  anything more than next() to check...
             if ( $(parent).next().length > 0 ) {
+                // ...only move the item when it's not already the last item in the list
                 var copy = $(parent).clone();
                 $(parent).next().after(copy);
                 $(parent).remove();
@@ -222,6 +245,55 @@
                 FileRenamer_attachHandlers();
             }
         });
+        $(".ODRRenderPlugin_FileRenamer_right").unbind('click').click(function() {
+            var parent = $(this).parents('li').first();
+
+            if ( $(parent).prev().length > 0 && $(parent).find('ul').children('li').length == 0 ) {
+                // This item can't become an "alternate" if it's the first item in the default list,
+                //  or if it has "alternates" of its own...
+                if ( $(parent).prev().find('input').length == 0 ) {
+                    // ...and it can only become an "alternate" if its "parent" isn't a string item,
+                    //  since string items always exist
+                    $(parent).addClass('ODRRenderPlugin_FileRenamer_alternate_config_item');
+                    $(parent).find('span.ODRRenderPlugin_FileRenamer_right')
+                        .removeClass('ODRRenderPlugin_FileRenamer_right')
+                        .addClass('ODRRenderPlugin_FileRenamer_left');
+
+                    $(parent).find('i.fa-caret-square-o-right')
+                        .removeClass('fa-caret-square-o-right')
+                        .addClass('fa-caret-square-o-left');
+
+                    var copy = $(parent).clone();
+                    $(parent).prev().children('ul').first().append(copy);
+                    $(parent).remove();
+
+                    // Need to attach handlers to the cloned block of HTML
+                    FileRenamer_attachHandlers();
+                }
+            }
+        });
+        $(".ODRRenderPlugin_FileRenamer_left").unbind('click').click(function() {
+            var parent = $(this).parents('li').first();
+
+            // An "alternate" item can always be "demoted" back to a "default" item
+            $(parent).removeClass('ODRRenderPlugin_FileRenamer_alternate_config_item');
+            $(parent).find('span.ODRRenderPlugin_FileRenamer_left')
+                .removeClass('ODRRenderPlugin_FileRenamer_left')
+                .addClass('ODRRenderPlugin_FileRenamer_right');
+
+            $(parent).find('i.fa-caret-square-o-left')
+                .removeClass('fa-caret-square-o-left')
+                .addClass('fa-caret-square-o-right');
+
+            var copy = $(parent).clone();
+            var append_target = $(parent).parent().parent();
+            $(append_target).after(copy);
+            $(parent).remove();
+
+            // Need to attach handlers to the cloned block of HTML
+            FileRenamer_attachHandlers();
+        });
+
         $(".ODRRenderPlugin_FileRenamer_trash").unbind('click').click(function() {
             var parent = $(this).parents('li');
             $(parent).remove();
@@ -292,20 +364,37 @@
      * Updates the hidden textarea with the current value of the block on the right side
      */
     function FileRenamer_updateValue() {
-        var text = $(".ODRRenderPlugin_FileRenamer_prefix_list").find(".fa-check-square-o").first().parent().attr('rel') + "\n";
+        var text = $(".ODRRenderPlugin_FileRenamer_prefix_list").find(".fa-check-square-o").first().parent().attr('rel');
 
         $(".ODRRenderPlugin_FileRenamer_config_container").each(function(index, elem) {
+            var warning_span = $(elem).children('div').first().children('span.ODRRenderPlugin_FileRenamer_warn').first();
+
             if ( $(elem).attr('rel') ) {
-                // This is a datafield...determine whether it has a warning active...
-                if ( $(elem).find('.ODRRenderPlugin_FileRenamer_hide_warn').length > 0 ) {
-                    // ...and only save if it doesn't
-                    text += $(elem).attr('rel') + "\n";
+                // This is a datafield...it won't have the 'ODRRenderPlugin_FileRenamer_hide_warn'
+                //   class when a warning is active...
+                if ( $(warning_span).hasClass('ODRRenderPlugin_FileRenamer_hide_warn') ) {
+                    // ...only save when it doesn't
+                    if ( !$(elem).hasClass('ODRRenderPlugin_FileRenamer_alternate_config_item') )
+                        text += "\n" + $(elem).attr('rel');
+                    else
+                        text += "|" + $(elem).attr('rel');
                 }
             }
             else {
-                // This is a string constant, find and save the text
+                // This is a string constant...might as well attempt to prevent illegal characters here
                 var value = $(elem).find('input.ODRRenderPlugin_FileRenamer_config_item_name').val();
-                text += value + "\n";
+                if ( value.match({{ FILENAME_REGEX }}) )
+                    $(warning_span).removeClass('ODRRenderPlugin_FileRenamer_hide_warn');
+                else
+                    $(warning_span).addClass('ODRRenderPlugin_FileRenamer_hide_warn');
+
+                // Only save when it has the 'ODRRenderPlugin_FileRenamer_hide_warn' class active
+                if ( $(warning_span).hasClass('ODRRenderPlugin_FileRenamer_hide_warn') ) {
+                    if ( !$(elem).hasClass('ODRRenderPlugin_FileRenamer_alternate_config_item') )
+                        text += "\n" + value;
+                    else
+                        text += "|" + value;
+                }
             }
         });
 
@@ -326,8 +415,10 @@
                 '<span style="visibility: hidden;"><i class="fa fa-lg fa-trash-o"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_right"><i class="fa fa-lg fa-caret-square-o-right"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_config_item_name">' + df_name + '</span>' +
             '</div>' +
+            '<ul></ul>' +
         '</li>';
 
         // Append the block of HTML and attach handlers to it
@@ -342,11 +433,12 @@
         var str =
         '<li class="ODRRenderPlugin_FileRenamer_config_container">' +
             '<div class="ODRRenderPlugin_FileRenamer_config_item">' +
-                '<span style="visibility: hidden;"><i class="fa fa-lg fa-warning"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_warn ODRRenderPlugin_FileRenamer_hide_warn" title="Illegal characters in value"><i class="fa fa-lg fa-warning"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_trash" title="Delete this item"><i class="fa fa-lg fa-trash-o"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>' +
-                '<input class="ODRRenderPlugin_FileRenamer_config_item_name" value="<<new>>" size="40" />' +
+                '<span class="ODRRenderPlugin_FileRenamer_right"><i class="fa fa-lg fa-caret-square-o-right"></i></span>' +
+                '<input class="ODRRenderPlugin_FileRenamer_config_item_name" value="<<new>>" size="35" />' +
             '</div>' +
         '</li>';
 
