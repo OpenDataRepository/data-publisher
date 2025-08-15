@@ -59,7 +59,29 @@ class DatatreeInfoService
 
 
     /**
-     * Utility function to return the DataTree table in array format
+     * Utility function to return the DataTree table as an array.  The array has the following format:
+     * <pre>
+     * array(
+     *     'descendant_of' => array(
+     *         <top_level_datatype_id> => '',
+     *         <child_datatype_id> => <parent_datatype_id>,
+     *         ...
+     *     ),
+     *     'linked_from' => array(
+     *         <linked_descendant_datatype_id> => array(
+     *             <linked_ancestor_datatype_id>,
+     *             ...
+     *         ),
+     *         ...
+     *     ),
+     *     'multiple_allowed' => array(
+     *         ...like 'linked_from', but for all child/linked datatypes that allow multiple descendants
+     *     ),
+     *     'edit_behavior' => array(
+     *         ...like 'linked_from', but for all child/linked datatypes that override edit_behavior
+     *     ),
+     * )
+     * </pre>
      *
      * @return array
      */

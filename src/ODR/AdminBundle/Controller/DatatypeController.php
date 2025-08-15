@@ -285,7 +285,7 @@ class DatatypeController extends ODRCustomController
                         //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                         /** @var EventDispatcherInterface $event_dispatcher */
                         $dispatcher = $this->get('event_dispatcher');
-                        $event = new DatarecordCreatedEvent($datarecord, $user);
+                        $event = new DatarecordCreatedEvent($datarecord, $user, null);
                         $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                     }
                     catch (\Exception $e) {

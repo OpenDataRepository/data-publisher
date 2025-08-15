@@ -1,0 +1,38 @@
+odr_plugins.rruff.child_rruff_id:
+    name: Child RRUFF ID Plugin
+    category: RRUFF
+    plugin_type: datafield
+    render: odr_plugins.rruff.child_rruff_id
+    version: 0.1.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: TODO
+    registered_events:
+        DatarecordCreatedEvent: onDatarecordCreate
+
+    required_fields:
+        child_rruff_id_field:
+            name: Child RRUFF ID Field
+            description: TODO
+            type: ShortVarchar|MediumVarchar
+            properties:
+                - autogenerate_values
+
+    config_options:
+        parent_rruff_id_field:
+            name: Parent RRUFF ID Field
+            type: number
+            default:
+            description: The field to copy for generating this ID.
+
+        child_rruff_id_postfix:
+            name: Child RRUFF ID Field Postfix
+            type: string
+            default:
+            description: An optional string to append to the end of the copied ID.

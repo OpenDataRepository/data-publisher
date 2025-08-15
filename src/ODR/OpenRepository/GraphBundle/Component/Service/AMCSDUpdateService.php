@@ -975,7 +975,7 @@ class AMCSDUpdateService
                 // Need to fire the DatarecordCreatedEvent so the newly created reference gets the
                 //  correct Reference ID
                 try {
-                    $event = new DatarecordCreatedEvent($new_dr, $user);
+                    $event = new DatarecordCreatedEvent($new_dr, $user, null);
                     $this->event_dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                 }
                 catch (\Exception $e) {

@@ -38,19 +38,27 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
      */
     private $user;
 
+    /**
+     * @var DataRecord|null
+     */
+    private $linked_ancestor_datarecord;
+
 
     /**
      * DatarecordCreatedEvent constructor.
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
+     * @param DataRecord|null $linked_ancestor_datarecord
      */
     public function __construct(
         DataRecord $datarecord,
-        ODRUser $user
+        ODRUser $user,
+        ?DataRecord $linked_ancestor_datarecord
     ) {
         $this->datarecord = $datarecord;
         $this->user = $user;
+        $this->linked_ancestor_datarecord = $linked_ancestor_datarecord;
     }
 
 
@@ -73,6 +81,18 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
     public function getUser()
     {
         return $this->user;
+    }
+
+
+    /**
+     * Returns the datarecord that will become this record's linked ancestor in the near future, if
+     * one is planned.
+     *
+     * @return DataRecord|null
+     */
+    public function getLinkedAncestorDatarecord()
+    {
+        return $this->linked_ancestor_datarecord;
     }
 
 
