@@ -77,6 +77,11 @@ class Theme
     private $relatedSourceThemes;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginThemeOptionsMap;
+
+    /**
      * @var \ODR\AdminBundle\Entity\Theme
      */
     private $parentTheme;
@@ -111,6 +116,7 @@ class Theme
         $this->themePreferences = new \Doctrine\Common\Collections\ArrayCollection();
         $this->relatedThemes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->relatedSourceThemes = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginThemeOptionsMap = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -403,6 +409,42 @@ class Theme
     public function getRelatedSourceThemes()
     {
         return $this->relatedSourceThemes;
+    }
+
+    /**
+     * Add renderPluginThemeOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap
+     *
+     * @return Theme
+     */
+    public function addRenderPluginThemeOptionsMap(\ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap)
+    {
+        $this->renderPluginThemeOptionsMap[] = $renderPluginThemeOptionsMap;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginThemeOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginThemeOptionsMap(\ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap)
+    {
+        return $this->renderPluginThemeOptionsMap->removeElement($renderPluginThemeOptionsMap);
+    }
+
+    /**
+     * Get renderPluginThemeOptionsMap.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginThemeOptionsMap()
+    {
+        return $this->renderPluginThemeOptionsMap;
     }
 
     /**

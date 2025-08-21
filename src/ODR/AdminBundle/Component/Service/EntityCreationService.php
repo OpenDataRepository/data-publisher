@@ -54,6 +54,7 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
+use ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\SidebarLayout;
 use ODR\AdminBundle\Entity\SidebarLayoutMap;
@@ -2152,6 +2153,44 @@ class EntityCreationService
             $this->em->flush();
 
         return $rpom;
+    }
+
+
+    /**
+     * Creates and persists a new RenderPluginThemeOptionsMap entity.
+     *
+     * @param ODRUser $user
+     * @param RenderPluginInstance $render_plugin_instance
+     * @param RenderPluginOptionsDef $render_plugin_option TODO - rename to RenderPluginOptions
+     * @param Theme $theme
+     * @param string $option_value
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return RenderPluginThemeOptionsMap
+     */
+    public function createRenderPluginThemeOptionsMap($user, $render_plugin_instance, $render_plugin_option, $theme, $option_value, $delay_flush = false, $created = null)
+    {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $rptom = new RenderPluginThemeOptionsMap();
+        $rptom->setRenderPluginInstance($render_plugin_instance);
+        $rptom->setRenderPluginOptionsDef($render_plugin_option);
+        $rptom->setTheme($theme);
+        $rptom->setValue( mb_scrub($option_value) );
+
+        $rptom->setCreated($created);
+        $rptom->setUpdated($created);
+        $rptom->setCreatedBy($user);
+        $rptom->setUpdatedBy($user);
+
+        $this->em->persist($rptom);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $rptom;
     }
 
 

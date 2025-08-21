@@ -18,6 +18,15 @@
     dt_theme_ids = dt_props.get('theme_ids');
     dt_theme_ids.set({{ containing_theme_element_id }}, {{ theme_id }});
 
+    dt_props.set('uses_layout_settings', false);
+{% if datatype['renderPluginInstances'] is defined %}
+    {% for rpi_id, rpi in datatype['renderPluginInstances'] %}
+        {% if rpi['renderPlugin']['uses_layout_settings'] == true %}
+    dt_props.set('uses_layout_settings', true);
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
     {#console.log('datatype {{ datatype_id }}', $("#DataType_{{ datatype_id }}"), datatype_properties.get({{ datatype_id }}));#}
 </script>
 

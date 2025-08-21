@@ -286,3 +286,13 @@ odr_plugins.base.filter_graph:
             display_order: 101
             # This optional property is the one that triggers the hijack of the dialog
             uses_custom_render: true
+
+        hide_graph_data:
+            name: Hide Graph Data?
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: Whether to hide the data by default
+            display_order: 200
+            # This optional property is the one that triggers the alternate behavior
+            uses_layout_settings: true

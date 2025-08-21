@@ -1812,6 +1812,10 @@ class ValidationController extends ODRCustomController
             unset( $query_targets['RenderPluginOptionsMap']['renderPluginInstance'] );
             print '>> ignoring undeleted RenderPluginOptionsMap entities that reference deleted renderPluginInstances'."\n";
         }
+        if ( isset($query_targets['RenderPluginThemeOptionsMap']['renderPluginInstance']) ) {
+            unset( $query_targets['RenderPluginThemeOptionsMap']['renderPluginInstance'] );
+            print '>> ignoring undeleted RenderPluginThemeOptionsMap entities that reference deleted renderPluginInstances'."\n";
+        }
         print "\n";
 
         if ( isset($query_targets['DataFields']['masterDataField']) ) {
@@ -2911,7 +2915,7 @@ class ValidationController extends ODRCustomController
 
             print '<pre>';
             // These aren't strictly related to the fieldtype table...but they shouldn't exist either
-            print "DROP TABLE IF EXISTS odr_checkbox, odr_file_storage, odr_image_storage, odr_radio, odr_xyz_value;\n";
+            print "DROP TABLE IF EXISTS odr_checkbox, odr_file_storage, odr_image_storage, odr_radio, odr_point_value, odr_xyz_value;\n";
             print "DROP TABLE IF EXISTS odr_user_layout_permissions, odr_user_layout_preferences, odr_layout_meta, odr_layout_data, odr_layout;\n";
             print "DROP TABLE IF EXISTS odr_theme_element_field;\n";
             print "DROP TABLE IF EXISTS odr_user_field_permissions, odr_user_permissions;\n";
@@ -3443,7 +3447,19 @@ class ValidationController extends ODRCustomController
             fprintf($handle, "USE ".$db_name.";\n");
             fprintf($handle, "START TRANSACTION;\n\n");
 
-            // Layout stuff first...
+            // ...render plugin stuff first
+            if ( !empty($render_plugin_instance_ids) ) {
+                fprintf($handle, "DELETE FROM odr_render_plugin_options rpo WHERE rpo.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_render_plugin_options_map rpom WHERE rpom.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_render_plugin_theme_options_map rptom WHERE rptom.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_render_plugin_map rpm WHERE rpm.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_render_plugin_instance rpi WHERE rpi.id IN (".implode(',', $render_plugin_instance_ids).");\n");
+            }
+            else {
+                fprintf($handle, "# No renderPluginInstances to delete\n");
+            }
+
+            // ...then Layout stuff
             if ( !empty($theme_element_ids) ) {
                 fprintf($handle, "DELETE FROM odr_theme_render_plugin_instance trpi WHERE trpi.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
 
@@ -3594,16 +3610,6 @@ class ValidationController extends ODRCustomController
             }
             else {
                 fprintf($handle, "# No groups to delete\n");
-            }
-
-            if ( !empty($render_plugin_instance_ids) ) {
-                fprintf($handle, "DELETE FROM odr_render_plugin_options rpo WHERE rpo.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
-                fprintf($handle, "DELETE FROM odr_render_plugin_options_map rpom WHERE rpom.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
-                fprintf($handle, "DELETE FROM odr_render_plugin_map rpm WHERE rpm.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
-                fprintf($handle, "DELETE FROM odr_render_plugin_instance rpi WHERE rpi.id IN (".implode(',', $render_plugin_instance_ids).");\n");
-            }
-            else {
-                fprintf($handle, "# No renderPluginInstances to delete\n");
             }
 
             if ( !empty($dtsf_ids) ) {
@@ -3875,52 +3881,6 @@ class ValidationController extends ODRCustomController
             $db_name = $this->getParameter('database_name');
             fprintf($handle, "USE ".$db_name.";\n\n");
 
-//            // Layout stuff first...
-//            if ( !empty($theme_element_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_theme_data_field tdf WHERE tdf.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_theme_data_type tdt WHERE tdt.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_theme_element_meta tem WHERE tem.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_theme_element te WHERE te.id IN (".implode(',', $theme_element_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No theme elements to delete\n");
-//            }
-
-//            // sanity check for both of these
-//            if ( !empty($datafield_ids) )
-//                fprintf($handle, "DELETE FROM odr_theme_data_field tdf WHERE tdf.data_field_id IN (".implode(',', $datafield_ids).");\n");
-//            if ( !empty($datatype_ids) )
-//                fprintf($handle, "DELETE FROM odr_theme_data_type tdt WHERE tdt.data_type_id IN (".implode(',', $datatype_ids).");\n");
-
-//            if ( !empty($theme_ids) ) {
-//                // also need to get all themeDataType entries that reference the themes being deleted
-//                fprintf($handle, "DELETE FROM odr_theme_data_type tdt WHERE tdt.child_theme_id IN (".implode(',', $theme_ids).");\n");
-//
-//                fprintf($handle, "DELETE FROM odr_theme_preferences tp WHERE tp.theme_id IN (".implode(',', $theme_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_theme_meta tm WHERE tm.theme_id IN (".implode(',', $theme_ids).");\n");
-//                fprintf($handle, "UPDATE odr_theme t SET t.parent_theme_id = NULL, t.source_theme_id = NULL WHERE t.id IN (".implode(',', $theme_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_theme t WHERE t.id IN (".implode(',', $theme_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No themes to delete\n");
-//            }
-
-//            // ...then Sidebar layouts...
-//            if ( !empty($datafield_ids) )
-//                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_field_id IN (".implode(',', $datafield_ids).");\n");
-//            if ( !empty($datatype_ids) )
-//                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_type_id IN (".implode(',', $datatype_ids).");\n");
-//
-//            if ( !empty($sidebar_layout_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_sidebar_layout_preferences slp WHERE slp.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_sidebar_layout_meta slm WHERE slm.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_sidebar_layout sl WHERE sl.id IN (".implode(',', $sidebar_layout_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No sidebar layouts to delete\n");
-//            }
-
             // ...then storage entities...
             if ( !empty($datafield_ids) && !empty($datarecord_ids) ) {
                 fprintf($handle, "DELETE FROM odr_boolean e WHERE e.data_field_id IN (".implode(',', $datafield_ids).") AND e.data_record_id IN (".implode(',', $datarecord_ids).");\n");
@@ -3993,92 +3953,6 @@ class ValidationController extends ODRCustomController
             else {
                 fprintf($handle, "# No datarecords to delete\n");
             }
-
-//            // ...then datatype stuff last
-//            if ( !empty($radio_option_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_radio_options_meta rom WHERE rom.radio_option_id IN (".implode(',', $radio_option_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_radio_options ro WHERE ro.id IN (".implode(',', $radio_option_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No radio options to delete\n");
-//            }
-//            if ( !empty($tag_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_tag_meta tm WHERE tm.tag_id IN (".implode(',', $tag_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_tag_tree tt WHERE (tt.parent_id IN (".implode(',', $tag_ids).") OR tt.child_id IN (".implode(',', $tag_ids)."));\n");
-//                fprintf($handle, "DELETE FROM odr_tags t WHERE t.id IN (".implode(',', $tag_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No tags to delete\n");
-//            }
-//
-//            if ( !empty($group_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_group_datafield_permissions gdfp WHERE gdfp.group_id IN (".implode(',', $group_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_group_datatype_permissions gdtp WHERE gdtp.group_id IN (".implode(',', $group_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_user_group ug WHERE ug.group_id IN (".implode(',', $group_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_group_meta gm WHERE gm.group_id IN (".implode(',', $group_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_group g WHERE g.id IN (".implode(',', $group_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No groups to delete\n");
-//            }
-//
-//            if ( !empty($render_plugin_instance_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_render_plugin_options rpo WHERE rpo.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_render_plugin_options_map rpom WHERE rpom.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_render_plugin_map rpm WHERE rpm.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_render_plugin_instance rpi WHERE rpi.id IN (".implode(',', $render_plugin_instance_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No renderPluginInstances to delete\n");
-//            }
-//
-//            if ( !empty($dtsf_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_data_type_special_fields dtsf WHERE dtsf.data_type_id IN (".implode(',', $datatype_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_data_type_special_fields dtsf WHERE dtsf.data_field_id IN (".implode(',', $datafield_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No datatypeSpecialField entries to delete\n");
-//            }
-//
-//            if ( !empty($datatype_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_stored_search_keys ssk WHERE ssk.data_type_id IN (".implode(',', $datatype_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No storedSearchKey entries to delete\n");
-//            }
-//
-//            if ( !empty($datatype_ids) ) {
-//                fprintf($handle, "UPDATE odr_data_type_meta dtm SET dtm.external_datafield_id = NULL, dtm.type_name_datafield_id = NULL, dtm.sort_datafield_id = NULL, dtm.background_image_datafield_id = NULL WHERE dtm.data_type_id IN (".implode(',', $datatype_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_data_type_meta dtm WHERE dtm.data_type_id IN (".implode(',', $datatype_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No datatypeMeta entries to delete\n");
-//            }
-//
-//            if ( !empty($datatree_ids) ) {
-//                fprintf($handle, "DELETE FROM odr_data_tree_meta dtm WHERE dtm.data_tree_id IN (".implode(',', $datatree_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_data_tree dt WHERE dt.id IN (".implode(',', $datatree_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No datatree entries to delete\n");
-//            }
-//
-//            if ( !empty($datafield_ids) ) {
-//                // need to also catch all datatypes using one of these datafields as their sort field
-//                fprintf($handle, "DELETE FROM odr_data_fields_meta dfm WHERE dfm.data_field_id IN (".implode(',', $datafield_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_data_fields df WHERE df.id IN (".implode(',', $datafield_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No datafield entries to delete\n");
-//            }
-//
-//            if ( !empty($datatype_ids) ) {
-//                fprintf($handle, "UPDATE odr_data_type dt SET dt.parent_id = NULL, dt.grandparent_id = NULL, dt.master_datatype_id = NULL, dt.metadata_datatype_id = NULL, dt.metadata_for_id = NULL WHERE dt.id IN (".implode(',', $datatype_ids).");\n");
-//                fprintf($handle, "DELETE FROM odr_data_type dt WHERE dt.id IN (".implode(',', $datatype_ids).");\n");
-//            }
-//            else {
-//                fprintf($handle, "# No datatype entries to delete\n");
-//            }
 
             // ----------------------------------------
             print '</pre></body></html>';

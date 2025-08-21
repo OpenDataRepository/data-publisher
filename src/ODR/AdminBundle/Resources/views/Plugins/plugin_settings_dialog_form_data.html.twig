@@ -14,7 +14,7 @@
     {% endif %}
     </fieldset>
 
-    <fieldset style="text-align: left; text-indent: 15px;">
+    <fieldset class="ODRRenderPlugin_plugin_description">
         {{ render_plugin.description }}
     </fieldset>
 
@@ -61,9 +61,9 @@
                         <td>{{ rpf.description }}</td>
                         <td>
                             <select id="new_df_fieldtype_{{ rpf_id }}" class="ODRRenderPluginFieldtype" name="new_df_fieldtypes[{{ rpf_id }}]">
-                                {% for typeClass,ft_id in all_fieldtypes %}
+                                {% for typeName,ft_id in rpf_typenames %}
                                     {% if ft_id in allowed_fieldtypes[rpf_id] %}
-                                        <option value="{{ ft_id }}">{{ typeClass }}</option>    {# TODO - how to prefer a specific fieldtype? #}
+                                        <option value="{{ ft_id }}">{{ typeName }}</option>    {# TODO - how to prefer a specific fieldtype? #}
                                     {% endif %}
                                 {% endfor %}
                             </select>
@@ -193,13 +193,13 @@
     {% endfor %}
 {% endif %}
 
-    <fieldset style="text-align: left;">
+    <fieldset class="ODRRenderPlugin_option_list">
     {# Determine if the rendering plugin has any available options #}
     {% if render_plugin['renderPluginOptions']|length == 0 %}
-        <div style="text-align: center;">This Render Plugin has no options.</div>
+        <div class="ODRRenderPlugin_option_list_empty">This Render Plugin has no options.</div>
     {% else %}
         {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
-            {% if custom_render_plugin_options_html[rpo_id] is not defined %}
+            {% if not (rpo.uses_custom_render or rpo.uses_layout_settings) %}
                 {# Save the default value for the RenderPluginOption #}
                 {% set default_value = '' %}
                 {% if rpo['defaultValue'] is defined %}

@@ -7,8 +7,8 @@
 
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <a id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties" role="tab" aria-expanded="true" aria-selected="true" tabindex="0" rel="{{ theme.id }}">
+            <a id="Datatype_{{ datatype.id }}_ShortName">
                 {{ datatype.dataTypeMeta.shortName }}
             </a>
         </h3>
@@ -27,6 +27,7 @@
             {% include 'ODRAdminBundle:Theme:theme_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'datafield_properties': datafield_properties,
                 'site_baseurl': site_baseurl,
 
                 'target_datatype_id': target_datatype_id,
@@ -45,7 +46,7 @@
 
         <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
-                <h3 class="ODRHeader ODRDatatypeProperties" id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
+                <h3 class="ODRHeader ODRDatatypeProperties" id="Datatype_{{ datatype.id }}_ShortName" rel="{{ theme.id }}">
                     {{ datatype.dataTypeMeta.shortName }}
                 </h3>
                 {# current datatype is top-level...no containing theme_element #}
@@ -66,6 +67,7 @@
             {% include 'ODRAdminBundle:Theme:theme_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'datafield_properties': datafield_properties,
                 'site_baseurl': site_baseurl,
 
                 'target_datatype_id': target_datatype_id,

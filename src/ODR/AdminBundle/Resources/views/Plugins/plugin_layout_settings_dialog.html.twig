@@ -1,0 +1,103 @@
+{% spaceless %}
+
+<script>
+    /**
+     * Configures the modal dialog to view/change any layout-specific settings for the given
+     * datatype/datafield's render plugin.
+     *
+     * @param {number} theme_id
+     * @param {number} datafield_id
+     * @param {number} datatype_id
+     */
+    function openPluginLayoutSettingsDialog(theme_id, datafield_id, datatype_id) {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
+            title: 'Render Plugin Layout Settings',
+            buttons: [
+                {
+                    id: 'ODRRenderPluginLayoutSettingsFormSubmit',
+                    text: 'Save Render Plugin Layout Settings',
+                    // secondary: true,
+                    disabled: false,
+
+                    // If the user is allowed to change settings, then the click handler is attached
+                    //  in ODRAdminBundle:Plugins:plugin_layout_settings_dialog_form_data.html.twig
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        var url  = '{{ path('odr_render_plugin_layout_settings_dialog', {'theme_id': 0, 'datatype_id': 0, 'datafield_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 5));
+        url += theme_id + '/' + datatype_id + '/' + datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                updateODRRemodalBody( data.d.html );
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Submits any changes made to the render plugin form, and reloads parts of the page afterward
+     * to reflect those changes.
+     */
+    function submitRenderPluginLayoutSettingsForm() {
+
+        var data = $('#ODRRenderPluginLayoutSettingsForm').serialize();
+        var url = $('#ODRRenderPluginLayoutSettingsForm').attr('action');
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: data,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                // Don't need to do anything special on success
+                closeODRRemodal();
+                notifySaved();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Should close the remodal on an error so the user can see the error message
+                closeODRRemodal();
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+</script>
+
+{% endspaceless %}

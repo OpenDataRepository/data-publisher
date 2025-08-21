@@ -240,6 +240,9 @@ class DatafieldInfoService
 //            'autogenerate_values' => false,
 //            'is_derived' => false,
 //            'is_optional' => false,
+
+            // While not technically a datafield property, it's easier for the UI if this flag exists
+            'uses_layout_settings' => false,
         );
 
         // ...but the datafield isn't guaranteed to be used by a render plugin
@@ -257,6 +260,9 @@ class DatafieldInfoService
                             if ( isset($props[$key]) && $value === 1 )
                                 $props[$key] = true;
                         }
+
+                        // The 'uses_layout_settings' property isn't checked for or set in this loop
+                        //  because the datafield doesn't "own" the datatype plugin
                     }
                 }
             }
@@ -272,6 +278,10 @@ class DatafieldInfoService
                         if ( isset($props[$key]) && $value === 1 )
                             $props[$key] = true;
                     }
+
+                    // Also store whether the datafield plugin has a layout-specific setting
+                    if ( isset($rpi['renderPlugin']['uses_layout_settings']) && $rpi['renderPlugin']['uses_layout_settings'] === true )
+                        $props['uses_layout_settings'] = true;
                 }
             }
         }

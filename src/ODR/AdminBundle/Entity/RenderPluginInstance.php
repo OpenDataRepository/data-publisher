@@ -65,6 +65,11 @@ class RenderPluginInstance
     private $themeRenderPluginInstance;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginThemeOptionsMap;
+
+    /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
      */
     private $renderPlugin;
@@ -98,6 +103,7 @@ class RenderPluginInstance
         $this->renderPluginMap = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginOptionsMap = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeRenderPluginInstance = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginThemeOptionsMap = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -341,6 +347,42 @@ class RenderPluginInstance
     public function getThemeRenderPluginInstance()
     {
         return $this->themeRenderPluginInstance;
+    }
+
+    /**
+     * Add renderPluginThemeOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap
+     *
+     * @return RenderPluginInstance
+     */
+    public function addRenderPluginThemeOptionsMap(\ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap)
+    {
+        $this->renderPluginThemeOptionsMap[] = $renderPluginThemeOptionsMap;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginThemeOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginThemeOptionsMap(\ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap)
+    {
+        return $this->renderPluginThemeOptionsMap->removeElement($renderPluginThemeOptionsMap);
+    }
+
+    /**
+     * Get renderPluginThemeOptionsMap.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginThemeOptionsMap()
+    {
+        return $this->renderPluginThemeOptionsMap;
     }
 
     /**

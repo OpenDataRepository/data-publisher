@@ -712,7 +712,7 @@ class DatabaseInfoService
         // Locate each render plugin attached to each datatype descended from the grandparent...
         $query = $this->em->createQuery(
            'SELECT partial dt.{id},
-                partial rpi.{id}, rp, partial rpe.{id, eventName},
+                partial rpi.{id}, rp, partial rpod.{id, uses_layout_settings}, partial rpe.{id, eventName},
                 partial rpom.{id, value}, partial rpo.{id, name},
                 partial rpm.{id},
                 partial rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
@@ -722,9 +722,12 @@ class DatabaseInfoService
 
             LEFT JOIN dt.renderPluginInstances AS rpi
             LEFT JOIN rpi.renderPlugin AS rp
+            LEFT JOIN rp.renderPluginOptionsDef AS rpod
             LEFT JOIN rp.renderPluginEvents AS rpe
+
             LEFT JOIN rpi.renderPluginOptionsMap AS rpom
             LEFT JOIN rpom.renderPluginOptionsDef AS rpo
+
             LEFT JOIN rpi.renderPluginMap AS rpm
             LEFT JOIN rpm.renderPluginFields AS rpf
             LEFT JOIN rpm.dataField AS rpm_df
@@ -752,7 +755,7 @@ class DatabaseInfoService
         //  the grandparent...
         $query = $this->em->createQuery(
             'SELECT partial df.{id},
-                partial rpi.{id}, rp, partial rpe.{id, eventName},
+                partial rpi.{id}, rp, partial rpod.{id, uses_layout_settings}, partial rpe.{id, eventName},
                 partial rpom.{id, value}, partial rpo.{id, name},
                 partial rpm.{id},
                 partial rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
@@ -762,10 +765,14 @@ class DatabaseInfoService
             LEFT JOIN df.dataType AS dt
 
             LEFT JOIN df.renderPluginInstances AS rpi
+
             LEFT JOIN rpi.renderPlugin AS rp
+            LEFT JOIN rp.renderPluginOptionsDef AS rpod
             LEFT JOIN rp.renderPluginEvents AS rpe
+
             LEFT JOIN rpi.renderPluginOptionsMap AS rpom
             LEFT JOIN rpom.renderPluginOptionsDef AS rpo
+
             LEFT JOIN rpi.renderPluginMap AS rpm
             LEFT JOIN rpm.renderPluginFields AS rpf
             LEFT JOIN rpm.dataField AS rpm_df
@@ -797,10 +804,26 @@ class DatabaseInfoService
             // The renderPluginInstance should always have a renderPlugin entry...
             if ( is_null($rpi['renderPlugin']) )
                 throw new ODRException('Unable to rebuild the cached_datatype_'.$grandparent_datatype_id.' array because of a database error for rpi '.$rpi_id);
+            $rp = $rpi['renderPlugin'];
+
+            // Cache whether any of the options have layout-specific settings
+            $render_plugin_instances[$rpi_id]['renderPlugin']['uses_layout_settings'] = false;
+            if ( isset($rp['renderPluginOptionsDef']) ) {
+                $uses_layout_settings = false;
+                foreach ($rp['renderPluginOptionsDef'] as $num => $rpo) {
+                    if ( $rpo['uses_layout_settings'] === true ) {
+                        $uses_layout_settings = true;
+                        break;
+                    }
+                }
+
+                if ( $uses_layout_settings )
+                    $render_plugin_instances[$rpi_id]['renderPlugin']['uses_layout_settings'] = true;
+                unset( $render_plugin_instances[$rpi_id]['renderPlugin']['renderPluginOptionsDef'] );
+            }
 
             // For renderPluginEvents, only care about the event name
             $tmp_rpe = array();
-            $rp = $rpi['renderPlugin'];
             foreach ($rp['renderPluginEvents'] as $rpe_num => $rpe)
                 $tmp_rpe[ $rpe['eventName'] ] = 1;
 

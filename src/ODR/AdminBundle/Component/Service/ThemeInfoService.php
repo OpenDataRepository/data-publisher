@@ -661,7 +661,8 @@ class ThemeInfoService
                 te, tem,
                 tdf, partial df.{id},
                 tdt, partial c_dt.{id}, partial c_t.{id},
-                trpi, partial rpi.{id}
+                trpi, partial rpi.{id},
+                partial rptom.{id, value}, partial rptom_rpi.{id}, partial rptom_rpod.{id, name}
 
             FROM ODRAdminBundle:Theme AS t
             LEFT JOIN t.themeMeta AS tm
@@ -685,6 +686,10 @@ class ThemeInfoService
 
             LEFT JOIN te.themeRenderPluginInstance AS trpi
             LEFT JOIN trpi.renderPluginInstance AS rpi
+
+            LEFT JOIN t.renderPluginThemeOptionsMap AS rptom
+            LEFT JOIN rptom.renderPluginInstance AS rptom_rpi
+            LEFT JOIN rptom.renderPluginOptionsDef AS rptom_rpod
 
             WHERE t.parentTheme = :parent_theme_id
             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
@@ -806,6 +811,25 @@ class ThemeInfoService
 
             unset( $theme_data[$theme_num]['themeElements'] );
             $theme_data[$theme_num]['themeElements'] = $new_te_array;
+
+            // ----------------------------------------
+            // Going to store any RenderPluginThemeOptionMaps by their RenderPluginInstance
+            $new_rptom_array = array();
+            foreach ($theme['renderPluginThemeOptionsMap'] as $rptom_num => $rptom) {
+                $rpi_id = $rptom['renderPluginInstance']['id'];
+                $rpo_name = $rptom['renderPluginOptionsDef']['name'];
+                $rpo_value = $rptom['value'];
+
+                unset( $rptom['renderPluginInstance'] );
+                unset( $rptom['renderPluginOptionsDef'] );
+
+                if ( !isset($new_rptom_array[$rpi_id]) )
+                    $new_rptom_array[$rpi_id] = array();
+                if ( !isset($new_rptom_array[$rpi_id][$rpo_name]) )
+                    $new_rptom_array[$rpi_id][$rpo_name] = $rpo_value;
+            }
+
+            $theme_data[$theme_num]['renderPluginThemeOptionsMap'] = $new_rptom_array;
         }
 
         // Organize by theme id

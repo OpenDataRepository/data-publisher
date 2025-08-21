@@ -44,6 +44,7 @@ use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
+use ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\SidebarLayout;
 use ODR\AdminBundle\Entity\SidebarLayoutMap;
@@ -1997,7 +1998,7 @@ class EntityMetaModifyService
         }
 
         if (!$changes_made)
-//            return $render_plugin_option;
+//            return $render_plugin_options_map;
             return false;
 
         // Determine whether to create a new meta entry or modify the previous one
@@ -2042,6 +2043,80 @@ class EntityMetaModifyService
 
         // Return the new entry
 //        return $new_rpom;
+        return true;
+    }
+
+
+    /**
+     * Copies the contents of the given RenderPluginThemeOptionsMap entity into a new entity if
+     * something was changed.  TODO - this returns a boolean unlike other stuff...refactor?
+     *
+     * @param ODRUser $user
+     * @param RenderPluginThemeOptionsMap $render_plugin_theme_options_map
+     * @param array $properties
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return bool
+     */
+    public function updateRenderPluginThemeOptionsMap($user, $render_plugin_theme_options_map, $properties, $delay_flush = false, $created = null)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'value' => $render_plugin_theme_options_map->getValue(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+//            return $render_plugin_theme_options_map;
+            return false;
+
+        // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $remove_old_entry = false;
+        $new_rptom = null;
+        if ( self::createNewMetaEntry($user, $render_plugin_theme_options_map, $created) ) {
+            // Clone the old RenderPluginThemeOptionsMap entry
+            $remove_old_entry = true;
+
+            $new_rptom = clone $render_plugin_theme_options_map;
+
+            // These properties need to be specified in order to be saved properly...
+            $new_rptom->setCreated($created);
+            $new_rptom->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_rptom = $render_plugin_theme_options_map;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['value']) )
+            $new_rptom->setValue( mb_scrub($properties['value']) );
+
+        $new_rptom->setUpdated($created);
+        $new_rptom->setUpdatedBy($user);
+        $this->em->persist($new_rptom);
+
+
+        // Delete the old entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($render_plugin_theme_options_map);
+
+        // Save the new meta entry
+        if ( !$delay_flush )
+            $this->em->flush();
+
+
+        // Return the new entry
+//        return $new_rptom;
         return true;
     }
 

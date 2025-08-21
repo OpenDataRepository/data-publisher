@@ -236,6 +236,29 @@ odr_save_render_plugin_settings:
     defaults: { _controller: ODRAdminBundle:Plugins:saverenderpluginsettings }
     methods: [ POST ]
 
+
+odr_render_plugin_layout_settings_dialog:
+    path: /design/displaytemplate/pluginlayoutsettingsdialog/{theme_id}/{datatype_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Plugins:pluginlayoutsettingsdialog }
+    requirements:
+        theme_id: \d+
+        datatype_id: \d+
+        datafield_id: \d+
+
+odr_load_plugin_layout_settings_data:
+    path:  /design/displaytemplate/pluginlayoutsettingsdata/{theme_id}/{datatype_id}/{datafield_id}/{render_plugin_id}
+    defaults: { _controller: ODRAdminBundle:Plugins:renderpluginlayoutsettings }
+    requirements:
+        theme_id: \d+
+        datatype_id:  \d+
+        datafield_id:  \d+
+        render_plugin_id:  \d+
+
+odr_save_render_plugin_layout_settings:
+    path:  /design/displaytemplate/saverenderpluginlayoutsettings
+    defaults: { _controller: ODRAdminBundle:Plugins:saverenderpluginlayoutsettings }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------

@@ -1,0 +1,70 @@
+{% spaceless %}
+
+    <input type="hidden" name="selected_theme" value="{{ theme_id }}"/>
+    <input type="hidden" name="selected_render_plugin" value="{{ render_plugin.id }}"/>
+
+    <fieldset class="ODRRenderPlugin_plugin_description">
+        {{ render_plugin.description }}
+    </fieldset>
+
+    <fieldset class="ODRRenderPlugin_option_list">
+    {# Determine if the rendering plugin has any available options #}
+    {% if render_plugin['renderPluginOptions']|length == 0 %}
+        <div class="ODRRenderPlugin_option_list_empty">This Render Plugin has no options.</div>  {# NOTE: shouldn't ever see this in this dialog #}
+    {% else %}
+        {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+            {% if rpo.uses_layout_settings %}
+                {# Save the default value for the RenderPluginOption #}
+                {% set default_value = '' %}
+                {% if rpo['defaultValue'] is defined %}
+                    {% set default_value = rpo['defaultValue'] %}
+                {% endif %}
+
+                {# Locate the existing selection/value for this RenderPluginOption, if there is one #}
+                {% set current_value = default_value %}
+                {% if render_plugin_instance != null and render_plugin_instance['renderPluginThemeOptionsMap'][rpo_id] is defined %}
+                    {% set current_value = render_plugin_instance['renderPluginThemeOptionsMap'][rpo_id]['value'] %}
+                {% endif %}
+
+                <div class="pure-u-1 pure-u-lg-1-2 {#pure-u-xl-1-3#}">
+                    <label for="plugin_option_{{ rpo_id }}">
+                        {{ rpo['displayName'] }}
+                        <span class="ODRRenderPlugin_option_description" title="{{ rpo['description'] }}">?</span>
+                    </label>
+
+                {% if rpo['choices'] is defined and rpo['choices'] != null %}
+                    {# Create a dropdown to display the available choices for this RenderPluginOption #}
+                    <select id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" name="plugin_options[{{ rpo_id }}]">
+                    {% for key,value in rpo['choices'] %}
+                        <option value="{{ key }}" {% if key == current_value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                    </select>
+                {% else %}
+                    {# Create a textfield so the user can enter a value for this RenderPluginOption #}
+                    <input id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" size="32" type="text" name="plugin_options[{{ rpo_id }}]" value="{{ current_value }}" />
+                {% endif %}
+                </div>
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    </fieldset>
+
+    <script>
+        $(function() {
+        {% if is_datatype_admin %}
+            $("#ODRRenderPluginLayoutSettingsFormSubmit").unbind('click').click(function(event) {
+                // Don't automatically submit the form...
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                // ...use this function instead
+                submitRenderPluginLayoutSettingsForm();
+            });
+        {% else %}
+            {# user is not allowed to make changes to this #}
+            $(".ODRRenderPluginOptionsMap").prop('disabled', true);
+        {% endif %}
+        });
+    </script>
+{% endspaceless %}

@@ -1197,15 +1197,12 @@
         var datatype_id = 0;
         var datafield_id = 0;
 
-        if ( element_type === 'datatype' ) {
+        if ( element_type === 'datatype' )
             datatype_id = id;
-        }
-        else if ( element_type === 'datafield' ) {
+        else if ( element_type === 'datafield' )
             datafield_id = id;
-        }
-        else {
+        else
             return;
-        }
 
         {# defined in Plugins::plugin_settings_dialog.html.twig #}
         openPluginSettingsDialog(datafield_id, datatype_id);

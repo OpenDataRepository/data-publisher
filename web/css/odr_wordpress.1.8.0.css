@@ -3918,12 +3918,23 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     visibility: visible;
 }
 
-#ODRRenderPluginSettingsForm fieldset {
+#ODRRenderPluginSettingsForm fieldset,
+#ODRRenderPluginLayoutSettingsForm fieldset {
     margin: 5px;
     font-size: 1.2em;
     border: 1px solid #ddd;
     padding: 10px;
     border-radius: 4px;
+}
+.ODRRenderPlugin_plugin_description {
+    text-align: left;
+    text-indent: 15px;
+}
+.ODRRenderPlugin_option_list {
+    text-align: left;
+}
+.ODRRenderPlugin_option_list_empty {
+    text-align: center;
 }
 .ODRRenderPlugin_option_description {
     cursor: pointer;

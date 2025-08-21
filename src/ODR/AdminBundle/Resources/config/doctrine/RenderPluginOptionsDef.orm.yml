@@ -54,6 +54,10 @@ ODR\AdminBundle\Entity\RenderPluginOptionsDef:
             type: boolean
             nullable: false
             default: false
+        uses_layout_settings:
+            type: boolean
+            nullable: false
+            default: false
 
         created:
             type: datetime
@@ -78,6 +82,14 @@ ODR\AdminBundle\Entity\RenderPluginOptionsDef:
             targetEntity: RenderPluginOptionsMap
             cascade: { }
             mappedBy: renderPluginOptionsDef    # TODO - change to RenderPluginOptions
+            inversedBy: null
+#            fetch: LAZY
+            orphanRemoval: false
+
+        renderPluginThemeOptionsMap:
+            targetEntity: RenderPluginThemeOptionsMap
+            cascade: { }
+            mappedBy: renderPluginOptionsDef
             inversedBy: null
 #            fetch: LAZY
             orphanRemoval: false

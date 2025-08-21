@@ -157,8 +157,12 @@ jQuery(function() {
         $(this).addClass('ODRHidden');
         $(graph_parent).find('.DynamicGraphs').removeClass('ODRHidden');
 
+        // Show the FilterGraph control div
         $(graph_parent).next().removeClass('ODRHidden');
+        // Ensure the content div is visible
+        $(graph_parent).next().next().removeClass('ODRHidden');
 
+        // Trigger the dynamic graph load
         var chart_id = $(graph_parent).find('.ODRDynamicGraph').attr('id');
         var graph_type = "{{ plugin_options.graph_type }}";
         window["SetupGraphs_" + chart_id](graph_type);
