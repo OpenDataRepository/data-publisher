@@ -1,9 +1,9 @@
 {% spaceless %}
 
 <div style="margin: 5px 10px;">
-{% if structural_group_value != '' %}
+{% if structural_group_string != '' %}
     <div>
-        <b>Mineral Group:</b> [ <a target="_blank" href="#{{ structural_group_search_url }}">{{ structural_group_value }}</a> ]
+        <b>Mineral Group:</b> [ {{ structural_group_string|raw }} ]
     </div>
 {% endif %}
 
