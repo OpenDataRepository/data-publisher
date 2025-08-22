@@ -43,10 +43,11 @@
         {% if datatype['renderPluginInstances'][current_rpi_target] is defined %}
             {% set rpi = datatype['renderPluginInstances'][current_rpi_target] %}
             {% if rpi.renderPlugin.plugin_type == THEME_ELEMENT_PLUGIN and rpi.renderPlugin.active %}
-                {% set can_execute_plugin = rpi|can_execute_theme_element_plugin(datatype, rendering_options) %}
+                {% set can_execute_current_plugin = rpi|can_execute_theme_element_plugin(datatype, rendering_options) %}
 
-                {% if can_execute_plugin %}
-                    {# Only want to save the render_plugin_instance if it's render-able #}
+                {# Only want to save the render_plugin_instance if it's render-able #}
+                {% if can_execute_current_plugin %}
+                    {% set can_execute_plugin = true %}
                     {% set render_plugin_instance = rpi %}
                 {% endif %}
             {% endif %}

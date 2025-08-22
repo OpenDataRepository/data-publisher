@@ -101,10 +101,11 @@
 
         {% for rpi_num,rpi in datafield.renderPluginInstances %}
             {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-                {% set can_execute_plugin = rpi|can_execute_datafield_plugin(datafield, datarecord, rendering_options) %}
+                {% set can_execute_current_plugin = rpi|can_execute_datafield_plugin(datafield, datarecord, rendering_options) %}
 
                 {# Only want to save the render_plugin_instance if it's render-able #}
-                {% if can_execute_plugin %}
+                {% if can_execute_current_plugin %}
+                    {% set can_execute_plugin = true %}
                     {% set render_plugin_instance = rpi %}
                 {% endif %}
             {% endif %}
