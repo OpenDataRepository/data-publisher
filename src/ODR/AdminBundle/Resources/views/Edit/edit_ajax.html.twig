@@ -2206,18 +2206,20 @@ function SaveRecordData(form_id, interval, callback) {
 /**
  * Parses an InlineLink or a FakeEdit childtype for the values in the associated datafields.
  *
+ * @param {number} linked_ancestor_datarecord_id
  * @param {number} descendant_datatype_id
  * @param {number} fake_record_id
  * @param {boolean} is_inline_link If true, then don't submit radio/tag fields
  *
  * @returns {object}
  */
-function getFakeRecordData(descendant_datatype_id, fake_record_id, is_inline_link) {
+function getFakeRecordData(linked_ancestor_datarecord_id, descendant_datatype_id, fake_record_id, is_inline_link) {
     // User may have entered data in multiple fields, save them all at once
     var form_data = {};
     form_data.inline_link = 1;
     form_data.datatype_id = descendant_datatype_id;
     form_data.datarecord_id = fake_record_id;
+    form_data.linked_ancestor_datarecord_id = linked_ancestor_datarecord_id;
     form_data.datafields = {};
     form_data.tokens = {};
     form_data.special_tokens = {};
@@ -2345,7 +2347,7 @@ function saveFakeRecordData(fake_record_id, is_inline_link) {
     var ancestor_datatype_id = $(wrapper).closest(".ODRDataType").attr('id').split(/_/)[1];
 
     // Get the data out of the InlineLink or FakeEdit form
-    var form_data = getFakeRecordData(descendant_datatype_id, fake_record_id, is_inline_link);
+    var form_data = getFakeRecordData(local_record_id, descendant_datatype_id, fake_record_id, is_inline_link);
 
     var url  = '{{ path('odr_save_fake_record') }}';
     $.ajax({

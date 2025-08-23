@@ -60,6 +60,11 @@ class RenderPluginOptionsDef
     private $uses_custom_render;
 
     /**
+     * @var bool
+     */
+    private $uses_layout_settings;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -78,6 +83,11 @@ class RenderPluginOptionsDef
      * @var \Doctrine\Common\Collections\Collection
      */
     private $renderPluginOptionsMap;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginThemeOptionsMap;
 
     /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
@@ -100,6 +110,7 @@ class RenderPluginOptionsDef
     public function __construct()
     {
         $this->renderPluginOptionsMap = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginThemeOptionsMap = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -281,6 +292,30 @@ class RenderPluginOptionsDef
     }
 
     /**
+     * Set usesLayoutSettings.
+     *
+     * @param bool $usesLayoutSettings
+     *
+     * @return RenderPluginOptionsDef
+     */
+    public function setUsesLayoutSettings($usesLayoutSettings)
+    {
+        $this->uses_layout_settings = $usesLayoutSettings;
+
+        return $this;
+    }
+
+    /**
+     * Get usesLayoutSettings.
+     *
+     * @return bool
+     */
+    public function getUsesLayoutSettings()
+    {
+        return $this->uses_layout_settings;
+    }
+
+    /**
      * Set created.
      *
      * @param \DateTime $created
@@ -386,6 +421,42 @@ class RenderPluginOptionsDef
     public function getRenderPluginOptionsMap()
     {
         return $this->renderPluginOptionsMap;
+    }
+
+    /**
+     * Add renderPluginThemeOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap
+     *
+     * @return RenderPluginOptionsDef
+     */
+    public function addRenderPluginThemeOptionsMap(\ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap)
+    {
+        $this->renderPluginThemeOptionsMap[] = $renderPluginThemeOptionsMap;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginThemeOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginThemeOptionsMap(\ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap $renderPluginThemeOptionsMap)
+    {
+        return $this->renderPluginThemeOptionsMap->removeElement($renderPluginThemeOptionsMap);
+    }
+
+    /**
+     * Get renderPluginThemeOptionsMap.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginThemeOptionsMap()
+    {
+        return $this->renderPluginThemeOptionsMap;
     }
 
     /**

@@ -3,6 +3,22 @@
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 
+{% if datafield_properties|length > 0 %}
+<script>
+    if ( datafield_properties === undefined || datafield_properties === null )
+        var datafield_properties = new Map();
+
+    if ( !datafield_properties.has({{ datafield_id }}))
+        datafield_properties.set({{ datafield_id }}, new Map());
+    var df_props = datafield_properties.get({{ datafield_id }});
+
+    {% for key,value in datafield_properties[datafield_id] %}
+    df_props.set('{{ key }}', {% if value is same as(true) %}true{% elseif value is same as(false) %}false{% else %}"{{ value|raw }}"{% endif %});
+    {% endfor %}
+    {#console.log('datafield {{ datafield_id }}', $("#Field_{{ datafield_id }}"), datafield_properties.get({{ datafield_id }}));#}
+</script>
+{% endif %}
+
 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if theme_datafield.hidden %}ODRThemeHiddenElement{% endif %}" id="Field_{{ datafield.id }}" >
 
 <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">

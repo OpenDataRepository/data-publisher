@@ -206,7 +206,7 @@ class EditController extends ODRCustomController
             // This is wrapped in a try/catch block because any uncaught exceptions will abort
             //  creation of the new datarecord...
             try {
-                $event = new DatarecordCreatedEvent($datarecord, $user);
+                $event = new DatarecordCreatedEvent($datarecord, $user, null);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {
@@ -331,7 +331,7 @@ class EditController extends ODRCustomController
             // This is wrapped in a try/catch block because any uncaught exceptions will abort
             //  creation of the new datarecord...
             try {
-                $event = new DatarecordCreatedEvent($datarecord, $user);
+                $event = new DatarecordCreatedEvent($datarecord, $user, null);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {

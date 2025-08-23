@@ -221,7 +221,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             // ----------------------------------------
             // Going to attempt to extract these values from a child record using the "IMA Plugin"
             $mineral_name_value = null;
-            $structural_group_tag_data = null;
+            $structural_group_tag_data = array();
 
             $ima_plugin_dt_id = $ima_plugin_dt['id'];
             if ( !isset($datarecord['children'][$ima_plugin_dt_id]) ) {
@@ -240,14 +240,14 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
             // If neither field has a value for some reason, then this plugin can't do anything
             //  ...but it's technically not an error
-            if ( is_null($mineral_name_value) && is_null($structural_group_tag_data) )
+            if ( is_null($mineral_name_value) && empty($structural_group_tag_data) )
                 return '';
 
 
             // ----------------------------------------
             // If the RRUFF Sample datatype has a default search key...
             $default_search_params = array('dt_id' => $datatype['id']);
-            if ( !is_null($mineral_name_value) || !is_null($structural_group_tag_data) ) {
+            if ( !is_null($mineral_name_value) || !empty($structural_group_tag_data) ) {
                 if ( $datatype['default_search_key'] !== '' ) {
                     // ...then two of the three generated links need to be based off of it
                     $default_search_params = $this->search_key_service->decodeSearchKey( $datatype['default_search_key'] );
@@ -273,34 +273,43 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 );
             }
 
-            $structural_group_search_url = '';
-            $structural_group_value = '';
-            if ( !is_null($structural_group_tag_data) ) {
-                $structural_group_value = $structural_group_tag_data['value'];
+            $structural_group_string = '';
+            if ( !empty($structural_group_tag_data) ) {
+                $structural_group_data = array();
 
-                // Going to create a search key for this that's based off the default for this
-                //  database...
-                $params = $default_search_params;
+                foreach ($structural_group_tag_data as $num => $tag_data) {
+                    // Going to create a search key for this that's based off the default for this
+                    //  database...
+                    $params = $default_search_params;
 
-                // If the tag datafield is already part of the criteria...
-                if ( isset($params[$tags_df_id]) ) {
-                    // ...then splice the requested tag after the existing tag criteria
-                    $params[$tags_df_id] .= ',+'.$structural_group_tag_data['id'];
+                    // If the tag datafield is already part of the criteria...
+                    if ( isset($params[$tags_df_id]) ) {
+                        // ...then splice the requested tag after the existing tag criteria
+                        $params[$tags_df_id] .= ',+'.$tag_data['id'];
+                    }
+                    else {
+                        // ...otherwise, just set the value
+                        $params[$tags_df_id] = '+'.$tag_data['id'];
+                    }
+
+                    // (Re)Encode the search key for use by the plugin
+                    $tag_search_key = $this->search_key_service->encodeSearchKey($params);
+                    $tag_search_url = $this->router->generate(
+                        'odr_search_render',
+                        array(
+                            'search_theme_id' => 0,
+                            'search_key' => $tag_search_key
+                        )
+                    );
+                    $tag_value = $tag_data['value'];
+
+                    $structural_group_data[] = array('label' => $tag_value, 'search_url' => $tag_search_url);
                 }
-                else {
-                    // ...otherwise, just set the value
-                    $params[$tags_df_id] = '+'.$structural_group_tag_data['id'];
-                }
 
-                // (Re)Encode the search key for use by the plugin
-                $structural_group_search_key = $this->search_key_service->encodeSearchKey($params);
-                $structural_group_search_url = $this->router->generate(
-                    'odr_search_render',
-                    array(
-                        'search_theme_id' => 0,
-                        'search_key' => $structural_group_search_key
-                    )
-                );
+                $strings = array();
+                foreach ($structural_group_data as $num => $data)
+                    $strings[] = '<a target="_blank" href="#'.$data['search_url'].'">'.$data['label'].'</a>';
+                $structural_group_string = implode(', ', $strings);
             }
 
             $amcsd_search_slug = '';
@@ -355,10 +364,10 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSampleLinks/rruff_sample_links_themeElement.html.twig',
                 array(
                     'mineral_name_value' => $mineral_name_value,
-                    'structural_group_value' => $structural_group_value,
-
-                    'structural_group_search_url' => $structural_group_search_url,
                     'mineral_search_url' => $mineral_search_url,
+
+                    'structural_group_string' => $structural_group_string,
+
                     'amcsd_search_url' => $amcsd_search_url,
                 )
             );
@@ -408,7 +417,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
      * @param int $tags_df_id
      *
      * @throws \Exception
-     * @return array|null
+     * @return array
      */
     private function findStructuralGroup($is_datatype_admin, $ima_plugin_dt, $child_dr, $tags_df_id)
     {
@@ -418,7 +427,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
         // Verify that the given datarecord has at least one selected tag before attempting to
         //  determine if it's a "Structural Group" tag...
         if ( !isset($child_dr['dataRecordFields'][$tags_df_id]) || empty($child_dr['dataRecordFields'][$tags_df_id]['tagSelection']) )
-            return null;
+            return array();
 
         // Otherwise, extract which tags are selected for later
         $selected_tags = $child_dr['dataRecordFields'][$tags_df_id]['tagSelection'];
@@ -444,7 +453,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 throw new \Exception('Unable to find the required "Mineral Groups" tag inside the "'.$dt_name.'" datatype');
             else
                 // ...because if they're not, then the user can't do anything about it
-                return null;
+                return array();
         }
 
 
@@ -462,7 +471,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 throw new \Exception('Unable to find the required "Structural Groups" tag inside the "'.$dt_name.'" datatype');
             else
                 // ...because if they're not, then the user can't do anything about it
-                return null;
+                return array();
         }
 
 
@@ -471,13 +480,12 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
         // ...the datarecord array can now be used to find which tags are actually selected and
         //  have the "Structural Groups" tag as their parent
+        $all_tags = array();
         foreach ($selected_tags as $tag_id => $tag) {
             if ( $tag['selected'] === 1 && isset($all_structual_groups[$tag_id]) )
-                return array('id' => $tag_id, 'value' => $all_structual_groups[$tag_id]['tagName']);
+                $all_tags[] = array('id' => $tag_id, 'value' => $all_structual_groups[$tag_id]['tagName']);
         }
-
-        // If this point is reached, the the mineral does not have a "Structural Group" tag selected
-        return null;
+        return $all_tags;
     }
 
 

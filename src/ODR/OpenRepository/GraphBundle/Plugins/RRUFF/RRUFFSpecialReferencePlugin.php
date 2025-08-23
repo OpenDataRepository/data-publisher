@@ -173,7 +173,7 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
 
             // ----------------------------------------
             // Don't want the default div wrappers the reference rendering comes with
-            $rendering_options['context'] = 'text';
+            $rendering_options['context'] = 'html';
 
             // Could have multiple references in here, so need to get them one by one
             $references = array();

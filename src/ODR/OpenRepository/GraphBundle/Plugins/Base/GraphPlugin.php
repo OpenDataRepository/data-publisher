@@ -333,6 +333,17 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             foreach ($theme_array as $t_id => $t)
                 $theme = $t;
 
+            // Check for layout-specific options
+            $rpi_id = $render_plugin_instance['id'];
+            if ( isset($theme['renderPluginThemeOptionsMap'][$rpi_id]) ) {
+                // ...if there are, then just copy them into the "global" options array
+                foreach ($theme['renderPluginThemeOptionsMap'][$rpi_id] as $rpo_name => $rpo_value)
+                    $options[$rpo_name] = $rpo_value;
+            }
+            // Note that these aren't guaranteed to exist at all
+
+
+            // ----------------------------------------
             // Retrieve mapping between datafields and render plugin fields
             $datafield_mapping = array();
             foreach ($fields as $rpf_name => $rpf_df) {
@@ -634,8 +645,13 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             // What to return depends on what called this plugin...
             if ( !isset($rendering_options['build_graph']) ) {
                 // ...if called via twig, then render and return the graph html
+                $template = 'ODROpenRepositoryGraphBundle:Base:Graph/graph_wrapper_below.html.twig';
+                if ( isset($options['graph_above_data']) && $options['graph_above_data'] === 'above' )
+                    $template = 'ODROpenRepositoryGraphBundle:Base:Graph/graph_wrapper_above.html.twig';
+
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:Graph/graph_wrapper.html.twig', $page_data
+                    $template,
+                    $page_data
                 );
 
                 return $output;

@@ -563,6 +563,15 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             foreach ($theme_array as $t_id => $t)
                 $theme = $t;
 
+            // Check for layout-specific options
+            $rpi_id = $render_plugin_instance['id'];
+            if ( isset($theme['renderPluginThemeOptionsMap'][$rpi_id]) ) {
+                // ...if there are, then just copy them into the "global" options array
+                foreach ($theme['renderPluginThemeOptionsMap'][$rpi_id] as $rpo_name => $rpo_value)
+                    $options[$rpo_name] = $rpo_value;
+            }
+            // Note that these aren't guaranteed to exist at all
+
 
             // ----------------------------------------
             // Get the current plugin config...

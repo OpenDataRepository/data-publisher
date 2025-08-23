@@ -32,7 +32,7 @@
 {% if plugin_options.use_rollup is defined and plugin_options.use_rollup == "yes" %}
 
     {% set graph_datarecord_id = '' %}
-    <div class="ODRGraphSpacer {{ content_div_class_str }}">
+    <div class="ODRGraphSpacer {{ content_div_class_str }} {% if plugin_options['hide_graph_data'] is defined and plugin_options['hide_graph_data'] == 'yes' %}ODRHidden{% endif %}">
         {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
             'context' : 'display',
 
@@ -182,7 +182,7 @@
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
-            <div class="ODRGraphSpacer {{ content_div_class_str }}">
+            <div class="ODRGraphSpacer {{ content_div_class_str }} {% if plugin_options['hide_graph_data'] is defined and plugin_options['hide_graph_data'] == 'yes' %}ODRHidden{% endif %}">
                 {% include "ODRAdminBundle:Display:display_childtype_fieldarea.html.twig" with {
                     'datatype_array': datatype_array,
                     'datarecord': datarecord,

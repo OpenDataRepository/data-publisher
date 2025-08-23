@@ -259,19 +259,11 @@ class ODREventSubscriber implements EventSubscriberInterface
                 //  also responding to the event
             }
             catch (\Throwable $e) {
-                if ( $this->env !== 'dev' ) {
-                    // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                    //  any additional subscribers won't run either
-                    $base_info = array(self::class, $plugin_classname, $event_callable);
-                    $event_info = $event->getErrorInfo();
-                    $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-                }
-                else {
-                    // ...don't particularly want to rethrow the error since it'll interrupt
-                    //  everything downstream of the event (such as file encryption...), but having
-                    //  the error disappear is less ideal on the dev environment...
-                    throw new ODRException($plugin_classname.' handling '.$event->getEventName().': '.$e->getMessage(), 500, 0x03e8b958);
-                }
+                // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+                //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
             }
         }
     }
@@ -313,19 +305,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -396,19 +380,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -475,19 +451,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             // the deleted datatype was not top-level
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -545,19 +513,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             $this->cache_service->delete('cached_datatype_'.$datatype->getId());
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -636,19 +596,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  it needs to happen
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -730,19 +682,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -764,7 +708,40 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datarecord = $event->getDatarecord();
             $datatype = $datarecord->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+            // Because the DatarecordCreateEvent needs to have both datatype and datafield plugins,
+            //  the default isEventRelevant() won't work
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+
+            $event_name = get_class($event);
+            $event_name = substr($event_name, strrpos($event_name, "\\") + 1);
+
+            // Need to have an extra join in there to pick up the cases where the DatarecordCreatedEvent
+            //  is attached to a datafield
+            $query =
+               'SELECT DISTINCT(rp.plugin_class_name) AS pluginClassName, rpe.event_callable
+                FROM odr_render_plugin_events rpe
+                JOIN odr_render_plugin rp ON rpe.render_plugin_id = rp.id
+                LEFT JOIN odr_render_plugin_instance rpi ON rpi.render_plugin_id = rp.id
+                LEFT JOIN odr_data_fields rpi_df ON rpi.data_field_id = rpi_df.id
+                WHERE rpe.event_name = :event_name
+                AND (rpi.data_type_id = :datatype_id OR rpi_df.data_type_id = :datatype_id)
+                AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL
+                AND rpi.deletedAt IS NULL AND rpi_df.deletedAt IS NULL';
+            $params =  array(
+                'event_name' => $event_name,
+                'datatype_id' => $datatype->getId()
+            );
+            $conn = $this->em->getConnection();
+            $results = $conn->executeQuery($query, $params);
+
+            $relevant_plugins = array();
+            foreach ($results as $result) {
+                $plugin_classname = $result['pluginClassName'];
+                $event_callable = $result['event_callable'];
+
+                $relevant_plugins[$plugin_classname] = $event_callable;
+            }
+
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -785,19 +762,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  have a file uploaded
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -925,19 +894,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             $this->cache_service->delete('dashboard_'.$grandparent->getDataType()->getId());
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1007,19 +968,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             // There's no point deleting the above entries for a datarecord that isn't top-level
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1080,19 +1033,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             $this->cache_service->delete('json_record_' . $dr->getUniqueId());
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1216,19 +1161,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1270,19 +1207,11 @@ class ODREventSubscriber implements EventSubscriberInterface
 
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1311,19 +1240,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1355,19 +1276,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  datarecord/datafield modified events
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1407,19 +1320,11 @@ class ODREventSubscriber implements EventSubscriberInterface
 //            $this->cache_service->delete('json_record_' . $datarecord->getUniqueId());
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1448,19 +1353,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1490,19 +1387,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1533,19 +1422,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1576,19 +1457,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1619,19 +1492,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 
@@ -1689,19 +1554,11 @@ class ODREventSubscriber implements EventSubscriberInterface
             }
         }
         catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
     }
 }

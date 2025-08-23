@@ -1186,7 +1186,7 @@ class APIController extends ODRCustomController
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordCreatedEvent($dataset_record, $user);
+                $event = new DatarecordCreatedEvent($dataset_record, $user, null);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             } catch (\Exception $e) {
                 // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1501,7 +1501,7 @@ class APIController extends ODRCustomController
                     //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                     /** @var EventDispatcherInterface $event_dispatcher */
                     $dispatcher = $this->get('event_dispatcher');
-                    $event = new DatarecordCreatedEvent($metadata_record, $user);
+                    $event = new DatarecordCreatedEvent($metadata_record, $user, null);
                     $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                 } catch (\Exception $e) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1540,7 +1540,7 @@ class APIController extends ODRCustomController
                         //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                         /** @var EventDispatcherInterface $event_dispatcher */
                         $dispatcher = $this->get('event_dispatcher');
-                        $event = new DatarecordCreatedEvent($actual_data_record, $user);
+                        $event = new DatarecordCreatedEvent($actual_data_record, $user, null);
                         $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                     } catch (\Exception $e) {
                         // ...don't particularly want to rethrow the error since it'll interrupt
@@ -3270,7 +3270,7 @@ class APIController extends ODRCustomController
                             // This is wrapped in a try/catch block because any uncaught exceptions will abort
                             //  creation of the new datarecord...
                             try {
-                                $event = new DatarecordCreatedEvent($new_child_record, $user);
+                                $event = new DatarecordCreatedEvent($new_child_record, $user, null);
                                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                             } catch (\Exception $e) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this

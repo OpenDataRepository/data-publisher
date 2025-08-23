@@ -332,6 +332,8 @@ class ODRRenderService
 
             'theme_form' => $theme_form->createView(),
             'theme' => $theme,    // Needed for ODRAdminBundle:Theme:theme_properties_form.html.twig
+
+            'datafield_properties' => array(),
         );
 
         // TODO - is this needed?  I'm guessing it'll never actually do something unless somebody else is modifying the master theme at the same time...
@@ -1324,7 +1326,8 @@ class ODRRenderService
 
         $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = array(
-            'is_datatype_admin' => $is_datatype_admin
+            'is_datatype_admin' => $is_datatype_admin,
+            'datafield_properties' => array(),
         );
 
         // TODO - is this needed?  I'm guessing it'll never actually do something unless somebody else is modifying the master theme at the same time...

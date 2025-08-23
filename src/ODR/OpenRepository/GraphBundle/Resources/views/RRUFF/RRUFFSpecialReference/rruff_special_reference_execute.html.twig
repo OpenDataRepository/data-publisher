@@ -6,10 +6,11 @@
 {% set can_execute_plugin = false %}
 {% for rpi_num,rpi in reference_datatype_array.renderPluginInstances %}
     {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.overrideFields and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-        {% set can_execute_plugin = rpi|can_execute_datatype_plugin(reference_datatype_array, rendering_options) %}
+        {% set can_execute_current_plugin = rpi|can_execute_datatype_plugin(reference_datatype_array, rendering_options) %}
 
-        {% if can_execute_plugin %}
-            {# Only want to save the render_plugin_instance if it's render-able #}
+        {# Only want to save the render_plugin_instance if it's render-able #}
+        {% if can_execute_current_plugin %}
+            {% set can_execute_plugin = true %}
             {% set render_plugin_instance = rpi %}
         {% endif %}
     {% endif %}

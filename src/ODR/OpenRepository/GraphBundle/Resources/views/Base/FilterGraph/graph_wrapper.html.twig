@@ -111,7 +111,7 @@
         </div>
     </div>
 
-    <div class="ODRGraphSpacer pure-u-1">
+    <div class="ODRGraphSpacer pure-u-1 {% if plugin_options['hide_graph_data'] is defined and plugin_options['hide_graph_data'] == 'yes' %}ODRHidden{% endif %}">
         {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
             'context' : 'display',
 

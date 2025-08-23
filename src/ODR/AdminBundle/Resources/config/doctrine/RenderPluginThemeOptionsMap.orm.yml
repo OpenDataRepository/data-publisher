@@ -1,0 +1,86 @@
+ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap:
+    type: entity
+    table: odr_render_plugin_theme_options_map
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        value:
+            type: text
+            fixed: false
+            nullable: true
+            column: value
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        renderPluginInstance:
+            targetEntity: RenderPluginInstance
+            cascade: {  }
+            mappedBy: null
+            inversedBy: renderPluginThemeOptionsMap
+            joinColumns:
+                render_plugin_instance_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        renderPluginOptionsDef:
+            targetEntity: RenderPluginOptionsDef    # TODO - change to RenderPluginOptions
+            cascade: {  }
+            mappedBy: null
+            inversedBy: renderPluginThemeOptionsMap
+            joinColumns:
+                render_plugin_options_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        theme:
+            targetEntity: Theme
+            cascade: {  }
+            mappedBy: null
+            inversedBy: renderPluginThemeOptionsMap
+            joinColumns:
+                theme_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

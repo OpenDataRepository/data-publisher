@@ -117,6 +117,12 @@
                                     <span class="link-text"> Currently using Filename in Table Layouts</span>
                                 </a>
                             </p>
+                            <p>
+                                <a id="ODRDatatype_renderPlugin">
+                                    <i class="tooltip fa fa-bar-chart-o ODRRenderPlugin"></i>
+                                    <span class="link-text"> Change Render Plugin Settings</span>
+                                </a>
+                            </p>
                             <p></p>
                             <p>
                                 <a id="ODRDatatype_deleteTE">
@@ -138,6 +144,7 @@
             {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'datafield_properties': datafield_properties,
                 'site_baseurl': site_baseurl,
 
                 'initial_datatype_id': initial_datatype_id,
@@ -147,6 +154,10 @@
                 'is_datatype_admin': is_datatype_admin,
             } %}
         </div>
+    </div>
+
+    <div id="plugin_layout_settings_dialog_wrapper">
+        {% include 'ODRAdminBundle:Plugins:plugin_layout_settings_dialog.html.twig' %}
     </div>
 
 <style>
@@ -399,6 +410,7 @@
         tools.visible_te = $("#ODRDatatype_visibleTE");
         tools.border_te  = $("#ODRDatatype_visibleTEBorder");
         tools.use_icon   = $("#ODRDatatype_useIcon");
+        tools.render     = $("#ODRDatatype_renderPlugin");
         tools.delete_te  = $("#ODRDatatype_deleteTE");
 
         for (var x in tools) {
@@ -415,6 +427,7 @@
         tools.visible_te.find('.link-text').html('Group Box is Visible');
         tools.border_te.find('.link-text').html('Show Group Box Border');
         tools.use_icon.find('.link-text').html('Currently using Filename in Table Layouts');
+        tools.render.find('.link-text').html('Change Render Plugin Settings');
         tools.delete_te.find('.link-text').html('Delete Group Box');
 
         // Reset tooltips
@@ -439,6 +452,7 @@
         tools.visible_te = $("#ODRDatatype_visibleTE");
         tools.border_te  = $("#ODRDatatype_visibleTEBorder");
         tools.use_icon   = $("#ODRDatatype_useIcon");
+        tools.render     = $("#ODRDatatype_renderPlugin");
         tools.delete_te  = $("#ODRDatatype_deleteTE");
 
         ODRTheme_ResetToolSet();
@@ -452,7 +466,7 @@
             case 'datatype':
                 var datatype_id = entity_id;
                 var dt_props = datatype_properties.get(datatype_id);
-                // console.log('ODRTheme_RenderToolSet() datatype', datatype_id, ' Props:', dt_props);
+                // console.log('ODRTheme_RenderToolSet() datatype', datatype_id, ' Props:', dt_props, 'theme_id:', tools.render.attr('rel'));
 
                 // ----------------------------------------
                 // Add ThemeElement/Group Box is always available...the user has admin permissions
@@ -472,6 +486,21 @@
                 });
 
                 // ----------------------------------------
+                // Enable the layout-specific settings modal if the datatype is using a render plugin
+                //  that has one of them
+                if ( dt_props.get('uses_layout_settings') == true ) {
+                    tools.render.removeClass('faded');
+                    tools.render.find('i').addClass('ODRActiveIcon');
+
+                    tools.render.unbind('click').click(function () {
+                        var theme_id = tools.render.attr('rel');
+
+                        // console.log('opening layout-specific render plugin settings for datatype ' + datatype_id + ' in theme  ' + theme_id);
+                        ODRTheme_changeLayoutPluginSettings(theme_id, datatype_id, 'datatype');
+                    });
+                }
+
+                // ----------------------------------------
                 // Not allowed to use any of the other options here
 
                 break;
@@ -480,6 +509,11 @@
                 var theme_element_id = entity_id;
                 var te_props = theme_element_properties.get(theme_element_id);
                 // console.log('ODRTheme_RenderToolSet() theme_element', theme_element_id, ' Props:', te_props);
+
+                var has_render_plugin_instance = te_props.get('has_render_plugin_instance');
+                var child_is_link = te_props.get('child_is_link');
+                var has_childtype = te_props.get('has_childtype');
+                var has_datafields = te_props.get('has_datafields');
 
                 var theme_element = $("#ThemeElement_" + theme_element_id);
                 var theme_element_is_visible = true;
@@ -546,11 +580,6 @@
                 // Permissions aren't a factor here, because the user always has permissions to delete
                 //  from the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
-                var has_render_plugin_instance = te_props.get('has_render_plugin_instance');
-                var child_is_link = te_props.get('child_is_link');
-                var has_childtype = te_props.get('has_childtype');
-                var has_datafields = te_props.get('has_datafields');
-
                 if ( !has_render_plugin_instance && !child_is_link && !has_childtype && !has_datafields ) {
                     tools.delete_te.removeClass('faded');
                     tools.delete_te.find('i').addClass('ODRActiveIcon');
@@ -569,6 +598,9 @@
             case 'datafield':
                 var datafield_id = entity_id;
                 var datafield = $("#ThemeElement_" + theme_element_id).find("#Field_" + datafield_id).first();
+
+                var df_props = datafield_properties.get(datafield_id);
+                // console.log('ODRTheme_RenderToolSet() datafield', datafield_id, ' Props:', df_props, 'theme_id:', tools.render.attr('rel'));
 
                 var datafield_is_visible = true;
                 if ( $(datafield).hasClass("ODRThemeHiddenElement") || $(datafield).hasClass("ODRThemeVisibleHiddenElement") )
@@ -653,6 +685,21 @@
 
                     tools.use_icon.unbind('click').click(function () {
                         ODRTheme_ToggleThemeDatafieldUseIcon(theme_element_id, datafield_id);
+                    });
+                }
+
+                // ----------------------------------------
+                // Enable the layout-specific settings modal if the datatype is using a render plugin
+                //  that has one of them
+                if ( df_props.get('uses_layout_settings') == true ) {
+                    tools.render.removeClass('faded');
+                    tools.render.find('i').addClass('ODRActiveIcon');
+
+                    tools.render.unbind('click').click(function () {
+                        var theme_id = tools.render.attr('rel');
+
+                        // console.log('opening layout-specific render plugin settings for datafield ' + datafield_id + ' in theme ' + theme_id);
+                        ODRTheme_changeLayoutPluginSettings(theme_id, datafield_id, 'datafield');
                     });
                 }
 
@@ -858,8 +905,11 @@
                 theme_element_id = id_data[1];
             }
 
+            var theme_id = $(this).attr('rel');
+            $("#ODRDatatype_renderPlugin").attr('rel', theme_id);
+
             // Prepare the Sidebar Tools
-            // console.log('.ODRDatatypeProperties clicked', datatype_id, theme_element_id);
+            // console.log('.ODRDatatypeProperties clicked', datatype_id, theme_id, theme_element_id);
             ODRTheme_RenderToolSet(datatype_id, 'datatype', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datatype
 
             // Load the ThemeDatatype properties form if the user clicked on a child/linked datatype
@@ -880,11 +930,15 @@
             var id_data = $(this).attr('id').split(/_/);
             var datafield_id = id_data[1];
 
-            id_data = $(this).parents(".ODRThemeElement").first().attr('id').split(/_/);
+            var theme_element = $(this).parents(".ODRThemeElement").first();
+            id_data = $(theme_element).attr('id').split(/_/);
             var theme_element_id = id_data[1];
 
+            var theme_id = $(theme_element).attr('rel');
+            $("#ODRDatatype_renderPlugin").attr('rel', theme_id);
+
             // Setup Resizeable
-            // console.log('.ODRDatafield clicked', datafield_id, theme_element_id);
+            // console.log('.ODRDatafield clicked', datafield_id, theme_id, theme_element_id);
             ODRTheme_SetupElement(this, 'datafield');
 
             // Render Tool Set
@@ -1254,6 +1308,8 @@
                     $(element).toggleClass('ODRThemeVisibleHiddenElement');
 
                     // Re-render the tools section
+                    var theme_id = $("#ThemeElement_" + theme_element_id).attr('rel');
+                    $("#ODRDatatype_renderPlugin").attr('rel', theme_id);
                     ODRTheme_RenderToolSet(datafield_id, 'datafield', theme_element_id);
                 }
                 else {
@@ -1682,6 +1738,29 @@
                 }
             }
         });
+    }
+
+    /**
+     * Opens the modal to view/change any layout-specific settings for the datatype/datafield's
+     * render plugin(s).
+     *
+     * @param {number} theme_id
+     * @param {number} element_id
+     * @param {string} element_type
+     */
+    function ODRTheme_changeLayoutPluginSettings(theme_id, element_id, element_type) {
+        var datatype_id = 0;
+        var datafield_id = 0;
+
+        if ( element_type === 'datatype' )
+            datatype_id = element_id;
+        else if ( element_type === 'datafield' )
+            datafield_id = element_id;
+        else
+            return;
+
+        {# defined in Plugins::plugin_layout_settings_dialog.html.twig #}
+        openPluginLayoutSettingsDialog(theme_id, datafield_id, datatype_id);
     }
 
     /**

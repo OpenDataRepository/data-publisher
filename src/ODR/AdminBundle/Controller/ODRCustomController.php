@@ -543,7 +543,7 @@ class ODRCustomController extends Controller
                     'can_edit_datatype' => $can_edit_datatype,
                     'editable_only' => $only_display_editable_datarecords,
                     'has_search_restriction' => $has_search_restriction,
-                    '$public_datarecord_list' => $public_datarecord_list,
+                    'public_datarecord_list' => $public_datarecord_list,
 
                     // required for load_datarecord_js.html.twig
                     'search_theme_id' => $theme->getId(),

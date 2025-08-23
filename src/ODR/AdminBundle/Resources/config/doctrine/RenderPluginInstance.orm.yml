@@ -66,6 +66,14 @@ ODR\AdminBundle\Entity\RenderPluginInstance:
 #            fetch: LAZY
             orphanRemoval: false
 
+        renderPluginThemeOptionsMap:
+            targetEntity: RenderPluginThemeOptionsMap
+            cascade: { }
+            mappedBy: renderPluginInstance
+            inversedBy: null
+#            fetch: LAZY
+            orphanRemoval: false
+
     manyToOne:
         renderPlugin:
             targetEntity: RenderPlugin

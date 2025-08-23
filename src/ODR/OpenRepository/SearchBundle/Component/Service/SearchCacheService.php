@@ -336,14 +336,23 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatatypeDelete(DatatypeDeletedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatatypeDelete()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatatypeDelete()', $event->getErrorInfo());
 
-        // Both deletion of a datatype and importing into a datatype typically require deletion of
-        //  every single search cache entry that is related to a datatype
-        $datatype_id = $event->getDatatypeId();
+            // Both deletion of a datatype and importing into a datatype typically require deletion of
+            //  every single search cache entry that is related to a datatype
+            $datatype_id = $event->getDatatypeId();
 
-        self::clearDatatypeEntries($datatype_id);
+            self::clearDatatypeEntries($datatype_id);
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -355,18 +364,27 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatatypeImport(DatatypeImportedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatatypeImport()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatatypeImport()', $event->getErrorInfo());
 
-        // Both deletion of a datatype and importing into a datatype typically require deletion of
-        //  every single search cache entry that is related to a datatype
-        $datatype = $event->getDatatype();
+            // Both deletion of a datatype and importing into a datatype typically require deletion of
+            //  every single search cache entry that is related to a datatype
+            $datatype = $event->getDatatype();
 
-        self::clearDatatypeEntries($datatype->getId());
+            self::clearDatatypeEntries($datatype->getId());
 
-        // cached_search_dt_'.$dt_id.'_datafields and 'cached_search_dt_'.$dt_id.'_public_status'
-        //  probably don't need to be deleted, but rebuilding them is fast enough for how
-        //  infrequently this'll be called
+            // cached_search_dt_'.$dt_id.'_datafields and 'cached_search_dt_'.$dt_id.'_public_status'
+            //  probably don't need to be deleted, but rebuilding them is fast enough for how
+            //  infrequently this'll be called
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -531,14 +549,23 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatatypePublicStatusChange(DatatypePublicStatusChangedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatatypePublicStatusChange()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatatypePublicStatusChange()', $event->getErrorInfo());
 
-        $datatype = $event->getDatatype();
+            $datatype = $event->getDatatype();
 
-        // This entry has the datatype's public date in it, so it should be cleared
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
-        $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
+            // This entry has the datatype's public date in it, so it should be cleared
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+            $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -550,26 +577,35 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatatypeLinkStatusChange(DatatypeLinkStatusChangedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatatypeLinkStatusChange()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatatypeLinkStatusChange()', $event->getErrorInfo());
 
-        $ancestor_datatype = $event->getAncestorDatatype();
-//        $new_descendant_datatype = $event->getNewDescendantDatatype();
-        $previous_descendant_datatype = $event->getPreviousDescendantDatatype();
+            $ancestor_datatype = $event->getAncestorDatatype();
+//            $new_descendant_datatype = $event->getNewDescendantDatatype();
+            $previous_descendant_datatype = $event->getPreviousDescendantDatatype();
 
-        // ...not entirely sure if running all four of these is overkill or not
-        $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_parents');
-        $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_children');
+            // ...not entirely sure if running all four of these is overkill or not
+            $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$ancestor_datatype->getId().'_linked_dr_children');
 
-        if ( !is_null($previous_descendant_datatype) ) {
-            $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
-            $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_children');
+            if ( !is_null($previous_descendant_datatype) ) {
+                $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
+                $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_children');
+            }
+
+            // Don't need to clear anything for the new descendant datatype
+
+            // Also don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry
+            //  here, since it doesn't contain any information about linking
         }
-
-        // Don't need to clear anything for the new descendant datatype
-
-        // Also don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry
-        //  here, since it doesn't contain any information about linking
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -580,14 +616,23 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatafieldCreate(DatafieldCreatedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatafieldCreate()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatafieldCreate()', $event->getErrorInfo());
 
-        $datatype = $event->getDatafield()->getDataType();
+            $datatype = $event->getDatafield()->getDataType();
 
-        // Need to delete these entries...
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
-        $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
+            // Need to delete these entries...
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+            $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -599,27 +644,36 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatafieldModify(DatafieldModifiedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatafieldModify()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatafieldModify()', $event->getErrorInfo());
 
-        $datafield = $event->getDatafield();
-        $datafield_id = $datafield->getId();
-        $datatype_id = $datafield->getDataType()->getId();
-        $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
-        $typeclass = $datafield->getFieldType()->getTypeClass();
+            $datafield = $event->getDatafield();
+            $datafield_id = $datafield->getId();
+            $datatype_id = $datafield->getDataType()->getId();
+            $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
 
-        $master_datafield_uuid = null;
-        if ( !is_null($datafield->getMasterDataField()) )
-            $master_datafield_uuid = $datafield->getMasterDataField()->getFieldUuid();
+            $master_datafield_uuid = null;
+            if ( !is_null($datafield->getMasterDataField()) )
+                $master_datafield_uuid = $datafield->getMasterDataField()->getFieldUuid();
 
-        // Modifying and deleting a datafield requires the same clearing of search cache entries
-        self::clearDatafieldEntries(
-            $datafield_id,
-            $datatype_id,
-            $grandparent_datatype_id,
-            $typeclass,
-            $master_datafield_uuid
-        );
+            // Modifying and deleting a datafield requires the same clearing of search cache entries
+            self::clearDatafieldEntries(
+                $datafield_id,
+                $datatype_id,
+                $grandparent_datatype_id,
+                $typeclass,
+                $master_datafield_uuid
+            );
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -630,44 +684,53 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatafieldDelete(DatafieldDeletedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatafieldDelete()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatafieldDelete()', $event->getErrorInfo());
 
-        $datafield_id = $event->getDatafieldId();
-        $datatype_id = $event->getDatatype()->getId();
-        $grandparent_datatype_id = $event->getDatatype()->getGrandparent()->getId();
+            $datafield_id = $event->getDatafieldId();
+            $datatype_id = $event->getDatatype()->getId();
+            $grandparent_datatype_id = $event->getDatatype()->getGrandparent()->getId();
 
-        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
-        //  confident it works properly when dealing with potentially async situations
-        $conn = $this->em->getConnection();
-        $query =
-           'SELECT ft.type_class, mdf.unique_id
-            FROM odr_data_fields df
-            LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
-            LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id
-            LEFT JOIN odr_data_fields mdf ON df.master_datafield_id = mdf.id
-            WHERE df.id = '.$datafield_id;
-        $results = $conn->fetchAll($query);
+            // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+            //  confident it works properly when dealing with potentially async situations
+            $conn = $this->em->getConnection();
+            $query =
+               'SELECT ft.type_class, mdf.unique_id
+                FROM odr_data_fields df
+                LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+                LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id
+                LEFT JOIN odr_data_fields mdf ON df.master_datafield_id = mdf.id
+                WHERE df.id = '.$datafield_id;
+            $results = $conn->fetchAll($query);
 
-        // Unfortunately, there are likely to be multiple unwanted datafieldMeta entries in here...
-        $typeclass = null;
-        $master_datafield_uuid = null;
-        foreach ($results as $result) {
-            $a = 1;
+            // Unfortunately, there are likely to be multiple unwanted datafieldMeta entries in here...
+            $typeclass = null;
+            $master_datafield_uuid = null;
+            foreach ($results as $result) {
+                $a = 1;
+            }
+
+            // Modifying and deleting a datafield requires the same clearing of search cache entries
+            self::clearDatafieldEntries(
+                $datafield_id,
+                $datatype_id,
+                $grandparent_datatype_id,
+                $typeclass,
+                $master_datafield_uuid
+            );
+
+            // Also need to delete these entries
+            $this->cache_service->delete('cached_search_dt_'.$datatype_id.'_datafields');
+            $this->cache_service->delete('cached_search_template_dt_'.$datatype_id.'_datafields');
         }
-
-        // Modifying and deleting a datafield requires the same clearing of search cache entries
-        self::clearDatafieldEntries(
-            $datafield_id,
-            $datatype_id,
-            $grandparent_datatype_id,
-            $typeclass,
-            $master_datafield_uuid
-        );
-
-        // Also need to delete these entries
-        $this->cache_service->delete('cached_search_dt_'.$datatype_id.'_datafields');
-        $this->cache_service->delete('cached_search_template_dt_'.$datatype_id.'_datafields');
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -715,44 +778,53 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatarecordCreate()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatarecordCreate()', $event->getErrorInfo());
 
-        $datatype = $event->getDatarecord()->getDataType();
+            $datatype = $event->getDatarecord()->getDataType();
 
-        // ----------------------------------------
-        // If a datarecord was created, then this needs to be rebuilt
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
-        $this->cache_service->delete('cached_dt_'.$datatype->getId().'_dr_uuid_list');
+            // ----------------------------------------
+            // If a datarecord was created, then this needs to be rebuilt
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
+            $this->cache_service->delete('cached_dt_'.$datatype->getId().'_dr_uuid_list');
 
-        if ( !is_null($datatype->getMasterDataType()) ) {
-            $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
-            $this->cache_service->delete('cached_search_template_dt_'.$master_dt_uuid.'_dr_list');
+            if ( !is_null($datatype->getMasterDataType()) ) {
+                $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
+                $this->cache_service->delete('cached_search_template_dt_'.$master_dt_uuid.'_dr_list');
+            }
+
+            // These could be made more precise...but that's likely overkill except for public_status
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_created');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_createdBy');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modified');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modifiedBy');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_public_status');
+
+
+            // ----------------------------------------
+            // Technically only need to delete datafield searches that involve the empty string
+            // However, determining that takes too much effort...just delete all cached datafield
+            //  entries for this datatype
+            self::clearCachedDatafieldsByDatatype( array($datatype->getId()) );
+
+            // Technically only need to delete all "unselected" entries from the cached radio option
+            //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
+            //  section as it does to rebuild both "unselected" and "selected"
+            self::clearCachedRadioOptionsByDatatype( array($datatype->getId()) );
+
+            // Same deal for tag datafields
+            self::clearCachedTagsByDatatype( array($datatype->getId()) );
         }
-
-        // These could be made more precise...but that's likely overkill except for public_status
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_created');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_createdBy');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modified');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modifiedBy');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_public_status');
-
-
-        // ----------------------------------------
-        // Technically only need to delete datafield searches that involve the empty string
-        // However, determining that takes too much effort...just delete all cached datafield
-        //  entries for this datatype
-        self::clearCachedDatafieldsByDatatype( array($datatype->getId()) );
-
-        // Technically only need to delete all "unselected" entries from the cached radio option
-        //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
-        //  section as it does to rebuild both "unselected" and "selected"
-        self::clearCachedRadioOptionsByDatatype( array($datatype->getId()) );
-
-        // Same deal for tag datafields
-        self::clearCachedTagsByDatatype( array($datatype->getId()) );
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -763,13 +835,22 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordModify(DatarecordModifiedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatarecordModify()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatarecordModify()', $event->getErrorInfo());
 
-        // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
-        //  search cache entries
-        $datarecord = $event->getDatarecord();
-        self::clearCachedDatarecordEntries($datarecord);
+            // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
+            //  search cache entries
+            $datarecord = $event->getDatarecord();
+            self::clearCachedDatarecordEntries($datarecord);
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -780,51 +861,60 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordDelete(DatarecordDeletedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatarecordDelete()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatarecordDelete()', $event->getErrorInfo());
 
-        $datatype = $event->getDatatype();
+            $datatype = $event->getDatatype();
 
-        // ----------------------------------------
-        // If a datarecord was deleted, then these need to be rebuilt
-        $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype->getid(), true);
+            // ----------------------------------------
+            // If a datarecord was deleted, then these need to be rebuilt
+            $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype->getid(), true);
 
-        foreach ($related_datatypes as $num => $dt_id) {
-            // Would have to search through each of these entries to see whether they matched the
-            //  deleted datarecord...faster to just wipe all of them
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
-            $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
+            foreach ($related_datatypes as $num => $dt_id) {
+                // Would have to search through each of these entries to see whether they matched the
+                //  deleted datarecord...faster to just wipe all of them
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
+                $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
 
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
+            }
+
+            // Unlike onDatatypeDelete(), deleting a single datarecord only affects at most one of
+            //  these cache entries
+            if ( !is_null($datatype->getMasterDataType()) ) {
+                $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
+                $this->cache_service->delete('cached_search_template_dt_'.$master_dt_uuid.'_dr_list');
+            }
+
+
+            // ----------------------------------------
+            // Technically only need to delete datafield searches that involve the empty string
+            // However, determining that takes too much effort...just delete all cached datafield
+            //  entries for this datatype
+            self::clearCachedDatafieldsByDatatype($related_datatypes);
+
+            // Technically only need to delete all "unselected" entries from the cached radio option
+            //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
+            //  section as it does to rebuild both "unselected" and "selected"
+            self::clearCachedRadioOptionsByDatatype($related_datatypes);
+
+            // Same theory for tag datafields
+            self::clearCachedTagsByDatatype($related_datatypes);
         }
-
-        // Unlike onDatatypeDelete(), deleting a single datarecord only affects at most one of
-        //  these cache entries
-        if ( !is_null($datatype->getMasterDataType()) ) {
-            $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
-            $this->cache_service->delete('cached_search_template_dt_'.$master_dt_uuid.'_dr_list');
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
-
-
-        // ----------------------------------------
-        // Technically only need to delete datafield searches that involve the empty string
-        // However, determining that takes too much effort...just delete all cached datafield
-        //  entries for this datatype
-        self::clearCachedDatafieldsByDatatype($related_datatypes);
-
-        // Technically only need to delete all "unselected" entries from the cached radio option
-        //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
-        //  section as it does to rebuild both "unselected" and "selected"
-        self::clearCachedRadioOptionsByDatatype($related_datatypes);
-
-        // Same theory for tag datafields
-        self::clearCachedTagsByDatatype($related_datatypes);
     }
 
 
@@ -835,13 +925,22 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordPublicStatusChange(DatarecordPublicStatusChangedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatarecordPublicStatusChange()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatarecordPublicStatusChange()', $event->getErrorInfo());
 
-        // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
-        //  search cache entries
-        $datarecord = $event->getDatarecord();
-        self::clearCachedDatarecordEntries($datarecord);
+            // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
+            //  search cache entries
+            $datarecord = $event->getDatarecord();
+            self::clearCachedDatarecordEntries($datarecord);
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 
 
@@ -885,17 +984,26 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordLinkStatusChange(DatarecordLinkStatusChangedEvent $event)
     {
-        if ( $this->debug )
-            $this->logger->debug('SearchCacheService::onDatarecordLinkStatusChange()', $event->getErrorInfo());
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatarecordLinkStatusChange()', $event->getErrorInfo());
 
-        $datatype = $event->getDescendantDatatype();
+            $datatype = $event->getDescendantDatatype();
 
-        // If something now (or no longer) links to $descendant_datatype, then these cache entries
-        //  need to be deleted
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
+            // If something now (or no longer) links to $descendant_datatype, then these cache entries
+            //  need to be deleted
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
 
-        // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
-        // It doesn't contain any information about linking
+            // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
+            // It doesn't contain any information about linking
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = array(self::class);
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
     }
 }

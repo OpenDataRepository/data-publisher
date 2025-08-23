@@ -158,9 +158,22 @@ jQuery(function() {
 
     $("#{{ odr_chart_id }}_Static_GraphWrapper").unbind('click').click(function() {
         var graph_parent = $(this).parent().parent();
+
+        // If the related content div is hidden, then show it
+        var content_div = null;
+        if ( $(graph_parent).next().length > 0 )
+            content_div = $(graph_parent).next();
+        else if ( $(graph_parent).prev().length > 0 )
+            content_div = $(graph_parent).prev();
+
+        if ( $(content_div) !== null && $(content_div).hasClass('ODRHidden') )
+            $(content_div).removeClass('ODRHidden');
+
+        // Hide the static graph div and reveal the dynamic graph div
         $(this).addClass('ODRHidden');
         $(graph_parent).find('.DynamicGraphs').removeClass('ODRHidden');
 
+        // Trigger the dynamic graph load
         var chart_id = $(graph_parent).find('.ODRDynamicGraph').attr('id');
         var graph_type = "{{ plugin_options.graph_type }}";
         window["SetupGraphs_" + chart_id](graph_type);

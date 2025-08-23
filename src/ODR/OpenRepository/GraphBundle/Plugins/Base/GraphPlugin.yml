@@ -320,3 +320,23 @@ odr_plugins.base.graph:
 #            default: 0
 #            description: If the previous option is set to "Constant Value", then this value determines the length of each error bar...you can also set a percentage value like "10%", or use "sqrt".  If it's set to "Data from File", then this value determines which column of data from the graph file to use.
 #            display_order: 15
+
+        hide_graph_data:
+            name: Hide Graph Data?
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: Whether to hide the data by default
+            display_order: 200
+            # This optional property is the one that triggers the alternate behavior
+            uses_layout_settings: true
+
+        graph_above_data:
+            name: Graph Position
+            type: string
+            default: below
+            choices: below||Graph below data,above||Graph above data
+            description: Whether the graph is rendered above or below the data
+            display_order: 201
+            # This optional property is the one that triggers the alternate behavior
+            uses_layout_settings: true

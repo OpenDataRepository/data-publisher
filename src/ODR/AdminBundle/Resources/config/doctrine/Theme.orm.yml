@@ -66,6 +66,14 @@ ODR\AdminBundle\Entity\Theme:
             mappedBy: sourceTheme
             fetch: EXTRA_LAZY
 
+        renderPluginThemeOptionsMap:
+            targetEntity: RenderPluginThemeOptionsMap
+            cascade: { }
+            mappedBy: theme
+            inversedBy: null
+#            fetch: LAZY
+            orphanRemoval: false
+
     manyToOne:
         parentTheme:
             targetEntity: Theme
