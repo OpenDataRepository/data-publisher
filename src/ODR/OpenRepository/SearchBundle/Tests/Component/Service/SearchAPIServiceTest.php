@@ -148,6 +148,37 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
+    /**
+     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
+     * @dataProvider provideORSearchParams
+     */
+    public function testORSearch($search_params, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $client->getContainer()->get('odr.search_key_service');
+
+        // Convert each array of search params into a search key, then run the search
+        $search_key = $search_key_service->encodeSearchKey($search_params);
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,         // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),      // search testing is with either zero permissions, or super-admin permissions
+            false,        // only want grandparent datarecord ids here
+            array(),      // testing doesn't need a specific set of sort datafields...
+            array(),      // ...or a specific sort order
+            $search_as_super_admin
+        );
+
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
 
     /**
      * @return array
@@ -1725,6 +1756,93 @@ class SearchAPIServiceTest extends WebTestCase
                     'ignore' => "3_2"  // Ignore everything from IMA Mineral and its descendants
                 ),
                 array(),  // Will be no results due to ignoring IMA Mineral
+                true
+            ],
+        ];
+    }
+
+
+    /**
+     * @return array
+     */
+    public function provideORSearchParams()
+    {
+        /*
+         * ODR generally requires the results to match all given criteria due to merging by AND, but
+         * there are instances where it's more desirable to merge by OR instead...
+         */
+
+        return [
+            // ----------------------------------------
+            // Searches inside the same datatype...
+            'RRUFF Reference: search for pyroxene' => [
+                array(
+                    'dt_id' => 1,
+                    2 => 'pyroxene',
+                    'merge' => 'OR'
+                ),
+                array(3,10,31,32,36,38,43,65,68,70,72,73),
+                true
+            ],
+            'RRUFF Reference: search for downs OR pyroxene' => [
+                array(
+                    'dt_id' => 1,
+                    1 => 'downs',
+                    2 => 'pyroxene',
+                    'merge' => 'OR',
+                ),
+                array(
+                    35,49,66, // downs
+                    36,68, // both
+                    3,10,31,32,38,43,65,70,72,73,  // pyroxine
+                ),
+                true
+            ],
+
+            'IMA List: minerals containing "b" OR minerals where the tag "Grandfathered" is selected' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => "b",
+                    '28' => "19",
+                    'merge' => 'OR',
+                ),
+                array(
+                    91,95,  // name contains "b"
+                    92,  // both
+                    93,96,97  // 'grandfathered' is selected
+                ),
+                true
+            ],
+
+            // ----------------------------------------
+            // Searches crossing multiple datatypes
+            'IMA List: mineral contains "b" OR authors contains "downs"' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => "b",
+                    '1' => "downs",
+                    'merge' => 'OR',
+                ),
+                array(
+                    92,95,  // name contains "b"
+                    91,  // both
+                    94,97  // authors contains "downs"
+                ),
+                true
+            ],
+
+            'RRUFF Sample: IMA Mineral::mineral_name contains "b" OR RRUFF Reference::Authors contains "downs"' => [
+                array(
+                    'dt_id' => 3,
+                    '17' => "b",
+                    '1' => "downs",
+                    'merge' => 'OR',
+                ),
+                array(
+                    124,126,122,121,108,  // mineral name contains "b"
+                    98,  // both
+                    127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112  // references with "downs"
+                ),
                 true
             ],
         ];
