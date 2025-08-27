@@ -812,7 +812,7 @@ class CrystallographyDef
 
                 while (true) {
                     // Get the next line...
-                    $line = $lines[$i];
+                    $line = trim($lines[$i]);
                     if ( strpos($line, '#') === 0 ) {
                         // Still in comment block...continue to store the text
                         $current_node['text'] .= $line."\r\n";
