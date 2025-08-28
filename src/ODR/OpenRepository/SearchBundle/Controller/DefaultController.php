@@ -506,6 +506,9 @@ class DefaultController extends Controller
             if ( $search_string !== '' )
                 $default_search_params['gen'] = $search_string;
 
+            // The search sidebar doesn't have a good way to activate or switch to this yet..
+//            $default_search_params['inverse'] = 1;
+
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
             $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);

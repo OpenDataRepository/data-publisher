@@ -566,6 +566,10 @@ class SearchKeyService
                 // Nothing to validate
                 continue;
             }
+            else if ($key === 'merge') {
+                if ( !($value === 'AND' || $value === 'OR') )
+                    throw new ODRBadRequestException('Invalid search key: "merge" should be either "AND" or "OR"', $exception_code);
+            }
             else if ($key === 'sort_by') {
                 // TODO - eventually need sort by created/modified date
 
@@ -980,6 +984,10 @@ class SearchKeyService
             }
         }
 
+        // It's easier to understand the searching when it works by ensuring results match everything
+        //  in the sidebar, but sometimes this needs to be changed...
+        $default_merge_type = 'AND';
+
         foreach ($search_params as $key => $value) {
 
             if ( $key === 'dt_id' || $key === 'inverse' || $key === 'ignore' ) {
@@ -992,6 +1000,10 @@ class SearchKeyService
 
                 // ...the reason being that if SearchAPIService::performSearch() directly used this
                 //  entry, then any sort_criteria for this tab in the user's session would be ignored
+            }
+            else if ( $key === 'merge' ) {
+                // If set, then this overrides the default merge type used by the search system
+                $default_merge_type = $value;
             }
             else if ( $key === 'gen' || $key === 'gen_lim' ) {
                 // Don't do anything if this key is empty
@@ -1116,7 +1128,7 @@ class SearchKeyService
                 if ( !isset($criteria[$dt_id][0]) ) {
                     $criteria[$dt_id][0] = array(
                         'facet_type' => 'single',
-                        'merge_type' => 'AND',
+                        'merge_type' => $default_merge_type,
                         'search_terms' => array()
                     );
                 }
@@ -1227,7 +1239,7 @@ class SearchKeyService
                     if ( !isset($criteria[$dt_id][0]) ) {
                         $criteria[$dt_id][0] = array(
                             'facet_type' => 'single',
-                            'merge_type' => 'AND',
+                            'merge_type' => $default_merge_type,
                             'search_terms' => array()
                         );
                     }
@@ -1357,7 +1369,7 @@ class SearchKeyService
                     if ( !isset($criteria[$dt_id][0]) ) {
                         $criteria[$dt_id][0] = array(
                             'facet_type' => 'single',
-                            'merge_type' => 'AND',
+                            'merge_type' => $default_merge_type,
                             'search_terms' => array()
                         );
                     }
@@ -1438,16 +1450,18 @@ class SearchKeyService
 
             foreach ($facet_list as $facet_num => $facet) {
                 // Currently, all criteria except for general search are merged by AND
-                if ( $facet['merge_type'] === 'AND' ) {
+//                if ( $facet['merge_type'] === 'AND' ) {
                     foreach ($facet['search_terms'] as $key => $params) {
                         $dt_id = $params['datatype_id'];
                         $affected_datatypes[$dt_id] = 1;
                     }
-                }
+//                }
             }
         }
         $affected_datatypes = array_keys($affected_datatypes);
         $criteria['affected_datatypes'] = $affected_datatypes;
+
+        $criteria['default_merge_type'] = $default_merge_type;
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
         if ( is_null($inverse_target_datatype_id) )

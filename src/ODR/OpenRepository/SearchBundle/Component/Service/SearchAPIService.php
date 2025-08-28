@@ -367,7 +367,7 @@ class SearchAPIService
         //  user is allowed to view
 
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' || $key === 'ignore' ) {
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' || $key === 'ignore' || $key === 'merge' ) {
                 // Don't need to do anything special with these keys
                 $filtered_search_params[$key] = $value;
             }
@@ -537,6 +537,10 @@ class SearchAPIService
         unset( $criteria['all_datatypes'] );
         // ...or what type of search this is
         unset( $criteria['search_type'] );
+
+        // Don't want this while running the actual search queries
+        $default_merge_type = $criteria['default_merge_type'];
+        unset( $criteria['default_merge_type'] );
 
 
         // ----------------------------------------
@@ -803,6 +807,9 @@ class SearchAPIService
             }
         }
         else {
+            // Need this value back in there for merging
+            $criteria['default_merge_type'] = $default_merge_type;
+
             // Determine whether a 'general' search was executed...
             $was_general_seach = false;
             if ( isset($facet_dr_list['general']) ) {
@@ -3022,11 +3029,24 @@ class SearchAPIService
         //  its descendants.
         $final_dr_list = null;
         foreach ($facets['adv'] as $dt_id => $dr_list) {
-            // Facets from advanced search are merged together by AND
-            if ( is_null($final_dr_list) )
+            // Need the ability to switch between merging types...
+            $merge_type = $criteria['default_merge_type'];
+            if ( isset($criteria[$dt_id][0]['merge_type']) )
+                $merge_type = $criteria[$dt_id][0]['merge_type'];
+
+            if ( is_null($final_dr_list) ) {
+                // Use this list if no merging has happened yet
                 $final_dr_list = $dr_list;
-            else
+            }
+            else if ( $merge_type === 'AND' ) {
+                // When merging by AND, only records in every list end up matching
                 $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
+            }
+            else if ( $merge_type === 'OR' ) {
+                // When merging by OR, any record in the lists ends up matching
+                foreach ($dr_list as $dr_id => $num)
+                    $final_dr_list[$dr_id] = $num;
+            }
         }
 
         // The search isn't guaranteed to have had advanced search terms defined that affected this
