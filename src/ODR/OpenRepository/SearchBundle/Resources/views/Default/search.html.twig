@@ -100,6 +100,8 @@
      * @param {Function} callback
      */
     function doSearch(target_url, context = undefined, callback = undefined) {
+        // console.log('doSearch()', target_url, context, callback);
+
         // ----------------------------------------
         var is_actual_search = true;
         if ( target_url != '{{ path('odr_search_results') }}' )
@@ -260,7 +262,7 @@
             var input = $(context).find('#merge_type');
             $(input).attr('disabled', 'disabled').val('AND');
 
-            console.log( $(elem), '"' + $(elem).text() + '"' );
+            // console.log( $(elem), '"' + $(elem).text() + '"' );
             if ( $(elem).text() === 'OR' )
                 $(input).removeAttr('disabled').val('OR');
         })
