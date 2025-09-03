@@ -1816,6 +1816,35 @@ class SearchAPIServiceTest extends WebTestCase
 
             // ----------------------------------------
             // Searches crossing multiple datatypes
+            // check situations where none of the ancestors/descendants match...
+            'IMA List: mineral contains "downs" OR authors contains "downs"' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => "downs",
+                    '1' => "downs",
+                    'merge' => 'OR',
+                ),
+                array(
+                    // no mineral name contains "downs"
+                    91,94,97  // authors contains "downs"
+                ),
+                true
+            ],
+            'IMA List: mineral contains "amesite" OR authors contains "amesite"' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => "amesite",
+                    '1' => "amesite",
+                    'merge' => 'OR',
+                ),
+                array(
+                    93, // one mineral contains "amesite"
+                    // no author is named "amesite"
+                ),
+                true
+            ],
+
+            // check situations where they share some entries
             'IMA List: mineral contains "b" OR authors contains "downs"' => [
                 array(
                     'dt_id' => 2,
@@ -1830,7 +1859,6 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 true
             ],
-
             'RRUFF Sample: IMA Mineral::mineral_name contains "b" OR RRUFF Reference::Authors contains "downs"' => [
                 array(
                     'dt_id' => 3,

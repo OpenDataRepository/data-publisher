@@ -2771,8 +2771,11 @@ class SearchAPIService
 
         // If this datatype was searched on, but none of the records matched...
         if ( isset($facets['adv'][$datatype_id]) && empty($facets['adv'][$datatype_id]) ) {
-            // ...then there's no point checking any child/linked datatypes
-            return $matches;
+            // ...then there's no point checking any child/linked datatypes if merging by AND
+            if ( $criteria['default_merge_type'] === 'AND' )
+                return $matches;
+
+            // When merging by OR, then the descendants still need to be checked
         }
 
 
