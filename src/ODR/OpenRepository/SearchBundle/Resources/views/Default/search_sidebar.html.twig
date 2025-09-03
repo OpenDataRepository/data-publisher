@@ -76,6 +76,7 @@
             {% if intent != 'stored_search_keys' %}
             <input type="hidden" id="selected_theme_id" value="{{ preferred_theme.id }}"/>
             {% endif %}
+            <input type="hidden" id="merge_type" name="merge" value="{% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}"/>
 
             {# Only have a reset/search block if there are fields in 'expanded' display #}
             {% if intent != 'stored_search_keys' and (sidebar_array['extended_display']|length > 0 or not using_sidebar_layout) %}
@@ -108,6 +109,9 @@
                         {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
                             <i class="fa fa-lg fa-th-list ODRChangeSearchedDescendants" title="Temporarily change which descendants are searched."></i>
                         {% endif %}
+                            <span class="ODRChangeMerge FRight Pointer" title="{# TODO #}">
+                                {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}
+                            </span>
                     </label>
                 </div>
 
@@ -281,6 +285,16 @@
                 $(input).attr('name', 'gen_lim')
                 $(this).html('(current database)').attr('title', 'Search each field in the current database');
             }
+        });
+
+        // The facets of the search usually get merged by AND...records must match every piece of
+        //  data in the sidebar...but they need a toggle to merge by OR instead
+        $(context).find(".ODRChangeMerge").unbind('click').click(function() {
+            var text = $(this).text();
+            if ( text === 'AND' )
+                $(this).text('OR');
+            else
+                $(this).text('AND');
         });
 
         // Setup accordions

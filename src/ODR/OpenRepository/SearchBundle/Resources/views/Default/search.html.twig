@@ -255,6 +255,16 @@
             }
         });
 
+        $(context).find(".ODRChangeMerge").each(function(index,elem) {
+            // Should only be one...
+            var input = $(context).find('#merge_type');
+            $(input).attr('disabled', 'disabled').val('AND');
+
+            console.log( $(elem), '"' + $(elem).text() + '"' );
+            if ( $(elem).text() === 'OR' )
+                $(input).removeAttr('disabled').val('OR');
+        })
+
 
         var search_form = $(context).find("#search_form");
         // console.log(search_form);
