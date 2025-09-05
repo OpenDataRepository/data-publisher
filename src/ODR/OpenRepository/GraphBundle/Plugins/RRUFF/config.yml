@@ -68,7 +68,10 @@ services:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFReferencesPlugin'
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
             $entity_create_service: "@odr.entity_creation_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $cache_service: "@odr.cache_service"
             $lock_service: "@odr.lock_service"
             $search_query_service: "@odr.search_query_service"

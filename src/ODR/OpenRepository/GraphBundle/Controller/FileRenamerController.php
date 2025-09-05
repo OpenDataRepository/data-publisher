@@ -37,7 +37,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\OpenRepository\GraphBundle\Plugins\Base\FileRenamerPlugin;
+use ODR\OpenRepository\GraphBundle\Plugins\FileRenamerPluginInterface;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -124,26 +124,39 @@ class FileRenamerController extends ODRCustomController
             $plugin_classname = null;
 
             $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-
             $dt = $dt_array[$datatype->getId()];
-            if ( isset($dt['dataFields']) && isset($dt['dataFields'][$datafield->getId()]) ) {
+
+
+            // TODO - this mess just keeps getting worse
+            if ( isset($dt['renderPluginInstances']) ) {
+                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
+                    if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
+                        // Datatype is using the correct plugin...
+                        $plugin_classname = 'odr_plugins.rruff.rruff_references';
+                        break;
+                    }
+                }
+            }
+
+            if ( is_null($plugin_classname) && isset($dt['dataFields']) && isset($dt['dataFields'][$datafield->getId()]) ) {
                 $df = $dt['dataFields'][$datafield->getId()];
                 if ( isset($df['renderPluginInstances']) ) {
                     foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                             // Datafield is using the correct plugin...
                             $plugin_classname = 'odr_plugins.base.file_renamer';
+                            break;
                         }
                     }
                 }
             }
 
             if ( is_null($plugin_classname) )
-                throw new ODRBadRequestException('Datafield is not using the FileRenamer Render Plugin');
+                throw new ODRBadRequestException('Datafield is not using a FileRenamer Render Plugin');
 
             // Loading the service makes sense now that we know the datafield is using the plugin
-            /** @var FileRenamerPlugin $plugin_service */
-            $plugin_service = $this->container->get('odr_plugins.base.file_renamer');
+            /** @var FileRenamerPluginInterface $plugin_service */
+            $plugin_service = $this->container->get($plugin_classname);
 
 
             // ----------------------------------------
@@ -187,7 +200,7 @@ class FileRenamerController extends ODRCustomController
                 try {
                     // Determine the new names for each of the files/images uploaded to this drf
                     $ret = $plugin_service->getNewFilenames($drf);
-                    $logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
+                    $logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'rebuildAction()', 'drf '.$drf->getId(), $plugin_classname));
 
                     if ( is_array($ret) ) {
                         foreach ($ret as $entity_id => $data) {
@@ -197,7 +210,7 @@ class FileRenamerController extends ODRCustomController
                                 // ...so for each file/image uploaded to the datafield...
                                 /** @var File|Image $entity */
                                 $entity = $entities[$entity_id];
-                                $logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'rebuildAction()', $typeclass.' '.$entity->getId()));
+                                $logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'rebuildAction()', $typeclass.' '.$entity->getId(), $plugin_classname));
 
                                 // ...save the new filename in the database...
                                 $props = array('original_filename' => $new_filename);
@@ -216,7 +229,7 @@ class FileRenamerController extends ODRCustomController
                                 }
                             }
                             else {
-                                $logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', array(self::class, 'rebuildAction()', $typeclass.' '.$entity->getId()));
+                                $logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', array(self::class, 'rebuildAction()', $typeclass.' '.$entity->getId(), $plugin_classname));
                             }
                         }
 
@@ -226,7 +239,7 @@ class FileRenamerController extends ODRCustomController
                     else {
                         // ...if getNewFilename() returns null, then there's some unrecoverable problem
                         //  that prevents the file from being renamed
-                        $logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
+                        $logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', array(self::class, 'rebuildAction()', 'drf '.$drf->getId(), $plugin_classname));
 
                         // Regardless of the reason why there's a problem, this plugin can't fix it
 
@@ -237,7 +250,7 @@ class FileRenamerController extends ODRCustomController
                 }
                 catch (\Exception $e) {
                     // Can't really display the error to the user yet, but can log it...
-                    $logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
+                    $logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'rebuildAction()', 'drf '.$drf->getId(), $plugin_classname));
 
                     // Since this isn't a background job or an event, however, the suspected reason
                     //  for the problem can get displayed to the user
@@ -246,7 +259,7 @@ class FileRenamerController extends ODRCustomController
                 finally {
                     // Would prefer if these happened regardless of success/failure...
                     if ( is_array($ret) ) {
-                        $logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
+                        $logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'rebuildAction()', 'drf '.$drf->getId(), $plugin_classname));
 
 
                         // ----------------------------------------
