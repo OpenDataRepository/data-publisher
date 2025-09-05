@@ -480,7 +480,10 @@
 
         // If the sidebar can and should be reloaded...
         if ( can_reload && should_reload ) {
-            showSearchOverlay();
+            // Makes no sense to show the search overlay when reloading the sidebar if the sidebar is
+            //  currently hidden
+            if ( !$("#ODRSearchSidebar").hasClass('ODRHidden') )
+                showSearchOverlay();
 
             // ...then request a new set of html
             var url = '{{ path('odr_reload_search_sidebar', {'search_key': '', 'intent': ''}) }}';
