@@ -1133,6 +1133,22 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            /* This next test is also nasty...it initially is tokenized into:
+             *   "American" AND "Mineralologist" AND "103" OR "600-609"
+             * ...but throwing an exception because of mixing OR/AND is less than ideal.  As such,
+             * the final OR gets swapped by SearchKeyService::tokenizeGeneralSearch() into an AND:
+             *   "American" AND "Mineralologist" AND "103" AND "600-609"
+             * ...which returns the expected results
+             */
+            'RRUFF Reference: general search of "American Mineralogist 103, 600-609"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'American Mineralogist 103, 600-609',
+                ),
+                array(27),
+                true,
+            ],
+
             // ----------------------------------------
             // mixing general and advanced searches
             'RRUFF Reference: general search of "downs" and authors contains "d"' => [
