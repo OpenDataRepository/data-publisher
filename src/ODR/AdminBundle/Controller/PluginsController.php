@@ -2042,6 +2042,118 @@ class PluginsController extends ODRCustomController
 
 
     /**
+     * Returns an HTML table containing a list of datatypes that are currently using the given plugin.
+     *
+     * @param string $plugin_classname
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function pluginusesAction($plugin_classname, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+            // Going to need fieldtype information to validate plugins
+            $fieldtype_data = self::getFieldtypeData($em);
+
+            // Ensure the requested plugin is already installed
+            $query = $em->createQuery(
+               'SELECT rp
+                FROM ODRAdminBundle:RenderPlugin AS rp
+                WHERE rp.pluginClassName = :plugin_classname'
+            )->setParameters( array('plugin_classname' => $plugin_classname) );
+            $results = $query->getResult();
+
+            if ( count($results) == 0 )
+                throw new ODRNotFoundException('This RenderPlugin is not in use', true);
+
+            /** @var RenderPlugin $render_plugin */
+            $render_plugin = $results[0];
+
+            $is_datafield_plugin = false;
+            if ( $render_plugin->getPluginType() === RenderPlugin::DATAFIELD_PLUGIN )
+                $is_datafield_plugin = true;
+
+            $query = null;
+            if ( $is_datafield_plugin ) {
+                $query =
+                   'SELECT gp_dt.id AS gp_dt_id, gp_dtm.short_name AS gp_dt_name, dtm.short_name AS dt_name, dfm.field_name AS df_name
+                    FROM odr_data_type gp_dt
+                    LEFT JOIN odr_data_type_meta gp_dtm ON gp_dtm.data_type_id = gp_dt.id
+                    LEFT JOIN odr_data_type dt ON dt.grandparent_id = gp_dt.id
+                    LEFT JOIN odr_data_type_meta dtm ON dtm.data_type_id = dt.id
+                    LEFT JOIN odr_data_fields df ON df.data_type_id = dt.id
+                    LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+                    LEFT JOIN odr_render_plugin_instance rpi ON rpi.data_field_id = df.id
+                    LEFT JOIN odr_render_plugin rp ON rpi.render_plugin_id = rp.id
+                    WHERE rp.plugin_class_name = "'.$plugin_classname.'"
+                    AND gp_dt.deletedAt IS NULL AND gp_dtm.deletedAt IS NULL
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                    AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                    AND rpi.deletedAt IS NULL';
+            }
+            else {
+                $query =
+                   'SELECT gp_dt.id AS gp_dt_id, gp_dtm.short_name AS gp_dt_name, dtm.short_name AS dt_name
+                    FROM odr_data_type gp_dt
+                    LEFT JOIN odr_data_type_meta gp_dtm ON gp_dtm.data_type_id = gp_dt.id
+                    LEFT JOIN odr_data_type dt ON dt.grandparent_id = gp_dt.id
+                    LEFT JOIN odr_data_type_meta dtm ON dtm.data_type_id = dt.id
+                    LEFT JOIN odr_render_plugin_instance rpi ON rpi.data_type_id = dt.id
+                    LEFT JOIN odr_render_plugin rp ON rpi.render_plugin_id = rp.id
+                    WHERE rp.plugin_class_name = "'.$plugin_classname.'"
+                    AND gp_dt.deletedAt IS NULL AND gp_dtm.deletedAt IS NULL
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                    AND rpi.deletedAt IS NULL';
+            }
+
+            $conn = $em->getConnection();
+            $results = $conn->fetchAll($query);
+
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Plugins:plugin_uses.html.twig',
+                    array(
+                        'is_datafield_plugin' => $is_datafield_plugin,
+                        'plugin_uses' => $results,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x583161c6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Updates the database entries for a specified plugin to match the config file.
      * TODO - versioning?
      * TODO - disabling an active plugin?
