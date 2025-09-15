@@ -24,6 +24,7 @@ use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
+use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -44,6 +45,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\FileRenamerPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -52,7 +54,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerEventInterface, SearchOverrideInterface, FileRenamerPluginInterface, DatafieldReloadOverrideInterface
+class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerEventInterface, SearchOverrideInterface, FileRenamerPluginInterface, DatafieldReloadOverrideInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -1303,5 +1305,112 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
         // Otherwise, don't want to override the default reloading for this field
         return array();
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
+    {
+        // Don't do anything if fields aren't mapped
+        $values = array();
+        if ( !isset($render_plugin_instance['renderPluginMap']) )
+            return array();
+
+        $substitute_article_title = false;
+        if ( isset($render_plugin_instance['renderPluginOptionsMap']['substitute_article_title'])
+            && $render_plugin_instance['renderPluginOptionsMap']['substitute_article_title'] === 'yes'
+        ) {
+            $substitute_article_title = true;
+        }
+        $substitute_journal = false;
+        if ( isset($render_plugin_instance['renderPluginOptionsMap']['substitute_journal'])
+            && $render_plugin_instance['renderPluginOptionsMap']['substitute_journal'] === 'yes'
+        ) {
+            $substitute_journal = true;
+        }
+
+        // Since this is a datatype plugin, need to dig through the renderPluginInstance array
+        $relevant_rpf_names = array('Article Title', 'Book Title', 'Journal', 'Publisher');
+
+        $df_mapping = array();
+        $value_mapping = array();
+        foreach ($relevant_rpf_names as $rpf_name) {
+            $df_id = $render_plugin_instance['renderPluginMap'][$rpf_name]['id'];
+            $df_mapping[$rpf_name] = $df_id;
+
+            if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
+                $drf = $datarecord['dataRecordFields'][$df_id];
+
+                // Brute-force typeclass since there's only two possibilities
+                if ( isset($drf['longText'][0]['value']) )
+                    $value_mapping[$df_id] = $drf['longText'][0]['value'];
+                else if ( isset($drf['longVarchar'][0]['value']) )
+                    $value_mapping[$df_id] = $drf['longVarchar'][0]['value'];
+            }
+        }
+
+
+        // Want to put always italics around the Book Title
+        $book_title_df_id = $df_mapping['Book Title'];
+        if ( isset($value_mapping[$book_title_df_id]) && $value_mapping[$book_title_df_id] !== '' )
+            $values[$book_title_df_id] = '<i>'.$value_mapping[$book_title_df_id].'</i>';
+
+        // Only substitute a missing article title if configured to do so...
+        if ( $substitute_article_title ) {
+            $article_title_df_id = $df_mapping['Article Title'];
+            if ( !isset($value_mapping[$article_title_df_id]) || $value_mapping[$article_title_df_id] === '' ) {
+                if ( isset($values[$book_title_df_id]) ) {
+                    // Replace the missing article title with the book title
+                    $values[$article_title_df_id] = $values[$book_title_df_id];
+                }
+            }
+        }
+
+        // Only substitute a missing journal if configured to do so...
+        if ( $substitute_journal ) {
+            $journal_df_id = $df_mapping['Journal'];
+            $publisher_df_id = $df_mapping['Publisher'];
+            if ( !isset($value_mapping[$journal_df_id]) || $value_mapping[$journal_df_id] === '' ) {
+                if ( isset($value_mapping[$publisher_df_id]) ) {
+                    // Replace the missing article title with the book title
+                    $values[$journal_df_id] = $value_mapping[$publisher_df_id];
+                }
+            }
+        }
+
+
+        // Return the value the table should display
+        return $values;
+    }
+
+
+    /**
+     * Called when a user changes RenderPluginOptions or RenderPluginMaps entries for this plugin.
+     *
+     * @param PluginOptionsChangedEvent $event
+     */
+    public function onPluginOptionsChanged(PluginOptionsChangedEvent $event)
+    {
+        foreach ($event->getChangedOptions() as $rpo_name) {
+            if ( $rpo_name === 'substitute_article_title' || $rpo_name === 'substitute_journal' ) {
+                // If either of these options got changed, then need to wipe the table entries for
+                //  all records of this datatype
+                $datatype_id = $event->getRenderPluginInstance()->getDataType()->getId();
+
+                $query =
+                   'SELECT dr.grandparent_id AS gdr_id
+                    FROM odr_data_record dr
+                    WHERE dr.data_type_id = '.$datatype_id.' AND dr.deletedAt IS NULL';
+                $conn = $this->em->getConnection();
+                $results = $conn->executeQuery($query);
+
+                foreach ($results as $result) {
+                    $gdr_id = $result['gdr_id'];
+                    $this->cache_service->delete('cached_table_data_'.$gdr_id);
+                }
+            }
+        }
     }
 }

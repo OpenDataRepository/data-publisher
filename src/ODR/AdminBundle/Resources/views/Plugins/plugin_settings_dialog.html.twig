@@ -66,6 +66,9 @@
         var data = $('#ODRRenderPluginSettingsForm').serialize();
         var url = $('#ODRRenderPluginSettingsForm').attr('action');
 
+        resetODRRemodalLoadingText();
+        showODRRemodalLoading();
+
         $.ajax({
             type: 'POST',
             url: url,

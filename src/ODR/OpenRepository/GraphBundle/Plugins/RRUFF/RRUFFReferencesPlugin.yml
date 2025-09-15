@@ -7,7 +7,7 @@ odr_plugins.rruff.rruff_references:
     override_fields: true
     override_field_reload: true
     override_child: false
-    override_table_fields: false
+    override_table_fields: true
     override_export: false
     override_search: true
     override_sort: false
@@ -17,6 +17,7 @@ odr_plugins.rruff.rruff_references:
         DatarecordCreatedEvent: onDatarecordCreate
         FilePreEncryptEvent: onFilePreEncrypt
         MassEditTriggerEvent: onMassEditTrigger
+        PluginOptionsChangedEvent: onPluginOptionsChanged
 
     required_fields:
         authors:
@@ -85,3 +86,17 @@ odr_plugins.rruff.rruff_references:
                 - must_be_unique
 
     config_options:
+        substitute_article_title:
+            name: Substitute Article Title?
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: If "Yes", then table layouts for records without an Article Title will attempt to use Book Title instead.
+            display_order: 1
+        substitute_journal:
+            name: Substitute Journal?
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: If "Yes", then table layouts for records without a Journal will attempt to use Publisher instead.
+            display_order: 2
