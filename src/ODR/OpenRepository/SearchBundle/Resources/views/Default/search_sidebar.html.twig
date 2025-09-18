@@ -76,6 +76,7 @@
             {% if intent != 'stored_search_keys' %}
             <input type="hidden" id="selected_theme_id" value="{{ preferred_theme.id }}"/>
             {% endif %}
+            <input type="hidden" id="merge_type" name="merge" value="{% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}"/>
 
             {# Only have a reset/search block if there are fields in 'expanded' display #}
             {% if intent != 'stored_search_keys' and (sidebar_array['extended_display']|length > 0 or not using_sidebar_layout) %}
@@ -128,6 +129,20 @@
 
             {# render ALWAYS_SHOW first #}
             {% if using_sidebar_layout %}
+                {# ...if there's only one field in the sidebar at all, then there's no point displaying this #}
+                {% if sidebar_array['always_display']|length + sidebar_array['extended_display']|length > 1 %}
+                    {# if there's only one field set to always show, then changing the merge should only show up when the sidebar is extended #}
+                    <fieldset class="{% if sidebar_array['always_display']|length == 1 %}ODRSearchSidebar_extended ODRHidden{% endif %}">
+                        <span class="ODRChangeMerge Pointer underline" rel="{% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}">
+                        {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}
+                            (Results match all entered criteria)
+                        {% else %}
+                            (Results match at least one entered criteria)
+                        {% endif %}
+                        </span>
+                    </fieldset>
+                {% endif %}
+
                 {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_layout_fields.html.twig' with {
                     'sidebar_array': sidebar_array,
                     'field_list_name': 'always_display',
@@ -137,6 +152,17 @@
                     'search_params': search_params,
                 } %}
             {% else %}
+                {# when not using a custom layout, this should only display when sidebar is expanded #}
+                <fieldset class="ODRSearchSidebar_extended ODRHidden">
+                    <span class="ODRChangeMerge Pointer underline" rel="{% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}">
+                    {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}
+                        (Results match all entered criteria)
+                    {% else %}
+                        (Results match at least one entered criteria)
+                    {% endif %}
+                    </span>
+                </fieldset>
+
                 {# Default sidebar layouts only have the "general search" input as 'always_show' #}
                 <fieldset>
                     <label for="textbox_general">
@@ -218,6 +244,7 @@
      * @param {HTMLElement} context
      */
     function InitSearchSidebar(context = undefined) {
+        // console.log('InitSearchSidebar()', context);
         if (context == undefined )
             context = $("#odr_content").children("#ODRSearchSidebar").first();
 
@@ -280,6 +307,21 @@
             else {
                 $(input).attr('name', 'gen_lim')
                 $(this).html('(current database)').attr('title', 'Search each field in the current database');
+            }
+        });
+
+        // The facets of the search usually get merged by AND...records must match every piece of
+        //  data in the sidebar...but they need a toggle to merge by OR instead
+        $(context).find(".ODRChangeMerge").unbind('click').click(function() {
+            if ( $(this).attr('rel') === 'AND' ) {
+                $(this).attr('rel', 'OR');
+                $(this).text('(Results match at least one entered criteria)');
+                $("#merge_type").val('OR');
+            }
+            else {
+                $(this).attr('rel', 'AND');
+                $(this).text('(Results match all entered criteria)');
+                $("#merge_type").val('AND');
             }
         });
 

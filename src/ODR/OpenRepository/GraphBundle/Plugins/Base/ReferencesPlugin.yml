@@ -3,17 +3,18 @@ odr_plugins.base.references:
     category: Base
     plugin_type: datatype
     render: odr_plugins.base.references
-    version: 1.3.1
+    version: 1.4.0
     override_fields: true
     override_field_reload: false
     override_child: false
-    override_table_fields: false
+    override_table_fields: true
     override_export: false
     override_search: false
     override_sort: false
     suppress_no_fields_note: false
     description: The References Plugin parses multiple linked DataRecords and returns HTML that looks like something you would expect to see for multiple references...
     registered_events:
+        PluginOptionsChangedEvent: onPluginOptionsChanged
 
     required_fields:
         authors:
@@ -72,15 +73,19 @@ odr_plugins.base.references:
             name: URL
             description: A URL that points to an online copy of the reference.
             type: LongVarchar
+
     config_options:
-#        graph_type:
-#            name: Graph Type
-#            type: string
-#            default: xy 
-#            choices: xy||XY Scatter, line||Line, hbar||Horizontal Bar, vbar||Vertical Bar
-#            description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
-#        graph_width: 
-#            name: Graph Width
-#            type: string
-#            default: 900 
-#            description: Enter a width in pixels for the graph. 
+        substitute_article_title:
+            name: Substitute Article Title?
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: If "Yes", then table layouts for records without an Article Title will attempt to use Book Title instead.
+            display_order: 1
+        substitute_journal:
+            name: Substitute Journal?
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: If "Yes", then table layouts for records without a Journal will attempt to use Publisher instead.
+            display_order: 2

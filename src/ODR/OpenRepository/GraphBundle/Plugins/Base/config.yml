@@ -4,6 +4,8 @@ services:
     odr_plugins.base.references:
         class: '%odr_plugin_base_classpath%\Base\ReferencesPlugin'
         arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
             $templating: '@templating'
 
     odr_plugins.base.comment:

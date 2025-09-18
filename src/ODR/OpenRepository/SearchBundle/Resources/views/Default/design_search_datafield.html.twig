@@ -1,0 +1,22 @@
+{% spaceless %}
+
+{% set datatype_id = datatype.id %}
+{% set datafield_id = datafield.id %}
+
+{% if datafield_id == 0 %}
+    <label for="textbox_general">
+        All Fields:
+        <span id="textbox_general_blurb" title="Search in all possible fields, including descendant databases">
+            (include descendants)
+        </span>
+    </label>
+    <div id="textbox_general" class="ODRPseudoField"></div>
+
+{% else %}
+    <label for="datafield_{{ datafield_id }}">
+        {{ datafield['dataFieldMeta']['fieldName'] }}:
+    </label>
+    <div class="ODRPseudoField" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}"></div>
+{% endif %}
+
+{% endspaceless %}

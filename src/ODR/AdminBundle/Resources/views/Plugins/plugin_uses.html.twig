@@ -1,0 +1,62 @@
+{% spaceless %}
+
+<div id="ODRPluginUsesDialogWrapper">
+    <div id="ODRPluginUsesWrapper">
+        <table id="ODRPluginUsesTable" class="display dataTable">
+            <thead><tr>
+                <th></th>
+                <th>Grandparent Datatype</th>
+                <th>Child Datatype</th>
+                {% if is_datafield_plugin %}
+                <th>Datafield</th>
+                {% endif %}
+            </tr></thead>
+            <tbody>
+{% for num,data in plugin_uses %}
+                <tr>
+                    <td><i class='ODRRenderPlugin_Link fa fa-external-link' rel="{{ data['gp_dt_id'] }}"></i></td>
+                    <td>{{ data['gp_dt_name'] }}</td>
+                    <td>{% if data['gp_dt_name'] != data['dt_name'] %}{{ data['dt_name'] }}{% endif %}</td>
+                    {% if is_datafield_plugin %}
+                    <td>{{ data['df_name'] }}</td>
+                    {% endif %}
+                </tr>
+{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        $("#ODRPluginUsesTable").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [0],
+                    "orderable": false,
+                    "searchable": false
+                },
+            ],
+            "order": [ [1, "asc"] ],
+            "searching": false,
+            // "autoWidth": true,
+            "autoWidth": false,
+            "paging": false,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+            "info": false,
+        });
+        $("#ODRPluginUsesTable").removeAttr('style');
+
+        $(".ODRRenderPlugin_Link").unbind('click').click(function() {
+            var dt_id = $(this).attr('rel');
+            var url = '{{ path('odr_design_master_theme', {'datatype_id': 0}) }}';
+            url = url.substring(0,(url.length - 1)) + dt_id;
+
+            window.open('{{ path('odr_admin_homepage') }}#' + url, "_blank");
+        });
+    });
+</script>
+
+{% endspaceless %}

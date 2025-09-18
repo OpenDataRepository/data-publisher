@@ -70,6 +70,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\FileRenamerPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
@@ -78,7 +79,7 @@ use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
+class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface, FileRenamerPluginInterface
 {
 
     /**
@@ -768,6 +769,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
 
     /**
+     * {@inheritDoc}
+     *
      * Determines what the files/images uploaded to the given dataRecordFields entity should actually
      * be named on the server, based on the given plugin config.
      *
@@ -782,7 +785,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      * don't actually exist...then the plugin won't be able to work properly.
      *
      * @param DataRecordFields $original_drf
-     * @return array|string Returns an array organized by file/image id, or a single string attempting to indicate why the "correct" names can't be determined
+     * @return array|string Returns an array of changes organized by file/image id, or a single
+     *                      string attempting to indicate why the "correct" names can't be determined
      */
     public function getNewFilenames($original_drf)
     {

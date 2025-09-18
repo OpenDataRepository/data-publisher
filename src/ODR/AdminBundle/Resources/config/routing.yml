@@ -201,6 +201,11 @@ odr_plugin_problems:
     defaults: { _controller: ODRAdminBundle:Plugins:pluginproblems }
     requirements:
         plugin_classname: '^[a-z0-9\.\_\-]*$'
+odr_plugin_uses:
+    path:  /admin/plugins/uses/{plugin_classname}
+    defaults: { _controller: ODRAdminBundle:Plugins:pluginuses }
+    requirements:
+        plugin_classname: '^[a-z0-9\.\_\-]*$'
 
 odr_update_plugin:
     path:  /admin/plugins/update

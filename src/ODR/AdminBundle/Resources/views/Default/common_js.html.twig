@@ -28,6 +28,7 @@
         // Define a global error handler for ajax calls
         // TODO - jquery 1.12 seems to be autoparsing every json response, and therefore throws ajax errors whenever ODR returns an empty response body
         $(document).ajaxError(function( event, jqxhr, settings, exception ) {
+            // console.log('document.ajaxError()', event, jqxhr, settings, exception);
             switch( jqxhr.status ) {
                 case 401:
                     ODRLogin();
@@ -278,7 +279,7 @@
         if (!use_fade)
             faded_opacity = 1;
 
-        // console.log( 'LoadContentFullAjax("' + url + '")' );
+        // console.log('LoadContentFullAjax()', url);
 
         // Disable scroll handlers
         $(window).off('scroll');
@@ -300,6 +301,7 @@
                 dataType: "json",
                 data: data,
                 success: function(data, textStatus, jqXHR) {
+                    // console.log('LoadContentFullAjax() success', data, textStatus, jqXHR);
                     xhr = null;
 
                     if ( data.r == 2 ) {   // for redirects to another url
@@ -313,6 +315,7 @@
                     }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
+                    // console.log('LoadContentFullAjax() error', jqXHR, textStatus, errorThrown);
                     // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
@@ -477,7 +480,10 @@
 
         // If the sidebar can and should be reloaded...
         if ( can_reload && should_reload ) {
-            showSearchOverlay();
+            // Makes no sense to show the search overlay when reloading the sidebar if the sidebar is
+            //  currently hidden
+            if ( !$("#ODRSearchSidebar").hasClass('ODRHidden') )
+                showSearchOverlay();
 
             // ...then request a new set of html
             var url = '{{ path('odr_reload_search_sidebar', {'search_key': '', 'intent': ''}) }}';

@@ -482,26 +482,45 @@ class SearchKeyService
 
         /**
          * The existing implementation of general search can't deal with search queries that
-         * combine both OR and AND...I'm not entirely sure there is a viable generic methodology to
-         * handle that, even.  Furthermore, due to ODR's lack of grouping operators, you're stuck
+         * combine both OR and AND...I'm not entirely sure there's even a viable generic methodology
+         * to handle that.  Furthermore, due to ODR's lack of grouping operators, you would be stuck
          * writing ambiguous queries like "Gold OR Silver AND Quartz".
          *
-         * I'm going to just throw an Exception in this situation, because the alternative is to
-         * completely rewrite the results merging to be able to handle arbitrary combinations of
-         * logical operators.  It would probably be easier to refactor to use Prolog at that point.
+         * Fortunately, if the user is putting in stuff that the previous parser thinks has both
+         * OR and AND, then they're most likely looking for a phrase of some sort...and in that case,
+         * it should be (reasonably) acceptable to silently tweak the parser to get closer to what
+         * (I assume) they're expecting.  In theory.
          */
-        $has_or = $has_and = false;
+        $and_count = $or_count = 0;
         foreach ($tokens as $token) {
             if ( $token === '||' )
-                $has_or = true;
+                $or_count++;
             else if ( $token === '&&' )
-                $has_and = true;
+                $and_count++;
         }
-        if ( $has_or && $has_and )
-            throw new ODRNotImplementedException("Unable to correctly perform a General Search that combines both OR and AND conditions");
 
-        // Intentionally leaving the logical connectors in the array
-        return $tokens;
+        // If there's only one kind of logical connector, then don't need to do anything
+        if ( $and_count == 0 || $or_count == 0 ) {
+            // Intentionally leaving the logical connectors in the array
+            return $tokens;
+        }
+        else if ( $or_count > $and_count ) {
+            // If the string has more ORs than ANDs, then silently replace all the ANDs with ORs
+            foreach ($tokens as $num => $token) {
+                if ( $token === '&&' )
+                    $tokens[$num] = '||';
+            }
+            return $tokens;
+        }
+        else {
+            // If the string has more ANDs than ORs, or an equal number of both...then silently
+            //  replace all ORs with ANDs
+            foreach ($tokens as $num => $token) {
+                if ( $token === '||' )
+                    $tokens[$num] = '&&';
+            }
+            return $tokens;
+        }
     }
 
 

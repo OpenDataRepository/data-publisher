@@ -1133,6 +1133,22 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            /* This next test is also nasty...it initially is tokenized into:
+             *   "American" AND "Mineralologist" AND "103" OR "600-609"
+             * ...but throwing an exception because of mixing OR/AND is less than ideal.  As such,
+             * the final OR gets swapped by SearchKeyService::tokenizeGeneralSearch() into an AND:
+             *   "American" AND "Mineralologist" AND "103" AND "600-609"
+             * ...which returns the expected results
+             */
+            'RRUFF Reference: general search of "American Mineralogist 103, 600-609"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => 'American Mineralogist 103, 600-609',
+                ),
+                array(27),
+                true,
+            ],
+
             // ----------------------------------------
             // mixing general and advanced searches
             'RRUFF Reference: general search of "downs" and authors contains "d"' => [
@@ -1816,6 +1832,35 @@ class SearchAPIServiceTest extends WebTestCase
 
             // ----------------------------------------
             // Searches crossing multiple datatypes
+            // check situations where none of the ancestors/descendants match...
+            'IMA List: mineral contains "downs" OR authors contains "downs"' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => "downs",
+                    '1' => "downs",
+                    'merge' => 'OR',
+                ),
+                array(
+                    // no mineral name contains "downs"
+                    91,94,97  // authors contains "downs"
+                ),
+                true
+            ],
+            'IMA List: mineral contains "amesite" OR authors contains "amesite"' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => "amesite",
+                    '1' => "amesite",
+                    'merge' => 'OR',
+                ),
+                array(
+                    93, // one mineral contains "amesite"
+                    // no author is named "amesite"
+                ),
+                true
+            ],
+
+            // check situations where they share some entries
             'IMA List: mineral contains "b" OR authors contains "downs"' => [
                 array(
                     'dt_id' => 2,
@@ -1830,7 +1875,6 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 true
             ],
-
             'RRUFF Sample: IMA Mineral::mineral_name contains "b" OR RRUFF Reference::Authors contains "downs"' => [
                 array(
                     'dt_id' => 3,
