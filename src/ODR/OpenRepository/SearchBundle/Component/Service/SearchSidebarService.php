@@ -363,8 +363,9 @@ class SearchSidebarService
 
                 // Otherwise, need to shuffle around some arrays
                 $dt_id = $sl_map['dataField']['dataType']['id'];
-
-                if ( $category !== 'never_display' ) {
+                // The sidebar layout could contain a non-public field, though...
+                if ( $category !== 'never_display' && isset($datatype_array[$dt_id]['dataFields'][$df_id]) ) {
+                    // ...so only copy the field's data when the user can see it
                     $sidebar_array[$category][$df_id] = $datatype_array[$dt_id]['dataFields'][$df_id];
                     $sidebar_array[$category][$df_id]['displayOrder'] = $sl_map['displayOrder'];
                     $sidebar_array[$category][$df_id]['dataType'] = $sl_map['dataField']['dataType'];
