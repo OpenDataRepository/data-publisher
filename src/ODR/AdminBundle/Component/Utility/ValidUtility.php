@@ -22,6 +22,9 @@ class ValidUtility
     // an optional minus sign followed by a non-zero integer value
     const INTEGER_REGEX = "^0$|^-?[1-9][0-9]*$";
 
+    // Want a slightly different regex for migrations
+    const INTEGER_MIGRATE_REGEX = "^[0-9]+$";
+
     // ----------------------------------------
     // Note that php's definition at https://www.php.net/manual/en/language.types.float.php
     //  does not match the output of floatval() and filter_var(), even on PHP 7.4.x

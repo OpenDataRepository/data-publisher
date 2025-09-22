@@ -1,0 +1,63 @@
+{% spaceless %}
+
+{% for df_id,df_data in data %}
+    {% if df_mapping[df_id] is defined %}
+        {% set df = df_mapping[df_id] %}
+        <div>
+        {% if df.masterdatafield != null %}
+            Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ df.datatype.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': df.datatype.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
+            <br>
+        {% endif %}
+        {% if df.getnamedatatypes|length > 0 %}
+            <div class="bold">This datafield is used to name the datatype's records.</div>
+        {% endif %}
+        {% if df.getsortdatatypes|length > 0 %}
+            <div class="bold">This datafield is used to sort the datatype's records.</div>
+        {% endif %}
+        </div>
+    {% endif %}
+
+    {% if original_lengths[df_id] == 0 %}
+        <div class="ODRDatarecordListHeader">This field has no values to migrate.</div>
+    {% elseif data|length == 0 %}
+        <div class="ODRDatarecordListHeader">All values can be migrated without any changes.</div>
+    {% else %}
+        <div class="ODRDatarecordListHeader">Of the {{ original_lengths[df_id] }} values currently in the field, the following {{ df_data|length }} will be changed:</div>
+        <div class="ODRTableOuterWrap">
+            <div class="ODRTableWrap">
+                <table id="ODRReports_AnalyzeDecimalMigration_{{ df_id }}" class="display ODRDatatableInstance">
+                    <thead>
+                        <tr>
+                            <th>datarecord id</th>
+                            <th>current value</th>
+                            <th>migrated value</th>
+                            <th>pass #</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dr_id,values in df_data %}
+                        <tr>
+                            <td><a target="_blank" href="{{ baseurl }}{{ dr_id }}">{{ dr_id }}</a></td>
+                            <td>{{ values['old_value'] }}</td>
+                            <td>{{ values['new_value'] }}</td>
+                            <td>{{ values['pass'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    <script>
+        $(function() {
+            $("#ODRReports_AnalyzeDecimalMigration_{{ df_id }}").dataTable({
+                // "info": false,
+                // "paging": false,
+                "searching": false,
+            });
+        });
+    </script>
+{% endfor %}
+
+{% endspaceless %}

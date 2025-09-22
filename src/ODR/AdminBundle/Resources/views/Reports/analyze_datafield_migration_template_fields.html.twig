@@ -1,0 +1,20 @@
+{% spaceless %}
+
+{% for df_id,data in strings %}
+    {% set df = data['df'] %}
+    {% set str = data['str'] %}
+    <div>
+        Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ df.datatype.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': df.datatype.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
+        <br>
+    {% if df.getnamedatatypes|length > 0 %}
+        <div class="bold">This datafield is used to name the datatype's records.</div>
+    {% endif %}
+    {% if df.getsortdatatypes|length > 0 %}
+        <div class="bold">This datafield is used to sort the datatype's records.</div>
+    {% endif %}
+
+        <div class="ODRDatarecordListHeader">{{ str }}</div>
+    </div>
+{% endfor %}
+
+{% endspaceless %}

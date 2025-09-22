@@ -323,6 +323,8 @@ class WorkerController extends ODRCustomController
                     $remaining_query .= ' AND e.value != ""';
                 }
                 else if ( $old_is_text && $new_typeclass === 'IntegerValue' ) {
+                    // IMPORTANT: changes made here must also be transferred to ReportsController::convert_to_integer()
+
                     // Converting text into an integer requires a cast...
                     $select_query .= 'CAST(e.value AS SIGNED)';
                     // Only copy non-blank values
@@ -331,7 +333,7 @@ class WorkerController extends ODRCustomController
                     // ...but it also needs both a REGEX and BETWEEN conditions, otherwise an
                     //  error will be thrown when encountering values that aren't valid 4 byte
                     //  integers
-                    $remaining_query .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::INTEGER_REGEX.'")';
+                    $remaining_query .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::INTEGER_MIGRATE_REGEX.'")';
 
                     // The regex MUST come before the BETWEEN, otherwise the BETWEEN will throw
                     //  warnings (which are upgraded to errors) when comparing non-integer values
@@ -343,8 +345,7 @@ class WorkerController extends ODRCustomController
                 else if ( $old_is_text && $new_typeclass === 'DecimalValue' ) {
                     // There are two queries that need to be run...
 
-                    // IMPORTANT: changes made here must also be transferred to
-                    //  ReportsController::analyzedecimalmigrationAction()
+                    // IMPORTANT: changes made here must also be transferred to ReportsController::convert_to_decimal()
 
                     // ----------------------------------------
                     // The first is going to convert numbers with an optional exponent

@@ -1,0 +1,79 @@
+{% spaceless %}
+
+<h2>Migration report for the {{ datafield.fieldType.typeName }} Datafield "{{ datafield.getfieldname }}", belonging to Datatype "{{ datatype.getshortname }}"</h2>
+
+{% if master_datatype_id != '' %}
+    <div>
+        This datafield is derived from a template datafield, and can't be directly changed to a different fieldtype.
+        <br><br>
+        Go <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': master_datatype_id}) }}">here</a> to check the migration report for the template datafield.
+    </div>
+{% elseif strings|length > 0 %}
+    {% include 'ODRAdminBundle:Reports:analyze_datafield_migration_template_fields.html.twig' with {
+        'strings': strings,
+    } %}
+{% else %}
+    <div>
+        <form id="ODRReports_fieldtype_form" action="{{ path('odr_design_analyze_datafield_migration') }}">
+            <input type="hidden" value="{{ datafield.id }}" name="datafield_id"/>
+
+            <label for="ODRReports_fieldtype_selector">Migrate to:&nbsp;</label>
+            <select id="ODRReports_fieldtype_selector" name="fieldtype_id">
+                <option value="0"></option>
+            {% for ft_id,ft_typename in fieldtype_list %}
+                <option value="{{ ft_id }}">{{ ft_typename }}</option>
+            {% endfor %}
+            </select>
+        </form>
+    </div>
+    <br>
+    <div id="ODRReports_DatafieldMigration_results"></div>
+{% endif %}
+
+<script>
+    $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    });
+
+{% if strings|length == 0 %}
+    $("#ODRReports_fieldtype_selector").unbind('change').change(function(event) {
+        event.stopImmediatePropagation();
+        if ( $("#ODRReports_fieldtype_selector").children('option:selected').val() == '0' )
+            return false;
+
+        $("#ODRReports_DatafieldMigration_results").html("<div class=\"ODROverlayDiv\"><strong>Loading...</strong></div>");
+
+        var data = $("#ODRReports_fieldtype_form").serialize();
+        var url = $("#ODRReports_fieldtype_form").attr('action');
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: data,
+            dataType: 'json',
+            success: function(data) {
+                $("#ODRReports_DatafieldMigration_results").html(data.d.html);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+                // alert('Error encountered, no changes made');
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+{% endif %}
+</script>
+
+{% endspaceless %}
