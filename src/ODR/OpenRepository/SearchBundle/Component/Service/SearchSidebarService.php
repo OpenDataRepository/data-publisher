@@ -1158,7 +1158,7 @@ class SearchSidebarService
     public function getUserSidebarLayoutPreference($user, $datatype_id, $intent)
     {
         // Anonymous users don't have sidebar layout preferences
-        if ($user === 'anon.')
+        if ($user === 'anon.' || $user === '')
             return null;
 
         // Ensure the provided intent is valid

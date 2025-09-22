@@ -23,7 +23,15 @@
 {% block title %}ODR Admin{% endblock %}
 
 {% set use_navigation_block = false %}
-{% if user != "anon." %}
+
+{% set is_datatype_admin = false %}
+{% for dt_id, permission in datatype_permissions %}
+    {% if permission['dt_admin'] is defined and permission['dt_admin'] == 1 %}
+        {% set is_datatype_admin = true %}
+    {% endif %}
+{% endfor %}
+
+{% if user != "anon." and is_datatype_admin == true %}
     {% set use_navigation_block = true %}
 {% endif %}
 

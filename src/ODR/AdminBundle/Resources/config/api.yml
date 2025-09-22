@@ -198,7 +198,6 @@ odr_api_download_image:
   requirements:
     image_id: \d+
 
-
 # Alternative API access routes - migrated from search
 odr_search_api_get_datatype_single:
   path:  /{search_slug}/api/info.{_format}

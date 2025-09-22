@@ -1142,6 +1142,19 @@ odr_file_download:
     requirements:
         file_id:  \d+
 
+# Valid for public files only
+# Gets file by name to facilitate old links
+# From external websites
+#
+odr_download_file_by_name:
+    path: /view/{datatype_id}/file_download/{file_name}
+    defaults: { _controller: ODRAdminBundle:Display:fileDownloadByName }
+    methods: [ GET ]
+    requirements:
+       datatype_id: '^[0-9]+$'
+       file_name: '[a-zA-Z0-9\s\.-_]+'
+
+
 odr_image_download:
     path:  /view/downloadimage/{image_id}
     defaults: { _controller: ODRAdminBundle:Display:imagedownload }
@@ -1942,6 +1955,9 @@ odr_asdf:
 #odr_zxcv:
 #    path: /admin/zxcv/
 #    defaults: { _controller: ODRAdminBundle:Worker:zxcv }
+#
+#
+#    +#
 
 imports:
     resource: api.yml
