@@ -666,6 +666,131 @@ class DisplayController extends ODRCustomController
         }
     }
 
+    public function fileDownloadByNameAction($file_name, $datatype_id, Request $request) {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Locate the file in the database
+            /** @var File $file */
+
+            $query = $em->createQuery(
+                'SELECT f
+                FROM ODRAdminBundle:File f
+                JOIN f.fileMeta AS fm
+                JOIN f.dataField AS df
+                WHERE df.dataType = :data_type_id 
+                AND fm.originalFileName LIKE :file_name
+                '
+            )->setParameters(
+                array(
+                    'data_type_id' => $datatype_id,
+                    'file_name' => $file_name,
+                )
+            );
+            // 'non_public_date' => '2200-01-01 00:00:00'
+            // AND fm.publicDate != :non_public_date
+            // AND f.deletedAt IS NULL AND fm.deletedAt IS NULL
+            // print $query->getSql();exit();
+            $files = $query->getArrayResult();
+
+            $output_file = null;
+            foreach ($files as $file) {
+                var_dump($file);
+                /** @var File $file */
+                $fileMeta = $em->getRepository('ODRAdminBundle:FileMeta')
+                    ->findBy(array('file' => $file['id']));
+                var_dump($fileMeta);
+                if($fileMeta->deletedAt == null
+                    && $fileMeta->publicDate != '2200-01-01 00:00:00'                ) {
+                    $output_file = $file;
+                    break;
+                }
+            }
+
+            if ($output_file == null)
+                throw new ODRNotFoundException('File');
+
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($output_file['id']);;
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Files that aren't done encrypting shouldn't be downloaded
+            if ($file->getEncryptKey() === '')
+                throw new ODRNotFoundException('File');
+
+
+            // ----------------------------------------
+            // First, ensure user is permitted to download
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canViewFile($user, $file) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Ensure file exists before attempting to download it
+            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            if ( !$file->isPublic() )
+                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            if (!$local_filepath) {
+                // If file doesn't exist, and user has permissions...just decrypt it directly?
+                // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
+                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+            }
+
+            if (!$local_filepath)
+                throw new FileNotFoundException($local_filepath);
+
+            $response = self::createDownloadResponse($file, $local_filepath);
+
+            // If the file is non-public, then delete it off the server...despite technically being deleted prior to serving the download, it still works
+            if ( !$file->isPublic() && file_exists($local_filepath) )
+                unlink($local_filepath);
+
+            return $response;
+        }
+        catch (\Exception $e) {
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
+
+            $source = 0xeeaf3eef3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
 
     /**
      * Creates a Symfony response that so browsers can download files from the server.
