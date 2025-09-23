@@ -190,6 +190,10 @@ async function app() {
                         record_data.record_uuid +
                         '\';';
 
+
+                    // Mineral Ascii Name
+                    let template_fields = [];
+                    template_fields['mineral_ascii_name'] = 'a9d1d8a812ee000b8f477f07b775';
                     content += '' +
                         'mineral_data_array[' +
                         // Mineral ID
@@ -198,7 +202,8 @@ async function app() {
                         // Mineral Name -- 0
                         await findValue(record.cell_params_map.mineral_name, record_data) + '||' +
                         // Mineral Display Name -- 1
-                        await findValue(record.cell_params_map.mineral_name, record_data) + '||' +
+                        await findValue(template_fields.mineral_ascii_name, record_data) + '||' +
+                        // await findValue(record.cell_params_map.mineral_name, record_data) + '||' +
                         // Ideal IMA Formula (html) -- 2
                         formatChemistry(await findValue(record.ima_record_map.rruff_formula, record_data)) + '||' +
                         // RRUFF Formula (html) -- 3
@@ -411,13 +416,13 @@ async function buildStatusNotes(ima_record_map, record) {
         ) {
             let counter = 0;
             for (let i = 0; i < record['records_' + record.template_uuid].length; i++) {
+                let child_record = record['records_' + record.template_uuid][i];
                 // If we have a status notes record, start looking for fields
                 // display order, status_notes_field, reference...
                 // records_block = records_[this_status_notes_dt]
 
-                let child_record = record['records_' + record.template_uuid][i];
                 if (child_record.template_uuid === ima_record_map.status_notes_dt_uuid) {
-                    // console.log('Status notes record found')
+                    // console.log('Status notes record found');
                     if (counter > 0) {
                         // Status Notes Array Divider
                         status_notes += '^*^';
@@ -476,6 +481,7 @@ async function findValue(field_uuid, record) {
                     return the_field.files[0].href;
                 }
                 if (the_field.value !== undefined) {
+                    // console.log('FU: ' + field_uuid + ' ' + the_field.value.toString())
                     return the_field.value.toString().replace(/'/g, "\\'");
                 } else if (the_field.tags !== undefined) {
                     let output = '';
@@ -675,6 +681,30 @@ async function apiCall(api_url, post_data, method) {
         throw(err);
     }
 }
+
+
+async function findRecordByTemplateUUID (records, target_uuid){
+    // console.log('Find Record By Template UUID: ', target_uuid);
+    if(records === undefined) {
+        // console.log('Records undefined');
+        return undefined;
+    }
+    for(let i = 0; i < records.length; i++) {
+        // console.log('Record Finder UUID: ' + records[i].template_uuid + ' ' + target_uuid)
+        if(records[i].template_uuid === target_uuid) {
+            // console.log('Found UUID: ', records[i].template_uuid)
+            return records[i];
+        }
+        else if(records[i]['records_' + records[i].template_uuid] !== undefined) {
+            let record = await findRecordByTemplateUUID(records[i]['records_' + records[i].template_uuid], target_uuid);
+            if(record !== undefined) {
+                return record;
+            }
+        }
+    }
+    return undefined
+}
+
 
 
 app();
