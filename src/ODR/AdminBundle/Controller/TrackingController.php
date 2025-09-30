@@ -230,8 +230,7 @@ class TrackingController extends ODRCustomController
             // Ensure the search key is valid before attempting to decode it...
             if ( $search_key === '' )
                 throw new ODRBadRequestException();
-            $search_key_service->validateSearchKey($search_key);
-            $search_params = $search_key_service->decodeSearchKey($search_key);
+            $search_params = $search_key_service->validateSearchKey($search_key);
 
             // Because the search key is valid, it will always have an entry for the datatype id
             $datatype_id = $search_params['dt_id'];
@@ -268,7 +267,7 @@ class TrackingController extends ODRCustomController
 
             // Filter the search key so the user can't search on stuff they can't see, and silently
             //  replace the original search key if necessary
-            $search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            $search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
             // TODO - should this throw an error or redirect instead?
 
 
@@ -685,8 +684,7 @@ class TrackingController extends ODRCustomController
             }
 
             if ( !is_null($target_search_key) ) {
-                $search_key_service->validateSearchKey($target_search_key);
-                $search_params = $search_key_service->decodeSearchKey($target_search_key);
+                $search_params = $search_key_service->validateSearchKey($target_search_key);
 
                 // Since the search key is valid, it will always have a datatype id in there
                 $dt_id = $search_params['dt_id'];
@@ -756,7 +754,7 @@ class TrackingController extends ODRCustomController
             if ( !is_null($target_search_key) ) {
                 // Filter the search key so the user can't search on stuff they can't see, and
                 //  silently replace the original search key if necessary
-                $target_search_key = $search_api_service->filterSearchKeyForUser($datatype, $target_search_key, $user_permissions);
+                $target_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $target_search_key, $user_permissions);
                 $search_params = $search_key_service->decodeSearchKey($target_search_key);
                 // TODO - should this throw an error or redirect instead?
             }

@@ -321,6 +321,7 @@ services:
             $clone_template_service: "@odr.clone_template_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $namefield_helper_service: "@odr.namefield_helper_service"
+            $search_key_service: "@odr.search_key_service"
 
             $form_factory: "@form.factory"
             $templating: "@templating"

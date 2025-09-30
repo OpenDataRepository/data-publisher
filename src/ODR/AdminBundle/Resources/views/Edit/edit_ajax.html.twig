@@ -72,6 +72,12 @@ $(function() {
     // Resize everything prior to divs being hidden
     onWindowResize();
 
+{% if is_oversized_search_key %}
+    $("#ODRSearchKeyWarning").removeClass('ODRHidden');
+{% else %}
+    $("#ODRSearchKeyWarning").addClass('ODRHidden');
+{% endif %}
+
     // Setup any image galleries in linked datarecords
     setupImageGalleries();
 

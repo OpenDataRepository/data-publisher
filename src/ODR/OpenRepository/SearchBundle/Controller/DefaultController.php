@@ -47,6 +47,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\Router;
 
 
 class DefaultController extends Controller
@@ -696,9 +698,13 @@ class DefaultController extends Controller
 
 
     /**
-     * This gets called when the user clicks the "Search" button...it converts the POST with the
-     * search values into an ODR search key, and returns it so the searching javascript can trigger
-     * a search results page render.
+     * This function converts a POST of search parameters...either from the sidebar or JSON...into
+     * an ODR search key, and returns it so the caller can trigger a search results page render.
+     *
+     * Usually the search key is just a base64 encoded version of the JSON version of the parameters
+     * ...but if that ends up being longer than the length configured in parameters.yml, then ODR
+     * will instead return a JSON array with a single UUID in it...this UUID will point to a redis
+     * cache entry that holds the full search key.
      *
      * @param Request $request
      *
@@ -706,27 +712,61 @@ class DefaultController extends Controller
      */
     public function searchAction(Request $request)
     {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
+//        $return = array();
+//        $return['r'] = 0;
+//        $return['t'] = '';
+//        $return['d'] = '';
 
         try {
             // ----------------------------------------
             // Going to use the data in the POST request to build a new search key
             $search_params = $request->request->all();
+            if ( !isset($search_params['dt_id']) && count($search_params) === 1 ) {
+                // JSON requests appear to get submitted as a key/value pair, but the json string
+                //  is the key and the value is empty
+
+                // Instead of messing with the POST, attempt to decode the request's content
+                $content = $request->getContent();
+                $search_params = json_decode($content, true);
+            }
+
             if ( !isset($search_params['dt_id']) )
                 throw new ODRBadRequestException();
 
+            $search_theme_id = 0;
+            if ( isset($search_params['search_theme_id']) ) {
+                $search_theme_id = intval($search_params['search_theme_id']);
+                unset( $search_params['search_theme_id'] );
+            }
+
+            $intent = 'searching';
+            if ( isset($search_params['intent']) ) {
+                $intent = $search_params['intent'];
+                unset( $search_params['intent'] );
+
+                if ( $intent !== 'searching' && $intent !== 'linking' )
+                    throw new ODRBadRequestException();
+            }
+
+            // This parameter shows up when an "inline search" is made from edit_ajax.html.twig
+            // It doesn't do anything here anymore, but keeping this around just in case...
+            if ( isset($search_params['ajax_request']) )
+                unset( $search_params['ajax_request'] );
+
+
+            // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+//            /** @var SearchAPIService $search_api_service */
+//            $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
+
+            /** @var Router $router */
+            $router = $this->get('router');
 
 
             /** @var DataType $datatype */
@@ -740,27 +780,64 @@ class DefaultController extends Controller
                 throw new ODRForbiddenException();
 
 
-            // This parameter shows up when an "inline search" is made from edit_ajax.html.twig
-            // It doesn't do anything here anymore, but keeping around just in case...
-            if ( isset($search_params['ajax_request']) )
-                unset( $search_params['ajax_request'] );
-
-
             // ----------------------------------------
+            // NOTE: DisplaytemplateController::converttostoredsearchkeyAction() also parses a form
+            //  to generate a search key, and thus is vaguely similar
+
             // Convert the POST request into a search key and validate it
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
             $search_key_service->validateSearchKey($search_key);
 
-            // Filter out the stuff from the given search key that the user isn't allowed to see
-            $user_permissions = $permissions_service->getUserPermissionsArray($user);
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            // Don't need to filter out the stuff that the user isn't allowed to see...everywhere
+            //  that actually uses the search key has to do it anyways
+//            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+//            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
 
-            // No sense actually running the search here...whatever calls this needs to use the
-            //  search key to redirect to the render page
-            $return['d'] = array(
-                'search_key' => $filtered_search_key
+            // If the coverted POST request generates a search key that is considered to be too long...
+            if ( strlen($search_key) > intval($this->getParameter('search_key_char_limit')) ) {
+                // ...then shunt the generated key behind a different uuid
+                $search_key = $search_key_service->handleOversizedSearchKey($search_key);
+            }
+
+            // Need at least these two properties to create the 'odr_search_render' route
+            $props = array(
+                'search_theme_id' => $search_theme_id,    // semi-intentionally not validating this...
+                'search_key' => $search_key,
             );
+            if ($intent !== 'searching')
+                $props['intent'] = $intent;
+
+            // Don't want ABSOLUTE_URL, because the generated route won't work in a browser
+            $hash = $router->generate(
+                'odr_search_render',
+                $props,
+//                UrlGeneratorInterface::ABSOLUTE_URL
+            );
+
+            $new_url = '';
+            if ( $intent === 'searching' ) {
+                // For a search results page, "manually" create the baseurl...
+                $baseurl = 'https:'.$this->getParameter('site_baseurl');
+                if ($is_wordpress_integrated)
+                    $baseurl = 'https:'.$this->getParameter('wordpress_site_baseurl');
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    $baseurl .= '/app_dev.php';
+                $baseurl .= '/'.$datatype->getSearchSlug();
+
+                // ...and splice the two parts together to create a full url
+                $new_url = $baseurl.'#'.$hash;
+            }
+            else {
+                // Linking results pages can't replace the entire page, so only return the hash
+                $new_url = $hash;
+            }
+
+            // NOTE: can't use a RedirectResponse or "manually" create a 303, because the result
+            //  won't work in a browser
+            $response = new Response( json_encode(array('url' => $new_url)) );
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
         }
         catch (\Exception $e) {
             $source = 0xd809c18a;
@@ -770,9 +847,9 @@ class DefaultController extends Controller
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
+//        $response = new Response(json_encode($return));
+//        $response->headers->set('Content-Type', 'application/json');
+//        return $response;
     }
 
 
@@ -872,8 +949,9 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
+            // Check whether the search key is valid first...
+            $search_params = $search_key_service->validateSearchKey($search_key);
             // Grab the datatype id from the cached search result
-            $search_params = $search_key_service->decodeSearchKey($search_key);
             if ( !isset($search_params['dt_id']) )
                 throw new \Exception('Invalid search string');
 
@@ -897,11 +975,8 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
-            // Check whether the search key is valid first...
-            $search_key_service->validateSearchKey($search_key);
-
             // Check whether the search key needs to be filtered or not
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
             if ($filtered_search_key !== $search_key) {
                 // The search key got changed...determine whether it's because something was out of
                 //  order, or the user tried to search on a field they can't view...
@@ -971,7 +1046,7 @@ class DefaultController extends Controller
             // Ensure the tab refers to the given search key
             $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
             if ( $expected_search_key !== $search_key )
-                $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
+                $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
 
             // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
             //  will display stuff in a different order
@@ -1215,7 +1290,7 @@ class DefaultController extends Controller
 
 
             // Ensure the user isn't trying to search on something they can't access...
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
             // Run a search on the given parameters
             $grandparent_datarecord_list = $search_api_service->performSearch(
                 $datatype,

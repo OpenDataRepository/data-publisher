@@ -46,6 +46,12 @@
         // Resize everything prior to divs being hidden
         onWindowResize();
 
+{% if is_oversized_search_key %}
+        $("#ODRSearchKeyWarning").removeClass('ODRHidden');
+{% else %}
+        $("#ODRSearchKeyWarning").addClass('ODRHidden');
+{% endif %}
+
         // Set up image galleries
         setupImageGalleries();
         // NOTE: do not attach event handlers to images here...setupImageGalleries() will move them around

@@ -649,6 +649,16 @@ footer ul li:first-child {
     color: white;
 }
 
+#ODRSearchKeyWarning {
+    background-image: none;
+    background-color: #1C27D0;
+    box-shadow: none;
+    color: white;
+
+    text-align: center;
+    padding: 5px 0;
+}
+
 .ODR-pure-submenu {
     z-index: 100000;
 }
@@ -1633,9 +1643,9 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 }
 
 .ODRCreatedBy {
-    position: absolute;
-    top: 46px;
-    right: 46px;
+    /*position: absolute;*/
+    /*top: 46px;*/
+    /*right: 46px;*/
 }
 
 #ThemeDesignArea .ODRDataField .pure-img {

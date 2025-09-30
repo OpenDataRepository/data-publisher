@@ -170,10 +170,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             // Ensure it's a valid search key first...
-            $search_key_service->validateSearchKey($search_key);
-
-            // Need to get the datatype id out of the search key service
-            $search_params = $search_key_service->decodeSearchKey($search_key);
+            $search_params = $search_key_service->validateSearchKey($search_key);
             $dt_id = intval( $search_params['dt_id'] );
 
             /** @var DataType $target_datatype */

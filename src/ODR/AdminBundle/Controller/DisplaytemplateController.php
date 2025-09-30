@@ -4987,11 +4987,16 @@ if ($debug)
             // Convert the POST request into a search key and validate it
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
-            $search_key_service->validateSearchKey($search_key);
 
-            $search_params = $search_key_service->decodeSearchKey($search_key);
+            // Don't want to filter the search key here...it wouldn't do anything anyways...but
+            //  should complain if it's too long
+            if ( strlen($search_key) > intval($this->getParameter('search_key_char_limit')) )
+                throw new ODRBadRequestException('Search Key has too many criteria');
+
+            // If the search key isn't too excessively long, then make sure it's legal
+            $search_params = $search_key_service->validateSearchKey($search_key);
+            // Want to condense the search key into a more visual format
             $readable_search_key = $search_key_service->getReadableSearchKey($search_key);
-
 
             // Need to display a warning when the search key contains non-public fields, since it
             //  won't work properly with users that can't view said fields...
@@ -5000,7 +5005,6 @@ if ($debug)
 
             // NOTE: don't need to use the SearchSidebarService to get the datatype array...the
             //  current user is a datatype admin, so the filtering done by that service is useless
-
             $contains_non_public_fields = false;
             foreach ($search_params as $key => $value) {
                 if ( isset($datafields[$key]) && $datafields[$key]['is_public'] === false ) {

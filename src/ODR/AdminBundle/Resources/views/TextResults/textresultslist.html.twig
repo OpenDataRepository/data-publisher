@@ -142,7 +142,7 @@
             {% endif %}
 
             // https://datatables.net/manual/server-side
-            // "processing": true,   // only displays a little "processing..." blurb
+            "processing": true,   // only displays a little "processing..." blurb
             "serverSide": true,
 
             "stateSave": true,
@@ -273,6 +273,12 @@
             }
 
         });
+
+{% if is_oversized_search_key %}
+        $("#ODRSearchKeyWarning").removeClass('ODRHidden');
+{% else %}
+        $("#ODRSearchKeyWarning").addClass('ODRHidden');
+{% endif %}
 
 {% if display_theme_warning %}
         $("#ODRMainMenu").overhang({

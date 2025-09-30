@@ -210,11 +210,16 @@
         <label class="pure-u-1"></label>
         <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="df_{{ datafield_id }}_end" name="{{ key }}" value="{{ value }}" rel="df_{{ datafield_id }}" title="Find records with a value BEFORE this date" {% if design_page is defined %}readonly{% endif %} />
 
+        {% set key = datafield_id %}
+        {% set value = '' %}
+        {% if search_params[key] is defined %}
+            {% set value = search_params[key] %}
+        {% endif %}
         <label for="df_{{ datafield_id }}_no_val" class="pure-u-1">
-            <input type="checkbox" id="df_{{ datafield_id }}_no_val" class="ODRDatePicker_value ODRInput ODRDateDatafieldExist" name="{{ datafield_id }}" value='""' /> Search where {{ fieldname }} is empty.
+            <input type="checkbox" id="df_{{ datafield_id }}_no_val" class="ODRDatePicker_value ODRInput ODRDateDatafieldExist" name="{{ datafield_id }}" value='""' {% if value == "\"\"" %}checked{% endif %} /> Search where {{ fieldname }} is empty.
         </label>
         <label for="df_{{ datafield_id }}_with_val" class="pure-u-1">
-            <input type="checkbox" id="df_{{ datafield_id }}_with_val" class="ODRDatePicker_value ODRInput ODRDateDatafieldExist" name="{{ datafield_id }}" value='!""' /> Search where {{ fieldname }} is not empty.
+            <input type="checkbox" id="df_{{ datafield_id }}_with_val" class="ODRDatePicker_value ODRInput ODRDateDatafieldExist" name="{{ datafield_id }}" value='!""' {% if value == "!\"\"" %}checked{% endif %} /> Search where {{ fieldname }} is not empty.
         </label>
 
     {% elseif field_typeclass == "Radio" %}

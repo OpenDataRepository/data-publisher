@@ -179,6 +179,75 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
+    /**
+     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
+     * @dataProvider provideSortSearchParams
+     */
+    public function testSort($search_params, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $client->getContainer()->get('odr.search_key_service');
+
+        // Need to do a sequence of steps here...first convert the parameters into a search key, to
+        //  simulate somebody creating their and providing it to ODR
+        $search_key = $search_key_service->encodeSearchKey($search_params);
+
+        // ...then decode it again so ODR "fixes" the sort information
+        $search_params = $search_key_service->decodeSearchKey($search_key);
+        // ...and then pull the sort information out of the parameters to match Display/Edit/etc
+        $sort_datafields = array();
+        $sort_directions = array();
+        foreach ($search_params['sort_by'] as $num => $data) {
+            $sort_datafields[$num] = $data['sort_df_id'];
+            $sort_directions[$num] = $data['sort_dir'];
+        }
+
+        // Run the search
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,              // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),           // search testing is with either zero permissions, or super-admin permissions
+            false,             // only want grandparent datarecord ids here
+            $sort_datafields,  // this test does want specific sort datafields
+            $sort_directions,  // ...and specific sort orders
+            $search_as_super_admin
+        );
+
+        // Not using assertEqualsCanonicalizing(), because order matters
+        $this->assertEquals( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
+    /**
+     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::filterSearchKeyForUser
+     * @dataProvider provideFilterSearchParams
+     */
+    public function testFilter($search_params, $expected_search_params, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $client->getContainer()->get('odr.search_key_service');
+
+        $search_key = $search_key_service->encodeSearchKey($search_params);
+        $datatype_id = $search_params['dt_id'];
+        $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype_id, $search_key, array(), $search_as_super_admin);
+        $filtered_search_params = $search_key_service->decodeSearchKey($filtered_search_key);
+
+        $this->assertEqualsCanonicalizing( $expected_search_params, $filtered_search_params );
+    }
+
 
     /**
      * @return array
@@ -1888,6 +1957,160 @@ class SearchAPIServiceTest extends WebTestCase
                     127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112  // references with "downs"
                 ),
                 true
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function provideSortSearchParams()
+    {
+        // 91: 777, Abelsonite, USA
+        // 92: 1193, Bournonite, United Kingdom
+        // 93: 868, Amesite, USA
+        // 94: 790, Aegirine, Norway
+        // 95: 6482, Abellaite, Spain
+        // 96: 788, Adelite, Sweden
+        // 97: 898, Anorthite, Italy
+        // 322: 6483, unknown
+
+        return [
+            // ----------------------------------------
+            'IMA List: sort asc by mineral name' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array("sort_df_id" => "17", "sort_dir" => "asc"),
+                ),
+                array(95,91,96,94,93,97,92,322),    // order matters now
+                true
+            ],
+            'IMA List: sort desc by mineral name' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array("sort_df_id" => "17", "sort_dir" => "desc"),
+                ),
+                array(322,92,97,93,94,96,91,95),
+                true
+            ],
+            'IMA List: sort asc by mineral id' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array("sort_df_id" => "16", "sort_dir" => "asc"),
+                ),
+                array(91,96,94,93,97,92,95,322),
+                true
+            ],
+
+            'IMA List: sort asc by mineral name, using multisort with only one datafield' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array(
+                        array("sort_df_id" => "17", "sort_dir" => "asc")
+                    ),
+                ),
+                array(95,91,96,94,93,97,92,322),
+                true
+            ],
+
+            'IMA List: sort asc by country, then asc by mineral name' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array(
+                        array("sort_df_id" => "24", "sort_dir" => "asc"),
+                        array("sort_df_id" => "17", "sort_dir" => "asc")
+                    ),
+                ),
+                array(322,97,94,95,96,92,91,93),
+                true
+            ],
+            'IMA List: sort asc by country, then desc by mineral name' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array(
+                        array("sort_df_id" => "24", "sort_dir" => "asc"),
+                        array("sort_df_id" => "17", "sort_dir" => "desc")
+                    ),
+                ),
+                array(322,97,94,95,96,92,93,91),
+                true
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function provideFilterSearchParams()
+    {
+        return [
+            // ----------------------------------------
+            'IMA List: minerals with a date_first_published, with permissions' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => '!""',    // mineral_name field is public
+                    '64' => '!""',    // date_first_published is not
+                ),
+                array(
+                    'dt_id' => 2,
+                    '17' => '!""',    // ...no filtering should take place because searching as a super admin
+                    '64' => '!""',
+                ),
+                true
+            ],
+            'IMA List: minerals with a date_first_published, without permissions' => [
+                array(
+                    'dt_id' => 2,
+                    '17' => '!""',    // mineral_name field is public
+                    '64' => '!""',    // date_first_published is not
+                ),
+                array(
+                    'dt_id' => 2,
+                    '17' => '!""',    // ...this field should remain
+//                    '64' => '!""',    // ...this field should not
+                ),
+                false
+            ],
+
+            'IMA List: sort by date_first_published, with permissions' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array("sort_df_id" => "64", "sort_dir" => "asc"),    // NOTE: ODR will read this format for 'sort_by'...
+                ),
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array(  // ...but it will turn 'sort_by' into this format because of multi-datafield searching
+                        array("sort_df_id" => "64", "sort_dir" => "asc")
+                    ),
+                ),
+                true
+            ],
+            'IMA List: sort by date_first_published, without permissions' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array("sort_df_id" => "64", "sort_dir" => "asc"),    // date_first_published is not public...
+                ),
+                array(
+                    'dt_id' => 2,    // ...so it should get filtered out
+                ),
+                false
+            ],
+            'IMA List: sort by mineral_name and date_first_published, without permissions' => [
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array(
+                        array("sort_df_id" => "64", "sort_dir" => "asc"),
+                        array("sort_df_id" => "17", "sort_dir" => "asc"),    // need to ensure this works when only one sort criteria is getting filtered
+                    ),
+                ),
+                array(
+                    'dt_id' => 2,
+                    'sort_by' => array(
+//                        array("sort_df_id" => "64", "sort_dir" => "asc"),
+                        array("sort_df_id" => "17", "sort_dir" => "asc"),
+                    ),
+                ),
+                false
             ],
         ];
     }
