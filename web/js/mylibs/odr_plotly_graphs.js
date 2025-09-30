@@ -216,7 +216,7 @@ function ODRGraph_waitForRebuild(img_elem_id) {
  * @param {function} callback
  */
 function ODRGraph_parseFile(file, display_order, callback) {
-    // console.log(dr_id, display_order, file, callback);
+    // console.log(file, display_order, callback);
 
     var element_id = "#FieldArea_" + file.dr_id + "_" + file.file_id;
     if ( $(element_id).length == 0 ) {
