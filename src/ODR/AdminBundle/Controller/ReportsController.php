@@ -776,32 +776,70 @@ class ReportsController extends ODRCustomController
                     break;
             }
 
+            $typeclass_map = array(
+                'ShortVarchar' => 'odr_short_varchar',
+                'MediumVarchar' => 'odr_medium_varchar',
+                'LongVarchar' => 'odr_long_varchar',
+                'LongText' => 'odr_long_text',
+                'IntegerValue' => 'odr_integer_value',
+                'DecimalValue' => 'odr_decimal_value',
+            );
+
+            // Fields in child datatypes need a different table layout
+            $is_child_datatype = false;
+            if ( $datatype->getId() != $datatype->getGrandparent()->getId() )
+                $is_child_datatype = true;
 
             // Get the namefield_value for each datarecord of the given datafield's datatype
-            $datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getId());
+            $grandparent_datarecord_names = $sort_service->getNamedDatarecordList($datatype->getGrandparent()->getId());
+            $datarecord_names = $sort_service->getNamedDatarecordList($datatype->getId());
 
             // Build a query to grab all values in this datafield
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id, e.value AS value
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                WHERE dr.dataType = :datatype AND drf.dataField = :datafield
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-                ORDER BY dr.id'
-            )->setParameters( array('datatype' => $datatype->getId(), 'datafield' => $datafield_id) );
-            $results = $query->getArrayResult();
+            $query = null;
+            if ( !$is_child_datatype ) {
+                $query =
+                   'SELECT dr.id AS gdr_id, dr.id AS dr_id, e.value AS value
+                    FROM odr_data_record AS dr
+                    LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND drf.data_field_id = '.$datafield->getId().'
+                    LEFT JOIN '.$typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                    WHERE dr.data_type_id = '.$datatype->getId().'
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                    ORDER BY dr.id';
+            }
+            else {
+                $query =
+                   'SELECT dr.grandparent_id AS gdr_id, dr.id AS dr_id, e.value AS value
+                    FROM odr_data_record AS dr
+                    LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND drf.data_field_id = '.$datafield->getId().'
+                    LEFT JOIN '.$typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                    WHERE dr.data_type_id = '.$datatype->getId().'
+                    AND dr.id != dr.grandparent_id
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                    ORDER BY dr.grandparent_id';
+            }
+            $conn = $em->getConnection();
+            $results = $conn->executeQuery($query);
 
             $content = array();
             foreach ($results as $num => $result) {
+                $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
                 $value = $result['value'];
 
-                $dr_name = $dr_id;
-                if ( isset($datarecord_names[$dr_id]) )
-                    $dr_name = $datarecord_names[$dr_id];
+                $gdr_name = $gdr_id;
+                if ( isset($grandparent_datarecord_names[$gdr_id]) )
+                    $gdr_name = $grandparent_datarecord_names[$gdr_id];
 
-                $content[$dr_id] = array('dr_name' => $dr_name, 'value' => $value);
+                if ( !$is_child_datatype ) {
+                    $content[$gdr_id] = array('gdr_name' => $gdr_name, 'value' => $value);
+                }
+                else {
+                    $dr_name = $dr_id;
+                    if ( isset($datarecord_names[$dr_id]) )
+                        $dr_name = $datarecord_names[$dr_id];
+
+                    $content[$dr_id] = array('gdr_id' => $gdr_id, 'gdr_name' => $gdr_name, 'dr_name' => $dr_name, 'value' => $value);
+                }
             }
 
 
@@ -813,6 +851,7 @@ class ReportsController extends ODRCustomController
                         'datafield' => $datafield,
                         'datatype' => $datatype,
 
+                        'is_child_datatype' => $is_child_datatype,
                         'content' => $content,
                     )
                 )
