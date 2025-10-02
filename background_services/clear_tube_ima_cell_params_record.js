@@ -24,7 +24,7 @@ async function app() {
             client.reserve().onSuccess(async function(job) {
                 try {
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
-                        console.log('Deleted Job: ', job);
+                        console.log('Deleted Job: ', job.id);
                         resJob();
                     });
                 }
