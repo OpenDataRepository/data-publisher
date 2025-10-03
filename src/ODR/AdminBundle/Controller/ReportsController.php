@@ -1370,10 +1370,17 @@ class ReportsController extends ODRCustomController
 
             if ( $html !== '' ) {
                 // In most cases, there will be a single string...wrap it inside a div here
-                $html = '<div class="ODRDatarecordListHeader">'.$html.'</div>';
+                $html = $templating->render(
+                    'ODRAdminBundle:Reports:analyze_datafield_migration_normal_field.html.twig',
+                    array(
+                        'df' => $datafield,
+                        'html' => $html,
+                    )
+                );
             }
             else if ( !empty($strings) ) {
-                // If there's an array of strings, then render them
+                // If there's an array of strings, then render them...they also include the hydrdated
+                //  datafields already
                 $html = $templating->render(
                     'ODRAdminBundle:Reports:analyze_datafield_migration_template_fields.html.twig',
                     array(

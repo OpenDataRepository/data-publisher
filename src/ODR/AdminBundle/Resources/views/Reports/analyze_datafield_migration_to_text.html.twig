@@ -3,16 +3,28 @@
 {% for df_id,df_data in data %}
     {% if df_mapping[df_id] is defined %}
         {% set df = df_mapping[df_id] %}
+        {% set dt = df.getdatatype %}
+        {% set external_id_field = dt.getexternalidfield %}
+
         <div>
         {% if df.masterdatafield != null %}
-            Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ df.datatype.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': df.datatype.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
+            Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ dt.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': dt.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
             <br>
         {% endif %}
+
+        {% if external_id_field is not null and external_id_field.id == df.id %}
+            <div class="bold">This datafield is the external id field of the "{{ dt.getshortname }}" datatype.</div>
+        {% endif %}
+
         {% if df.getnamedatatypes|length > 0 %}
-            <div class="bold">This datafield is used to name the datatype's records.</div>
+            {% for dt in df.getnamedatatypes %}
+            <div class="bold">This datafield is used in naming records of the "{{ dt.getshortname }}" datatype.</div>
+            {% endfor %}
         {% endif %}
         {% if df.getsortdatatypes|length > 0 %}
-            <div class="bold">This datafield is used to sort the datatype's records.</div>
+            {% for dt in df.getsortdatatypes %}
+            <div class="bold">This datafield is used in sorting records of the "{{ dt.getshortname }}" datatype.</div>
+            {% endfor %}
         {% endif %}
         </div>
     {% endif %}

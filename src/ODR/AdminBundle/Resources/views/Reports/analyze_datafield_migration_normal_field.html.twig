@@ -1,16 +1,7 @@
 {% spaceless %}
-
-{% for df_id,data in strings %}
-    {% set df = data['df'] %}
-    {% set str = data['str'] %}
-
+<div>
     {% set dt = df.getdatatype %}
     {% set external_id_field = dt.getexternalidfield %}
-
-    <div>
-        Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ dt.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': dt.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
-        <br>
-
     {% if external_id_field is not null and external_id_field.id == df.id %}
         <div class="bold">This datafield is the external id field of the "{{ dt.getshortname }}" datatype.</div>
     {% endif %}
@@ -26,8 +17,6 @@
         {% endfor %}
     {% endif %}
 
-        <div class="ODRDatarecordListHeader">{{ str }}</div>
-    </div>
-{% endfor %}
-
+    <div class="ODRDatarecordListHeader">{{ html }}</div>
+</div>
 {% endspaceless %}
