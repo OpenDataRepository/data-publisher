@@ -12,6 +12,10 @@
             <br>
         {% endif %}
 
+        {% if df.getisunique %}
+            <div class="bold ODRInputError">This datafield is marked as unique, which prevents any change in fieldtype.</div>
+        {% endif %}
+
         {% if external_id_field is not null and external_id_field.id == df.id %}
             <div class="bold">This datafield is the external id field of the "{{ dt.getshortname }}" datatype.</div>
         {% endif %}
@@ -48,7 +52,7 @@
                     <tbody>
                         {% for dr_id,values in df_data %}
                         <tr>
-                            <td><a target="_blank" href="{{ baseurl }}{{ dr_id }}">{{ dr_id }}</a></td>
+                            <td><a target="_blank" href="{{ baseurl }}{{ values['gdr_id'] }}">{{ dr_id }}</a></td>
                             <td>{{ values['old_value'] }}</td>
                             <td>{{ values['new_value'] }}</td>
                         </tr>

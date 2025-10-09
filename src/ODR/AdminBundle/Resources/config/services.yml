@@ -403,6 +403,14 @@ services:
             $event_dispatcher: "@event_dispatcher"
             $logger: "@logger"
 
+    odr.fieldtype_migration_service:
+        class: ODR\AdminBundle\Component\Service\FieldtypeMigrationService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $event_dispatcher: "@event_dispatcher"
+            $logger: "@logger"
+
     # Defines a number of reusable classes to use inside Symfony forms
     odr.type.datafield_type:
         class: ODR\AdminBundle\Form\Type\DatafieldType

@@ -442,6 +442,13 @@ class EntityMetaModifyService
             $properties['xyz_data_multirange_search'] = false;
         }
 
+        // This property only makes sense for text fields
+        if ( !($relevant_typeclass === 'ShortVarchar' || $relevant_typeclass === 'MediumVarchar'
+            || $relevant_typeclass === 'LongVarchar' || $relevant_typeclass === 'LongText')
+        ) {
+            $properties['force_numeric_sort'] = false;
+        }
+
 
         // ----------------------------------------
         // Determine whether any changes need to be made

@@ -450,6 +450,7 @@ class PluginsController extends ODRCustomController
             'is_derived',
             'is_optional',
         );
+        // NOTE: ensure DatafieldInfoService::getRenderPluginProperties() knows about these
 
         // Some additional validation is needed when the plugin has a derived field
         $has_derived_field = false;

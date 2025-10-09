@@ -22,15 +22,16 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\FieldtypeMigrationService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
@@ -1609,82 +1610,50 @@ class ReportsController extends ODRCustomController
      */
     private function DatafieldMigrations_ConvertToShorterText($em, $templating, $datafield, $new_fieldtype)
     {
-        $is_master_field = $datafield->getIsMasterField();
-        $conn = $em->getConnection();
-
-        // This only gets called when coming from text fields
-        $mapping = array(
-            'ShortVarchar' => 'odr_short_varchar',
-            'MediumVarchar' => 'odr_medium_varchar',
-            'LongVarchar' => 'odr_long_varchar',
-            'LongText' => 'odr_long_text',
-        );
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         $datafield_id = $datafield->getId();
-        $old_typeclass = $datafield->getFieldType()->getTypeClass();
-
-        $new_length = 0;
-        $new_typeclass = $new_fieldtype->getTypeClass();
-        if ( $new_typeclass == 'ShortVarchar' )
-            $new_length = 32;
-        else if ( $new_typeclass == 'MediumVarchar' )
-            $new_length = 64;
-        else if ( $new_typeclass == 'LongVarchar' )
-            $new_length = 255;
-
-
-        // ----------------------------------------
-        // This report exists to help users (mostly me) figure out what's going to happen if a field
-        //  gets migrated.  To do that, need an array of the current string data...
-        $query =
-           'SELECT df.id AS df_id, gdr.id AS dr_id, e.value AS old_value, SUBSTR(e.value, 1, '.$new_length.') AS new_value
-            FROM odr_data_record AS gdr
-            JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN odr_data_fields df ON drf.data_field_id = df.id
-            JOIN '.$mapping[$old_typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE ';
-        if ( !$is_master_field )
-            $query .= 'df.id = '.$datafield_id;
-        else
-            $query .= 'df.master_datafield_id = '.$datafield_id;
-        $query .= '
-            AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-            AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-            AND df.deletedAt IS NULL';
-        $results = $conn->executeQuery($query);
-
-        $data = array();
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
-            $old_value = $result['old_value'];
-            $new_value = $result['new_value'];
-
-            if ( !isset($data[$df_id]) )
-                $data[$df_id] = array();
-            $data[$df_id][$dr_id] = array('old_value' => $old_value, 'new_value' => $new_value);
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
         }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
 
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+        /** @var DataFields[] $df_mapping */
 
-        // ----------------------------------------
-        // No sense displaying results that haven't visually changed
+        // Get a report for each datafield that is getting migrated
         $original_lengths = array();
-        foreach ($data as $df_id => $df_data) {
-            $original_lengths[$df_id] = count($df_data);
-            foreach ($df_data as $dr_id => $dr_data) {
-                if ( trim($dr_data['old_value']) == trim($dr_data['new_value']) )
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnShorterTextConvert($df, $new_fieldtype->getTypeClass(), true);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( $values['old_value'] === $values['new_value'])
                     unset( $data[$df_id][$dr_id] );
             }
         }
 
-        /** @var DataFields[] $df_mapping */
-        $df_mapping = array();
-        foreach ($data as $df_id => $df_data) {
-            $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-            $df_mapping[$df_id] = $df;
-        }
-
+        // ----------------------------------------
         // Render and return a list of the records that would be changed
         $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
@@ -1714,106 +1683,50 @@ class ReportsController extends ODRCustomController
      */
     private function DatafieldMigrations_ConvertToInteger($em, $templating, $datafield, $new_fieldtype)
     {
-        $is_master_field = $datafield->getIsMasterField();
-        $conn = $em->getConnection();
-
-        // This only gets called when coming from text or decimal fields
-        $mapping = array(
-            'DecimalValue' => 'odr_decimal_value',
-            'ShortVarchar' => 'odr_short_varchar',
-            'MediumVarchar' => 'odr_medium_varchar',
-            'LongVarchar' => 'odr_long_varchar',
-            'LongText' => 'odr_long_text',
-        );
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         $datafield_id = $datafield->getId();
-        $old_typeclass = $datafield->getFieldType()->getTypeClass();
-
-        // ----------------------------------------
-        // This report exists to help users (mostly me) figure out what's going to happen if a field
-        //  gets migrated.  To do that, need an array of the current string data...
-        $query =
-           'SELECT df.id AS df_id, gdr.id AS dr_id, e.value AS value
-            FROM odr_data_record AS gdr
-            JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN odr_data_fields df ON drf.data_field_id = df.id
-            JOIN '.$mapping[$old_typeclass].' AS e ON  e.data_record_fields_id = drf.id
-            WHERE ';
-        if ( !$is_master_field )
-            $query .= 'df.id = '.$datafield_id;
-        else
-            $query .= 'df.master_datafield_id = '.$datafield_id;
-        $query .= '
-            AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-            AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-            AND df.deletedAt IS NULL';
-        $results = $conn->executeQuery($query);
-
-        $data = array();
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
-            $old_value = $result['value'];
-
-            if ( !isset($data[$df_id]) )
-                $data[$df_id] = array();
-            $data[$df_id][$dr_id] = array('old_value' => $old_value, 'new_value' => '', 'pass' => '');
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
         }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
 
-        // Going to use CAST() repeatedly to get other data...
-        // IMPORTANT: changes made here must also be transferred to WorkerController::migrateAction()
-        $query =
-           'SELECT df.id AS df_id, gdr.id AS dr_id, e.value AS old_value, CAST(e.value AS SIGNED) AS new_value
-            FROM odr_data_record AS gdr
-            JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN odr_data_fields df ON drf.data_field_id = df.id
-            JOIN '.$mapping[$old_typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE ';
-        if ( !$is_master_field )
-            $query .= 'df.id = '.$datafield_id;
-        else
-            $query .= 'df.master_datafield_id = '.$datafield_id;
-        $query .= '
-            AND REGEXP_LIKE(e.value, "'.ValidUtility::INTEGER_MIGRATE_REGEX.'")
-            AND CAST(e.value AS DOUBLE) BETWEEN -2147483648 AND 2147483647
-            AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-            AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-            AND df.deletedAt IS NULL';
-        // Need to double-escape the backslashes for mysql
-        $query = str_replace("\\", "\\\\", $query);
-        $results = $conn->executeQuery($query);
-
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
-            $old_value = $result['old_value'];
-            $new_value = $result['new_value'];
-
-            $data[$df_id][$dr_id]['new_value'] = $new_value;
-            $data[$df_id][$dr_id]['pass'] = 1;
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
         }
+        /** @var DataFields[] $df_mapping */
 
-
-        // ----------------------------------------
-        // No sense displaying results that haven't visually changed
+        // Get a report for each datafield that is getting migrated
         $original_lengths = array();
-        foreach ($data as $df_id => $df_data) {
-            $original_lengths[$df_id] = count($df_data);
-            foreach ($df_data as $dr_id => $dr_data) {
-                if ( trim($dr_data['old_value']) == trim($dr_data['new_value']) )
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnIntegerConvert($df, true);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( $values['old_value'] === $values['new_value'])
                     unset( $data[$df_id][$dr_id] );
             }
         }
 
-        /** @var DataFields[] $df_mapping */
-        $df_mapping = array();
-        foreach ($data as $df_id => $df_data) {
-            $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-            $df_mapping[$df_id] = $df;
-        }
-
+        // ----------------------------------------
         // Render and return a list of the records that would be changed
         $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
@@ -1843,148 +1756,50 @@ class ReportsController extends ODRCustomController
      */
     private function DatafieldMigrations_ConvertToDecimal($em, $templating, $datafield, $new_fieldtype)
     {
-        $is_master_field = $datafield->getIsMasterField();
-        $conn = $em->getConnection();
-
-        // This only gets called when coming from text fields
-        $mapping = array(
-            'ShortVarchar' => 'odr_short_varchar',
-            'MediumVarchar' => 'odr_medium_varchar',
-            'LongVarchar' => 'odr_long_varchar',
-            'LongText' => 'odr_long_text',
-        );
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         $datafield_id = $datafield->getId();
-        $old_typeclass = $datafield->getFieldType()->getTypeClass();
-
-        // ----------------------------------------
-        // Back when ODR was first designed, it used a beanstalkd queue to end up processing each
-        //  individual value...in March 2022 (04b13dd), the migration got changed to attempt to
-        //  use INSERT INTO...SELECT statements to greatly speed things up.
-
-        // This worked until the need to convert values with tolerances...such as "5.260(2)"...
-        //  into decimals.  The INSERT INTO...SELECT statements use mysql's CAST() function, which
-        //  throws warnings on values which aren't numeric...and the warnings get automatically
-        //  "upgraded" into errors, which kills the entire migration immediately.
-
-        // So, this report exists to help users (mostly me) figure out what's going to happen
-        //  if a field gets migrated.  To do that, need an array of the current string data...
-        $query =
-           'SELECT df.id AS df_id, gdr.id AS dr_id, e.value AS value
-            FROM odr_data_record AS gdr
-            JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN odr_data_fields df ON drf.data_field_id = df.id
-            JOIN '.$mapping[$old_typeclass].' AS e ON  e.data_record_fields_id = drf.id
-            WHERE ';
-        if ( !$is_master_field )
-            $query .= 'df.id = '.$datafield_id;
-        else
-            $query .= 'df.master_datafield_id = '.$datafield_id;
-        $query .= '
-            AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-            AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-            AND df.deletedAt IS NULL';
-        $results = $conn->executeQuery($query);
-
-        $data = array();
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
-            $old_value = $result['value'];
-
-            if ( !isset($data[$df_id]) )
-                $data[$df_id] = array();
-            if ( !isset($data[$df_id][$dr_id]) )
-                $data[$df_id][$dr_id] = array('old_value' => $old_value, 'new_value' => '', 'pass' => '');
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
         }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
 
-        // Going to use CAST() repeatedly to get other data...
-        // IMPORTANT: changes made here must also be transferred to WorkerController::migrateAction()
-        $query =
-           'SELECT df.id AS df_id, gdr.id AS dr_id, e.value AS old_value, CAST(SUBSTR(e.value, 1, 255) AS DOUBLE) AS new_value
-            FROM odr_data_record AS gdr
-            JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN odr_data_fields df ON drf.data_field_id = df.id
-            JOIN '.$mapping[$old_typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE ';
-        if ( !$is_master_field )
-            $query .= 'df.id = '.$datafield_id;
-        else
-            $query .= 'df.master_datafield_id = '.$datafield_id;
-        $query .= '
-            AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_A.'")
-            AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-            AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-            AND df.deletedAt IS NULL';
-        // Need to double-escape the backslashes for mysql
-        $query = str_replace("\\", "\\\\", $query);
-        $results = $conn->executeQuery($query);
-
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
-            $old_value = $result['old_value'];
-            $new_value = $result['new_value'];
-
-            $data[$df_id][$dr_id]['new_value'] = $new_value;
-            $data[$df_id][$dr_id]['pass'] = 1;
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
         }
+        /** @var DataFields[] $df_mapping */
 
-        // IMPORTANT: changes made here must also be transferred to WorkerController::migrateAction()
-        $query =
-           'SELECT df.id AS df_id, gdr.id AS dr_id, e.value AS old_value, CAST(SUBSTR(e.value, 1, LOCATE("(",e.value)-1) AS DOUBLE) AS new_value
-            FROM odr_data_record AS gdr
-            JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN odr_data_fields df ON drf.data_field_id = df.id
-            JOIN '.$mapping[$old_typeclass].' AS e ON  e.data_record_fields_id = drf.id
-            WHERE ';
-        if ( !$is_master_field )
-            $query .= 'df.id = '.$datafield_id;
-        else
-            $query .= 'df.master_datafield_id = '.$datafield_id;
-        $query .= ' 
-            AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_B.'")
-            AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-            AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-        // Need to double-escape the backslashes for mysql
-        $query = str_replace("\\", "\\\\", $query);
-        $results = $conn->executeQuery($query);
-
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
-            $old_value = $result['old_value'];
-            $new_value = $result['new_value'];
-
-            if ( $data[$dr_id]['new_value'] !== '' )
-                continue;
-
-            $data[$df_id][$dr_id]['new_value'] = $new_value;
-            $data[$df_id][$dr_id]['pass'] = 2;
-        }
-
-
-        // ----------------------------------------
-        // No sense displaying results that haven't visually changed
+        // Get a report for each datafield that is getting migrated
         $original_lengths = array();
-        foreach ($data as $df_id => $df_data) {
-            $original_lengths[$df_id] = count($df_data);
-            foreach ($df_data as $dr_id => $dr_data) {
-                if ( trim($dr_data['old_value']) == trim($dr_data['new_value']) )
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnDecimalConvert($df, true);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( $values['old_value'] === $values['new_value'])
                     unset( $data[$df_id][$dr_id] );
             }
         }
 
-        /** @var DataFields[] $df_mapping */
-        $df_mapping = array();
-        foreach ($data as $df_id => $df_data) {
-            $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-            $df_mapping[$df_id] = $df;
-        }
-
+        // ----------------------------------------
         // Render and return a list of the records that would be changed
         $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
@@ -2013,70 +1828,50 @@ class ReportsController extends ODRCustomController
      */
     private function DatafieldMigration_ConvertToSingleRadio($em, $templating, $datafield)
     {
-        $is_master_field = $datafield->getIsMasterField();
-        $conn = $em->getConnection();
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         $datafield_id = $datafield->getId();
-        $old_typeclass = $datafield->getFieldType()->getTypeClass();
-
-
-        // ----------------------------------------
-        // This report exists to help users (mostly me) figure out what's going to happen if a field
-        //  gets migrated.  To do that, need an array of the current string data...
-        $query =
-           'SELECT df.id AS df_id, gdr.id AS dr_id, ro.id AS ro_id, rs.selected
-            FROM odr_data_record AS gdr
-            JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN odr_data_fields df ON drf.data_field_id = df.id
-            JOIN odr_radio_selection AS rs ON rs.data_record_fields_id = drf.id
-            JOIN odr_radio_options AS ro ON rs.radio_option_id = ro.id
-            WHERE ';
-        if ( !$is_master_field )
-            $query .= 'df.id = '.$datafield_id;
-        else
-            $query .= 'df.master_datafield_id = '.$datafield_id;
-        $query .= '
-            AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-            AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL
-            AND df.deletedAt IS NULL';
-        $results = $conn->executeQuery($query);
-
-        $data = array();
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
-            $ro_id = $result['ro_id'];
-            $selected = $result['selected'];
-
-            if ( !isset($data[$df_id]) )
-                $data[$df_id] = array();
-            if ( !isset($data[$df_id][$dr_id]) )    // NOTE: need this to determine original counts
-                $data[$df_id][$dr_id] = array();
-
-            if ( $selected == 1 )
-                $data[$df_id][$dr_id][$ro_id] = 1;
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
         }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
 
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+        /** @var DataFields[] $df_mapping */
 
-        // ----------------------------------------
-        // No sense displaying results that haven't visually changed
+        // Get a report for each datafield that is getting migrated
         $original_lengths = array();
-        foreach ($data as $df_id => $df_data) {
-            $original_lengths[$df_id] = count($df_data);
-            foreach ($df_data as $dr_id => $ro_list) {
-                if ( count($ro_list) < 2 )
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnSingleRadioConvert($df);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( count($values['ro_list']) < 2 )
                     unset( $data[$df_id][$dr_id] );
             }
         }
 
-        /** @var DataFields[] $df_mapping */
-        $df_mapping = array();
-        foreach ($data as $df_id => $df_data) {
-            $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-            $df_mapping[$df_id] = $df;
-        }
-
+        // ----------------------------------------
         // Render and return a list of the records that would be changed
         $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 

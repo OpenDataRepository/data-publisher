@@ -11,6 +11,10 @@
         Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ dt.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': dt.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
         <br>
 
+    {% if df.getisunique %}
+        <div class="bold ODRInputError">This datafield is marked as unique, which prevents any change in fieldtype.</div>
+    {% endif %}
+
     {% if external_id_field is not null and external_id_field.id == df.id %}
         <div class="bold">This datafield is the external id field of the "{{ dt.getshortname }}" datatype.</div>
     {% endif %}
