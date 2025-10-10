@@ -57,9 +57,9 @@ odr_plugins.base.references:
             name: Publisher Location
             description: Where the publisher of this book is located.
             type: LongVarchar
-        annotation:
-            name: Annotation
-            description: ?
+        keywords:
+            name: Keywords
+            description: Keywords related to the reference, for searching purposes.
             type: LongVarchar
         pages:
             name: Pages
