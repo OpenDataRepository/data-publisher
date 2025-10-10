@@ -31,19 +31,27 @@ odr_plugins.base.file_renamer:
             description: The character sequence to place between the values.
             display_order: 0
 
-        period_substitute:
-            name: Period Substitute
-            type: string
-            default: "-"
-            description: A character sequence to replace any period characters with.
-            display_order: 1
-
         file_extension:
             name: File Extension
             type: string
             default: "auto"
             description: If "auto", then the uploaded file's extension is not changed.  Must not be blank or end with a period.
+            display_order: 1
+
+        period_substitute:
+            name: Period Substitute
+            type: string
+            default: "-"
+            description: A character sequence to replace any period characters with.
             display_order: 2
+
+        remove_spaces:
+            name: Remove Spaces?
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: If "yes", then any spaces in the filename will be removed.
+            display_order: 3
 
         append_file_uuid:
             name: Append File UUID?
@@ -51,7 +59,7 @@ odr_plugins.base.file_renamer:
             default: yes
             choices: no||No,yes||Yes
             description: If "yes", then the file's UUID will be appended to the filename.
-            display_order: 3
+            display_order: 4
 
         delete_invalid_characters:
             name: Delete Invalid Characters?
@@ -59,7 +67,7 @@ odr_plugins.base.file_renamer:
             default: yes
             choices: no||No,yes||Yes
             description: If "no", then the plugin refuse to rename a file when the filename contains "invalid" characters, such as "/", "?", "*", ">", etc.
-            display_order: 4
+            display_order: 5
 
         fire_on_pre_encrypt:
             name: Fire onPreEncrypt?
@@ -67,7 +75,7 @@ odr_plugins.base.file_renamer:
             default: yes
             choices: no||No,yes||Yes
             description: Set to "No" when the filename depends on a field that also requires a preEncrypt event.
-            display_order: 5
+            display_order: 6
 
 
         # Because the plugin needs to access an uknown number of datafields that might also be in

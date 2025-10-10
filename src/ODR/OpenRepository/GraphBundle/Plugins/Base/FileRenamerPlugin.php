@@ -379,12 +379,15 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     $separator = '__';
                     if ( isset($rpi['renderPluginOptionsMap']['separator']) )
                         $separator = trim($rpi['renderPluginOptionsMap']['separator']);
-                    $period_substitute = '-';
-                    if ( isset($rpi['renderPluginOptionsMap']['period_substitute']) )
-                        $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
                     $file_extension = 'auto';
                     if ( isset($rpi['renderPluginOptionsMap']['file_extension']) )
                         $file_extension = trim($rpi['renderPluginOptionsMap']['file_extension']);
+                    $period_substitute = '-';
+                    if ( isset($rpi['renderPluginOptionsMap']['period_substitute']) )
+                        $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
+                    $remove_spaces = 'yes';
+                    if ( isset($rpi['renderPluginOptionsMap']['remove_spaces']) )
+                        $remove_spaces = trim($rpi['renderPluginOptionsMap']['remove_spaces']);
                     $append_file_uuid = 'yes';
                     if ( isset($rpi['renderPluginOptionsMap']['append_file_uuid']) )
                         $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
@@ -424,8 +427,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                         'field_list' => $field_list,
                         'alt_field_list' => $alt_field_list,
                         'separator' => $separator,
-                        'period_substitute' => $period_substitute,
                         'file_extension' => $file_extension,
+                        'period_substitute' => $period_substitute,
+                        'remove_spaces' => $remove_spaces,
                         'append_file_uuid' => $append_file_uuid,
                         'delete_invalid_characters' => $delete_invalid_characters,
                     );
@@ -1171,6 +1175,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         $base_filename = implode($separator, $values);
         // ...and then replacing any period characters with the substitute sequence
         $base_filename = str_replace(".", $config_info['period_substitute'], $base_filename);
+
+        if ( $config_info['remove_spaces'] === 'yes' )
+            $base_filename = str_replace(" ", "", $base_filename);
 
         // ----------------------------------------
         // NOTE: this is mostly a duplicate of code in EntityMetaModifyService::updateFileMeta()
