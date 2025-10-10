@@ -2254,7 +2254,7 @@ class SearchKeyService
         $readable_search_key = array();
         foreach ($search_params as $key => $value) {
             // Ignore these keys
-            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' || $key === 'ignore' )
+            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' || $key === 'ignore' || $key === 'merge' )
                 continue;
 
             if ( $key === 'gen' || $key === 'gen_lim' ) {

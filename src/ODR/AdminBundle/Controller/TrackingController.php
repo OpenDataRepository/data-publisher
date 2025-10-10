@@ -89,6 +89,8 @@ class TrackingController extends ODRCustomController
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $permissions_service */
@@ -135,14 +137,14 @@ class TrackingController extends ODRCustomController
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
-            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // do want links
 
             $datafield_ids = array();
             foreach ($dt_array as $dt_id => $dt_data) {
                 foreach ($dt_data['dataFields'] as $df_id => $df_data) {
                     // No sense having markdown fields in this
                     if ( $df_data['dataFieldMeta']['fieldType']['typeClass'] !== 'Markdown' ) {
-                        if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['edit']) )
+                        if ( isset($datafield_permissions[$df_id]['edit']) )
                             $datafield_ids[] = $df_id;
                     }
                 }
@@ -151,10 +153,18 @@ class TrackingController extends ODRCustomController
 
             // Display this datarecord's grandparent datatype on the page
             $target_datatype_id = $grandparent_datatype->getId();
-            $target_datatype_name = $grandparent_datatype->getLongName();
+            // All linked descendants of this grandparent datatype start out selected, so need
+            //  their names
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+            $target_datatype_names = array();
+            foreach ($dt_array as $dt_id => $dt) {
+                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] === '' )
+                    $target_datatype_names[] = $dt['dataTypeMeta']['longName'];
+            }
+
 
             // Also need to display this datarecord's name on the page...
-            $dr_array = $datarecord_info_service->getDatarecordArray($grandparent_datarecord->getId(), false);    // don't want links
+            $dr_array = $datarecord_info_service->getDatarecordArray($grandparent_datarecord->getId());    // do want links
             $datarecord_name = $dr_array[$grandparent_datarecord->getId()]['nameField_value'];
 
             // Generate the HTML required for a header
@@ -162,8 +172,9 @@ class TrackingController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
                     array(
+                        'grandparent_datatype_name' => $grandparent_datatype->getLongName(),
                         'target_datatype_id' => $target_datatype_id,
-                        'target_datatype_name' => $target_datatype_name,
+                        'target_datatype_names' => $target_datatype_names,
                         'target_datafield_ids' => $datafield_ids,
 
                         'target_datarecord_id' => $grandparent_datarecord->getId(),
@@ -283,21 +294,16 @@ class TrackingController extends ODRCustomController
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
-            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), true);    // need to have linked datatypes
-            $datatree_array = $datatree_info_service->getDatatreeArray();
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // need to have linked datatypes
 
             $datafield_ids = array();
             foreach ($dt_array as $dt_id => $dt_data) {
                 foreach ($dt_data['dataFields'] as $df_id => $df_data) {
                     // No sense having markdown fields in this
                     if ( $df_data['dataFieldMeta']['fieldType']['typeClass'] !== 'Markdown' ) {
-                        if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['edit']) ) {
-                            // For the purposes of tracking changes, only want the datafields that
-                            //  belong to the grandparent datatype and its children, and that the
-                            //  user can edit
-                            $gdt_id = $datatree_info_service->getGrandparentDatatypeId($dt_id, $datatree_array);
-                            if ( $grandparent_datatype->getId() === $gdt_id )
-                                $datafield_ids[] = $df_id;
+                        if ( isset($datafield_permissions[$df_id]['edit']) ) {
+                            // Only want the datafields that the user can edit
+                            $datafield_ids[] = $df_id;
                         }
                     }
                 }
@@ -306,7 +312,14 @@ class TrackingController extends ODRCustomController
 
             // Display this datarecord's grandparent datatype on the page
             $target_datatype_id = $grandparent_datatype->getId();
-            $target_datatype_name = $grandparent_datatype->getLongName();
+            // All linked descendants of this grandparent datatype start out selected, so need
+            //  their names
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+            $target_datatype_names = array();
+            foreach ($dt_array as $dt_id => $dt) {
+                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] === '' )
+                    $target_datatype_names[] = $dt['dataTypeMeta']['longName'];
+            }
 
 
             // Display a more human-readable version of the search key on the page
@@ -320,8 +333,9 @@ class TrackingController extends ODRCustomController
                         'search_key' => $search_key,
                         'readable_search_key' => $readable_search_key,
 
+                        'grandparent_datatype_name' => $grandparent_datatype->getLongName(),
                         'target_datatype_id' => $target_datatype_id,
-                        'target_datatype_name' => $target_datatype_name,
+                        'target_datatype_names' => $target_datatype_names,
                         'target_datafield_ids' => $datafield_ids,
 
                         'datatype_id_restriction' => $grandparent_datatype->getId(),
@@ -371,6 +385,8 @@ class TrackingController extends ODRCustomController
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
@@ -408,14 +424,14 @@ class TrackingController extends ODRCustomController
 
             // Default to displaying results from all datafields in this datatype that the user
             //  can edit
-            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // do want links
 
             $datafield_ids = array();
             foreach ($dt_array as $dt_id => $dt_data) {
                 foreach ($dt_data['dataFields'] as $df_id => $df_data) {
                     // No sense having markdown fields in this
                     if ( $df_data['dataFieldMeta']['fieldType']['typeClass'] !== 'Markdown' ) {
-                        if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['edit']) )
+                        if ( isset($datafield_permissions[$df_id]['edit']) )
                             $datafield_ids[] = $df_id;
                     }
                 }
@@ -424,7 +440,14 @@ class TrackingController extends ODRCustomController
 
             // Display this datarecord's grandparent datatype on the page
             $target_datatype_id = $grandparent_datatype->getId();
-            $target_datatype_name = $grandparent_datatype->getLongName();
+            // All linked descendants of this grandparent datatype start out selected, so need
+            //  their names
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+            $target_datatype_names = array();
+            foreach ($dt_array as $dt_id => $dt) {
+                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] === '' )
+                    $target_datatype_names[] = $dt['dataTypeMeta']['longName'];
+            }
 
 
             // Generate the HTML required for a header
@@ -432,9 +455,12 @@ class TrackingController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
                     array(
+                        'grandparent_datatype_name' => $grandparent_datatype->getLongName(),
                         'target_datatype_id' => $target_datatype_id,
-                        'target_datatype_name' => $target_datatype_name,
+                        'target_datatype_names' => $target_datatype_names,
                         'target_datafield_ids' => $datafield_ids,
+
+                        'datatype_id_restriction' => $grandparent_datatype->getId(),
 
                         'month_ago' => $month_ago->format("Y-m-d"),
                         'week_ago' => $week_ago->format("Y-m-d"),
@@ -529,7 +555,7 @@ class TrackingController extends ODRCustomController
                 $found = false;
                 foreach ($results as $result) {
                     $dt_id = $result['dt_id'];
-                    if (isset($valid_datatype_ids[$dt_id])) {
+                    if ( isset($valid_datatype_ids[$dt_id]) ) {
                         $found = true;
                         break;
                     }
@@ -555,6 +581,8 @@ class TrackingController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
                     array(
+                        // Intentionally not providing any default target datatype/datafield info
+
                         'target_user_id' => $target_user->getId(),
                         'target_user_name' => $target_user->getUserString(),
 
@@ -2536,9 +2564,9 @@ class TrackingController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Only going to load fields belonging to the provided datatype
-                $dt_array = $database_info_service->getDatatypeArray($datatype_restriction->getGrandparent()->getId(), false);    // don't want links
+                $dt_array = $database_info_service->getDatatypeArray($datatype_restriction->getGrandparent()->getId());    // do want links
                 foreach ($dt_array as $dt_id => $dt_data) {
-                    if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_edit']) ) {
+                    if ( isset($datatype_permissions[$dt_id]['dr_edit']) ) {
                         $editable_datatypes[] = $dt_id;
                     }
                 }
@@ -2580,7 +2608,7 @@ class TrackingController extends ODRCustomController
                     continue;
 
                 // Only save datafields that the user can edit
-                if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['edit']) ) {
+                if ( isset($datafield_permissions[$df_id]['edit']) ) {
                     if ( !isset($list[$top_level_dt_name]) )
                         $list[$top_level_dt_name] = array();
                     if ( !isset($list[$top_level_dt_name][$dt_name]) )
