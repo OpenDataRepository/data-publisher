@@ -390,7 +390,7 @@ class SearchAPIService
                             // User can both view and search this datafield
                             $filtered_search_params[$key][$sort_num] = array(
                                 'sort_df_id' => $sort_criteria['sort_df_id'],
-                                'sort_dif' => $sort_criteria['sort_dir'],
+                                'sort_dir' => $sort_criteria['sort_dir'],
                             );
                             break;
                         }
