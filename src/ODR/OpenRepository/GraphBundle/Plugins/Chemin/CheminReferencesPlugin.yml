@@ -57,9 +57,9 @@ odr_plugins.chemin.chemin_references:
             name: Publisher Location
             description: Where the publisher of this book is located.
             type: LongVarchar
-#        annotation:
-#            name: Annotation
-#            description: ...forget what this was meant to be
+#        keywords:
+#            name: Keywords
+#            description: Keywords related to the reference, for searching purposes.
 #            type: LongVarchar
         pages:
             name: Pages

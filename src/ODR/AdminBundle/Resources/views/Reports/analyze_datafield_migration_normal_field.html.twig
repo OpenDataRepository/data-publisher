@@ -1,0 +1,27 @@
+{% spaceless %}
+<div>
+    {% set dt = df.getdatatype %}
+
+    {% if df.getisunique %}
+        <div class="bold ODRInputError">This datafield is marked as unique, which prevents any change in fieldtype.</div>
+    {% endif %}
+
+    {% set external_id_field = dt.getexternalidfield %}
+    {% if external_id_field is not null and external_id_field.id == df.id %}
+        <div class="bold">This datafield is the external id field of the "{{ dt.getshortname }}" datatype.</div>
+    {% endif %}
+
+    {% if df.getnamedatatypes|length > 0 %}
+        {% for dt in df.getnamedatatypes %}
+        <div class="bold">This datafield is used in naming records of the "{{ dt.getshortname }}" datatype.</div>
+        {% endfor %}
+    {% endif %}
+    {% if df.getsortdatatypes|length > 0 %}
+        {% for dt in df.getsortdatatypes %}
+        <div class="bold">This datafield is used in sorting records of the "{{ dt.getshortname }}" datatype.</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="ODRDatarecordListHeader">{{ html }}</div>
+</div>
+{% endspaceless %}

@@ -185,8 +185,15 @@ parameters:
     # Determine if advanced search is shown on default results page
     use_advanced_search: true
 
-    # Default search results limit
+    # Default page length for search results...datatables.js uses 10/25/50/100 by default
     default_search_results_limit: 100
+
+    # Need to have a limit on the length of search keys that ODR will create, otherwise it'll run
+    #  afoul of Apache's LimitRequestLine directive...the default of 4096 characters means this
+    #  parameter should be at most something like 4000, and likely even less than this
+    # This should also not be too low, otherwise ODR will freak out because the shorter search keys
+    #  it creates to attempt to sidestep "oversized" search keys will still be too long
+    search_key_char_limit: 4000
 
     # Use search overlay
     use_search_overlay: true

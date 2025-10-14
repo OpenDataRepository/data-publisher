@@ -16,12 +16,11 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -29,8 +28,10 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\FieldtypeMigrationService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
@@ -776,32 +777,70 @@ class ReportsController extends ODRCustomController
                     break;
             }
 
+            $typeclass_map = array(
+                'ShortVarchar' => 'odr_short_varchar',
+                'MediumVarchar' => 'odr_medium_varchar',
+                'LongVarchar' => 'odr_long_varchar',
+                'LongText' => 'odr_long_text',
+                'IntegerValue' => 'odr_integer_value',
+                'DecimalValue' => 'odr_decimal_value',
+            );
+
+            // Fields in child datatypes need a different table layout
+            $is_child_datatype = false;
+            if ( $datatype->getId() != $datatype->getGrandparent()->getId() )
+                $is_child_datatype = true;
 
             // Get the namefield_value for each datarecord of the given datafield's datatype
-            $datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getId());
+            $grandparent_datarecord_names = $sort_service->getNamedDatarecordList($datatype->getGrandparent()->getId());
+            $datarecord_names = $sort_service->getNamedDatarecordList($datatype->getId());
 
             // Build a query to grab all values in this datafield
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id, e.value AS value
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                WHERE dr.dataType = :datatype AND drf.dataField = :datafield
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-                ORDER BY dr.id'
-            )->setParameters( array('datatype' => $datatype->getId(), 'datafield' => $datafield_id) );
-            $results = $query->getArrayResult();
+            $query = null;
+            if ( !$is_child_datatype ) {
+                $query =
+                   'SELECT dr.id AS gdr_id, dr.id AS dr_id, e.value AS value
+                    FROM odr_data_record AS dr
+                    LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND drf.data_field_id = '.$datafield->getId().'
+                    LEFT JOIN '.$typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                    WHERE dr.data_type_id = '.$datatype->getId().'
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                    ORDER BY dr.id';
+            }
+            else {
+                $query =
+                   'SELECT dr.grandparent_id AS gdr_id, dr.id AS dr_id, e.value AS value
+                    FROM odr_data_record AS dr
+                    LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND drf.data_field_id = '.$datafield->getId().'
+                    LEFT JOIN '.$typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                    WHERE dr.data_type_id = '.$datatype->getId().'
+                    AND dr.id != dr.grandparent_id
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                    ORDER BY dr.grandparent_id';
+            }
+            $conn = $em->getConnection();
+            $results = $conn->executeQuery($query);
 
             $content = array();
             foreach ($results as $num => $result) {
+                $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
                 $value = $result['value'];
 
-                $dr_name = $dr_id;
-                if ( isset($datarecord_names[$dr_id]) )
-                    $dr_name = $datarecord_names[$dr_id];
+                $gdr_name = $gdr_id;
+                if ( isset($grandparent_datarecord_names[$gdr_id]) )
+                    $gdr_name = $grandparent_datarecord_names[$gdr_id];
 
-                $content[$dr_id] = array('dr_name' => $dr_name, 'value' => $value);
+                if ( !$is_child_datatype ) {
+                    $content[$gdr_id] = array('gdr_name' => $gdr_name, 'value' => $value);
+                }
+                else {
+                    $dr_name = $dr_id;
+                    if ( isset($datarecord_names[$dr_id]) )
+                        $dr_name = $datarecord_names[$dr_id];
+
+                    $content[$dr_id] = array('gdr_id' => $gdr_id, 'gdr_name' => $gdr_name, 'dr_name' => $dr_name, 'value' => $value);
+                }
             }
 
 
@@ -813,6 +852,7 @@ class ReportsController extends ODRCustomController
                         'datafield' => $datafield,
                         'datatype' => $datatype,
 
+                        'is_child_datatype' => $is_child_datatype,
                         'content' => $content,
                     )
                 )
@@ -959,15 +999,15 @@ class ReportsController extends ODRCustomController
 
 
     /**
-     * Returns a list of all values in the given field and what mysql will attempt to convert said
-     * values into, if a migration to the DecimalValue fieldtype is triggered.
+     * Sets up the minimum required to start a report of what would happen if a datafield got migrated
+     * to a different fieldtype
      *
      * @param integer $datafield_id
      * @param Request $request
      *
      * @return Response
      */
-    public function analyzedecimalmigrationAction($datafield_id, Request $request)
+    public function analyzedatafieldmigrationstartAction($datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -978,18 +1018,20 @@ class ReportsController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $conn = $em->getConnection();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
+            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $repo_datafields->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
+            $current_typeclass = $datafield->getFieldType()->getTypeClass();
+            $current_typename = $datafield->getFieldType()->getTypeName();
 
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
@@ -1006,136 +1048,98 @@ class ReportsController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            /** @var FieldType[] $fieldtypes */
+            $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
 
-            // ----------------------------------------
-            // Only run this on valid fieldtypes...
-            $typename = $datafield->getFieldType()->getTypeName();
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ( $typename === 'Decimal' )
-                throw new ODRBadRequestException('This is already a Decimal field');
+            /** @var string[] $fieldtype_list */
+            $fieldtype_list = array();
+            foreach ($fieldtypes as $fieldtype)
+                $fieldtype_list[$fieldtype->getId()] = $fieldtype->getTypeName();
 
-            switch ($typename) {
-                case 'Integer':
-                case 'Short Text':
-                case 'Medium Text':
-                case 'Long Text':
-                case 'Paragraph Text':
-                    /* do nothing */
-                    break;
 
-                default:
-                    // All other fieldtypes lose all data when converting to a Decimal
-                    throw new ODRBadRequestException('"" is a "'.$typename.'", which loses all data during migration to a Decimal');
+            // There's a couple different versions of output, depending on what the datafield is
+            $master_datatype_id = '';
+            $strings = array();
+
+            // If this is a derived field...
+            if ( !is_null($datafield->getMasterDataField()) ) {
+                // ...then it makes more sense to send the user to the master design page for the
+                //  master datafield, since you can't directly change fieldtypes for derived fields
+                $master_datatype_id = $datafield->getMasterDataField()->getDataType()->getGrandparent()->getId();
+
+                // Intentionally redirecting even if the fieldtype isn't migrateable
             }
+            else {
+                // ...otherwise, certain fieldtypes should never have a fieldtype selector
+                $need_count = false;
+                switch ($current_typename) {
+                    case 'Boolean':
+                    case 'File':
+                    case 'Image':
+//                    case 'DateTime':      // can convert from datetime to text
+//                    case 'Markdown':  // no values to lose, but easier to work with elsewhere
+                    case 'Tags':
+                    case 'XYZ Data':
+                        $need_count = true;
+                        break;
+                }
 
-            $mapping = array(
-                'IntegerValue' => 'odr_integer_value',
-                'ShortVarchar' => 'odr_short_varchar',
-                'MediumVarchar' => 'odr_medium_varchar',
-                'LongVarchar' => 'odr_long_varchar',
-                'LongText' => 'odr_long_text',
-            );
+                // There are more situations where the field will lose all data, but they depend on
+                //  what the field is migrated to...the ones listed above will always lose all data
 
-            // ----------------------------------------
-            // Back when ODR was first designed, it used a beanstalkd queue to end up processing each
-            //  individual value...in March 2022 (04b13dd), the migration got changed to attempt to
-            //  use INSERT INTO...SELECT statements to greatly speed things up.
+                if ( $need_count ) {
+                    // ...as such, the user needs to be informed how many values will be lost
+                    $counts = self::DatafieldMigrations_CountItems($em, $datafield);
 
-            // This worked until the need to convert values with tolerances...such as "5.260(2)"...
-            //  into decimals.  The INSERT INTO...SELECT statements use mysql's CAST() function, which
-            //  throws warnings on values which aren't numeric...and the warnings get automatically
-            //  "upgraded" into errors, which kills the entire migration immediately.
+                    foreach ($counts as $df_id => $count) {
+                        /** @var DataFields $df */
+                        $df = $repo_datafields->find($df_id);
+                        $strings[$df_id] = array('df' => $df);
 
-            // So, this report exists to help users (mostly me) figure out what's going to happen
-            //  if a field gets migrated.  To do that, need an array of the current string data...
-            $query =
-               'SELECT gdr.id AS dr_id, e.value AS value
-                FROM odr_data_record AS gdr
-                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$mapping[$typeclass].' AS e ON  e.data_record_fields_id = drf.id
-                WHERE e.data_field_id = '.$datafield_id.'
-                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-            $results = $conn->executeQuery($query);
-
-            $data = array();
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
-                $old_value = $result['value'];
-
-                $data[$dr_id] = array('old_value' => $old_value, 'new_value' => '', 'pass' => '');
-            }
-
-            // Going to use CAST() repeatedly to get other data...
-            // IMPORTANT: changes made here must also be transferred to WorkerController::migrateAction()
-            $query =
-               'SELECT gdr.id AS dr_id, e.value AS old_value, CAST(SUBSTR(e.value, 1, 255) AS DOUBLE) AS new_value
-                FROM odr_data_record AS gdr
-                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$mapping[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE e.data_field_id = '.$datafield_id.' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_A.'")
-                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-            // Need to double-escape the backslashes for mysql
-            $query = str_replace("\\", "\\\\", $query);
-            $results = $conn->executeQuery($query);
-
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
-                $old_value = $result['old_value'];
-                $new_value = $result['new_value'];
-
-                $data[$dr_id]['new_value'] = $new_value;
-                $data[$dr_id]['pass'] = 1;
-            }
-
-            // IMPORTANT: changes made here must also be transferred to WorkerController::migrateAction()
-            $query =
-               'SELECT gdr.id AS dr_id, e.value AS old_value, CAST(SUBSTR(e.value, 1, LOCATE("(",e.value)-1) AS DOUBLE) AS new_value
-                FROM odr_data_record AS gdr
-                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$mapping[$typeclass].' AS e ON  e.data_record_fields_id = drf.id
-                WHERE e.data_field_id = '.$datafield_id.' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_B.'")
-                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
-                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-            // Need to double-escape the backslashes for mysql
-            $query = str_replace("\\", "\\\\", $query);
-            $results = $conn->executeQuery($query);
-
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
-                $old_value = $result['old_value'];
-                $new_value = $result['new_value'];
-
-                if ( $data[$dr_id]['new_value'] !== '' )
-                    continue;
-
-                $data[$dr_id]['new_value'] = $new_value;
-                $data[$dr_id]['pass'] = 2;
+                        if ( $count > 0 ) {
+                            switch ($current_typeclass) {
+                                case 'File':
+                                    $strings[$df_id]['str'] = 'All '.$count.' files currently uploaded in this field will be lost upon migration.';
+                                    break;
+                                case 'Image':
+                                    $strings[$df_id]['str'] = 'All '.$count.' images currently uploaded in this field will be lost upon migration.';
+                                    break;
+                                case 'Radio':
+                                    $strings[$df_id]['str'] = $count.' records will lose their selected radio options in this field upon migration.';
+                                    break;
+                                case 'Tag':
+                                    $strings[$df_id]['str'] = $count.' records will lose their selected tags in this field upon migration.';
+                                    break;
+                                default:
+                                    $strings[$df_id]['str'] = 'All '.$count.' values currently in this field will be lost upon migration.';
+                                    break;
+                            }
+                        }
+                        else {
+                            $strings[$df_id]['str'] = 'This migration would usually cause the loss of all data in this field...but there are no values in the field.';
+                        }
+                    }
+                }
             }
 
 
             // ----------------------------------------
-            $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
-
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Reports:analyze_decimal_migration.html.twig',
+                    'ODRAdminBundle:Reports:analyze_datafield_migration_start.html.twig',
                     array(
-                        'baseurl' => $baseurl,
                         'datafield' => $datafield,
                         'datatype' => $datatype,
+                        'master_datatype_id' => $master_datatype_id,
 
-                        'data' => $data,
+                        'fieldtype_list' => $fieldtype_list,
+                        'strings' => $strings,
                     )
                 )
             );
         }
         catch (\Exception $e) {
-            $source = 0x5107550f;
+            $source = 0xbc0b273b;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1147,6 +1151,743 @@ class ReportsController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Checks what values would get changed if the given datafield got migrated to a given fieldtype.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function analyzedatafieldmigrationAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+            if ( !isset($post['datafield_id']) || !isset($post['fieldtype_id']) )
+                throw new ODRBadRequestException('Invalid Form');
+
+            $datafield_id = intval($post['datafield_id']);
+            $fieldtype_id = intval($post['fieldtype_id']);
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
+
+            /** @var DataFields $datafield */
+            $datafield = $repo_datafields->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var FieldType $new_fieldtype */
+            $new_fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->find($fieldtype_id);
+            if ($new_fieldtype == null)
+                throw new ODRNotFoundException('Fieldtype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            $is_master_datafield = $datafield->getIsMasterField();
+            $current_typeclass = $datafield->getFieldType()->getTypeClass();
+            $current_typename = $datafield->getFieldType()->getTypeName();
+            $new_typeclass = $new_fieldtype->getTypeClass();
+            $new_typename = $new_fieldtype->getTypeName();
+
+            // Having these properties of text fields on hand is useful...
+            $old_length = 0;
+            $old_is_text = false;
+            if ( $current_typename === 'Short Text' ) {
+                $old_length = 32;
+                $old_is_text = true;
+            }
+            else if ( $current_typename === 'Medium Text' ) {
+                $old_length = 64;
+                $old_is_text = true;
+            }
+            else if ( $current_typename === 'Long Text' ) {
+                $old_length = 255;
+                $old_is_text = true;
+            }
+            else if ( $current_typename === 'Paragraph Text' ) {
+                $old_length = 9999;
+                $old_is_text = true;
+            }
+
+            $new_length = 0;
+            $new_is_text = false;
+            if ( $new_typename === 'Short Text' ) {
+                $new_length = 32;
+                $new_is_text = true;
+            }
+            else if ( $new_typename === 'Medium Text' ) {
+                $new_length = 64;
+                $new_is_text = true;
+            }
+            else if ( $new_typename === 'Long Text' ) {
+                $new_length = 255;
+                $new_is_text = true;
+            }
+            else if ( $new_typename === 'Paragraph Text' ) {
+                $new_length = 9999;
+                $new_is_text = true;
+            }
+
+            // A couple migrations make no sense
+            $strings = array();
+            $html = '';
+            if ( $current_typename === $new_typename )
+                $html = 'This field is already a '.$new_typename.'.';
+            if ( $current_typename === 'Markdown' )
+                $html = 'This field has no values to migrate.';
+
+            if ( $html === '' ) {
+                // Most of the typeclasses can't be converted into each other...
+                $need_count = false;
+                switch ($current_typename) {  // NOTE: identical to self::analyzedatafieldmigrationstartAction(), just in case
+                    case 'Boolean':
+                    case 'File':
+                    case 'Image':
+//                    case 'DateTime':      // can convert from datetime to text
+//                    case 'Markdown':  // no values to lose, but easier to work with elsewhere
+                    case 'Tags':
+                    case 'XYZ Data':
+                        $need_count = true;
+                        break;
+                }
+                switch ($new_typename) {
+                    case 'Boolean':
+                    case 'File':
+                    case 'Image':
+                    case 'DateTime':    // can't convert anything to datetime
+                    case 'Markdown':
+                    case 'Tags':
+                    case 'XYZ Data':
+                        $need_count = true;
+                        break;
+                }
+
+                // Conversions from Datetime to a fieldtype that isn't text will lose all data
+                if ( $current_typename === 'DateTime' && !$new_is_text )
+                    $need_count = true;
+
+                // Conversions to/from any Radio fieldtype will lose all data, unless the other part
+                //  is also a Radio fieldtype
+                if ( $current_typeclass === 'Radio' && $new_typeclass !== 'Radio' )
+                    $need_count = true;
+                if ( $current_typeclass !== 'Radio' && $new_typeclass === 'Radio' )
+                    $need_count = true;
+
+                if ($need_count) {
+                    // Want to run a query to figure out how many items/values will be lost
+                    $counts = self::DatafieldMigrations_CountItems($em, $datafield);
+
+                    foreach ($counts as $df_id => $count) {
+                        /** @var DataFields $df */
+                        $df = $repo_datafields->find($df_id);
+                        $strings[$df_id] = array('df' => $df);
+
+                        if ( $count > 0 ) {
+                            switch ($current_typeclass) {
+                                case 'File':
+                                    $strings[$df_id]['str'] = 'All '.$count.' files currently uploaded in this field will be lost upon migration.';
+                                    break;
+                                case 'Image':
+                                    $strings[$df_id]['str'] = 'All '.$count.' images currently uploaded in this field will be lost upon migration.';
+                                    break;
+                                case 'Radio':
+                                    $strings[$df_id]['str'] = $count.' records will lose their selected radio options in this field upon migration.';
+                                    break;
+                                case 'Tag':
+                                    $strings[$df_id]['str'] = $count.' records will lose their selected tags in this field upon migration.';
+                                    break;
+                                default:
+                                    $strings[$df_id]['str'] = 'All '.$count.' values currently in this field will be lost upon migration.';
+                                    break;
+                            }
+                        }
+                        else {
+                            $strings[$df_id]['str'] = 'This migration would usually cause the loss of all data in this field...but there are no values in the field.';
+                        }
+                    }
+
+                    if ( !$is_master_datafield ) {
+                        // Counts of values from regular fields should be converted back into a
+                        //  single string
+                        foreach ($strings as $df_id => $data)
+                            $html = $data['str'];
+                        $strings = array();
+                    }
+                }
+            }
+
+            // Several conversions will never lose data
+            if ( $html === '' || empty($strings) ) {
+                if ( ($old_is_text && $new_is_text && $old_length < $new_length)
+                    || ($current_typename === 'Integer' && $new_is_text)
+                    || ($current_typename === 'Decimal' && $new_is_text)
+                    || ($current_typename === 'Integer' && $new_typename === 'Decimal')
+                    || ($current_typename === 'DateTime' && $new_is_text)
+                ) {
+                    $html = 'A '.$current_typename.' field can always be migrated to a '.$new_typename.' field without loss of data.';
+                }
+
+                if ( ($current_typename === 'Single Select' && $new_typename === 'Single Radio')
+                    || ($current_typename === 'Single Radio' && $new_typename === 'Single Select')
+                    || ($current_typename === 'Multiple Select' && $new_typename === 'Multiple Radio')
+                    || ($current_typename === 'Multiple Radio' && $new_typename === 'Multiple Select')
+                ) {
+                    $html = 'A '.$current_typename.' field can always be migrated to a '.$new_typename.' field without loss of data.';
+                }
+
+                if ( ($current_typename === 'Single Select' || $current_typename === 'Single Radio')
+                    && ($new_typename === 'Multiple Select' || $new_typename === 'Multiple Radio')
+                ) {
+                    $html = 'A '.$current_typename.' field can always be migrated to a '.$new_typename.' field without loss of data.';
+                }
+            }
+
+            if ( $html !== '' ) {
+                // In most cases, there will be a single string...wrap it inside a div here
+                $html = $templating->render(
+                    'ODRAdminBundle:Reports:analyze_datafield_migration_normal_field.html.twig',
+                    array(
+                        'df' => $datafield,
+                        'html' => $html,
+                    )
+                );
+            }
+            else if ( !empty($strings) ) {
+                // If there's an array of strings, then render them...they also include the hydrdated
+                //  datafields already
+                $html = $templating->render(
+                    'ODRAdminBundle:Reports:analyze_datafield_migration_template_fields.html.twig',
+                    array(
+                        'strings' => $strings,
+                    )
+                );
+            }
+            else {
+                // ...otherwise, need to do some mysql queries to determine what will change
+                if ( $old_is_text && $new_is_text && $old_length > $new_length ) {
+                    // Longer text to shorter text has to shorten strings
+                    $html = self::DatafieldMigrations_ConvertToShorterText($em, $templating, $datafield, $new_fieldtype);
+                }
+                else if ( ($old_is_text && $new_typename === 'Integer') || ($current_typename === 'Decimal' && $new_typename === 'Integer') ) {
+                    // Text to Integer runs into casting issues, while Decimal to Integer has
+                    //  precision issues
+                    $html = self::DatafieldMigrations_ConvertToInteger($em, $templating, $datafield, $new_fieldtype);
+                }
+                else if ( $old_is_text && $new_typename === 'Decimal' ) {
+                    // Text to Decimal runs into casting issues
+                    $html = self::DatafieldMigrations_ConvertToDecimal($em, $templating, $datafield, $new_fieldtype);
+                }
+                else if ( ($current_typename === 'Multiple Select' || $current_typename === 'Multiple Radio')
+                    && ($new_typename === 'Single Select' || $new_typename === 'Single Radio')
+                ) {
+                    // Multiple radio/select to Single radio/select will have to deselect options
+                    $html = self::DatafieldMigration_ConvertToSingleRadio($em, $templating, $datafield);
+                }
+            }
+
+
+            // ----------------------------------------
+            $return['d'] = array(
+                'html' => $html
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x569c1387;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Need a function to count how many items this datafield has...
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataFields $datafield
+     * @return int[]
+     */
+    private function DatafieldMigrations_CountItems($em, $datafield)
+    {
+        $datafield_id = $datafield->getId();
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        $is_master_field = $datafield->getIsMasterField();
+
+        $query = '';
+        if ( $typeclass === 'File' ) {
+            $query =
+               'SELECT df.id AS df_id, COUNT(e.id) AS num_values
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN odr_data_fields df ON drf.data_field_id = df.id
+                JOIN odr_file AS e ON e.data_record_fields_id = drf.id
+                WHERE ';
+            if ( !$is_master_field )
+                $query .= 'df.id = '.$datafield_id;
+            else
+                $query .= 'df.master_datafield_id = '.$datafield_id;
+            $query .= '
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                AND df.deletedAt IS NULL GROUP BY df.id';
+        }
+        else if ( $typeclass === 'Image' ) {
+            $query =
+               'SELECT df.id AS df_id, COUNT(e.id) AS num_values
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN odr_data_fields df ON drf.data_field_id = df.id
+                JOIN odr_image AS e ON e.data_record_fields_id = drf.id
+                WHERE e.original = 1 AND ';
+            if ( !$is_master_field )
+                $query .= 'df.id = '.$datafield_id;
+            else
+                $query .= 'df.master_datafield_id = '.$datafield_id;
+            $query .= '
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                AND df.deletedAt IS NULL GROUP BY df.id';
+        }
+        else if ( $typeclass === 'Radio' ) {
+            $query =
+               'SELECT df.id AS df_id, dr.id AS dr_id
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN odr_data_fields df ON drf.data_field_id = df.id
+                JOIN odr_radio_selection AS e ON e.data_record_fields_id = drf.id
+                WHERE ';
+            if ( !$is_master_field )
+                $query .= 'df.id = '.$datafield_id;
+            else
+                $query .= 'df.master_datafield_id = '.$datafield_id;
+            $query .= '
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                AND df.deletedAt IS NULL';
+        }
+        else if ( $typeclass === 'Tag' ) {
+            $query =
+               'SELECT df.id AS df_id, dr.id AS dr_id
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN odr_data_fields df ON drf.data_field_id = df.id
+                JOIN odr_tag_selection AS e ON e.data_record_fields_id = drf.id
+                WHERE ';
+            if ( !$is_master_field )
+                $query .= 'df.id = '.$datafield_id;
+            else
+                $query .= 'df.master_datafield_id = '.$datafield_id;
+            $query .= '
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                AND df.deletedAt IS NULL';
+        }
+        else if ( $typeclass === 'XYZData' ) {
+            $query =
+               'SELECT df.id AS df_id, COUNT(DISTINCT(e.data_record_id)) AS num_values
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN odr_data_fields df ON drf.data_field_id = df.id
+                JOIN odr_xyz_data AS e ON e.data_record_fields_id = drf.id
+                WHERE ';
+            if ( !$is_master_field )
+                $query .= 'df.id = '.$datafield_id;
+            else
+                $query .= 'df.master_datafield_id = '.$datafield_id;
+            $query .= '
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                AND df.deletedAt IS NULL GROUP BY df.id';
+        }
+        else {
+            $mapping = array(
+                'Boolean' => 'odr_boolean',
+                'IntegerValue' => 'odr_integer_value',
+                'DecimalValue' => 'odr_decimal_value',
+                'DatetimeValue' => 'odr_datetime_value',
+                'ShortVarchar' => 'odr_short_varchar',
+                'MediumVarchar' => 'odr_medium_varchar',
+                'LongVarchar' => 'odr_long_varchar',
+                'LongText' => 'odr_long_text',
+            );
+
+            $query =
+               'SELECT df.id AS df_id, COUNT(e.value) AS num_values
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN odr_data_fields df ON drf.data_field_id = df.id
+                JOIN '.$mapping[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                WHERE ';
+            if ( !$is_master_field )
+                $query .= 'df.id = '.$datafield_id;
+            else
+                $query .= 'df.master_datafield_id = '.$datafield_id;
+            $query .= '
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                AND df.deletedAt IS NULL GROUP BY df.id';
+        }
+
+        $conn = $em->getConnection();
+        $results = $conn->executeQuery($query);
+
+        $counts = array();
+        if ( $typeclass === 'Radio' || $typeclass === 'Tag' ) {
+            // Radio/Tag fields need to "manually" determine how many records are going to get
+            //  changed
+            foreach ($results as $result) {
+                $df_id = $result['df_id'];
+                $dr_id = $result['dr_id'];
+
+                if ( !isset($counts[$df_id]) )
+                    $counts[$df_id] = array();
+                $counts[$df_id][$dr_id] = 1;
+            }
+
+            foreach ($counts as $df_id => $dr_list)
+                $counts[$df_id] = count($dr_list);
+        }
+        else {
+            // All other typeclasses can have their counts calculated by mysql
+            foreach ($results as $result) {
+                $df_id = intval($result['df_id']);
+                $num_values = intval($result['num_values']);
+
+                $counts[$df_id] = $num_values;
+            }
+        }
+
+        return $counts;
+    }
+
+
+    /**
+     * Determines what the values in a field would be if it got migrated to the requested text
+     * fieldtype, and returns a list of records that would have a different value afterwards.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EngineInterface $templating
+     * @param DataFields $datafield
+     * @param FieldType $new_fieldtype
+     */
+    private function DatafieldMigrations_ConvertToShorterText($em, $templating, $datafield, $new_fieldtype)
+    {
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+
+        $datafield_id = $datafield->getId();
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
+        }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+        /** @var DataFields[] $df_mapping */
+
+        // Get a report for each datafield that is getting migrated
+        $original_lengths = array();
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnShorterTextConvert($df, $new_fieldtype->getTypeClass(), true);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( $values['old_value'] === $values['new_value'])
+                    unset( $data[$df_id][$dr_id] );
+            }
+        }
+
+        // ----------------------------------------
+        // Render and return a list of the records that would be changed
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+
+        $html = $templating->render(
+            'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
+            array(
+                'baseurl' => $baseurl,
+
+                'df_mapping' => $df_mapping,
+                'data' => $data,
+                'original_lengths' => $original_lengths,
+            )
+        );
+
+        return $html;
+    }
+
+
+    /**
+     * Determines what the values in a field would be if it got migrated to an IntegerValue, and
+     * returns a list of records that would have a different value afterwards.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EngineInterface $templating
+     * @param DataFields $datafield
+     * @param FieldType $new_fieldtype
+     */
+    private function DatafieldMigrations_ConvertToInteger($em, $templating, $datafield, $new_fieldtype)
+    {
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+
+        $datafield_id = $datafield->getId();
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
+        }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+        /** @var DataFields[] $df_mapping */
+
+        // Get a report for each datafield that is getting migrated
+        $original_lengths = array();
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnIntegerConvert($df, true);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( $values['old_value'] === $values['new_value'])
+                    unset( $data[$df_id][$dr_id] );
+            }
+        }
+
+        // ----------------------------------------
+        // Render and return a list of the records that would be changed
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+
+        $html = $templating->render(
+            'ODRAdminBundle:Reports:analyze_datafield_migration_to_integer.html.twig',
+            array(
+                'baseurl' => $baseurl,
+
+                'df_mapping' => $df_mapping,
+                'data' => $data,
+                'original_lengths' => $original_lengths,
+            )
+        );
+
+        return $html;
+    }
+
+
+    /**
+     * Determines what the values in a field would be if it got migrated to a DecimalValue, and
+     * returns a list of records that would have a different value afterwards.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EngineInterface $templating
+     * @param DataFields $datafield
+     * @param FieldType $new_fieldtype
+     */
+    private function DatafieldMigrations_ConvertToDecimal($em, $templating, $datafield, $new_fieldtype)
+    {
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+
+        $datafield_id = $datafield->getId();
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
+        }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+        /** @var DataFields[] $df_mapping */
+
+        // Get a report for each datafield that is getting migrated
+        $original_lengths = array();
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnDecimalConvert($df, true);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( $values['old_value'] === $values['new_value'])
+                    unset( $data[$df_id][$dr_id] );
+            }
+        }
+
+        // ----------------------------------------
+        // Render and return a list of the records that would be changed
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+
+        $html = $templating->render(
+            'ODRAdminBundle:Reports:analyze_datafield_migration_to_decimal.html.twig',
+            array(
+                'baseurl' => $baseurl,
+
+                'df_mapping' => $df_mapping,
+                'data' => $data,
+                'original_lengths' => $original_lengths,
+            )
+        );
+
+        return $html;
+    }
+
+
+    /**
+     * Determines which records would need to deselect some of their radio selections to "fit" in
+     * a single radio/select field.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EngineInterface $templating
+     * @param DataFields $datafield
+     */
+    private function DatafieldMigration_ConvertToSingleRadio($em, $templating, $datafield)
+    {
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+
+        $datafield_id = $datafield->getId();
+        $is_master_field = $datafield->getIsMasterField();
+        if ( !$is_master_field ) {
+            // If this is a "regular" datafield, then don't need to do anything fancy
+            $df_mapping[$datafield_id] = $datafield;
+        }
+        else {
+            // The FieldtypeMigrationService doesn't want to have to directly deal with template
+            //  fields, so create a list of all datafields derived from this template field
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+        /** @var DataFields[] $df_mapping */
+
+        // Get a report for each datafield that is getting migrated
+        $original_lengths = array();
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnSingleRadioConvert($df);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                if ( count($values['ro_list']) < 2 )
+                    unset( $data[$df_id][$dr_id] );
+            }
+        }
+
+        // ----------------------------------------
+        // Render and return a list of the records that would be changed
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+
+        $html = $templating->render(
+            'ODRAdminBundle:Reports:analyze_datafield_migration_to_single_radio.html.twig',
+            array(
+                'baseurl' => $baseurl,
+
+                'df_mapping' => $df_mapping,
+                'data' => $data,
+                'original_lengths' => $original_lengths,
+            )
+        );
+
+        return $html;
+    }
 
 
     /**

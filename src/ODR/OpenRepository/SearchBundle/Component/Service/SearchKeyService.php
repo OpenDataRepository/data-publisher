@@ -16,14 +16,17 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
-// Services
-use FOS\UserBundle\Doctrine\UserManager;
-use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
+// Services
+use FOS\UserBundle\Doctrine\UserManager;
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -32,9 +35,19 @@ use Symfony\Bridge\Monolog\Logger;
 class SearchKeyService
 {
     /**
+     * @var string
+     */
+    private $search_key_char_limit;
+
+    /**
      * @var EntityManager
      */
     private $em;
+
+    /**
+     * @var CacheService
+     */
+    private $cache_service;
 
     /**
      * @var DatabaseInfoService
@@ -67,7 +80,9 @@ class SearchKeyService
     /**
      * SearchKeyService constructor.
      *
+     * @param string $search_key_char_limit
      * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
@@ -75,14 +90,18 @@ class SearchKeyService
      * @param Logger $logger
      */
     public function __construct(
+        string $search_key_char_limit,
         EntityManager $entity_manager,
+        CacheService $cache_service,
         DatabaseInfoService $database_info_service,
         DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
         UserManager $user_manager,
         Logger $logger
     ) {
+        $this->search_key_char_limit = $search_key_char_limit;
         $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
         $this->database_info_service = $database_info_service;
         $this->datatree_info_service = $datatree_info_service;
         $this->search_service = $search_service;
@@ -118,6 +137,38 @@ class SearchKeyService
 
 
     /**
+     * Utility function to report on whether the given search key is "oversized"...one that exceeds
+     * the configured character limit.
+     *
+     * This limit exists to prevent ODR from giving search keys that run afoul of server settings
+     * for maximum length of $_GET parameters.
+     *
+     * @param string $search_key
+     * @return bool
+     */
+    public function isOversizedSearchKey($search_key)
+    {
+        // Replace all occurrences of the '-' character with '+', and the '_' character with '/'
+        $decoded = base64_decode(strtr($search_key, '-_', '+/'));
+        // The base64 string describes a JSON array...
+        $array = json_decode($decoded, true);
+
+        if ( is_null($array) ) {
+            // ...if it doesn't, then that's an error
+            throw new ODRException('Invalid JSON', 400, 0x1570e7da);
+        }
+        else if ( isset($array['uuid']) ) {
+            // If the search params have the 'uuid' entry, then it points to an "oversize" search key
+            return true;
+        }
+        else {
+            // Otherwise, it's a "regular" search key
+            return false;
+        }
+    }
+
+
+    /**
      * Converts a search key back into an array of search parameters.
      *
      * @param string $search_key
@@ -128,21 +179,89 @@ class SearchKeyService
     {
         // Replace all occurrences of the '-' character with '+', and the '_' character with '/'
         $decoded = base64_decode(strtr($search_key, '-_', '+/'));
-
-        // Return an array instead of an object
+        // The base64 string describes a JSON array...
         $array = json_decode($decoded, true);
+
         if ( is_null($array) ) {
+            // ...if it doesn't, then that's an error
             throw new ODRException('Invalid JSON', 400, 0x6e1c96a1);
         }
-        else {
-            ksort($array);
+        else if ( isset($array['uuid']) ) {
+            // If the search params have the 'uuid' entry, then it points to an "oversize" search key
+            $uuid = $array['uuid'];
 
-            // Slightly easier if this parameter is converted into an array...
-            if ( isset($array['ignore']) )
-                $array['ignore'] = explode(',', $array['ignore']);
+            // Get the "oversized" search key this uuid points to...
+            if ( !$this->cache_service->exists('oversize_searchkey_'.$uuid) )
+                throw new ODRNotFoundException('This search key no longer exists', true, 0x6e1c96a1);
+            // TODO - need to deal with persisted oversize search keys
 
+            $actual_search_key = $this->cache_service->get('oversize_searchkey_'.$uuid);
+            // ...and decode that instead
+            $array = self::decodeSearchKey($actual_search_key);
             return $array;
         }
+        else {
+            // Otherwise, it should be a "regular" search key
+            // TODO - should these two modifications be moved?
+            if ( isset($array['sort_by']) ) {
+                // The values for the "sort_by" key are technically allowed to be an object...
+                // e.g. {"dt_id":"3","sort_by":{"sort_df_id":"18","sort_dir":"asc"}}
+                // ...but since the rest of ODR would prefer to be able to multi-datafield sort,
+                //  the previous format needs to be converted into an array of objects
+                // e.g. {"dt_id":"3","sort_by":[{"sort_df_id":"18","sort_dir":"asc"}]}
+                $sort_info = $array['sort_by'];
+                if ( count($sort_info) === 2 && isset($sort_info['sort_df_id']) && isset($sort_info['sort_dir']) )
+                    $array['sort_by'] = array($sort_info);
+            }
+
+            // Slightly easier if this parameter is converted into an array...
+            if ( isset($array['ignore']) && !is_array($array['ignore']) )
+                $array['ignore'] = explode(',', $array['ignore']);
+
+            // Sort the array prior to returning it
+            ksort($array);
+            return $array;
+        }
+    }
+
+
+    /**
+     * ODR enables shareable search results links by base64 encoding a JSON array of search parameters
+     * and passing that base64 string in the URL...but this makes it possible to exceed defined
+     * limits on URL length.
+     *
+     * To get around this, ODR can also use an alternate base64 encoded JSON array that only contains
+     * a UUID. {@link self::decodeSearchKey()} will silently convert this alternate array
+     *
+     * @param string $oversized_search_key
+     * @return string
+     */
+    public function handleOversizedSearchKey($oversized_search_key)
+    {
+        $new_search_key = '';
+        do {
+            // Generate a uuid, and wrap it into a search key for ODR
+            $uuid = UniqueUtility::uniqueIdReal(28);
+            $tmp = rtrim(base64_encode('{"uuid":"'.$uuid.'"}'), '=');
+
+            // If this uuid isn't already in use...
+            if ( !$this->cache_service->exists('oversize_searchkey_'.$uuid) ) {
+                // ...then the oversized search key can be successfully stored in redis
+                $this->cache_service->set('oversize_searchkey_'.$uuid, $oversized_search_key);
+                $new_search_key = $tmp;
+
+                // TODO - need to deal with persisted oversize search keys...but I don't think it should be here
+                // TODO - ...SearchAPIService::filterSearchKeyForUser() needs to have "temporary" redirect keys due to permissions permutations anyways
+            }
+        }
+        while ($new_search_key === '');
+
+        // Should perform a safety check here...if the config value 'search_key_char_limit' is too
+        //  low, then the newly generated search key could still be considered "too long"
+        if ( strlen($new_search_key) > intval($this->search_key_char_limit) )
+            throw new ODRException("ODR CONFIGURATION ERROR: symfony parameter 'search_key_char_limit' is set too low to accomodate method for preventing oversized search keys.", 500, 0x8717d0f3);
+
+        return $new_search_key;
     }
 
 
@@ -180,8 +299,7 @@ class SearchKeyService
 
 
     /**
-     * Converts ODR's default search page POST into an ODR search key.
-     * TODO - modify the default search page to send JSON?
+     * Converts an array into a search key.
      *
      * @param array $post
      * @param bool $is_wordpress_integrated
@@ -201,7 +319,7 @@ class SearchKeyService
             if ( $is_wordpress_integrated )
                 $value = stripslashes($value);
 
-            // Technically don't care whether the contents of the POST are valid or not here
+            // Technically don't care whether the contents of the POST are valid or not at this time
             $search_params[$key] = self::clean($value);
         }
 
@@ -213,7 +331,6 @@ class SearchKeyService
         return $search_key;
     }
 
-    // TODO - other conversion functions?
 
     /**
      * Strips newlines and extra spaces from search parameters, and also replaces several multibyte
@@ -529,7 +646,7 @@ class SearchKeyService
      *
      * @param string $search_key
      *
-     * @return bool
+     * @return array
      * @throws ODRBadRequestException
      */
     public function validateSearchKey($search_key)
@@ -590,19 +707,9 @@ class SearchKeyService
                     throw new ODRBadRequestException('Invalid search key: "merge" should be either "AND" or "OR"', $exception_code);
             }
             else if ($key === 'sort_by') {
+                // self::decodeSearchKey() should have "fixed" the parameters to be an array of
+                //  objects already...
                 // TODO - eventually need sort by created/modified date
-
-                // The values for the "sort_by" key are allowed to either be an object...
-                // e.g. {"dt_id":"3","sort_by":{"sort_df_id":"18","sort_dir":"asc"}}
-                // ...or it's allowed to be an array of objects...
-                // e.g. {"dt_id":"3","sort_by":[{"sort_df_id":"18","sort_dir":"asc"}]}
-
-                // Since we want multi-datafield sorting to be a thing, convert the first form into
-                //  the second form if needed
-                if ( count($value) === 2 && isset($value['sort_df_id']) && isset($value['sort_dir']) ) {
-                    $tmp = $value;
-                    $value = array($tmp);
-                }
 
                 // At this point, the value must be an array
                 if ( !isset($value[0]) )
@@ -909,7 +1016,7 @@ class SearchKeyService
         }
 
         // No errors found
-        return true;
+        return $search_params;
     }
 
 
@@ -2147,7 +2254,7 @@ class SearchKeyService
         $readable_search_key = array();
         foreach ($search_params as $key => $value) {
             // Ignore these keys
-            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' || $key === 'ignore' )
+            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' || $key === 'ignore' || $key === 'merge' )
                 continue;
 
             if ( $key === 'gen' || $key === 'gen_lim' ) {

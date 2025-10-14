@@ -321,6 +321,7 @@ services:
             $clone_template_service: "@odr.clone_template_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $namefield_helper_service: "@odr.namefield_helper_service"
+            $search_key_service: "@odr.search_key_service"
 
             $form_factory: "@form.factory"
             $templating: "@templating"
@@ -399,6 +400,14 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $entity_creation_service: "@odr.entity_creation_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $event_dispatcher: "@event_dispatcher"
+            $logger: "@logger"
+
+    odr.fieldtype_migration_service:
+        class: ODR\AdminBundle\Component\Service\FieldtypeMigrationService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
             $event_dispatcher: "@event_dispatcher"
             $logger: "@logger"
 

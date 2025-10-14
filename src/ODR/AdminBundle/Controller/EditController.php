@@ -3297,19 +3297,18 @@ class EditController extends ODRCustomController
             $datarecord_list = '';
             if ($search_key !== '') {
                 // Ensure the search key is valid first
-                $search_key_service->validateSearchKey($search_key);
+                $search_params = $search_key_service->validateSearchKey($search_key);
                 // Determine whether the user is allowed to view this search key
-                $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+                $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
                 if ($filtered_search_key !== $search_key) {
                     // User can't view the results of this search key, redirect to the one they can view
                     return $search_redirect_service->redirectToEditPage($datarecord_id, $search_theme_id, $filtered_search_key, $offset);
                 }
-                $search_params = $search_key_service->decodeSearchKey($search_key);
 
                 // Ensure the tab refers to the given search key
                 $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
                 if ( $expected_search_key !== $search_key )
-                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
+                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
 
                 // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
                 //  will display stuff in a different order

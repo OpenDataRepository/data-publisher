@@ -110,6 +110,59 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
      */
     private $logger;
 
+    /**
+     * @var string[]
+     */
+    private $field_names = array(
+        'mineral_name' => 'Mineral Name',
+        'rruff_id' => 'RRUFF ID',
+        'ima_formula' => 'IMA Formula',
+        'sample_loc' => 'Sample Location',
+        'sample_owner' => 'Sample Owner',
+        'sample_source' => 'Sample Source',
+        'sample_desc' => 'Sample Description',
+        'sample_status' => 'Sample Status',
+
+        'probe_formula' => 'Measured Chemistry',
+        'probe_notes' => 'Measured Chemistry Notes',
+
+        'pin_id' => 'Pin ID',
+        'pin_parallel_x' => 'Vector Parallel X',
+        'pin_parallel_y' => 'Vector Parallel Y',
+        'pin_parallel_z' => 'Vector Parallel Z',
+        'pin_parallel_ref' => 'Vector Parallel Ref Space',
+        'pin_perp_x' => 'Vector Perpendicular X',
+        'pin_perp_y' => 'Vector Perpendicular Y',
+        'pin_perp_z' => 'Vector Perpendicular Z',
+        'pin_perp_ref' => 'Vector Perpendicular Ref Space',
+
+        'raman_wavelength' => 'Raman Wavelength',
+//        'infrared_wavelength' => 'Infrared Wavelength',
+//        'powder_wavelength' => 'Powder Diffraction Wavelength',
+
+        'powder_desc' => 'Powder Description',
+        'powder_a' => 'a',
+        'powder_b' => 'b',
+        'powder_c' => 'c',
+        'powder_alpha' => 'alpha',
+        'powder_beta' => 'beta',
+        'powder_gamma' => 'gamma',
+        'powder_vol' => 'volume',
+        'powder_crys' => 'crystal system',
+    );
+
+    /**
+     * @var string[]
+     */
+    private $filetype_mapping = array(
+//        'none' => 'none',    // Do not consider this a legal value
+        'raman_raw' => 'Raman RAW',
+        'raman_processed' => 'Raman Processed',
+        'infrared_raw' => 'Infrared RAW',
+        'powder_raw' => 'RAW Powder Diffraction Profile',
+        'powder_processed' => 'Processed Powder Diffraction Profile'
+    );
+
 
     /**
      * RRUFF File Header Inserter Plugin constructor.
@@ -368,9 +421,9 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
                     if ( isset($rpi['renderPluginOptionsMap']['baseurl']) )
                         $baseurl = trim($rpi['renderPluginOptionsMap']['baseurl']);
 
-                    $context = '';
-                    if ( isset($rpi['renderPluginOptionsMap']['context']) )
-                        $context = trim($rpi['renderPluginOptionsMap']['context']);
+                    $filetype = '';
+                    if ( isset($rpi['renderPluginOptionsMap']['filetype']) )
+                        $filetype = trim($rpi['renderPluginOptionsMap']['filetype']);
 
                     $replace_existing_files = true;
                     if ( isset($rpi['renderPluginOptionsMap']['replace_existing_file'])
@@ -419,18 +472,20 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
                     // Require the datatype prefix to exist and all fields to be mapped for the config
                     //  to be valid
                     $invalid = false;
-                    if ( $baseurl === '' || $context === '' )
+                    if ( $baseurl === '' || $filetype === '' )
                         $invalid = true;
                     if ( $prefix === '' || $prefix === 'undefined' )
                         $invalid = true;
-                    if ( count($fields_by_name) !== 28 )
+                    if ( count($fields_by_name) !== count($this->field_names) )
+                        $invalid = true;
+                    if ( !isset($this->filetype_mapping[$filetype]) )
                         $invalid = true;
 
                     $config = array(
                         'invalid' => $invalid,
 
                         'baseurl' => $baseurl,
-                        'context' => $context,
+                        'filetype' => $filetype,
 
                         'prefix' => $prefix,
                         'comment_prefix' => $comment_prefix,
@@ -709,45 +764,11 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
 
         // ----------------------------------------
         // Need to have the names of the fields
-        $field_names = array(
-            'mineral_name' => 'Mineral Name',
-            'rruff_id' => 'RRUFF ID',
-            'ima_formula' => 'IMA Formula',
-            'sample_loc' => 'Sample Location',
-            'sample_owner' => 'Sample Owner',
-            'sample_source' => 'Sample Source',
-            'sample_desc' => 'Sample Description',
-            'sample_status' => 'Sample Status',
-
-            'probe_formula' => 'Measured Chemistry',
-            'probe_notes' => 'Measured Chemistry Notes',
-
-            'pin_id' => 'Pin ID',
-            'pin_parallel_x' => 'Vector Parallel X',
-            'pin_parallel_y' => 'Vector Parallel Y',
-            'pin_parallel_z' => 'Vector Parallel Z',
-            'pin_parallel_ref' => 'Vector Parallel Ref Space',
-            'pin_perp_x' => 'Vector Perpendicular X',
-            'pin_perp_y' => 'Vector Perpendicular Y',
-            'pin_perp_z' => 'Vector Perpendicular Z',
-            'pin_perp_ref' => 'Vector Perpendicular Ref Space',
-
-            'powder_desc' => 'Powder Description',
-            'powder_a' => 'a',
-            'powder_b' => 'b',
-            'powder_c' => 'c',
-            'powder_alpha' => 'alpha',
-            'powder_beta' => 'beta',
-            'powder_gamma' => 'gamma',
-            'powder_vol' => 'volume',
-            'powder_crys' => 'crystal system',
-        );
-
         return array(
             'prefixes' => $prefixes,
             'name_data' => $name_data,
             'allowed_datatypes' => $descendants_by_prefix,
-            'field_names' => $field_names,
+            'field_names' => $this->field_names,
         );
     }
 
@@ -809,7 +830,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
             throw new ODRBadRequestException('The RRUFFFileHeaderInserter plugin is not properly configured', 0x65554240);
 
         $baseurl = $config_info['baseurl'];
-        $context = $config_info['context'];
+        $filetype = $config_info['filetype'];
         $prefix = $config_info['prefix'];
         $comment_prefix = $config_info['comment_prefix'];
         $allowed_extensions = $config_info['allowed_extensions'];
@@ -1174,6 +1195,11 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
             $fields_by_name['pin_perp_y'],
             $fields_by_name['pin_perp_z'],
             $fields_by_name['pin_perp_ref'],
+
+            // While not an "oriented pin data" field, the three wavelength fields work on the same rules
+            $fields_by_name['raman_wavelength'],
+//            $fields_by_name['infrared_wavelength'],
+//            $fields_by_name['powder_wavelength'],
         );
         foreach ($pin_fields as $df_id) {
             if ( isset($original_mapping[$df_id]) ) {
@@ -1256,6 +1282,9 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
         unset( $header_values['probe_formula'] );
         unset( $header_values['probe_notes'] );
 
+        // Want the type of file in the headers
+        $header_values['filetype'] = $this->filetype_mapping[ $config_info['filetype'] ];
+
         // Don't leave blanks around just in case
         foreach ($header_values as $field_name => $field_value) {
             if ( $field_value === '' )
@@ -1269,7 +1298,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
                 'header_values' => $header_values,
 
                 'baseurl' => $baseurl,
-                'context' => $context,
+                'filetype' => $filetype,
                 'comment_prefix' => $comment_prefix,
                 'newline_separator' => $newline_separator,
             )

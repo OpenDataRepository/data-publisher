@@ -81,6 +81,10 @@ class SearchAPIService
      */
     const DISABLE_MATCHES_MASK = 0b1100;
 
+    /**
+     * @var string
+     */
+    private $search_key_char_limit;
 
     /**
      * @var ContainerInterface
@@ -126,6 +130,7 @@ class SearchAPIService
     /**
      * SearchAPIService constructor.
      *
+     * @param string $search_key_char_limit
      * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param DatatreeInfoService $datatree_info_service
@@ -136,6 +141,7 @@ class SearchAPIService
      * @param Logger $logger
      */
     public function __construct(
+        string $search_key_char_limit,
         ContainerInterface $container,
         EntityManager $entity_manager,
         DatatreeInfoService $datatree_info_service,
@@ -145,6 +151,7 @@ class SearchAPIService
         CacheService $cache_service,
         Logger $logger
     ) {
+        $this->search_key_char_limit = $search_key_char_limit;
         $this->container = $container;
         $this->em = $entity_manager;
         $this->datatree_info_service = $datatree_info_service;
@@ -328,11 +335,11 @@ class SearchAPIService
 
 
     /**
-     * Returns a search key that is filtered to what the user can see...at the moment, ODR will
-     * forcibly redirect the user to the filtered search key if it's different than what they
-     * originally attempted to access, but this could change to be more refined in the future...
+     * Returns a search key that has been filtered to only contain what the user can see...ODR will
+     * typically forcibly redirect the user to this filtered search key if it's different than what
+     * they originally attempted to access.
      *
-     * @param DataType $datatype
+     * @param int $datatype_id Testing is easier if this is an int
      * @param string $search_key
      * @param array $user_permissions The permissions of the user doing the search, or an empty
      *                                array when not logged in
@@ -340,7 +347,7 @@ class SearchAPIService
      *
      * @return string
      */
-    public function filterSearchKeyForUser($datatype, $search_key, $user_permissions, $search_as_super_admin = false)
+    public function filterSearchKeyForUser($datatype_id, $search_key, $user_permissions, $search_as_super_admin = false)
     {
         // Convert the search key into array format...
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
@@ -359,36 +366,40 @@ class SearchAPIService
         }
 
         // Get all the datatypes/datafields the user can view...
-        $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin, $inverse_target_datatype_id);
+        $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype_id), $user_permissions, $search_as_super_admin, $inverse_target_datatype_id);
 
         // Prior to inline searching, $searchable_datafields only had datafields that the user could
         //  view and weren't marked as DataFields::NOT_SEARCHABLE...but because of inline search's
         //  requirements, it now contains every single datafield related to this datatype that the
         //  user is allowed to view
 
+        $removed_criteria = false;
         foreach ($search_params as $key => $value) {
-            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim' || $key === 'inverse' || $key === 'ignore' || $key === 'merge' ) {
-                // Don't need to do anything special with these keys
+            if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim'
+                || $key === 'inverse' || $key === 'ignore' || $key === 'merge'
+            ) {
+                // Don't need to filter/change these values
                 $filtered_search_params[$key] = $value;
             }
-            else if ($key === 'sort_by') {
-                // TODO - eventually need sort by created/modified date
-
-                // The values for the "sort_by" key are allowed to either be an object...
-                // e.g. {"dt_id":"3","sort_by":{"sort_df_id":"18","sort_dir":"asc"}}
-                // ...or it's allowed to be an array of objects...
-                // e.g. {"dt_id":"3","sort_by":[{"sort_df_id":"18","sort_dir":"asc"}]}
-
-                // Since we want multi-datafield sorting to be a thing, convert the first form into
-                //  the second form if needed
-                if ( count($value) === 2 && isset($value['sort_df_id']) && isset($value['sort_dir']) ) {
-                    $tmp = $value;
-                    $value = array($tmp);
+            else if ( $key === 'sort_by' ) {
+                // Don't want to allow the user to sort by fields that are non-public
+                foreach ($value as $sort_num => $sort_criteria) {
+                    $sort_df_id = $sort_criteria['sort_df_id'];
+                    foreach ($searchable_datafields as $dt_id => $datafields) {
+                        if ( isset($datafields[$sort_df_id]) && $datafields[$sort_df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
+                            // User can both view and search this datafield
+                            $filtered_search_params[$key][$sort_num] = array(
+                                'sort_df_id' => $sort_criteria['sort_df_id'],
+                                'sort_dif' => $sort_criteria['sort_dir'],
+                            );
+                            break;
+                        }
+                        else {
+                            // User can't view/search this datafield
+                            $removed_criteria = true;
+                        }
+                    }
                 }
-
-                // Sorting happens regardless of whether the user can see the relevant datafield...
-                //  so don't need to look anything up in $searchable_datafields
-                $filtered_search_params['sort_by'] = $value;
             }
             else if ( is_numeric($key) ) {
                 // Most of the fieldtypes provide search data like this...
@@ -401,6 +412,10 @@ class SearchAPIService
                         $filtered_search_params[$key] = $value;
                         break;
                     }
+                    else {
+                        // User can't view/search this datafield
+                        $removed_criteria = true;
+                    }
                 }
             }
             else {
@@ -409,21 +424,22 @@ class SearchAPIService
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
                     // This is a DatetimeValue or the public_status/quality of a File/Image field...
                     $df_id = intval($pieces[0]);
+                    $df_dt_id = null;
 
                     $is_valid_field = false;
-                    foreach ($searchable_datafields as $dt_id => $datafields) {
-                        if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
+                    foreach ($searchable_datafields as $dt_id => $df_list) {
+                        if ( isset($df_list[$df_id]) && $df_list[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
                             // User can both view and search this datafield...
+                            $df_dt_id = $dt_id;
                             $is_valid_field = true;
                             break;
                         }
                     }
 
                     // Searching on public status of files/images needs an additional check...
-                    if ( $pieces[1] === 'pub' ) {
-                        $dt_id = $datatype->getId();
-                        if ( !isset($user_permissions['datatypes'][$dt_id]['dr_view'])
-                            || !isset($user_permissions['datafields'][$df_id]['view'])
+                    if ( $is_valid_field && $pieces[1] === 'pub' ) {
+                        if ( !isset($user_permissions['datatypes'][$df_dt_id]['dr_view'])
+                            || !isset($user_permissions['datafields'][$df_dt_id]['view'])
                         ) {
                             // ...because a user without the ability to see non-public files should
                             //  not be able to search on this criteria
@@ -433,8 +449,14 @@ class SearchAPIService
                     if ( $search_as_super_admin )
                         $is_valid_field = true;
 
-                    if ( $is_valid_field )
+                    if ( $is_valid_field ) {
+                        // User can view/search this datafield
                         $filtered_search_params[$key] = $value;
+                    }
+                    else {
+                        // User can't view/search this datafield
+                        $removed_criteria = true;
+                    }
 
                     // Don't need additional checks for Datetime of XYZData fields
                 }
@@ -454,15 +476,35 @@ class SearchAPIService
                                 // User can search on this datatype
                                 $filtered_search_params[$key] = $value;
                             }
+                            else {
+                                // User can't view/search this datatype
+                                $removed_criteria = true;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Convert the filtered set of search parameters back into a search key and return it
-        $filtered_search_key = $this->search_key_service->encodeSearchKey($filtered_search_params);
-        return $filtered_search_key;
+        // Determine whether the user needs to get a new search key...
+        if ( $removed_criteria ) {
+            // If something got filtered out, then need to go through the trouble of creating
+            //  another search key for them to use
+            $filtered_search_key = $this->search_key_service->encodeSearchKey($filtered_search_params);
+
+            // ...since this is a new search key, it could be "oversized" (despite removing stuff)
+            if ( strlen($filtered_search_key) > intval($this->search_key_char_limit) ) {
+                // ...if so, then create something to hold it
+                $new_search_key = $this->search_key_service->handleOversizedSearchKey($filtered_search_key);
+                return $new_search_key;
+            }
+
+            // Return the modified search key
+            return $filtered_search_key;
+        }
+
+        // Otherwise, no criteria got removed...return the originally provided search key
+        return $search_key;
     }
 
 
@@ -480,7 +522,11 @@ class SearchAPIService
      *                                   match the search
      * @param int[] $sort_datafields An ordered list of the datafields to sort by, or an empty
      *                               array to sort by whatever is default for the datatype
-     * @param string[] $sort_directions An ordered list of which direction to sort each datafield by
+     * @param string[] $sort_directions An ordered list of which datafields/directions to sort the
+     *                                  results set with.
+     *                                  IMPORTANT: the sort directives in the search key are ignored,
+     *                                  because otherwise the search key would override any temporary
+     *                                  sorting the user wants to perform
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @param bool $return_as_list If true, then returns a list of records with internal id and
@@ -985,14 +1031,12 @@ class SearchAPIService
         $dr_list = array();
         if ($return_as_list) {
             $str =
-                'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
+               'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
                 FROM ODRAdminBundle:DataRecord AS dr
                 LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
                 WHERE dr.id IN (:datatype_ids)
                 AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
-
             $params = array('datatype_ids' => $sorted_datarecord_list);
-
             $query = $this->em->createQuery($str)->setParameters($params);
             $results = $query->getArrayResult();
 

@@ -331,10 +331,10 @@ class FlowController extends ODRCustomController
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
                 }
-                else if ( strlen($original_filename) > 128 || strlen($original_filename) == 0 ) {
-                    // Filename is either too large, or empty...don't continue
-                    // Filename length defined in FileMeta:originalFileName
-                    return self::flowAbort('Filenames are not allowed to exceed 128 characters');
+                else if ( strlen($original_filename) == 0 ) {
+                    return self::flowAbort('Filenames are not allowed to be empty');
+
+                    // NOTE: ODR can apparently handle the longest filename that windows allows
                 }
                 else if ( self::validateChunk($uploaded_file, $current_chunk_size) ) {
                     // ...no errors found, move uploaded chunk to storage directory

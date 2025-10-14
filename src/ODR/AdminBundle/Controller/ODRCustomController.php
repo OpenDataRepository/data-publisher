@@ -37,6 +37,7 @@ use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -99,6 +100,8 @@ class ODRCustomController extends Controller
         $theme_info_service = $this->container->get('odr.theme_info_service');
         /** @var SearchService $search_service */
         $search_service = $this->container->get('odr.search_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $this->container->get('odr.search_key_service');
         /** @var TableThemeHelperService $table_theme_helper_service */
         $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
 
@@ -166,10 +169,13 @@ class ODRCustomController extends Controller
             $odr_tab_id = $odr_tab_service->createTabId();
         }
 
+        // Check whether this is an "oversized" search key...need somewhat different HTML if so
+        $is_oversized_search_key = $search_key_service->isOversizedSearchKey($search_key);
+
         // Ensure the tab refers to the given search key
         $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
         if ( $expected_search_key !== $search_key )
-            $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
+            $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
 
         // Grab the page length for this tab from the session, if possible
         $page_length = $odr_tab_service->getPageLength($odr_tab_id);
@@ -440,6 +446,8 @@ class ODRCustomController extends Controller
                     'offset' => $offset,
                     'page_length' => $page_length,
 
+                    'is_oversized_search_key' => $is_oversized_search_key,
+
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,    // this is used by datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
@@ -549,6 +557,8 @@ class ODRCustomController extends Controller
                     'search_theme_id' => $theme->getId(),
                     'search_key' => $search_key,
                     'offset' => $offset,
+
+                    'is_oversized_search_key' => $is_oversized_search_key,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,    // This is used by the datarecord linking

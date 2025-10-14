@@ -346,6 +346,12 @@
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
+{% if is_oversized_search_key %}
+        $("#ODRSearchKeyWarning").removeClass('ODRHidden');
+{% else %}
+        $("#ODRSearchKeyWarning").addClass('ODRHidden');
+{% endif %}
+
 {% if display_theme_warning %}
         $("#ODRMainMenu").overhang({
             type: "warn",

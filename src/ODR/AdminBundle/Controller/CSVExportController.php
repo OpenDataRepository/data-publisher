@@ -152,7 +152,7 @@ class CSVExportController extends ODRCustomController
             // ----------------------------------------
             // Verify the search key, and ensure the user can view the results
             $search_key_service->validateSearchKey($search_key);
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
 
             if ($filtered_search_key !== $search_key) {
                 // User can't view some part of the search key...kick them back to the search

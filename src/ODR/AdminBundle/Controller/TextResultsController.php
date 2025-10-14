@@ -204,6 +204,7 @@ class TextResultsController extends ODRCustomController
                 // The value is stored back in the cookie after the response is created below
             }
 
+            $search_params = array();
             if ( $search_key == '' ) {
                 // Theoretically this won't happen during regular operation of ODR anymore, but
                 //  keeping around just in case
@@ -215,7 +216,7 @@ class TextResultsController extends ODRCustomController
             }
             else {
                 // Ensure the search key is valid first
-                $search_key_service->validateSearchKey($search_key);
+                $search_params = $search_key_service->validateSearchKey($search_key);
 
                 // TODO - don't need to check for a redirect here?  this is only called via AJAX from an already valid search results page, right?
                 // Determine whether the user is allowed to view this search key
@@ -228,9 +229,8 @@ class TextResultsController extends ODRCustomController
                 // No problems, so ensure the tab refers to the given search key
                 $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
                 if ( $expected_search_key !== $search_key )
-                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
+                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
             }
-            $search_params = $search_key_service->decodeSearchKey($search_key);
 
 
             // ----------------------------------------

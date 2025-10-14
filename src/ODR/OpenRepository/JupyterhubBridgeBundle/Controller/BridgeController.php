@@ -204,7 +204,7 @@ class BridgeController extends ODRCustomController
             $search_key_service->validateSearchKey($search_key);
 
             // Determine whether the user is allowed to view this search key
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
             if ($filtered_search_key !== $search_key) {
                 // User can't view the results of this search key, throw an error
                 throw new ODRForbiddenException();

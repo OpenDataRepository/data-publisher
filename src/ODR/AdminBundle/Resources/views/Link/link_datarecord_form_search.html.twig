@@ -147,6 +147,12 @@
 
         // Prepend a header for the checkbox column
         $("#TextResults_search").children('thead').children('tr').prepend('<th rowspan="1" colspan="1">Link to this record</th>');
+
+{% if is_oversized_search_key %}
+        $("#ODRSearchKeyWarning").removeClass('ODRHidden');
+{% else %}
+        $("#ODRSearchKeyWarning").addClass('ODRHidden');
+{% endif %}
     });
 </script>
 

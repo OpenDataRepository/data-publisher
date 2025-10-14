@@ -79,6 +79,12 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
+{% if is_oversized_search_key %}
+        $("#ODRSearchKeyWarning").removeClass('ODRHidden');
+{% else %}
+        $("#ODRSearchKeyWarning").addClass('ODRHidden');
+{% endif %}
+
 {% if intent == 'searching' and display_theme_warning %}
         $("#ODRMainMenu").overhang({
             type: "warn",
@@ -116,7 +122,7 @@
 
         $("#ChooseView").unbind('click').click(function(event) {
             window.ODRChooseView_applyredirectcallback = function(theme_id) {
-                {% if intent == 'searching' %}
+            {% if intent == 'searching' %}
                 // When a new 'search_results' theme is selected...need to redirect to a new URL
                 //  with the desired theme_id
 
@@ -135,14 +141,14 @@
                 url += theme_id + '/' + '{{ search_key }}' + '/' + offset;
 
                 UpdateURL(url);
-                {% elseif intent == 'linking' %}
+            {% elseif intent == 'linking' %}
                 // When a new theme is selected for this usage, the result needs to be surgically
                 //  spliced into a specific div on the page...
                 $("#selected_theme_id").val(theme_id);
                 doSearch( '{{ path('odr_search_results') }}' );
-                {% else %}
+            {% else %}
                 alert('invalid intent "{{ intent }}" passed to ODRAdminBundle::ShortResults::shortresultslist.html.twig');
-                {% endif %}
+            {% endif %}
             }
             openChooseViewRemodal({{ datatype.id }}, 'search_results', '{{ search_key }}');
         });

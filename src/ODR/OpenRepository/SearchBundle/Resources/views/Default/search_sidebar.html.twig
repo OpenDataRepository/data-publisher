@@ -784,8 +784,8 @@
                 $(this).blur();
 
                 var field_id = $(this).attr('rel');
-                $(context).find("#df_" + field_id + "_no_val").prop('checked', false);
-                $(context).find("#df_" + field_id + "_with_val").prop('checked', false);
+                $(context).find("#" + field_id + "_no_val").prop('checked', false);
+                $(context).find("#" + field_id + "_with_val").prop('checked', false);
             },
             beforeShow: function (input, inst) {
             }

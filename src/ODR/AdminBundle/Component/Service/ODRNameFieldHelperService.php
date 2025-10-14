@@ -296,10 +296,13 @@ class ODRNameFieldHelperService
         if ( !is_null($drf) ) {
             // ...then determine the typeclass before returning whatever value the datafield has
             $typeclass = lcfirst( $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'] );
-            if ( isset($drf[$typeclass][0]['value']) )
-                return $drf[$typeclass][0]['value'];
-            else
+            if ( !isset($drf[$typeclass][0]['value']) )
                 return '';
+
+            if ( $typeclass === 'datetimeValue' )
+                return ($drf[$typeclass][0]['value'])->format('Y-m-d');    // matches DatarecordInfoService::getValue()
+            else
+                return $drf[$typeclass][0]['value'];
         }
         else {
             // ...there may not be a value for this datafield

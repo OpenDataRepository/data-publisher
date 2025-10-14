@@ -90,8 +90,8 @@
     /**
      * Serializes the search sidebar and POSTs the data to the given URL.
      *
-     * If the given URL is equivalent to the path for the route 'odr_search_results', then a
-     * regular search is triggered, and the user is redirected to the search results afterwards.
+     * If the given URL is equivalent to the path for the route 'odr_search_results', then
+     * a regular search is triggered, and the user is redirected to the search results afterwards.
      *
      * If a callback function is provided, then it will be given whatever the POST returned.
      *
@@ -260,7 +260,13 @@
         var search_form = $(context).find("#search_form");
         // console.log(search_form);
 
+        // ----------------------------------------
+        var search_theme_id = $(context).find("#selected_theme_id").val();
+        var intent = $(context).find("#ODRSearchIntent").val();
+
         var post_data = $(search_form).serialize();
+        post_data += '&search_theme_id=' + search_theme_id + '&intent=' + intent;
+
         var df_values = post_data.split(/&/);
         var cleaned = [];
         $.each(df_values, function(index, elem) {
@@ -268,14 +274,15 @@
                 cleaned.push(elem);
         });
         post_data = cleaned.join('&');
+        // Don't need the default merge type in here
+        post_data = post_data.replace('&merge=AND', '');
         // console.log(post_data);
         // return;
 
         // ----------------------------------------
-        // TODO - need to communicate which theme to use...
+        // TODO - need to allow user to change which theme to use as part of this submission?
 
         // Request search results
-        var intent = $(context).find("#ODRSearchIntent").val();
         if ( is_actual_search )
             showSearchOverlay('Searching...', intent);
 
@@ -284,6 +291,7 @@
             url: target_url,
             dataType: 'json',
             data: post_data,
+            cache: false,
             success: function (data, textStatus, jqXHR) {
                 // If this wasn't a "regular" search request, then execute the given callback
                 if ( !is_actual_search ) {
@@ -310,25 +318,13 @@
                     }
                     window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-                    // Now that the search has been performed and cached, render the results
-                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
-                    url = url.substr(0, url.length - 2);
-                    url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
-
-                    // Save the search key so TODO
-                    $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
-
-                    // UpdateURL() will end up forcing a hashchange event one way or another, and
-                    //  also replace the search overlay
-                    // hideSearchOverlay();
-                    UpdateURL(url);
+                    // ODR will return a URL to get the search result
+                    window.location = data.url;
                 }
                 else if ( intent === 'linking' ) {
-                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
-                    url = url.substr(0, url.length - 10);
-                    url += data.d.search_key + '/1/linking';
-
-                    // Render the html into the #ODRSearchBoxContent div on this page
+                    // ODR will return a URL to get the result, but we're not going to redirect to it...
+                    url = data.url;
+                    // ...instead, want to render its html into the #ODRSearchBoxContent div on this page
                     $.ajax({
                         type: 'GET',
                         url: url,

@@ -33,6 +33,7 @@ use ODR\AdminBundle\Form\UpdateSidebarLayoutForm;
 use ODR\AdminBundle\Form\UpdateThemeForm;
 // Services
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -128,6 +129,11 @@ class ODRRenderService
     private $namefield_helper_service;
 
     /**
+     * @var SearchKeyService
+     */
+    private $search_key_service;
+
+    /**
      * @var FormFactory
      */
     private $form_factory;
@@ -172,6 +178,7 @@ class ODRRenderService
      * @param CloneTemplateService $clone_template_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param ODRNameFieldHelperService $namefield_helper_service
+     * @param SearchKeyService $search_key_service
      * @param FormFactory $form_factory
      * @param EngineInterface $templating
      * @param Pheanstalk $pheanstalk
@@ -195,6 +202,7 @@ class ODRRenderService
         CloneTemplateService $clone_template_service,
         EntityMetaModifyService $entity_meta_modify_service,
         ODRNameFieldHelperService $namefield_helper_service,
+        SearchKeyService $search_key_service,
         FormFactory $form_factory,
         EngineInterface $templating,
         Pheanstalk $pheanstalk,
@@ -218,6 +226,7 @@ class ODRRenderService
         $this->clone_template_service = $clone_template_service;
         $this->entity_modify_service = $entity_meta_modify_service;
         $this->namefield_helper_service = $namefield_helper_service;
+        $this->search_key_service = $search_key_service;
 
         $this->form_factory = $form_factory;
         $this->templating = $templating;
@@ -406,6 +415,11 @@ class ODRRenderService
      */
     public function getDisplayHTML($user, $datarecord, $search_key, $theme = null, $record_display_view = 'single')
     {
+        // Check whether this is an "oversized" search key...need somewhat different HTML if so
+        $is_oversized_search_key = false;
+        if ( $search_key !== '' )
+            $is_oversized_search_key = $this->search_key_service->isOversizedSearchKey($search_key);
+
         $template_name = 'ODRAdminBundle:Display:display_ajax.html.twig';
         $extra_parameters = array(
             'is_top_level' => 1,    // TODO - get rid of this requirement
@@ -413,6 +427,7 @@ class ODRRenderService
 
             'record_display_view' => $record_display_view,
             'search_key' => $search_key,
+            'is_oversized_search_key' => $is_oversized_search_key,
         );
 
         $datatype = $datarecord->getDataType();
@@ -454,12 +469,18 @@ class ODRRenderService
         $datatype = $datarecord->getDataType();
         $datatype_id = $datatype->getId();
 
+        // Check whether this is an "oversized" search key...need somewhat different HTML if so
+        $is_oversized_search_key = false;
+        if ( $search_key !== '' )
+            $is_oversized_search_key = $this->search_key_service->isOversizedSearchKey($search_key);
+
         $template_name = 'ODRAdminBundle:Edit:edit_ajax.html.twig';
         $extra_parameters = array(
             'is_top_level' => 1,    // TODO - get rid of this requirement
 
             'search_theme_id' => $search_theme_id,    // TODO - refactor to get rid of this?
             'search_key' => $search_key,
+            'is_oversized_search_key' => $is_oversized_search_key,
 
             'token_list' => array(),
             'edit_shows_all_fields' => $edit_shows_all_fields,

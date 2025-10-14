@@ -8,10 +8,14 @@
 {{ comment_prefix }}STATUS={% if header_values['sample_status'] is defined %}{{ header_values['sample_status'] }}{% endif %}{{ newline_separator }}
 {% if header_values['rruff_id'] is defined %}{{ comment_prefix }}URL={{ baseurl }}{{ header_values['rruff_id'] }}{{ newline_separator }}{% endif %}
 {% if header_values['measured_chemistry'] is defined %}{{ comment_prefix }}MEASURED CHEMISTRY={{ header_values['measured_chemistry'] }}{{ newline_separator }}{% endif %}
-{% if context == 'raman' %}
+{% if filetype == 'raman_raw' or filetype == 'raman_processed' %}
 {% if header_values['pin_id'] is defined %}{{ comment_prefix }}PIN_ID={{ header_values['pin_id'] }}{{ newline_separator }}{% endif %}
 {% if header_values['vector_p'] is defined %}{{ comment_prefix }}ORIENTATION=Laser parallel to {{ header_values['vector_p'] }}.{% endif %}{% if header_values['vector_f'] is defined %} Fiducial mark perpendicular to laser is parallel to {{ header_values['vector_f'] }}{{ newline_separator }}{% endif %}
 {% endif %}
 {% if header_values['powder_desc'] is defined %}{{ comment_prefix }}DIFFRACTION SAMPLE DESCRIPTION={{ header_values['powder_desc'] }}{{ newline_separator }}{% endif %}
 {% if header_values['powder_a'] is defined %}{{ comment_prefix }}CELL PARAMETERS=a: {{ header_values['powder_a'] }} b: {{ header_values['powder_b'] }} c: {{ header_values['powder_c'] }} alpha: {{ header_values['powder_alpha'] }} beta: {{ header_values['powder_beta'] }} gamma: {{ header_values['powder_gamma'] }} volume: {{ header_values['powder_vol'] }} crystal system: {{ header_values['powder_crys'] }}{{ newline_separator }}{% endif %}
+{{ comment_prefix }}FILETYPE={% if header_values['filetype'] is defined %}{{ header_values['filetype'] }}{% endif %}{{ newline_separator }}
+{% if filetype == 'raman_raw' or filetype == 'raman_processed' %}
+{{ comment_prefix }}RAMAN WAVELENGTH={% if header_values['raman_wavelength'] is defined %}{{ header_values['raman_wavelength'] }}{% else %}unknown{% endif %}{{ newline_separator }}
+{% endif %}
 {{ newline_separator }}

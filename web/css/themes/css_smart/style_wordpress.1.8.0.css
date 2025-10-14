@@ -641,6 +641,16 @@ h3.ui-accordion-header a {
     color: white;
 }
 
+#ODRSearchKeyWarning {
+    background-image: none;
+    background-color: #1C27D0;
+    box-shadow: none;
+    color: white;
+
+    text-align: center;
+    padding: 5px 0;
+}
+
 .ODR-pure-submenu {
     z-index: 100000;
 }

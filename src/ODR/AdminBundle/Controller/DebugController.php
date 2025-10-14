@@ -178,11 +178,10 @@ class DebugController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
 
             // Should validate the search key first...
-            $search_key_service->validateSearchKey($search_key);
+            $search_params = $search_key_service->validateSearchKey($search_key);
             // ...if it's valid, get the datatype id out of it
-            $search_params = $search_key_service->decodeSearchKey($search_key);
-
             $datatype_id = $search_params['dt_id'];
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)

@@ -35,6 +35,7 @@ services:
     odr.search_api_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService
         arguments:
+            $search_key_char_limit: "%search_key_char_limit%"
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $entity_manager: "@doctrine.orm.entity_manager"
             $datatree_info_service: "@odr.datatree_info_service"
@@ -57,7 +58,9 @@ services:
     odr.search_key_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService
         arguments:
+            $search_key_char_limit: "%search_key_char_limit%"
             $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $search_service: "@odr.search_service"

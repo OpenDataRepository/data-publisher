@@ -102,25 +102,16 @@ class ODRTabHelperService
      *
      * @param string $odr_tab_id
      * @param string $search_key
+     * @param int $datatype_id
      * @return bool
      */
-    public function setSearchKey($odr_tab_id, $search_key)
+    public function setSearchKey($odr_tab_id, $search_key, $datatype_id)
     {
         if ( $odr_tab_id == '' || $search_key == '' )
             return false;
 
-        // Copying this from SearchKeyService to avoid another import
-        // Replace all occurrences of the '-' character with '+', and the '_' character with '/'
-        $decoded = base64_decode(strtr($search_key, '-_', '+/'));
-
-        // Return an array instead of an object
-        $array = json_decode($decoded, true);
-        if ( is_null($array) || !isset($array['dt_id']) )
-            throw new ODRException('Invalid JSON', 400, 0x7daceb83);
-        $dt_id = $array['dt_id'];
-
         // Overwrite any existing data for this tab with the new search key
-        self::setTabData($odr_tab_id, array('search_key' => $search_key, 'dt_id' => $dt_id));
+        self::setTabData($odr_tab_id, array('search_key' => $search_key, 'dt_id' => $datatype_id));
 
         return true;
     }

@@ -10,6 +10,9 @@
     <table id="ODRValuesTable" class="display dataTable">
         <thead>
             <tr>
+            {% if is_child_datatype %}
+                <th>Grandparent Datarecord</th>
+            {% endif %}
                 <th>Datarecord</th>
                 <th>Value</th>
             </tr>
@@ -17,7 +20,12 @@
         <tbody>
         {% for dr_id,row in content %}
             <tr>
-                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ row.dr_name }}</a></td>
+            {% if is_child_datatype %}
+                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': row.gdr_id}) }}">{{ row.gdr_name }}</a></td>
+                <td>{{ row.dr_name }}</td>
+            {% else %}
+                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ row.gdr_name }}</a></td>
+            {% endif %}
                 <td>{{ row.value }}</td>
             </tr>
         {% endfor %}
@@ -31,7 +39,7 @@
 
         $("#ODRValuesTable").dataTable({
             "order": [[ 0, "asc" ]],
-            "info": false,
+            "info": true,
             "scrollY": 600,
             "scrollCollapse": true,
             "paging": false

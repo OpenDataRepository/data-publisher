@@ -6,7 +6,7 @@
 
 <div class="ODRContentWrapper">
     <div class="ODRThemeElement pure-u-1">
-        <h3 class="ODRHeader">ODR Activity Viewer</h3>
+        <h3 class="ODRHeader">ODR Activity Viewer {% if grandparent_datatype_name is defined %}for "{{ grandparent_datatype_name }}"{% endif %}</h3>
         <div class="ODRInnerBox">
             <input id="prev_start_date" type="hidden" value="{{ month_ago }}"/>
             <input id="prev_end_date" type="hidden" value="{{ today }}"/>
@@ -62,8 +62,10 @@
                 <fieldset>
                     <label for="selected_datatypes">Datatypes:</label>
                     <span id="selected_datatypes">
-                    {% if target_datatype_name is defined %}
-                        <span class="ODRTracking_criteria Cursor">{{ target_datatype_name }}</span>
+                    {% if target_datatype_names is defined %}
+                        {% for name in target_datatype_names %}
+                        <span class="ODRTracking_criteria Cursor">{{ name }}</span>
+                        {% endfor %}
                     {% else %}
                         <span class="ODRTracking_placeholder Cursor">Any</span>
                     {% endif %}
@@ -216,7 +218,8 @@
         $("#ODRTrackingForm_datarecordlist").unbind('click').click(function() {
             $("#target_datarecord_id").val('');
             $("#target_search_key").val('');
-            $("#datatype_id_restriction").val('');
+            // Don't reset the tracking setup to look at every single datatype
+            // $("#datatype_id_restriction").val('');
 
             $("#selected_datarecords").html('');
             $("<span>", {

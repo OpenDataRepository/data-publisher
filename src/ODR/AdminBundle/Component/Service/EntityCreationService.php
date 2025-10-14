@@ -1321,6 +1321,8 @@ class EntityCreationService
         $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
         $original_filename = pathinfo($filepath, PATHINFO_BASENAME);
 
+        // NOTE: ODR can apparently handle the longest filename that windows allows
+
 
         // ----------------------------------------
         // Fill out most of the database entry for this file...
