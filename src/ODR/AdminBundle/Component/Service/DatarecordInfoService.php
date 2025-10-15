@@ -24,6 +24,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 // Other
+use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
@@ -1404,5 +1405,143 @@ class DatarecordInfoService
         }
 
         return $fake_drf;
+    }
+
+
+    /**
+     * Originally, changes made to a datarecord would also change that datarecord's updated property,
+     * as well as the the updated property of that datarecord's parent...repeated until it hit the
+     * datarecord's grandparent.
+     *
+     * After external applications started checking the updated property to determine when stuff
+     * changed, it became apparent that the scope needed to expand to include every single possible
+     * ancestor of the datarecord...otherwise, the external applications had to repeatedly recheck
+     * basically everything they could be interested in.
+     *
+     * This "every possible ancestor" logic needs to be applied to multiple places, and is easier
+     * anyways when it's off in its own function.
+     *
+     * NOTE: this can return datarecords belonging to deleted datatypes, even when $include_deleted
+     * is false.
+     *
+     * @param int[] $datarecords_to_process
+     * @return int[]
+     */
+    public function findAllAncestors($datarecords_to_process, $include_deleted = false)
+    {
+        $conn = $this->em->getConnection();
+
+        $all_datarecord_ids = array();
+        foreach ($datarecords_to_process as $num => $dr_id)
+            $all_datarecord_ids[$dr_id] = 0;
+
+        while ( !empty($datarecords_to_process) ) {
+            $query =
+               'SELECT ddr.id AS ddr_id, ddr.parent_id AS parent_id, adr.id AS linked_ancestor_id
+                FROM odr_data_record ddr
+                LEFT JOIN odr_linked_data_tree ldt ON ldt.descendant_id = ddr.id AND ldt.deletedAt IS NULL
+                LEFT JOIN odr_data_record adr ON ldt.ancestor_id = adr.id
+                WHERE ddr.id IN (?)';
+            if ( !$include_deleted )
+                $query .= ' AND ddr.deletedAt IS NULL';
+            $parameters = array(1 => $datarecords_to_process);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $results = $conn->executeQuery($query, $parameters, $types);  // change to fetchAll() for debugging
+
+            $datarecords_to_process = array();
+            foreach ($results as $result) {
+                $ddr_id = intval($result['ddr_id']);
+                $all_datarecord_ids[$ddr_id] = 0;
+
+                // Store this datarecord's ancestor regardless of whether it was a child or a link
+                if ( !is_null($result['parent_id']) ) {
+                    $parent_id = intval($result['parent_id']);
+                    if (  $ddr_id !== $parent_id ) {
+                        $datarecords_to_process[$parent_id] = 0;
+                        $all_datarecord_ids[$parent_id] = 0;
+                    }
+                }
+                if ( !is_null($result['linked_ancestor_id']) ) {
+                    $linked_ancestor_id = intval($result['linked_ancestor_id']);
+                    $datarecords_to_process[$linked_ancestor_id] = 0;
+                    $all_datarecord_ids[$linked_ancestor_id] = 0;
+                }
+            }
+
+            // The loop requires the datarecord ids to be values, not keys
+            $datarecords_to_process = array_keys($datarecords_to_process);
+        }
+
+        // The resulting list of datarecords should also be returned as values, not keys
+        $all_datarecord_ids = array_keys($all_datarecord_ids);
+        return $all_datarecord_ids;
+    }
+
+
+    /**
+     * The ideal way to invert {@link self::findAllAncestors()} isn't entirely obvious, so it makes
+     * sense to have a mirror function as well.
+     *
+     * NOTE: this can return datarecords belonging to deleted datatypes, even when $include_deleted
+     * is false.
+     *
+     * @param int[] $datarecords_to_process
+     * @return int[]
+     */
+    public function findAllDescendants($datarecords_to_process, $include_deleted = false)
+    {
+        $conn = $this->em->getConnection();
+
+        $all_datarecord_ids = array();
+        while ( !empty($datarecords_to_process) ) {
+            // Need two queries to do this...first is to get all child descendants of these records
+            $query =
+               'SELECT dr.id AS dr_id
+                FROM odr_data_record dr
+                WHERE dr.grandparent_id IN (?)';
+            if ( !$include_deleted )
+                $query .= ' AND dr.deletedAt IS NULL';
+
+            $parameters = array(1 => $datarecords_to_process);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $results = $conn->executeQuery($query, $parameters, $types);  // change to fetchAll() for debugging
+
+            $datarecords_to_process = array();
+            foreach ($results as $result) {
+                $dr_id = intval($result['dr_id']);
+
+                $all_datarecord_ids[$dr_id] = 0;
+                $datarecords_to_process[$dr_id] = 0;
+            }
+            // The next query needs the datarecord ids to be values, not keys
+            $datarecords_to_process = array_keys($datarecords_to_process);
+
+            // Second query is to get all records the previous set linked to
+            $query =
+               'SELECT ldt.descendant_id AS ddr_id
+                FROM odr_data_record adr
+                JOIN odr_linked_data_tree ldt ON ldt.ancestor_id = adr.id
+                WHERE adr.id IN (?)';
+            if ( !$include_deleted )
+                $query .= ' AND ldt.deletedAt IS NULL';
+
+            $parameters = array(1 => $datarecords_to_process);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $results = $conn->executeQuery($query, $parameters, $types);
+
+            $datarecords_to_process = array();
+            foreach ($results as $result) {
+                $ddr_id = intval($result['ddr_id']);
+
+                $datarecords_to_process[$ddr_id] = 0;
+            }
+
+            // The next stage of the loop requires the datarecord ids to be values, not keys
+            $datarecords_to_process = array_keys($datarecords_to_process);
+        }
+
+        // The resulting list of datarecords should also be returned as values, not keys
+        $all_datarecord_ids = array_keys($all_datarecord_ids);
+        return $all_datarecord_ids;
     }
 }

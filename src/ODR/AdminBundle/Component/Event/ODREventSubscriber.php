@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
@@ -56,6 +57,11 @@ class ODREventSubscriber implements EventSubscriberInterface
     private $cache_service;
 
     /**
+     * @var DatarecordInfoService
+     */
+    private $datarecord_info_service;
+
+    /**
      * @var DatatreeInfoService
      */
     private $datatree_info_service;
@@ -83,6 +89,7 @@ class ODREventSubscriber implements EventSubscriberInterface
      * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
      * @param Logger $logger
@@ -92,6 +99,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         ContainerInterface $container,
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatarecordInfoService $datarecord_info_service,
         DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
         Logger $logger
@@ -100,6 +108,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         $this->container = $container;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->datarecord_info_service = $datarecord_info_service;
         $this->datatree_info_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->logger = $logger;
@@ -772,72 +781,6 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
     /**
-     * Originally, changes made to a datarecord would also change that datarecord's updated property,
-     * as well as the the updated property of that datarecord's parent...repeated until it hit the
-     * datarecord's grandparent.
-     *
-     * After external applications started checking the updated property to determine when stuff
-     * changed, it became apparent that the scope needed to expand to include every single possible
-     * ancestor of the datarecord...otherwise, the external applications had to recheck basically
-     * everything.
-     *
-     * This "every possible ancestor" logic needs to be applied to multiple places, and is easier
-     * anyways when it's off in its own function.
-     *
-     * @param int[] $datarecords_to_process
-     * @return int[]
-     */
-    private function findAllAncestors($datarecords_to_process)
-    {
-        $conn = $this->em->getConnection();
-
-        $all_datarecord_ids = array();
-        foreach ($datarecords_to_process as $num => $dr_id)
-            $all_datarecord_ids[$dr_id] = 0;
-
-        while ( !empty($datarecords_to_process) ) {
-            $query =
-               'SELECT ddr.id AS ddr_id, ddr.parent_id AS parent_id, adr.id AS linked_ancestor_id
-                FROM odr_data_record ddr
-                LEFT JOIN odr_linked_data_tree ldt ON ldt.descendant_id = ddr.id AND ldt.deletedAt IS NULL
-                LEFT JOIN odr_data_record adr ON ldt.ancestor_id = adr.id
-                WHERE ddr.id IN (?)
-                AND ddr.deletedAt IS NULL';
-            $parameters = array(1 => $datarecords_to_process);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
-            $results = $conn->fetchAll($query, $parameters, $types);
-
-            $datarecords_to_process = array();
-            foreach ($results as $result) {
-                $ddr_id = intval($result['ddr_id']);
-                $all_datarecord_ids[$ddr_id] = 0;
-
-                // Store this datarecord's ancestor regardless of whether it was a child or a link
-                if ( !is_null($result['parent_id']) ) {
-                    $parent_id = intval($result['parent_id']);
-                    if (  $ddr_id !== $parent_id ) {
-                        $datarecords_to_process[$parent_id] = 0;
-                        $all_datarecord_ids[$parent_id] = 0;
-                    }
-                }
-                if ( !is_null($result['linked_ancestor_id']) ) {
-                    $linked_ancestor_id = intval($result['linked_ancestor_id']);
-                    $datarecords_to_process[$linked_ancestor_id] = 0;
-                    $all_datarecord_ids[$linked_ancestor_id] = 0;
-                }
-            }
-
-            // The loop requires the datarecord ids to be values, not keys
-            $datarecords_to_process = array_keys($datarecords_to_process);
-        }
-
-        // The resulting list of datarecords should also be returned as values, not keys
-        $all_datarecord_ids = array_keys($all_datarecord_ids);
-        return $all_datarecord_ids;
-    }
-
-
-    /**
      * Handles dispatched DatarecordModified events
      *
      * @param DatarecordModifiedEvent $event
@@ -868,7 +811,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  updated...originally this only went up to the datarecord's grandparent, but that
             //  requirement got extended to include every single possible ancestor
             if ( $update_database ) {
-                $dr_list = self::findAllAncestors( array($datarecord->getId()) );
+                $dr_list = $this->datarecord_info_service->findAllAncestors( array($datarecord->getId()) );
                 if ( $this->debug )
                     $this->logger->debug('ODREventSubscriber::onDatarecordModified() for datarecord '.$datarecord->getId().'...updated datarecord ids: '.implode(', ', $dr_list));
 
@@ -1101,7 +1044,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  render A.  However, this means that linking/unlinking of datarecords between B/C,
             //  C/D, etc also affects which datarecords A needs to load...so any linking/unlinking
             //  needs to be propagated upwards...
-            $records_to_clear = self::findAllAncestors($datarecord_ids);
+            $records_to_clear = $this->datarecord_info_service->findAllAncestors($datarecord_ids);
 
             // Clearing this cache entry for each of the ancestor records found ensures that the
             //  newly linked/unlinked datarecords show up (or not) when they should
