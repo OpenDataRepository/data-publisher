@@ -50,6 +50,7 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
             $search_service: "@odr.search_service"
             $logger: "@logger"
         tags:
