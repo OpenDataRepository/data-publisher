@@ -27,6 +27,38 @@ function delay(time) {
     });
 }
 
+/**
+ * Check if a file exists and is up to date compared to the file_updated timestamp
+ * @param {string} filePath - The path to the file to check
+ * @param {string} fileUpdated - The updated timestamp from metadata
+ * @returns {boolean} - True if file exists and is up to date, false otherwise
+ */
+function isFileUpToDate(filePath, fileUpdated) {
+    try {
+        const stats = fs.statSync(filePath);
+        const fileModTime = new Date(stats.mtime);
+        const fileUpdatedDate = new Date(fileUpdated);
+
+        console.log('Checking file: ', filePath);
+        console.log('  File modification time: ', fileModTime.toISOString());
+        console.log('  Metadata updated time:  ', fileUpdatedDate.toISOString());
+
+        if (fileModTime >= fileUpdatedDate) {
+            // File exists and is up to date
+            console.log('  Result: File is up to date, keeping existing file');
+            return true;
+        } else {
+            console.log('  Result: File is outdated, will re-download');
+            return false;
+        }
+    } catch (error) {
+        // File doesn't exist or can't be accessed
+        console.log('Checking file: ', filePath);
+        console.log('  Result: File does not exist or cannot be accessed, will download');
+        return false;
+    }
+}
+
 async function app() {
     browser = await puppeteer.launch({headless: 'new'});
     memcached_client = new Memcached('localhost:11211', {retries: 10, retry: 10000, remove: false});
@@ -179,7 +211,44 @@ async function app() {
 }
 
 let template_uuids = [];
+
+/*
+    RRUFF Image UUID
+ */
 template_uuids['sample_image'] = 'b571f4738325b415195f432f9625';
+
+/*
+    Chemistry Related UUIDs
+ */
+template_uuids['chemistry_child'] = '73fd47e51616fde8f5e631cada3e';
+template_uuids['microprobe_data'] = 'b4869fd388927e4e914f6110a892';
+
+/*
+    Powder Diffraction Related UIUDs
+ */
+template_uuids['powder_child'] = '0deb8003323a661950be48c857bb';
+template_uuids['dif_file'] = 'eeef0e5f2639f24107384feeeff7';
+template_uuids['cell_data'] = '694056249e7e85dd72a013583526';
+template_uuids['cell_output_data'] = 'da3ff31e42afa697698b1efb5bfb';
+template_uuids['xy_processed'] = '3939ba3db557ba05d45746f95caf';
+template_uuids['xy_raw'] = '092cd44d3be544beda329b002884';
+template_uuids['infrared_child'] = 'da0a4296f349ba9b2999e594a311';
+template_uuids['infrared_raw'] = '9980ce944fc65a5622e4b0ef6f12';
+// template_uuids['xy_processed'] = '092cd44d3be544beda329b002884';
+
+/*
+    RAMAN Related UUIDs
+ */
+template_uuids['raman_child'] = 'a11404296e003a3c5677fe5c5c71';
+template_uuids['raman_file_record'] = 'd5634cdabb04b3e771c072afe5b4';
+template_uuids['raw_raman_file'] = '9cf77fe1d4068f96c1f7b182bab2';
+template_uuids['processed_raman_file'] = '87c62d2fb2edf24842de7eba2106';
+
+template_uuids['broad_scan_raman_child'] = '6a525a1868d7eef32e30e586dc74';
+template_uuids['raman_broad_scan_file_record'] = '6a2ac522a7798625593023855b40';
+template_uuids['raw_broad_scan_raman_file'] = '1478c4188a1dca0e817aa820243e';
+template_uuids['processed_broad_scan_raman_file'] = 'dd805d174cda22a92f1238ae16d5';
+
 async function processSampleImages(child_record) {
     for (let i = 0; i < child_record['fields_' + child_record.template_uuid].length; i++) {
         let child_field = child_record['fields_' + child_record.template_uuid][i];
@@ -193,6 +262,7 @@ async function processSampleImages(child_record) {
         let valid_files = [];
         if(child_field[key].template_field_uuid === template_uuids['sample_image']) {
             let files = child_field[key].files;
+            let file_updated = child_field[key].files[0]._file_metadata._create_date;
 
             for(let j = 0; j < files.length; j++) {
                 // Check quality
@@ -220,8 +290,8 @@ async function processSampleImages(child_record) {
                         let found = false;
                         for(let k = 0; k < entries.length; k++) {
                             if(entries[k] === new_file) {
-                                // File exists
-                                found = true;
+                                // Check if file exists and is up to date
+                                found = isFileUpToDate(entries[k], file_updated);
                             }
                         }
 
@@ -264,18 +334,6 @@ async function processSampleImages(child_record) {
 // Processed.zip	2025-05-18 00:30	13M
 // RAW.zip
 
-template_uuids['chemistry_child'] = '73fd47e51616fde8f5e631cada3e';
-template_uuids['microprobe_data'] = 'b4869fd388927e4e914f6110a892';
-
-template_uuids['powder_child'] = '0deb8003323a661950be48c857bb';
-template_uuids['dif_file'] = 'eeef0e5f2639f24107384feeeff7';
-template_uuids['cell_data'] = '694056249e7e85dd72a013583526';
-template_uuids['cell_output_data'] = 'da3ff31e42afa697698b1efb5bfb';
-template_uuids['xy_processed'] = '3939ba3db557ba05d45746f95caf';
-template_uuids['xy_raw'] = '092cd44d3be544beda329b002884';
-template_uuids['infrared_child'] = 'da0a4296f349ba9b2999e594a311';
-template_uuids['infrared_raw'] = '9980ce944fc65a5622e4b0ef6f12';
-// template_uuids['xy_processed'] = '092cd44d3be544beda329b002884';
 async function processFiles(record) {
     // console.log('\n\n\n\nPROCESS FILES: ', record.template_uuid);
     if(record !== undefined) {
@@ -323,6 +381,7 @@ async function processFiles(record) {
                 // console.log('File URL: ', file_url);
                 let file_quality = field.files[0]._file_metadata._quality;
                 // console.log('File Quality: ', file_quality);
+                let file_updated = field.files[0]._file_metadata._create_date;
 
                 // Determine Directory Name
                 let output_file_directory = '';
@@ -375,16 +434,17 @@ async function processFiles(record) {
                     let found = false;
                     for(let k = 0; k < entries.length; k++) {
                         if(entries[k] === new_file) {
-                            // File exists
-                            found = true;
+                            // Check if file exists and is up to date
+                            found = isFileUpToDate(entries[k], file_updated);
                         }
                     }
+
 
                     if(!found) {
                         // Download and write file
                         const downloadPath = path.resolve(folder); // Ensure this directory exists or create it
                         if (fs.existsSync(downloadPath)){
-                            console.log('Directory not found: ', downloadPath);
+                            console.log('Directory found: ', downloadPath);
                             try {
                                 console.log('Download file: ', file_url);
                                 await wgetFile(file_url, new_file);
@@ -412,15 +472,7 @@ async function processFiles(record) {
     }
 }
 
-template_uuids['raman_child'] = 'a11404296e003a3c5677fe5c5c71';
-template_uuids['raman_file_record'] = 'd5634cdabb04b3e771c072afe5b4';
-template_uuids['raw_raman_file'] = '9cf77fe1d4068f96c1f7b182bab2';
-template_uuids['processed_raman_file'] = '87c62d2fb2edf24842de7eba2106';
 
-template_uuids['broad_scan_raman_child'] = '6a525a1868d7eef32e30e586dc74';
-template_uuids['raman_broad_scan_file_record'] = '6a2ac522a7798625593023855b40';
-template_uuids['raw_broad_scan_raman_file'] = '1478c4188a1dca0e817aa820243e';
-template_uuids['processed_broad_scan_raman_file'] = 'dd805d174cda22a92f1238ae16d5';
 async function processRamanFiles(file_record) {
     if(file_record === undefined) {
         // console.log('File Record is undefined');
@@ -487,6 +539,8 @@ async function processRamanFiles(file_record) {
                 console.log('File URL: ', file_url);
                 let file_quality = child_field[key].files[0]._file_metadata._quality;
                 console.log('File Quality: ', file_quality);
+                let file_updated = child_field[key].files[0]._file_metadata._create_date;
+
 
                 // Determine Directory Name
                 let output_file_directory = '';
@@ -560,8 +614,8 @@ async function processRamanFiles(file_record) {
                     let found = false;
                     for (let k = 0; k < entries.length; k++) {
                         if (entries[k] === new_file) {
-                            // File exists
-                            found = true;
+                            // Check if file exists and is up to date
+                            found = isFileUpToDate(entries[k], file_updated);
                         }
                     }
 
@@ -569,7 +623,7 @@ async function processRamanFiles(file_record) {
                         // Download and write file
                         const downloadPath = path.resolve(image_folder); // Ensure this directory exists or create it
                         if (fs.existsSync(downloadPath)) {
-                            console.log('Directory not found: ', downloadPath);
+                            console.log('Directory found: ', downloadPath);
                             try {
                                 console.log('Download file: ', file_url);
                                 await wgetFile(file_url, new_file);

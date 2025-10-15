@@ -103,7 +103,7 @@ async function app() {
                                     console.log('Zip Start: ', new Date().toISOString() );
                                     // && fs.lstatSync(dir_path).isDirectory()
                                     try {
-                                        await execSync('zip -ur ' + file_name  + ' *', {
+                                        await execSync('zip -FSr ' + file_name  + ' *', {
                                             cwd: dir_path,
                                             stdio: 'ignore'
                                         });
