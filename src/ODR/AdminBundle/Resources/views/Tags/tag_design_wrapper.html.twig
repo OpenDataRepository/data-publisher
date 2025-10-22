@@ -806,6 +806,7 @@
         if ( !confirm(delete_question) )
             return;
 
+        var datafield_id = $("#ODRTagPositionForm").attr('rel');
         var url = '{{ path('odr_delete_tag', { 'tag_id': 0 }) }}';
         // Load display template menu
         url = url.substring(0,(url.length - 1));
@@ -822,16 +823,12 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                // Remove the tag from this modal
-                $("#ODRTag_" + tag_id + "_name").closest(".ODRTagItem").remove();
-
-                // Redo any warnings
-                FindDuplicateTagNames();
-                clearTagHighlights();
-                initTags();
-
-                // Hide the loading blurb
+                // Hide the loading blurb...
                 hideODRRemodalLoading();
+
+                // ...because deleting a tag might have changed whether other tags are selected or not
+                updateODRRemodalBody('', 'full');
+                loadTagEditDialogContents(datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Should close the remodal on error...
