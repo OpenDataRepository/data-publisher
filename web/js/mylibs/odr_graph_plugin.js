@@ -933,7 +933,7 @@ function ODRGraph_lineChartPlotly(chart_obj, onComplete) {
                 yaxis_settings.showline = false;
                 yaxis_settings.showgrid = false;
                 yaxis_settings.showticklabels = false;
-                yaxis_settings.visible = false;
+                yaxis_settings.visible = true;
             }
 
             var layout = {

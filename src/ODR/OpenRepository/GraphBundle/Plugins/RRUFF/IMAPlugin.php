@@ -1226,30 +1226,41 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      */
     public function searchOverriddenField($mineral_name_df, $search_term, $render_plugin_fields, $render_plugin_options)
     {
-        // This currently should only be called with the 'Mineral Name' field...any search term should
-        //  simultaneously be used on the contents of the 'Mineral Aliases' field
+        // This currently should only be called with the "Mineral Name" field...any search term should
+        //  simultaneously be used on the contents of the "Mineral Aliases" and "Mineral ASCII Name"
+        //  fields
         $mineral_aliases_df_id = $render_plugin_fields['Mineral Aliases'];
+        $mineral_ascii_name_df_id = $render_plugin_fields['Mineral ASCII Name'];
 
 
         // ----------------------------------------
         // Not going to fundamentally change how the searches are done...
+        $mineral_aliases_search_results = array('records' => array());
+        $mineral_ascii_name_search_results = array('records' => array());
+
         $search_value = $search_term['value'];
         $mineral_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_name_df, $search_value);
         $involves_empty_string = $mineral_name_search_results['guard'];
 
-        $mineral_aliases_search_results = array('records' => array());
         if ( $search_value !== "\"\"" ) {
-            // ...but should only search the 'Mineral Aliases' field when not searching on the empty string
+            // ...but should only search the "Mineral Aliases" and "Mineral ASCII Name" fields when
+            //  not searching on the empty string
             /** @var DataFields $mineral_aliases_df */
             $mineral_aliases_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($mineral_aliases_df_id);
             $mineral_aliases_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_aliases_df, $search_value);
+
+            /** @var DataFields $mineral_ascii_name_df */
+            $mineral_ascii_name_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($mineral_ascii_name_df_id);
+            $mineral_ascii_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_ascii_name_df, $search_value);
         }
 
 
         // ----------------------------------------
-        // These two sets of results need to be OR'ed together...
+        // These three sets of results need to be OR'ed together...
         $final_dr_list = $mineral_name_search_results['records'];
         foreach ($mineral_aliases_search_results['records'] as $dr_id => $num)
+            $final_dr_list[$dr_id] = 1;
+        foreach ($mineral_ascii_name_search_results['records'] as $dr_id => $num)
             $final_dr_list[$dr_id] = 1;
 
         // ...and then returned as if it was any other search result

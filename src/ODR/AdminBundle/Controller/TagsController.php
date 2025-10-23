@@ -1278,6 +1278,26 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Determine whether this is a child tag or not
+            $query = $em->createQuery(
+               'SELECT tt.id
+                FROM ODRAdminBundle:TagTree AS tt
+                WHERE tt.child IN (:child_tags)
+                AND tt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'child_tags' => $tag->getId(),
+                )
+            );
+            $results = $query->getArrayResult();
+
+            // ...if it is, then need to trigger a tag rebuild afterwards
+            $is_child_tag = false;
+            if ( count($results) > 0 )
+                $is_child_tag = true;
+
+
+            // ----------------------------------------
             // When deleting a tag, all of its children need deleted too...
             $relevant_tags = array($tag);
             if ( $is_derived_field ) {
@@ -1415,6 +1435,12 @@ class TagsController extends ODRCustomController
                 //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
+            }
+
+            // If the tag had a parent...
+            if ( $is_child_tag ) {
+                // ...then need to trigger a rebuild
+                self::triggerTagRebuild($em, $datafield, $user, $tracked_job_service);
             }
 
 
@@ -1972,9 +1998,9 @@ class TagsController extends ODRCustomController
 
 
     /**
-     * If a tag gets moved so that it has a new parent tag, then that could result in situations
-     * where parents of a selected tag are not themselves selected.  As such, there needs to be a
-     * way to trigger a tag_rebuild job after changing a tag's parent...
+     * If a tag gets moved so that it has a new parent tag, or if a child tag got deleted...then that
+     * could result in situations where parent tags aren't in the correct stage.  As such, there
+     * needs to be a way to trigger a tag_rebuild job after changing a tag's parent...
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param DataFields $datafield
