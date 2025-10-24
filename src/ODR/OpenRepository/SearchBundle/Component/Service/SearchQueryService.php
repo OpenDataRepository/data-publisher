@@ -2278,8 +2278,15 @@ class SearchQueryService
                             break;
                         case '!':
 //                        case '-':
-                            // attempt to ignore the operator if not attached to a term
-                            $pieces[] = '!';
+                            if ( $str === '!' ) {
+                                // If the string consists solely of the exclamation point, then treat
+                                //  it as a character instead of an operator
+                                $pieces[] = '"!"';
+                            }
+                            else {
+                                // Otherwise, treat this as an operator
+                                $pieces[] = '!';
+                            }
                             break;
 
                         case '<':
@@ -2331,13 +2338,20 @@ class SearchQueryService
                             break;
 
                         case ',':
-                            // Treat this as an "OR" operator when it's outside of quotes
-                            if ($tmp !== '') {
-                                // Save any existing piece before saving the operator
-                                $pieces[] = $tmp;
-                                $tmp = '';
+                            if ( $i == 0 || $str[$i-1] == '!' ) {
+                                // If this is the first character, or if it was immediately preceeded
+                                //  by a '!', then don't treat this character as an operator
+                                $pieces[] = ',';
                             }
-                            $pieces[] = '||';
+                            else {
+                                // Otherwise, this should be treated as an "OR" operator
+                                if ($tmp !== '') {
+                                    // Save any existing piece before saving the operator
+                                    $pieces[] = $tmp;
+                                    $tmp = '';
+                                }
+                                $pieces[] = '||';
+                            }
                             break;
 
                         case 'o':
@@ -2573,6 +2587,26 @@ class SearchQueryService
                             // Want to search on the empty string '', not the string '""'
                             $piece = '';
                         }
+                    }
+                    else if ( $piece === "\",\"" ) {
+                        // Due to the ',' character typically being an AND operator, we need to
+                        //  override this sequence so it searches for fields containing at least
+                        //  one comma, instead of searching for fields containing only a comma
+                        if ($negate)
+                            $str .= ' NOT LIKE ';
+                        else
+                            $str .= ' LIKE ';
+                        $piece = '%,%';
+                    }
+                    else if ( $piece === "\"!\"" ) {
+                        // Due to the '!' character typically being the NOT operator, we need to
+                        //  override this sequence just like the previous if block override for the
+                        //  comma character
+                        if ($negate)
+                            $str .= ' NOT LIKE ';
+                        else
+                            $str .= ' LIKE ';
+                        $piece = '%!%';
                     }
                     else if ( ($piece_is_quoted && $doublequotes_force_exact_match)
                         || ($piece_is_quoted && strpos($piece, " ") === false)    // does have a quote, but doesn't have a space
