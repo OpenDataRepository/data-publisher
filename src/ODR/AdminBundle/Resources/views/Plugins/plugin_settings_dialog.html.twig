@@ -104,10 +104,13 @@
                         $.each(tmp, function(df_id, returned_df_props) {
                             var df_props = datafield_properties.get( parseInt(df_id) );
                             // console.log('df_id', df_id, 'current_df_props', df_props);
-                            // console.log('returned_df_props', returned_df_props);
-                            $.each(returned_df_props, function(key, value) {
-                                df_props.set(key, value);
-                            });
+                            if ( df_props !== undefined ) {
+                                // console.log('returned_df_props', returned_df_props);
+                                $.each(returned_df_props, function(key, value) {
+                                    df_props.set(key, value);
+                                    // console.log('-- setting ' + key + ' to "' + value + '"');
+                                });
+                            }
                         });
                         // console.log('datafield properties', datafield_properties);
 

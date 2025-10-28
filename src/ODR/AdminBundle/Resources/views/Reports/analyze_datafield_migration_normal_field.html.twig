@@ -1,24 +1,29 @@
 {% spaceless %}
+
+{% set new_fieldtype_can_be_unique = new_fieldtype.canBeUnique %}
+{# NOTE: the conversions sent through this twig file don't lose data, so they won't create duplicates in unique fields #}
+{% set new_fieldtype_can_be_sort_field = new_fieldtype.canBeSortField %}
+
 <div>
     {% set dt = df.getdatatype %}
 
     {% if df.getisunique %}
-        <div class="bold ODRInputError">This datafield is marked as unique, which prevents any change in fieldtype.</div>
+        <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">This datafield is currently marked as unique{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.</div>
     {% endif %}
 
     {% set external_id_field = dt.getexternalidfield %}
     {% if external_id_field is not null and external_id_field.id == df.id %}
-        <div class="bold">This datafield is the external id field of the "{{ dt.getshortname }}" datatype.</div>
+        <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">This datafield is currently the datatype's external id field{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.</div>
     {% endif %}
 
     {% if df.getnamedatatypes|length > 0 %}
         {% for dt in df.getnamedatatypes %}
-        <div class="bold">This datafield is used in naming records of the "{{ dt.getshortname }}" datatype.</div>
+        <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">This datafield is currently used in naming records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.</div>
         {% endfor %}
     {% endif %}
     {% if df.getsortdatatypes|length > 0 %}
         {% for dt in df.getsortdatatypes %}
-        <div class="bold">This datafield is used in sorting records of the "{{ dt.getshortname }}" datatype.</div>
+        <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">This datafield is currently used in sorting records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.</div>
         {% endfor %}
     {% endif %}
 

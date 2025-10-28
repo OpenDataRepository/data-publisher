@@ -338,7 +338,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         // This field can't be edited, since it's from the Original CIF file
 
                     case 'Diffraction Search Values':
-                        // This field can't be edited, since it's from the DIF file
+                    case 'Wavelength':
+                        // These fields can't be edited, since they're from the DIF file
                         break;
 
                     default:
@@ -887,6 +888,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             switch ( $rpf_df['rpf_name'] ) {
                 // These fields are derived from the DIF File
                 case 'Diffraction Search Values':
+//                case 'Wavelength':    // this one is optional
                     // If the DIF file is valid, then every one of these fields will have a value
                     if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
                         $problem_fields[] = $rpf_df['rpf_name'];
@@ -1037,20 +1039,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // Map the field definitions in the render plugin to datafields
                 $rpf_mapping = self::getRenderPluginFieldsMapping($datatype);
 
-                // If this is a request off a DIF file field...
-                if ( $relevant_rpf_name === 'DIF File' ) {
-                    // ...then want $datafield to refer to the XYZData datafield instead of the DIF
-                    //  File field ASAP in case of an error
-                    $df_id = $rpf_mapping['Diffraction Search Values'];
-
-                    /** @var DataFields $xyz_df */
-                    $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-                    if ( $xyz_df == null )
-                        throw new ODRNotFoundException('Datafield');
-
-                    $datafield = $xyz_df;
-                }
-
                 // Get the current values in these fields from the datarecord
                 $current_values = self::getCurrentValues($datarecord);
 
@@ -1143,12 +1131,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $this->xyzdata_helper_service->updateXYZData(
                             $user,
                             $datarecord,
-                            $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
+                            $entity,    // NOTE: this is the XYZData datafield, not the DIF File datafield
                             new \DateTime(),
                             $value,
                             true    // Ensure the field's contents are completely replaced
                         );
-                        $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+                        $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
                     }
                     else {
                         /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
@@ -1239,20 +1227,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // Get the current values in these fields from the datarecord
                 $current_values = self::getCurrentValues($datarecord);
-
-                // If this is a request off a DIF file field...
-                if ( $relevant_rpf_name === 'DIF File' ) {
-                    // ...then want $datafield to refer to the XYZData datafield instead of the DIF
-                    //  File field ASAP in case of an error
-                    $df_id = $rpf_mapping['Diffraction Search Values'];
-
-                    /** @var DataFields $xyz_df */
-                    $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-                    if ( $xyz_df == null )
-                        throw new ODRNotFoundException('Datafield');
-
-                    $datafield = $xyz_df;
-                }
 
                 // ----------------------------------------
                 // Which entities should get cleared depends on which file is getting deleted, and
@@ -1390,8 +1364,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         unset( $file_values[$rpf_name] );
                 }
                 else if ( $relevant_rpf_name === 'DIF File' ) {
-                    // These fields should always get cleared when an AMC File is deleted
+                    // These fields should always get cleared when a DIF File is deleted
                     $file_values['Diffraction Search Values'] = '';
+                    $file_values['Wavelength'] = '';
 
                     // The authors should only get cleared when the AMC file doesn't exist
                     if ( !$amc_uploaded )
@@ -1433,12 +1408,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $this->xyzdata_helper_service->updateXYZData(
                             $user,
                             $datarecord,
-                            $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
+                            $entity,    // NOTE: this is the XYZData datafield, not the DIF File datafield
                             new \DateTime(),
                             '',
                             true    // ensure everything in the field is deleted
                         );
-                        $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' (Diffraction Search Values) to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$event->getDatafield()->getId(), 'dr '.$datarecord->getId()));
+                        $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$event->getDatafield()->getId(), 'dr '.$datarecord->getId()));
                     }
                     else {
                         /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
@@ -1524,7 +1499,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         else if ( isset($current_values[$dif_file_df_id]) ) {
             $file_id = $current_values[$dif_file_df_id];
-            $using_cif_file = true;
+            $using_dif_file = true;
         }
 
         // If no other file is uploaded, then don't bother trying to read them
@@ -1619,20 +1594,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // ----------------------------------------
                     // Map the field definitions in the render plugin to datafield ids
                     $rpf_mapping = self::getRenderPluginFieldsMapping($datatype);
-
-                    // If this is a request off a DIF file field...
-                    if ( $relevant_rpf_name === 'DIF File' ) {
-                        // ...then want $datafield to refer to the XYZData datafield instead of the DIF
-                        //  File field ASAP in case of an error
-                        $df_id = $rpf_mapping['Diffraction Search Values'];
-
-                        /** @var DataFields $xyz_df */
-                        $xyz_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-                        if ( $xyz_df == null )
-                            throw new ODRNotFoundException('Datafield');
-
-                        $datafield = $xyz_df;
-                    }
 
                     // Get the currently uploaded files and the values in these fields from the datarecord
                     $current_values = self::getCurrentValues($datarecord);
@@ -1735,12 +1696,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             $this->xyzdata_helper_service->updateXYZData(
                                 $user,
                                 $datarecord,
-                                $datafield,    // NOTE: this is now the XYZData datafield, not the DIF File datafield
+                                $entity,    // NOTE: this is the XYZData datafield, not the DIF File datafield
                                 new \DateTime(),
                                 $value,
                                 true    // Ensure the field's contents are completely replaced
                             );
-                            $this->logger->debug(' -- updating XYZData datafield '.$datafield->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
+                            $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
                         }
                         else {
                             /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
@@ -1900,6 +1861,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 case 'DIF File':
                 case 'Diffraction Search Values':
+                case 'Wavelength':
                     $rpf_mapping[$rpf_name] = $rpf_df_id;
                     break;
 
@@ -2020,8 +1982,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( $minimal_cif_uploaded || $amc_uploaded ) {
                 // If either of these files are uploaded...
                 foreach ($file_values as $rpf_name => $df_value) {
-                    // ...the DIF File remains authoritative for this field...
-                    if ( $rpf_name === 'Diffraction Search Values' )
+                    // ...the DIF File remains authoritative for these fields...
+                    if ( $rpf_name === 'Diffraction Search Values' || $rpf_name === 'Wavelength' )
                         continue;
 
                     // ...but the remainder of the values defer to whatever was read from the
@@ -3013,6 +2975,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $database_code_line = $line_num;
                 }
             }
+            elseif ( strpos($line, 'X-RAY WAVELENGTH') !== false ) {
+                $matches = array();
+                if ( preg_match('/\s+X-RAY WAVELENGTH:\s+([^\s]+)/', $line, $matches) === 1 )
+                    $file_values['Wavelength'] = $matches[1];
+            }
             elseif ( strpos($line, 'CELL PARAMETERS:') !== false ) {
                 $matches = array();
                 if ( preg_match('/\s+CELL PARAMETERS:\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)/', $line, $matches) === 1 ) {
@@ -3377,6 +3344,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         $dif_file_df_id = $render_plugin_map['DIF File']['id'];
         $diffraction_search_values_df_id = $render_plugin_map['Diffraction Search Values']['id'];
+        $wavelength_df_id = $render_plugin_map['Wavelength']['id'];
 
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
@@ -3389,6 +3357,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $cif_file_contents_df_id => array($cif_file_df_id),
             $original_cif_file_contents_df_id => array($original_cif_file_df_id),
             $diffraction_search_values_df_id => array($dif_file_df_id),
+            $wavelength_df_id => array($dif_file_df_id),
 
             $mineral_name_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
             $a_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),

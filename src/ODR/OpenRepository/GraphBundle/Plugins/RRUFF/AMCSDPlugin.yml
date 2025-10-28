@@ -278,4 +278,13 @@ odr_plugins.rruff.amcsd:
                 - no_user_edits
                 - is_derived
 
+        wavelength:
+            name: Wavelength
+            description: The value of the "X-RAY WAVELENGTH" field in the DIF File
+            type: DecimalValue
+            display_order: 30
+            properties:
+                - no_user_edits
+                - is_derived
+
     config_options:

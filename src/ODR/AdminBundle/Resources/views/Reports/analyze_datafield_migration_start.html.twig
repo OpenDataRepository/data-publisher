@@ -8,10 +8,6 @@
         <br><br>
         Go <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': master_datatype_id}) }}">here</a> to check the migration report for the template datafield.
     </div>
-{% elseif strings|length > 0 %}
-    {% include 'ODRAdminBundle:Reports:analyze_datafield_migration_template_fields.html.twig' with {
-        'strings': strings,
-    } %}
 {% else %}
     <div>
         <form id="ODRReports_fieldtype_form" action="{{ path('odr_design_analyze_datafield_migration') }}">

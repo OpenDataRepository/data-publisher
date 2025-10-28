@@ -1069,58 +1069,6 @@ class ReportsController extends ODRCustomController
 
                 // Intentionally redirecting even if the fieldtype isn't migrateable
             }
-            else {
-                // ...otherwise, certain fieldtypes should never have a fieldtype selector
-                $need_count = false;
-                switch ($current_typename) {
-                    case 'Boolean':
-                    case 'File':
-                    case 'Image':
-//                    case 'DateTime':      // can convert from datetime to text
-//                    case 'Markdown':  // no values to lose, but easier to work with elsewhere
-                    case 'Tags':
-                    case 'XYZ Data':
-                        $need_count = true;
-                        break;
-                }
-
-                // There are more situations where the field will lose all data, but they depend on
-                //  what the field is migrated to...the ones listed above will always lose all data
-
-                if ( $need_count ) {
-                    // ...as such, the user needs to be informed how many values will be lost
-                    $counts = self::DatafieldMigrations_CountItems($em, $datafield);
-
-                    foreach ($counts as $df_id => $count) {
-                        /** @var DataFields $df */
-                        $df = $repo_datafields->find($df_id);
-                        $strings[$df_id] = array('df' => $df);
-
-                        if ( $count > 0 ) {
-                            switch ($current_typeclass) {
-                                case 'File':
-                                    $strings[$df_id]['str'] = 'All '.$count.' files currently uploaded in this field will be lost upon migration.';
-                                    break;
-                                case 'Image':
-                                    $strings[$df_id]['str'] = 'All '.$count.' images currently uploaded in this field will be lost upon migration.';
-                                    break;
-                                case 'Radio':
-                                    $strings[$df_id]['str'] = $count.' records will lose their selected radio options in this field upon migration.';
-                                    break;
-                                case 'Tag':
-                                    $strings[$df_id]['str'] = $count.' records will lose their selected tags in this field upon migration.';
-                                    break;
-                                default:
-                                    $strings[$df_id]['str'] = 'All '.$count.' values currently in this field will be lost upon migration.';
-                                    break;
-                            }
-                        }
-                        else {
-                            $strings[$df_id]['str'] = 'This migration would usually cause the loss of all data in this field...but there are no values in the field.';
-                        }
-                    }
-                }
-            }
 
 
             // ----------------------------------------
@@ -1376,6 +1324,9 @@ class ReportsController extends ODRCustomController
                     array(
                         'df' => $datafield,
                         'html' => $html,
+                        'new_fieldtype' => $new_fieldtype,
+
+                        // NOTE: these conversions don't lose data, so they won't create duplicates in unique fields
                     )
                 );
             }
@@ -1386,6 +1337,9 @@ class ReportsController extends ODRCustomController
                     'ODRAdminBundle:Reports:analyze_datafield_migration_template_fields.html.twig',
                     array(
                         'strings' => $strings,
+                        'new_fieldtype' => $new_fieldtype,
+
+                        // NOTE: these conversions are always to fields that can't be unique
                     )
                 );
             }
@@ -1570,6 +1524,8 @@ class ReportsController extends ODRCustomController
         $results = $conn->executeQuery($query);
 
         $counts = array();
+        $counts[$datafield_id] = 0;
+
         if ( $typeclass === 'Radio' || $typeclass === 'Tag' ) {
             // Radio/Tag fields need to "manually" determine how many records are going to get
             //  changed
@@ -1607,6 +1563,7 @@ class ReportsController extends ODRCustomController
      * @param EngineInterface $templating
      * @param DataFields $datafield
      * @param FieldType $new_fieldtype
+     * @return string
      */
     private function DatafieldMigrations_ConvertToShorterText($em, $templating, $datafield, $new_fieldtype)
     {
@@ -1638,9 +1595,15 @@ class ReportsController extends ODRCustomController
         /** @var DataFields[] $df_mapping */
 
         // Get a report for each datafield that is getting migrated
+        $new_values_prevent_unique = array();
         $original_lengths = array();
         $data = array();
         foreach ($df_mapping as $df_id => $df) {
+            // If the field is currently unique, then conversions to shorter text could break that
+            $check_new_values_unique = $df->getIsUnique();
+            $new_values_prevent_unique[$df_id] = false;
+            $new_values = array();
+
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnShorterTextConvert($df, $new_fieldtype->getTypeClass(), true);
             // ...which allows us to keep track of how many records total there are...
@@ -1648,6 +1611,15 @@ class ReportsController extends ODRCustomController
 
             // ...but requires us to unset the values which won't change
             foreach ($data[$df_id] as $dr_id => $values) {
+                // If checking for unique values...
+                if ( $check_new_values_unique && !$new_values_prevent_unique[$df_id] ) {
+                    // ...then store whether the new values in the field violate the unique requirement
+                    if ( !isset($new_values[ $values['new_value'] ]) )
+                        $new_values[ $values['new_value'] ] = 1;
+                    else
+                        $new_values_prevent_unique[$df_id] = true;
+                }
+
                 if ( $values['old_value'] === $values['new_value'])
                     unset( $data[$df_id][$dr_id] );
             }
@@ -1661,6 +1633,8 @@ class ReportsController extends ODRCustomController
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
             array(
                 'baseurl' => $baseurl,
+                'new_fieldtype' => $new_fieldtype,
+                'new_values_prevent_unique' => $new_values_prevent_unique,
 
                 'df_mapping' => $df_mapping,
                 'data' => $data,
@@ -1680,6 +1654,7 @@ class ReportsController extends ODRCustomController
      * @param EngineInterface $templating
      * @param DataFields $datafield
      * @param FieldType $new_fieldtype
+     * @return string
      */
     private function DatafieldMigrations_ConvertToInteger($em, $templating, $datafield, $new_fieldtype)
     {
@@ -1711,9 +1686,15 @@ class ReportsController extends ODRCustomController
         /** @var DataFields[] $df_mapping */
 
         // Get a report for each datafield that is getting migrated
+        $new_values_prevent_unique = array();
         $original_lengths = array();
         $data = array();
         foreach ($df_mapping as $df_id => $df) {
+            // If the field is currently unique, then conversions to shorter text could break that
+            $check_new_values_unique = $df->getIsUnique();
+            $new_values_prevent_unique[$df_id] = false;
+            $new_values = array();
+
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnIntegerConvert($df, true);
             // ...which allows us to keep track of how many records total there are...
@@ -1721,6 +1702,15 @@ class ReportsController extends ODRCustomController
 
             // ...but requires us to unset the values which won't change
             foreach ($data[$df_id] as $dr_id => $values) {
+                // If checking for unique values...
+                if ( $check_new_values_unique && !$new_values_prevent_unique[$df_id] ) {
+                    // ...then store whether the new values in the field violate the unique requirement
+                    if ( !isset($new_values[ $values['new_value'] ]) )
+                        $new_values[ $values['new_value'] ] = 1;
+                    else
+                        $new_values_prevent_unique[$df_id] = true;
+                }
+
                 if ( $values['old_value'] === $values['new_value'])
                     unset( $data[$df_id][$dr_id] );
             }
@@ -1734,6 +1724,8 @@ class ReportsController extends ODRCustomController
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_integer.html.twig',
             array(
                 'baseurl' => $baseurl,
+                'new_fieldtype' => $new_fieldtype,
+                'new_values_prevent_unique' => $new_values_prevent_unique,
 
                 'df_mapping' => $df_mapping,
                 'data' => $data,
@@ -1753,6 +1745,7 @@ class ReportsController extends ODRCustomController
      * @param EngineInterface $templating
      * @param DataFields $datafield
      * @param FieldType $new_fieldtype
+     * @return string
      */
     private function DatafieldMigrations_ConvertToDecimal($em, $templating, $datafield, $new_fieldtype)
     {
@@ -1784,9 +1777,15 @@ class ReportsController extends ODRCustomController
         /** @var DataFields[] $df_mapping */
 
         // Get a report for each datafield that is getting migrated
+        $new_values_prevent_unique = array();
         $original_lengths = array();
         $data = array();
         foreach ($df_mapping as $df_id => $df) {
+            // If the field is currently unique, then conversions to shorter text could break that
+            $check_new_values_unique = $df->getIsUnique();
+            $new_values_prevent_unique[$df_id] = false;
+            $new_values = array();
+
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnDecimalConvert($df, true);
             // ...which allows us to keep track of how many records total there are...
@@ -1794,6 +1793,15 @@ class ReportsController extends ODRCustomController
 
             // ...but requires us to unset the values which won't change
             foreach ($data[$df_id] as $dr_id => $values) {
+                // If checking for unique values...
+                if ( $check_new_values_unique && !$new_values_prevent_unique[$df_id] ) {
+                    // ...then store whether the new values in the field violate the unique requirement
+                    if ( !isset($new_values[ $values['new_value'] ]) )
+                        $new_values[ $values['new_value'] ] = 1;
+                    else
+                        $new_values_prevent_unique[$df_id] = true;
+                }
+
                 if ( $values['old_value'] === $values['new_value'])
                     unset( $data[$df_id][$dr_id] );
             }
@@ -1807,6 +1815,8 @@ class ReportsController extends ODRCustomController
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_decimal.html.twig',
             array(
                 'baseurl' => $baseurl,
+                'new_fieldtype' => $new_fieldtype,
+                'new_values_prevent_unique' => $new_values_prevent_unique,
 
                 'df_mapping' => $df_mapping,
                 'data' => $data,
@@ -1825,6 +1835,7 @@ class ReportsController extends ODRCustomController
      * @param \Doctrine\ORM\EntityManager $em
      * @param EngineInterface $templating
      * @param DataFields $datafield
+     * @return string
      */
     private function DatafieldMigration_ConvertToSingleRadio($em, $templating, $datafield)
     {
