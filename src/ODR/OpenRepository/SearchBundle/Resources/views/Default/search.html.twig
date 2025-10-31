@@ -274,8 +274,9 @@
                 cleaned.push(elem);
         });
         post_data = cleaned.join('&');
-        // Don't need the default merge type in here
-        post_data = post_data.replace('&merge=AND', '');
+        // console.log(post_data);
+        // Don't want the default merge type, or the default inverse value in here
+        post_data = post_data.replace('&merge=AND', '').replace('&inverse=-1', '');
         // console.log(post_data);
         // return;
 

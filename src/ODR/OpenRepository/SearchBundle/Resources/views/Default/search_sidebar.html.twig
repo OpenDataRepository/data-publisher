@@ -37,6 +37,16 @@
     {% set current_inverse_dt_id = search_params['inverse'] %}
 {% endif %}
 
+{% set open_advanced_options = false %}
+{% if intent != 'linking' %}
+    {% if current_inverse_dt_id != -1 %}
+        {% set open_advanced_options = true %}
+    {% endif %}
+    {% if search_params['merge'] is defined and search_params['merge'] == 'OR' %}
+        {% set open_advanced_options = true %}
+    {% endif %}
+{% endif %}
+
 <div class="ODRThemeElement">
     <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
     <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
@@ -58,25 +68,11 @@
 
         <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
 
-            {# TODO - move this
-            {% if intent != 'stored_search_keys' and intent != 'linking' and inverse_dt_names is defined and inverse_dt_names|length > 0 %}
-            <label for="inverse_dt_select">Search By:</label>
-            <select id="inverse_dt_select" name="inverse">
-                <option value="-1">none</option>
-                {% for dt_id,dt_name in inverse_dt_names %}
-                <option value="{{ dt_id }}" {% if current_inverse_dt_id == dt_id %}selected{% endif %}>{{ dt_name }}</option>
-                {% endfor %}
-                <option value="0" {% if current_inverse_dt_id == '0' %}selected{% endif %}>all</option>
-            </select>
-            {% endif %}
-            #}
-
             <input type="hidden" id="search_type" value="collapsed" />
             <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
             {% if intent != 'stored_search_keys' %}
             <input type="hidden" id="selected_theme_id" value="{{ preferred_theme.id }}"/>
             {% endif %}
-            <input type="hidden" id="merge_type" name="merge" value="{% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}"/>
 
             {# Only have a reset/search block if there are fields in 'expanded' display #}
             {% if intent != 'stored_search_keys' and (sidebar_array['extended_display']|length > 0 or not using_sidebar_layout) %}
@@ -97,52 +93,69 @@
 
             <fieldset class="ODRSearchBoxWrapper">
                 <div class="pure-u-1">
-                    <label for="textbox_general" class="pure-u-1 ODRPrimarySearchLabel">
+                    <label class="pure-u-1 ODRPrimarySearchLabel">
                         Search:
                         {% if intent != 'stored_search_keys' %}
-                            <i class="fa fa-lg fa-question-circle ODRSearchHelp" title="Search Help"></i>
-                            <i class="fa fa-lg fa-cog ODRChooseSidebarLayout" title="Choose Sidebar Layout"></i>
-                            {% if is_datatype_admin %}
+                        <i class="fa fa-lg fa-question-circle ODRSearchHelp" title="Search Help"></i>
+                        <i class="fa fa-lg fa-cog ODRChooseSidebarLayout" title="Choose Sidebar Layout"></i>
+                        {% endif %}
+                        {% if intent != 'linking' %}
+                        <i class="fa fa-lg {% if not open_advanced_options %}fa-caret-right{% else %}fa-caret-down{% endif %} ODRSearchSidebar_AdvancedOptionsToggle FRight" title="{% if not open_advanced_options %}Show{% else %}Hide{% endif %} Advanced Options"></i>
+                        {% endif %}
+                    </label>
+
+                    {% if intent != 'stored_search_keys' %}
+                    <div id="ODRSearchHelp_div" class="pure-u-1 ODRHidden">
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+                    </div>
+                    {% endif %}
+
+                    {% if intent != 'linking' %}
+                    <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
+                        {% if intent != 'stored_search_keys' and is_datatype_admin %}
                             <i class="fa fa-lg fa-edit ODREditSearchNotes" title="Edit the search page notes."></i>
-                            {% endif %}
                         {% endif %}
                         {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
                             <i class="fa fa-lg fa-th-list ODRChangeSearchedDescendants" title="Temporarily change which descendants are searched."></i>
                         {% endif %}
-                    </label>
-                </div>
+                        {% if inverse_dt_names is defined and inverse_dt_names|length > 0 %}
+                            &nbsp;
+                            <span class="FRight">
+                                Search Ancestor: <select id="inverse_dt_select" name="inverse">
+                                <option value="-1">none</option>
+                                {% for dt_id,dt_name in inverse_dt_names %}
+                                    <option value="{{ dt_id }}" {% if current_inverse_dt_id == dt_id %}selected{% endif %}>{{ dt_name }}</option>
+                                {% endfor %}
+                                    <option value="0" {% if current_inverse_dt_id == '0' %}selected{% endif %}>&lt;all of the above&gt;</option>
+                                </select>
+                            </span>
+                        {% endif %}
+                    </div>
 
-                {% if intent != 'stored_search_keys' %}
-                <div id="ODRSearchHelp_div" class="pure-u-1 ODRHidden">
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+                    {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
+                    <div id="ODRChangeSearchedDescendants_div" class="pure-u-1 ODRHidden">
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_wrapper.html.twig' with {
+                            'sidebar_array': sidebar_array,
+                            'search_params': search_params,
+                        } %}
+                    </div>
+                    {% endif %}
+
+                    <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
+                        <div class="ODRSearchSidebar_MergeOption">
+                            <input id="ODRSearchSidebar_Merge_AND" class="Pointer" type="radio" name="merge" value="AND" {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}checked{% endif %} />
+                            <label for="ODRSearchSidebar_Merge_AND" class="Pointer">&nbsp;Results match all entered criteria</label>
+                            <br>
+                            <input id="ODRSearchSidebar_Merge_OR" class="Pointer" type="radio" name="merge" value="OR" {% if search_params['merge'] is defined and search_params['merge'] == 'OR' %}checked{% endif %}/>
+                            <label for="ODRSearchSidebar_Merge_OR" class="Pointer">&nbsp;Results match at least one entered criteria</label>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
-                {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
-                <div id="ODRChangeSearchedDescendants_div" class="pure-u-1 ODRHidden">
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_wrapper.html.twig' with {
-                        'sidebar_array': sidebar_array,
-                        'search_params': search_params,
-                    } %}
-                </div>
-                {% endif %}
             </fieldset>
 
             {# render ALWAYS_SHOW first #}
             {% if using_sidebar_layout %}
-                {# ...if there's only one field in the sidebar at all, then there's no point displaying this #}
-                {% if sidebar_array['always_display']|length + sidebar_array['extended_display']|length > 1 %}
-                    {# if there's only one field set to always show, then changing the merge should only show up when the sidebar is extended #}
-                    <fieldset class="{% if sidebar_array['always_display']|length == 1 %}ODRSearchSidebar_extended ODRHidden{% endif %}">
-                        <span class="ODRChangeMerge Pointer underline" rel="{% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}">
-                        {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}
-                            (Results match all entered criteria)
-                        {% else %}
-                            (Results match at least one entered criteria)
-                        {% endif %}
-                        </span>
-                    </fieldset>
-                {% endif %}
-
                 {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_layout_fields.html.twig' with {
                     'sidebar_array': sidebar_array,
                     'field_list_name': 'always_display',
@@ -152,17 +165,6 @@
                     'search_params': search_params,
                 } %}
             {% else %}
-                {# when not using a custom layout, this should only display when sidebar is expanded #}
-                <fieldset class="ODRSearchSidebar_extended ODRHidden">
-                    <span class="ODRChangeMerge Pointer underline" rel="{% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}AND{% else %}OR{% endif %}">
-                    {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}
-                        (Results match all entered criteria)
-                    {% else %}
-                        (Results match at least one entered criteria)
-                    {% endif %}
-                    </span>
-                </fieldset>
-
                 {# Default sidebar layouts only have the "general search" input as 'always_show' #}
                 <fieldset>
                     <label for="textbox_general">
@@ -256,7 +258,7 @@
             {% endif %}
         });
 
-{% if intent != 'stored_search_keys' and intent != 'linking' %}
+{% if intent == 'searching' %}
         $(context).find("#inverse_dt_select").unbind('change').change(function() {
             var current_search_key = $("#ODRSidebarSearchKey").val();
             var search_theme_id = $("#selected_theme_id").val();
@@ -310,18 +312,14 @@
             }
         });
 
-        // The facets of the search usually get merged by AND...records must match every piece of
-        //  data in the sidebar...but they need a toggle to merge by OR instead
-        $(context).find(".ODRChangeMerge").unbind('click').click(function() {
-            if ( $(this).attr('rel') === 'AND' ) {
-                $(this).attr('rel', 'OR');
-                $(this).text('(Results match at least one entered criteria)');
-                $("#merge_type").val('OR');
+        $(context).find(".ODRSearchSidebar_AdvancedOptionsToggle").unbind('click').click(function() {
+            if ( $(this).hasClass('fa-caret-right') ) {
+                $(context).find('.ODRSearchSidebar_AdvancedOptions').removeClass('ODRHidden');
+                $(this).removeClass('fa-caret-right').addClass('fa-caret-down').prop('title', 'Hide Advanced Options');
             }
             else {
-                $(this).attr('rel', 'AND');
-                $(this).text('(Results match all entered criteria)');
-                $("#merge_type").val('AND');
+                $(context).find('.ODRSearchSidebar_AdvancedOptions').addClass('ODRHidden');
+                $(this).addClass('fa-caret-right').removeClass('fa-caret-down').prop('title', 'Show Advanced Options');
             }
         });
 

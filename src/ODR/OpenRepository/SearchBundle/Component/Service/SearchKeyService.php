@@ -2201,6 +2201,9 @@ class SearchKeyService
         // Search key is assumed to be valid, so it should always have a dataype id in it
         $search_params = self::decodeSearchKey($search_key);
         $dt_id = $search_params['dt_id'];
+        if ( isset($search_params['inverse']) && $search_params['inverse'] > 0 )
+            $dt_id = $search_params['inverse'];
+
 
         // ----------------------------------------
         // Use the datatype id to load the cached datatype array...
@@ -2254,7 +2257,7 @@ class SearchKeyService
         $readable_search_key = array();
         foreach ($search_params as $key => $value) {
             // Ignore these keys
-            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'inverse' || $key === 'ignore' || $key === 'merge' )
+            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'ignore' || $key === 'merge' )
                 continue;
 
             if ( $key === 'gen' || $key === 'gen_lim' ) {
@@ -2266,6 +2269,9 @@ class SearchKeyService
                     $readable_search_key['All Fields (current database)'] = $value;
                 else
                     $readable_search_key['All Fields (including descendants)'] = $value;
+            }
+            else if ( $key === 'inverse' ) {
+                $readable_search_key['Search Ancestor'] = $dt_lookup[$value];
             }
             else if ( is_numeric($key) ) {
                 // If this datafield doesn't exist (most likely due to deletion), then don't fully

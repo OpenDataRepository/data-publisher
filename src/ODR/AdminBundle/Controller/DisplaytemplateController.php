@@ -4803,6 +4803,7 @@ if ($debug)
             //  array exists in this key...
             $dt_array = $sidebar_array['datatype_array'];
             $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
+            $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $datatype->getId());
             // Don't want the user list or the preferred theme id
 
 
@@ -4900,6 +4901,7 @@ if ($debug)
                         // datatype/datafields to search
                         'target_datatype' => $datatype,
                         'sidebar_array' => $sidebar_array,
+                        'inverse_dt_names' => $inverse_dt_names,
 
                         // theme selection
 //                        'preferred_theme_id' => $preferred_theme_id,
@@ -4941,6 +4943,20 @@ if ($debug)
             // Ensure required variables exist
             $search_params = $request->request->all();
             if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException();
+
+            $search_theme_id = 0;
+            if ( isset($search_params['search_theme_id']) ) {
+                $search_theme_id = intval($search_params['search_theme_id']);
+                unset( $search_params['search_theme_id'] );
+            }
+
+            $intent = 'searching';
+            if ( isset($search_params['intent']) ) {
+                $intent = $search_params['intent'];
+                unset( $search_params['intent'] );
+            }
+            if ( $intent !== 'stored_search_keys' )
                 throw new ODRBadRequestException();
 
             /** @var \Doctrine\ORM\EntityManager $em */

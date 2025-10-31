@@ -4528,10 +4528,21 @@ i {
     margin-top: 16px;
     margin-left: -60px;
 }
-
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
     padding-left: 10px;
     padding-right: 6px;
+}
+
+.ODRSearchSidebar_AdvancedOptionsToggle {
+    cursor: pointer;
+}
+.ODRSearchSidebar_AdvancedOptions {
+}
+.ODRSearchSidebar_MergeOption {
+    margin-top: 5px;
+}
+.ODRSearchSidebar_MergeOption > label {
+    display: inline-block !important;
 }
 
 .ODRXYZData_spacer {

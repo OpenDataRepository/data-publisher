@@ -196,11 +196,6 @@ class SearchSidebarController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If this is a reload for the StoredSearchKey UI, then ensure the 'inverse' parameter
-            //  never exists
-            if ( $intent === 'stored_search_keys' )
-                unset( $search_params['inverse'] );
-
             // Need to determine whether the user is targetting a particular datatype id for inverse
             //  searching...
             $inverse_target_datatype_id = -1;
@@ -221,9 +216,9 @@ class SearchSidebarController extends ODRCustomController
             $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
 
-            // No sense getting the inverse datatype names if dealing with StoredSearchKeys
+            // No sense getting the inverse datatype names if dealing with the linking interface
             $inverse_dt_names = array();
-            if ( $intent !== 'stored_search_keys' && $intent !== 'linking' )
+            if ( $intent !== 'linking' )
                 $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $target_datatype->getId());
 
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
