@@ -4798,7 +4798,7 @@ if ($debug)
 
             // Need to start from a clean "master" search sidebar...
             $search_params = array();
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, 'stored_search_keys');
             // Because this is the "master" layout, an unmodified version of the cached datatype
             //  array exists in this key...
             $dt_array = $sidebar_array['datatype_array'];

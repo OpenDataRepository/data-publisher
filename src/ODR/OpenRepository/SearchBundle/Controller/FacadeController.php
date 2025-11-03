@@ -537,7 +537,7 @@ class FacadeController extends Controller
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $ssb_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
+            $sidebar_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
             $user_list = $ssb_service->getSidebarUserList($admin_user, $sidebar_array);
 
             // ----------------------------------------

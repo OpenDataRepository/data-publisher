@@ -2142,6 +2142,17 @@ class EntityMetaModifyService
      */
     public function updateSidebarLayoutMeta($user, $sidebar_layout, $properties, $delay_flush = false, $created = null)
     {
+        // ----------------------------------------
+        // Verify that changes to certain properties are given as Doctrine entities instead of ids
+        // These properties are allowed to be null, so need to use array_key_exists() instead of isset()
+        if ( array_key_exists('inverseDataType', $properties)
+            && !is_null($properties['inverseDataType'])
+            && !($properties['inverseDataType'] instanceof DataType)
+        ) {
+            throw new ODRException('EntityMetaModifyService::updateSidebarLayoutMeta(): $properties["inverseDataType"] is not an instanceof DataType', 500, 0xdc3d7319);
+        }
+
+        // ----------------------------------------
         // Load the old meta entry
         /** @var SidebarLayoutMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:SidebarLayoutMeta')->findOneBy(
@@ -2160,10 +2171,22 @@ class EntityMetaModifyService
             'defaultFor' => $old_meta_entry->getDefaultFor(),
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
         );
+
+        // These entries could be null to begin with
+        if ( !is_null($old_meta_entry->getInverseDataType()) )
+            $existing_values['inverseDataType'] = $old_meta_entry->getInverseDataType();
+
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value )
+            // array_key_exists() is used because the datafield entries could legitimately be null
+            if ( array_key_exists($key, $properties) && $properties[$key] != $value )
                 $changes_made = true;
         }
+
+        // Need to do an additional check incase the inverseDataType was originally null and changed
+        //  to point to a datatype.  Can use isset() here because the value in $properties won't be
+        //  null in this case
+        if ( !isset($existing_values['inverseDataType']) && isset($properties['inverseDataType']) )
+            $changes_made = true;
 
         if (!$changes_made)
             return $old_meta_entry;
@@ -2192,6 +2215,17 @@ class EntityMetaModifyService
 
 
         // Set any new properties
+        // isset() will return false when ('externalIdField' => null), so need to use
+        //  array_key_exists() instead for these
+        if ( array_key_exists('inverseDataType', $properties) ) {
+            if ( is_null($properties['inverseDataType']) )
+                $new_sidebar_layout_meta->setInverseDataType(null);
+            else
+                $new_sidebar_layout_meta->setInverseDataType( $properties['inverseDataType'] );
+        }
+        // TODO - should changing this delete newly invalid fields out of SidebarLayoutMap?
+        // TODO - ...the rest of the site silently filters them out already
+
         if ( isset($properties['layoutName']) )
             $new_sidebar_layout_meta->setLayoutName( mb_scrub($properties['layoutName']) );
         if ( isset($properties['layoutDescription']) )

@@ -323,6 +323,7 @@ services:
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $namefield_helper_service: "@odr.namefield_helper_service"
             $search_key_service: "@odr.search_key_service"
+            $search_sidebar_service: "@odr.search_sidebar_service"
 
             $form_factory: "@form.factory"
             $templating: "@templating"

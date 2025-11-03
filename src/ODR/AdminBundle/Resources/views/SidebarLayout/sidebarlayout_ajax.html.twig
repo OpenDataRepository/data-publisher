@@ -1,5 +1,6 @@
 {% spaceless %}
 
+{% set sidebar_layout_datatype = sidebar_layout.datatype %}
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set theme = theme_array[initial_theme_id] %}
 
@@ -16,7 +17,7 @@
 {% endfor %}
 
 <h1 class="no-margin-top-phone">
-    <span>Sidebar Layout Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+    <span>Sidebar Layout Design &raquo; {{ sidebar_layout_datatype.dataTypeMeta.shortName }}</span>
 </h1>
 
 <div class="ODRContentWrapper pure-u-1">
@@ -90,6 +91,7 @@
             'datatype_permissions': datatype_permissions,
             'is_datatype_admin': is_datatype_admin,
 
+            'sidebar_layout_datatype': sidebar_layout_datatype,
             'sidebar_array': sidebar_array,
         } %}
     </div>
@@ -500,19 +502,28 @@
         $("#SidebarLayoutPropertiesForm input:text").unbind('keyup').keyup(function() {
             // Only want to execute this save once
             clearTimeout(sidebar_layout_properties_change);
-            sidebar_layout_properties_change = setTimeout("ODRSidebarLayout_saveLayoutPropertiesForm()", SaveTimeout);
+            sidebar_layout_properties_change = setTimeout("ODRSidebarLayout_saveLayoutPropertiesForm(false)", SaveTimeout);
         });
         $("#SidebarLayoutPropertiesForm textarea").unbind('keyup').keyup(function() {
             // Only want to execute this save once
             clearTimeout(sidebar_layout_properties_change);
-            sidebar_layout_properties_change = setTimeout("ODRSidebarLayout_saveLayoutPropertiesForm()", SaveTimeout);
+            sidebar_layout_properties_change = setTimeout("ODRSidebarLayout_saveLayoutPropertiesForm(false)", SaveTimeout);
+        });
+
+        $("#SidebarLayoutPropertiesForm").find("select").each(function(index, elem) {
+            $(elem).unbind('change').change(function() {
+                // Only want to execute this save once
+                clearTimeout(sidebar_layout_properties_change);
+                sidebar_layout_properties_change = setTimeout("ODRSidebarLayout_saveLayoutPropertiesForm(true)", SaveTimeout);
+            });
         });
     }
 
     /**
      * Saves the name/description properties for the currently loaded Sidebar Layout.
+     * @param {boolean} reload_page
      */
-    function ODRSidebarLayout_saveLayoutPropertiesForm() {
+    function ODRSidebarLayout_saveLayoutPropertiesForm(reload_page = false) {
         // Clear the save timeout for this action
         window.clearInterval(sidebar_layout_properties_change);
 
@@ -524,6 +535,9 @@
             dataType: 'json',
             success: function(data) {
                 notifySaved();
+
+                if (reload_page)
+                    window.location.reload();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

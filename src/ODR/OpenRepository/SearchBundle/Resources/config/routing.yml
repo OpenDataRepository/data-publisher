@@ -97,8 +97,8 @@ odr_design_toggle_datafield_layout_status:
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldlayoutstatus }
     methods: [ POST ]
 odr_design_save_datafield_order_layout:
-    path:  /design/layout/datafieldorder
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldorder }
+    path:  /design/layout/datafieldlayoutorder
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldlayoutorder }
     methods: [ POST ]
 
 

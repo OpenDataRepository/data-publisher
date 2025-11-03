@@ -5445,8 +5445,13 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     padding: 10px;
 }
 #ODRSidebarLayout_includeGeneralSearch {
+    margin-top: 30px;
     margin-left: 10px;
 }
+.ODRSidebarLayout_targetDatatypeName {
+    color: rgb(75,75,75);
+}
+
 
 .ODRFourstateCheckbox {
     cursor: pointer;

@@ -133,13 +133,14 @@ class SearchSidebarService
      *                             be rendered with a search.  If provided and $sidebar_layout_id is
      *                             set, then also ensures any referenced datafields exist in the
      *                             array this function returns
+     * @param string $intent 'searching', 'linking', or 'stored_search_keys'
      * @param int|null $sidebar_layout_id If set, then only include the fields from the given layout
      * @param boolean $fallback If true, then return the "master" sidebar layout when the requested
      *                          sidebar layout is unusable
      *
      * @return array
      */
-    public function getSidebarDatatypeArray($user, $target_datatype_id, &$search_params, $sidebar_layout_id = null, $fallback = true)
+    public function getSidebarDatatypeArray($user, $target_datatype_id, &$search_params, $intent, $sidebar_layout_id = null, $fallback = true)
     {
         // By default, the sidebar renders $target_datatype_id and its child/linked descendants...
         //  the presence of the 'inverse' parameter, however, means the sidebar should get rendered
@@ -159,9 +160,6 @@ class SearchSidebarService
             //  linked ancestor datatype, while a non-zero value will instead get the minimum of
             //  datatypes required to traverse from the target datatype to the inverse target datatype
             $sidebar_datatype_array = $this->database_info_service->getInverseDatatypeArray($target_datatype_id, $inverse_target_datatype_id);
-
-            // TODO - allow sidebar layouts to use inverse datatypes?
-            $sidebar_layout_id = null;
         }
 
         // ...then filter the array to just what the user can see
@@ -175,7 +173,7 @@ class SearchSidebarService
             // If a sidebar layout is specified, then verify whether the user can actually use
             //  the requested layout...
             $is_datatype_admin = isset( $datatype_permissions[$target_datatype_id]['dt_admin'] );
-            $sidebar_layout_array = self::canUseLayout($user, $sidebar_layout_id, $is_datatype_admin);
+            $sidebar_layout_array = self::canUseSidebarLayout($user, $sidebar_layout_id, $is_datatype_admin);
 
             // The sidebar layout may not have datafields in it...
             $has_datafields = false;
@@ -208,6 +206,9 @@ class SearchSidebarService
             // If a sidebar layout was not specified, or the user was unable to use the requested
             //  layout, then fall back to the default for the datatype
             $sidebar_array = self::constructDefaultSidebarArray($sidebar_datatype_array);
+            // Update the user's session sidebar since they're using a different one now
+            if ( $intent !== 'stored_search_keys' )
+                self::setSessionSidebarLayoutId($target_datatype_id, $intent, 0);
         }
 
         if ( !isset($search_params['inverse']) ) {
@@ -236,7 +237,7 @@ class SearchSidebarService
      * @param bool $is_datatype_admin
      * @return array
      */
-    private function canUseLayout($user, $sidebar_layout_id, $is_datatype_admin)
+    private function canUseSidebarLayout($user, $sidebar_layout_id, $is_datatype_admin)
     {
         // This function isn't guaranteed to be called with a logged-in user
         $user_id = 0;
@@ -629,12 +630,14 @@ class SearchSidebarService
 
     /**
      * In order for users to activate 'inverse' searching, they need a list of datatype names to
-     * select from...
+     * select from.
+     *
+     * This function also performs permissions filtering based on the user.
      *
      * @param ODRUser $user
      * @param int $bottom_level_datatype_id
      *
-     * @return array
+     * @return array the keys are datatype ids, the values are datatype names
      */
     public function getSidebarInverseDatatypeNames($user, $bottom_level_datatype_id)
     {
