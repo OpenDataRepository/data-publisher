@@ -110,7 +110,7 @@
                     </div>
                     {% endif %}
 
-                    {% if intent != 'linking' %}
+                {% if intent != 'linking' %}
                     <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
                         {% if intent != 'stored_search_keys' and is_datatype_admin %}
                             <i class="fa fa-lg fa-edit ODREditSearchNotes" title="Edit the search page notes."></i>
@@ -141,6 +141,7 @@
                     </div>
                     {% endif %}
 
+                    {% if intent != 'stored_search_keys' %}
                     <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
                         <div class="ODRSearchSidebar_MergeOption">
                             <input id="ODRSearchSidebar_Merge_AND" class="Pointer" type="radio" name="merge" value="AND" {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}checked{% endif %} />
@@ -151,6 +152,7 @@
                         </div>
                     </div>
                     {% endif %}
+                {% endif %}
                 </div>
             </fieldset>
 
@@ -243,10 +245,11 @@
     /**
      * Initializes the search sidebar.
      *
-     * @param {HTMLElement} context
+     * @param {HTMLElement} [context] If provided, will initialize the search sidebar inside the given HTMLElement
      */
-    function InitSearchSidebar(context = undefined) {
-        // console.log('InitSearchSidebar()', context);
+    function InitSearchSidebar{% if intent == 'stored_search_keys' %}_storedSearchKeys{% endif %}(context = undefined) {
+        {# NOTE: don't want the stored search key interface to clobber the existing InitSearchSidebar() function... #}
+        // console.log('InitSearchSidebar{% if intent == 'stored_search_keys' %}_storedSearchKeys{% endif %}()', context);
         if (context == undefined )
             context = $("#odr_content").children("#ODRSearchSidebar").first();
 
@@ -271,6 +274,8 @@
                 url += '/' + inverse_datatype_id;
             // alert(url); return;
 
+            showSearchOverlay();
+
             $.ajax({
                 type: 'GET',
                 url: url,
@@ -292,6 +297,54 @@
 
                         // Load the data of the given xdebug token into the current toolbar wrapper
                         Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+{% elseif intent == 'stored_search_keys' %}
+        $(context).find("#inverse_dt_select").unbind('change').change(function() {
+            var inverse_datatype_id = $(this).val();
+
+            var url = '{{ path('odr_reload_inverse_stored_search_key', {'datatype_id': 0, 'inverse_datatype_id': 0}) }}';
+            url = url.substr(0, url.length - 3);
+            url += {{ target_datatype.id }} + '/' + inverse_datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    // Replace the sidebar in the dialog with the new html
+                    $("#ODRStoredSearchKeysDialogWrapper").find('#ODRSearchSidebar').html(data.d.html);
+
+                    // Re-initialize the new sidebar
+                    InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );
+                    $(".ODRAdvSearch_header").trigger('click');
+                    $(".ODRInput").prop("disabled", false);
+
+                    // Reset the explanation area
+                    $("#ODRStoredSearchKey_empty").removeClass('ODRHidden');
+                    $("#ODRStoredSearchKey_explanation").text('');
+
+                    // Clear the search key in the form
+                    $("#ODRStoredSearchKeys_form_searchkey").val('');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Close the dialog so it's not in some half-initialized state
+                    closeODRRemodal();
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                     }
                 }
             });

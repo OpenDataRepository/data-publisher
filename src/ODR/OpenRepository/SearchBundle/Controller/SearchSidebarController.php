@@ -334,6 +334,131 @@ class SearchSidebarController extends ODRCustomController
 
 
     /**
+     * Renders and returns the HTML for a reload of the search sidebar, specifically for the stored
+     * search key interface.
+     *
+     * @param integer $datatype_id
+     * @param integer $inverse_datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadinversestoredsearchkeyAction($datatype_id, $inverse_datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+//            /** @var ThemeInfoService $theme_info_service */
+//            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+            $datatype_id = intval($datatype_id);
+            $inverse_datatype_id = intval($inverse_datatype_id);
+
+            /** @var DataType $target_datatype */
+            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ( $target_datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Datatype');
+
+            $intent = 'stored_search_keys';
+
+            if ($inverse_datatype_id < -1 )
+                throw new ODRBadRequestException();
+
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            if ( !$permissions_service->canViewDatatype($user, $target_datatype) )
+                throw new ODRForbiddenException();
+
+            $logged_in = true;
+            if ($user === 'anon.')
+                $logged_in = false;
+            // --------------------
+
+
+            // ----------------------------------------
+            // Need to determine whether the user is targetting a particular datatype id for inverse
+            //  searching...
+            $search_params = array('dt_id' => $datatype_id);
+            if ( $inverse_datatype_id !== -1 && $inverse_datatype_id !== $target_datatype->getId() )
+                $search_params['inverse'] = $inverse_datatype_id;
+            $search_key = $search_key_service->encodeSearchKey($search_params);
+
+            // Load the default sidebar layout for StoredSearchKeys
+            $sidebar_layout_id = null;
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $intent, $sidebar_layout_id);
+            $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
+
+            // Need the names for the inverse datatypes
+            $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $target_datatype->getId());
+
+            // Don't need to give a preferred theme id to the sidebar because of where it's going
+            //  to be used
+//            $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
+//            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'num_params' => count($search_params),
+                'html' => $templating->render(
+                    'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
+                    array(
+                        'search_key' => $search_key,
+                        'search_params' => $search_params,
+
+                        // required twig/javascript parameters
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
+                        'user_list' => $user_list,
+                        'logged_in' => $logged_in,
+                        'intent' => $intent,
+                        'sidebar_reload' => true,
+
+                        // datatype/datafields to search
+                        'target_datatype' => $target_datatype,
+                        'sidebar_array' => $sidebar_array,
+                        'inverse_dt_names' => $inverse_dt_names,
+
+                        // theme selection
+//                        'preferred_theme' => $preferred_theme,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x3af5bd73;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Returns a list of sidebar layouts the current user can use in the current context for the given
      * datatype.
      *
