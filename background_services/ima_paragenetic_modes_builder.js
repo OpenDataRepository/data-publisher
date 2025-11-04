@@ -2,7 +2,7 @@
  * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
  */
 
-const puppeteer = require('puppeteer');
+const https = require('https');
 const fs = require('fs');
 
 const bs = require('nodestalker');
@@ -10,7 +10,6 @@ const client = bs.Client('127.0.0.1:11300');
 const tube = 'odr_paragenetic_modes_record_builder';
 const Memcached = require("memcached-promise");
 
-let browser;
 let memcached_client;
 let token = '';
 
@@ -33,9 +32,7 @@ async function getToken(record) {
     return token_obj;
 }
 
-
 async function app() {
-    browser = await puppeteer.launch({headless:'new'});
     memcached_client = new Memcached('localhost:11211', {retries: 10, retry: 10000, remove: false});
 
     console.log('IMA Paragenetic Modes Builder Start');
@@ -375,52 +372,67 @@ async function findValue(field_uuid, record) {
 
 async function apiCall(api_url, post_data, method) {
     console.log('API Call: ', api_url);
-    try {
-        const page = await browser.newPage();
-        page.on('console', message =>
-            console.log(`${message.type().substr(0, 3).toUpperCase()} ${message.text()}`)
-        );
 
-        // Allows you to intercept a request; must appear before
-        // your first page.goto()
-        await page.setRequestInterception(true);
+    return new Promise((resolve, reject) => {
+        try {
+            // Parse the URL to extract hostname and path
+            const url = new URL('https://' + api_url);
 
-        // Use bearer token if it is set.
-        if(token !== '') {
-            // console.log('Adding Bearer Token');
-            page.setExtraHTTPHeaders({
-                'Authorization': 'Bearer ' + token
-            });
-        }
-
-        // Request intercept handler... will be triggered with
-        // each page.goto() statement
-        page.on('request', interceptedRequest => {
-            let data = {
-                'method': method,
-                headers: { ...interceptedRequest.headers(), "content-type": "application/json"}
+            const options = {
+                hostname: url.hostname,
+                port: 443,
+                path: url.pathname + url.search,
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             };
 
-            if(post_data !== '') {
-                // console.log('Attaching POST Data', post_data);
-                data['postData'] = JSON.stringify(post_data);
+            // Add bearer token if set
+            if(token !== '') {
+                options.headers['Authorization'] = 'Bearer ' + token;
             }
 
-            // Request modified... finish sending!
-            interceptedRequest.continue(data);
-        });
+            // Add content-length for POST/PUT requests
+            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
+                const postDataString = JSON.stringify(post_data);
+                options.headers['Content-Length'] = Buffer.byteLength(postDataString);
+            }
 
-        // Navigate, trigger the intercept, and resolve the response
-        const response = await page.goto('https://' + api_url);
-        const responseBody = JSON.parse(await response.text());
+            const req = https.request(options, (res) => {
+                let data = '';
 
-        await page.close();
-        return responseBody;
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
 
-    } catch (err) {
-        console.error('Error thrown');
-        throw(err);
-    }
+                res.on('end', () => {
+                    try {
+                        const responseBody = JSON.parse(data);
+                        resolve(responseBody);
+                    } catch (e) {
+                        reject(new Error('Failed to parse JSON response: ' + e.message));
+                    }
+                });
+            });
+
+            req.on('error', (err) => {
+                console.error('Error thrown');
+                reject(err);
+            });
+
+            // Write POST/PUT data if present
+            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
+                req.write(JSON.stringify(post_data));
+            }
+
+            req.end();
+
+        } catch (err) {
+            console.error('Error thrown');
+            reject(err);
+        }
+    });
 }
 
 
