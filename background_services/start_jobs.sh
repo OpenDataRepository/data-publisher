@@ -7,7 +7,10 @@ node ima_record_builder.js  >> ../app/logs/ima_record_builder.log 2>&1 &
 node ima_paragenetic_modes_builder.js   >> ../app/logs/ima_paragenetic_modes_builder.log 2>&1 &
 node ima_cell_params_record_builder.js   >> ../app/logs/ima_cell_params_builder_1.log 2>&1 &
 node ima_cell_params_record_builder.js   >> ../app/logs/ima_cell_params_builder_2.log 2>&1 &
-node ima_cell_params_record_builder.js   >> ../app/logs/ima_cell_params_builder_3.log 2>&1 &
+# node ima_cell_params_record_builder.js   >> ../app/logs/ima_cell_params_builder_3.log 2>&1 &
 node ima_reference_record_builder.js >> ../app/logs/ima_reference_builder_1.log 2>&1 &
 node ima_reference_record_builder.js >> ../app/logs/ima_reference_builder_2.log 2>&1 &
 
+node rruff_file_builder.js >> ../app/logs/rruff_file_builder.log 2>&1 &
+node rruff_file_finisher.js >> ../app/logs/rruff_file_finisher.log 2>&1 &
+node rruff_record_anayzer.js >> ../app/logs/rruff_record_analyzer.log 2>&1 &

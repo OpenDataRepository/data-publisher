@@ -2,7 +2,7 @@
  * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
  */
 
-const puppeteer = require('puppeteer');
+const https = require('https');
 const fs = require('fs');
 
 const bs = require('nodestalker');
@@ -11,7 +11,6 @@ const tube = 'odr_cell_params_record_builder';
 const Memcached = require("memcached-promise");
 
 
-let browser;
 let token = '';
 let memcached_client;
 let current_job_id = 0;
@@ -36,7 +35,6 @@ async function getToken(record) {
 }
 
 async function app() {
-    browser = await puppeteer.launch({headless:'new'});
     memcached_client = new Memcached('localhost:11211', {retries: 10, retry: 10000, remove: false});
 
     console.log('Cell Params Record Builder Start');
@@ -209,9 +207,9 @@ async function app() {
                                 // Lattice
                                 await findValue(cp_map.lattice, record_data) + '|' +
                                 // Cite_Text Reference
-                                await buildReference(cp_map, record_data) + '|' +
+                                await buildReference(cp_map, record_data, 'cell_params') + '|' +
                                 // Cite Link 1
-                                await getCitationLink(cp_map, record_data) + '|' +
+                                await getCitationLink(cp_map, record_data, 'literature') + '|' +
                                 // Cite Link 2
                                 await findValue(cp_map.cite_link2, record_data) + '|' +
                                 // Status Notes Base64
@@ -369,9 +367,9 @@ async function app() {
                                 // TODO Lattice?
                                 await findValue(amcsd_map.lattice, record_data) + '|' +
                                 // RRUFF Reference
-                                await buildReference(amcsd_map, record_data) + '|' +
+                                await buildReference(amcsd_map, record_data, 'amcsd') + '|' +
                                 // File/citation link
-                                await findValue(amcsd_map.cite_link, record_data) + '|' +
+                                await getCitationLink(amcsd_map, record_data, 'amcsd') + '|' +
                                 // File/citation link 2
                                 record_data['record_uuid'] + '|';
                                 // Status Notes Base64
@@ -493,15 +491,25 @@ async function writeFile(file_name, content) {
  * @param record
  * @returns {Promise<string|*|string>}
  */
-async function getCitationLink(data_map, record) {
-    let reference_record = await findRecordByTemplateUUID(record['records_' + data_map.template_uuid], data_map.reference_uuid);
+async function getCitationLink(data_map, record, mode) {
+    let reference_record = '';
+
+    if(mode !== 'amcsd') {
+        reference_record = await findRecordByTemplateUUID(record['records_' + data_map.template_uuid], data_map.reference_uuid);
+    }
     // Hack for AMCSD References
-    if(reference_record === undefined) {
+    else if(mode === 'amcsd') {
+        // console.log('TUUID: ' + data_map.template_uuid)
+        // console.log('DBUUID: ' + data_map.database_uuid)
+        // console.log('REFUUID: ' + data_map.reference_uuid)
         reference_record = await findRecordByTemplateUUID(record['records_' + data_map.database_uuid], data_map.reference_uuid);
+        // reference_record = await findRecordByTemplateUUID(record['records_' + data_map.template_uuid], data_map.reference_uuid);
+        // console.log('REF RECORD: ', reference_record)
+        // reference_record = await findRecordByTemplateUUID(record['records_' + data_map.database_uuid], data_map.reference_uuid);
     }
     if(reference_record !== null) {
         // console.log('Reference Found');
-        return await findValue(data_map.cite_link, reference_record)
+        return await findValue(data_map.cite_link, reference_record, mode)
     }
     return '';
 }
@@ -516,15 +524,18 @@ async function getCitationLink(data_map, record) {
  * @param record
  * @returns {Promise<string>}
  */
-async function buildReference(data_map, record) {
+async function buildReference(data_map, record, mode) {
     // Only look in the first level for actual reference records
     // record['records_' + data_map.template_uuid']
     // Get Appropriate Record
     // console.log('record[\'records_\'' + data_map.template_uuid)
-    let reference_record = await findRecordByTemplateUUID(record['records_' + data_map.template_uuid], data_map.reference_uuid);
-    // Hack for AMCSD References
-    if(reference_record === undefined) {
+    let reference_record = null;
+    // Hack for AMCSD References ==> This is probably wrong....
+    if(mode === 'amcsd') {
         reference_record = await findRecordByTemplateUUID(record['records_' + data_map.database_uuid], data_map.reference_uuid);
+    }
+    else {
+        reference_record = await findRecordByTemplateUUID(record['records_' + data_map.template_uuid], data_map.reference_uuid);
     }
     // console.log('Target UUID: ', data_map.reference_uuid)
     if(reference_record !== null) {
@@ -548,9 +559,9 @@ async function findRecordByTemplateUUID (records, target_uuid){
         return undefined;
     }
     for(let i = 0; i < records.length; i++) {
-        console.log('Record UUID: ' + records[i].template_uuid + ' ' + target_uuid)
+        // console.log('Record UUID: ' + records[i].template_uuid + ' ' + target_uuid)
         if(records[i].template_uuid === target_uuid) {
-            console.log(records[i].record_uuid)
+            // console.log(records[i].record_uuid)
             return records[i];
         }
     }
@@ -570,7 +581,8 @@ async function findRecordByDatabaseUUID (records, target_uuid){
     return undefined
 }
 
-async function findValue(field_uuid, record) {
+async function findValue(field_uuid, record, mode) {
+    if(mode === undefined) mode = 'normal';
     // console.log('FIND VALUE: ' + field_uuid);
     if(field_uuid === '') return '';
     if(record === undefined) return '';
@@ -581,6 +593,7 @@ async function findValue(field_uuid, record) {
         && record['fields_' + record.template_uuid].length > 0
     ) {
         // console.log('jjjj')
+        // console.log('Record Modified', record._record_metadata._update_date);
         let fields = record['fields_' + record.template_uuid];
         for(let i = 0; i < fields.length; i++) {
             let current_field = fields[i][Object.keys(fields[i])[0]];
@@ -588,20 +601,27 @@ async function findValue(field_uuid, record) {
                 current_field.template_field_uuid !== undefined
                 && current_field.template_field_uuid === field_uuid
             ) {
-                // console.log('aaa')
+                // console.log('aaa', current_field.template_field_uuid)
+                // console.log('aaa', current_field.id)
+                // console.log('aaa', current_field.files)
+                // Either have files
                 if(
                     current_field.files !== undefined
                     && current_field.files[0] !== undefined
                     && current_field.files[0].href !== undefined
                 ) {
+                    // console.log('bbbaaaa')
                     // console.log('Getting file: ', current_field.files[0])
                     return current_field.files[0].href;
                 }
+
+                // Or values....
                 if(current_field.value !== undefined) {
-                    // console.log('bbb')
+                    // console.log('bbbcccc')
                     return current_field.value.toString().replace(/'/g, "\\'");
                 }
                 else if(current_field.values !== undefined) {
+                    // console.log('bbbdddd')
                     let output = '';
                     for(let j = 0; j < current_field.values.length; j++) {
                         output += current_field.values[j].name + ', ';
@@ -622,7 +642,7 @@ async function findValue(field_uuid, record) {
                     && current_field.files[0] !== undefined
                     && current_field.files[0].href !== undefined
                 ) {
-                    // // // console.log('Getting file 2: ', current_field.files[0])
+                    // // console.log('Getting file 2: ', current_field.files[0])
                     // console.log('fff')
                     return current_field.files[0].href;
                 }
@@ -792,52 +812,67 @@ async function loadPage(page_url) {
 
 async function apiCall(api_url, post_data, method) {
     console.log('API Call: ', api_url);
-    try {
-        const page = await browser.newPage();
-        page.on('console', message =>
-            console.log(`${message.type().substr(0, 3).toUpperCase()} ${message.text()}`)
-        );
 
-        // Allows you to intercept a request; must appear before
-        // your first page.goto()
-        await page.setRequestInterception(true);
+    return new Promise((resolve, reject) => {
+        try {
+            // Parse the URL to extract hostname and path
+            const url = new URL('https://' + api_url);
 
-        // Use bearer token if it is set.
-        if(token !== '') {
-            // console.log('Adding Bearer Token');
-            page.setExtraHTTPHeaders({
-                'Authorization': 'Bearer ' + token
-            });
-        }
-
-        // Request intercept handler... will be triggered with
-        // each page.goto() statement
-        page.on('request', interceptedRequest => {
-            let data = {
-                'method': method,
-                headers: { ...interceptedRequest.headers(), "content-type": "application/json"}
+            const options = {
+                hostname: url.hostname,
+                port: 443,
+                path: url.pathname + url.search,
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             };
 
-            if(post_data !== '') {
-                // console.log('Attaching POST Data', post_data);
-                data['postData'] = JSON.stringify(post_data);
+            // Add bearer token if set
+            if(token !== '') {
+                options.headers['Authorization'] = 'Bearer ' + token;
             }
 
-            // Request modified... finish sending!
-            interceptedRequest.continue(data);
-        });
+            // Add content-length for POST/PUT requests
+            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
+                const postDataString = JSON.stringify(post_data);
+                options.headers['Content-Length'] = Buffer.byteLength(postDataString);
+            }
 
-        // Navigate, trigger the intercept, and resolve the response
-        const response = await page.goto('https://' + api_url);
-        const responseBody = JSON.parse(await response.text());
+            const req = https.request(options, (res) => {
+                let data = '';
 
-        await page.close();
-        return responseBody;
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
 
-    } catch (err) {
-        console.error('Error thrown');
-        throw(err);
-    }
+                res.on('end', () => {
+                    try {
+                        const responseBody = JSON.parse(data);
+                        resolve(responseBody);
+                    } catch (e) {
+                        reject(new Error('Failed to parse JSON response: ' + e.message));
+                    }
+                });
+            });
+
+            req.on('error', (err) => {
+                console.error('Error thrown');
+                reject(err);
+            });
+
+            // Write POST/PUT data if present
+            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
+                req.write(JSON.stringify(post_data));
+            }
+
+            req.end();
+
+        } catch (err) {
+            console.error('Error thrown');
+            reject(err);
+        }
+    });
 }
 
 
