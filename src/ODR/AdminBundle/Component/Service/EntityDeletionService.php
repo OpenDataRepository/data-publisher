@@ -1366,6 +1366,16 @@ class EntityDeletionService
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
+            // Update all SidebarLayoutMeta entries that have this datatype as an inverse...
+            $query_str =
+               'UPDATE odr_sidebar_layout AS sl, odr_sidebar_layout_meta AS slm
+                SET sl.deletedAt = NOW(), slm.deletedAt = NOW(), sl.deletedBy = '.$user->getId().'
+                WHERE slm.sidebar_layout_id = sl.id AND slm.inverse_datatype_id IN (?)
+                AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
 
             // ----------------------------------------
             // Delete all Datatype and DatatypeMeta entries

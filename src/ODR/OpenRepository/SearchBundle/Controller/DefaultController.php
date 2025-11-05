@@ -241,7 +241,7 @@ class DefaultController extends Controller
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 
@@ -513,7 +513,7 @@ class DefaultController extends Controller
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $sidebar_layout_id);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 

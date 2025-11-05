@@ -4795,19 +4795,8 @@ if ($debug)
                 throw new ODRForbiddenException();
             // --------------------
 
-
-            // Need to start from a clean "master" search sidebar...
-            $search_params = array();
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params);
-            // Because this is the "master" layout, an unmodified version of the cached datatype
-            //  array exists in this key...
-            $dt_array = $sidebar_array['datatype_array'];
-            $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
-            // Don't want the user list or the preferred theme id
-
-
             // TODO - going to need multiple stored search keys, eventually...
-            // Load the current stored search key for the datatype, if one exists...
+            // Load the current set of stored search keys for the datatype, if any exist...
             $stored_search_keys = array();
             $search_key_descriptions = array();
             foreach ($datatype->getStoredSearchKeys() as $ssk) {
@@ -4834,26 +4823,34 @@ if ($debug)
                     $search_key_service->validateSearchKey( $ssk->getSearchKey() );
                     // If no error thrown, then search key is valid
                     $stored_search_keys[$uuid]['is_valid'] = true;
+                    $stored_search_keys[$uuid]['search_params'] = $search_key_service->decodeSearchKey( $ssk->getSearchKey() );
+                    // Also need a more readable description
+                    $search_key_descriptions[$uuid] = $search_key_service->getReadableSearchKey( $ssk->getSearchKey() );
                 }
                 catch (ODRBadRequestException $e) {
                     // If an error was thrown, then search key is not valid...but need to keep
                     //  checking the other search keys
                     $stored_search_keys[$uuid]['is_valid'] = false;
                 }
-
-                // Need to display a warning when search keys contain non-public fields, since they
-                //  won't work properly with users that can't view said fields...
-                $search_params = $search_key_service->decodeSearchKey( $ssk->getSearchKey() );
-                foreach ($search_params as $key => $value) {
-                    if ( isset($datafields[$key]) && $datafields[$key]['is_public'] === false ) {
-                        $stored_search_keys[$uuid]['has_non_public_fields'] = true;
-                        break;
-                    }
-                }
-
-                // Also need a more readable description
-                $search_key_descriptions[$uuid] = $search_key_service->getReadableSearchKey( $ssk->getSearchKey() );
             }
+
+
+            // ----------------------------------------
+            // Need to get the info for the default/selected search key...
+            $current_stored_search_key_uuid = '';
+            $search_params = array();
+            foreach ($stored_search_keys as $uuid => $data) {
+                if ( $data['isDefault'] ) {
+                    $current_stored_search_key_uuid = $uuid;
+                    $search_params = $data['search_params'];
+                    break;
+                }
+            }
+
+            // Now that we have the search params, load the related set of sidebar data
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, 'stored_search_keys');
+            $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $datatype->getId());
+            // Don't want the user list or the preferred theme id
 
             // Need the default search key for this dataype so the sidebar inside the dialog can be reset
             $empty_search_key = $search_key_service->encodeSearchKey(
@@ -4869,6 +4866,22 @@ if ($debug)
                     $default_search_key = $ssk['search_key'];
                     $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
                     $search_sidebar_service->fixSearchParamsOptionsAndTags($sidebar_array, $default_search_params);
+                    break;
+                }
+            }
+
+
+            // ----------------------------------------
+            // Need to display a warning when search keys contain non-public fields, since they
+            //  won't work properly with users that can't view said fields...
+
+            // There will be a cached datatype array in the sidebar array...
+            $dt_array = $sidebar_array['datatype_array'];
+            $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
+
+            foreach ($search_params as $key => $value) {
+                if ( isset($datafields[$key]) && $datafields[$key]['is_public'] === false ) {
+                    $stored_search_keys[$current_stored_search_key_uuid]['has_non_public_fields'] = true;
                     break;
                 }
             }
@@ -4900,6 +4913,7 @@ if ($debug)
                         // datatype/datafields to search
                         'target_datatype' => $datatype,
                         'sidebar_array' => $sidebar_array,
+                        'inverse_dt_names' => $inverse_dt_names,
 
                         // theme selection
 //                        'preferred_theme_id' => $preferred_theme_id,
@@ -4941,6 +4955,20 @@ if ($debug)
             // Ensure required variables exist
             $search_params = $request->request->all();
             if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException();
+
+            $search_theme_id = 0;
+            if ( isset($search_params['search_theme_id']) ) {
+                $search_theme_id = intval($search_params['search_theme_id']);
+                unset( $search_params['search_theme_id'] );
+            }
+
+            $intent = 'searching';
+            if ( isset($search_params['intent']) ) {
+                $intent = $search_params['intent'];
+                unset( $search_params['intent'] );
+            }
+            if ( $intent !== 'stored_search_keys' )
                 throw new ODRBadRequestException();
 
             /** @var \Doctrine\ORM\EntityManager $em */

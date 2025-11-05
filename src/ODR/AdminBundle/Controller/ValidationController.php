@@ -777,6 +777,7 @@ class ValidationController extends ODRCustomController
 
                     $slm = new SidebarLayoutMeta();
                     $slm->setSidebarLayout($sidebar_layout);
+                    $slm->setInverseDataType(null);
                     $slm->setLayoutName('');
                     $slm->setLayoutDescription('');
                     $slm->setShared(false);
@@ -3494,8 +3495,10 @@ class ValidationController extends ODRCustomController
             // ...then Sidebar layouts...
             if ( !empty($datafield_ids) )
                 fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_field_id IN (".implode(',', $datafield_ids).");\n");
-            if ( !empty($datatype_ids) )
+            if ( !empty($datatype_ids) ) {
                 fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.data_type_id IN (".implode(',', $datatype_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.inverse_datatype_id IN (".implode(',', $datatype_ids).");\n");
+            }
 
             if ( !empty($sidebar_layout_ids) ) {
                 fprintf($handle, "DELETE FROM odr_sidebar_layout_map slm WHERE slm.sidebar_layout_id IN (".implode(',', $sidebar_layout_ids).");\n");

@@ -48,7 +48,7 @@
         <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
                 <h3 class="ODRHeader ODRDatatypeProperties" id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
-                    {{ datatype.dataTypeMeta.shortName }}
+                    {{ datatype.dataTypeMeta.shortName }} {% if sidebar_layout.inversedatatype is not null %}<span class="ODRSidebarLayout_targetDatatypeName">(Inverse Datatype target of current Sidebar Layout for "{{ sidebar_layout_datatype.dataTypeMeta.shortName }}")</span>{% endif %}
                 </h3>
                 {# current datatype is top-level #}
                 {#

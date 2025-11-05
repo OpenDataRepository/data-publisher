@@ -58,6 +58,11 @@ class SidebarLayoutMeta
     private $sidebarLayout;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $inverseDataType;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -292,6 +297,30 @@ class SidebarLayoutMeta
     public function getSidebarLayout()
     {
         return $this->sidebarLayout;
+    }
+
+    /**
+     * Set inverseDataType.
+     *
+     * @param \ODR\AdminBundle\Entity\DataType|null $inverseDataType
+     *
+     * @return SidebarLayoutMeta
+     */
+    public function setInverseDataType(\ODR\AdminBundle\Entity\DataType $inverseDataType = null)
+    {
+        $this->inverseDataType = $inverseDataType;
+
+        return $this;
+    }
+
+    /**
+     * Get inverseDataType.
+     *
+     * @return \ODR\AdminBundle\Entity\DataType|null
+     */
+    public function getInverseDataType()
+    {
+        return $this->inverseDataType;
     }
 
     /**

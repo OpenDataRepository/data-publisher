@@ -14,8 +14,9 @@
 namespace ODR\AdminBundle\Form;
 
 // Symfony Forms
+use Doctrine\ORM\EntityRepository;
+use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
@@ -32,6 +33,29 @@ class UpdateSidebarLayoutForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $datatype_ids = $options['datatype_ids'];
+
+        $builder->add(
+            'inverseDataType',
+            EntityType::class,
+            array(
+                'class' => 'ODR\AdminBundle\Entity\DataType',
+                'query_builder' => function(EntityRepository $er) use ($datatype_ids) {
+                    return $er->createQueryBuilder('dt')
+                        ->leftJoin('dt.dataTypeMeta', 'dtm')
+                        ->where('dt.id IN (?1)')
+                        ->orderBy('dtm.shortName', 'ASC')
+                        ->setParameter(1, $datatype_ids);
+                },
+
+                'label' => 'Inverse Datatype',
+                'choice_label' => 'short_name',
+                'expanded' => false,
+                'multiple' => false,
+                'placeholder' => 'NONE',
+            )
+        );
+
         $builder->add(
             'layoutName',
             TextType::class,
@@ -101,5 +125,8 @@ class UpdateSidebarLayoutForm extends AbstractType
                 'data_class' => 'ODR\AdminBundle\Entity\SidebarLayoutMeta'
             )
         );
+
+        // Required options should not have defaults set
+        $resolver->setRequired('datatype_ids');
     }
 }

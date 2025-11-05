@@ -134,6 +134,11 @@ class ODRRenderService
     private $search_key_service;
 
     /**
+     * @var SearchSidebarService
+     */
+    private $search_sidebar_service;
+
+    /**
      * @var FormFactory
      */
     private $form_factory;
@@ -179,6 +184,7 @@ class ODRRenderService
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param ODRNameFieldHelperService $namefield_helper_service
      * @param SearchKeyService $search_key_service
+     * @param SearchSidebarService $search_sidebar_service
      * @param FormFactory $form_factory
      * @param EngineInterface $templating
      * @param Pheanstalk $pheanstalk
@@ -203,6 +209,7 @@ class ODRRenderService
         EntityMetaModifyService $entity_meta_modify_service,
         ODRNameFieldHelperService $namefield_helper_service,
         SearchKeyService $search_key_service,
+        SearchSidebarService $search_sidebar_service,
         FormFactory $form_factory,
         EngineInterface $templating,
         Pheanstalk $pheanstalk,
@@ -227,6 +234,7 @@ class ODRRenderService
         $this->entity_modify_service = $entity_meta_modify_service;
         $this->namefield_helper_service = $namefield_helper_service;
         $this->search_key_service = $search_key_service;
+        $this->search_sidebar_service = $search_sidebar_service;
 
         $this->form_factory = $form_factory;
         $this->templating = $templating;
@@ -367,17 +375,35 @@ class ODRRenderService
      */
     public function getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $intent, $search_key = '')
     {
-        $datatype = $sidebar_layout->getDataType();
+        // The sidebar layout belongs to a specific datatype...
         $datarecord = null;
-
+        $datatype = $sidebar_layout->getDataType();
         $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $datatype);
 
+        // ...but need to determine whether this sidebar layout is meant for an "inverse search" request...
+        // Need to get a list of the possible inverse datatypes, filtered by user permissions
+        $inverse_datatype_names = $this->search_sidebar_service->getSidebarInverseDatatypeNames($user, $datatype->getId());
+        $inverse_datatype_ids = array_keys($inverse_datatype_names);
+
+        if ( !is_null($sidebar_layout->getInverseDatatype()) ) {
+            // ...because if so, then want the rendering to start from the "inverse target" datatype
+            //  instead of the datatype the sidebar layout "belongs to"
+            $target_dt_id = $sidebar_layout->getInverseDatatype()->getId();
+
+            if ( !in_array($target_dt_id, $inverse_datatype_ids) )
+                throw new ODRBadRequestException();
+            $datatype = $sidebar_layout->getInverseDatatype();
+        }
+
         // ----------------------------------------
-        // Build the Form to save changes to the Theme's name/description
+        // Build the Form to save changes to the SidebarLayout's name/description/inverse status
         $sidebar_layout_meta = $sidebar_layout->getSidebarLayoutMeta();
         $sidebar_layout_form = $this->form_factory->create(
             UpdateSidebarLayoutForm::class,
             $sidebar_layout_meta,
+            array(
+                'datatype_ids' => $inverse_datatype_ids,
+            )
         );
 
         // ----------------------------------------

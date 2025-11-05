@@ -2223,6 +2223,7 @@ class EntityCreationService
 
         $sidebar_layout_meta = new SidebarLayoutMeta();
         $sidebar_layout_meta->setSidebarLayout($sidebar_layout);
+        $sidebar_layout_meta->setInverseDataType(null);
         $sidebar_layout_meta->setLayoutName('');
         $sidebar_layout_meta->setLayoutDescription('');
         $sidebar_layout_meta->setShared(false);

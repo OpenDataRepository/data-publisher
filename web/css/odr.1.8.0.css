@@ -4528,10 +4528,21 @@ i {
     margin-top: 16px;
     margin-left: -60px;
 }
-
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
     padding-left: 10px;
     padding-right: 6px;
+}
+
+.ODRSearchSidebar_AdvancedOptionsToggle {
+    cursor: pointer;
+}
+.ODRSearchSidebar_AdvancedOptions {
+}
+.ODRSearchSidebar_MergeOption {
+    margin-top: 5px;
+}
+.ODRSearchSidebar_MergeOption > label {
+    display: inline-block !important;
 }
 
 .ODRXYZData_spacer {
@@ -5434,8 +5445,13 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     padding: 10px;
 }
 #ODRSidebarLayout_includeGeneralSearch {
+    margin-top: 30px;
     margin-left: 10px;
 }
+.ODRSidebarLayout_targetDatatypeName {
+    color: rgb(75,75,75);
+}
+
 
 .ODRFourstateCheckbox {
     cursor: pointer;

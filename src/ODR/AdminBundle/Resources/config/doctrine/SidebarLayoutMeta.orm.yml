@@ -69,6 +69,17 @@ ODR\AdminBundle\Entity\SidebarLayoutMeta:
                     referencedColumnName: id
             orphanRemoval: false
 
+        inverseDataType:
+            targetEntity: DataType
+            cascade: { }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                inverse_datatype_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

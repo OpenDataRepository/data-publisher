@@ -102,7 +102,7 @@
      */
     function initStoredSearchKeysDialog() {
 
-        InitSearchSidebar( $("#ODRStoredSearchKeysDialogWrapper") );
+        InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );
         $(".ODRAdvSearch_header").trigger('click');
         $(".ODRInput").prop("disabled", false);
 
@@ -176,7 +176,7 @@
                     $("#ODRStoredSearchKeysDialogWrapper").find('#ODRSearchSidebar').html(data.d.html);
 
                     // Re-initialize the new sidebar
-                    InitSearchSidebar( $("#ODRStoredSearchKeysDialogWrapper") );
+                    InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );
                     $(".ODRAdvSearch_header").trigger('click');
                     $(".ODRInput").prop("disabled", false);
 
@@ -204,7 +204,7 @@
                         Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                     }
                 }
-            })
+            });
         });
     }
 </script>

@@ -407,4 +407,14 @@ class SidebarLayout
     {
         return $this->getSidebarLayoutMeta()->getDisplayOrder();
     }
+
+    /**
+     * Get inverseDataType
+     *
+     * @return null|DataType
+     */
+    public function getInverseDatatype()
+    {
+        return $this->getsidebarLayoutMeta()->getInverseDatatype();
+    }
 }

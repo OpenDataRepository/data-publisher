@@ -34,6 +34,28 @@
             </div>
         </div>
 
+        <div class="ODRDataField">
+            <label class="ODRFieldLabel" for="{{ sidebar_layout_form.inverseDataType.vars.id }}">
+                {{ sidebar_layout_form.inverseDataType.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="ODR usually tries to do things from the 'top-down'...from 'Ancestor' to 'Descendant' databases.  In rare occasions, there are situations where this behavior should be inverted...but explaining why is difficult, so you typically should leave this set to NONE."></i>
+                </span>
+            </label>
+
+            <div class="ODRFieldWrapper">
+                {{ form_errors(sidebar_layout_form.inverseDataType) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(sidebar_layout_form.inverseDataType, {
+                        'attr': {
+                            'class': 'pure-u-1 ODRSelect',
+                            'data-error-type': 'inline'
+                        }
+                    }) }}
+                </span>
+            </div>
+        </div>
+
         {{ form_rest(sidebar_layout_form) }}
     </fieldset>
 

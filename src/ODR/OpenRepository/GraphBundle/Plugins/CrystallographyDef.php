@@ -510,8 +510,13 @@ class CrystallographyDef
         // The Wyckoff notation also tends to use subscripts for certain symmetry operations, which
         //  the Hermann–Mauguin notation does not
         $wyckoff_space_group = str_replace(
-            array(' :', '21', '31', '32', '41', '42', '43', '61', '62', '63', '64', '65'),
-            array('', '2_1', '3_1', '3_2', '4_1', '4_2', '4_3', '6_1', '6_2', '6_3', '6_4', '6_5'),
+            array(' :H', ' :'),
+            '',
+            $wyckoff_space_group
+        );
+        $wyckoff_space_group = str_replace(
+            array('21', '31', '32', '41', '42', '43', '61', '62', '63', '64', '65'),
+            array('2_1', '3_1', '3_2', '4_1', '4_2', '4_3', '6_1', '6_2', '6_3', '6_4', '6_5'),
             $wyckoff_space_group
         );
 
