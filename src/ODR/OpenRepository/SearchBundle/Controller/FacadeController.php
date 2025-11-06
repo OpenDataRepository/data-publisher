@@ -961,6 +961,18 @@ class FacadeController extends Controller
         );
         $full_rruff_url = $baseurl . $full_rruff_url;
 
+
+        $route_name = 'odr_api_recently_modified_file_list';
+        $rruff_modified_files_url = $this->generateUrl(
+            $route_name,
+            array(
+                'datatype_uuid' => $job_data['rruff_database_uuid'],
+                'version' => 'v5',
+                'recent' => $recent
+            )
+        );
+        $rruff_modified_files_url = $baseurl . $rruff_modified_files_url;
+
         // API Login URL
         $api_login_url = $this->generateUrl(
             'api_login_check',
@@ -1001,6 +1013,7 @@ class FacadeController extends Controller
 
         $job_data['recent'] = $recent;
         $job_data['full_rruff_url'] = $full_rruff_url;
+        $job_data['rruff_modified_files_url'] = $rruff_modified_files_url;
         $job_data['api_login_url'] = $api_login_url;
 
         $job_data['api_worker_job_url'] = $api_worker_job_url;

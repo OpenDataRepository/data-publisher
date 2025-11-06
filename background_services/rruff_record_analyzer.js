@@ -212,9 +212,9 @@ async function app() {
 
                         // Get all the modified files
                         // /dataset/{datatype_uuid}/deleted_files/{recent}
-                        let modified_files_url = '//www.rruff.net/odr_rruff/api/v5/dataset/ddc5e9ba834ad596cc31aebb1225/modified_files/' + mtime;
-                        console.log('Modified Files: ', modified_files_url);
-                        let rruff_modified_files = await loadPage(modified_files_url);
+                        data.rruff_modified_files_url = data.rruff_modified_files_url.replace(/99999999/,mtime);
+                        console.log('Modified Files: ', data.rruff_modified_files_url);
+                        let rruff_modified_files = await loadPage(data.rruff_modified_files_url);
                         for(let i = 0; i < rruff_modified_files.files.length; i++) {
                             // console.log('RRUFF Modified File: (' + i + '):: ', rruff_modified_files.files[i]);
 
