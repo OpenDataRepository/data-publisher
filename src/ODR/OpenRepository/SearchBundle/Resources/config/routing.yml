@@ -19,6 +19,12 @@ odr_reload_inverse_search_key:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         inverse_datatype_id: \d+|
+odr_reload_inverse_linked_search_key:
+    path:  /search/reload_inverse_linking_search_key/{datatype_id}/{inverse_datatype_id}
+    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinverselinkingsearchkey, inverse_datatype_id: '-1' }
+    requirements:
+        dataype_id: \d+
+        inverse_datatype_id: -?\d+|
 odr_reload_inverse_stored_search_key:
     path:  /search/reload_inverse_stored_search_key/{datatype_id}/{inverse_datatype_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinversestoredsearchkey, inverse_datatype_id: '-1' }

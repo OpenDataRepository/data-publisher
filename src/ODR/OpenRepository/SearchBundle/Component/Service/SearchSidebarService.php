@@ -856,15 +856,19 @@ class SearchSidebarService
         // Get all sidebar layouts for this datatype
         $query = $this->em->createQuery(
            'SELECT sl, slm, slp, partial sl_dfm.{id},
+                partial slm_idt.{id}, partial slm_idtm.{id, shortName},
                 partial sl_cb.{id, username, email, firstName, lastName}
             FROM ODRAdminBundle:SidebarLayout AS sl
             JOIN sl.createdBy AS sl_cb
             JOIN sl.sidebarLayoutMeta AS slm
             LEFT JOIN sl.sidebarLayoutMap AS sl_dfm
             LEFT JOIN sl.sidebarLayoutPreferences AS slp WITH (slp.createdBy = :user_id)
+            LEFT JOIN slm.inverseDataType AS slm_idt
+            LEFT JOIN slm_idt.dataTypeMeta AS slm_idtm
             WHERE sl.dataType = :datatype_id
             AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL
             AND sl_dfm.deletedAt IS NULL AND slp.deletedAt IS NULL
+            AND slm_idt.deletedAt IS NULL AND slm_idtm.deletedAt IS NULL
             ORDER BY slm.displayOrder, slm.layoutName'
         )->setParameters(
             array(
@@ -880,6 +884,13 @@ class SearchSidebarService
         foreach ($results as $sidebar_layout) {
             // Easier to extract some of these properties from the array...
             $sidebar_layout_meta = $sidebar_layout['sidebarLayoutMeta'][0];
+
+            $inverse_datatype_id = $inverse_datatype_name = null;
+            if ( !is_null($sidebar_layout_meta['inverseDataType']) ) {
+                $inverse_datatype_id = $sidebar_layout_meta['inverseDataType']['id'];
+                $inverse_datatype_name = $sidebar_layout_meta['inverseDataType']['dataTypeMeta'][0]['shortName'];
+            }
+
             $sidebar_layout_preferences = null;
             if ( isset($sidebar_layout['sidebarLayoutPreferences'][0]) )
                 $sidebar_layout_preferences = $sidebar_layout['sidebarLayoutPreferences'][0];
@@ -932,6 +943,10 @@ class SearchSidebarService
 //                    'display_order' => $sidebar_layout_meta['displayOrder'],
 //                    'layout_type' => $sidebar_layout_type,
 //                    'is_table_layout' => $sidebar_layout_meta['isTablelayout'],
+
+                    'inverse_datatype_id' => $inverse_datatype_id,
+                    'inverse_datatype_name' => $inverse_datatype_name,
+
                     'created_by' => $created_by['id'],
                     'created_by_name' => $user_string,
 

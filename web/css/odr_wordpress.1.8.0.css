@@ -3850,7 +3850,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRChooseView:first-child,
 #ODRChooseLayout:first-child {
     padding-bottom: 0.6em;
-    margin-top: 0.6em;
+    margin-top: 0.7em;
 }
 #ODRChooseView h4,
 #ODRChooseLayout h4 {
@@ -3868,6 +3868,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: relative;
     left: 10px;
     cursor: pointer;
+}
+
+#ODRChooseLayout .ODRCurrentLayout_Invalid {
+    background-color: rgba(184,0,0,0.25);
 }
 
 .ODRViewOptions {

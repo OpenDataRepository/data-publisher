@@ -70,6 +70,26 @@
             ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
         });
 
+        $(".ODRSidebarLayout_ResetUseSession").unbind('click').click(function() {
+            var new_inverse_target_datatype_id = $(this).attr('rel');
+
+            // Reading properties of the modal has to come before calling setModalMessage()
+{% if intent == '' %}
+            var selected_intent = $("#ODRChooseLayout_PageType").children(":selected").val();
+{% else %}
+            var selected_intent = '';
+{% endif %}
+            var sidebar_layout_id = $(this).parent().closest('li').attr('data-sidebar-layout-id');
+
+            setModalMessage("Setting layout for session.");
+
+            var reload = true;
+            var persist = false;
+            ODRSidebarLayout_useLayout(sidebar_layout_id, reload, persist, selected_intent);
+
+            $("#inverse_dt_select").prop('value', new_inverse_target_datatype_id).trigger('change');
+        });
+
         $(".ODRSidebarLayout_SetPersonalDefault").unbind('click').click(function() {
             // Reading properties of the modal has to come before calling setModalMessage()
 {% if intent == '' %}
