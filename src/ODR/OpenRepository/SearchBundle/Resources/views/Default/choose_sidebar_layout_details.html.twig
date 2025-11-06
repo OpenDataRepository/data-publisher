@@ -1,6 +1,15 @@
 {% spaceless %}
 
-<li data-sidebar-layout-id="{{ sidebar_layout.id }}" {% if sidebar_layout.id == selected_layout_id %}class="ODRCurrentLayout"{% endif %}>
+{% set inverse_datatype_mismatch = false %}
+{% if sidebar_layout.inverse_datatype_id is null and current_inverse_datatype_id is not null %}
+    {# If the sidebar layout is not supposed to work with an inverse datatype, but the user has one selected #}
+    {% set inverse_datatype_mismatch = true %}
+{% elseif sidebar_layout.inverse_datatype_id != current_inverse_datatype_id %}
+    {# If the sidebar layout is supposed to work with an inverse datatype, but the current selection doesn't match or is disabled #}
+    {% set inverse_datatype_mismatch = true %}
+{% endif %}
+
+<li data-sidebar-layout-id="{{ sidebar_layout.id }}" class="{% if sidebar_layout.id == selected_layout_id %}ODRCurrentLayout{% endif %} {% if inverse_datatype_mismatch %}ODRCurrentLayout_Invalid{% endif %}">
     <div class="pure-u-1 pure-u-md-6-24">
         <h4>
         {% if sidebar_layout.name != "" %}
@@ -31,7 +40,7 @@
             <div class="ODRLayoutInfo">
                 {% for num,label in sidebar_layout.default_for %}
                     <div class="ODRViewNote">
-                        {% if is_datatype_admin %}
+                        {% if is_datatype_admin and not inverse_datatype_mismatch %}
                             {# datatype admins can make a theme no longer used as a default for a database #}
                             <i class="ODRSidebarLayout_UnsetDatabaseDefault fa fa-unlink" title="Stop using as database default" rel="{{ label }}"></i>&nbsp;
                         {% endif %}
@@ -43,7 +52,7 @@
                     <div>&nbsp;</div>
                 {% endif %}
 
-                {% if is_datatype_admin and formatted_intent not in sidebar_layout.default_for %}
+                {% if is_datatype_admin and formatted_intent not in sidebar_layout.default_for and not inverse_datatype_mismatch %}
                     <div class="ODRViewNote">
                         {% if sidebar_layout.is_shared and not sidebar_layout.is_empty %}
                             {# datatype admins can set any shared theme as the default for a database #}
@@ -70,7 +79,7 @@
                         <i class="fa fa-ban"></i>&nbsp;
                         Empty layouts can't be used as personal defaults.
                     </div>
-                {% elseif formatted_intent not in sidebar_layout.user_preference_for %}
+                {% elseif formatted_intent not in sidebar_layout.user_preference_for and not inverse_datatype_mismatch %}
                     {# users can select any non-empty sidebar layout they can view to be their personal default #}
                     <div class="ODRViewNote">
                         <i class="ODRSidebarLayout_SetPersonalDefault fa fa-link"></i>&nbsp;
@@ -87,8 +96,17 @@
             </div>
         </div>
     {% endif %}
+
+    {% if sidebar_layout.inverse_datatype_id is not null %}
+        <div>&nbsp;</div>
+        <div>This layout requires criteria from the "{{ sidebar_layout.inverse_datatype_name }}" ancestor.</div>
+    {% elseif current_inverse_datatype_id is not null %}
+        <div>&nbsp;</div>
+        <div>This layout is not compatible with searches that include criteria from ancestors.</div>
+    {% endif %}
     </div>
 
+    {% if not inverse_datatype_mismatch %}
     <div class="pure-u-1 pure-u-md-6-24">
         <ul class="ODRViewOptions">
         {% set need_spacer = false %}
@@ -175,6 +193,15 @@
         {% endif %}
         </ul>
     </div>
+    {% else %}
+    <div class="pure-u-1 pure-u-md-6-24">
+        <ul class="ODRViewOptions">
+            <li class="ODRChooseViewLink ODRSidebarLayout_ResetUseSession" rel="{% if sidebar_layout.inverse_datatype_id is not null %}{{ sidebar_layout.inverse_datatype_id }}{% else %}-1{% endif %}">
+                <i class="fa fa-eye"></i>&nbsp;Reset to Use (current session)
+            </li>
+        </ul>
+    </div>
+    {% endif %}
 </li>
 
 {% endspaceless %}

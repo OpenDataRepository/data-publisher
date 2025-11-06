@@ -38,13 +38,11 @@
 {% endif %}
 
 {% set open_advanced_options = false %}
-{% if intent != 'linking' %}
-    {% if current_inverse_dt_id != -1 %}
-        {% set open_advanced_options = true %}
-    {% endif %}
-    {% if search_params['merge'] is defined and search_params['merge'] == 'OR' %}
-        {% set open_advanced_options = true %}
-    {% endif %}
+{% if current_inverse_dt_id != -1 %}
+    {% set open_advanced_options = true %}
+{% endif %}
+{% if search_params['merge'] is defined and search_params['merge'] == 'OR' %}
+    {% set open_advanced_options = true %}
 {% endif %}
 
 <div class="ODRThemeElement">
@@ -99,9 +97,7 @@
                         <i class="fa fa-lg fa-question-circle ODRSearchHelp" title="Search Help"></i>
                         <i class="fa fa-lg fa-cog ODRChooseSidebarLayout" title="Choose Sidebar Layout"></i>
                         {% endif %}
-                        {% if intent != 'linking' %}
                         <i class="fa fa-lg {% if not open_advanced_options %}fa-caret-right{% else %}fa-caret-down{% endif %} ODRSearchSidebar_AdvancedOptionsToggle FRight" title="{% if not open_advanced_options %}Show{% else %}Hide{% endif %} Advanced Options"></i>
-                        {% endif %}
                     </label>
 
                     {% if intent != 'stored_search_keys' %}
@@ -110,9 +106,8 @@
                     </div>
                     {% endif %}
 
-                {% if intent != 'linking' %}
                     <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
-                        {% if intent != 'stored_search_keys' and is_datatype_admin %}
+                        {% if intent == 'searching' and is_datatype_admin %}
                             <i class="fa fa-lg fa-edit ODREditSearchNotes" title="Edit the search page notes."></i>
                         {% endif %}
                         {% if search_params['inverse'] is not defined and sidebar_array['datatype_array']|length > 1 %}
@@ -139,7 +134,6 @@
                             'search_params': search_params,
                         } %}
                     </div>
-                    {% endif %}
 
                     {% if intent != 'stored_search_keys' %}
                     <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
@@ -297,6 +291,45 @@
 
                         // Load the data of the given xdebug token into the current toolbar wrapper
                         Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+{% elseif intent == 'linking' %}
+        $(context).find("#inverse_dt_select").unbind('change').change(function() {
+            var inverse_datatype_id = $(this).val();
+
+            var url = '{{ path('odr_reload_inverse_linked_search_key', {'datatype_id': 0, 'inverse_datatype_id': 0}) }}';
+            url = url.substr(0, url.length - 3);
+            url += {{ target_datatype.id }} + '/' + inverse_datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    // Replace the sidebar in the dialog with the new html
+                    $("#ODRSearchSidebar").html(data.d.html);
+
+                    // Re-initialize the new sidebar
+                    InitSearchSidebar();
+                    $("#ODRSearchBoxContent").html('');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Close the dialog so it's not in some half-initialized state
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                     }
                 }
             });

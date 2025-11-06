@@ -497,7 +497,7 @@
                 success: function (data) {
                     if ( data.d.html !== '' ) {
                         $("#ODRSearchSidebar").html(data.d.html);
-                        InitSearchSidebar();
+                        InitSearchSidebar();    {# defined in ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig #}
 
                         callback();
                     }
