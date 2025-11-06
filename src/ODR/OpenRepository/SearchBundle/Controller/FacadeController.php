@@ -940,6 +940,12 @@ class FacadeController extends Controller
             'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid')
         );
 
+        // TODO Updating File Zips requires a way to get
+        // all modified files and remove them before the update.
+        // Need to add odr_get_modified_file_names which will
+        // check all descendants of the datarecord list and
+        // then find all files that were modified or deleted since the
+        // update date.
         $route_name = 'odr_api_datarecord_list';
         if($recent) {
             $route_name = 'odr_api_recent_datarecord_list';
@@ -961,7 +967,6 @@ class FacadeController extends Controller
             array(
             )
         );
-        // $api_login_url = $baseurl . '/odr_rruff/api/v3/token';
         $api_login_url = $baseurl . $api_login_url;
 
         // API Job Create URL
@@ -971,7 +976,6 @@ class FacadeController extends Controller
                 'version' => 'v4'
             )
         );
-        // $api_create_job_url = $baseurl . '/odr_rruff' . $api_create_job_url;
         $api_create_job_url = $baseurl . $api_create_job_url;
 
         // API Job Status URL

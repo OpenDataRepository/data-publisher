@@ -13,4 +13,4 @@ node ima_reference_record_builder.js >> ../app/logs/ima_reference_builder_2.log 
 
 node rruff_file_builder.js >> ../app/logs/rruff_file_builder.log 2>&1 &
 node rruff_file_finisher.js >> ../app/logs/rruff_file_finisher.log 2>&1 &
-node rruff_record_anayzer.js >> ../app/logs/rruff_record_analyzer.log 2>&1 &
+node rruff_record_analyzer.js >> ../app/logs/rruff_record_analyzer.log 2>&1 &
