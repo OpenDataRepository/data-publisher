@@ -762,6 +762,7 @@ class APIController extends ODRCustomController
             //  into the index of the "last" datarecord the user wants
             $limit = $offset + $limit;
 
+            $em->getFilters()->disable('softdeleteable');
             // ----------------------------------------
             // Load all top-level datarecords of this datatype that the user can see
             $str =
@@ -774,19 +775,18 @@ class APIController extends ODRCustomController
 
             // Let's include non-public that changed to non-public recently
             // And any public records
-            $str .= ' AND (
-                (drm.publicDate >= :public_date AND drm.created >= :updated_date)
-                OR drm.publicDate < :public_date
-            )';
-            $params['public_date'] = '2200-01-01 00:00:00';
+            // $str .= ' AND (
+                // (drm.publicDate >= :public_date AND drm.created >= :updated_date)
+                // OR drm.publicDate < :public_date
+            // )';
+            // $params['public_date'] = '2200-01-01 00:00:00';
 
             // Any recently deleted records and recently deleted drm records
-            $str .= ' AND (dr.deletedAt IS NULL OR dr.deletedAt >= :updated_date)';
-            $str .= ' AND (drm.deletedAt IS NULL OR drm.deletedAt >= :updated_date)';
-
-            // And recently created or updated records
-            $str .= ' AND (dr.updated >= :updated_date';
-            $str .= ' OR dr.created >= :updated_date)';
+            $str .= ' AND (
+                 dr.deletedAt >= :updated_date
+                 OR dr.updated >= :updated_date
+                 OR dr.created >= :updated_date
+            )';
 
             $updated_date = new \DateTime();
             // return new JsonResponse(['done' => $updated_date]);
@@ -851,8 +851,10 @@ class APIController extends ODRCustomController
                 dr.id AS dr_id, 
                 dr.unique_id AS dr_uuid,
                 df.id as df_id,
+                dfm.id as dfm_id,
                 dfm.originalFileName as df_name,
                 di.id as di_id,
+                dim.id as dim_id,
                 dim.originalFileName as di_name
                 FROM ODRAdminBundle:DataRecord AS dr
                 LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
@@ -866,18 +868,33 @@ class APIController extends ODRCustomController
             $params = array('datarecord_ids' => $descendants);
             // return new JsonResponse(['descendants' => count($descendants)]);
 
-            $str .= ' AND df.deletedAt IS NULL OR df.deletedAt >= :updated_date';
-            $str .= ' AND di.deletedAt IS NULL OR di.deletedAt >= :updated_date';
+            $str .= ' AND ( ';
+            $str .= ' df.deletedAt IS NULL OR df.deletedAt >= :updated_date';
+            $str .= ' OR df.created >= :updated_date';
+            $str .= ' OR dfm.deletedAt IS NULL OR dfm.deletedAt >= :updated_date';
+            $str .= ' OR dfm.created >= :updated_date';
+            $str .= ' OR dfm.updated >= :updated_date';
+            $str .= ' OR di.deletedAt IS NULL OR di.deletedAt >= :updated_date';
+            $str .= ' OR di.created >= :updated_date';
+            $str .= ' OR dim.deletedAt IS NULL OR dim.deletedAt >= :updated_date';
+            $str .= ' OR dim.created >= :updated_date';
+            $str .= ' OR dim.updated >= :updated_date';
+            $str .= ' ) ';
+
+            // $str .= ' AND di.deletedAt IS NULL OR di.deletedAt >= :updated_date';
+            // $str .= ' AND dfm.deletedAt IS NULL OR dfm.deletedAt >= :updated_date';
+            // $str .= ' AND dim.deletedAt IS NULL OR dim.deletedAt >= :updated_date';
 
             // return new JsonResponse(['done' => $updated_date]);
             $params['updated_date'] = date_format($updated_date, "Y-m-d H:i:s");
             $str .= ' ORDER BY dr.id ASC';
-
             $query = $em->createQuery($str)->setParameters($params);
+            // return new JsonResponse(['Query: ' => $query->getSQL()]);
+            // return new JsonResponse(['file results' => count($results)]);
             $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
 
             // throw new ODRJsonException(var_export($results, true));
-            // return new JsonResponse(['file results' => count($results)]);
             // Clean results into list of file names
             $final_file_list = [];
             foreach ($results as $index => $values) {
@@ -7919,10 +7936,9 @@ class APIController extends ODRCustomController
                     $worker_job->setTrackedJob($tracked_job);
                     $worker_job->setLineCount(1);
                     $worker_job->setJobOrder(0);
-                    $worker_job->setRandomKey('random_key_' + rand(0,1000000));
+                    $worker_job->setRandomKey('random_key_' . rand(0,1000000));
                     $em->persist($worker_job);
                 }
-
                 $em->flush();
 
                 $tracked_csv_exports = $em

@@ -22,8 +22,19 @@ security:
 #            id: odr.openrepository.oauthclient.oauth_user_provider
 
     firewalls:
+        login0:
+            pattern: /api/v5/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path: api_login_check_main
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+            context: odr_firewall
+
         login1:
-            pattern:  ^/api/v4/token
+            pattern:  /api/v4/token
             stateless: true
             anonymous: true
             provider: fos_userbundle
@@ -37,7 +48,7 @@ security:
             context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
 
         login2:
-            pattern:  ^/api/v3/token
+            pattern:  /api/v3/token
             stateless: true
             anonymous: true
             provider: fos_userbundle
@@ -49,6 +60,40 @@ security:
                 #username_parameter: email
                 #password_parameter: password
             context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+
+        login3:
+            pattern:  /odr/api/v3/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path:               api_login_check
+                success_handler:          lexik_jwt_authentication.handler.authentication_success
+                failure_handler:          lexik_jwt_authentication.handler.authentication_failure
+            context: odr_firewall
+
+        login4:
+            pattern: /odr_rruff/api/v3/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path: api_login_check
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+            context: odr_firewall
+
+        login5:
+            pattern: /odr_rruff/api/v5/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path: api_login_check_v5
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+            context: odr_firewall
 
         api:
             pattern:   ^/api
