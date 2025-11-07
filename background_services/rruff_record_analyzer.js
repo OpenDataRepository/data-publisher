@@ -186,11 +186,8 @@ async function app() {
                         'chemistry/microprobe_data/',
                         'chemistry/reference_pdf/'
                     ];
-                    // TODO - No such thing as an update version??
-                    /*
-                        // data.cell_params_url
-                    }
-                     */
+
+
 
                     // Get RRUFF Records
                     if(data.full_rruff_url.match(/999999$/)) {
@@ -215,6 +212,8 @@ async function app() {
                         data.rruff_modified_files_url = data.rruff_modified_files_url.replace(/99999999/,mtime);
                         console.log('Modified Files: ', data.rruff_modified_files_url);
                         let rruff_modified_files = await loadPage(data.rruff_modified_files_url);
+                        console.log('Modified File Count: ', rruff_modified_files);
+                        console.log('Modified File Count: ', rruff_modified_files.files.length);
                         for(let i = 0; i < rruff_modified_files.files.length; i++) {
                             // console.log('RRUFF Modified File: (' + i + '):: ', rruff_modified_files.files[i]);
 
@@ -261,7 +260,6 @@ async function app() {
 
                     console.log('data.full_rruff_url: ', data.full_rruff_url);
                     let rruff_record_data = await loadPage(data.full_rruff_url);
-
 
                     // Note - the number of rruff records could be different than the
                     // number of records that had files deleted.  The RRUFF records that
