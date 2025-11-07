@@ -212,7 +212,7 @@ async function app() {
                         data.rruff_modified_files_url = data.rruff_modified_files_url.replace(/99999999/,mtime);
                         console.log('Modified Files: ', data.rruff_modified_files_url);
                         let rruff_modified_files = await loadPage(data.rruff_modified_files_url);
-                        console.log('Modified File Count: ', rruff_modified_files);
+                        // console.log('Modified File Count: ', rruff_modified_files);
                         console.log('Modified File Count: ', rruff_modified_files.files.length);
                         for(let i = 0; i < rruff_modified_files.files.length; i++) {
                             // console.log('RRUFF Modified File: (' + i + '):: ', rruff_modified_files.files[i]);
