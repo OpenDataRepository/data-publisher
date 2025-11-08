@@ -243,8 +243,8 @@ async function app() {
                     // Push individual jobs to file builder queue
                     let job_count = 0;
                     await file_builder_client.use(file_builder_tube);
-                    for(let i = 0; i < 1000; i++) {
-                    // for(let i = 0; i < amcsd_record_data.records.length; i++) {
+                    // for(let i = 0; i < 1000; i++) {
+                    for(let i = 0; i < amcsd_record_data.records.length; i++) {
                         let record = amcsd_record_data.records[i];
                         record.api_user = data.api_user;
                         record.api_key = data.api_key;
