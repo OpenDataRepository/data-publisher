@@ -252,6 +252,20 @@ odr_rebuild_rruff_files:
     requirements:
         version: 'v\d+'
 
+odr_update_amcsd_files:
+  path: /update_amcsd_files
+  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateAMCSDFiles, version: 'v4', recent: true }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+
+odr_rebuild_amcsd_files:
+  path: /rebuild_amcsd_files
+  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateAMCSDFiles, version: 'v4', recent: false }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+
 # need a realtime seed call - reseed specific database now (recent changes)
 odr_search_seed_elastic:
     path: /elastic
