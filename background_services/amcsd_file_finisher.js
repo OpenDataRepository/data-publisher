@@ -63,6 +63,7 @@ async function app() {
                             let file_objects = {};
                             file_objects['dif'] = 'dif.zip';
                             file_objects['cif'] = 'cif.zip';
+                            file_objects['original_cif'] = 'original_cif.zip';
                             file_objects['amc'] = 'amc.zip';
 
                             for(let key of Object.keys(file_objects)) {

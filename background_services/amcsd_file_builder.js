@@ -49,7 +49,7 @@ function isFileUpToDate(filePath, fileUpdated) {
     AMCSD Related UUIDs
  */
 let template_uuids = [];
-// template_uuids['cif_file'] = '73fd47e51616fde8f5e631cada3e';  // Original CIF
+template_uuids['original_cif_file'] = '6430c61b2291b0af2bb7f7de17ae';  // Original CIF
 template_uuids['cif_file'] = 'e3574a2f9e3dd0e33bac9f65070a';  // Minimal CIF
 template_uuids['dif_file'] = '6c98e6ab485d594f0034d370feb8';
 template_uuids['amc_file'] = '303a7211c55c99fe5a655d936c51';
@@ -101,6 +101,9 @@ async function app() {
                         let field = fields[i];
                         if(field['field_' + template_uuids['amc_file']] !== undefined) {
                             await processFile(field['field_' + template_uuids['amc_file']], 'amc');
+                        }
+                        else if(field['field_' + template_uuids['original_cif_file']] !== undefined) {
+                            await processFile(field['field_' + template_uuids['original_cif_file']], 'cif');
                         }
                         else if(field['field_' + template_uuids['cif_file']] !== undefined) {
                             await processFile(field['field_' + template_uuids['cif_file']], 'cif');
