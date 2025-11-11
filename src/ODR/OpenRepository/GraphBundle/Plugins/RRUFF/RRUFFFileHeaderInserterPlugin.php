@@ -39,7 +39,6 @@ use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
@@ -1440,9 +1439,12 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
      * @param ODRUser $user
      * @param boolean $notify_user If true, then this function will throw exceptions to notify users of errors
      * @throws \Exception
+     * @return boolean true if a change was made, false otherwise
      */
     public function executeOnFileDatafield($drf, $user, $notify_user = false)
     {
+        $change_made = false;
+
         // Hydrate all the files uploaded to this drf
         $query = $this->em->createQuery(
            'SELECT f
@@ -1462,7 +1464,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
         // If nothing is uploaded, then do not continue
         if ( empty($entities) ) {
             $this->logger->debug('No files to rebuild the file headers for in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
-            return;
+            return $change_made;
         }
         $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
@@ -1472,7 +1474,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
         $plugin_config = self::getCurrentPluginConfig($drf->getDataField());
         if ( $plugin_config['invalid'] ) {
             $this->logger->debug('Plugin config for files in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId().' is not valid, aborting', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
-            return;
+            return $change_made;
         }
 
         // Determine what the header should be for files in this field
@@ -1490,6 +1492,8 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
 
                 // If there's a difference between the existing header and the desired header...
                 if ( $new_header !== $existing_header ) {
+                    $change_made = true;
+
                     // ...then move the decrypted file into the user's temp directory
                     $destination_folder = 'user_'.$user->getId().'/chunks/completed';
                     if ( !file_exists($this->odr_tmp_directory.'/'.$destination_folder) )
@@ -1544,6 +1548,8 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
                 // If there was a difference between the headers, then the previous decrypted version
                 //  of the file no longer exists as a result of rename()
             }
+
+            return $change_made;
         }
         catch (\Exception $e) {
             $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
@@ -1556,7 +1562,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
             else {
                 // If this is a background job or event, then silently return in order to not screw
                 //  up subsequent events
-                return;
+                return $change_made;
             }
         }
     }

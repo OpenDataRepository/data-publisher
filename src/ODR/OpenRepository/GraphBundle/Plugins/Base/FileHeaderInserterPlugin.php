@@ -332,7 +332,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
     /**
      * Locates the configuration for the plugin if it exists, and converts it into a more useful
      * array format for actual use.  For instance...
-     *
+     * <code>
      * array(
      *     'prefix' => '3_44_47',
      *     'comment_prefix' => '##',
@@ -345,6 +345,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      *          RRUFFID=?:34
      *          MEASURED CHEMISTRY=?:182"
      * );
+     * </code>
      *
      * The 'prefix' entry is a string of datatype ids which indicate the "ultimate ancestor" of a
      * record that is about to have one of its uploaded files modified.  It also assists with actually
@@ -824,7 +825,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * plugin has to attempt to compensate for this...
      *
      * @param DataRecordFields $original_drf
-     * @param array $config_info @see self::getCurrentPluginConfig()
+     * @param array $config_info {@link self::getCurrentPluginConfig()}
      * @return string
      */
     public function getFileHeader($original_drf, $config_info)
@@ -1268,9 +1269,12 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * @param ODRUser $user
      * @param boolean $notify_user If true, then this function will throw exceptions to notify users of errors
      * @throws \Exception
+     * @return boolean true if a change was made, false otherwise
      */
     public function executeOnFileDatafield($drf, $user, $notify_user = false)
     {
+        $change_made = false;
+
         // Hydrate all the files uploaded to this drf
         $query = $this->em->createQuery(
            'SELECT f
@@ -1290,7 +1294,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         // If nothing is uploaded, then do not continue
         if ( empty($entities) ) {
             $this->logger->debug('No files to rebuild the file headers for in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
-            return;
+            return $change_made;
         }
         $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
@@ -1314,6 +1318,8 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
                 // If there's a difference between the existing header and the desired header...
                 if ( $new_header !== $existing_header ) {
+                    $change_made = true;
+
                     // ...then move the decrypted file into the user's temp directory
                     $destination_folder = 'user_'.$user->getId().'/chunks/completed';
                     if ( !file_exists($this->odr_tmp_directory.'/'.$destination_folder) )
@@ -1368,6 +1374,8 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                 // If there was a difference between the headers, then the previous decrypted version
                 //  of the file no longer exists as a result of rename()
             }
+
+            return $change_made;
         }
         catch (\Exception $e) {
             $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
@@ -1380,7 +1388,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             else {
                 // If this is a background job or event, then silently return in order to not screw
                 //  up subsequent events
-                return;
+                return $change_made;
             }
         }
     }

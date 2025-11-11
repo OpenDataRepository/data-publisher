@@ -1217,7 +1217,10 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $uuid = $entity->getUniqueId();
 
             // ...so that the filename for this file/image entity can be determined
-            $new_filenames[$id] = array('new_filename' => $base_filename);
+            $new_filenames[$id] = array(
+                'new_filename' => $base_filename,
+                'entity' => $entity,
+            );
 
             // Append the file/image's uuid if requested
             if ( $config_info['append_file_uuid'] === 'yes' )
@@ -1418,7 +1421,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                             // ...so for each file/image uploaded to the datafield...
                             /** @var File|Image $entity */
                             $entity = $entities[$entity_id];
-                            $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
+                            $this->logger->debug('-- renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
 
                             // ...save the new filename in the database...
                             $props = array('original_filename' => $new_filename);
