@@ -10,3 +10,6 @@ nodemon ima_reference_record_builder.js >> ../app/logs/ima_reference_builder_1.l
 nodemon rruff_file_builder.js >> ../app/logs/rruff_file_builder.log 2>&1 &
 nodemon rruff_file_finisher.js >> ../app/logs/rruff_file_finisher.log 2>&1 &
 nodemon rruff_record_analyzer.js >> ../app/logs/rruff_record_analyzer.log 2>&1 &
+nodemon amcsd_file_builder.js >> ../app/logs/amcsd_file_builder.log 2>&1 &
+nodemon amcsd_file_finisher.js >> ../app/logs/amcsd_file_finisher.log 2>&1 &
+nodemon amcsd_record_analyzer.js >> ../app/logs/amcsd_record_analyzer.log 2>&1 &
