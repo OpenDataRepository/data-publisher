@@ -1259,7 +1259,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
             }
             else {
                 // ...and use a blank value if neither have anything
-                $header_values[$df_id] = '';
+                $header_values[$name] = '';
             }
         }
 
@@ -1267,7 +1267,13 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
         // Specifically, the oriented data needs to be converted from 8 fields into two entries
         self::determineOrientedVectors($header_values);
 
-        // ...and the two microprobe fields need to be recombined into a single field
+        // ...and the two microprobe fields need to be recombined into a single field if they have
+        //  values
+        if ( isset($header_values['probe_formula']) && $header_values['probe_formula'] === '' )
+            unset( $header_values['probe_formula'] );
+        if ( isset($header_values['probe_notes']) && $header_values['probe_notes'] === '' )
+            unset( $header_values['probe_notes'] );
+
         if ( isset($header_values['probe_formula']) && !isset($header_values['probe_notes']) ) {
             $header_values['measured_chemistry'] = $header_values['probe_formula'];
         }
@@ -1286,7 +1292,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
 
         // Don't leave blanks around just in case
         foreach ($header_values as $field_name => $field_value) {
-            if ( $field_value === '' )
+            if ( $field_value === '' && $field_name !== 'powder_vol' )  // the powder_vol field isn't always filled in
                 unset($header_values[$field_name] );
         }
 
@@ -1435,7 +1441,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
      * Since there are at least three different places that can trigger rebuilds of the file header,
      * it's better for the plugin to do as much work as possible.
      *
-     * @param DataRecordFields $drf
+     * @param DataRecordFields $drf Must not be null
      * @param ODRUser $user
      * @param boolean $notify_user If true, then this function will throw exceptions to notify users of errors
      * @throws \Exception
@@ -1444,6 +1450,10 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
     public function executeOnFileDatafield($drf, $user, $notify_user = false)
     {
         $change_made = false;
+
+        // The drf is expected to not be null here
+        $datarecord = $drf->getDataRecord();
+        $datafield = $drf->getDataField();
 
         // Hydrate all the files uploaded to this drf
         $query = $this->em->createQuery(
@@ -1463,17 +1473,17 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
 
         // If nothing is uploaded, then do not continue
         if ( empty($entities) ) {
-            $this->logger->debug('No files to rebuild the file headers for in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
             return $change_made;
         }
-        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
 
         // ----------------------------------------
         // Going to need the plugin config for later
-        $plugin_config = self::getCurrentPluginConfig($drf->getDataField());
+        $plugin_config = self::getCurrentPluginConfig($datafield);
         if ( $plugin_config['invalid'] ) {
-            $this->logger->debug('Plugin config for files in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId().' is not valid, aborting', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('Plugin config for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().' is not valid, aborting', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
             return $change_made;
         }
 
@@ -1522,22 +1532,22 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
 
                         // Have the upload service create a new file
                         $this->upload_service->uploadNewFile($tmp_filepath, $user, $drf, null, $prev_public_date, $prev_quality, false);
-                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
                     }
                     else {
                         // Update the headers in the decrypted version of the file
                         self::insertNewHeader($tmp_filepath, $new_header, $plugin_config);
-                        $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                        $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
                         // Have the upload service replace the existing file with the modified version
                         $this->upload_service->replaceExistingFile($file, $tmp_filepath, $user);
-                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
                         // replaceExistingFile() will end up triggering the required events
                     }
                 }
                 else {
-                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
                 }
 
                 // If there's no difference between the headers, then delete the decrypted version of
@@ -1611,8 +1621,6 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldPluginInterface, PluginS
 
     /**
      * Replaces whatever header exists in $tmp_filepath with $new_header.
-     *
-     * TODO - ...should this entire plugin be overhauled to dynamically intercept download requests and splice a header into the request?
      *
      * @param string $tmp_filepath
      * @param string $new_header

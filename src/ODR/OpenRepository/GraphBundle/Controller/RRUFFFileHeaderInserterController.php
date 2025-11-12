@@ -161,6 +161,10 @@ class RRUFFFileHeaderInserterController extends ODRCustomController
             // ----------------------------------------
             $updated_datafield_list = $updated_datarecord_list = array();
             foreach ($drf_list as $drf_id => $drf) {
+                // Shouldn't happen, but just in case...
+                if ( is_null($drf) )
+                    continue;
+
                 $changes_made = $plugin_service->executeOnFileDatafield($drf, $user, true);
 
                 // If any of the files in this drf entry were modified...
@@ -322,7 +326,7 @@ class RRUFFFileHeaderInserterController extends ODRCustomController
             $change_made = false;
             if ( $drf == null ) {
                 /* No drf exists, so there can't be any files uploaded here...nothing to do */
-                $logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'rebuildAction()'));
+//                $logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'rebuildAction()'));
             }
             else {
                 // ----------------------------------------

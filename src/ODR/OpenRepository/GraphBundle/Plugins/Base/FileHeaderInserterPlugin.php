@@ -1265,7 +1265,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * Since there are at least three different places that can trigger rebuilds of the file header,
      * it's better for the plugin to do as much work as possible.
      *
-     * @param DataRecordFields $drf
+     * @param DataRecordFields $drf Must not be null
      * @param ODRUser $user
      * @param boolean $notify_user If true, then this function will throw exceptions to notify users of errors
      * @throws \Exception
@@ -1274,6 +1274,10 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
     public function executeOnFileDatafield($drf, $user, $notify_user = false)
     {
         $change_made = false;
+
+        // The drf is expected to not be null here
+        $datarecord = $drf->getDataRecord();
+        $datafield = $drf->getDataField();
 
         // Hydrate all the files uploaded to this drf
         $query = $this->em->createQuery(
@@ -1293,15 +1297,15 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
         // If nothing is uploaded, then do not continue
         if ( empty($entities) ) {
-            $this->logger->debug('No files to rebuild the file headers for in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
             return $change_made;
         }
-        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$drf->getDataField()->getId().' datarecord '.$drf->getDataRecord()->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
 
         // ----------------------------------------
         // Going to need the plugin config for later
-        $plugin_config = self::getCurrentPluginConfig($drf->getDataField());
+        $plugin_config = self::getCurrentPluginConfig($datafield);
 
         // Determine what the header should be for files in this field
         $new_header = self::getFileHeader($drf, $plugin_config);
@@ -1348,22 +1352,22 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
                         // Have the upload service create a new file
                         $this->upload_service->uploadNewFile($tmp_filepath, $user, $drf, null, $prev_public_date, $prev_quality, false);
-                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
                     }
                     else {
                         // Update the headers in the decrypted version of the file
                         self::insertNewHeader($tmp_filepath, $new_header, $plugin_config);
-                        $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                        $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
                         // Have the upload service replace the existing file with the modified version
                         $this->upload_service->replaceExistingFile($file, $tmp_filepath, $user);
-                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
 
                         // replaceExistingFile() will end up triggering the required events
                     }
                 }
                 else {
-                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', $drf->getId()));
+                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
                 }
 
                 // If there's no difference between the headers, then delete the decrypted version of
@@ -1589,7 +1593,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                 if ( $new_header !== $existing_header ) {
                     // ...then rewrite it to have the new header
                     self::insertNewHeader($local_filepath, $new_header, $plugin_config);
-                    $this->logger->debug('...replaced header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', $drf->getId()));
+                    $this->logger->debug('...replaced header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', 'drf' .$drf->getId()));
 
                     // Inserting a header almost certainly changed the filesize...need to update that
                     //  value in the database so that encryption and future decryption attempts aren't
@@ -1600,13 +1604,13 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                     $this->em->flush($entity);
                 }
                 else {
-                    $this->logger->debug('...existing header already matches desired header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', $drf->getId()));
+                    $this->logger->debug('...existing header already matches desired header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
                 }
             }
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId(), 'drf '.$drf->getId()));
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1614,7 +1618,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished header insertion attempt for '.$typeclass.' '.$entity->getId(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                $this->logger->debug('finished header insertion attempt for File '.$entity->getId(), array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
 
             // Don't need to clear any caches or fire any events here, since the file encryption
             //  should handle it
