@@ -18,4 +18,3 @@
 {% if filetype == 'raman_raw' or filetype == 'raman_processed' %}
 {{ comment_prefix }}RAMAN WAVELENGTH={% if header_values['raman_wavelength'] is defined %}{{ header_values['raman_wavelength'] }}{% else %}unknown{% endif %}{{ newline_separator }}
 {% endif %}
-{{ newline_separator }}
