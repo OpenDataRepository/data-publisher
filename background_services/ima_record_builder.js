@@ -263,7 +263,7 @@ async function app() {
                     content = '$mineral_names[] = "' + sanitizeMineralName(await findValue(record.cell_params_map.mineral_name, record_data)) + '";\n';
                     content += '$mineral_names_lowercase[] = "' + sanitizeMineralName((await findValue(record.cell_params_map.mineral_name, record_data)).toLowerCase()) + '";\n';
                     content += '$mineral_ascii_names[] = "' + sanitizeMineralName(await findValue(template_fields.mineral_ascii_name, record_data)) + '";\n';
-                    content += '$mineral_names_lowercase[] = "' + sanitizeMineralName((await findValue(template_fields.mineral_ascii_name, record_data)).toLowerCase()) + '";\n';
+                    content += '$mineral_ascii_names_lowercase[] = "' + sanitizeMineralName((await findValue(template_fields.mineral_ascii_name, record_data)).toLowerCase()) + '";\n';
                     // Create mineral list for quick redirect
                     await appendFile(record.base_path + record.mineral_data + '_include.' + record.file_extension, content);
 
