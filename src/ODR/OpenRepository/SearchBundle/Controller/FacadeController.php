@@ -940,6 +940,12 @@ class FacadeController extends Controller
             'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid')
         );
 
+        // TODO Updating File Zips requires a way to get
+        // all modified files and remove them before the update.
+        // Need to add odr_get_modified_file_names which will
+        // check all descendants of the datarecord list and
+        // then find all files that were modified or deleted since the
+        // update date.
         $route_name = 'odr_api_datarecord_list';
         if($recent) {
             $route_name = 'odr_api_recent_datarecord_list';
@@ -955,13 +961,24 @@ class FacadeController extends Controller
         );
         $full_rruff_url = $baseurl . $full_rruff_url;
 
+
+        $route_name = 'odr_api_recently_modified_file_list';
+        $rruff_modified_files_url = $this->generateUrl(
+            $route_name,
+            array(
+                'datatype_uuid' => $job_data['rruff_database_uuid'],
+                'version' => 'v5',
+                'recent' => $recent
+            )
+        );
+        $rruff_modified_files_url = $baseurl . $rruff_modified_files_url;
+
         // API Login URL
         $api_login_url = $this->generateUrl(
             'api_login_check',
             array(
             )
         );
-        // $api_login_url = $baseurl . '/odr_rruff/api/v3/token';
         $api_login_url = $baseurl . $api_login_url;
 
         // API Job Create URL
@@ -971,7 +988,6 @@ class FacadeController extends Controller
                 'version' => 'v4'
             )
         );
-        // $api_create_job_url = $baseurl . '/odr_rruff' . $api_create_job_url;
         $api_create_job_url = $baseurl . $api_create_job_url;
 
         // API Job Status URL
@@ -990,13 +1006,13 @@ class FacadeController extends Controller
                 'version' => 'v4',
             )
         );
-        // $api_worker_job_url = $baseurl . '/odr_rruff' .  $api_worker_job_url;
         $api_worker_job_url = $baseurl . $api_worker_job_url;
 
 
 
         $job_data['recent'] = $recent;
         $job_data['full_rruff_url'] = $full_rruff_url;
+        $job_data['rruff_modified_files_url'] = $rruff_modified_files_url;
         $job_data['api_login_url'] = $api_login_url;
 
         $job_data['api_worker_job_url'] = $api_worker_job_url;
@@ -1008,6 +1024,116 @@ class FacadeController extends Controller
         $payload = json_encode($job_data);
 
         $pheanstalk->useTube('odr_rruff_record_analyzer')->put($payload);
+        // Wrap array for JSON compliance
+        $output = array("done" => true );
+
+        return new JsonResponse($output);
+    }
+
+    /**
+     * @param $version
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updateAMCSDFilesAction($recent, $version, Request $request) {
+        $baseurl = $this->container->getParameter('baseurl_no_prefix');
+        $baseurl = $baseurl . "/odr_rruff";
+
+        // Get the pheanstalk queue
+        $pheanstalk = $this->get('pheanstalk');
+
+        $job_data = array(
+            'base_url' => $baseurl,
+            'ima_update_rebuild' => $recent,
+            'api_user' => $this->container->getParameter('api_user'),
+            'api_key' => $this->container->getParameter('api_key'),
+            'amcsd_database_uuid' => $this->container->getParameter('amcsd_database_uuid')
+        );
+
+        // TODO Updating File Zips requires a way to get
+        // all modified files and remove them before the update.
+        // Need to add odr_get_modified_file_names which will
+        // check all descendants of the datarecord list and
+        // then find all files that were modified or deleted since the
+        // update date.
+        $route_name = 'odr_api_datarecord_list';
+        if($recent) {
+            $route_name = 'odr_api_recent_datarecord_list';
+            $recent = '99999999';
+        }
+        $full_amcsd_url = $this->generateUrl(
+            $route_name,
+            array(
+                'datatype_uuid' => $job_data['amcsd_database_uuid'],
+                'version' => 'v5',
+                'recent' => $recent
+            )
+        );
+        $full_amcsd_url = $baseurl . $full_amcsd_url;
+
+
+        $route_name = 'odr_api_recently_modified_file_list';
+        $amcsd_modified_files_url = $this->generateUrl(
+            $route_name,
+            array(
+                'datatype_uuid' => $job_data['amcsd_database_uuid'],
+                'version' => 'v5',
+                'recent' => $recent
+            )
+        );
+        $amcsd_modified_files_url = $baseurl . $amcsd_modified_files_url;
+
+        // API Login URL
+        $api_login_url = $this->generateUrl(
+            'api_login_check',
+            array(
+            )
+        );
+        $api_login_url = $baseurl . $api_login_url;
+
+        // API Job Create URL
+        $api_create_job_url = $this->generateUrl(
+            'odr_api_start_job',
+            array(
+                'version' => 'v4'
+            )
+        );
+        $api_create_job_url = $baseurl . $api_create_job_url;
+
+        // API Job Status URL
+        $api_job_status_url = $this->generateUrl(
+            'odr_api_job_status',
+            array(
+                'version' => 'v4'
+            )
+        );
+        $api_job_status_url = $baseurl . $api_job_status_url;
+
+        // API Worker Job Create URL
+        $api_worker_job_url = $this->generateUrl(
+            'odr_api_worker_job',
+            array(
+                'version' => 'v4',
+            )
+        );
+        $api_worker_job_url = $baseurl . $api_worker_job_url;
+
+
+
+        $job_data['recent'] = $recent;
+        $job_data['full_amcsd_url'] = $full_amcsd_url;
+        $job_data['amcsd_modified_files_url'] = $amcsd_modified_files_url;
+        $job_data['api_login_url'] = $api_login_url;
+
+        $job_data['api_worker_job_url'] = $api_worker_job_url;
+        $job_data['api_create_job_url'] = $api_create_job_url;
+        $job_data['api_job_status_url'] = $api_job_status_url;
+        $job_data['api_login_url'] = $api_login_url;
+
+        // Add record to pheanstalk queue
+        $payload = json_encode($job_data);
+
+        $pheanstalk->useTube('odr_amcsd_record_analyzer')->put($payload);
         // Wrap array for JSON compliance
         $output = array("done" => true );
 

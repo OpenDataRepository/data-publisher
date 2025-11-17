@@ -102,7 +102,7 @@
      */
     function initStoredSearchKeysDialog() {
 
-        InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );
+        InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );    {# defined in ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig #}
         $(".ODRAdvSearch_header").trigger('click');
         $(".ODRInput").prop("disabled", false);
 
@@ -176,7 +176,7 @@
                     $("#ODRStoredSearchKeysDialogWrapper").find('#ODRSearchSidebar').html(data.d.html);
 
                     // Re-initialize the new sidebar
-                    InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );
+                    InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );    {# defined in ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig #}
                     $(".ODRAdvSearch_header").trigger('click');
                     $(".ODRInput").prop("disabled", false);
 

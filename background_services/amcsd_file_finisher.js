@@ -5,7 +5,7 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
-const tube = 'odr_rruff_file_finisher';
+const tube = 'odr_amcsd_file_finisher';
 
 let token = '';
 
@@ -55,34 +55,16 @@ async function app() {
                         if(tracked_job.current === tracked_job.total) {
                             // TODO Build Zip Files Here
 
-                            let base_path = '/home/rruff/data-publisher/app/rruff_files';
-                            let web_path = '/home/rruff/data-publisher/web/zipped_data_files';
+                            let base_path = '/home/rruff/data-publisher/app/amcsd_files';
+                            let web_path = '/home/rruff/data-publisher/web/AMS/zipped_files';
 
+                            // TODO Move existing zips to legacy
+                            // https://rruff.geo.arizona.edu/AMS/zipped_files/amc_archive_2024_01_02.zip
                             let file_objects = {};
-                            file_objects['raman/lr-raman'] = 'raman/LR-Raman.zip';
-                            file_objects['raman/excellent_oriented'] = 'raman/excellent_oriented.zip';
-                            file_objects['raman/excellent_unoriented'] = 'raman/excellent_unoriented.zip';
-                            file_objects['raman/fair_oriented'] = 'raman/fair_oriented.zip';
-                            file_objects['raman/fair_unoriented'] = 'raman/fair_unoriented.zip';
-                            file_objects['raman/poor_oriented'] = 'raman/poor_oriented.zip';
-                            file_objects['raman/poor_unoriented'] = 'raman/poor_unoriented.zip';
-                            file_objects['raman/unrated_oriented'] = 'raman/unrated_oriented.zip';
-                            file_objects['raman/unrated_unoriented'] = 'raman/unrated_unoriented.zip';
-                            file_objects['raman/ignore_oriented'] = 'raman/ignore_oriented.zip';
-
-                            file_objects['rruff_good_images'] = 'rruff_good_images.zip';
-                            file_objects['chemistry/microprobe_data'] = 'chemistry/Microprobe_Data.zip';
-                            file_objects['chemistry/reference_pdf'] = 'chemistry/Reference_PDF.zip';
-
-                            file_objects['infrared/processed'] = 'infrared/Processed.zip';
-                            file_objects['infrared/raw'] = 'infrared/RAW.zip';
-
-                            file_objects['powder/dif'] = 'powder/DIF.zip';
-                            file_objects['powder/reference_pdf'] = 'powder/Reference_PDF.zip';
-                            file_objects['powder/refinement_data'] = 'powder/Refinement_Data.zip';
-                            file_objects['powder/refinement_output_data'] = 'powder/Refinement_Output_Data.zip';
-                            file_objects['powder/xy_processed'] = 'powder/XY_Processed.zip';
-                            file_objects['powder/xy_raw'] = 'powder/XY_RAW.zip';
+                            file_objects['dif'] = 'dif.zip';
+                            file_objects['cif'] = 'cif.zip';
+                            file_objects['original_cif'] = 'original_cif.zip';
+                            file_objects['amc'] = 'amc.zip';
 
                             for(let key of Object.keys(file_objects)) {
                                 let file_name =  web_path + '/' + file_objects[key];
@@ -93,7 +75,6 @@ async function app() {
                                     && !isEmpty(dir_path)
                                 ) {
                                     console.log('Zip Start: ', new Date().toISOString() );
-                                    // && fs.lstatSync(dir_path).isDirectory()
                                     try {
                                         await execSync('zip -FSr ' + file_name  + ' *', {
                                             cwd: dir_path,

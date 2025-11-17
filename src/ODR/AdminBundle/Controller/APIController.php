@@ -693,6 +693,238 @@ class APIController extends ODRCustomController
         }
     }
 
+    public function getRecentlyModifiedFilesListAction($version, $datatype_uuid, $limit, $offset, $recent, Request $request)
+    {
+        try {
+            // ----------------------------------------
+            // Default to returning the data straight to the browser...
+            $download_response = false;
+            if ($request->query->has('download') && $request->query->get('download') == 'file')
+                // ...but return the data as a download on request
+                $download_response = true;
+
+
+            // ----------------------------------------
+            // Load required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $datatype_uuid
+                )
+            );
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+            $datatype_id = $datatype->getId();
+
+            $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
+            if (!in_array($datatype_id, $top_level_datatype_ids))
+                throw new ODRBadRequestException('Datatype must be top-level');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $can_view_datarecord = $pm_service->canViewNonPublicDatarecords($user, $datatype);
+
+            if (!$pm_service->canViewDatatype($user, $datatype))
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+            // ----------------------------------------
+            // Allow users to specify positive integer values less than a billion for these variables
+            $offset = intval($offset);
+            $limit = intval($limit);
+
+            // If limit is set to 0, then return all results
+            if ($limit === 0)
+                $limit = 999999999;
+
+            // TODO Why does this matter?  Does mysql throw an error if offset is too big?
+            // TODO Why not just return zero results?
+            if ($offset >= 1000000000)
+                throw new ODRBadRequestException('Offset must be less than a billion');
+            if ($limit >= 1000000000)
+                throw new ODRBadRequestException('Limit must be less than a billion');
+
+            // $offset is currently the index of the "first" datarecord the user wants...turn $limit
+            //  into the index of the "last" datarecord the user wants
+            $limit = $offset + $limit;
+
+            $em->getFilters()->disable('softdeleteable');
+            // ----------------------------------------
+            // Load all top-level datarecords of this datatype that the user can see
+            $str =
+                'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid, dr.updated
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE dr.dataType = :datatype_id';
+
+            $params = array('datatype_id' => $datatype_id);
+
+            // Let's include non-public that changed to non-public recently
+            // And any public records
+            // $str .= ' AND (
+                // (drm.publicDate >= :public_date AND drm.created >= :updated_date)
+                // OR drm.publicDate < :public_date
+            // )';
+            // $params['public_date'] = '2200-01-01 00:00:00';
+
+            // Any recently deleted records and recently deleted drm records
+            $str .= ' AND (
+                 dr.deletedAt >= :updated_date
+                 OR dr.updated >= :updated_date
+                 OR dr.created >= :updated_date
+            )';
+
+            $updated_date = new \DateTime();
+            // return new JsonResponse(['done' => $updated_date]);
+
+            if(preg_match("/^\d+$/",$recent)) {
+                // Recent is a time stamp
+                $updated_date = new \DateTime('@' . floor($recent/1000));
+            }
+            // return new JsonResponse(['done' => $updated_date]);
+            $params['updated_date'] = date_format($updated_date, "Y-m-d H:i:s");
+            /*
+            $params['updated_date'] = date_format(
+                date_sub($updated_date, date_interval_create_from_date_string('12 hours')),
+                "Y-m-d H:i:s"
+            );
+            */
+            // Temporary for testing
+            // $params['updated_date'] = date_format(
+            // date_sub($updated_date, date_interval_create_from_date_string('90 days')),
+            // "Y-m-d H:i:s"
+            // );
+            /*
+            return new JsonResponse([
+                'recent' => $recent,
+                'done' => $params['updated_date']
+            ]);
+            */
+
+            $str .= ' ORDER BY dr.id ASC';
+
+            $query = $em->createQuery($str)->setParameters($params);
+            $results = $query->getArrayResult();
+
+            // throw new ODRJsonException(var_export($results, true));
+            // 432 modified or deleted records using 10/21
+            // return new JsonResponse(['done -> results' => count($results)]);
+
+            $count = 0;
+            $final_datarecord_list = array();
+            foreach ($results as $index => $values) {
+                // Only save datarecords inside the window that the user specified
+                $final_datarecord_list[] = $values['dr_id'];
+
+                $count++;
+            }
+
+            // return new JsonResponse(['done -> fdr' => count($final_datarecord_list)]);
+            // This is the list - Now get descendants
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            $descendants = $dri_service->findAllDescendants($final_datarecord_list);
+            $descendants = array_unique($descendants);
+
+            // throw new ODRJsonException(var_export($descendants, true));
+            // 8039 descendants using 10/21
+            // return new JsonResponse(['Descendants' => count($descendants)]);
+
+            // Get related files for these records
+            $params = [];
+            $str =
+                'SELECT 
+                dr.id AS dr_id, 
+                dr.unique_id AS dr_uuid,
+                df.id as df_id,
+                dfm.id as dfm_id,
+                dfm.originalFileName as df_name,
+                di.id as di_id,
+                dim.id as dim_id,
+                dim.originalFileName as di_name
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                LEFT JOIN ODRAdminBundle:File AS df WITH df.dataRecord = dr
+                LEFT JOIN ODRAdminBundle:FileMeta AS dfm WITH dfm.file = df
+                LEFT JOIN ODRAdminBundle:Image AS di WITH di.dataRecord = dr
+                LEFT JOIN ODRAdminBundle:ImageMeta AS dim WITH dim.image = di
+                WHERE dr.id IN (:datarecord_ids)
+            ';
+
+            $params = array('datarecord_ids' => $descendants);
+            // return new JsonResponse(['descendants' => count($descendants)]);
+
+            $str .= ' AND ( ';
+            $str .= ' df.deletedAt IS NULL OR df.deletedAt >= :updated_date';
+            $str .= ' OR df.created >= :updated_date';
+            $str .= ' OR dfm.deletedAt IS NULL OR dfm.deletedAt >= :updated_date';
+            $str .= ' OR dfm.created >= :updated_date';
+            $str .= ' OR dfm.updated >= :updated_date';
+            $str .= ' OR di.deletedAt IS NULL OR di.deletedAt >= :updated_date';
+            $str .= ' OR di.created >= :updated_date';
+            $str .= ' OR dim.deletedAt IS NULL OR dim.deletedAt >= :updated_date';
+            $str .= ' OR dim.created >= :updated_date';
+            $str .= ' OR dim.updated >= :updated_date';
+            $str .= ' ) ';
+
+            // $str .= ' AND di.deletedAt IS NULL OR di.deletedAt >= :updated_date';
+            // $str .= ' AND dfm.deletedAt IS NULL OR dfm.deletedAt >= :updated_date';
+            // $str .= ' AND dim.deletedAt IS NULL OR dim.deletedAt >= :updated_date';
+
+            // return new JsonResponse(['done' => $updated_date]);
+            $params['updated_date'] = date_format($updated_date, "Y-m-d H:i:s");
+            $str .= ' ORDER BY dr.id ASC';
+            $query = $em->createQuery($str)->setParameters($params);
+            // return new JsonResponse(['Query: ' => $query->getSQL()]);
+            // return new JsonResponse(['file results' => count($results)]);
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+            // throw new ODRJsonException(var_export($results, true));
+            // Clean results into list of file names
+            $final_file_list = [];
+            foreach ($results as $index => $values) {
+                if($values['df_name'] !== null) {
+                    $final_file_list[] =  $values['df_name'];
+                }
+                if($values['di_name'] !== null) {
+                    $final_file_list[] =  $values['di_name'];
+                }
+            }
+
+            // throw new ODRJsonException('Final file list: ' . var_export($final_file_list, true));
+
+            // The list needs to be wrapped in another array...
+            // $final_datarecord_list = array('records' => $ors);
+            // $final_datarecord_list = array('records' => $final_datarecord_list);
+
+            // throw new ODRJsonException(var_export($results, true));
+            return new JsonResponse(['files' => $final_file_list]);;
+
+        } catch (\Exception $e) {
+            $source = 0xd12ec6ee;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
 
     /**
      * Returns a list of top-level datarecords for the given datatype that the user is allowed to see.
@@ -796,7 +1028,6 @@ class APIController extends ODRCustomController
                 // return new JsonResponse(['done' => $updated_date]);
                 if(preg_match("/^\d+$/",$recent)) {
                     // Recent is a time stamp
-                    // Updated last 12 hours...
                     $updated_date = new \DateTime('@' . floor($recent/1000));
                 }
                 // return new JsonResponse(['done' => $updated_date]);
@@ -7705,10 +7936,9 @@ class APIController extends ODRCustomController
                     $worker_job->setTrackedJob($tracked_job);
                     $worker_job->setLineCount(1);
                     $worker_job->setJobOrder(0);
-                    $worker_job->setRandomKey('random_key_' + rand(0,1000000));
+                    $worker_job->setRandomKey('random_key_' . rand(0,1000000));
                     $em->persist($worker_job);
                 }
-
                 $em->flush();
 
                 $tracked_csv_exports = $em

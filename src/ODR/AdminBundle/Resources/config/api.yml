@@ -114,6 +114,17 @@ odr_api_recent_dataset_record_list:
     offset: \d+
     _format: '|json|xml'
 
+odr_api_recently_modified_file_list:
+  path: /api/{version}/dataset/{datatype_uuid}/modified_files/{recent}/{limit}/{offset}.{_format}
+  defaults: { _controller: ODRAdminBundle:API:getRecentlyModifiedFilesList, limit: 0, offset: 0, recent: true, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d'  # v1, v2, v3, v4 - no difference
+    datatype_uuid: '^[a-z0-9]+$'
+    limit: \d+
+    offset: \d+
+    _format: '|json|xml'
+
 odr_api_recent_datarecord_list:
   path: /api/{version}/search/database/{datatype_uuid}/modified/records/{recent}/{limit}/{offset}.{_format}
   defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, recent: true, _format: json }
