@@ -685,6 +685,7 @@ class DisplayController extends ODRCustomController
 
             // Locate the file in the database
             /** @var File $file */
+            $em->getFilters()->disable('softdeleteable');
 
             $query = $em->createQuery(
                 'SELECT f
@@ -706,17 +707,29 @@ class DisplayController extends ODRCustomController
             // print $query->getSql();exit();
             $files = $query->getArrayResult();
 
+            $em->getFilters()->enable('softdeleteable');
+
             $output_file = null;
             foreach ($files as $file) {
-                var_dump($file);
+                // var_dump($file);
                 /** @var File $file */
                 $fileMeta = $em->getRepository('ODRAdminBundle:FileMeta')
                     ->findBy(array('file' => $file['id']));
-                var_dump($fileMeta);
-                if($fileMeta->deletedAt == null
-                    && $fileMeta->publicDate != '2200-01-01 00:00:00'                ) {
-                    $output_file = $file;
-                    break;
+                if(is_array($fileMeta)) {
+                    for($i = 0; $i < count($fileMeta); $i++) {
+                        if($fileMeta[$i]->getDeletedAt() == null
+                            && $fileMeta[$i]->getPublicDate() != '2200-01-01 00:00:00'                ) {
+                            $output_file = $file;
+                            break;
+                        }
+                    }
+                }
+                else if(is_object($fileMeta)) {
+                    if($fileMeta->getDeletedAt() == null
+                        && $fileMeta->getPublicDate() != '2200-01-01 00:00:00'                ) {
+                        $output_file = $file;
+                        break;
+                    }
                 }
             }
 
@@ -755,9 +768,9 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Ensure file exists before attempting to download it
-            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            $filename = 'File_'.$output_file['id'].'.'.$file->getExt();
             if ( !$file->isPublic() )
-                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+                $filename = md5($file->getOriginalChecksum().'_'.$output_file['id'].'_'.$user->getId()).'.'.$file->getExt();
 
             $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath) {

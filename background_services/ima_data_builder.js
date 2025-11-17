@@ -163,7 +163,9 @@ async function app() {
                     if(!data.ima_update_rebuild) {
                         content = '<?php ' +
                             '$mineral_names = array();\n' +
-                            '$mineral_names_lowercase = array();\n';
+                            '$mineral_ascii_names = array();\n' +
+                            '$mineral_names_lowercase = array();\n' +
+                            '$mineral_ascii_names_lowercase = array();\n';
                     }
                     let mineral_data_include_filename = basepath + data.mineral_data + '_include.' + tmp_file_extension;
                     console.log('writeFile: ' + basepath + data.mineral_data + '_include.' + tmp_file_extension);
