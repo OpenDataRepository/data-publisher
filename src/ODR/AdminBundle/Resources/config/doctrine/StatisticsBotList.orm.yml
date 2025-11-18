@@ -1,0 +1,80 @@
+ODR\AdminBundle\Entity\StatisticsBotList:
+    type: entity
+    table: odr_statistics_bot_list
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        pattern:
+            type: string
+            length: 255
+            nullable: false
+            column: pattern
+
+        botName:
+            type: string
+            length: 128
+            nullable: true
+            column: bot_name
+
+        isActive:
+            type: boolean
+            nullable: false
+            default: true
+            column: is_active
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+
+        deletedAt:
+            type: datetime
+            nullable: true
+            column: deleted_at
+
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    indexes:
+        pattern_idx:
+            columns: [pattern]
+        active_idx:
+            columns: [is_active]
+        deleted_idx:
+            columns: [deleted_at]
+
+    lifecycleCallbacks: {  }
