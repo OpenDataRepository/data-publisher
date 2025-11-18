@@ -2,6 +2,7 @@
 /app/cache/*
 /app/crypto_dir/*
 /app/crypto_dir
+/app/amcsd_files
 /app/logs/*
 /app/tmp/*
 !app/cache/.gitkeep
@@ -35,6 +36,12 @@
 /web/node_modules/
 /web/chemin-map-demo/
 /web/zipped_data_files
+/web/AMS
+
+# Claude
+.claude/
+CLAUDE.md
+CLAUDE_LOG.md
 
 # PHPUnit
 /app/phpunit.xml
