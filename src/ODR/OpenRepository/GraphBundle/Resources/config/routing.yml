@@ -6,6 +6,13 @@ odr_plugin_graph_render:
         request_datatype_id: \d+
         request_datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it
 
+odr_plugin_graph_delete_individual:
+    path:  /edit/plugins/delete_individual_graph/{datatype_id}/{graph_filename}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:deleteindividualgraph }
+    requirements:
+        datatype_id: \d+
+        graph_filename: '^0|(Filter_)?Chart_[a-f0-9]{40}_\d+\.svg$'
+
 odr_plugin_file_renamer_rebuild_all:
     path:  /edit/plugins/file_renamer/rebuild_all/{dr_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:FileRenamer:rebuildall }

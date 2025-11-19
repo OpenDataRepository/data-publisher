@@ -62,6 +62,10 @@
                             <br>
                             <label id="{{ odr_chart_id }}_disable_scatterGL_label" for="{{ odr_chart_id }}_disable_scatterGL">Disable ScatterGL: </label>
                             <input type="checkbox" id="{{ odr_chart_id }}_disable_scatterGL" />
+                            {% if can_delete_cached_image %}
+                            <br>
+                            <button id="{{ odr_chart_id }}_rebuild_graph_image">Rebuild Cached Image</button>
+                            {% endif %}
                         </div>
 {#
                         <div id="{{ odr_chart_id }}_bar_settings" class="{{ odr_chart_id }}_settings ODRHidden">
@@ -199,6 +203,49 @@ jQuery(function() {
         $(this).closest(".DynamicGraphSettings").first().addClass('ODRHidden');
         event.stopPropagation();
     });
+{% if can_delete_cached_image %}
+    $('#{{ odr_chart_id }}_rebuild_graph_image').unbind('click').click(function(event) {
+        event.stopPropagation();
+
+        {% for dr_id, file_name in odr_chart_output_files %}    {# NOTE: unfortunately the loop is still required...the graph plugin puts more than just the "correct" graph in odr_chart_output_files #}
+            {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
+                var graph_filename = '{{ file_name }}';
+            {% endif %}
+        {% endfor %}
+
+        var reduced_filename = graph_filename.substring(graph_filename.lastIndexOf('/')+1);
+        // alert(reduced_filename);  return;
+
+        var url = '{{ path('odr_plugin_graph_delete_individual', {'datatype_id': target_datatype_id, 'graph_filename': 0}) }}';
+        url = url.substring(0, url.length-1);
+        url += reduced_filename;
+
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data) {
+                alert('Cached graph image will be rebuilt');
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+{% endif %}
 
     $('#{{ odr_chart_id }}_filter').find('.ODRFilterGraphPlugin_select_all').unbind('click').click(function() {
         $(this).parent().next().find('option').each(function(index,elem) {

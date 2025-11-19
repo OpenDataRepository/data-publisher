@@ -589,6 +589,11 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             // Graphs are always going to be labelled with the id of the primary graph file datafield
             $primary_graph_df_id = $current_plugin_config['graph_file_df_id'];
 
+            $can_delete_cached_image = false;
+            $dt_id = $datatype['id'];
+            if ( $is_datatype_admin || (isset($datatype_permissions[$dt_id]['dr_edit']) && isset($datafield_permissions[$primary_graph_df_id]['edit'])) )
+                $can_delete_cached_image = true;
+
             // Use the plugin config to find all the files that should be graphed
             $graph_files = self::getFileData($datarecords, $current_plugin_config);
             // If there are no files to graph, then the plugin shouldn't execute
@@ -718,6 +723,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 'is_datatype_admin' => $is_datatype_admin,
                 'datatype_permissions' => $datatype_permissions,
                 'datafield_permissions' => $datafield_permissions,
+                'can_delete_cached_image' => $can_delete_cached_image,
 
                 // Options for graph display
                 'plugin_options' => $options,

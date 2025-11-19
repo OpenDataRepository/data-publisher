@@ -14,15 +14,18 @@
 
 namespace ODR\OpenRepository\GraphBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -321,7 +324,7 @@ class GraphController extends ODRCustomController
      *
      * @return mixed
      */
-    public function svgWarning($message, $detail = "") {
+    private function svgWarning($message, $detail = "") {
 
         $templating = $this->get('templating');
 
@@ -332,5 +335,84 @@ class GraphController extends ODRCustomController
                 'detail' => $detail
             )
         );
+    }
+
+
+    /**
+     * Deletes the given graph file off the server if the user has permissions to edit the associated
+     * datafield.
+     *
+     * @param int $datatype_id
+     * @param string $graph_filename
+     * @param Request $request
+     * @return Response
+     */
+    public function deleteindividualgraphAction($datatype_id, $graph_filename, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Cut out the file extension so an explode() can get just the datafield id
+            $pieces = explode('_', substr($graph_filename, 0, -4));
+            // The datafield id is the last piece
+            $datafield_id = 0;
+            foreach ($pieces as $piece)
+                $datafield_id = $piece;
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            // Because of the FilterGraph plugin, not going to verify that the datafield belongs to
+            //  the datatype or one of its descendants
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$permissions_service->canEditDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$permissions_service->canEditDatafield($user, $datafield) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // If the user can edit records in the datatype and also edit the graph datafield, then
+            //  that's close enough for me...the regex is incredibly restrictive, and it doesn't
+            //  really matter if they put random numbers in there
+            $odr_web_directory = $this->getParameter('odr_web_directory');
+            $odr_files_directory = $this->getParameter('odr_files_directory');
+
+            $filepath = $odr_web_directory.'/'.$odr_files_directory.'/graphs/datatype_'.$datatype_id.'/'.$graph_filename;
+            if ( file_exists($filepath) )
+                unlink($filepath);
+        }
+        catch (\Exception $e) {
+            $source = 0x2c8579cd;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 }
