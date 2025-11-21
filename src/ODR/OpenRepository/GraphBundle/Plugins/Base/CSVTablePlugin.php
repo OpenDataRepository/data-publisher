@@ -101,6 +101,18 @@ class CSVTablePlugin implements DatafieldPluginInterface
             // Need this to determine whether to throw an error or not
             $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
+
+            // Get all the options of the plugin...
+            $use_first_row_as_header = true;
+            if ( isset($options['use_first_row_as_header']) && $options['use_first_row_as_header'] === 'no' )
+                $use_first_row_as_header = false;
+
+            // If the file doesn't actually have a header row, then we're going to use letters instead
+            $column_letters = range('A', 'Z');
+
+
             // ----------------------------------------
             // The method of data extraction depends on the type of field...
             $is_file = false;
@@ -118,9 +130,22 @@ class CSVTablePlugin implements DatafieldPluginInterface
             if ( is_null($ret) )
                 return '';
 
+
+            // ----------------------------------------
             // Convert the contents of the file/field into a format that Handsontable can use
-            $data_array = json_encode( $ret['data'] );
+            $data_array = $ret['data'];
             $num_columns = $ret['num_columns'];
+
+            $column_names = array();
+            foreach ($data_array as $row_num => $row) {
+                foreach ($row as $col_num => $col) {
+                    if ( $use_first_row_as_header )
+                        $column_names[] = $col;
+                    else
+                        $column_names[] = $column_letters[$col_num];
+                }
+                break;
+            }
 
 
             // ----------------------------------------
@@ -134,6 +159,8 @@ class CSVTablePlugin implements DatafieldPluginInterface
 
                         'is_datatype_admin' => $is_datatype_admin,
 
+                        'use_first_row_as_header' => $use_first_row_as_header,
+                        'column_names' => $column_names,
                         'data_array' => $data_array,
                         'num_columns' => $num_columns,
                     )
