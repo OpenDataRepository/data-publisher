@@ -1950,6 +1950,9 @@ body {
 .Cursor {
     cursor: default;
 }
+.CursorOverride {
+    cursor: default !important;
+}
 .Info {
     cursor: help;
 }

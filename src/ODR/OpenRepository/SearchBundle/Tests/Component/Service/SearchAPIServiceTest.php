@@ -1617,8 +1617,8 @@ class SearchAPIServiceTest extends WebTestCase
 
 
             // ----------------------------------------
-            // XYZData tests...
-            'AMCSD test: silly precision search' => [
+            // "Advanced" versions of XYZData searches...
+            'XYZData test, advanced: silly precision search' => [
                 array(
                     'dt_id' => 16,
                     '66' => '(5.6984,)',
@@ -1627,7 +1627,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'AMCSD test: search with one range' => [
+            'XYZData test, advanced: search with one range' => [
                 array(
                     'dt_id' => 16,
                     '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
@@ -1635,16 +1635,24 @@ class SearchAPIServiceTest extends WebTestCase
                 array(325,326,328),
                 true
             ],
-            'AMCSD test: search with two ranges' => [
+            'XYZData test, advanced: AND search with two ranges' => [
                 array(
                     'dt_id' => 16,
-                    '66' => '(>2.81 < 2.83,)|(>5.63 <5.65,)',    // want records with 1) an x between 2.81 and 2.83 and 2) an x between 5.63 and 5.65
+                    '66' => '(>2.81 < 2.83,)|(>5.63 <5.65,)',    // want records with 1) an x between 2.81 and 2.83 AND 2) an x between 5.63 and 5.65
                 ),
                 array(326),
                 true
             ],
+//            'XYZData test, advanced: OR search with two ranges' => [    // TODO - implement this
+//                array(
+//                    'dt_id' => 16,
+//                    '66' => '(>2.81 < 2.83,)|(>5.63 <5.65,)',    // want records with 1) an x between 2.81 and 2.83 OR 2) an x between 5.63 and 5.65
+//                ),
+//                array(326),
+//                true
+//            ],
 
-            'AMCSD test: search with both x/y that should work' => [
+            'XYZData test, advanced: search with both x/y that should work' => [
                 array(
                     'dt_id' => 16,
                     '66' => '(>5.6 <5.65,>30)',
@@ -1652,7 +1660,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(325,326,327),
                 true
             ],
-            'AMCSD test: search with both x/y that should return nothing' => [
+            'XYZData test, advanced: search with both x/y that should return nothing' => [
                 array(
                     'dt_id' => 16,
                     '66' => '(>5.6 <5.65,>50)',
@@ -1660,7 +1668,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),    // the y value is between 30 and 35 for the previous matches, so nothing should match here
                 true
             ],
-            'AMCSD test: search with separate x/y' => [
+            'XYZData test, advanced: search with separate x/y' => [
                 array(
                     'dt_id' => 16,
                     '66' => '(>5.6 <5.65,)|(,>50)',
@@ -1668,6 +1676,151 @@ class SearchAPIServiceTest extends WebTestCase
                 array(325,326,327),    // all three have a different point with a y value of 100, so they should all match again
                 true
             ],
+            'XYZData test, advanced: multirange x/y with single y' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(>=1.4 <=1.5,>=7,)|(>=2.4 <=2.5,>=7,)',  // the extra comma indicating a z-value shouldn't actually matter
+                ),
+                array(325,327),
+                true
+            ],
+            'XYZData test, advanced: multirange x/y with alternate y' => [
+                array(
+                    'dt_id' => 16,
+                    '66' => '(>=1.4 <=1.5,>=7 OR <=5,)|(>=2.4 <=2.5,>=7 OR <=5,)',  // the extra comma indicating a z-value shouldn't actually matter
+                ),
+                array(325,327,328),  // 328 matches now because its xvalues between 1.4 and 1.5 had yvalues between 4.26 and 5.47
+                true
+            ],
+
+
+            // The "simple" version of the XYZData field takes slightly different parameters, but
+            //  should typically return the same results for simple searches...there are exceptions
+            //  to this though
+            'XYZData test, simple: silly precision search' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '5.6984',
+                ),
+                array(324),
+                true
+            ],
+
+            'XYZData test, simple: search with one range' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325,326,328),
+                true
+            ],
+            'XYZData test, simple: AND search with two ranges' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83 && >5.63 <5.65',    // want records with 1) an x between 2.81 and 2.83 AND 2) an x between 5.63 and 5.65
+                ),
+                array(326),
+                true
+            ],
+            'XYZData test, simple: OR search with two ranges' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83, >5.63 <5.65',    // want records with 1) an x between 2.81 and 2.83 OR 2) an x between 5.63 and 5.65
+                ),
+                array(325,326,328),
+                true
+            ],
+
+            'XYZData test, simple: search with both x/y that should work' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>5.6 <5.65',
+                    '66_y' => '>30',
+                ),
+                array(325,326,327),
+                true
+            ],
+            'XYZData test, simple: search with both x/y that should return nothing' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>5.6 <5.65',
+                    '66_y' => '>50',
+                ),
+                array(),    // the y value is between 30 and 35 for the previous matches, so nothing should match here
+                true
+            ],
+            // NOTE: the "simple" version can't perform this search
+//            'XYZData test, simple: search with separate x/y' => [
+//                array(
+//                    'dt_id' => 16,
+//                    '66' => '(>5.6 <5.65,)|(,>50)',
+//                ),
+//                array(325,326,327),    // all three have a different point with a y value of 100, so they should all match again
+//                true
+//            ],
+            'XYZData test, simple: multirange x/y with single y' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7',
+                ),
+                array(325,327),  // this should get converted into "(>=1.4 <=1.5,>=7,)|(>=2.4 <=2.5,>=7,)"
+                true
+            ],
+            'XYZData test, simple: multirange x/y with alternate y (1)' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7 OR <=5',
+                ),
+                array(325,327,328),  // this should get converted into "(>=1.4 <=1.5,>=7 OR <=5,)|(>=2.4 <=2.5,>=7 OR <=5,)"...328 matches now because its xvalues between 1.4 and 1.5 had yvalues between 4.26 and 5.47
+                true
+            ],
+            'XYZData test, simple: multirange x/y with alternate y (2)' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7,<=5',
+                ),
+                array(325,327,328),  // like above, but the alternate OR syntax needs conversion so <=5 doesn't become a z value
+                true
+            ],
+            'XYZData test, simple: multirange x/y with alternate y (3)' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7 ,<=5',
+                ),
+                array(325,327,328),  // like above, but the alternate OR syntax needs conversion so <=5 doesn't become a z value
+                true
+            ],
+            'XYZData test, simple: multirange x/y with alternate y (4)' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7, <=5',
+                ),
+                array(325,327,328),  // like above, but the alternate OR syntax needs conversion so <=5 doesn't become a z value
+                true
+            ],
+            'XYZData test, simple: multirange x/y with alternate y (5)' => [
+                array(
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7,  <=5',
+                ),
+                array(325,327,328),  // like above, but the alternate OR syntax needs conversion so <=5 doesn't become a z value
+                true
+            ],
+//            'XYZData test, simple: multirange x/y with multiple y' => [    // TODO - find something that makes sense here?  nothing will really match in this database
+//                array(
+//                    'dt_id' => 16,
+//                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+//                    '66_y' => '>=7 && ',
+//                ),
+//                array(325,327),  // this should get converted into "(>=1.4 <=1.5,>=7,)|(>=2.4 <=2.5,>=7,)"
+//                true
+//            ],
         ];
     }
 
