@@ -16,3 +16,10 @@ services:
         class: '%odr_plugin_base_classpath%\AHED\SitePlugin'
         arguments:
             $templating: "@templating"
+
+    # Datafield plugins
+    odr_plugins.ahed.nanograin_url:
+        class: '%odr_plugin_base_classpath%\AHED\NanograinURLPlugin'
+        arguments:
+            $datarecord_info_service: '@odr.datarecord_info_service'
+            $templating: '@templating'
