@@ -1,0 +1,48 @@
+odr_plugins.ahed.nanograin_url:
+    name: Nanogranin File URL
+    category: AHED
+    plugin_type: datafield
+    render: odr_plugins.ahed.nanograin_url
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    description: The contents of an associated file datafield will be used as the basis for a URL link.
+    suppress_no_fields_note: false
+    registered_events:
+
+    required_fields:
+        url_field:
+            name: URL Field
+            description: A datafield containing part of a search URL.
+            type: IntegerValue|ShortVarchar|MediumVarchar|LongVarchar|LongText
+
+    config_options:
+        file_field_id:
+            name: file field
+            type: string
+            default: ''
+            description: The File Field to use to create the URL.
+            display_order: 0
+        button_text:
+            name: button_text
+            type: string
+            default: ''
+            description: The label to use for the button
+            display_order: 1
+        base_url:
+            name: baseurl
+            type: string
+            default: auto
+            description: An HTML string that will be prepended to the contents of the datafield.  If "auto", nothing will be prepended.
+            display_order: 2
+        post_url:
+            name: posturl
+            type: string
+            default: auto
+            description: An HTML string that will be appended to the contents of the datafield.  If 'auto', nothing will be appended.
+            display_order: 3
