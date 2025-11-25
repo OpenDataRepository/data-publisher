@@ -5469,7 +5469,10 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 
 table.ODRRenderPlugin_CSVTable tbody td {
     /* need !important because otherwise "table.dataTables tbody td" interferes with this plugin */
-    padding: 0 !important;
+    padding: 1px 4px !important;
+}
+div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
+    border-bottom: unset !important;
 }
 
 .ODRRRUFFReferencePlugin_select {
