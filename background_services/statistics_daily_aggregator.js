@@ -12,7 +12,6 @@
  * - Stores in StatisticsDaily table via API
  * - Deletes hourly data older than 2 years
  */
-
 const https = require('https');
 const config = require('./statistics_config');
 let authToken = null;
@@ -72,7 +71,7 @@ async function apiCall(path, data, method = 'POST') {
 async function authenticate() {
     try {
         console.log('Authenticating with API...');
-        const response = await apiCall(config.api.endpoints.login, {
+        const response = await apiCall(config.getEndpoint('login'), {
             username: config.api.user,
             password: config.api.key
         });
@@ -119,7 +118,7 @@ async function aggregateDaily() {
         console.log('Aggregating statistics for date:', dateStr);
 
         // Call API to perform aggregation
-        const response = await apiCall(config.api.endpoints.aggregateDaily, {
+        const response = await apiCall(config.getEndpoint('aggregateDaily'), {
             date: dateStr
         });
 
@@ -167,7 +166,7 @@ async function cleanupOldData() {
         console.log('Cleaning up hourly statistics older than:', dateStr);
 
         // Call API to perform cleanup
-        const response = await apiCall(config.api.endpoints.cleanupHourly, {
+        const response = await apiCall(config.getEndpoint('cleanupHourly'), {
             cutoff_date: dateStr
         });
 
@@ -217,8 +216,18 @@ function getTimeUntilNextRun() {
  * Main execution
  */
 async function main() {
+    // Check for --force flag
+    const forceRun = process.argv.includes('--force');
+
     console.log('Statistics Daily Aggregator initialized');
     console.log('Will run daily at ' + config.schedule.aggregatorHour + ':' + config.schedule.aggregatorMinute.toString().padStart(2, '0'));
+
+    if (forceRun) {
+        console.log('\n--force flag detected, running immediately...');
+        await runDaily();
+        console.log('\nForced run complete. Exiting...\n');
+        process.exit(0);
+    }
 
     // Check if we should run immediately (if it's the scheduled time)
     const now = new Date();

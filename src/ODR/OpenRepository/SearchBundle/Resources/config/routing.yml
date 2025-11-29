@@ -1,3 +1,60 @@
+#-----------------------------------------
+#
+# Statistics Controller
+#
+#-----------------------------------------
+odr_statistics_log_view:
+  path: /statistics/log_view
+  defaults: { _controller: ODRAdminBundle:Statistics:logView, _format: json }
+  methods: [ POST ]
+
+odr_statistics_log_download:
+  path: /statistics/log_download
+  defaults: { _controller: ODRAdminBundle:Statistics:logDownload, _format: json }
+  methods: [ POST ]
+
+odr_statistics_get_datatype:
+  path: /statistics/datatype/{datatype_id}
+  defaults: { _controller: ODRAdminBundle:Statistics:getDatatypeStats, _format: json }
+  methods: [ GET ]
+  requirements:
+    datatype_id: '\d+'
+
+odr_statistics_get_datarecord:
+  path: /statistics/datarecord/{datarecord_id}
+  defaults: { _controller: ODRAdminBundle:Statistics:getDatarecordStats, _format: json }
+  methods: [ GET ]
+  requirements:
+    datarecord_id: '\d+'
+
+odr_statistics_geographic:
+  path: /statistics/geographic
+  defaults: { _controller: ODRAdminBundle:Statistics:getGeographicStats, _format: json }
+  methods: [ GET ]
+
+odr_statistics_dashboard:
+  path: /statistics/dashboard/{datatype_id}
+  defaults: { _controller: ODRAdminBundle:Statistics:getDashboard }
+  methods: [ GET ]
+  requirements:
+    datatype_id: '\d+'
+
+odr_statistics_admin_dashboard:
+  path: /statistics/dashboard
+  defaults: { _controller: ODRAdminBundle:Statistics:adminDashboard }
+  methods: [ GET ]
+
+odr_statistics_summary:
+  path: /statistics/summary
+  defaults: { _controller: ODRAdminBundle:Statistics:getSummary, _format: json }
+  methods: [ GET ]
+
+#-----------------------------------------
+#
+# END Statistics Controller
+#
+#-----------------------------------------
+
 # ----------------------------------------
 # SearchSidebarController routes
 odr_reload_search_overlay_datafield:
@@ -19,12 +76,14 @@ odr_reload_inverse_search_key:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         inverse_datatype_id: \d+|
+
 odr_reload_inverse_linked_search_key:
     path:  /search/reload_inverse_linking_search_key/{datatype_id}/{inverse_datatype_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinverselinkingsearchkey, inverse_datatype_id: '-1' }
     requirements:
         dataype_id: \d+
         inverse_datatype_id: -?\d+|
+
 odr_reload_inverse_stored_search_key:
     path:  /search/reload_inverse_stored_search_key/{datatype_id}/{inverse_datatype_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinversestoredsearchkey, inverse_datatype_id: '-1' }
@@ -287,7 +346,6 @@ odr_precache_search:
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchCache:preCacheRecords }
     requirements:
         datatype_id: \d+
-
 
 #
 #

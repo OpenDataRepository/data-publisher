@@ -13,7 +13,6 @@
  * - Stores aggregated data via API
  * - Deletes processed Redis keys
  */
-
 const https = require('https');
 const geoip = require('geoip-lite');
 const Redis = require('ioredis');
@@ -82,7 +81,7 @@ async function apiCall(path, data, method = 'POST') {
 async function authenticate() {
     try {
         console.log('Authenticating with API...');
-        const response = await apiCall(config.api.endpoints.login, {
+        const response = await apiCall(config.getEndpoint('login'), {
             username: config.api.user,
             password: config.api.key
         });
@@ -107,7 +106,7 @@ async function authenticate() {
 async function fetchBotPatterns() {
     try {
         console.log('Fetching bot patterns...');
-        const response = await apiCall(config.api.endpoints.getBots, {}, 'GET');
+        const response = await apiCall(config.getEndpoint('getBots'), {}, 'GET');
 
         if (response && response.bots && Array.isArray(response.bots)) {
             botPatterns = response.bots;
@@ -273,8 +272,8 @@ async function processStatistics() {
             // Create aggregation key
             const aggKey = [
                 hourTimestamp,
-                entry.datatype_id || 'null',
-                entry.datarecord_id || 'null',
+                entry.data_type_id || 'null',
+                entry.data_record_id || 'null',
                 entry.file_id || 'null',
                 geo.country || 'null',
                 geo.province || 'null',
@@ -285,8 +284,8 @@ async function processStatistics() {
             if (!aggregated[aggKey]) {
                 aggregated[aggKey] = {
                     hour_timestamp: hourTimestamp,
-                    datatype_id: entry.datatype_id || null,
-                    datarecord_id: entry.datarecord_id || null,
+                    data_type_id: entry.data_type_id || null,
+                    data_record_id: entry.data_record_id || null,
                     file_id: entry.file_id || null,
                     country: geo.country,
                     province: geo.province,
@@ -319,7 +318,7 @@ async function processStatistics() {
 
             try {
                 console.log('Storing batch ' + (Math.floor(i / batchSize) + 1) + '...');
-                await apiCall(config.api.endpoints.storeHourly, {
+                await apiCall(config.getEndpoint('storeHourly'), {
                     statistics: batch
                 });
             } catch (e) {
@@ -354,8 +353,18 @@ async function processStatistics() {
  * Main execution
  */
 async function main() {
+    // Check for --force flag
+    const forceRun = process.argv.includes('--force');
+
     console.log('Statistics Processor initialized');
     console.log('Will process logs every hour on the hour');
+
+    if (forceRun) {
+        console.log('\n--force flag detected, running immediately...');
+        await processStatistics();
+        console.log('\nForced run complete. Exiting...\n');
+        process.exit(0);
+    }
 
     // Calculate time until next hour
     function getTimeUntilNextHour() {

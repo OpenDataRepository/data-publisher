@@ -11,10 +11,10 @@
  * - Updates StatisticsBotList table via API
  * - Marks new patterns as active, old patterns as inactive
  */
-
 const https = require('https');
 const config = require('./statistics_config');
 let authToken = null;
+
 
 /**
  * Fetch bot list from GitHub
@@ -93,6 +93,8 @@ async function apiCall(path, data, method = 'POST') {
                     const parsed = JSON.parse(responseData);
                     resolve(parsed);
                 } catch (e) {
+                    console.error('Raw API response (first 500 chars):', responseData.substring(0, 500));
+                    console.error('HTTP Status:', res.statusCode);
                     reject(new Error('Failed to parse API response: ' + e.message));
                 }
             });
@@ -113,7 +115,7 @@ async function apiCall(path, data, method = 'POST') {
 async function authenticate() {
     try {
         console.log('Authenticating with API...');
-        const response = await apiCall(config.api.endpoints.login, {
+        const response = await apiCall(config.getEndpoint('login'), {
             username: config.api.user,
             password: config.api.key
         });
@@ -163,39 +165,29 @@ async function updateBotPatterns() {
 
         console.log('Fetched ' + botList.length + ' bot patterns from GitHub');
 
-        // Process bot list
+        // Process bot list - only use the regex patterns, not the full instance strings
         const patterns = [];
 
         for (let i = 0; i < botList.length; i++) {
             const bot = botList[i];
 
-            // Each entry has 'pattern' and optionally 'instances'
+            // Each entry has 'pattern' (regex) and optionally 'instances' (full user-agent strings)
+            // We only need the pattern for matching - instances are too long for storage
             if (bot.pattern) {
                 patterns.push({
                     pattern: bot.pattern,
-                    bot_name: bot.pattern,  // Use pattern as name if not specified
+                    bot_name: bot.pattern,  // Use pattern as the name
                     is_active: true
                 });
-
-                // Also add specific instances if available
-                if (bot.instances && Array.isArray(bot.instances)) {
-                    for (let j = 0; j < bot.instances.length; j++) {
-                        patterns.push({
-                            pattern: bot.instances[j],
-                            bot_name: bot.pattern,
-                            is_active: true
-                        });
-                    }
-                }
             }
         }
 
-        console.log('Processed into ' + patterns.length + ' total patterns (including instances)');
+        console.log('Processed ' + patterns.length + ' bot patterns');
 
         // Send to API for storage
         console.log('Sending patterns to API...');
 
-        const response = await apiCall(config.api.endpoints.updateBots, {
+        const response = await apiCall(config.getEndpoint('updateBots'), {
             patterns: patterns
         });
 
@@ -206,6 +198,7 @@ async function updateBotPatterns() {
             console.log('Deactivated: ' + (response.deactivated || 0));
         } else {
             console.error('Bot pattern update failed:', response.message || 'Unknown error');
+            console.error('Full response:', JSON.stringify(response, null, 2));
         }
 
     } catch (e) {
@@ -251,10 +244,20 @@ function getTimeUntilNextRun() {
  * Main execution
  */
 async function main() {
+    // Check for --force flag
+    const forceRun = process.argv.includes('--force');
+
     console.log('Statistics Bot List Updater initialized');
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     console.log('Will run weekly on ' + days[config.schedule.botUpdaterDay] + ' at ' +
                 config.schedule.botUpdaterHour + ':' + config.schedule.botUpdaterMinute.toString().padStart(2, '0'));
+
+    if (forceRun) {
+        console.log('\n--force flag detected, running immediately...');
+        await updateBotPatterns();
+        console.log('\nForced run complete. Exiting...\n');
+        process.exit(0);
+    }
 
     // Check if we should run immediately (if it's the run day at the scheduled time)
     const now = new Date();

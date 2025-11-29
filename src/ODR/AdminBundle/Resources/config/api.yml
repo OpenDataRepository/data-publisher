@@ -635,77 +635,43 @@ odr_api_user_check:
 
 #-----------------------------------------
 #
-# Statistics Controller
+# Statistics API Controller
 #
 #-----------------------------------------
-odr_statistics_log_view:
-  path: /statistics/log_view
-  defaults: { _controller: ODRAdminBundle:Statistics:logView, _format: json }
-  methods: [ POST ]
-
-odr_statistics_log_download:
-  path: /statistics/log_download
-  defaults: { _controller: ODRAdminBundle:Statistics:logDownload, _format: json }
-  methods: [ POST ]
-
-odr_statistics_get_datatype:
-  path: /statistics/datatype/{datatype_id}
-  defaults: { _controller: ODRAdminBundle:Statistics:getDatatypeStats, _format: json }
-  methods: [ GET ]
-  requirements:
-    datatype_id: '\d+'
-
-odr_statistics_get_datarecord:
-  path: /statistics/datarecord/{datarecord_id}
-  defaults: { _controller: ODRAdminBundle:Statistics:getDatarecordStats, _format: json }
-  methods: [ GET ]
-  requirements:
-    datarecord_id: '\d+'
-
-odr_statistics_geographic:
-  path: /statistics/geographic
-  defaults: { _controller: ODRAdminBundle:Statistics:getGeographicStats, _format: json }
-  methods: [ GET ]
-
-odr_statistics_dashboard:
-  path: /statistics/dashboard/{datatype_id}
-  defaults: { _controller: ODRAdminBundle:Statistics:getDashboard }
-  methods: [ GET ]
-  requirements:
-    datatype_id: '\d+'
-
-odr_statistics_admin_dashboard:
-  path: /statistics/dashboard
-  defaults: { _controller: ODRAdminBundle:Statistics:adminDashboard }
-  methods: [ GET ]
-
-odr_statistics_summary:
-  path: /statistics/summary
-  defaults: { _controller: ODRAdminBundle:Statistics:getSummary, _format: json }
-  methods: [ GET ]
 
 # API endpoints for background services
 odr_api_statistics_store_hourly:
-  path: /api/statistics/store_hourly
+  path: /api/{version}/statistics/store_hourly
   defaults: { _controller: ODRAdminBundle:Statistics:storeHourly, _format: json }
   methods: [ POST ]
+  requirements:
+    version: 'v\d+'
 
 odr_api_statistics_get_bots:
-  path: /api/statistics/get_bots
+  path: /api/{version}/statistics/get_bots
   defaults: { _controller: ODRAdminBundle:Statistics:getBots, _format: json }
   methods: [ GET ]
+  requirements:
+    version: 'v\d+'
 
 odr_api_statistics_aggregate_daily:
-  path: /api/statistics/aggregate_daily
+  path: /api/{version}/statistics/aggregate_daily
   defaults: { _controller: ODRAdminBundle:Statistics:aggregateDaily, _format: json }
   methods: [ POST ]
+  requirements:
+    version: 'v\d+'
 
 odr_api_statistics_cleanup_hourly:
-  path: /api/statistics/cleanup_hourly
+  path: /api/{version}/statistics/cleanup_hourly
   defaults: { _controller: ODRAdminBundle:Statistics:cleanupHourly, _format: json }
   methods: [ POST ]
+  requirements:
+    version: 'v\d+'
 
 odr_api_statistics_update_bots:
-  path: /api/statistics/update_bots
+  path: /api/{version}/statistics/update_bots
   defaults: { _controller: ODRAdminBundle:Statistics:updateBots, _format: json }
   methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+

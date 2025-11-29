@@ -6,15 +6,18 @@
  * Released under the GPLv2
  *
  * Centralized configuration for all statistics background services
+ *
+ * SETUP: Copy this file to statistics_config.js and update the values below
  */
+
 module.exports = {
     // Database Configuration
     // Update these values based on your app/config/parameters.yml
     database: {
         host: 'localhost',
-        user: 'odr_prod_20251103',
-        password: 'alsdkfjhsuaoijofslkafsd',
-        database: 'odr_prod_20251103'
+        user: 'odr_user',
+        password: 'your_db_password',
+        database: 'odr'
     },
 
     // Redis Configuration
@@ -28,7 +31,7 @@ module.exports = {
     // API Configuration
     api: {
         // Your ODR domain (without https://)
-        host: 'beta.rruff.net',
+        host: 'localhost',
 
         // API version (v3, v4, v5, etc.)
         version: 'v5',
@@ -36,20 +39,20 @@ module.exports = {
         // API credentials
         // IMPORTANT: Update these with your actual API user credentials
         // This user should have appropriate permissions to create statistics entries
-        user: 'rruff-prod-api@odr.io',
-        key: 'XUY*bkd.rzd4qta6pcd'
+        user: 'your_api_user',
+        key: 'your_api_key'
     },
 
     // Helper function to get versioned API endpoint
     getEndpoint: function(endpoint) {
         const version = this.api.version;
         const endpoints = {
-            login: `/odr_rruff/api/${version}/token`,
-            storeHourly: `/odr_rruff/api/${version}/statistics/store_hourly`,
-            getBots: `/odr_rruff/api/${version}/statistics/get_bots`,
-            aggregateDaily: `/odr_rruff/api/${version}/statistics/aggregate_daily`,
-            cleanupHourly: `/odr_rruff/api/${version}/statistics/cleanup_hourly`,
-            updateBots: `/odr_rruff/api/${version}/statistics/update_bots`
+            login: `/api/${version}/token`,
+            storeHourly: `/api/${version}/statistics/store_hourly`,
+            getBots: `/api/${version}/statistics/get_bots`,
+            aggregateDaily: `/api/${version}/statistics/aggregate_daily`,
+            cleanupHourly: `/api/${version}/statistics/cleanup_hourly`,
+            updateBots: `/api/${version}/statistics/update_bots`
         };
         return endpoints[endpoint];
     },
