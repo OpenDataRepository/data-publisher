@@ -155,13 +155,15 @@ class StatisticsService
      * @param ODRUser|null $user
      * @param string $ip_address
      * @param string $user_agent
+     * @param int|null $datarecord_id
      */
     public function logFileDownload(
         $file_id,
         $datatype_id,
         $user,
         $ip_address,
-        $user_agent
+        $user_agent,
+        $datarecord_id = null
     ) {
         try {
             // Check deduplication key
@@ -174,7 +176,7 @@ class StatisticsService
             // Prepare log data
             $log_data = array(
                 'type' => 'download',
-                'datarecord_id' => null,
+                'datarecord_id' => ($datarecord_id !== null) ? intval($datarecord_id) : null,
                 'file_id' => intval($file_id),
                 'datatype_id' => intval($datatype_id),
                 'user_id' => ($user !== null && $user instanceof ODRUser) ? $user->getId() : null,

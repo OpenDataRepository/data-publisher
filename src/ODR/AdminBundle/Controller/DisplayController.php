@@ -790,7 +790,8 @@ class DisplayController extends ODRCustomController
                 $datatype->getId(),
                 $user,
                 $ip_address,
-                $user_agent
+                $user_agent,
+                $datarecord->getId()
             );
 
             $response = self::createDownloadResponse($file, $local_filepath);
@@ -899,7 +900,8 @@ class DisplayController extends ODRCustomController
                 $datatype->getId(),
                 $user,
                 $ip_address,
-                $user_agent
+                $user_agent,
+                $datarecord->getId()
             );
 
             $response = self::createDownloadResponse($file, $local_filepath);
@@ -1069,7 +1071,8 @@ class DisplayController extends ODRCustomController
                     $datatype->getId(),
                     $user,
                     $ip_address,
-                    $user_agent
+                    $user_agent,
+                    $datarecord->getId()
                 );
 
                 // Have to send image headers first...
@@ -1138,7 +1141,8 @@ class DisplayController extends ODRCustomController
                     $datatype->getId(),
                     $user,
                     $ip_address,
-                    $user_agent
+                    $user_agent,
+                    $datarecord->getId()
                 );
 
                 // print microtime(true) - $start . "<br />";

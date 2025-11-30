@@ -16,6 +16,8 @@
 const https = require('https');
 const geoip = require('geoip-lite');
 const Redis = require('ioredis');
+const zlib = require('zlib');
+const PHPUnserialize = require('php-serialize');
 const config = require('./statistics_config');
 let authToken = null;
 let botPatterns = [];
@@ -213,8 +215,8 @@ async function processStatistics() {
         }
 
         // Scan for all stats_log:* keys
-        console.log('Scanning Redis for statistics logs...');
         const pattern = config.redis.prefix + 'stats_log:*';
+        console.log('Scanning Redis for statistics logs: ', pattern);
         const keys = [];
 
         // Use SCAN to iterate keys
@@ -236,12 +238,17 @@ async function processStatistics() {
         const logEntries = [];
         for (let i = 0; i < keys.length; i++) {
             try {
-                const value = await redis.get(keys[i]);
+                // Use getBuffer to get raw binary data (gzip compressed)
+                const value = await redis.getBuffer(keys[i]);
                 if (value) {
-                    // CacheService compresses and serializes data
-                    // For now, assume we're storing plain JSON
-                    // If compression is used, we'd need to decompress here
-                    const logData = JSON.parse(value);
+                    // CacheService stores data as gzcompress(serialize($value))
+                    // First decompress the gzip data
+                    const decompressed = zlib.inflateSync(value);
+                    // Then unserialize the PHP serialized string
+                    // The value stored is already JSON string, so after unserialize we get the JSON string
+                    const unserialized = PHPUnserialize.unserialize(decompressed.toString('utf8'));
+                    // Parse the JSON string
+                    const logData = JSON.parse(unserialized);
                     logEntries.push({
                         key: keys[i],
                         data: logData
@@ -270,10 +277,11 @@ async function processStatistics() {
             const bot = isBot(entry.user_agent);
 
             // Create aggregation key
+            // Note: PHP stores fields as datatype_id and datarecord_id (no underscore between words)
             const aggKey = [
                 hourTimestamp,
-                entry.data_type_id || 'null',
-                entry.data_record_id || 'null',
+                entry.datatype_id || 'null',
+                entry.datarecord_id || 'null',
                 entry.file_id || 'null',
                 geo.country || 'null',
                 geo.province || 'null',
@@ -284,8 +292,8 @@ async function processStatistics() {
             if (!aggregated[aggKey]) {
                 aggregated[aggKey] = {
                     hour_timestamp: hourTimestamp,
-                    data_type_id: entry.data_type_id || null,
-                    data_record_id: entry.data_record_id || null,
+                    data_type_id: entry.datatype_id || null,
+                    data_record_id: entry.datarecord_id || null,
                     file_id: entry.file_id || null,
                     country: geo.country,
                     province: geo.province,

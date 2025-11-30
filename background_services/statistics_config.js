@@ -22,7 +22,7 @@ module.exports = {
         host: '127.0.0.1',
         port: 6379,
         // Must match memcached_key_prefix from app/config/parameters.yml
-        prefix: 'odr_'
+        prefix: 'odr_rruff_net.'
     },
 
     // API Configuration

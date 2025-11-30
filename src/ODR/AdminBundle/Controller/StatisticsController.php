@@ -137,6 +137,12 @@ class StatisticsController extends ODRCustomController
                 throw new ODRNotFoundException('File not found');
             }
 
+            // Get datarecord from file
+            $datarecord = $file->getDataRecord();
+            if (!$datarecord) {
+                throw new ODRNotFoundException('Datarecord not found');
+            }
+
             // Get datatype from file's datafield
             $datafield = $file->getDataField();
             if (!$datafield) {
@@ -167,7 +173,8 @@ class StatisticsController extends ODRCustomController
                 $datatype->getId(),
                 $user,
                 $ip_address,
-                $user_agent
+                $user_agent,
+                $datarecord->getId()
             );
 
             return new JsonResponse(array('success' => true));
