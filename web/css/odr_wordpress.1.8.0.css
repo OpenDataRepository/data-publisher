@@ -5426,8 +5426,8 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     cursor: pointer;
     position: absolute;
     z-index: 999;
-    top: 0;
-    left: 14px;
+    /* top: 0; */
+    left: 12px;
 }
 .ODRFilterGraphPlugin_settings_close {
     text-align: right;
@@ -5474,7 +5474,10 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 
 table.ODRRenderPlugin_CSVTable tbody td {
     /* need !important because otherwise "table.dataTables tbody td" interferes with this plugin */
-    padding: 0 !important;
+    padding: 1px 4px !important;
+}
+div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
+    border-bottom: unset !important;
 }
 
 .ODRRRUFFReferencePlugin_select {
@@ -5643,3 +5646,10 @@ table.ODRRenderPlugin_CSVTable tbody td {
     /* no vertical line on left for top-level tags */
     background-color: inherit;
 }
+
+.DynamicGraphSettingsDiv {
+    top: -2px;
+    left: 2px;
+    position: relative;
+}
+

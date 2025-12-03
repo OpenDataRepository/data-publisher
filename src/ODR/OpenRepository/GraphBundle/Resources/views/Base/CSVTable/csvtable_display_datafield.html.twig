@@ -97,9 +97,9 @@
 
 {% if data_array|length > 0 %}
 <div class="pure-u-1">
-    <div id="TextResults_wrapper" class="ODRTableOuterWrap">
-        <div class="ODRTableWrap">
-            <table id="ODRRenderPlugin_CSVTable_{{ datarecord.id }}_{{ datafield.id }}" class="display ODRRenderPlugin_CSVTable">
+    <div id="ODRRenderPlugin_CSVTable_{{ datarecord.id }}_{{ datafield.id }}_wrapper" class="ODRRenderPlugin_CSVTable_wrapper {#ODRTableOuterWrap#}">
+        <div {#class="ODRTableWrap"#}>
+            <table id="ODRRenderPlugin_CSVTable_{{ datarecord.id }}_{{ datafield.id }}" class="pure-u-1 display cell-border {#compact#} ODRRenderPlugin_CSVTable">
                 <thead>
                 {% for num,col in column_names %}
                     <th>{{ col|raw }}</th>
@@ -126,6 +126,8 @@
                 "searching": false,
                 "info": false,
                 "ordering": false,
+
+                "scrollX": true,
             });
         });
     </script>
