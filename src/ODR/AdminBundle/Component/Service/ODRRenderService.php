@@ -331,10 +331,17 @@ class ODRRenderService
 
         // ----------------------------------------
         // Build the Form to save changes to the Theme's name/description
+        $is_master_theme = false;
+        if ( $theme->getThemeType() === 'master' )
+            $is_master_theme = true;
+
         $theme_meta = $theme->getThemeMeta();
         $theme_form = $this->form_factory->create(
             UpdateThemeForm::class,
             $theme_meta,
+            array(
+                'is_master_theme' => $is_master_theme,
+            )
         );
 
         // ----------------------------------------
