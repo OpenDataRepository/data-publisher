@@ -230,9 +230,6 @@
                 <label>Data Types</label>
                 <select id="datatype-filter" multiple size="5" style="min-height: 120px;">
                     <option value="" selected>All Data Types</option>
-                    {% for datatype in datatypes %}
-                    <option value="{{ datatype.id }}">{{ datatype.shortName }}</option>
-                    {% endfor %}
                 </select>
                 <small style="color: #666; font-size: 11px;">Hold Ctrl/Cmd to select multiple</small>
             </div>
@@ -295,18 +292,16 @@
         <div id="datatype-chart" style="height: 400px;"></div>
     </div>
 </div>
+    {% if landingpage_datatype_id is defined %}
+        <input type="hidden" id="dashboard_datatypes" value='[{% verbatim %}{{% endverbatim %}"id": {{ landingpage_datatype_id }}, "shortName": "{{ landingpage_datatype_short_name }}"{% verbatim %}}{% endverbatim %}]' />
+    {% else %}
+        <input type="hidden" id="dashboard_datatypes" value='{{ datatypes|json_encode|raw }}' />
+    {% endif %}
 {% endblock %}
 
 {% block javascripts %}
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+    <!-- site baseurl: {{ site_baseurl }} -->
+    <!-- wordpress_site baseurl: {{ wordpress_site_baseurl }} -->
     <script src="{{ site_baseurl }}/js/statistics_dashboard.js"></script>
-    <script>
-        // Initialize dashboard with datatypes data and API base URL
-        document.addEventListener('DOMContentLoaded', function() {
-            const datatypes = {{ datatypes|json_encode|raw }};
-            // Use wordpress_site_baseurl for API routes (e.g., //beta.rruff.net/odr)
-            const apiBaseUrl = '{{ wordpress_site_baseurl }}';
-            ODRStatisticsDashboard.init(datatypes, apiBaseUrl);
-        });
-    </script>
 {% endblock %}

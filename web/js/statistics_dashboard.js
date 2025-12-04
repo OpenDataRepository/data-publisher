@@ -3,8 +3,12 @@
  * Uses Plotly.js for visualizations
  */
 
+console.log('ODRStatisticsDashboard: Module loading...');
+
 window.ODRStatisticsDashboard = (function() {
     'use strict';
+
+    console.log('ODRStatisticsDashboard: IIFE executing');
 
     let datatypes = [];
     let apiBaseUrl = ''; // Base URL for API calls (e.g., //beta.rruff.net/odr)
@@ -20,11 +24,23 @@ window.ODRStatisticsDashboard = (function() {
      * @param {string} baseUrl - Base URL for API calls (e.g., //beta.rruff.net/odr)
      */
     function init(datatypesData, baseUrl) {
+        console.log('ODRStatisticsDashboard.init() called');
+        console.log('  datatypesData:', datatypesData);
+        console.log('  baseUrl:', baseUrl);
+
         datatypes = datatypesData || [];
         apiBaseUrl = baseUrl || '';
+
+        console.log('  Calling setupEventListeners()');
         setupEventListeners();
+
+        console.log('  Calling setDefaultDates()');
         setDefaultDates();
+
+        console.log('  Calling loadDashboardData()');
         loadDashboardData();
+
+        console.log('ODRStatisticsDashboard.init() complete');
     }
 
     /**
@@ -53,8 +69,12 @@ window.ODRStatisticsDashboard = (function() {
      * Setup event listeners
      */
     function setupEventListeners() {
+        console.log('ODRStatisticsDashboard: Setting up event listeners');
+
         // Quick range buttons
-        document.querySelectorAll('.range-btn').forEach(btn => {
+        const rangeBtns = document.querySelectorAll('.range-btn');
+        console.log('  Found', rangeBtns.length, '.range-btn elements');
+        rangeBtns.forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
@@ -76,22 +96,33 @@ window.ODRStatisticsDashboard = (function() {
         });
 
         // Custom date inputs
-        document.getElementById('start-date').addEventListener('change', function() {
+        const startDateElem = document.getElementById('start-date');
+        console.log('  start-date element:', startDateElem ? 'FOUND' : 'NOT FOUND');
+        if (startDateElem) {
+            startDateElem.addEventListener('change', function() {
             startDate = this.value;
-            if (document.querySelector('.range-btn[data-range="custom"]').classList.contains('active')) {
-                loadDashboardData();
-            }
-        });
+                if (document.querySelector('.range-btn[data-range="custom"]').classList.contains('active')) {
+                    loadDashboardData();
+                }
+            });
+        }
 
-        document.getElementById('end-date').addEventListener('change', function() {
+        const endDateElem = document.getElementById('end-date');
+        console.log('  end-date element:', endDateElem ? 'FOUND' : 'NOT FOUND');
+        if (endDateElem) {
+            endDateElem.addEventListener('change', function() {
             endDate = this.value;
-            if (document.querySelector('.range-btn[data-range="custom"]').classList.contains('active')) {
-                loadDashboardData();
-            }
-        });
+                if (document.querySelector('.range-btn[data-range="custom"]').classList.contains('active')) {
+                    loadDashboardData();
+                }
+            });
+        }
 
         // Datatype filter
-        document.getElementById('datatype-filter').addEventListener('change', function() {
+        const datatypeFilterElem = document.getElementById('datatype-filter');
+        console.log('  datatype-filter element:', datatypeFilterElem ? 'FOUND' : 'NOT FOUND');
+        if (datatypeFilterElem) {
+            datatypeFilterElem.addEventListener('change', function() {
             const options = this.selectedOptions;
             const allOption = this.querySelector('option[value=""]');
 
@@ -129,40 +160,69 @@ window.ODRStatisticsDashboard = (function() {
             }
 
             loadDashboardData();
-        });
+            });
+        }
 
         // Bot traffic checkbox
-        document.getElementById('include-bots').addEventListener('change', function() {
-            includeBots = this.checked;
-            loadDashboardData();
-        });
+        const includeBotsElem = document.getElementById('include-bots');
+        console.log('  include-bots element:', includeBotsElem ? 'FOUND' : 'NOT FOUND');
+        if (includeBotsElem) {
+            includeBotsElem.addEventListener('change', function() {
+                includeBots = this.checked;
+                loadDashboardData();
+            });
+        }
 
         // Refresh button
-        document.getElementById('refresh-btn').addEventListener('click', function() {
-            loadDashboardData();
-        });
+        const refreshBtnElem = document.getElementById('refresh-btn');
+        console.log('  refresh-btn element:', refreshBtnElem ? 'FOUND' : 'NOT FOUND');
+        if (refreshBtnElem) {
+            refreshBtnElem.addEventListener('click', function() {
+                loadDashboardData();
+            });
+        }
+
+        console.log('ODRStatisticsDashboard: Event listeners setup complete');
     }
 
     /**
      * Load all dashboard data
      */
     async function loadDashboardData() {
+        console.log('ODRStatisticsDashboard: loadDashboardData() called');
+        console.log('  Date range:', startDate, 'to', endDate);
+        console.log('  Include bots:', includeBots);
+        console.log('  Selected datatypes:', selectedDatatypes);
+
         try {
             showLoading();
 
             // Fetch summary data
+            console.log('  Fetching summary data...');
             const summaryData = await fetchSummaryData();
+            console.log('  Summary data received:', summaryData);
+
+            console.log('  Updating summary cards...');
             updateSummaryCards(summaryData);
 
             // Render charts
+            console.log('  Rendering timeline chart...');
             renderTimelineChart(summaryData);
+
+            console.log('  Rendering geographic chart...');
             renderGeographicChart(summaryData);
+
+            console.log('  Rendering traffic source chart...');
             renderTrafficSourceChart(summaryData);
+
+            console.log('  Rendering datatype chart...');
             renderDatatypeChart(summaryData);
 
             hideLoading();
+            console.log('ODRStatisticsDashboard: loadDashboardData() complete');
         } catch (error) {
-            console.error('Error loading dashboard data:', error);
+            console.error('ODRStatisticsDashboard ERROR loading dashboard data:', error);
+            console.error('  Error stack:', error.stack);
             showError('Failed to load dashboard data. Please try again.');
             hideLoading();
         }
@@ -183,13 +243,19 @@ window.ODRStatisticsDashboard = (function() {
         }
 
         // Use apiBaseUrl for the fetch URL (e.g., //beta.rruff.net/odr/statistics/summary)
-        const response = await fetch(apiBaseUrl + '/statistics/summary?' + params.toString());
+        const url = apiBaseUrl + '/statistics/summary?' + params.toString();
+        console.log('ODRStatisticsDashboard: Fetching from URL:', url);
+
+        const response = await fetch(url);
+        console.log('ODRStatisticsDashboard: Response status:', response.status, response.statusText);
 
         if (!response.ok) {
-            throw new Error('API request failed');
+            throw new Error('API request failed: ' + response.status + ' ' + response.statusText);
         }
 
-        return await response.json();
+        const data = await response.json();
+        console.log('ODRStatisticsDashboard: Response data keys:', Object.keys(data));
+        return data;
     }
 
     /**
@@ -696,7 +762,36 @@ window.ODRStatisticsDashboard = (function() {
     }
 
     // Public API
+    console.log('ODRStatisticsDashboard: Returning public API');
     return {
         init: init
     };
 })();
+
+console.log('ODRStatisticsDashboard: Module loaded, window.ODRStatisticsDashboard =', window.ODRStatisticsDashboard);
+// Initialize dashboard with datatypes data and API base URL
+console.log('ODRStatisticsDashboard Initializing dashboard...');
+// document.addEventListener('DOMContentLoaded', function() {
+    // Use wordpress_site_baseurl for API routes (e.g., //beta.rruff.net/odr)
+    console.log('ODRStatisticsDashboard INIT DOMContentLoaded');
+    try {
+        let api_baseurl = site_baseurl;
+        console.log('Site base URL: ' + api_baseurl);
+        if(odr_wordpress_integrated) {
+            console.log('Wordpress Site base URL: ' + wordpress_site_baseurl);
+            console.log('Wordpress Integrated: ' + odr_wordpress_integrated);
+            api_baseurl = wordpress_site_baseurl;
+        }
+        console.log('ODRStatisticsDashboard API Base URL: ', api_baseurl);
+
+        // Get the datatypes from the page input data
+        let datatypes = jQuery('#dashboard_datatypes').val();
+        console.log('ODRStatisticsDashboard datatypes: ', datatypes);
+        datatypes = JSON.parse(datatypes);
+        console.log('ODRStatisticsDashboard datatypes: ', datatypes);
+        ODRStatisticsDashboard.init(datatypes, api_baseurl);
+        console.log('ODRStatisticsDashboard initialized!');
+    } catch (e) {
+        console.error('ODRStatisticsDashboard error: ', e);
+    }
+// });

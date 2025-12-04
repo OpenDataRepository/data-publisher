@@ -515,7 +515,9 @@ class DatatypeController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'related_datatypes' => $datatypes,
                         'related_metadata' => $related_metadata,
-
+                        'odr_wordpress_integrated' => $this->getParameter('odr_wordpress_integrated'),
+                        'site_baseurl' => $this->getParameter('site_baseurl'),
+                        'wordpress_site_baseurl' => $this->getParameter('wordpress_site_baseurl'),
                         'dashboard_graphs' => $dashboard_graphs,
                     )
                 );

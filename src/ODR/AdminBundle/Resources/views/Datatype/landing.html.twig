@@ -269,6 +269,14 @@
         </div>
     {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
     {# END Recent Activity Graphs #}
+
+    {# Views & Downloads #}
+    {% include 'ODRAdminBundle:Statistics:dashboard.html.twig' with {
+        'landingpage_datatype_id': datatype.id,
+        'landingpage_datatype_short_name': datatype_meta.shortName,
+        'single_site_mode': true
+    } %}
+    {# END Views & Downloads #}
 </div>  <!-- end #ODRContentWrapper -->
 
 <script>

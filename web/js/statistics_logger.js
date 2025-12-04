@@ -15,7 +15,7 @@ jQuery(document).ready(function () {
         console.log('Site base URL: ' + site_baseurl);
         let logger_baseurl = site_baseurl;
         try {
-            if(odr_wordpress_integrated === true) {
+            if(odr_wordpress_integrated) {
                 console.log('Wordpress Site base URL: ' + wordpress_site_baseurl);
                 console.log('Wordpress Integrated: ' + odr_wordpress_integrated);
                 logger_baseurl = wordpress_site_baseurl;
@@ -29,6 +29,8 @@ jQuery(document).ready(function () {
          * @param {boolean} is_search_result Whether this view is from a search result
          */
         function logRecordView(datarecord_id, datatype_id, is_search_result) {
+            console.log('ODRStatistics: logRecordView called - datarecord_id:', datarecord_id, 'datatype_id:', datatype_id, 'is_search_result:', is_search_result);
+
             if (!datarecord_id || datarecord_id <= 0) {
                 console.warn('ODRStatistics: Invalid datarecord_id', datarecord_id);
                 return;
@@ -40,6 +42,8 @@ jQuery(document).ready(function () {
             }
 
             is_search_result = is_search_result || false;
+
+            console.log('ODRStatistics: Sending log request to:', logger_baseurl + '/statistics/log_view');
 
             // Send async request to log endpoint
             fetch(logger_baseurl + '/statistics/log_view', {
@@ -63,6 +67,8 @@ jQuery(document).ready(function () {
                 .then(function (data) {
                     if (!data.success) {
                         console.warn('ODRStatistics: Log view returned error');
+                    } else {
+                        console.log('ODRStatistics: Successfully logged view');
                     }
                 })
                 .catch(function (error) {
@@ -114,16 +120,12 @@ jQuery(document).ready(function () {
          * Detects both search results and full record views from DOM structure
          */
         function autoLogOnPageLoad() {
-            // Check if DOM is already loaded
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function () {
-                    checkAndLogResults();
-                    setupResultsWatcher();
-                });
-            } else {
-                checkAndLogResults();
-                setupResultsWatcher();
-            }
+            console.log('ODRStatistics: autoLogOnPageLoad called, readyState:', document.readyState);
+
+            // Since we're inside jQuery ready, DOM is already loaded
+            // Call immediately
+            checkAndLogResults();
+            setupResultsWatcher();
         }
 
         /**
@@ -131,12 +133,16 @@ jQuery(document).ready(function () {
          * Handles both search results (ODRShortResults) and full record views (ODRResults)
          */
         function checkAndLogResults() {
+            console.log('ODRStatistics: checkAndLogResults called');
+
             // First, check for search results (ODRShortResults class elements)
             var searchResults = document.querySelectorAll('.ODRShortResults');
+            console.log('ODRStatistics: Found', searchResults.length, 'search result elements');
 
             if (searchResults.length > 0) {
                 // Find the SearchResultsDataType_ element to get the datatype ID (applies to all results)
                 var datatypeElem = document.querySelector('[id^="SearchResultsDataType_"]');
+                console.log('ODRStatistics: SearchResultsDataType element:', datatypeElem ? datatypeElem.id : 'NOT FOUND');
 
                 if (!datatypeElem || !datatypeElem.id) {
                     console.warn('ODRStatistics: Found search results but no SearchResultsDataType_ element');
@@ -144,6 +150,7 @@ jQuery(document).ready(function () {
                 }
 
                 var datatypeId = parseInt(datatypeElem.id.replace('SearchResultsDataType_', ''));
+                console.log('ODRStatistics: Extracted datatype_id:', datatypeId);
 
                 if (isNaN(datatypeId) || datatypeId <= 0) {
                     console.warn('ODRStatistics: Invalid datatype_id from SearchResultsDataType_', datatypeId);
@@ -167,34 +174,51 @@ jQuery(document).ready(function () {
                     }
                 });
 
+                console.log('ODRStatistics: Prepared', records.length, 'search result records to log');
+
                 // Log all search result views in batch
                 if (records.length > 0) {
+                    console.log('ODRStatistics: Scheduling batch log for search results');
                     setTimeout(function () {
                         logSearchResultViews(records);
                     }, 200);
+                } else {
+                    console.warn('ODRStatistics: No valid search result records to log');
                 }
             } else {
                 // No search results, check for full record view (ODRResults class)
                 var fullRecordView = document.querySelector('.ODRResults');
+                console.log('ODRStatistics: ODRResults element:', fullRecordView ? 'FOUND' : 'NOT FOUND');
 
                 if (fullRecordView) {
-                    // Look for first Datatype_[Number] ID to get the datatype ID
-                    var datatypeElem = fullRecordView.querySelector('[id^="Datatype_"]');
+                    // Look for first DataType_[Number] ID to get the datatype ID
+                    var datatypeElem = fullRecordView.querySelector('[id^="DataType_"]');
+                    console.log('ODRStatistics: DataType element:', datatypeElem ? datatypeElem.id : 'NOT FOUND');
 
                     // Look for first FieldArea_[Number] ID to get the record ID
                     var fieldAreaElem = fullRecordView.querySelector('[id^="FieldArea_"]');
+                    console.log('ODRStatistics: FieldArea element:', fieldAreaElem ? fieldAreaElem.id : 'NOT FOUND');
 
                     if (datatypeElem && datatypeElem.id && fieldAreaElem && fieldAreaElem.id) {
-                        var datatypeId = parseInt(datatypeElem.id.replace('Datatype_', ''));
+                        var datatypeId = parseInt(datatypeElem.id.replace('DataType_', ''));
                         var recordId = parseInt(fieldAreaElem.id.replace('FieldArea_', ''));
 
+                        console.log('ODRStatistics: Extracted IDs - datatype_id:', datatypeId, 'datarecord_id:', recordId);
+
                         if (!isNaN(datatypeId) && datatypeId > 0 && !isNaN(recordId) && recordId > 0) {
+                            console.log('ODRStatistics: Scheduling single record view log');
                             // Small delay to avoid blocking page rendering
                             setTimeout(function () {
                                 logRecordView(recordId, datatypeId, false);
                             }, 200);
+                        } else {
+                            console.warn('ODRStatistics: Invalid IDs extracted - datatype_id:', datatypeId, 'datarecord_id:', recordId);
                         }
+                    } else {
+                        console.warn('ODRStatistics: Missing required elements for full record view');
                     }
+                } else {
+                    console.log('ODRStatistics: No search results or full record view detected');
                 }
             }
         }
@@ -205,20 +229,28 @@ jQuery(document).ready(function () {
          * Watches both #ODRSearchContent (search results) and #odr_content (full record views)
          */
         function setupResultsWatcher() {
+            console.log('ODRStatistics: Setting up MutationObserver');
+
             var searchContent = document.getElementById('ODRSearchContent');
             var mainContent = document.getElementById('odr_content');
 
+            console.log('ODRStatistics: ODRSearchContent element:', searchContent ? 'FOUND' : 'NOT FOUND');
+            console.log('ODRStatistics: odr_content element:', mainContent ? 'FOUND' : 'NOT FOUND');
+
             // Create a MutationObserver to watch for changes
             var observer = new MutationObserver(function (mutations) {
+                console.log('ODRStatistics: MutationObserver detected', mutations.length, 'mutations');
                 // Debounce the check - only run after changes have stopped for 500ms
                 clearTimeout(window.ODRStatsTimeout);
                 window.ODRStatsTimeout = setTimeout(function () {
+                    console.log('ODRStatistics: MutationObserver triggering checkAndLogResults');
                     checkAndLogResults();
                 }, 500);
             });
 
             // Watch search content if it exists
             if (searchContent) {
+                console.log('ODRStatistics: Observing #ODRSearchContent for changes');
                 observer.observe(searchContent, {
                     childList: true,    // Watch for addition/removal of child elements
                     subtree: true       // Watch all descendants, not just direct children
@@ -227,10 +259,15 @@ jQuery(document).ready(function () {
 
             // Watch main content for full record views
             if (mainContent) {
+                console.log('ODRStatistics: Observing #odr_content for changes');
                 observer.observe(mainContent, {
                     childList: true,
                     subtree: true
                 });
+            }
+
+            if (!searchContent && !mainContent) {
+                console.warn('ODRStatistics: No containers found to observe!');
             }
         }
 
@@ -240,9 +277,15 @@ jQuery(document).ready(function () {
          * @param {Array<Object>} records Array of {datarecord_id, datatype_id} objects
          */
         function logSearchResultViews(records) {
+            console.log('ODRStatistics: logSearchResultViews called with', records.length, 'records');
+
             if (!Array.isArray(records) || records.length === 0) {
+                console.warn('ODRStatistics: No records to log in batch');
                 return;
             }
+
+            console.log('ODRStatistics: Sending batch log request to:', logger_baseurl + '/statistics/log_batch_view');
+            console.log('ODRStatistics: Records:', records);
 
             // Send all records in a single batch request
             fetch(logger_baseurl + '/statistics/log_batch_view', {
@@ -266,7 +309,7 @@ jQuery(document).ready(function () {
                     if (!data.success) {
                         console.warn('ODRStatistics: Batch log view returned error');
                     } else {
-                        console.debug('ODRStatistics: Logged ' + data.logged + ' of ' + data.total + ' search results');
+                        console.log('ODRStatistics: Successfully logged ' + data.logged + ' of ' + data.total + ' search results');
                     }
                 })
                 .catch(function (error) {

@@ -767,8 +767,20 @@ class StatisticsController extends ODRCustomController
                 )
             );
 
-            $response = new Response($html);
-            $response->headers->set('Content-Type', 'text/html');
+            // $response = new Response($html);
+            // $response->headers->set('Content-Type', 'text/html');
+            // return $response;
+
+            $return = array(
+                    "r" => 0,
+                    "t" => "",
+                    "d" => array(
+                        'html' => $html
+                    )
+            );
+
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
             return $response;
 
         } catch (\Exception $e) {
