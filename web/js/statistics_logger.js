@@ -14,11 +14,13 @@ jQuery(document).ready(function () {
         console.log('ODRStatistics: Initializing...');
         console.log('Site base URL: ' + site_baseurl);
         let logger_baseurl = site_baseurl;
-        if(odr_wordpress_integrated !== undefined && odr_wordpress_integrated === true) {
-            console.log('Wordpress Site base URL: ' + wordpress_site_baseurl);
-            console.log('Wordpress Integrated: ' + odr_wordpress_integrated);
-            logger_baseurl = wordpress_site_baseurl;
-        }
+        try {
+            if(odr_wordpress_integrated === true) {
+                console.log('Wordpress Site base URL: ' + wordpress_site_baseurl);
+                console.log('Wordpress Integrated: ' + odr_wordpress_integrated);
+                logger_baseurl = wordpress_site_baseurl;
+            }
+        } catch (e) {}
 
         /**
          * Log a datarecord view
