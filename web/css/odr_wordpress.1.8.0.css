@@ -1701,11 +1701,11 @@ pre .support.value  {
 
     .ODRDynamicGraph {
         /* min-width: 1200px; */
-        min-height: 400px;
+        /* min-height: 400px; */
     }
     .ODRStaticGraph {
         /* min-width: 1200px; */
-        min-height: 400px;
+        /* min-height: 400px; */
     }
 }
 

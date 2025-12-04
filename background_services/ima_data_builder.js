@@ -163,7 +163,9 @@ async function app() {
                     if(!data.ima_update_rebuild) {
                         content = '<?php ' +
                             '$mineral_names = array();\n' +
-                            '$mineral_names_lowercase = array();\n';
+                            '$mineral_ascii_names = array();\n' +
+                            '$mineral_names_lowercase = array();\n' +
+                            '$mineral_ascii_names_lowercase = array();\n';
                     }
                     let mineral_data_include_filename = basepath + data.mineral_data + '_include.' + tmp_file_extension;
                     console.log('writeFile: ' + basepath + data.mineral_data + '_include.' + tmp_file_extension);
@@ -209,7 +211,7 @@ async function app() {
 
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
-                    content = 'var master_tag_data = new Array();';
+                    content = 'if(master_tag_data === undefined) var master_tag_data = new Array();\n';
                     // Get IMA Template (for Tag Data)
                     // console.log('IMA Template: ' + data.ima_template_url)
                     let ima_record_template = await loadPage(data.ima_template_url);
@@ -224,7 +226,7 @@ async function app() {
 
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
-                    content = 'var pm_tag_data = new Array();';
+                    content = 'if(master_tag_data === undefined) var master_tag_data = new Array();\n';
                     // Get IMA Template (for Tag Data)
                     // console.log('IMA Template: ' + data.pm_template_url)
                     let pm_record_template = await loadPage(data.paragenetic_modes_template_url);
@@ -845,9 +847,6 @@ async function findValue(field_uuid, record) {
 
 async function buildTagTree(tagTree, tag_data, parent_tag, tag_type) {
     let stub = "master_tag_data";
-    if(tag_type !== "master") {
-        stub = "pm_tag_data";
-    }
     // console.log('Tag Data Length: ', tag_data.length);
     for(let x in tagTree) {
        // console.log('Adding tag')

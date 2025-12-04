@@ -1,5 +1,8 @@
 {% macro write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) %}
 <script>
+    var site_baseurl = '{{ site_baseurl }}';
+    var odr_wordpress_integrated = {{ odr_wordpress_integrated }};
+    var wordpress_site_baseurl = '{{ wordpress_site_baseurl }}';
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
     $(window).on('load', function() {

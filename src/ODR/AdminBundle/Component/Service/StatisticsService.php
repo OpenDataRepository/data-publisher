@@ -92,10 +92,10 @@ class StatisticsService
 
     /**
      * Log a datarecord view to Redis
+     * No database lookups - all IDs are provided by the client
      *
      * @param int $datarecord_id
      * @param int $datatype_id
-     * @param ODRUser|null $user
      * @param string $ip_address
      * @param string $user_agent
      * @param bool $is_search_result
@@ -103,26 +103,24 @@ class StatisticsService
     public function logRecordView(
         $datarecord_id,
         $datatype_id,
-        $user,
         $ip_address,
         $user_agent,
         $is_search_result = false
     ) {
         try {
-            // Check deduplication key
+            // Check deduplication key (only by IP address)
             $dedup_key = 'stats_dedup:' . md5($ip_address) . ':view:' . $datarecord_id;
             if ($this->cache_service->exists($dedup_key)) {
                 // Already logged within the last minute, skip
                 return;
             }
 
-            // Prepare log data
+            // Prepare log data (no user tracking)
             $log_data = array(
                 'type' => 'view',
                 'datarecord_id' => intval($datarecord_id),
                 'file_id' => null,
                 'datatype_id' => intval($datatype_id),
-                'user_id' => ($user !== null && $user instanceof ODRUser) ? $user->getId() : null,
                 'ip_address' => $ip_address,
                 'user_agent' => $user_agent,
                 'is_search_result' => $is_search_result ? true : false,

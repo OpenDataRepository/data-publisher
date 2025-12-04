@@ -292,8 +292,9 @@ async function processStatistics() {
             if (!aggregated[aggKey]) {
                 aggregated[aggKey] = {
                     hour_timestamp: hourTimestamp,
-                    data_type_id: entry.datatype_id || null,
-                    data_record_id: entry.datarecord_id || null,
+                    // Note: API expects datatype_id and datarecord_id (no underscore in the middle)
+                    datatype_id: entry.datatype_id || null,
+                    datarecord_id: entry.datarecord_id || null,
                     file_id: entry.file_id || null,
                     country: geo.country,
                     province: geo.province,
@@ -364,8 +365,11 @@ async function main() {
     // Check for --force flag
     const forceRun = process.argv.includes('--force');
 
+    const intervalMinutes = config.schedule.processorIntervalMinutes || 3;
+    const intervalMs = intervalMinutes * 60 * 1000;
+
     console.log('Statistics Processor initialized');
-    console.log('Will process logs every hour on the hour');
+    console.log('Will process logs every ' + intervalMinutes + ' minute(s)');
 
     if (forceRun) {
         console.log('\n--force flag detected, running immediately...');
@@ -374,26 +378,17 @@ async function main() {
         process.exit(0);
     }
 
-    // Calculate time until next hour
-    function getTimeUntilNextHour() {
-        const now = new Date();
-        const nextHour = new Date(now);
-        nextHour.setHours(now.getHours() + 1, config.schedule.processorMinute, 0, 0);
-        return nextHour - now;
-    }
-
     // Run immediately on startup
     await processStatistics();
 
-    // Schedule for next hour
+    // Schedule recurring runs at the configured interval
     function scheduleNext() {
-        const delay = getTimeUntilNextHour();
-        console.log('Next run scheduled in ' + Math.round(delay / 1000 / 60) + ' minutes');
+        console.log('Next run scheduled in ' + intervalMinutes + ' minute(s)');
 
         setTimeout(async () => {
             await processStatistics();
             scheduleNext();
-        }, delay);
+        }, intervalMs);
     }
 
     scheduleNext();

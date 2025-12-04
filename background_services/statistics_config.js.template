@@ -62,12 +62,13 @@ module.exports = {
 
     // Schedule Configuration
     schedule: {
-        // Hourly processor: runs every hour at N minutes past the hour
-        processorMinute: 5,
+        // Statistics processor: interval in minutes (how often to process Redis logs)
+        // Default: 3 minutes. Set to 60 for hourly processing
+        processorIntervalMinutes: 3,
 
-        // Daily aggregator: runs daily at this hour (24-hour format)
-        aggregatorHour: 2,
-        aggregatorMinute: 0,
+        // Daily aggregator: interval in minutes (how often to aggregate hourly to daily)
+        // Default: 3 minutes for near real-time stats. Set to 1440 for once-per-day
+        aggregatorIntervalMinutes: 3,
 
         // Bot updater: day of week (0 = Sunday, 6 = Saturday)
         botUpdaterDay: 0,  // Sunday

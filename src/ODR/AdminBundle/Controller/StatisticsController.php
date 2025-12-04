@@ -49,49 +49,29 @@ class StatisticsController extends ODRCustomController
     public function logViewAction(Request $request)
     {
         try {
-            // Get request data
-            $post = $request->request->all();
+            $this->container->get('logger')->debug('logViewAction called with params: ' . $request->getContent(), array('source' => 0x98765432));
+            // Get JSON data from request body
+            $content = $request->getContent();
+            $post = json_decode($content, true);
 
-            if (!isset($post['datarecord_id'])) {
-                throw new ODRBadRequestException('Missing datarecord_id');
+            if (!$post || !isset($post['datarecord_id']) || !isset($post['datatype_id'])) {
+                throw new ODRBadRequestException('Missing datarecord_id or datatype_id');
             }
 
             $datarecord_id = intval($post['datarecord_id']);
+            $datatype_id = intval($post['datatype_id']);
             $is_search_result = isset($post['is_search_result']) ? (bool)$post['is_search_result'] : false;
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if (!$datarecord) {
-                throw new ODRNotFoundException('Datarecord not found');
-            }
-
-            // Get datatype
-            $datatype = $datarecord->getDataType();
-            if (!$datatype) {
-                throw new ODRNotFoundException('Datatype not found');
-            }
-
-            // Get user (may be anonymous)
-            $user = null;
-            $token = $this->container->get('security.token_storage')->getToken();
-            if ($token && $token->getUser() instanceof ODRUser) {
-                $user = $token->getUser();
-            }
 
             // Get IP address and user agent
             $ip_address = $request->getClientIp();
             $user_agent = $request->headers->get('User-Agent', 'Unknown');
 
-            // Log the view
+            // Log the view (no database lookups needed)
             /** @var StatisticsService $statistics_service */
             $statistics_service = $this->container->get('odr.statistics_service');
             $statistics_service->logRecordView(
                 $datarecord_id,
-                $datatype->getId(),
-                $user,
+                $datatype_id,
                 $ip_address,
                 $user_agent,
                 $is_search_result
@@ -110,6 +90,110 @@ class StatisticsController extends ODRCustomController
 
 
     /**
+     * JavaScript endpoint to batch log multiple datarecord views (search results)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function logBatchViewAction(Request $request)
+    {
+        $start_time = microtime(true);
+        $logger = $this->container->get('logger');
+
+        try {
+            // Get JSON data from request body
+            $parse_start = microtime(true);
+            $content = $request->getContent();
+            $post = json_decode($content, true);
+            $parse_time = (microtime(true) - $parse_start) * 1000;
+
+            $logger->debug('logBatchViewAction - JSON parse time: ' . round($parse_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            if (!$post || !isset($post['records']) || !is_array($post['records'])) {
+                throw new ODRBadRequestException('Missing or invalid records array');
+            }
+
+            $records = $post['records'];
+            $is_search_result = isset($post['is_search_result']) ? (bool)$post['is_search_result'] : true;
+
+            if (empty($records)) {
+                return new JsonResponse(array('success' => true, 'logged' => 0));
+            }
+
+            // Get IP address and user agent
+            $request_info_start = microtime(true);
+            $ip_address = $request->getClientIp();
+            $user_agent = $request->headers->get('User-Agent', 'Unknown');
+            $request_info_time = (microtime(true) - $request_info_start) * 1000;
+
+            $logger->debug('logBatchViewAction - Request info time: ' . round($request_info_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            /** @var StatisticsService $statistics_service */
+            $service_start = microtime(true);
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $service_time = (microtime(true) - $service_start) * 1000;
+
+            $logger->debug('logBatchViewAction - Service instantiation time: ' . round($service_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            $loop_start = microtime(true);
+            $logged_count = 0;
+            foreach ($records as $record) {
+                // Validate record structure
+                if (!isset($record['datarecord_id']) || !isset($record['datatype_id'])) {
+                    continue;
+                }
+
+                $datarecord_id = intval($record['datarecord_id']);
+                $datatype_id = intval($record['datatype_id']);
+
+                // Skip invalid IDs
+                if ($datarecord_id <= 0 || $datatype_id <= 0) {
+                    continue;
+                }
+
+                // Log the view (no database lookups needed)
+                $log_start = microtime(true);
+                $statistics_service->logRecordView(
+                    $datarecord_id,
+                    $datatype_id,
+                    $ip_address,
+                    $user_agent,
+                    $is_search_result
+                );
+                $log_time = (microtime(true) - $log_start) * 1000;
+
+                if ($logged_count === 0) {
+                    // Log first iteration timing
+                    $logger->debug('logBatchViewAction - First logRecordView time: ' . round($log_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+                }
+
+                $logged_count++;
+            }
+            $loop_time = (microtime(true) - $loop_start) * 1000;
+
+            $logger->debug('logBatchViewAction - Total loop time for ' . $logged_count . ' records: ' . round($loop_time, 2) . 'ms (' . round($loop_time / $logged_count, 2) . 'ms avg)', array('source' => 0xa1b2c3d4));
+
+            $total_time = (microtime(true) - $start_time) * 1000;
+            $logger->debug('logBatchViewAction - TOTAL time: ' . round($total_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            return new JsonResponse(array(
+                'success' => true,
+                'logged' => $logged_count,
+                'total' => count($records)
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xa1b2c3d4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
      * Log a file download
      *
      * @param Request $request
@@ -119,10 +203,11 @@ class StatisticsController extends ODRCustomController
     public function logDownloadAction(Request $request)
     {
         try {
-            // Get request data
-            $post = $request->request->all();
+            // Get JSON data from request body
+            $content = $request->getContent();
+            $post = json_decode($content, true);
 
-            if (!isset($post['file_id'])) {
+            if (!$post || !isset($post['file_id'])) {
                 throw new ODRBadRequestException('Missing file_id');
             }
 
@@ -921,41 +1006,108 @@ class StatisticsController extends ODRCustomController
                 $aggregated[$key]['search_result_view_count'] += $stat->getSearchResultViewCount();
             }
 
-            // Store aggregated daily statistics
+            // Store or update aggregated daily statistics
             $stored_count = 0;
+            $updated_count = 0;
 
             foreach ($aggregated as $agg) {
-                $daily = new StatisticsDaily();
-                $daily->setDayDate($date);
-                $daily->setViewCount($agg['view_count']);
-                $daily->setDownloadCount($agg['download_count']);
-                $daily->setSearchResultViewCount($agg['search_result_view_count']);
-                $daily->setCountry($agg['country']);
-                $daily->setProvince($agg['province']);
-                $daily->setIsBot($agg['is_bot']);
+                // Try to find existing daily entry for this combination
+                $qb = $em->createQueryBuilder();
+                $qb->select('d')
+                    ->from('ODRAdminBundle:StatisticsDaily', 'd')
+                    ->where('d.dayDate = :date')
+                    ->andWhere('d.deletedAt IS NULL')
+                    ->setParameter('date', $date);
 
+                // Add criteria for datatype
                 if ($agg['datatype']) {
-                    $daily->setDataType($agg['datatype']);
+                    $qb->andWhere('d.dataType = :datatype')
+                        ->setParameter('datatype', $agg['datatype']);
+                } else {
+                    $qb->andWhere('d.dataType IS NULL');
                 }
+
+                // Add criteria for datarecord
                 if ($agg['datarecord']) {
-                    $daily->setDataRecord($agg['datarecord']);
+                    $qb->andWhere('d.dataRecord = :datarecord')
+                        ->setParameter('datarecord', $agg['datarecord']);
+                } else {
+                    $qb->andWhere('d.dataRecord IS NULL');
                 }
+
+                // Add criteria for file
                 if ($agg['file']) {
-                    $daily->setFile($agg['file']);
+                    $qb->andWhere('d.file = :file')
+                        ->setParameter('file', $agg['file']);
+                } else {
+                    $qb->andWhere('d.file IS NULL');
                 }
 
-                $daily->setCreatedBy($user);
-                $daily->setUpdatedBy($user);
+                // Add criteria for country
+                if ($agg['country']) {
+                    $qb->andWhere('d.country = :country')
+                        ->setParameter('country', $agg['country']);
+                } else {
+                    $qb->andWhere('d.country IS NULL');
+                }
 
-                $em->persist($daily);
-                $stored_count++;
+                // Add criteria for province
+                if ($agg['province']) {
+                    $qb->andWhere('d.province = :province')
+                        ->setParameter('province', $agg['province']);
+                } else {
+                    $qb->andWhere('d.province IS NULL');
+                }
+
+                // Add criteria for is_bot
+                $qb->andWhere('d.isBot = :isBot')
+                    ->setParameter('isBot', $agg['is_bot']);
+
+                $existing = $qb->getQuery()->getOneOrNullResult();
+
+                if ($existing) {
+                    // Update existing entry
+                    $existing->setViewCount($agg['view_count']);
+                    $existing->setDownloadCount($agg['download_count']);
+                    $existing->setSearchResultViewCount($agg['search_result_view_count']);
+                    $existing->setUpdatedBy($user);
+                    $updated_count++;
+                } else {
+                    // Create new entry
+                    $daily = new StatisticsDaily();
+                    $daily->setDayDate($date);
+                    $daily->setViewCount($agg['view_count']);
+                    $daily->setDownloadCount($agg['download_count']);
+                    $daily->setSearchResultViewCount($agg['search_result_view_count']);
+                    $daily->setCountry($agg['country']);
+                    $daily->setProvince($agg['province']);
+                    $daily->setIsBot($agg['is_bot']);
+
+                    if ($agg['datatype']) {
+                        $daily->setDataType($agg['datatype']);
+                    }
+                    if ($agg['datarecord']) {
+                        $daily->setDataRecord($agg['datarecord']);
+                    }
+                    if ($agg['file']) {
+                        $daily->setFile($agg['file']);
+                    }
+
+                    $daily->setCreatedBy($user);
+                    $daily->setUpdatedBy($user);
+
+                    $em->persist($daily);
+                    $stored_count++;
+                }
             }
 
             $em->flush();
 
             return new JsonResponse(array(
                 'success' => true,
-                'count' => $stored_count
+                'count' => $stored_count,
+                'updated' => $updated_count,
+                'total' => $stored_count + $updated_count
             ));
 
         } catch (\Exception $e) {

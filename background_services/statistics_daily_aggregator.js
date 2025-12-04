@@ -91,7 +91,8 @@ async function authenticate() {
 }
 
 /**
- * Aggregate yesterday's hourly statistics into daily summaries
+ * Aggregate hourly statistics into daily summaries for today
+ * Runs frequently to provide near real-time daily statistics
  */
 async function aggregateDaily() {
     console.log('\n========================================');
@@ -108,12 +109,11 @@ async function aggregateDaily() {
             }
         }
 
-        // Calculate yesterday's date
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(0, 0, 0, 0);
+        // Aggregate today's data for near real-time statistics
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        const dateStr = yesterday.toISOString().split('T')[0];  // YYYY-MM-DD format
+        const dateStr = today.toISOString().split('T')[0];  // YYYY-MM-DD format
 
         console.log('Aggregating statistics for date:', dateStr);
 
@@ -123,7 +123,9 @@ async function aggregateDaily() {
         });
 
         if (response && response.success) {
-            console.log('Successfully aggregated ' + (response.count || 0) + ' daily statistics entries');
+            console.log('Successfully aggregated ' + (response.total || 0) + ' daily statistics entries');
+            console.log('  - Created: ' + (response.count || 0));
+            console.log('  - Updated: ' + (response.updated || 0));
         } else {
             console.error('Aggregation failed:', response.message || 'Unknown error');
         }
@@ -187,70 +189,68 @@ async function cleanupOldData() {
 }
 
 /**
- * Run daily aggregation and cleanup
- */
-async function runDaily() {
-    await aggregateDaily();
-    await cleanupOldData();
-}
-
-/**
- * Calculate milliseconds until next scheduled run time
- */
-function getTimeUntilNextRun() {
-    const now = new Date();
-    const nextRun = new Date(now);
-
-    // Set to today's run time
-    nextRun.setHours(config.schedule.aggregatorHour, config.schedule.aggregatorMinute, 0, 0);
-
-    // If we've already passed today's run time, schedule for tomorrow
-    if (nextRun <= now) {
-        nextRun.setDate(nextRun.getDate() + 1);
-    }
-
-    return nextRun - now;
-}
-
-/**
  * Main execution
  */
 async function main() {
     // Check for --force flag
     const forceRun = process.argv.includes('--force');
+    const cleanupOnly = process.argv.includes('--cleanup');
+
+    const intervalMinutes = config.schedule.aggregatorIntervalMinutes || 3;
+    const intervalMs = intervalMinutes * 60 * 1000;
 
     console.log('Statistics Daily Aggregator initialized');
-    console.log('Will run daily at ' + config.schedule.aggregatorHour + ':' + config.schedule.aggregatorMinute.toString().padStart(2, '0'));
+    console.log('Will aggregate every ' + intervalMinutes + ' minute(s) for near real-time statistics');
 
     if (forceRun) {
         console.log('\n--force flag detected, running immediately...');
-        await runDaily();
+        if (cleanupOnly) {
+            await cleanupOldData();
+        } else {
+            await aggregateDaily();
+        }
         console.log('\nForced run complete. Exiting...\n');
         process.exit(0);
     }
 
-    // Check if we should run immediately (if it's the scheduled time)
-    const now = new Date();
-    if (now.getHours() === config.schedule.aggregatorHour && now.getMinutes() < config.schedule.aggregatorMinute + 5) {
-        console.log('Running immediately as it is the scheduled time');
-        await runDaily();
-    }
+    // Run immediately on startup
+    await aggregateDaily();
 
-    // Schedule next run
+    // Schedule recurring runs at the configured interval
     function scheduleNext() {
-        const delay = getTimeUntilNextRun();
-        const hours = Math.floor(delay / 1000 / 60 / 60);
-        const minutes = Math.floor((delay / 1000 / 60) % 60);
-
-        console.log('Next run scheduled in ' + hours + ' hours ' + minutes + ' minutes');
+        console.log('Next run scheduled in ' + intervalMinutes + ' minute(s)');
 
         setTimeout(async () => {
-            await runDaily();
+            await aggregateDaily();
             scheduleNext();
-        }, delay);
+        }, intervalMs);
     }
 
     scheduleNext();
+
+    // Schedule cleanup to run once per day at 2 AM
+    function scheduleCleanup() {
+        const now = new Date();
+        const nextCleanup = new Date(now);
+        nextCleanup.setHours(2, 0, 0, 0);
+
+        // If we've passed 2 AM today, schedule for tomorrow
+        if (nextCleanup <= now) {
+            nextCleanup.setDate(nextCleanup.getDate() + 1);
+        }
+
+        const delay = nextCleanup - now;
+        const hours = Math.floor(delay / 1000 / 60 / 60);
+
+        console.log('Daily cleanup scheduled in ' + hours + ' hours (at 2:00 AM)');
+
+        setTimeout(async () => {
+            await cleanupOldData();
+            scheduleCleanup();  // Reschedule for next day
+        }, delay);
+    }
+
+    scheduleCleanup();
 }
 
 // Start the service
