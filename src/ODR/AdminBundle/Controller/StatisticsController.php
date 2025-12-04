@@ -525,6 +525,7 @@ class StatisticsController extends ODRCustomController
                 'ODRAdminBundle:Statistics:dashboard.html.twig',
                 array(
                     'datatype' => $datatype,
+                    'multi_site_mode' => true,
                     'stats' => $stats,
                     'user' => $user
                 )
@@ -762,6 +763,7 @@ class StatisticsController extends ODRCustomController
                 'ODRAdminBundle:Statistics:dashboard.html.twig',
                 array(
                     'datatypes' => $datatypes_array,
+                    'multi_site_mode' => true,
                     'site_baseurl' => $site_baseurl,
                     'wordpress_site_baseurl' => $wordpress_site_baseurl
                 )

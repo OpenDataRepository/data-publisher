@@ -31,6 +31,9 @@ window.ODRStatisticsDashboard = (function() {
         datatypes = datatypesData || [];
         apiBaseUrl = baseUrl || '';
 
+        console.log('  Calling populateDatatypeFilter()');
+        populateDatatypeFilter();
+
         console.log('  Calling setupEventListeners()');
         setupEventListeners();
 
@@ -41,6 +44,84 @@ window.ODRStatisticsDashboard = (function() {
         loadDashboardData();
 
         console.log('ODRStatisticsDashboard.init() complete');
+    }
+
+    /**
+     * Populate the datatype filter dropdown with available datatypes
+     */
+    function populateDatatypeFilter() {
+        console.log('ODRStatisticsDashboard: Populating datatype filter with', datatypes.length, 'datatypes');
+
+        const datatypeFilter = document.getElementById('datatype-filter');
+        if (!datatypeFilter) {
+            console.warn('ODRStatisticsDashboard: datatype-filter element not found!');
+            return;
+        }
+
+        // Clear existing options
+        datatypeFilter.innerHTML = '';
+
+        // Determine if we have a single datatype
+        const singleDatatype = datatypes.length === 1;
+
+        // Hide/show the entire filter container based on number of datatypes
+        // Try multiple possible parent selectors
+        let filterContainer = datatypeFilter.closest('.form-group');
+        if (!filterContainer) {
+            filterContainer = datatypeFilter.closest('div');
+        }
+        if (!filterContainer) {
+            filterContainer = datatypeFilter.parentElement;
+        }
+
+        console.log('ODRStatisticsDashboard: Filter container found:', filterContainer ? filterContainer.tagName + (filterContainer.className ? '.' + filterContainer.className : '') : 'NOT FOUND');
+        if (filterContainer) {
+            if (singleDatatype) {
+                filterContainer.style.display = 'none';
+                console.log('ODRStatisticsDashboard: Hiding datatype filter container (only one datatype)');
+            } else {
+                filterContainer.style.display = '';
+                console.log('ODRStatisticsDashboard: Showing datatype filter container (multiple datatypes)');
+            }
+        } else {
+            // Fallback: hide the select element itself
+            if (singleDatatype) {
+                datatypeFilter.style.display = 'none';
+                console.log('ODRStatisticsDashboard: Hiding datatype filter select element directly (only one datatype)');
+            } else {
+                datatypeFilter.style.display = '';
+                console.log('ODRStatisticsDashboard: Showing datatype filter select element directly (multiple datatypes)');
+            }
+        }
+
+        // Add "All Data Types" option only if multiple datatypes
+        if (!singleDatatype) {
+            const allOption = document.createElement('option');
+            allOption.value = '';
+            allOption.textContent = 'All Data Types';
+            allOption.selected = true;
+            datatypeFilter.appendChild(allOption);
+        }
+
+        // Add option for each datatype
+        datatypes.forEach(function(datatype) {
+            const option = document.createElement('option');
+            option.value = datatype.id;
+            option.textContent = datatype.shortName;
+            option.selected = singleDatatype; // Select if it's the only datatype
+            datatypeFilter.appendChild(option);
+        });
+
+        // If there's only one datatype, set it in selectedDatatypes array
+        if (singleDatatype) {
+            selectedDatatypes = [parseInt(datatypes[0].id)];
+            console.log('ODRStatisticsDashboard: Single datatype mode - selected:', datatypes[0].shortName, '(ID:', datatypes[0].id, ')');
+        } else {
+            selectedDatatypes = [];
+            console.log('ODRStatisticsDashboard: Multiple datatypes mode - "All Data Types" selected');
+        }
+
+        console.log('ODRStatisticsDashboard: Added', datatypes.length, 'datatype options to filter');
     }
 
     /**
@@ -215,8 +296,14 @@ window.ODRStatisticsDashboard = (function() {
             console.log('  Rendering traffic source chart...');
             renderTrafficSourceChart(summaryData);
 
-            console.log('  Rendering datatype chart...');
-            renderDatatypeChart(summaryData);
+            // Only render datatype chart if there are multiple datatypes
+            if (datatypes.length > 1) {
+                console.log('  Rendering datatype chart...');
+                renderDatatypeChart(summaryData);
+            } else {
+                console.log('  Skipping datatype chart (only one datatype)');
+                hideDatatypeChart();
+            }
 
             hideLoading();
             console.log('ODRStatisticsDashboard: loadDashboardData() complete');
@@ -286,24 +373,21 @@ window.ODRStatisticsDashboard = (function() {
                 x: dates,
                 y: views,
                 name: 'Views',
-                type: 'scatter',
-                mode: 'lines+markers',
-                line: { color: '#2E86DE', width: 3 },
-                marker: { size: 6 }
+                type: 'bar',
+                marker: { color: '#2E86DE' }
             },
             {
                 x: dates,
                 y: downloads,
                 name: 'Downloads',
-                type: 'scatter',
-                mode: 'lines+markers',
-                line: { color: '#10AC84', width: 3 },
-                marker: { size: 6 }
+                type: 'bar',
+                marker: { color: '#10AC84' }
             }
         ];
 
         const layout = {
             margin: { t: 10, r: 10, b: 50, l: 60 },
+            barmode: 'group',
             xaxis: {
                 title: 'Date',
                 showgrid: true,
@@ -730,6 +814,27 @@ window.ODRStatisticsDashboard = (function() {
         };
 
         Plotly.newPlot('datatype-chart', [trace1, trace2], layout, {responsive: true});
+    }
+
+    /**
+     * Hide the datatype chart section when only one datatype exists
+     */
+    function hideDatatypeChart() {
+        console.log('ODRStatisticsDashboard: Hiding datatype chart section');
+
+        const datatypeChartElem = document.getElementById('datatype-chart');
+        if (datatypeChartElem) {
+            // Find the parent card/section container
+            const chartContainer = datatypeChartElem.closest('.card, .chart-container, .col-md-6');
+            if (chartContainer) {
+                chartContainer.style.display = 'none';
+                console.log('ODRStatisticsDashboard: Datatype chart container hidden');
+            } else {
+                // If no container found, just hide the chart element itself
+                datatypeChartElem.style.display = 'none';
+                console.log('ODRStatisticsDashboard: Datatype chart element hidden');
+            }
+        }
     }
 
     /**
