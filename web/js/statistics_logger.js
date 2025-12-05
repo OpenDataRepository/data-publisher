@@ -29,6 +29,32 @@ jQuery(document).ready(function () {
         console.log('ODRStatistics: Using standalone endpoint:', USE_STANDALONE_ENDPOINT);
 
         /**
+         * Add a logging tracker to mark content as logged
+         * @param {HTMLElement} container The container element to append the tracker to
+         */
+        function addLoggingTracker(container) {
+            // Remove any existing tracker first
+            var existingTracker = document.getElementById('logging_tracker');
+            if (existingTracker) {
+                existingTracker.remove();
+            }
+
+            // Create new tracker
+            var tracker = document.createElement('input');
+            tracker.type = 'hidden';
+            tracker.id = 'logging_tracker';
+            tracker.value = 'logged_' + Date.now();
+
+            // Append to container
+            if (container) {
+                container.appendChild(tracker);
+                console.log('ODRStatistics: Added logging tracker to', container.id || container.className);
+            } else {
+                console.warn('ODRStatistics: No container provided for logging tracker');
+            }
+        }
+
+        /**
          * Log a datarecord view
          * @param {number} datarecord_id The ID of the datarecord being viewed
          * @param {number} datatype_id The ID of the datatype
@@ -76,10 +102,21 @@ jQuery(document).ready(function () {
                     return response.json();
                 })
                 .then(function (data) {
-                    if (!data.success) {
-                        console.warn('ODRStatistics: Log view returned error');
-                    } else {
+                    console.log('ODRStatistics: Log view response:', data);
+
+                    if (data && data.success === true) {
                         console.log('ODRStatistics: Successfully logged view');
+
+                        // Add logging tracker to prevent re-logging on mutations
+                        // Must be placed INSIDE #ODRSearchContent so it's removed when content is replaced
+                        var searchContent = document.getElementById('ODRSearchContent');
+                        if (searchContent) {
+                            addLoggingTracker(searchContent);
+                        } else {
+                            console.warn('ODRStatistics: Could not find #ODRSearchContent to add tracker');
+                        }
+                    } else {
+                        console.warn('ODRStatistics: Log view returned error or unexpected response');
                     }
                 })
                 .catch(function (error) {
@@ -145,6 +182,13 @@ jQuery(document).ready(function () {
          */
         function checkAndLogResults() {
             console.log('ODRStatistics: checkAndLogResults called');
+
+            // Check if content has already been logged by looking for the tracker
+            var existingTracker = document.getElementById('logging_tracker');
+            if (existingTracker) {
+                console.log('ODRStatistics: Content already logged (tracker found), skipping');
+                return;
+            }
 
             // First, check for search results (ODRShortResults class elements)
             var searchResults = document.querySelectorAll('.ODRShortResults');
@@ -322,10 +366,21 @@ jQuery(document).ready(function () {
                     return response.json();
                 })
                 .then(function (data) {
-                    if (!data.success) {
-                        console.warn('ODRStatistics: Batch log view returned error');
-                    } else {
+                    console.log('ODRStatistics: Batch log view response:', data);
+
+                    if (data && data.success === true) {
                         console.log('ODRStatistics: Successfully logged ' + data.logged + ' of ' + data.total + ' search results');
+
+                        // Add logging tracker to prevent re-logging on mutations
+                        // Must be placed INSIDE #ODRSearchContent so it's removed when content is replaced
+                        var searchContent = document.getElementById('ODRSearchContent');
+                        if (searchContent) {
+                            addLoggingTracker(searchContent);
+                        } else {
+                            console.warn('ODRStatistics: Could not find #ODRSearchContent to add tracker');
+                        }
+                    } else {
+                        console.warn('ODRStatistics: Batch log view returned error or unexpected response');
                     }
                 })
                 .catch(function (error) {
