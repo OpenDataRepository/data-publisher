@@ -5653,3 +5653,7 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     position: relative;
 }
 
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
+}

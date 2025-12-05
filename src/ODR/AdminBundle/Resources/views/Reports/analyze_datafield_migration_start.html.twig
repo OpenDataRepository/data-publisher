@@ -29,47 +29,134 @@
 <script>
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-    });
 
 {% if strings|length == 0 %}
-    $("#ODRReports_fieldtype_selector").unbind('change').change(function(event) {
-        event.stopImmediatePropagation();
-        if ( $("#ODRReports_fieldtype_selector").children('option:selected').val() == '0' )
-            return false;
-
-        $("#ODRReports_DatafieldMigration_results").html("<div class=\"ODROverlayDiv\"><strong>Loading...</strong></div>");
-
-        var data = $("#ODRReports_fieldtype_form").serialize();
-        var url = $("#ODRReports_fieldtype_form").attr('action');
-
-        $.ajax({
-            type: 'POST',
-            url: url,
-            data: data,
-            dataType: 'json',
-            success: function(data) {
-                $("#ODRReports_DatafieldMigration_results").html(data.d.html);
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
-                // alert('Error encountered, no changes made');
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
+        $("#ODRReports_fieldtype_selector").unbind('change').change(function(event) {
+            event.stopImmediatePropagation();
+            if ( $("#ODRReports_fieldtype_selector").children('option:selected').val() == '0' ) {
+                $("#ODRReports_DatafieldMigration_results").html('');
+                return false;
             }
+
+            $("#ODRReports_DatafieldMigration_results").html("<div class=\"ODROverlayDiv\"><strong>Loading...</strong></div>");
+
+            var data = $("#ODRReports_fieldtype_form").serialize();
+            var url = $("#ODRReports_fieldtype_form").attr('action');
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: data,
+                dataType: 'json',
+                success: function(data) {
+                    $("#ODRReports_DatafieldMigration_results").html(data.d.html);
+                    initMigrationReportPage();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                    // alert('Error encountered, no changes made');
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
         });
-    });
 {% endif %}
+    });
+
+    function initMigrationReportPage() {
+        {# TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
+        $('.ODRMigration_confirm').unbind('click').click(function(event) {
+            event.stopImmediatePropagation();
+            if ( $(this).hasClass('pure-class-disabled') )
+                return false;
+
+            alert('TODO');  return false;
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: data,
+                dataType: 'json',
+                success: function(data) {
+                    $("#ODRReports_DatafieldMigration_results").html(data.d.html);
+                    initMigrationReportPage();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                    // alert('Error encountered, no changes made');
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+        #}
+
+        {# TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
+        if ( $(".ODRMigration_acknowledge").length == 0 ) {
+            // If no acknowledgement spans on the page, then the button can always be enabled
+            if ( $(".ODRMigration_confirm").length > 0 )
+                $(".ODRMigration_confirm").removeClass('pure-button-disabled');
+        }
+        else {
+            // ...otherwise, need to determine whether each acknowledgement label has an associated
+            //  input
+            var keep_button = true;
+            $(".ODRMigration_acknowledge").each(function(index,elem) {
+                if ( $(elem).children('input').length == 0 )
+                    keep_button = false;
+            });
+
+            if ( !keep_button ) {
+                // ...if at least one acknowledgement label does not have an associated input, then
+                //  no migration is allowed
+                $(".ODRMigration_acknowledge").remove();
+                $('.ODRMigration_confirm').remove();
+            }
+            else {
+                // ...if every acknowledgement label has an associated input, then attach an event
+                //  handler to enable the migration when all inputs on the page are checked
+                $(".ODRMigration_acknowledge").unbind('change').change(function(event) {
+                    event.stopImmediatePropagation();
+
+                    var enable_button = true;
+                    $(".ODRMigration_acknowledge").each(function(index,elem) {
+                        var input = $(elem).children('input').first();
+                        // console.log( $(input), $(input).is(':checked') );
+                        if ( !$(input).is(':checked') )
+                            enable_button = false;
+                    });
+
+                    if ( !enable_button )
+                        $('.ODRMigration_confirm').addClass('pure-button-disabled');
+                    else
+                        $('.ODRMigration_confirm').removeClass('pure-button-disabled');
+                });
+            }
+        }
+        #}
+    }
 </script>
 
 {% endspaceless %}

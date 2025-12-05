@@ -2241,7 +2241,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-            /** @var EventDispatcherInterface $event_dispatcher */
+            /** @var EventDispatcherInterface $dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
             /** @var DatabaseInfoService $database_info_service */
@@ -2320,7 +2320,7 @@ class DisplaytemplateController extends ODRCustomController
             // TODO - incorrect fieldtypes show up as one of the fieldtypes required by the plugin, regardless of what it actually is
 
             // Determine which changes, if any, can be made to this datafield's fieldtype
-            $fieldtype_info = $datafield_info_service->getFieldtypeInfo($datatype_array, $datafield->getDataType()->getId(), array($datafield->getId()));
+            $fieldtype_info = $datafield_info_service->canChangeFieldtype($datatype_array, $datafield->getDataType()->getId(), array($datafield->getId()));
             $prevent_fieldtype_change = $fieldtype_info[$datafield->getId()]['prevent_change'];
             $prevent_fieldtype_change_message = $fieldtype_info[$datafield->getId()]['prevent_change_message'];
             $allowed_fieldtypes = $fieldtype_info[$datafield->getId()]['allowed_fieldtypes'];
@@ -3966,7 +3966,7 @@ if ($debug)
             foreach ($all_fieldtypes as $ft)
                 $fieldtype_map[$ft->getId()] = $ft->getTypeName();
 
-            $fieldtype_info = $datafield_info_service->getFieldtypeInfo($datatype_array, $datatype->getId());
+            $fieldtype_info = $datafield_info_service->canChangeFieldtype($datatype_array, $datatype->getId());
 
 
             // ----------------------------------------
@@ -4112,7 +4112,7 @@ if ($debug)
 
 
             // Also need to verify that the provided fieldtypes are valid
-            $fieldtype_info = $datafield_info_service->getFieldtypeInfo($datatype_array, $datatype->getId());
+            $fieldtype_info = $datafield_info_service->canChangeFieldtype($datatype_array, $datatype->getId());
 
 
             // Ensure that the provided datafields match the datatype

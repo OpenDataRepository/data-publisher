@@ -5586,3 +5586,8 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     /* no vertical line on left for top-level tags */
     background-color: inherit;
 }
+
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
+}

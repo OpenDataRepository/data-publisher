@@ -31,6 +31,8 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatafieldInfoService;
 use ODR\AdminBundle\Component\Service\FieldtypeMigrationService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -1055,6 +1057,7 @@ class ReportsController extends ODRCustomController
             $fieldtype_list = array();
             foreach ($fieldtypes as $fieldtype)
                 $fieldtype_list[$fieldtype->getId()] = $fieldtype->getTypeName();
+//            asort( $fieldtype_list );
 
 
             // There's a couple different versions of output, depending on what the datafield is
@@ -1126,6 +1129,10 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $datafield_info_service */
+            $datafield_info_service = $this->container->get('odr.datafield_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
@@ -1164,6 +1171,44 @@ class ReportsController extends ODRCustomController
             $new_typeclass = $new_fieldtype->getTypeClass();
             $new_typename = $new_fieldtype->getTypeName();
 
+            // ----------------------------------------
+            // Since render plugins have fieldtype restrictions, they're relevant for this report
+            $render_plugin_restrictions = array();
+
+            /** @var DataFields[] $df_mapping */
+            $df_mapping = array($datafield->getId() => $datafield);
+            if ( $is_master_datafield ) {
+                // If this is a master datafield, then the derived datafields need to be checked too
+                $query = $em->createQuery(
+                   'SELECT df
+                    FROM ODRAdminBundle:DataFields df
+                    WHERE df.masterDataField = :df
+                    AND df.deletedAt IS NULL'
+                )->setParameters( array('df' => $datafield->getId()) );
+                $results = $query->getResult();
+
+                foreach ($results as $df) {
+                    $df_id = $df->getId();
+                    $df_mapping[$df_id] = $df;
+                }
+            }
+
+            // Determine/store any fieldtype restrictions that each datafield has
+            foreach ($df_mapping as $df_id => $df) {
+                $dt = $df->getDataType();
+                $dt_id = $dt->getId();
+                $gdt_id = $dt->getGrandparent()->getId();
+
+                $dt_array = $database_info_service->getDatatypeArray($gdt_id, false);
+                $fieldtype_info = $datafield_info_service->canChangeFieldtype($dt_array, $dt_id, array($df_id), true);    // abort after checking render plugin info
+                $render_plugin_restrictions[$df_id] = array(
+                    'affected_by_render_plugin' => $fieldtype_info[$df_id]['affected_by_render_plugin'],
+                    'allowed_fieldtypes' => $fieldtype_info[$df_id]['allowed_fieldtypes'],
+                );
+            }
+
+
+            // ----------------------------------------
             // Having these properties of text fields on hand is useful...
             $old_length = 0;
             $old_is_text = false;
@@ -1250,11 +1295,10 @@ class ReportsController extends ODRCustomController
 
                 if ($need_count) {
                     // Want to run a query to figure out how many items/values will be lost
-                    $counts = self::DatafieldMigrations_CountItems($em, $datafield);
+                    $counts = self::DatafieldMigrations_CountItems($em, $datafield, $df_mapping);
 
                     foreach ($counts as $df_id => $count) {
-                        /** @var DataFields $df */
-                        $df = $repo_datafields->find($df_id);
+                        $df = $df_mapping[$df_id];
                         $strings[$df_id] = array('df' => $df);
 
                         if ( $count > 0 ) {
@@ -1293,15 +1337,18 @@ class ReportsController extends ODRCustomController
 
             // Several conversions will never lose data
             if ( $html === '' || empty($strings) ) {
-                if ( ($old_is_text && $new_is_text && $old_length < $new_length)
-                    || ($current_typename === 'Integer' && $new_is_text)
-                    || ($current_typename === 'Decimal' && $new_is_text)
-                    || ($current_typename === 'Integer' && $new_typename === 'Decimal')
-                    || ($current_typename === 'DateTime' && $new_is_text)
-                ) {
-                    $html = 'A '.$current_typename.' field can always be migrated to a '.$new_typename.' field without loss of data.';
-                }
+                // Half of these will never lose data, but want the full set of checks run anyways
+//                if ( ($old_is_text && $new_is_text && $old_length < $new_length)
+//                    || ($current_typename === 'Integer' && $new_is_text)
+//                    || ($current_typename === 'Decimal' && $new_is_text)
+//                    || ($current_typename === 'Integer' && $new_typename === 'Decimal')
+//                    || ($current_typename === 'DateTime' && $new_is_text)
+//                ) {
+//                    $html = 'A '.$current_typename.' field can always be migrated to a '.$new_typename.' field without loss of data.';
+//                }
 
+                // Single Radio is equivalent to Single Select, and Multiple Radio is equivalent to
+                //  Multiple Select
                 if ( ($current_typename === 'Single Select' && $new_typename === 'Single Radio')
                     || ($current_typename === 'Single Radio' && $new_typename === 'Single Select')
                     || ($current_typename === 'Multiple Select' && $new_typename === 'Multiple Radio')
@@ -1310,6 +1357,7 @@ class ReportsController extends ODRCustomController
                     $html = 'A '.$current_typename.' field can always be migrated to a '.$new_typename.' field without loss of data.';
                 }
 
+                // Single Select can always be converted into Multiple Select
                 if ( ($current_typename === 'Single Select' || $current_typename === 'Single Radio')
                     && ($new_typename === 'Multiple Select' || $new_typename === 'Multiple Radio')
                 ) {
@@ -1325,8 +1373,10 @@ class ReportsController extends ODRCustomController
                         'df' => $datafield,
                         'html' => $html,
                         'new_fieldtype' => $new_fieldtype,
+                        'render_plugin_restrictions' => $render_plugin_restrictions,
 
                         // NOTE: these conversions don't lose data, so they won't create duplicates in unique fields
+                        // ...but converting a shorter text to a paragraph text will still break uniqueness
                     )
                 );
             }
@@ -1338,6 +1388,7 @@ class ReportsController extends ODRCustomController
                     array(
                         'strings' => $strings,
                         'new_fieldtype' => $new_fieldtype,
+                        'render_plugin_restrictions' => $render_plugin_restrictions,
 
                         // NOTE: these conversions are always to fields that can't be unique
                     )
@@ -1345,24 +1396,30 @@ class ReportsController extends ODRCustomController
             }
             else {
                 // ...otherwise, need to do some mysql queries to determine what will change
-                if ( $old_is_text && $new_is_text && $old_length > $new_length ) {
-                    // Longer text to shorter text has to shorten strings
-                    $html = self::DatafieldMigrations_ConvertToShorterText($em, $templating, $datafield, $new_fieldtype);
+                if ( $old_is_text && $new_is_text ) {
+                    // Text -> Text works most of the time, but can end up truncating values...or
+                    //  removing uniqueness if converting to Paragraph text
+                    $html = self::DatafieldMigrations_ConvertToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
+                }
+                if ( $new_is_text && ($current_typename === 'Integer' || $current_typename === 'Decimal' || $current_typename === 'Datetime') ) {
+                    // Number/Date -> Text always works, but it's more useful to display the same
+                    //  set of lines as the other conversions
+                    $html = self::DatafieldMigrations_ConvertOtherToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
                 }
                 else if ( ($old_is_text && $new_typename === 'Integer') || ($current_typename === 'Decimal' && $new_typename === 'Integer') ) {
                     // Text to Integer runs into casting issues, while Decimal to Integer has
                     //  precision issues
-                    $html = self::DatafieldMigrations_ConvertToInteger($em, $templating, $datafield, $new_fieldtype);
+                    $html = self::DatafieldMigrations_ConvertToInteger($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
                 }
                 else if ( $old_is_text && $new_typename === 'Decimal' ) {
                     // Text to Decimal runs into casting issues
-                    $html = self::DatafieldMigrations_ConvertToDecimal($em, $templating, $datafield, $new_fieldtype);
+                    $html = self::DatafieldMigrations_ConvertToDecimal($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
                 }
                 else if ( ($current_typename === 'Multiple Select' || $current_typename === 'Multiple Radio')
                     && ($new_typename === 'Single Select' || $new_typename === 'Single Radio')
                 ) {
                     // Multiple radio/select to Single radio/select will have to deselect options
-                    $html = self::DatafieldMigration_ConvertToSingleRadio($em, $templating, $datafield);
+                    $html = self::DatafieldMigration_ConvertToSingleRadio($templating, $df_mapping, $render_plugin_restrictions);
                 }
             }
 
@@ -1391,13 +1448,19 @@ class ReportsController extends ODRCustomController
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param DataFields $datafield
+     * @param DataFields[] $df_mapping
      * @return int[]
      */
-    private function DatafieldMigrations_CountItems($em, $datafield)
+    private function DatafieldMigrations_CountItems($em, $datafield, $df_mapping)
     {
         $datafield_id = $datafield->getId();
         $typeclass = $datafield->getFieldType()->getTypeClass();
         $is_master_field = $datafield->getIsMasterField();
+
+        // Need to count how many values are in each given field
+        $counts = array();
+        foreach ($df_mapping as $df_id => $df)
+            $counts[$df_id] = 0;
 
         $query = '';
         if ( $typeclass === 'File' ) {
@@ -1523,9 +1586,6 @@ class ReportsController extends ODRCustomController
         $conn = $em->getConnection();
         $results = $conn->executeQuery($query);
 
-        $counts = array();
-        $counts[$datafield_id] = 0;
-
         if ( $typeclass === 'Radio' || $typeclass === 'Tag' ) {
             // Radio/Tag fields need to "manually" determine how many records are going to get
             //  changed
@@ -1533,13 +1593,17 @@ class ReportsController extends ODRCustomController
                 $df_id = $result['df_id'];
                 $dr_id = $result['dr_id'];
 
-                if ( !isset($counts[$df_id]) )
+                if ( !is_array($counts[$df_id]) )
                     $counts[$df_id] = array();
                 $counts[$df_id][$dr_id] = 1;
             }
 
-            foreach ($counts as $df_id => $dr_list)
-                $counts[$df_id] = count($dr_list);
+            foreach ($counts as $df_id => $dr_list) {
+                if ( is_array($dr_list) )
+                    $counts[$df_id] = count($dr_list);
+                else
+                    $counts[$df_id] = 0;
+            }
         }
         else {
             // All other typeclasses can have their counts calculated by mysql
@@ -1556,56 +1620,33 @@ class ReportsController extends ODRCustomController
 
 
     /**
-     * Determines what the values in a field would be if it got migrated to the requested text
+     * Determines what the values in a text field would be if it got migrated to a different text
      * fieldtype, and returns a list of records that would have a different value afterwards.
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param EngineInterface $templating
-     * @param DataFields $datafield
+     * @param DataFields[] $df_mapping
      * @param FieldType $new_fieldtype
+     * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigrations_ConvertToShorterText($em, $templating, $datafield, $new_fieldtype)
+    private function DatafieldMigrations_ConvertToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
-
-        $datafield_id = $datafield->getId();
-        $is_master_field = $datafield->getIsMasterField();
-        if ( !$is_master_field ) {
-            // If this is a "regular" datafield, then don't need to do anything fancy
-            $df_mapping[$datafield_id] = $datafield;
-        }
-        else {
-            // The FieldtypeMigrationService doesn't want to have to directly deal with template
-            //  fields, so create a list of all datafields derived from this template field
-            $query = $em->createQuery(
-               'SELECT df
-                FROM ODRAdminBundle:DataFields df
-                WHERE df.masterDataField = :df
-                AND df.deletedAt IS NULL'
-            )->setParameters( array('df' => $datafield->getId()) );
-            $results = $query->getResult();
-
-            foreach ($results as $df) {
-                $df_id = $df->getId();
-                $df_mapping[$df_id] = $df;
-            }
-        }
-        /** @var DataFields[] $df_mapping */
 
         // Get a report for each datafield that is getting migrated
         $new_values_prevent_unique = array();
         $original_lengths = array();
         $data = array();
         foreach ($df_mapping as $df_id => $df) {
-            // If the field is currently unique, then conversions to shorter text could break that
+            // If the field is currently unique, then that could get broken when converting to a
+            //  shorter fieldtype (due to truncations), or converting to paragraph text
             $check_new_values_unique = $df->getIsUnique();
             $new_values_prevent_unique[$df_id] = false;
             $new_values = array();
 
             // This returns every value...
-            $data[$df_id] = $fieldtype_migration_service->ReportOnShorterTextConvert($df, $new_fieldtype->getTypeClass(), true);
+            $data[$df_id] = $fieldtype_migration_service->ReportOnTextConvert($df, $new_fieldtype->getTypeClass(), true);
             // ...which allows us to keep track of how many records total there are...
             $original_lengths[$df_id] = count($data[$df_id]);
 
@@ -1634,6 +1675,79 @@ class ReportsController extends ODRCustomController
             array(
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
+                'render_plugin_restrictions' => $render_plugin_restrictions,
+                'new_values_prevent_unique' => $new_values_prevent_unique,
+
+                'df_mapping' => $df_mapping,
+                'data' => $data,
+                'original_lengths' => $original_lengths,
+            )
+        );
+
+        return $html;
+    }
+
+
+    /**
+     * The values in a numerical/datetime field won't change when migrated to a text fieldtype, but
+     * it's useful to treat it similarly to {@link self::DatafieldMigrations_ConvertToText()}
+     *
+     * @param EngineInterface $templating
+     * @param DataFields[] $df_mapping
+     * @param FieldType $new_fieldtype
+     * @param array $render_plugin_restrictions
+     * @return string
+     */
+    private function DatafieldMigrations_ConvertOtherToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
+    {
+        /** @var FieldtypeMigrationService $fieldtype_migration_service */
+        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+
+        // Get a report for each datafield that is getting migrated
+        $new_values_prevent_unique = array();
+        $original_lengths = array();
+        $data = array();
+        foreach ($df_mapping as $df_id => $df) {
+            // If the field is currently unique, then conversions to shorter text could break that
+            $check_new_values_unique = $df->getIsUnique();
+            $new_values_prevent_unique[$df_id] = false;
+            $new_values = array();
+
+            // This returns every value...
+            $data[$df_id] = $fieldtype_migration_service->ReportOnOtherTextConvert($df, true);
+            // ...which allows us to keep track of how many records total there are...
+            $original_lengths[$df_id] = count($data[$df_id]);
+
+            // ...but requires us to unset the values which won't change
+            foreach ($data[$df_id] as $dr_id => $values) {
+                // If checking for unique values...
+                if ( $check_new_values_unique && !$new_values_prevent_unique[$df_id] ) {
+                    // ...then store whether the new values in the field violate the unique requirement
+                    if ( !isset($new_values[ $values['new_value'] ]) )
+                        $new_values[ $values['new_value'] ] = 1;
+                    else
+                        $new_values_prevent_unique[$df_id] = true;
+                }
+
+                if ( $values['old_value'] === $values['new_value'])
+                    unset( $data[$df_id][$dr_id] );
+            }
+        }
+        // NOTE: this is overkill...currently converting Integer/Decimal/Datetime -> Text won't
+        //  ever lose data.  However, self::DatafieldMigrations_ConvertToText() also incidentally
+        //  detects when a field is unique but has duplicate values...so might as well make this one
+        //  do the same thing
+
+        // ----------------------------------------
+        // Render and return a list of the records that would be changed
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+
+        $html = $templating->render(
+            'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
+            array(
+                'baseurl' => $baseurl,
+                'new_fieldtype' => $new_fieldtype,
+                'render_plugin_restrictions' => $render_plugin_restrictions,
                 'new_values_prevent_unique' => $new_values_prevent_unique,
 
                 'df_mapping' => $df_mapping,
@@ -1650,40 +1764,16 @@ class ReportsController extends ODRCustomController
      * Determines what the values in a field would be if it got migrated to an IntegerValue, and
      * returns a list of records that would have a different value afterwards.
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param EngineInterface $templating
-     * @param DataFields $datafield
+     * @param DataFields[] $df_mapping
      * @param FieldType $new_fieldtype
+     * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigrations_ConvertToInteger($em, $templating, $datafield, $new_fieldtype)
+    private function DatafieldMigrations_ConvertToInteger($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
-
-        $datafield_id = $datafield->getId();
-        $is_master_field = $datafield->getIsMasterField();
-        if ( !$is_master_field ) {
-            // If this is a "regular" datafield, then don't need to do anything fancy
-            $df_mapping[$datafield_id] = $datafield;
-        }
-        else {
-            // The FieldtypeMigrationService doesn't want to have to directly deal with template
-            //  fields, so create a list of all datafields derived from this template field
-            $query = $em->createQuery(
-               'SELECT df
-                FROM ODRAdminBundle:DataFields df
-                WHERE df.masterDataField = :df
-                AND df.deletedAt IS NULL'
-            )->setParameters( array('df' => $datafield->getId()) );
-            $results = $query->getResult();
-
-            foreach ($results as $df) {
-                $df_id = $df->getId();
-                $df_mapping[$df_id] = $df;
-            }
-        }
-        /** @var DataFields[] $df_mapping */
 
         // Get a report for each datafield that is getting migrated
         $new_values_prevent_unique = array();
@@ -1725,6 +1815,7 @@ class ReportsController extends ODRCustomController
             array(
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
+                'render_plugin_restrictions' => $render_plugin_restrictions,
                 'new_values_prevent_unique' => $new_values_prevent_unique,
 
                 'df_mapping' => $df_mapping,
@@ -1741,40 +1832,16 @@ class ReportsController extends ODRCustomController
      * Determines what the values in a field would be if it got migrated to a DecimalValue, and
      * returns a list of records that would have a different value afterwards.
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param EngineInterface $templating
-     * @param DataFields $datafield
+     * @param DataFields[] $df_mapping
      * @param FieldType $new_fieldtype
+     * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigrations_ConvertToDecimal($em, $templating, $datafield, $new_fieldtype)
+    private function DatafieldMigrations_ConvertToDecimal($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
-
-        $datafield_id = $datafield->getId();
-        $is_master_field = $datafield->getIsMasterField();
-        if ( !$is_master_field ) {
-            // If this is a "regular" datafield, then don't need to do anything fancy
-            $df_mapping[$datafield_id] = $datafield;
-        }
-        else {
-            // The FieldtypeMigrationService doesn't want to have to directly deal with template
-            //  fields, so create a list of all datafields derived from this template field
-            $query = $em->createQuery(
-               'SELECT df
-                FROM ODRAdminBundle:DataFields df
-                WHERE df.masterDataField = :df
-                AND df.deletedAt IS NULL'
-            )->setParameters( array('df' => $datafield->getId()) );
-            $results = $query->getResult();
-
-            foreach ($results as $df) {
-                $df_id = $df->getId();
-                $df_mapping[$df_id] = $df;
-            }
-        }
-        /** @var DataFields[] $df_mapping */
 
         // Get a report for each datafield that is getting migrated
         $new_values_prevent_unique = array();
@@ -1816,6 +1883,7 @@ class ReportsController extends ODRCustomController
             array(
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
+                'render_plugin_restrictions' => $render_plugin_restrictions,
                 'new_values_prevent_unique' => $new_values_prevent_unique,
 
                 'df_mapping' => $df_mapping,
@@ -1832,39 +1900,15 @@ class ReportsController extends ODRCustomController
      * Determines which records would need to deselect some of their radio selections to "fit" in
      * a single radio/select field.
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param EngineInterface $templating
-     * @param DataFields $datafield
+     * @param DataFields[] $df_mapping
+     * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigration_ConvertToSingleRadio($em, $templating, $datafield)
+    private function DatafieldMigration_ConvertToSingleRadio($templating, $df_mapping, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
-
-        $datafield_id = $datafield->getId();
-        $is_master_field = $datafield->getIsMasterField();
-        if ( !$is_master_field ) {
-            // If this is a "regular" datafield, then don't need to do anything fancy
-            $df_mapping[$datafield_id] = $datafield;
-        }
-        else {
-            // The FieldtypeMigrationService doesn't want to have to directly deal with template
-            //  fields, so create a list of all datafields derived from this template field
-            $query = $em->createQuery(
-               'SELECT df
-                FROM ODRAdminBundle:DataFields df
-                WHERE df.masterDataField = :df
-                AND df.deletedAt IS NULL'
-            )->setParameters( array('df' => $datafield->getId()) );
-            $results = $query->getResult();
-
-            foreach ($results as $df) {
-                $df_id = $df->getId();
-                $df_mapping[$df_id] = $df;
-            }
-        }
-        /** @var DataFields[] $df_mapping */
 
         // Get a report for each datafield that is getting migrated
         $original_lengths = array();
@@ -1890,6 +1934,7 @@ class ReportsController extends ODRCustomController
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_single_radio.html.twig',
             array(
                 'baseurl' => $baseurl,
+                'render_plugin_restrictions' => $render_plugin_restrictions,
 
                 'df_mapping' => $df_mapping,
                 'data' => $data,
