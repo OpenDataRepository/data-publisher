@@ -11,6 +11,10 @@
 jQuery(document).ready(function () {
         'use strict';
 
+        // Configuration: Set to true to use standalone PHP endpoint (faster, bypasses Symfony/WordPress)
+        // Set to false to use Symfony routes (default, maintains compatibility)
+        var USE_STANDALONE_ENDPOINT = true;
+
         console.log('ODRStatistics: Initializing...');
         console.log('Site base URL: ' + site_baseurl);
         let logger_baseurl = site_baseurl;
@@ -21,6 +25,8 @@ jQuery(document).ready(function () {
                 logger_baseurl = wordpress_site_baseurl;
             }
         } catch (e) {}
+
+        console.log('ODRStatistics: Using standalone endpoint:', USE_STANDALONE_ENDPOINT);
 
         /**
          * Log a datarecord view
@@ -43,10 +49,15 @@ jQuery(document).ready(function () {
 
             is_search_result = is_search_result || false;
 
-            console.log('ODRStatistics: Sending log request to:', logger_baseurl + '/statistics/log_view');
+            // Choose endpoint based on configuration
+            var endpoint = USE_STANDALONE_ENDPOINT
+                ? site_baseurl + '/log_view.php'
+                : logger_baseurl + '/statistics/log_view';
+
+            console.log('ODRStatistics: Sending log request to:', endpoint);
 
             // Send async request to log endpoint
-            fetch(logger_baseurl + '/statistics/log_view', {
+            fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -284,11 +295,16 @@ jQuery(document).ready(function () {
                 return;
             }
 
-            console.log('ODRStatistics: Sending batch log request to:', logger_baseurl + '/statistics/log_batch_view');
+            // Choose endpoint based on configuration
+            var endpoint = USE_STANDALONE_ENDPOINT
+                ? site_baseurl + '/log_view.php'
+                : logger_baseurl + '/statistics/log_batch_view';
+
+            console.log('ODRStatistics: Sending batch log request to:', endpoint);
             console.log('ODRStatistics: Records:', records);
 
             // Send all records in a single batch request
-            fetch(logger_baseurl + '/statistics/log_batch_view', {
+            fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
