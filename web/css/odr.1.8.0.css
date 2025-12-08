@@ -3767,6 +3767,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 /* End Loading CSS Widget */
 
+#ODRChooseView {
+    margin: 1em 0;
+}
 
 #ODRChooseView,
 #ODRChooseLayout {
@@ -3813,6 +3816,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 #ODRChooseView_contextlabel {
     position: relative;
+    top: 10px;
     left: 10px;
     cursor: pointer;
 }
@@ -5581,4 +5585,9 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
 .ODRChangeSearchedDescendants_wrapper > .ODRTagGroup:before {
     /* no vertical line on left for top-level tags */
     background-color: inherit;
+}
+
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
 }

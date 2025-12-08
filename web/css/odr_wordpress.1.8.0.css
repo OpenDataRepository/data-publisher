@@ -3824,6 +3824,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     /*top: 10px;*/
 }
 
+#ODRChooseView {
+    margin: 1em 0;
+}
+
 #ODRChooseView,
 #ODRChooseLayout {
     list-style-type: none;
@@ -3869,6 +3873,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 #ODRChooseView_contextlabel {
     position: relative;
+    top: 10px;
     left: 10px;
     cursor: pointer;
 }
@@ -5648,3 +5653,7 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     position: relative;
 }
 
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
+}

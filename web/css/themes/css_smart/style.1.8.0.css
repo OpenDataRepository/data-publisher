@@ -1454,7 +1454,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     color: RGBA(77, 136, 220, 0.99) !important;
     font-size: 12px;
     left: 0;
-    top: 9px;
+    /*top: 9px;*/
     z-index: 1;
     text-align: center;
     width: 15px;

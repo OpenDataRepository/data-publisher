@@ -14,6 +14,8 @@
 
 namespace ODR\AdminBundle\Form;
 
+// Entities
+use ODR\AdminBundle\Entity\ThemeMeta;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -34,6 +36,8 @@ class UpdateThemeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $is_master_theme = $options['is_master_theme'];
+
         $builder->add(
             'templateName',
             TextType::class,
@@ -81,21 +85,23 @@ class UpdateThemeForm extends AbstractType
             )
         );
 
-        $builder->add(
-            'themeVisibility',
-            ChoiceType::class,
-            array(
-                'choices' => array(
-                    'Any' => 0,
-                    'Search Results Only' => 1,
-                    'Display/Edit Only' => 2,
-                ),
-                'label'  => 'Allow Layout to be used for: ',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => false
-            )
-        );
+        if ( !$is_master_theme ) {
+            $builder->add(
+                'themeVisibility',
+                ChoiceType::class,
+                array(
+                    'choices' => array(
+                        'Any' => ThemeMeta::ANY_CONTEXT,
+                        'Search Results Only' => ThemeMeta::SHORT_CONTEXT,
+                        'Display/Edit Only' => ThemeMeta::LONG_CONTEXT,
+                    ),
+                    'label'  => 'Allow Layout to be used for: ',
+                    'expanded' => false,
+                    'multiple' => false,
+                    'placeholder' => false
+                )
+            );
+        }
 
         $builder->add(
             'isTableTheme',
@@ -160,5 +166,8 @@ class UpdateThemeForm extends AbstractType
                 'data_class' => 'ODR\AdminBundle\Entity\ThemeMeta'
             )
         );
+
+        // Required options should not have defaults set
+        $resolver->setRequired('is_master_theme');
     }
 }

@@ -71,7 +71,7 @@
             </label>
 
             {{ form_errors(datafield_form.field_type) }}
-            <span class="ODRSelectWrap" {% if prevent_fieldtype_change %}title="{{ prevent_fieldtype_change_message }}"{% endif %}>
+            <span class="ODRSelectWrap" {% if prevent_fieldtype_change_message != '' %}title="{{ prevent_fieldtype_change_message }}"{% endif %}>
                 {{ form_widget(datafield_form.field_type, {
                     'attr': {
                         'class': 'required ODRDatafieldType ODRSelect',
@@ -82,7 +82,7 @@
 
             <span class="ODRThemeDesignTool">
                 {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' %}
-                <span id="field_type_meta" class="Cursor ODRDataInspector" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% else %}No{% endif %} Character Limit">
+                <span id="field_type_meta" class="Info ODRDataInspector" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% else %}No{% endif %} Character Limit">
                     &nbsp;<i class="fa fa-question-circle fa-lg"></i>
                 </span>
                 {% endif %}
@@ -521,7 +521,7 @@
             {{ form_widget(datafield_form.internal_reference_name, { 'attr': {'class': 'ODRInternalReferenceName pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
 
-        <div style="display: none;">
+        <div class="ODRHidden">
             {{ form_rest(datafield_form) }}
         </div>
 

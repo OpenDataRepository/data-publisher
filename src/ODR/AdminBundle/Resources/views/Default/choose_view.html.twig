@@ -16,7 +16,7 @@
 {% if page_type != '' and show_context_checkbox %}
 <span id="ODRChooseView_contextspan">
     <label id="ODRChooseView_contextlabel" for="ODRChooseView_context">
-        <input id="ODRChooseView_context" type="checkbox"/>&nbsp;Show all layouts
+        <input id="ODRChooseView_context" type="checkbox"/>&nbsp;Also show layouts {% if page_type == 'search_results' or page_type == 'linking' %}not {% endif %}intended for search results
     </label>
 </span>
 {% endif %}

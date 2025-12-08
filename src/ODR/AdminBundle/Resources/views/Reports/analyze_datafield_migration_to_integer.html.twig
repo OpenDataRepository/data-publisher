@@ -13,38 +13,58 @@
         {% set new_fieldtype_can_be_sort_field = new_fieldtype.canBeSortField %}
 
         <div>
-        {% if df.masterdatafield != null %}
-            Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ dt.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': dt.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
+        {% if df.masterdatafield != null %}Derived{% else %}Local{% endif %} datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ dt.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': dt.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
             <br>
-        {% endif %}
 
         {% if df.getisunique %}
-            <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">This datafield is currently marked as unique{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+            <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">
+                This datafield is currently marked as unique{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.
+                {% if not new_fieldtype_can_be_unique %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+            </div>
         {% endif %}
 
-        {% if external_id_field is not null and external_id_field.id == df.id %}
-            <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">This datafield is currently the datatype's external id field{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+        {% if external_id_field is not null and external_id_field.id == df_id %}
+            <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">
+                This datafield is currently the datatype's external id field{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.
+                {% if not new_fieldtype_can_be_unique %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+            </div>
         {% endif %}
 
         {% if df.getnamedatatypes|length > 0 %}
             {% for dt in df.getnamedatatypes %}
-            <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">This datafield is currently used in naming records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+            <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">
+                This datafield is currently used in naming records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.
+                {% if not new_fieldtype_can_be_sort_field %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+            </div>
             {% endfor %}
         {% endif %}
         {% if df.getsortdatatypes|length > 0 %}
             {% for dt in df.getsortdatatypes %}
-            <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">This datafield is currently used in sorting records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+            <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">
+                This datafield is currently used in sorting records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.
+                {% if not new_fieldtype_can_be_sort_field %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+            </div>
             {% endfor %}
+        {% endif %}
+
+        {% if render_plugin_restrictions[df_id] is defined and render_plugin_restrictions[df_id]['affected_by_render_plugin'] == true %}
+            <div class="bold{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %} ODRInputError{% endif %}">
+                This datafield is currently used by a render plugin{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}, and can't be migrated to this fieldtype because the render plugin would stop working{% endif %}.
+                {% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}&nbsp;<label class="ODRMigration_acknowledge">{# can't acknowledge this #}</label>{% endif %}
+            </div>
         {% endif %}
         </div>
     {% endif %}
 
     {% if original_lengths[df_id] == 0 %}
         <div class="ODRDatarecordListHeader">This field has no values to migrate.</div>
-    {% elseif data|length == 0 %}
+    {% elseif df_data|length == 0 %}
         <div class="ODRDatarecordListHeader">All values can be migrated without any changes.</div>
     {% else %}
-        <div class="ODRDatarecordListHeader">Of the {{ original_lengths[df_id] }} values currently in the field, the following {{ df_data|length }} will be changed:</div>
+        <div class="ODRDatarecordListHeader ODRInputError">
+            Of the {{ original_lengths[df_id] }} values currently in the field, the following {{ df_data|length }} will be changed:
+            &nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>
+        </div>
         <div class="ODRTableOuterWrap">
             <div class="ODRTableWrap">
                 <table id="ODRReports_AnalyzeIntegerMigration_{{ df_id }}" class="display ODRDatatableInstance">
@@ -67,17 +87,25 @@
                 </table>
             </div>
         </div>
+
+        <script>
+            $(function() {
+                $("#ODRReports_AnalyzeIntegerMigration_{{ df_id }}").dataTable({
+                    // "info": false,
+                    // "paging": false,
+                    "searching": false,
+                });
+            });
+        </script>
     {% endif %}
 
-    <script>
-        $(function() {
-            $("#ODRReports_AnalyzeIntegerMigration_{{ df_id }}").dataTable({
-                // "info": false,
-                // "paging": false,
-                "searching": false,
-            });
-        });
-    </script>
 {% endfor %}
+
+    {# TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
+    <br>
+    <div>
+        <div class="pure-button pure-button-primary pure-button-disabled ODRMigration_confirm">Begin Migration</div>
+    </div>
+    #}
 
 {% endspaceless %}

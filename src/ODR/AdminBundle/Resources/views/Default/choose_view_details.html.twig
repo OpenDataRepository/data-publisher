@@ -1,6 +1,17 @@
 {% spaceless %}
 
-<li data-theme-id="{{ theme_data.id }}" {% if theme_data.id == selected_theme_id %}class="ODRCurrentLayout"{% elseif page_type != '' and theme_data.theme_visibility == false %}class="ODRHiddenLayout ODRHidden"{% endif %}>
+{% set ANY_CONTEXT = constant('ODR\\AdminBundle\\Entity\\ThemeMeta::ANY_CONTEXT') %}
+{% set SHORT_CONTEXT = constant('ODR\\AdminBundle\\Entity\\ThemeMeta::SHORT_CONTEXT') %}
+{% set LONG_CONTEXT = constant('ODR\\AdminBundle\\Entity\\ThemeMeta::LONG_CONTEXT') %}
+
+{% set hide_theme = false %}
+{% if theme_data.theme_visibility == LONG_CONTEXT and (page_type == 'search_results' or page_type == 'linking') %}
+    {% set hide_theme = true %}
+{% elseif theme_data.theme_visibility == SHORT_CONTEXT and (page_type == 'display' or page_type == 'edit') %}
+    {% set hide_theme = true %}
+{% endif %}
+
+<li data-theme-id="{{ theme_data.id }}" {% if theme_data.id == selected_theme_id %}class="ODRCurrentLayout"{% elseif hide_theme %}class="ODRHiddenLayout ODRHidden"{% endif %}>
     <div class="pure-u-1 pure-u-md-6-24">
         <h4>
         {% if theme_data.name != "" %}
@@ -29,7 +40,14 @@
     {% endif %}
 
     {% if theme_data.theme_type == "master" or theme_data.is_table_theme %}
-        <div class="ODRViewNote">{% if theme_data.theme_type == "master" %}[ Master theme/view for database. ]&nbsp;&nbsp;{% endif %}{% if theme_data.is_table_theme %}[ Table view. ]{% endif %}</div>
+        <div class="ODRViewNote">{% if theme_data.theme_type == "master" %}[ Master theme/view for database ]&nbsp;&nbsp;{% endif %}{% if theme_data.is_table_theme %}[ Table view ]{% endif %}</div>
+        {% set need_spacer = true %}
+    {% endif %}
+    {% if theme_data.theme_visibility == SHORT_CONTEXT %}
+        <div class="ODRViewNote">[ Intended for searching/linking ]</div>
+        {% set need_spacer = true %}
+    {% elseif theme_data.theme_visibility == LONG_CONTEXT %}
+        <div class="ODRViewNote">[ Intended for display/edit ]</div>
         {% set need_spacer = true %}
     {% endif %}
 

@@ -44,6 +44,7 @@
             {#</div>#}
         </div>
 
+        {% if theme.themeType != 'master' %}
         <div class="ODRDataField pure-u-1">
             <label class="ODRFieldLabel" for="{{ theme_form.themeVisibility.vars.id }}">
                 <strong>{{ theme_form.themeVisibility.vars.label }}&nbsp;&nbsp;</strong>
@@ -53,6 +54,7 @@
             {{ form_widget(theme_form.themeVisibility, { 'attr': {'class': 'pure-u-1-3', 'style': 'width:auto'} }) }}
             {#</div>#}
         </div>
+        {% endif %}
 
         <div class="ODRDataField pure-u-1">
             <label class="ODRFieldLabel" for="{{ theme_form.isTableTheme.vars.id }}">
@@ -84,7 +86,9 @@
             {#</div>#}
         </div>
 
+        <div class="ODRHidden">
         {{ form_rest(theme_form) }}
+        </div>
     </fieldset>
 
 {{ form_end(theme_form) }}
