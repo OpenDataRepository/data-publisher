@@ -1019,7 +1019,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $id = $entity->getId();
 
             // ...so that the filename for this file/image entity can be determined
-            $new_filenames[$id] = array('new_filename' => $new_filename.'.'.$entity->getExt());
+            $new_filenames[$id] = array(
+                'new_filename' => $new_filename.'.'.$entity->getExt(),
+                'entity' => $entity
+            );
             // Never want to change the extension
 
             // Actually saving the new names is done by whatever called this function
