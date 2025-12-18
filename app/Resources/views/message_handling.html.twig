@@ -7,7 +7,7 @@
      */
     function checkMyJobs() {
         var checkJobs = false;
-        {% if current_user != '' %}
+        {% if current_user != '' and config_kernel_environment != 'dev' %}
         checkJobs = true;
         {% endif %}
 
