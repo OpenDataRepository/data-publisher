@@ -1854,8 +1854,6 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
@@ -1897,50 +1895,81 @@ class LinkController extends ODRCustomController
             $conn = $em->getConnection();
 
             // Because of mysql, it's better to run a couple queries...need to first have info on all
-            //  datatypes the local datarecord could link to
-            $datatree_array = $datatree_info_service->getDatatreeArray();
-            $linked_ancestors = $datatree_info_service->getLinkedAncestors(array($local_datatype_id), $datatree_array);
-            $linked_descendants = $datatree_info_service->getLinkedDescendants(array($local_datatype_id), $datatree_array);
+            //  relevant linked datatypes
+            // Not using the DatatreeInfoService because that one is optimized for other purposes
 
-            $datatype_ids = array();
-            foreach ($linked_ancestors as $num => $dt_id)
-                $datatype_ids[] = $dt_id;
-            foreach ($linked_descendants as $num => $dt_id)
-                $datatype_ids[] = $dt_id;
-
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, dtm.publicDate, dtm.shortName, dtm.searchSlug
-                FROM ODRAdminBundle:DataType AS dt
-                LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                WHERE dt IN (:datatype_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $datatype_ids) );
-            $results = $query->getArrayResult();
+            // Get the datatypes the local datatype could link to
+            $query =
+               'SELECT ddt.id AS dt_id, ddtm.search_slug AS dt_search_slug,
+                        ddtm.public_date AS dt_public_date, ddtm.short_name AS dt_name
+                FROM odr_data_tree AS dt
+                LEFT JOIN odr_data_tree_meta AS dtm ON dtm.data_tree_id = dt.id
+                LEFT JOIN odr_data_type AS ddt ON dt.descendant_id = ddt.id
+                LEFT JOIN odr_data_type_meta AS ddtm ON ddtm.data_type_id = ddt.id
+                WHERE dt.ancestor_id = '.$local_datatype_id.' AND dtm.is_link = 1
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                AND ddt.deletedAt IS NULL AND ddtm.deletedAt IS NULL';
+//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+            $results = $conn->executeQuery($query);
 
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
-                $dt_public_date = $result['publicDate'];
-                $dt_name = $result['shortName'];
-                $dt_search_slug = $result['searchSlug'];
+                $dt_public_date = $result['dt_public_date'];
+                $dt_name = $result['dt_name'];
+                $dt_search_slug = $result['dt_search_slug'];
+
+                $data[$dt_id] = array(
+                    'dt_name' => $dt_name,
+                    'dt_public_date' => $dt_public_date,
+                    'search_slug' => $dt_search_slug,
+                    'direction' => 'links to',    // local record links to remote record
+                    'records' => array(),
+                );
+            }
+
+            // Get the datatypes that could link to the local datatype
+            $query =
+               'SELECT adt.id AS adt_id, adtm.public_date AS adt_public_date, adtm.short_name AS adt_name, adt.grandparent_id AS gdt_id,
+                        gdtm.public_date AS gdt_public_date, gdtm.short_name AS gdt_name, gdtm.search_slug AS gdt_search_slug
+                FROM odr_data_tree AS dt
+                LEFT JOIN odr_data_tree_meta AS dtm ON dtm.data_tree_id = dt.id
+                LEFT JOIN odr_data_type AS adt ON dt.ancestor_id = adt.id
+                LEFT JOIN odr_data_type_meta AS adtm ON adtm.data_type_id = adt.id
+                LEFT JOIN odr_data_type_meta AS gdtm ON gdtm.data_type_id = adt.grandparent_id
+                WHERE dt.descendant_id = '.$local_datatype_id.' AND dtm.is_link = 1
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                AND adt.deletedAt IS NULL AND adtm.deletedAt IS NULL AND gdtm.deletedAt IS NULL';
+//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+            $results = $conn->executeQuery($query);
+
+            foreach ($results as $result) {
+                $dt_id = $result['adt_id'];
+                $dt_public_date = $result['adt_public_date'];
+                $dt_name = $result['adt_name'];
+                $gdt_id = $result['gdt_id'];
+                $gdt_public_date = $result['gdt_public_date'];
+                $gdt_name = $result['gdt_name'];
+                $gdt_search_slug = $result['gdt_search_slug'];
 
                 // Store basic info about the datatype...
-                if ( !isset($data[$dt_id]) ) {
-                    $data[$dt_id] = array(
-                        'dt_name' => $dt_name,
-                        'dt_public_date' => $dt_public_date,
-                        'search_slug' => $dt_search_slug,
-                        'records' => array(),
-                    );
+                $data[$dt_id] = array(
+                    'dt_name' => $dt_name,
+                    'dt_public_date' => $dt_public_date,
+                    'search_slug' => $gdt_search_slug,
+                    'direction' => 'linked to by',    // local record linked to by remote record
+                    'records' => array(),
+                );
+
+                // ...with several modifications if it's actually linked to by a child datatype
+                if ( $dt_id !== $gdt_id ) {
+                    $data[$dt_id]['gdt_id'] = $gdt_id;
+                    $data[$dt_id]['dt_name'] = $gdt_name.' - '.$dt_name;
+                    $data[$dt_id]['gdt_public_date'] = $gdt_public_date;
                 }
             }
 
-            // Need to splice in the "direction"
-            foreach ($linked_ancestors as $num => $dt_id)
-                $data[$dt_id]['direction'] = 'linked to by';   // local record linked to by remote record
-            foreach ($linked_descendants as $num => $dt_id)
-                $data[$dt_id]['direction'] = 'links to';    // local record links to remote record
 
-
+            // ----------------------------------------
             // Next, need a query to get which (potentially multiple thousands of) records the local
             //  datarecord links to...
             $query =
@@ -1950,7 +1979,8 @@ class LinkController extends ODRCustomController
                 LEFT JOIN odr_data_record_meta ddrm ON ddrm.data_record_id = ddr.id
                 WHERE ldt.ancestor_id = '.$local_datarecord_id.'
                 AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL AND ddrm.deletedAt IS NULL';
-            $results = $conn->fetchAll($query);
+//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+            $results = $conn->executeQuery($query);
 
             foreach ($results as $result) {
                 $ddr_id = $result['ddr_id'];
@@ -1968,7 +1998,7 @@ class LinkController extends ODRCustomController
             //  local datarecord.  Going to do this "manually" in an attempt to create as little mysql
             //  stress as possible...
             $query =
-               'SELECT adr.id AS adr_id, adrm.public_date AS adrm_public_date,
+               'SELECT adr.id AS adr_id, adrm.public_date AS adrm_public_date, adr.data_type_id AS adt_id,
                         pdr.id AS pdr_id, pdrm.public_date AS pdrm_public_date,
                         gdr.id AS gdr_id, gdrm.public_date AS gdrm_public_date, gdr.data_type_id AS gdt_id
                 FROM odr_linked_data_tree ldt
@@ -1983,48 +2013,71 @@ class LinkController extends ODRCustomController
                 AND adr.deletedAt IS NULL AND adrm.deletedAt IS NULL
                 AND pdr.deletedAt IS NULL AND pdrm.deletedAt IS NULL
                 AND gdr.deletedAt IS NULL AND gdrm.deletedAt IS NULL';
-            $results = $conn->fetchAll($query);
+//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+            $results = $conn->executeQuery($query);
 
             foreach ($results as $result) {
                 $adr_id = $result['adr_id'];
                 $adrm_public_date = $result['adrm_public_date'];
+                $adt_id = $result['adt_id'];
+
                 $pdr_id = $result['pdr_id'];
                 $pdrm_public_date = $result['pdrm_public_date'];
+
                 $gdr_id = $result['gdr_id'];
                 $gdrm_public_date = $result['gdrm_public_date'];
-                $dt_id = $result['gdt_id'];
+                $gdt_id = $result['gdt_id'];
 
                 // Want an entry for every record that links to the local datarecord...
-                if ( !isset($data[$dt_id]['records'][$adr_id]) )
-                    $data[$dt_id]['records'][$adr_id] = array('public_date' => $adrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
+                if ( !isset($data[$adt_id]['records'][$adr_id]) )
+                    $data[$adt_id]['records'][$adr_id] = array('public_date' => $adrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
                 // ...with a flag to indicate it does actually link directly to the local datarecord
-                $data[$dt_id]['records'][$adr_id]['linked'] = true;
+                $data[$adt_id]['records'][$adr_id]['linked'] = true;
 
                 // Ensure the public dates for the parents/grandparent are also accessible
-                if ( !isset($data[$dt_id]['records'][$pdr_id]) )
-                    $data[$dt_id]['records'][$pdr_id] = array('public_date' => $pdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
-                if ( !isset($data[$dt_id]['records'][$gdr_id]) )
-                    $data[$dt_id]['records'][$gdr_id] = array('public_date' => $gdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
+                if ( !isset($data[$adt_id]['records'][$pdr_id]) )
+                    $data[$adt_id]['records'][$pdr_id] = array('public_date' => $pdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
+                if ( !isset($data[$adt_id]['records'][$gdr_id]) )
+                    $data[$adt_id]['records'][$gdr_id] = array('public_date' => $gdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
             }
 
 
             // ----------------------------------------
             // Now that the data has been loaded, need to filter out the datatypes/datarecords the
             //  user isn't allowed to view
-            $linked_record_data = array();
             foreach ($data as $dt_id => $dt_data) {
-                // "Manually" verify whether the user can view this datatype...
+                // Have to "manually" verify permissions for these entities...
+                $has_dt_permissions = true;
+                $gdt_id = $dt_id;
+
+                // ...start with "manually" verifying the grandparent datatype if it was provided
+                if ( isset($dt_data['gdt_id']) ) {
+                    $gdt_id = $dt_data['gdt_id'];
+                    $gdt_public_date = $dt_data['gdt_public_date'];
+                    $can_view_datatype = isset( $datatype_permissions[$gdt_id]['dt_view'] );
+
+                    if ( !($can_view_datatype || $is_super_admin) && $gdt_public_date === '2200-01-01 00:00:00' )
+                        $has_dt_permissions = false;
+                }
+
+                // ...but also need to check the datatype that is directly linked to/from
                 $dt_public_date = $dt_data['dt_public_date'];
                 $can_view_datatype = isset( $datatype_permissions[$dt_id]['dt_view'] );
                 $can_view_datarecords = isset( $datatype_permissions[$dt_id]['dr_view'] );
 
-                if ( $dt_public_date !== '2200-01-01 00:00:00' || $can_view_datatype || $is_super_admin ) {
-                    // User can view the datatype...save an entry for it
+                if ( !($can_view_datatype || $is_super_admin) && $dt_public_date === '2200-01-01 00:00:00' )
+                    $has_dt_permissions = false;
+
+
+                // If the user can view the datatype...
+                if ( $has_dt_permissions ) {
+                    // ...then create an entry for it
                     if ( !isset($linked_record_data[$dt_id]) ) {
                         $linked_record_data[$dt_id] = array(
                             'direction' => $dt_data['direction'],
                             'dt_name' => $dt_data['dt_name'],
                             'search_slug' => $dt_data['search_slug'],
+                            'gdt_id' => $gdt_id,
                         );
                     }
 
@@ -2041,7 +2094,7 @@ class LinkController extends ODRCustomController
                             $tmp_dr_id = $dr_id;
                             while ($tmp_dr_id != $gdr_id) {
                                 $dr_public_date = $dt_data['records'][$tmp_dr_id]['public_date'];
-                                if ( !($dr_public_date !== '2200-01-01 00:00:00' || $can_view_datarecords || $is_super_admin) ) {
+                                if ( !($can_view_datarecords || $is_super_admin) && $dr_public_date === '2200-01-01 00:00:00' ) {
                                     // User can't view the datarecord...skip ahead to the next record
                                     continue 2;
                                 }
@@ -2057,7 +2110,7 @@ class LinkController extends ODRCustomController
                                 throw new ODRException('Unable to locate public date while building list of linked records');
 
                             $gdr_public_date = $dt_data['records'][$gdr_id]['public_date'];
-                            if ( !($gdr_public_date !== '2200-01-01 00:00:00' || $can_view_datarecords || $is_super_admin) ) {
+                            if ( !($can_view_datarecords || $is_super_admin) && $gdr_public_date === '2200-01-01 00:00:00' ) {
                                 // User can't view the grandparent datarecord...skip to the next record
                                 continue;
                             }
@@ -2072,8 +2125,7 @@ class LinkController extends ODRCustomController
                 }
             }
 
-            // $linked_record_data now only contains records the user is allowed to view
-
+            // $linked_record_data should now only contains records the user is allowed to view
 
             // ----------------------------------------
             // Slightly easier to read if the datatypes are sorted
@@ -2098,7 +2150,8 @@ class LinkController extends ODRCustomController
                 $names = array();
                 if ( count($dt_data['records']) > 0 ) {
                     // Can use this cached list since it's faster to rebuild...
-                    $sorted_dr_names = $sort_service->getNamedDatarecordList($dt_id);
+                    $gdt_id = $dt_data['gdt_id'];
+                    $sorted_dr_names = $sort_service->getNamedDatarecordList($gdt_id);
 
                     foreach ($dt_data['records'] as $gdr_id => $num) {
                         // Fall back to identifying the remote datarecord using its grandparent

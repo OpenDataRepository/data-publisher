@@ -484,11 +484,9 @@ class DatatreeInfoService
      *
      * @param array $datatype_ids
      * @param null|array $datatree_array
-     * @param boolean $deep assuming  D links to C links to B links to A, and function is called with {A}
-     *                      then if $deep == false, then only find the closest set of linked ancestors
-     *                      e.g. getLinkedAncestors() returns {B}
-     *                      then if true, then find all possible linked ancestors
-     *                      e.g. getLinkedAncestors() returns {B, C, D, ...}
+     * @param boolean $deep assuming  D links to C links to B links to A  and function is called with {A}...
+     *                      then if $deep == false, only return the closest set of linked ancestors  e.g. {B}.
+     *                      Otherwise if true, then return all possible linked ancestors  e.g. {B,C,D,...}
      *
      * @return int[]
      */

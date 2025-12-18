@@ -19,7 +19,12 @@
 
                     <div class="pure-u-lg-1-3 pure-u-md-1-2 pure-u-sm-1">
                         <div class="pure-u-1" rel="{{ dt_id }}">
+                            {% if dt_id == dt_data['gdt_id'] %}
                             <a class="ODRRecordLinkInfo_modify" rel="{{ dt_data['direction'] }}">[ link/unlink ]</a>
+                            {% else %}
+                            <i class="fa fa-info-circle Info" title="This is a child datatype, and the Search/Link page doesn't work for it yet."></i>
+                            {% endif %}
+
                             <span>{{ dt_data['dt_name'] }} ({{ dt_data['records']|length }})</span>
                             {% if dt_data['record_str'] != '' and dt_data['records']|length > 0 %}
                             <a class="ODRRecordLinkInfo_toggle">[ {% if show_record_str %}hide{% else %}show{% endif %} ]</a>
@@ -47,12 +52,16 @@
                 <div class="ODRCurrentLinkedRecords_wrapper ODRHidden">
             {% for dt_id,dt_data in linked_record_data %}
                 {% if dt_data['records']|length == 0 %}
-                     <div class="pure-u-lg-1-3 pure-u-md-1-2 pure-u-sm-1">
-                         <div class="pure-u-1" rel="{{ dt_id }}">
-                             <a class="ODRRecordLinkInfo_modify" rel="{{ dt_data['direction'] }}">[ link/unlink ]</a>
-                             <span>{{ dt_data['dt_name'] }} ({{ dt_data['records']|length }})</span>
+                    <div class="pure-u-lg-1-3 pure-u-md-1-2 pure-u-sm-1">
+                        <div class="pure-u-1" rel="{{ dt_id }}">
+                        {% if dt_id == dt_data['gdt_id'] %}
+                            <a class="ODRRecordLinkInfo_modify" rel="{{ dt_data['direction'] }}">[ link/unlink ]</a>
+                        {% else %}
+                            <i class="fa fa-info-circle Info" title="This is a child datatype, and the Search/Link page doesn't work for it yet."></i>
+                        {% endif %}
 
-                         </div>
+                            <span>{{ dt_data['dt_name'] }} ({{ dt_data['records']|length }})</span>
+                        </div>
                      </div>
                 {% endif %}
             {% endfor %}
