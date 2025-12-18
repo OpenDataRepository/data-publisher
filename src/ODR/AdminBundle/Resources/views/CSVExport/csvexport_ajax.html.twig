@@ -6,6 +6,12 @@
     <span>CSV Export &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
 
+    <div id="CSVExport_ChooseView">
+        <label class="Pointer ODRSearchHeaderLabel" for="csvexport_shows_all_fields_toggle" title="If checked, then all fields will be displayed regardless of the layout settings">
+            <input type="checkbox" id="csvexport_shows_all_fields_toggle" /> Display All fields
+        </label>
+    </div>
+
     <div id="CSVExportForm">
 
         <form id="csvexport_form" style="margin:10px;" action="{{ path('odr_csv_export_start_express') }}">
@@ -148,7 +154,9 @@
             'site_baseurl': site_baseurl,
 
             'initial_datatype_id': initial_datatype_id,
-            'initial_theme_id': initial_theme_id
+            'initial_theme_id': initial_theme_id,
+
+            'csvexport_shows_all_fields': csvexport_shows_all_fields,
         } %}
 
         <div style="margin: 15px;">
@@ -192,6 +200,48 @@
         // Need a tab id in html5 sessionStorage if one doesn't exist
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
+        {% if csvexport_shows_all_fields == true %}
+        $("#csvexport_shows_all_fields_toggle").prop('checked', true);
+        {% endif %}
+
+        $("#csvexport_shows_all_fields_toggle").unbind('click').click(function(event) {
+            var toggle_data = {
+                'odr_tab_id': window.sessionStorage.getItem('odr_tab_id'),
+                'datatype_id': {{ datatype.id }}
+            };
+
+            var url = '{{ path('odr_session_toggle_csvexport_shows_all') }}';
+
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                url: url,
+                dataType: "json",
+                data: toggle_data,
+                // data: encodeURIComponent(toggle_data),
+                success: function (data, textStatus, jqXHR) {
+                    // Have to reload the page here
+                    reloadPage();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything on error
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
 
         $("#ODRCSVExport_selectall").unbind('click').click(function() {
             $(".ODRCSVExportField").each(function() {
@@ -619,6 +669,7 @@
             success: function(data, textStatus, jqXHR) {
                 if (data.r == 0) {
                     // Replace this with loading message/checker directly
+                    $('#CSVExport_ChooseView').addClass('ODRHidden');
                     $('#CSVExportForm').addClass('ODRHidden');
                     $('#LoadingBlock').removeClass('ODRHidden').fadeIn('fast');
                     // Get CSV Exports from Jobs Page - add messaging

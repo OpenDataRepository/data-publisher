@@ -32,11 +32,7 @@
 
 <div class="pure-u-1 clearfix" id="ODRSearchHeaderWrapper">
 
-    {% if search_key != '' %}
-    <div id="ODRPublicExportButtons" class="pure-u-1-2 pure-u-xl-2-3 pure-u-xxl-3-4 pure-u-xxxl-3-4 pure-u-x4k-3-4">
-    {% else %}
-    <div id="ODRPublicExportButtons" class="pure-u-1">
-    {% endif %}
+    <div id="ODRPublicExportButtons" class="{% if search_key != '' %}pure-u-1-2 pure-u-xl-2-3 pure-u-xxl-3-4 pure-u-xxxl-3-4 pure-u-x4k-3-4{% else %}pure-u-1{% endif %}">
         <button id="ODRViewRecord" type="button" class="pure-button pure-button-primary">View</button>
 
         <button id="ChooseView" class="pure-button pure-button-primary" data-step="3"
@@ -61,12 +57,12 @@
         <i id="ODRAddRecord" class="fa fa-plus Pointer tooltip ODRAddRecord" title="Click to add a record"></i>
     {% endif %}
 
-        <label class="ODRSearchHeaderLabel" for="edit_shows_all_fields_toggle" class="Pointer" title="If checked, then all fields will be displayed regardless of the layout settings">
+        <label class="Pointer ODRSearchHeaderLabel" for="edit_shows_all_fields_toggle" title="If checked, then all fields will be displayed regardless of the layout settings">
             <input type="checkbox" id="edit_shows_all_fields_toggle" /> Display All fields
         </label>
 
     {% if is_datatype_admin %}
-        <label class="ODRSearchHeaderLabel" for="prevent_datarecord_edits" class="Pointer" title="If checked, then no changes can be made to this record">
+        <label class="Pointer ODRSearchHeaderLabel" for="prevent_datarecord_edits" title="If checked, then no changes can be made to this record">
             <input type="checkbox" id="prevent_datarecord_edits" /> Prevent editing
         </label>
     {% endif %}
@@ -233,43 +229,42 @@
         });
 
         $("#edit_shows_all_fields_toggle").unbind('click').click(function(event) {
+            var toggle_data = {
+                'odr_tab_id': window.sessionStorage.getItem('odr_tab_id'),
+                'datatype_id': {{ datatype.id }}
+            };
 
-        var toggle_data = {
-            'odr_tab_id': window.sessionStorage.getItem('odr_tab_id'),
-            'datatype_id': {{ datatype.id }}
-        };
+            var url = '{{ path('odr_session_toggle_edit_shows_all') }}';
 
-        var url = '{{ path('odr_session_toggle_edit_shows_all') }}';
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                url: url,
+                dataType: "json",
+                data: toggle_data,
+                // data: encodeURIComponent(toggle_data),
+                success: function (data, textStatus, jqXHR) {
+                    // Have to reload the page here
+                    reloadPage();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything on error
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-        $.ajax({
-            cache: false,
-            type: 'POST',
-            url: url,
-            dataType: "json",
-            data: toggle_data,
-            // data: encodeURIComponent(toggle_data),
-            success: function (data, textStatus, jqXHR) {
-                // Have to reload the page here
-                reloadPage();
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything on error
-            },
-            complete: function (jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
 
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
                 }
-            }
+            });
         });
-    });
 
 {% if is_datatype_admin %}
         $("#prevent_datarecord_edits").unbind('click').click(function() {

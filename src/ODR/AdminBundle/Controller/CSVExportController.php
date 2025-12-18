@@ -150,6 +150,12 @@ class CSVExportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Determine which list of datarecords to pull from the user's session
+            $cookies = $request->cookies;
+            $csvexport_shows_all_fields = false;
+            if ( $cookies->has('datatype_'.$datatype->getId().'_csvexport_shows_all') )
+                $csvexport_shows_all_fields = $cookies->get('datatype_'.$datatype->getId().'_csvexport_shows_all');
+
             // Verify the search key, and ensure the user can view the results
             $search_key_service->validateSearchKey($search_key);
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
@@ -203,7 +209,7 @@ class CSVExportController extends ODRCustomController
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
             // Get the CSVExport page rendered
-            $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id, $theme);
+            $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id, $theme, $csvexport_shows_all_fields);
 
             $return['d'] = array( 'html' => $header_html.$page_html );
         }

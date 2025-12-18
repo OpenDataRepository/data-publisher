@@ -493,7 +493,7 @@ class ODRRenderService
      * @param string $search_key Can be the empty string
      * @param int $search_theme_id Can be 0, only used to correctly set a redirect
      * @param Theme|null $theme If not null, which Theme to render the datarecord with
-     * @param bool $edit_shows_all_fields
+     * @param bool $edit_shows_all_fields If true, then none of the datafields are ever hidden
      *
      * @return string
      */
@@ -626,11 +626,12 @@ class ODRRenderService
      * @param ODRUser|null $user
      * @param DataType $datatype
      * @param string $odr_tab_id
-     * @param Theme|null $theme
+     * @param Theme|null $theme If not null, which Theme to render the datarecord with
+     * @param bool $csvexport_shows_all_fields If true, then none of the datafields are ever hidden
      *
      * @return string
      */
-    public function getCSVExportHTML($user, $datatype, $odr_tab_id, $theme = null)
+    public function getCSVExportHTML($user, $datatype, $odr_tab_id, $theme = null, $csvexport_shows_all_fields = false)
     {
         $template_name = 'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig';
         $extra_parameters = array(
@@ -639,6 +640,8 @@ class ODRRenderService
 //            'include_links' => false,
 
             'user_id' => 0,
+
+            'csvexport_shows_all_fields' => $csvexport_shows_all_fields,
         );
 
         if ( !is_null($user) )
