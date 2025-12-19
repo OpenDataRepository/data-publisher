@@ -76,6 +76,7 @@ class TextResultsController extends ODRCustomController
                 || !isset($post['start'])
                 || !isset($post['length'])
                 || !isset($post['search_key'])
+                || !isset($post['intent'])
             ) {
                 throw new ODRBadRequestException();
             }
@@ -86,6 +87,7 @@ class TextResultsController extends ODRCustomController
             $start = intval( $post['start'] );
             $page_length = intval( $post['length'] );
             $search_key = $post['search_key'];
+            $intent = $post['intent'];
 
 
             // ----------------------------------------
@@ -195,13 +197,15 @@ class TextResultsController extends ODRCustomController
             // Save changes to the page_length unless viewing a search results table meant for
             //  linking datarecords...
             if ($odr_tab_id !== '') {
-                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+                $odr_tab_service->setPageLength($odr_tab_id, $page_length, $intent);
 
                 // Also need to save it in the relevant cookie
                 $cookie_key = 'datatype_'.$datatype->getId().'_page_length';
-                $cookie_value = $page_length;
+                if ( $intent === 'linking' )
+                    $cookie_key = 'datatype_'.$datatype->getId().'_linking_page_length';
 
                 // The value is stored back in the cookie after the response is created below
+                $cookie_value = $page_length;
             }
 
             $search_params = array();

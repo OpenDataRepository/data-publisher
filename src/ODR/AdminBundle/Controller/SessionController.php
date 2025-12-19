@@ -49,11 +49,12 @@ class SessionController extends ODRCustomController
      * to change its own length.
      *
      * @param integer $length  How many Datarecords to display on a page.
+     * @param string $intent 'searching' or 'linking'
      * @param Request $request
      *
      * @return Response
      */
-    public function pagelengthAction($length, Request $request)
+    public function pagelengthAction($length, $intent, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -62,6 +63,9 @@ class SessionController extends ODRCustomController
 
         $cookie_key = '';
         $cookie_value = '';
+
+        if ( $intent === '' )
+            $intent = 'searching';
 
         try {
             // Grab necessary objects
@@ -80,14 +84,16 @@ class SessionController extends ODRCustomController
                 $tab_data = $odr_tab_service->getTabData($odr_tab_id);
 
                 // Store the change to this tab's page_length in the session
-                $odr_tab_service->setPageLength($odr_tab_id, $length);
+                $odr_tab_service->setPageLength($odr_tab_id, $length, $intent);
 
                 // Also update the cookie value
                 $dt_id = $tab_data['dt_id'];
                 $cookie_key = 'datatype_'.$dt_id.'_page_length';
-                $cookie_value = $length;
+                if ( $intent === 'linking' )
+                    $cookie_key = 'datatype_'.$dt_id.'_linking_page_length';
 
                 // The value is stored back in the cookie after the response is created below
+                $cookie_value = $length;
             }
         }
         catch (\Exception $e) {

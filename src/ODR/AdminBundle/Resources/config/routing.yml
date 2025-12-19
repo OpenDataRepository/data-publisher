@@ -1737,10 +1737,11 @@ odr_purge_files:
 #-----------------------------------------
 # Session Controller
 odr_session_pagelength:
-    path:  /session/pagelength/{length}
-    defaults: { _controller: ODRAdminBundle:Session:pagelength }
+    path:  /session/pagelength/{length}/{intent}
+    defaults: { _controller: ODRAdminBundle:Session:pagelength, intent: 'searching' }
     requirements:
         length: 10|25|50|100
+        intent: '|searching|linking'
 
 odr_session_searchlink_pagelength:
     path:  /session/searchlinkpagelength/{remote_datatype_id}/{length}

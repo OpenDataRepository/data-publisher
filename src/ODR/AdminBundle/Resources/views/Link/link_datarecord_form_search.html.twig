@@ -64,8 +64,31 @@
         // Initialize the datatables object
         var search_table = $("#TextResults_search").dataTable({
             "columns": [{{ column_names | raw }}],
+            "pageLength": {{ page_length }},
             "searching": false,
             "autoWidth": false,
+
+            {# https://datatables.net/reference/option/dom
+                "dom" parameter results in:
+                <div class="wrapper">
+                    <div class="ODRDTInfo">
+                        {information}
+                        {length}
+                    </div>
+                    <div class="ODRDTPager">
+                        {pagination}
+                    </div>
+                    {processing}
+                    {table}
+                    <div class="ODRDTInfoFoot">
+                        {information}
+                    </div>
+                    <div class="ODRDTPagerFoot">
+                        {pagination}
+                    </div>
+               </div>
+            #}
+            "dom": '<"ODRDTInfo"il><"ODRDTPager"p>rt<"ODRDTInfoFoot"i><"ODRDTPagerFoot"p>',
 
             // "processing": true,   // only displays a little "processing..." blurb
             "serverSide": true,
@@ -74,9 +97,11 @@
                 "type": "POST",
                 "data": {
                     'datatype_id': {{ datatype.id }},
-                    "theme_id": {{ theme.id }},
+                    'theme_id': {{ theme.id }},
                     'search_key': "{{ search_key }}",
-                    // Don't want anything done to this table to be saved, so don't send the tab id
+                    'intent': "linking",
+                    // Need the tab id just to preserve linking page length in the tab
+                    'odr_tab_id': window.sessionStorage.getItem('odr_tab_id'),
                 }
             },
 

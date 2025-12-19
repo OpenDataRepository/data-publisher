@@ -325,10 +325,18 @@
                 else if ( intent === 'linking' ) {
                     // ODR will return a URL to get the result, but we're not going to redirect to it...
                     url = data.url;
+
+                    // Need to append the tab's id to the get request...if it doesn't exist, then the
+                    //  first pagelength change on the linking results won't actually change anything
+                    var data = '';
+                    if ( window.sessionStorage.getItem('odr_tab_id') )
+                        data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
+
                     // ...instead, want to render its html into the #ODRSearchBoxContent div on this page
                     $.ajax({
                         type: 'GET',
                         url: url,
+                        data: data,
                         dataType: 'json',
                         success: function (data, textStatus, jqXHR) {
                             $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);

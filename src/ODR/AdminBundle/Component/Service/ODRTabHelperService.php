@@ -123,6 +123,8 @@ class ODRTabHelperService
      * numbers and the next/prev buttons can redirect to the correct datarecords.  Requires that a
      * datarecord list already be defined for the given tab.
      *
+     * Because this is only called for View/Edit headers, the intent can never be 'linking'.
+     *
      * @param string $odr_tab_id
      * @param int $current_datarecord_id
      * @param array $datarecord_list
@@ -186,10 +188,11 @@ class ODRTabHelperService
      * @param string $odr_tab_id
      * @param int $offset
      * @param array $datarecord_list
+     * @param string $intent 'searching' or 'linking'
      *
      * @return null|array
      */
-    public function getPaginationHeaderValues($odr_tab_id, $offset, $datarecord_list)
+    public function getPaginationHeaderValues($odr_tab_id, $offset, $datarecord_list, $intent = 'searching')
     {
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
@@ -197,7 +200,7 @@ class ODRTabHelperService
             return null;
 
         // Extract the required data from the user's session for this browser tab
-        $page_length = self::getPageLength($odr_tab_id);
+        $page_length = self::getPageLength($odr_tab_id, $intent);
 
         // Turn the list of datarecord ids that matched search results string into an array
         $num_datarecords = count($datarecord_list);
@@ -233,13 +236,15 @@ class ODRTabHelperService
 
     /**
      * Returns the page length (currently either 10, 25, 50, or 100) for the specified browser tab.
-     * If the tab doesn't have a page length value set, then a default value of 100 is set.
+     * If the tab doesn't have a page length value set, then the configured default length defined
+     * in parameters.yml is used.
      *
      * @param string $odr_tab_id
+     * @param string $intent
      *
      * @return int
      */
-    public function getPageLength($odr_tab_id)
+    public function getPageLength($odr_tab_id, $intent = 'searching')
     {
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
@@ -248,22 +253,30 @@ class ODRTabHelperService
             $tab_data = array();
         }
 
-        // If the page_length value doesn't exist...
-        if ( !isset($tab_data['page_length']) ) {
-            $dt_id = null;
-            if ( isset($tab_data['dt_id']) )
-                $dt_id = $tab_data['dt_id'];
+        $dt_id = null;
+        if ( isset($tab_data['dt_id']) )
+            $dt_id = $tab_data['dt_id'];
 
+        // Want to keep 'searching' and 'linking' page lengths separate
+        $tab_key = 'page_length';
+        $cookie_key = 'datatype_'.$dt_id.'_page_length';
+        if ( $intent === 'linking' ) {
+            $tab_key = 'linking_page_length';
+            $cookie_key = 'datatype_'.$dt_id.'_linking_page_length';
+        }
+
+        // If the page_length value doesn't exist...
+        if ( !isset($tab_data[$tab_key]) ) {
             // ...attempt to fall back to a value in a cookie first
             $request = $this->request_stack->getCurrentRequest();
             $cookies = $request->cookies;
-            if ( !is_null($dt_id) && $cookies->has('datatype_'.$dt_id.'_page_length') ) {
+            if ( !is_null($dt_id) && $cookies->has($cookie_key) ) {
                 // ...use the value from the cookie if it exists
-                $tab_data['page_length'] = $cookies->get('datatype_'.$dt_id.'_page_length');
+                $tab_data[$tab_key] = $cookies->get($cookie_key);
             }
             else {
                 // ...but if the cookie doesn't exist, then use the default page_length
-                $tab_data['page_length'] = $this->default_page_length;
+                $tab_data[$tab_key] = $this->default_page_length;
             }
 
             // Regardless of where it came from, save the setting in the tab data
@@ -271,7 +284,7 @@ class ODRTabHelperService
         }
 
         // Otherwise, return the page length for the current tab
-        return intval( $tab_data['page_length'] );
+        return intval( $tab_data[$tab_key] );
     }
 
 
@@ -280,20 +293,25 @@ class ODRTabHelperService
      *
      * @param string $odr_tab_id
      * @param int $page_length
+     * @param string $intent 'searching' or 'linking'
      *
      * @return bool true if data stored, false otherwise
      */
-    public function setPageLength($odr_tab_id, $page_length)
+    public function setPageLength($odr_tab_id, $page_length, $intent = 'searching')
     {
         $page_length = intval($page_length);
         if ($odr_tab_id == '')
             return false;
 
+        $tab_key = 'page_length';
+        if ( $intent === 'linking' )
+            $tab_key = 'linking_page_length';
+
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
         if ( is_null($tab_data) ) {
             // No stored tab data for this user's session...start a new one
-            self::setTabData($odr_tab_id, array('page_length' => $page_length));
+            self::setTabData($odr_tab_id, array($tab_key => $page_length));
         }
         else {
             // NOTE: can't set cookie values here, because that has to be tied to the response
@@ -301,11 +319,12 @@ class ODRTabHelperService
             //  being changed
 
             // Set the page_length for this tab, creating an entry if it doesn't exist
-            $tab_data['page_length'] = $page_length;
+            $tab_data[$tab_key] = $page_length;
 
             // Also set the page length in the datatables of tab data, if that exists
             if ( isset($tab_data['state']['length']) )
                 $tab_data['state']['length'] = $page_length;
+            // NOTE: linking page tables shouldn't have this at all
 
             // Store the resulting tab data
             self::setTabData($odr_tab_id, $tab_data);
