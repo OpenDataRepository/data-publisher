@@ -357,37 +357,131 @@ window.ODRStatisticsDashboard = (function() {
 
     /**
      * Render timeline chart
+     * Shows stacked bars (human + bot) when includeBots is true
      */
     function renderTimelineChart(data) {
+        const chartElem = document.getElementById('timeline-chart');
+
         if (!data.timeline || data.timeline.length === 0) {
-            document.getElementById('timeline-chart').innerHTML = '<p style="text-align:center;color:#666;">No data available</p>';
+            chartElem.innerHTML = '<p style="text-align:center;color:#666;">No data available</p>';
             return;
         }
 
-        const dates = data.timeline.map(d => d.date);
-        const views = data.timeline.map(d => d.view_count);
-        const downloads = data.timeline.map(d => d.download_count);
+        // Clear any loading spinner
+        chartElem.innerHTML = '';
 
-        const traces = [
-            {
+        console.log('renderTimelineChart: includeBots =', includeBots);
+        console.log('renderTimelineChart: data.timeline sample:', data.timeline[0]);
+
+        const dates = data.timeline.map(d => d.date);
+
+        let traces = [];
+        let barmode = 'group';
+
+        if (includeBots) {
+            // When includeBots is true, timeline data includes both human and bot counts
+            // We need to separate them by checking is_bot flag or using separate fields
+
+            // Create arrays to hold human and bot data
+            const humanViews = [];
+            const botViews = [];
+            const humanDownloads = [];
+            const botDownloads = [];
+
+            // Group data by date, separating bot from human
+            const dateMap = {};
+            data.timeline.forEach(function(item) {
+                if (!dateMap[item.date]) {
+                    dateMap[item.date] = {
+                        humanViews: 0,
+                        botViews: 0,
+                        humanDownloads: 0,
+                        botDownloads: 0
+                    };
+                }
+
+                if (item.is_bot) {
+                    dateMap[item.date].botViews += (item.view_count || 0);
+                    dateMap[item.date].botDownloads += (item.download_count || 0);
+                } else {
+                    dateMap[item.date].humanViews += (item.view_count || 0);
+                    dateMap[item.date].humanDownloads += (item.download_count || 0);
+                }
+            });
+
+            // Extract data in date order
+            dates.forEach(function(date) {
+                const d = dateMap[date] || { humanViews: 0, botViews: 0, humanDownloads: 0, botDownloads: 0 };
+                humanViews.push(d.humanViews);
+                botViews.push(d.botViews);
+                humanDownloads.push(d.humanDownloads);
+                botDownloads.push(d.botDownloads);
+            });
+
+            // Stacked bars showing human + bot traffic
+            barmode = 'stack';
+
+            // Human traffic (bottom layer)
+            traces.push({
                 x: dates,
-                y: views,
-                name: 'Views',
+                y: humanViews,
+                name: 'Human Views',
                 type: 'bar',
                 marker: { color: '#2E86DE' }
-            },
-            {
+            });
+
+            // Bot traffic (stacked on top)
+            traces.push({
                 x: dates,
-                y: downloads,
-                name: 'Downloads',
+                y: botViews,
+                name: 'Bot Views',
+                type: 'bar',
+                marker: { color: '#7CB9E8' } // Lighter blue for bot views
+            });
+
+            // Human downloads
+            traces.push({
+                x: dates,
+                y: humanDownloads,
+                name: 'Human Downloads',
                 type: 'bar',
                 marker: { color: '#10AC84' }
-            }
-        ];
+            });
+
+            // Bot downloads
+            traces.push({
+                x: dates,
+                y: botDownloads,
+                name: 'Bot Downloads',
+                type: 'bar',
+                marker: { color: '#6FD6A8' } // Lighter green for bot downloads
+            });
+
+            console.log('renderTimelineChart: Rendering stacked bars with bot data');
+        } else {
+            // Grouped bars showing just views and downloads (human only)
+            traces = [
+                {
+                    x: dates,
+                    y: data.timeline.map(d => d.view_count),
+                    name: 'Views',
+                    type: 'bar',
+                    marker: { color: '#2E86DE' }
+                },
+                {
+                    x: dates,
+                    y: data.timeline.map(d => d.download_count),
+                    name: 'Downloads',
+                    type: 'bar',
+                    marker: { color: '#10AC84' }
+                }
+            ];
+            console.log('renderTimelineChart: Rendering grouped bars (no bots)');
+        }
 
         const layout = {
             margin: { t: 10, r: 10, b: 50, l: 60 },
-            barmode: 'group',
+            barmode: barmode,
             xaxis: {
                 title: 'Date',
                 showgrid: true,
@@ -630,10 +724,15 @@ window.ODRStatisticsDashboard = (function() {
      * Render geographic distribution chart as a world map
      */
     function renderGeographicChart(data) {
+        const chartElem = document.getElementById('geographic-chart');
+
         if (!data.geographic || Object.keys(data.geographic).length === 0) {
-            document.getElementById('geographic-chart').innerHTML = '<p style="text-align:center;color:#666;">No geographic data available</p>';
+            chartElem.innerHTML = '<p style="text-align:center;color:#666;">No geographic data available</p>';
             return;
         }
+
+        // Clear any loading spinner
+        chartElem.innerHTML = '';
 
         // Process country data
         var locations = [];
@@ -721,48 +820,80 @@ window.ODRStatisticsDashboard = (function() {
     }
 
     /**
-     * Render traffic source (bot vs human) chart
+     * Render top countries table
      */
     function renderTrafficSourceChart(data) {
-        if (!data.bot_stats) {
-            document.getElementById('traffic-source-chart').innerHTML = '<p style="text-align:center;color:#666;">No traffic source data available</p>';
+        const chartElem = document.getElementById('traffic-source-chart');
+
+        if (!data.geographic || Object.keys(data.geographic).length === 0) {
+            chartElem.innerHTML = '<p style="text-align:center;color:#666;">No country data available</p>';
             return;
         }
 
-        const humanTraffic = (data.bot_stats.human_views || 0) + (data.bot_stats.human_downloads || 0);
-        const botTraffic = (data.bot_stats.bot_views || 0) + (data.bot_stats.bot_downloads || 0);
+        // Clear any loading spinner
+        chartElem.innerHTML = '';
 
-        const trace = {
-            labels: ['Human Traffic', 'Bot Traffic'],
-            values: [humanTraffic, botTraffic],
-            type: 'pie',
-            marker: {
-                colors: ['#00D2D3', '#FF6B6B']
-            },
-            textinfo: 'label+percent',
-            hovertemplate: '<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
-        };
+        // Calculate total traffic for percentage
+        var totalTraffic = 0;
+        var countryData = [];
 
-        const layout = {
-            margin: { t: 10, r: 10, b: 10, l: 10 },
-            showlegend: true,
-            legend: {
-                orientation: 'h',
-                y: -0.1
+        for (var country in data.geographic) {
+            if (country && country !== 'Unknown' && country !== '') {
+                var views = data.geographic[country].view_count || 0;
+                var downloads = data.geographic[country].download_count || 0;
+                var total = views + downloads;
+                totalTraffic += total;
+                countryData.push({
+                    country: country,
+                    views: views,
+                    downloads: downloads,
+                    total: total
+                });
             }
-        };
+        }
 
-        Plotly.newPlot('traffic-source-chart', [trace], layout, {responsive: true});
+        // Sort by total traffic descending and take top 10
+        countryData.sort(function(a, b) { return b.total - a.total; });
+        var top10 = countryData.slice(0, 10);
+
+        // Build HTML table
+        var html = '<table style="width:100%;border-collapse:collapse;">';
+        html += '<thead><tr style="border-bottom:2px solid #ddd;">';
+        html += '<th style="text-align:left;padding:10px;font-weight:bold;">Country</th>';
+        html += '<th style="text-align:right;padding:10px;font-weight:bold;">Views</th>';
+        html += '<th style="text-align:right;padding:10px;font-weight:bold;">Downloads</th>';
+        html += '<th style="text-align:right;padding:10px;font-weight:bold;">% of Total</th>';
+        html += '</tr></thead><tbody>';
+
+        top10.forEach(function(item, index) {
+            var percentage = totalTraffic > 0 ? ((item.total / totalTraffic) * 100).toFixed(1) : 0;
+            var bgColor = index % 2 === 0 ? '#f9f9f9' : '#fff';
+            html += '<tr style="background-color:' + bgColor + ';border-bottom:1px solid #eee;">';
+            html += '<td style="padding:8px;">' + item.country + '</td>';
+            html += '<td style="text-align:right;padding:8px;">' + formatNumber(item.views) + '</td>';
+            html += '<td style="text-align:right;padding:8px;">' + formatNumber(item.downloads) + '</td>';
+            html += '<td style="text-align:right;padding:8px;font-weight:bold;">' + percentage + '%</td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        chartElem.innerHTML = html;
     }
 
     /**
      * Render datatype distribution chart
      */
     function renderDatatypeChart(data) {
+        const chartElem = document.getElementById('datatype-chart');
+
         if (!data.by_datatype || Object.keys(data.by_datatype).length === 0) {
-            document.getElementById('datatype-chart').innerHTML = '<p style="text-align:center;color:#666;">No datatype data available</p>';
+            chartElem.innerHTML = '<p style="text-align:center;color:#666;">No datatype data available</p>';
             return;
         }
+
+        // Clear any loading spinner
+        chartElem.innerHTML = '';
 
         // Map datatype IDs to names and sort by total traffic
         const datatypeData = Object.entries(data.by_datatype)
@@ -848,14 +979,27 @@ window.ODRStatisticsDashboard = (function() {
      * Show loading state
      */
     function showLoading() {
-        // Could add loading spinners here
+        // Show loading spinner in each chart container
+        const chartIds = ['timeline-chart', 'geographic-chart', 'traffic-source-chart', 'datatype-chart'];
+        chartIds.forEach(function(chartId) {
+            const chartElem = document.getElementById(chartId);
+            if (chartElem) {
+                // Simple CSS-based spinner (no Font Awesome dependency)
+                chartElem.innerHTML = '<div style="text-align:center;padding:40px;">' +
+                    '<div style="border:4px solid #f3f3f3;border-top:4px solid #3498db;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin:0 auto;"></div>' +
+                    '<p style="margin-top:15px;color:#666;">Loading data...</p>' +
+                    '<style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>' +
+                    '</div>';
+            }
+        });
     }
 
     /**
      * Hide loading state
      */
     function hideLoading() {
-        // Hide loading spinners
+        // Loading spinners are replaced by actual chart content
+        // Nothing additional needed here
     }
 
     /**

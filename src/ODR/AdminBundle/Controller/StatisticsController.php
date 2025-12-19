@@ -501,6 +501,9 @@ class StatisticsController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            if ( $user == 'anon.' )
+                throw new ODRForbiddenException();
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if (!$datatype) {
@@ -709,6 +712,9 @@ class StatisticsController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( $user == 'anon.' )
+                throw new ODRForbiddenException();
 
             // Check permissions - must be super admin
             if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
