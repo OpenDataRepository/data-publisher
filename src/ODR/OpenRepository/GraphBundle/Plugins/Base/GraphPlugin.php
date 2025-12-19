@@ -386,6 +386,11 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             // Graphs are always going to be labelled with the id of the primary graph file datafield
             $primary_graph_df_id = $datafield_mapping['graph_file']['datafield']['id'];
 
+            $can_delete_cached_image = false;
+            $dt_id = $datatype['id'];
+            if ( $is_datatype_admin || (isset($datatype_permissions[$dt_id]['dr_edit']) && isset($datafield_permissions[$primary_graph_df_id]['edit'])) )
+                $can_delete_cached_image = true;
+
             // Need to sort by the datarecord's sort value if possible
             $datarecord_sortvalues = array();
             $sortField_type = '';
@@ -525,6 +530,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'is_datatype_admin' => $is_datatype_admin,
                 'datatype_permissions' => $datatype_permissions,
                 'datafield_permissions' => $datafield_permissions,
+                'can_delete_cached_image' => $can_delete_cached_image,
 
                 // Options for graph display
                 'plugin_options' => $options,

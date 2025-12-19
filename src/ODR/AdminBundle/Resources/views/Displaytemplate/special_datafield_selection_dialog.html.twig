@@ -77,6 +77,10 @@
 
         var post_data = $("#ODRSpecialDatafieldSelectionForm").serialize();
 
+        // Show the loading blurb
+        setODRRemodalLoadingText('Saving...');
+        showODRRemodalLoading();
+
         $.ajax({
             cache: false,
             type: 'POST',

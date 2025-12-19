@@ -705,9 +705,10 @@ class DisplayController extends ODRCustomController
             // 'non_public_date' => '2200-01-01 00:00:00'
             // AND fm.publicDate != :non_public_date
             // AND f.deletedAt IS NULL AND fm.deletedAt IS NULL
-            print $query->getSql();exit();
+            // print $query->getSql();exit();
 
             $files = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
             $output_file = null;
             foreach ($files as $file) {
                 // var_dump($file);
@@ -715,18 +716,23 @@ class DisplayController extends ODRCustomController
                 $fileMeta = $em->getRepository('ODRAdminBundle:FileMeta')
                     ->findBy(array('file' => $file['id']));
                 // var_dump($fileMeta);
-                if(is_null($fileMeta)) {
+                // if(is_null($fileMeta)) { // what was this doing
+                if(is_array($fileMeta)) {
                     for($i = 0; $i < count($fileMeta); $i++) {
-                        if($fileMeta[$i]->deletedAt == null
-                            && $fileMeta[$i]->publicDate != '2200-01-01 00:00:00'                ) {
+                        // if($fileMeta[$i]->deletedAt == null
+                            // && $fileMeta[$i]->publicDate != '2200-01-01 00:00:00'                ) {
+                        if($fileMeta[$i]->getDeletedAt() == null
+                            && $fileMeta[$i]->getPublicDate() != '2200-01-01 00:00:00'                ) {
                             $output_file = $file;
                             break;
                         }
                     }
                 }
                 else if(is_object($fileMeta)) {
-                    if($fileMeta->deletedAt == null
-                        && $fileMeta->publicDate != '2200-01-01 00:00:00'                ) {
+                    // if($fileMeta->deletedAt == null
+                        // && $fileMeta->publicDate != '2200-01-01 00:00:00'                ) {
+                    if($fileMeta->getDeletedAt() == null
+                        && $fileMeta->getPublicDate() != '2200-01-01 00:00:00'                ) {
                         $output_file = $file;
                         break;
                     }
@@ -768,9 +774,9 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Ensure file exists before attempting to download it
-            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            $filename = 'File_'.$output_file['id'].'.'.$file->getExt();
             if ( !$file->isPublic() )
-                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+                $filename = md5($file->getOriginalChecksum().'_'.$output_file['id'].'_'.$user->getId()).'.'.$file->getExt();
 
             $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath) {

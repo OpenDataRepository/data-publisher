@@ -75,18 +75,19 @@ class FieldtypeMigrationService
     /**
      * Returns a list of datarecord ids (and optionally their current values) that will have their
      * values changed if they get migrated to the given typeclass...this one handles migrating
-     * Paragraph/Long/Medium varchars to Long/Medium/Short varchars.
+     * Text to other Text fieldtypes.
      *
      * @param DataFields $datafield
      * @param string $new_typeclass
      * @param bool $return_values If true, then also return the values which will be truncated
      * @return array
      */
-    public function ReportOnShorterTextConvert($datafield, $new_typeclass, $return_values = false)
+    public function ReportOnTextConvert($datafield, $new_typeclass, $return_values = false)
     {
         $datafield_id = $datafield->getId();
-        if ( $datafield->getIsMasterField() )
-            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnShorterTextConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x51ae1528);
+        // Don't need to throw an error when called on a master datafield
+//        if ( $datafield->getIsMasterField() )
+//            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnTextConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x51ae1528);
 
         // This should only get called when coming from text fields
         $mapping = array(
@@ -97,14 +98,14 @@ class FieldtypeMigrationService
         );
 
         $old_typeclass = $datafield->getFieldType()->getTypeClass();
-        switch ($old_typeclass) {
-            case 'LongText':
-            case 'LongVarchar':
-            case 'MediumVarchar':
-                break;
-            default:
-                throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnShorterTextConvert() called on the '.$old_typeclass.'datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x51ae1528);
-        }
+//        switch ($old_typeclass) {
+//            case 'LongText':
+//            case 'LongVarchar':
+//            case 'MediumVarchar':
+//                break;
+//            default:
+//                throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnTextConvert() called on the '.$old_typeclass.'datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x51ae1528);
+//        }
 
         $new_length = 0;
         if ( $new_typeclass == 'ShortVarchar' )
@@ -114,7 +115,8 @@ class FieldtypeMigrationService
         else if ( $new_typeclass == 'LongVarchar' )
             $new_length = 255;
         else
-            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnShorterTextConvert() called with the new typeclass '.$new_typeclass, 0x51ae1528);
+//            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnTextConvert() called with the new typeclass '.$new_typeclass, 0x51ae1528);
+            $new_length = 999999;
 
         $query = '';
         if ( !$return_values ) {
@@ -173,6 +175,76 @@ class FieldtypeMigrationService
 
     /**
      * Returns a list of datarecord ids (and optionally their current values) that will have their
+     * values changed if they get migrated to the given typeclass...this one handles migrating
+     * Integer/Decimal/Datetime to text fieldtypes.
+     *
+     * @param DataFields $datafield
+     * @param string $new_typeclass
+     * @param bool $return_values If true, then also return the values which will be truncated
+     * @return array
+     */
+    public function ReportOnOtherTextConvert($datafield, $return_values = false)
+    {
+        $datafield_id = $datafield->getId();
+        // Don't need to throw an error when called on a master datafield
+//        if ( $datafield->getIsMasterField() )
+//            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnTextConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x51ae1528);
+
+        // This should only get called when coming from Integer/Decimal/Datetime fields
+        $mapping = array(
+            'IntegerValue' => 'odr_integer_value',
+            'DecimalValue' => 'odr_decimal_value',
+            'DatetimeValue' => 'odr_datetime_value',
+        );
+        $old_typeclass = $datafield->getFieldType()->getTypeClass();
+
+        $query = '';
+        if ( !$return_values ) {
+            // Migration only cares about the records with values that won't "fit" into text fieldtypes
+            //  ...but because of the typeclasses this is called with, there won't ever be a problem
+            return array();
+        }
+        else {
+            // Reports want a link to the record's edit page and the before/after values
+            $query =
+               'SELECT gdr.id AS gdr_id, dr.id AS dr_id, e.value AS old_value, e.value AS new_value
+                FROM odr_data_record AS gdr
+                JOIN odr_data_record AS dr ON dr.grandparent_id = gdr.id
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN odr_data_fields df ON drf.data_field_id = df.id
+                JOIN '.$mapping[$old_typeclass].' AS e ON e.data_record_fields_id = drf.id
+                WHERE df.id = '.$datafield_id.'
+                AND gdr.deletedAt IS NULL AND dr.deletedAt IS NULL
+                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                AND df.deletedAt IS NULL';
+        }
+        $conn = $this->em->getConnection();
+        $results = $conn->executeQuery($query);
+
+        $data = array();
+//        if ( !$return_values ) {
+//            foreach ($results as $result) {
+//                $dr_id = $result['dr_id'];
+//                $data[] = $dr_id;
+//            }
+//        }
+//        else {
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $gdr_id = $result['gdr_id'];
+                $old_value = $result['old_value'];
+                $new_value = $result['new_value'];
+
+                $data[$dr_id] = array('gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => $new_value);
+            }
+//        }
+
+        return $data;
+    }
+
+
+    /**
+     * Returns a list of datarecord ids (and optionally their current values) that will have their
      * values changed if they get migrated to an integer value.
      *
      * @param DataFields $datafield
@@ -182,8 +254,9 @@ class FieldtypeMigrationService
     public function ReportOnIntegerConvert($datafield, $return_values = false)
     {
         $datafield_id = $datafield->getId();
-        if ( $datafield->getIsMasterField() )
-            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnIntegerConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0xe15e7ebf);
+        // Don't need to throw an error when called on a master datafield
+//        if ( $datafield->getIsMasterField() )
+//            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnIntegerConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0xe15e7ebf);
 
         // This should only get called when coming from text or decimal fields
         $mapping = array(
@@ -298,8 +371,9 @@ class FieldtypeMigrationService
     public function ReportOnDecimalConvert($datafield, $return_values = false)
     {
         $datafield_id = $datafield->getId();
-        if ( $datafield->getIsMasterField() )
-            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnDecimalConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x01248acb);
+        // Don't need to throw an error when called on a master datafield
+//        if ( $datafield->getIsMasterField() )
+//            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnDecimalConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x01248acb);
 
         // This should only get called when coming from text fields
         $mapping = array(
@@ -452,8 +526,9 @@ class FieldtypeMigrationService
     public function ReportOnSingleRadioConvert($datafield)
     {
         $datafield_id = $datafield->getId();
-        if ( $datafield->getIsMasterField() )
-            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnSingleRadioConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0xabe873f5);
+        // Don't need to throw an error when called on a master datafield
+//        if ( $datafield->getIsMasterField() )
+//            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnSingleRadioConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0xabe873f5);
 
         $old_typeclass = $datafield->getFieldType()->getTypeClass();
         $old_typename = $datafield->getFieldType()->getTypeName();

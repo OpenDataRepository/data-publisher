@@ -101,6 +101,18 @@ class CSVTablePlugin implements DatafieldPluginInterface
             // Need this to determine whether to throw an error or not
             $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
+
+            // Get all the options of the plugin...
+            $use_first_row_as_header = true;
+            if ( isset($options['use_first_row_as_header']) && $options['use_first_row_as_header'] === 'no' )
+                $use_first_row_as_header = false;
+
+            // If the file doesn't actually have a header row, then we're going to use letters instead
+            $column_letters = range('A', 'Z');
+
+
             // ----------------------------------------
             // The method of data extraction depends on the type of field...
             $is_file = false;
@@ -118,9 +130,22 @@ class CSVTablePlugin implements DatafieldPluginInterface
             if ( is_null($ret) )
                 return '';
 
+
+            // ----------------------------------------
             // Convert the contents of the file/field into a format that Handsontable can use
-            $data_array = json_encode( $ret['data'] );
+            $data_array = $ret['data'];
             $num_columns = $ret['num_columns'];
+
+            $column_names = array();
+            foreach ($data_array as $row_num => $row) {
+                foreach ($row as $col_num => $col) {
+                    if ( $use_first_row_as_header )
+                        $column_names[] = $col;
+                    else
+                        $column_names[] = $column_letters[$col_num];
+                }
+                break;
+            }
 
 
             // ----------------------------------------
@@ -134,6 +159,8 @@ class CSVTablePlugin implements DatafieldPluginInterface
 
                         'is_datatype_admin' => $is_datatype_admin,
 
+                        'use_first_row_as_header' => $use_first_row_as_header,
+                        'column_names' => $column_names,
                         'data_array' => $data_array,
                         'num_columns' => $num_columns,
                     )
@@ -196,15 +223,12 @@ class CSVTablePlugin implements DatafieldPluginInterface
 
 
             // Load file and parse into array
+            ini_set('auto_detect_line_endings', true);
             $handle = fopen($local_filepath, "r");
             if ( !$handle )
                 throw new \Exception('Could not open "'.$local_filepath.'"');
 
-            $content = file_get_contents($local_filepath);
-            $content = str_replace("\r", '', $content);
-            $all_lines = explode("\n", $content);    // TODO - this won't work on csv files with newlines inside doublequotes...
-
-            $ret = self::guessFileProperties($all_lines);
+            $ret = self::guessFileProperties($handle);
             $delimiter = $ret['delimiter'];
             $num_columns = $ret['num_columns'];
 
@@ -218,10 +242,12 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 return null;
             }
 
-            $csv_data = fgetcsv($handle, 1000, $delimiter);
+            // Re-read the file with the determined delimiter
+            fseek($handle, 0, SEEK_SET);
+            $csv_data = fgetcsv($handle, 1024, $delimiter);
             while ( $csv_data !== false ) {
                 $file_data[] = $csv_data;
-                $csv_data = fgetcsv($handle, 1000, $delimiter);
+                $csv_data = fgetcsv($handle, 1024, $delimiter);
             }
 
 
@@ -245,118 +271,88 @@ class CSVTablePlugin implements DatafieldPluginInterface
      * Attempts to guess the delimiter and the number of columns from the first several lines of the
      * given file.
      *
-     * There is a javascript version of this logic in /web/js/mylibs/odr_plotly_graphs.js...changes
-     * or fixes made here should also be made there.
-     *
-     * @param string[] $lines
+     * @param resource $handle
      * @return array
      */
-    private function guessFileProperties($lines)
+    private function guessFileProperties($handle)
     {
         // Since these are (hopefully) scientific data files, the set of valid delimiters is (hopefully)
         //  pretty small
         $valid_delimiters = array(
-            "\t" => 0,
-            "," => 0,
-            ";" => 0,
+            'tab' => "\t",
+            'comma' => ",",
+            'semicolon' => ";",
         );
-        // NOTE: do not put the space character in there...if the file is using the space character as
-        //  a delimiter, then it's safer for the graph code to split the line apart into "words" instead
-        //  of splitting by a specific character sequence
+        // NOTE: do not put the space character in there
+
+        $ret = array(
+            'delimiter' => null,
+            'num_columns' => null,
+        );
 
         // Read the first couple non-comment lines in the file...
-        $max_line_count = 10;
-        $current_line = 0;
-        $delimiters_by_line = array();
-        foreach ($lines as $line) {
-            if ( strpos($line, '#') === 0 ) {
-                // Ignore comment lines
-                continue;
+        $lines = array();
+        for ($i = 0; $i < 5; ) {
+            $line = trim(fgets($handle));
+            if ( !feof($handle) && $line !== '' && strpos($line, '#') === 0 ) {
+                // empty line or comment line, skip over if possible
             }
-            else {
-                $delimiters_by_line[$current_line] = array();
+            else if ( $line !== '' ) {
+                // should be a line of data...store for further parsing
+                $lines[] = $line;
+                $i++;
+            }
 
-                // ...and count how many of each character is encountered
-                for ($j = 0; $j < strlen($line); $j++) {
-                    $char = $line[$j];
+            if ( feof($handle) )
+                break;
+        }
 
-                    // If the line contains a valid delimiter, then store how many times it occurs
-                    if ( isset($valid_delimiters[$char]) ) {
-                        if ( !isset($delimiters_by_line[$current_line][$char]) )
-                            $delimiters_by_line[$current_line][$char] = 0;
-                        $delimiters_by_line[$current_line][$char]++;
-                    }
-                    else if ( $char === "\"" || $char === "\'" ) {
-                        // If the line contained a singlequote or a doublequote, then ignore it completely
-                        unset( $delimiters_by_line[$current_line] );
-                        break;
-                    }
-                }
+        // If the file was blank or entirely composed of comments, then there's nothing to check
+        if ( empty($lines) )
+            return $ret;
 
-                $current_line++;
-                if ( $current_line >= $max_line_count )
-                    break;
+        // Otherwise, try to parse each line with a different delimiter
+        $delimiters_by_line = array();
+        foreach ($lines as $line_num => $line) {
+            $delimiters_by_line[$line_num] = array();
+            foreach ($valid_delimiters as $label => $delim) {
+                // Store how many columns str_getcsv() returned
+                $delimiters_by_line[$line_num][$label] = count( str_getcsv($line, $delim) );
             }
         }
 
         // Filter out delimiters that don't occur the same number of times on each line
         $delimiter_count = array();
-        foreach ($valid_delimiters as $delimiter => $num) {
-            $delimiter_count[$delimiter] = -1;
-
-            foreach ($delimiters_by_line as $line_num => $occurrences) {
-                if ( isset($occurrences[$delimiter]) ) {
-                    if ( $delimiter_count[$delimiter] === -1 ) {
-                        // Store how many times this delimiter occurs on the first valid line of data
-                        //  in the file
-                        $delimiter_count[$delimiter] = $occurrences[$delimiter];
-                    }
-                    else if ( $delimiter_count[$delimiter] !== $occurrences[$delimiter] ) {
-                        // This line has a different number of this delimiter than the earlier lines in
-                        //  the file...it's probably not safe to call this a delimiter
-                        $delimiter_count[$delimiter] = -1;
-                        break;
-                    }
+        foreach ($delimiters_by_line as $line_num => $data) {
+            foreach ($data as $label => $occurrences) {
+                if ( !isset($delimiter_count[$label]) ) {
+                    // Theoretically this will be the header line...
+                    $delimiter_count[$label] = $occurrences;
                 }
-            }
-        }
-
-        // To counter the (hopefully) rare case where more than one "valid" delimiter character exists
-        //  in the file, count how many of the lines have each delimiter
-        $lines_with_delimiters = array();
-        foreach ($valid_delimiters as $delimiter => $num) {
-            // Ignore delimiters that the previous step believes aren't safe
-            if ( $delimiter_count[$delimiter] === -1 )
-                continue;
-
-            $lines_with_delimiters[$delimiter] = 0;
-            foreach ($delimiters_by_line as $line_num => $occurrences) {
-                if ( isset($occurrences[$delimiter]) )
-                    $lines_with_delimiters[$delimiter] += 1;
+                else if ( $occurrences !== $delimiter_count[$label] ) {
+                    // ...if any line does not match the previous line's number of columns with
+                    //  the given delimiter, then it's probably not safe to call this a delimiter
+                    $delimiter_count[$label] = -1;
+                }
             }
         }
 
         // Guess which of the remaining delimiters is most likely for the file
         $delimiter_guess = null;
-        $columns_guess = null;
-        foreach ($valid_delimiters as $delimiter => $num) {
-
-            if ( isset($delimiter_count[$delimiter]) && $delimiter_count[$delimiter] !== -1 ) {
+        $num_columns_guess = null;
+        foreach ($valid_delimiters as $label => $delimiter) {
+            if ( isset($delimiter_count[$label]) && $delimiter_count[$label] > 1 ) {
                 if ( is_null($delimiter_guess) ) {
                     // Ideally, the first delimiter found will be the only one...
                     $delimiter_guess = $delimiter;
-                    $columns_guess = $delimiter_count[$delimiter] + 1;
+                    $num_columns_guess = $delimiter_count[$label];
                 }
                 else {
-                    // ...but if a second delimiter could be valid...
-                    if ( isset($lines_with_delimiters[$delimiter_guess]) ) {
-                        $previous_guess_count = $lines_with_delimiters[$delimiter_guess];
-                        $current_guess_count = $lines_with_delimiters[$delimiter];
-                        // ...then try to use the delimiter that appears more often in the file
-                        if ( $current_guess_count > $previous_guess_count ) {
-                            $delimiter_guess = $delimiter;
-                            $columns_guess = $delimiter_count[$delimiter] + 1;
-                        }
+                    // ...but if a second delimiter could be valid, then try to use the delimiter
+                    //  that appears more often in the file
+                    if ( $delimiter_count[$label] > $delimiter_guess ) {
+                        $delimiter_guess = $delimiter;
+                        $num_columns_guess = $delimiter_count[$label];
                     }
                 }
 
@@ -365,10 +361,8 @@ class CSVTablePlugin implements DatafieldPluginInterface
             }
         }
 
-        $ret = array(
-            'delimiter' => $delimiter_guess,
-            'num_columns' => $columns_guess,
-        );
+        $ret['delimiter'] = $delimiter_guess;
+        $ret['num_columns'] = $num_columns_guess;
         return $ret;
     }
 

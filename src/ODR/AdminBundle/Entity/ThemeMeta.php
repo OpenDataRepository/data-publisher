@@ -22,6 +22,16 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class ThemeMeta
 {
+
+    // ODR's "Choose View" dialog will display this particular theme/layout regardless of which
+    //  context the user is in.  This is the default setting.
+    const ANY_CONTEXT = 0;
+    // ODR will only volunteer this particular theme/layout when in a "search_results" or "linking"
+    //  context
+    const SHORT_CONTEXT = 1;
+    // ODR will only volunteer this particular theme/layout when in a "display" or "edit" context
+    const LONG_CONTEXT = 2;
+
     /**
      * @var integer
      */

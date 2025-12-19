@@ -34,7 +34,6 @@
 
     $(function() {
         // Define a global error handler for ajax calls
-        // TODO - jquery 1.12 seems to be autoparsing every json response, and therefore throws ajax errors whenever ODR returns an empty response body
         $(document).ajaxError(function( event, jqxhr, settings, exception ) {
             // console.log('document.ajaxError()', event, jqxhr, settings, exception);
             switch( jqxhr.status ) {
@@ -43,10 +42,20 @@
                     break;
 
                 default:    /* 400, 403, 404, 405, 500, etc */
+                    // This specific response should never actually be seen...the goal is for createJGrowlError() to never break
+                    var response = { 'error': {"code": 418, "status_text": "I'm a teapot", "exception_source": "0xffffffff", "message": "ajaxError() Unknown Error"} };
                     if ( jqxhr.responseText !== undefined ) {
-                        var response = $.parseJSON(jqxhr.responseText);
-                        createJGrowlError(response);
+                        try {
+                            // Errors typically result from Symfony/ODR, and should already be JSON...
+                            response = JSON.parse(jqxhr.responseText);
+                        }
+                        catch (e) {
+                            // ...but other parts of the server can still return plaintext error responses
+                            response = { 'error': {"code": jqxhr.status, "status_text": jqxhr.statusText, "exception_source": "0xffffffff", "message": "ajaxError() JSON Parse Error"} };
+                        }
                     }
+
+                    createJGrowlError(response);
                     break;
             }
         });

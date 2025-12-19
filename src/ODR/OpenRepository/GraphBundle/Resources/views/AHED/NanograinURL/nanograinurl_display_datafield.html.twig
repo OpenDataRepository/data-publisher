@@ -1,0 +1,22 @@
+{% spaceless %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+
+<fieldset>
+    <button id="ODRRenderPlugin_NanograinURL_button_{{ unique_id }}" class="pure-button pure-button-primary">{{ button_text }}</button>
+</fieldset>
+
+<script>
+    $(function() {
+        $("#ODRRenderPlugin_NanograinURL_button_{{ unique_id }}").unbind('click').click(function() {
+        {% if url != '' %}
+            window.open('{{ url }}');
+        {% else %}
+            alert('No file uploaded to the "Transitions" field');
+        {% endif %}
+        });
+    });
+</script>
+
+
+{% endspaceless %}

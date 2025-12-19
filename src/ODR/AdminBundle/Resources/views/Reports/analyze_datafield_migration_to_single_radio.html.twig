@@ -4,9 +4,14 @@
     {% if df_mapping[df_id] is defined %}
         {% set df = df_mapping[df_id] %}
         <div>
-        {% if df.masterdatafield != null %}
-            Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ df.datatype.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': df.datatype.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
+        {% if df.masterdatafield != null %}Derived{% else %}Local{% endif %} datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ df.datatype.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': df.datatype.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
             <br>
+
+        {% if render_plugin_restrictions[df_id] is defined and render_plugin_restrictions[df_id]['affected_by_render_plugin'] == true %}
+            <div class="bold{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %} ODRInputError{% endif %}">
+                This datafield is currently used by a render plugin{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}, and can't be migrated to this fieldtype because the render plugin would stop working{% endif %}.
+                {% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}&nbsp;<label class="ODRMigration_acknowledge">{# can't acknowledge this #}</label>{% endif %}
+            </div>
         {% endif %}
         </div>
     {% endif %}
@@ -16,7 +21,10 @@
     {% elseif df_data|length == 0 %}
         <div class="ODRDatarecordListHeader">This field has no records that will be affected by this migration.</div>
     {% else %}
-        <div class="ODRDatarecordListHeader">Of the {{ original_lengths[df_id] }} records in this datatype, the following {{ df_data|length }} will be changed:</div>
+        <div class="ODRDatarecordListHeader ODRInputError">
+            Of the {{ original_lengths[df_id] }} records in this datatype, the following {{ df_data|length }} will be changed:
+            &nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>
+        </div>
         <div class="ODRTableOuterWrap">
             <div class="ODRTableWrap">
                 <table id="ODRReports_AnalyzeRadioMigration_{{ df_id }}" class="display ODRDatatableInstance">
@@ -37,17 +45,25 @@
                 </table>
             </div>
         </div>
+
+        <script>
+            $(function() {
+                $("#ODRReports_AnalyzeRadioMigration_{{ df_id }}").dataTable({
+                    // "info": false,
+                    // "paging": false,
+                    "searching": false,
+                });
+            });
+        </script>
     {% endif %}
 
-    <script>
-        $(function() {
-            $("#ODRReports_AnalyzeRadioMigration_{{ df_id }}").dataTable({
-                // "info": false,
-                // "paging": false,
-                "searching": false,
-            });
-        });
-    </script>
 {% endfor %}
+
+    {# TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
+    <br>
+    <div>
+        <div class="pure-button pure-button-primary pure-button-disabled ODRMigration_confirm">Begin Migration</div>
+    </div>
+    #}
 
 {% endspaceless %}

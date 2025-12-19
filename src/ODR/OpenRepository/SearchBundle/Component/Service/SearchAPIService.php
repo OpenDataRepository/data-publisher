@@ -757,13 +757,25 @@ class SearchAPIService
                                 //  search terms
                                 $x_value = $y_value = $z_value = '';
                                 if ( isset($search_term['x']) )
-                                    $x_value = $search_term['x'];
+                                    $x_value = trim($search_term['x']);
                                 if ( isset($search_term['y']) )
-                                    $y_value = $search_term['y'];
+                                    $y_value = trim($search_term['y']);
                                 if ( isset($search_term['z']) )
-                                    $z_value = $search_term['z'];
+                                    $z_value = trim($search_term['z']);
 
-                                $dr_list = $this->search_service->searchXYZDatafield_simple($entity, $x_value, $y_value, $z_value);
+                                if ( strpos($x_value, '&&') !== false || strpos($y_value, '&&') !== false || strpos($z_value, '&&') !== false ) {
+                                    // If any of the terms include '&&', then this is kind of an
+                                    //  "intermediate complexity" search.  Going to attempt to
+                                    //  transform the given string into the "advanced" format...
+                                    $transformed_str = self::transformXYZDatafieldSearchStr($x_value, $y_value, $z_value);
+
+                                    // ...then run the "advanced" version of the search
+                                    $dr_list = $this->search_service->searchXYZDatafield($entity, $transformed_str);
+                                }
+                                else {
+                                    // Otherwise, just treat this as a "simple" XYZData search
+                                    $dr_list = $this->search_service->searchXYZDatafield_simple($entity, $x_value, $y_value, $z_value);
+                                }
                             }
 
 
@@ -1059,6 +1071,86 @@ class SearchAPIService
         // ----------------------------------------
         // There's no point to caching the end result...it depends heavily on the user's permissions
         return $dr_list;
+    }
+
+
+    /**
+     * The sidebar UI for XYZData fields has two forms...an "advanced" form with its own UI, and a
+     * "simple" form where it mostly behaves like a trio of regular text fields.  The catch is that,
+     * by itself, the "simple" form can only a single-range search (e.g. ">4 <5") or handle multiple
+     * ranges separated by ORs (e.g. ">4 <5, >6 <7", which is turned into (>4 <5) OR (>6 <7)).
+     *
+     * By itself, it can't handle multiple ranges separated by ANDs (e.g. (>4 <5) AND (>6 <7)),
+     * because {@link SearchService::searchXYZDatafield_simple()} only runs a single mysql query...
+     * and because you can't have a value that's less than 5 and greater than 6 at the same time, it
+     * will return no results.
+     *
+     * Fortunately, ODR can mostly work around this by introducing a character sequence specifically
+     * to coerce multiple ranges into a single string...if it receives ">4 <5 && >6 <7", then it can
+     * be broken up into a format that works with {@link SearchService::searchXYZDatafield()} instead.
+     *
+     * @param string $x_value
+     * @param string $y_value
+     * @param string $z_value
+     * @return string
+     */
+    private function transformXYZDatafieldSearchStr($x_value, $y_value, $z_value)
+    {
+        // The correct way to do this is to explode on '&&' for each given string...
+        $x_pieces = explode('&&', $x_value);
+        $y_pieces = explode('&&', $y_value);
+        $z_pieces = explode('&&', $z_value);
+
+        // ...but we also need to do a bit of processing to try to clean up the strings a bit
+        foreach ($x_pieces as $num => $piece) {
+            $x_pieces[$num] = trim($piece);
+            if ( $x_pieces[$num] === '' )
+                unset( $x_pieces[$num] );
+            else if ( strpos($x_pieces[$num], ',') !== false )
+                $x_pieces[$num] = str_replace(',', ' OR ', $x_pieces[$num]);
+        }
+        if ( empty($x_pieces) )
+            $x_pieces[0] = '';
+
+        foreach ($y_pieces as $num => $piece) {
+            $y_pieces[$num] = trim($piece);
+            if ( $y_pieces[$num] === '' )
+                unset( $y_pieces[$num] );
+            else if ( strpos($y_pieces[$num], ',') !== false )
+                $y_pieces[$num] = str_replace(',', ' OR ', $y_pieces[$num]);
+        }
+        if ( empty($y_pieces) )
+            $y_pieces[0] = '';
+
+        foreach ($z_pieces as $num => $piece) {
+            $z_pieces[$num] = trim($piece);
+            if ( $z_pieces[$num] === '' )
+                unset( $z_pieces[$num] );
+            else if ( strpos($z_pieces[$num], ',') !== false )
+                $z_pieces[$num] = str_replace(',', ' OR ', $z_pieces[$num]);
+        }
+        if ( empty($z_pieces) )
+            $z_pieces[0] = '';
+
+        // Unfortunately, we need every possible permutation of these pieces in order to create the
+        //  multi-range query that SearchService::searchXYZDatafield() expects
+        $permutations = array();
+        foreach ($x_pieces as $x_num => $x_piece) {
+            foreach ($y_pieces as $y_num => $y_piece) {
+                foreach ($z_pieces as $z_num => $z_piece) {
+                    if ( $x_piece !== '' || $y_piece !== '' || $z_piece !== '' )
+                        $permutations[] = '('.$x_piece.','.$y_piece.','.$z_piece.')';
+                }
+            }
+        }
+        // Do note that if more than one string has multiple ranges, then this setup very quickly
+        //  results in queries which are going to be unmatchable in practically every situation
+        // There's not much choice though, because the is the easiest way to get multirange to work
+        //  without starting from the "advanced" version
+
+        // These permutations then need to get imploded back into a single string
+        $transformed_str = implode('|', $permutations);
+        return $transformed_str;
     }
 
 

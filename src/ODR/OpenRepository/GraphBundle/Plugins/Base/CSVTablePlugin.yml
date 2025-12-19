@@ -3,7 +3,7 @@ odr_plugins.base.csvtable:
     category: Base
     plugin_type: datafield
     render: odr_plugins.base.csvtable
-    version: 1.4.0
+    version: 2.0.0
     override_fields: false
     override_field_reload: false
     override_child: false
@@ -22,3 +22,9 @@ odr_plugins.base.csvtable:
             type: File|XYZData
 
     config_options:
+        use_first_row_as_header:
+            name: Use First Row as Header
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: If 'Yes', then the contents of the first row of the file are used as the table headers.  If 'No', then letters are used instead.

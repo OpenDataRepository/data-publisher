@@ -1,0 +1,21 @@
+odr_plugins.base.file_updater_helper:
+    name: File Updater Helper Plugin
+    category: Base
+    plugin_type: themeElement
+    render: false    # NOTE: due to being a themeElement plugin_type, the render parameter does nothing
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: This plugin creates "quicklinks" on the datatype's edit pages to trigger the FileRenamer and/or FileHeaderInserter plugins on all relevant fields at the same time.  If the datatype doesn't have multiple fields with either of these plugins, then this plugin is useless.
+    registered_events:
+
+    required_theme_elements: 1
+
+    required_fields:
+    config_options:

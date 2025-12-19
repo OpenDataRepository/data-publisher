@@ -109,26 +109,16 @@ class ThemeController extends ODRCustomController
 
             // Get all available themes for this datatype that the user can view
             $available_themes = $theme_info_service->getAvailableThemes($user, $datatype);
-            // Combine each theme's visibility flag with the current page type to determine whether
-            //  they match
+
+            // Determine whether any of the themes for this datatype are intended for a specific
+            //  context
+            $show_context_checkbox = false;
             foreach ($available_themes as $num => $theme_data) {
                 $theme_visibility = $theme_data['theme_visibility'];
 
-                // NOTE: currently the magic numbers come from UpdateThemeForm.php
-                $in_context = false;
-                if ( $theme_visibility == 0 )
-                    $in_context = true;
-                else if ( $theme_visibility == 1 && ($page_type == 'search_results' || $page_type == 'linking') )
-                    $in_context = true;
-                else if ( $theme_visibility == 2 && ($page_type == 'display' || $page_type == 'edit') )
-                    $in_context = true;
-
-                $available_themes[$num]['theme_visibility'] = $in_context;
-            }
-
-            $show_context_checkbox = false;
-            foreach ($available_themes as $num => $theme_data) {
-                if ( $theme_data['theme_visibility'] == false )
+                if ( $theme_visibility == ThemeMeta::LONG_CONTEXT && ($page_type == 'search_results' || $page_type == 'linking') )
+                    $show_context_checkbox = true;
+                else if ( $theme_visibility == ThemeMeta::SHORT_CONTEXT && ($page_type == 'display' || $page_type == 'edit') )
                     $show_context_checkbox = true;
             }
 
@@ -402,12 +392,18 @@ class ThemeController extends ODRCustomController
             self::canModifyTheme($user, $theme);
             // --------------------
 
+            $is_master_theme = false;
+            if ( $theme->getThemeType() === 'master' )
+                $is_master_theme = true;
 
             // Populate new Theme form
             $submitted_data = new ThemeMeta();
             $theme_form = $this->createForm(
                 UpdateThemeForm::class,
                 $submitted_data,
+                array(
+                    'is_master_theme' => $is_master_theme,
+                )
             );
             $theme_form->handleRequest($request);
 
@@ -429,7 +425,7 @@ class ThemeController extends ODRCustomController
 
                 // 'Master' themes should always have this value set to 0
                 if ( $theme->getThemeType() === 'master' )
-                    $submitted_data->setThemeVisibility(0);
+                    $submitted_data->setThemeVisibility(ThemeMeta::ANY_CONTEXT);
 
                 if ($theme_form->isValid()) {
                     // Save any changes made in the form

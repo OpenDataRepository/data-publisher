@@ -171,6 +171,7 @@ class DatafieldInfoService
                 'delete_message' => "This datafield can't be deleted because it's being used as the Datatype's external ID field"
             );
         }
+        // NOTE: name/sort fields are intentionally allowed to be deleted
 
         // Also shouldn't delete datafields that are being used by the Datatype's render plugins...
         if ( !empty($dt['renderPluginInstances']) ) {
@@ -421,18 +422,37 @@ class DatafieldInfoService
 
 
     /**
-     * Returns an array with three entries for each datafield in $datafield_ids...
-     * 1) can the datafield's fieldtype be changed?
-     * 2) if the fieldtype can't be changed, then a string with the reason it can't
-     * 3) which fieldtypes the datafield is allowed to change to
+     * The ability to change a datafield's fieldtype is one of ODR's core responsibilities, but there
+     * are multiple other properties that rely on a field being a specific fieldtype, so actually
+     * performing the change can be incredibly problematic. This function makes it slightly easier by
+     * returning an array with four entries for each requested datafield...
+     *
+     * <pre>
+     * array(
+     *     <df_id> => array(
+     *         'prevent_change' => <bool>,  // True when the datafield shouldn't change fieldtype
+     *         'prevent_change_message' => '<string>', // Why the datafield shouldn't change fieldtype
+     *         'affected_by_render_plugin' => <bool>,  // Whether any plugin is mapped to the datafield
+     *         'allowed_fieldtypes' => array(  // Which fieldtypes the datafield can change to
+     *             <ft1_id>,
+     *             <ft2_id>,
+     *             ...
+     *         )
+     *     ),
+     *     ...
+     * )
+     * </pre>
      *
      * @param array $datatype_array
      * @param integer $datatype_id
-     * @param array|null $datafield_ids If null, then determine for all datafields of datatype
+     * @param int[]|null $datafield_ids If null, then return this info for all datafields of datatype
+     * @param bool $only_check_render_plugins If true, then return after determing the fieldtype
+     *                                        restrictions on the datafield imposed by any attached
+     *                                        render plugins
      *
      * @return array
      */
-    public function getFieldtypeInfo($datatype_array, $datatype_id, $datafield_ids = null)
+    public function canChangeFieldtype($datatype_array, $datatype_id, $datafield_ids = null, $only_check_render_plugins = false)
     {
         // ----------------------------------------
         $fieldtype_info = array();
@@ -441,39 +461,21 @@ class DatafieldInfoService
 
         // If no datafields were specified, then determine the allowed fieldtypes of all datafields
         //  in the given datatype
+        $dt = $datatype_array[$datatype_id];
         if ( is_null($datafield_ids) ) {
             $datafield_ids = array();
 
-            foreach ($datatype_array[$datatype_id]['dataFields'] as $df_id => $df)
+            foreach ($dt['dataFields'] as $df_id => $df)
                 $datafield_ids[] = $df_id;
         }
 
-        // It's easier to determine which fields are single/multiple radio all at once
-        foreach ($datatype_array[$datatype_id]['dataFields'] as $df_id => $df) {
-            $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-            switch ($typename) {
-                case 'Single Radio':
-                case 'Single Select':
-                    $is_single_radio_field[$df_id] = true;
-                    break;
-                case 'Multiple Radio':
-                case 'Multiple Select':
-                    $is_multiple_radio_field[$df_id] = true;
-                    break;
+        // Need a list of all available fieldtypes so twig doesn't have to do it
+        $single_radio_fieldtype_ids = array();
+        $multiple_radio_fieldtype_ids = array();
 
-                default:
-                    $is_single_radio_field[$df_id] = false;
-                    $is_multiple_radio_field[$df_id] = false;
-                    break;
-            }
-        }
-
-        // Most likely going to need a list of all available fieldtypes
         /** @var FieldType[] $tmp */
         $tmp = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
         $all_fieldtypes = array();
-        $single_radio_fieldtype_ids = array();
-        $multiple_radio_fieldtype_ids = array();
         foreach ($tmp as $ft) {
             $all_fieldtypes[] = $ft->getId();
 
@@ -495,57 +497,90 @@ class DatafieldInfoService
             }
         }
 
+        // It's easier to determine which fields are single/multiple radio all at once
+        foreach ($dt['dataFields'] as $df_id => $df) {
+            $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+            switch ($typename) {
+                case 'Single Radio':
+                case 'Single Select':
+                    $is_single_radio_field[$df_id] = true;
+                    break;
+                case 'Multiple Radio':
+                case 'Multiple Select':
+                    $is_multiple_radio_field[$df_id] = true;
+                    break;
 
-        // ----------------------------------------
-        // Two of the four reasons to prevent a change to a datafield's fieldype require database
-        //  lookups...
+                default:
+                    $is_single_radio_field[$df_id] = false;
+                    $is_multiple_radio_field[$df_id] = false;
+                    break;
+            }
+        }
+
+        // By default, the fieldtype of any datafield can get changed to any other fieldtype
         foreach ($datafield_ids as $df_id) {
             $fieldtype_info[$df_id] = array(
                 'prevent_change' => false,
                 'prevent_change_message' => '',
+                'affected_by_render_plugin' => false,
                 'allowed_fieldtypes' => $all_fieldtypes,
             );
         }
 
-        // Prevent a datafield's fieldtype from changing if other fields are derived from it
-        // TODO - need to make template synchronization able to migrate Fieldtypes eventually...
-        $query = $this->em->createQuery(
-           'SELECT df.id AS df_id, d_df.id AS derived_df_id
-            FROM ODRAdminBundle:DataFields AS df
-            LEFT JOIN ODRAdminBundle:DataFields AS d_df WITH d_df.masterDataField = df
-            WHERE df IN (:datafield_ids)
-            AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL'
-        )->setParameters( array('datafield_ids' => $datafield_ids) );
-        $results = $query->getArrayResult();
 
-        foreach ($results as $result) {
-            $df_id = $result['df_id'];
-            $derived_df_id = $result['derived_df_id'];
+        // ----------------------------------------
+        // Each datafield can have a combination of properties that should result in restricting
+        //  what its fieldtype can get changed to...the first set has to do with attached render plugins
 
-            if ( !is_null($derived_df_id) ) {
-                if ( $is_single_radio_field[$df_id] ) {
-                    // Shouldn't need to prevent fieldtype change, or display a message...
-                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
-                }
-                else if ( $is_multiple_radio_field[$df_id] ) {
-                    // ...both single and multiple radio fields should be allowed to freely switch
-                    //  to the other single/multiple fieldtype at any time
-                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
-                }
-                else {
-                    $fieldtype_info[$df_id]['prevent_change'] = true;
-                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
-                }
+        // If the datatype is using a render plugin...
+        if ( !empty($dt['renderPluginInstances']) ) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
+                // ...then determine the allowed fieldtypes for each of its defined datafields
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
+                    $df_id = $rpf_df['id'];
 
-                // Don't need to keep looking
-                break;
+                    if ( isset($fieldtype_info[$df_id]) ) {
+                        $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                        $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $dt_fieldtypes);
+                        $fieldtype_info[$df_id]['affected_by_render_plugin'] = true;
+
+                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
+                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
+                    }
+                }
             }
         }
 
-        // Prevent a datafield's fieldtype from changing if it's being used as a name/sort field for
-        //  any datatype
-        // TODO - ...why prevent this?
-        // TODO - obviously, changing from a text to a file/image/markdown/etc field would break sorting, but was there some reason other than setting up a whitelist like with plugin fields?
+        // The datafields themselves could also have plugins...
+        foreach ($datafield_ids as $df_num => $df_id) {
+            // Get the datafield's array entry from the cached datatype entry
+            $df = $dt['dataFields'][$df_id];
+
+            // If the datafield is using a render plugin...
+            if ( !empty($df['renderPluginInstances']) ) {
+                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                    // There's only going to be one rpf in here, but don't know the array key beforehand
+                    foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
+                        // ...then the fieldtype can't be changed from what the render plugin requires
+                        $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                        $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $df_fieldtypes);
+                        $fieldtype_info[$df_id]['affected_by_render_plugin'] = true;
+
+                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
+                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
+                    }
+                }
+            }
+        }
+
+        // Datafield migration reports only needs the render plugin information
+        if ( $only_check_render_plugins )
+            return $fieldtype_info;
+
+
+        // ----------------------------------------
+        // There are three situations in which changing a datafield's fieldtype should be heavily
+        //  discouraged...the first is if it's being used as a name/sort field for any datatype
         $query = $this->em->createQuery(
            'SELECT df.id AS df_id, dt.id AS dt_id
             FROM ODRAdminBundle:DataFields AS df
@@ -580,38 +615,79 @@ class DatafieldInfoService
             }
         }
 
+        // ...the second is if it's unique...
+        foreach ($datafield_ids as $df_num => $df_id) {
+            // Get the datafield's array entry from the cached datatype entry
+            $df = $dt['dataFields'][$df_id];
 
-        // ----------------------------------------
-        // The other two reasons to prevent a change to a datafield's fieldtype, as well as the
-        //  allowed fieldtypes, can be found via the cached datatype array
-        $dt = $datatype_array[$datatype_id];
+            if ( $df['dataFieldMeta']['is_unique'] === true ) {
+                // None of the radio fieldtypes can be unique, so no sense checking those
+                $fieldtype_info[$df_id]['prevent_change'] = true;
+                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
+            }
 
-        // If the datatype is using a render plugin...
-        if ( !empty($dt['renderPluginInstances']) ) {
-            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
-                // ...then determine the allowed fieldtypes for each of its defined datafields
-                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
-                    $df_id = $rpf_df['id'];
+            // TODO - allow changing fieldtype of unique fields?
+            // TODO - ...can go from shorter text -> longer text, or number -> text...but not necessarily from longer text -> shorter text, or text -> number
+        }
 
-                    if ( isset($fieldtype_info[$df_id]) ) {
-                        $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
-                        $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $dt_fieldtypes);
+        // ...the other is if the datafield is entangled with the template system.  A master/template
+        //  datafield has to define the fieldtype for each of its derived datafields, and changing
+        //  a fieldtype in this situation requires a mess of additional checks to ensure that both
+        //  master and derived fields can remain synchronized.
+        // This is so problematic that ODR didn't allow any non-trivial fieldtype change in this
+        //  situation until forced to in early 2026
 
-                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
-                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
-                    }
+        // If any of the fields are related to the template system...
+        $master_df_list = array();
+        $derived_df_list = array();
+        foreach ($dt['dataFields'] as $df_id => $df) {
+            /*if ( $df['is_master_field'] )  // TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
+                $master_df_list[$df_id] = 1;
+            else*/ if ( !is_null($df['masterDataField']) )
+                $derived_df_list[$df_id] = 1;
+        }
+
+        foreach ($fieldtype_info as $df_id => $data) {
+            if ( isset($master_df_list[$df_id]) || isset($derived_df_list[$df_id]) ) {
+                // If the field is involved with the template system, then the dropdowns are only
+                //  allowed to swap between single radio/select, or multiple radio/select
+                if ( $is_single_radio_field[$df_id] ) {
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "Changing to a fieldtype other than Single Radio/Select requires additional checks...";
+                }
+                else if ( $is_multiple_radio_field[$df_id] ) {
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "Changing to a fieldtype other than Multiple Radio/Select requires additional checks...";
+                }
+                else {
+                    // If the field is using any other fieldtype, then the dropdown needs to be
+                    //  disabled
+                    $fieldtype_info[$df_id]['prevent_change'] = true;
+                    // ...the actual message depends on whether it's a master or a derived field
+                    if ( isset($master_df_list[$df_id]) )
+                        $fieldtype_info[$df_id]['prevent_change_message'] = "Template fields that already have derived fields require additional checks...";
+                    else
+                        $fieldtype_info[$df_id]['prevent_change_message'] = "Derived fields must remain synchronized with their Template field.";
                 }
             }
         }
 
-        foreach ($datafield_ids as $df_num => $df_id) {
-            // Get the datafield's array entry from the cached datatype entry
-            $df = $dt['dataFields'][$df_id];
-            $current_fieldtype_id = $df['dataFieldMeta']['fieldType']['id'];
+        // TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
+        // Prevent a datafield's fieldtype from changing if other fields are derived from it
+        $query = $this->em->createQuery(
+           'SELECT df.id AS df_id, d_df.id AS derived_df_id
+            FROM ODRAdminBundle:DataFields AS df
+            LEFT JOIN ODRAdminBundle:DataFields AS d_df WITH d_df.masterDataField = df
+            WHERE df IN (:datafield_ids)
+            AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL'
+        )->setParameters( array('datafield_ids' => $datafield_ids) );
+        $results = $query->getArrayResult();
 
+        foreach ($results as $result) {
+            $df_id = $result['df_id'];
+            $derived_df_id = $result['derived_df_id'];
 
-            // Prevent a datafield's fieldtype from changing if it's derived from a template field
-            if ( !is_null($df['masterDataField']) ) {
+            if ( !is_null($derived_df_id) ) {
                 if ( $is_single_radio_field[$df_id] ) {
                     // Shouldn't need to prevent fieldtype change, or display a message...
                     $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
@@ -623,39 +699,26 @@ class DatafieldInfoService
                 }
                 else {
                     $fieldtype_info[$df_id]['prevent_change'] = true;
-                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is derived from a Master Template.";
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
                 }
+
+                // Don't need to keep looking
+                break;
             }
-
-            // TODO - allow changing fieldtype of unique fields?
-            // TODO - ...can go from shorter text -> longer text, or number -> text...but not necessarily from longer text -> shorter text, or text -> number
-            // Prevent a datafield's fieldtype from changing if it's marked as unique
-            if ( $df['dataFieldMeta']['is_unique'] === true ) {
-                // None of the radio fieldtypes can be unique, so no sense checking here
-                $fieldtype_info[$df_id]['prevent_change'] = true;
-                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
-            }
+        }
 
 
-            // If the datafield is using a render plugin...
-            if ( !empty($df['renderPluginInstances']) ) {
-                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-                    // There's only going to be one rpf in here, but don't know the array key beforehand
-                    foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
-                        // ...then the fieldtype can't be changed from what the render plugin requires
-                        $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
-                        $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $df_fieldtypes);
+        // ----------------------------------------
+        // Now that each datafield has been checked...
+        foreach ($fieldtype_info as $df_id => $df_data ) {
+            // ...if the datafield isn't supposed to change its fieldtype...
+            if ( $df_data['prevent_change'] ) {
+                $df = $dt['dataFields'][$df_id];
+                $current_fieldtype_id = $df['dataFieldMeta']['fieldType']['id'];
 
-                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
-                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
-                    }
-                }
-            }
-
-            // If the datafield isn't supposed to change its fieldtype, then remove all but the
-            //  current fieldtype from the 'allowed_fieldtypes' section of the array
-            if ( $fieldtype_info[$df_id]['prevent_change'] === true ) {
-                foreach ($fieldtype_info[$df_id]['allowed_fieldtypes'] as $num => $ft_id) {
+                // ...then remove all but its current fieldtype from the 'allowed_fieldtypes'
+                //  section of the array
+                foreach ($df_data['allowed_fieldtypes'] as $num => $ft_id) {
                     if ( $ft_id !== $current_fieldtype_id )
                         unset( $fieldtype_info[$df_id]['allowed_fieldtypes'][$num] );
                 }

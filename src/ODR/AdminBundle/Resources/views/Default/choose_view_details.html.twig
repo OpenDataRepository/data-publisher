@@ -1,6 +1,17 @@
 {% spaceless %}
 
-<li data-theme-id="{{ theme_data.id }}" {% if theme_data.id == selected_theme_id %}class="ODRCurrentLayout"{% elseif page_type != '' and theme_data.theme_visibility == false %}class="ODRHiddenLayout ODRHidden"{% endif %}>
+{% set ANY_CONTEXT = constant('ODR\\AdminBundle\\Entity\\ThemeMeta::ANY_CONTEXT') %}
+{% set SHORT_CONTEXT = constant('ODR\\AdminBundle\\Entity\\ThemeMeta::SHORT_CONTEXT') %}
+{% set LONG_CONTEXT = constant('ODR\\AdminBundle\\Entity\\ThemeMeta::LONG_CONTEXT') %}
+
+{% set hide_theme = false %}
+{% if theme_data.theme_visibility == LONG_CONTEXT and (page_type == 'search_results' or page_type == 'linking') %}
+    {% set hide_theme = true %}
+{% elseif theme_data.theme_visibility == SHORT_CONTEXT and (page_type == 'display' or page_type == 'edit') %}
+    {% set hide_theme = true %}
+{% endif %}
+
+<li data-theme-id="{{ theme_data.id }}" {% if theme_data.id == selected_theme_id %}class="ODRCurrentLayout"{% elseif hide_theme %}class="ODRHiddenLayout ODRHidden"{% endif %}>
     <div class="pure-u-1 pure-u-md-6-24">
         <h4>
         {% if theme_data.name != "" %}
@@ -28,19 +39,15 @@
         {% set need_spacer = true %}
     {% endif %}
 
-    {% if need_spacer %}
-        <div class="ODRViewNote">&nbsp;</div>
-        {% set need_spacer = false %}
-    {% endif %}
-
-
-    {% if theme_data.theme_type == "master" %}
-        <div class="ODRViewNote">[ Master theme/view for database. ]</div>
+    {% if theme_data.theme_type == "master" or theme_data.is_table_theme %}
+        <div class="ODRViewNote">{% if theme_data.theme_type == "master" %}[ Master theme/view for database ]&nbsp;&nbsp;{% endif %}{% if theme_data.is_table_theme %}[ Table view ]{% endif %}</div>
         {% set need_spacer = true %}
     {% endif %}
-
-    {% if theme_data.is_table_theme %}
-        <div class="ODRViewNote">[ Table view. ]</div>
+    {% if theme_data.theme_visibility == SHORT_CONTEXT %}
+        <div class="ODRViewNote">[ Intended for searching/linking ]</div>
+        {% set need_spacer = true %}
+    {% elseif theme_data.theme_visibility == LONG_CONTEXT %}
+        <div class="ODRViewNote">[ Intended for display/edit ]</div>
         {% set need_spacer = true %}
     {% endif %}
 
@@ -49,59 +56,43 @@
         {% set need_spacer = false %}
     {% endif %}
 
-    {% if is_datatype_admin or theme_data.default_for|length > 0 %}
-        <div class="ODRViewNote ODRLayoutInfoDiv">
-            <i class="fa fa-lg fa-info-circle"></i>&nbsp;Database default for...
-            <div class="ODRLayoutInfo">
-            {% for num,label in theme_data.default_for %}
-                <div class="ODRViewNote">
-                    {% if is_datatype_admin %}
-                        {# datatype admins can make a theme no longer used as a default for a database #}
-                        <i class="ODRUnsetDefaultDatabase fa fa-unlink" title="Stop using as database default" rel="{{ label }}"></i>&nbsp;
-                    {% endif %}
-                    Database default for {{ label }} mode
-                </div>
-            {% endfor %}
-
-            {% if theme_data.default_for|length > 0 and is_datatype_admin and formatted_page_type not in theme_data.default_for %}
-                <div>&nbsp;</div>
-            {% endif %}
-
-            {% if is_datatype_admin and formatted_page_type not in theme_data.default_for %}
-                <div class="ODRViewNote">
-                {% if theme_data.is_shared %}
-                    {# datatype admins can set any shared theme as the default for a database #}
-                    <i class="ODRDefaultDatabase fa fa-link" title="Make this view the database default."></i>&nbsp;
-                    Use as default for {% if formatted_page_type != '' %}{{ formatted_page_type }}{% else %}current{% endif %} mode.
-                {% else %}
-                    <i class="fa fa-ban"></i>&nbsp;
-                    Unshared views can't be used as database defaults.
-                {% endif %}
-                </div>
-            {% endif %}
-            </div>
+    {% if theme_data.default_for|length > 0 %}
+        {% set need_spacer = true %}
+        {% for num,label in theme_data.default_for %}
+        {% set need_spacer = true %}
+        <div class="ODRViewNote">
+            {% if is_datatype_admin %}<i class="ODRUnsetDefaultDatabase fa fa-unlink" title="Stop using as database default" rel="{{ label }}"></i>&nbsp;{% endif %}
+            [ <i class="fa fa-database CursorOverride"></i>&nbsp;Database default for {{ label }} mode. ]
         </div>
+        {% endfor %}
     {% endif %}
 
     {% if user != "anon." %}
-        <div class="ODRViewNote ODRLayoutInfoDiv">
-            <i class="fa fa-lg fa-info-circle"></i>&nbsp;Personal default for...
-            <div class="ODRLayoutInfo">
-                {% if formatted_page_type not in theme_data.user_preference_for %}
-                    {# users can select any theme they can view to be their personal default #}
-                    <div class="ODRViewNote">
-                        <i class="ODRDefaultPersonal fa fa-link"></i>&nbsp;
-                        Use this layout as your personal default for {% if formatted_page_type != '' %}{{ formatted_page_type }}{% else %}current{% endif %} mode.
-                    </div>
-                {% endif %}
+        {% for num,label in theme_data.user_preference_for %}
+        {% set need_spacer = true %}
+        <div class="ODRViewNote">
+            <i class="ODRUnsetDefaultPersonal fa fa-unlink" title="Stop using as personal default" rel="{{ label }}"></i>&nbsp;
+            [ <i class="fa fa-user CursorOverride"></i>&nbsp;Personal default for {{ label }} mode. ]
+        </div>
+        {% endfor %}
+    {% endif %}
 
-                {% for num,label in theme_data.user_preference_for %}
-                <div class="ODRViewNote">
-                    <i class="ODRUnsetDefaultPersonal fa fa-unlink" title="Stop using as personal default" rel="{{ label }}"></i>&nbsp;
-                    Stop using this layout as your personal default for {{ label }} mode
-                </div>
-                {% endfor %}
-            </div>
+    {% if need_spacer %}
+        <div class="ODRViewNote">&nbsp;</div>
+        {% set need_spacer = false %}
+    {% endif %}
+
+    {% if is_datatype_admin and formatted_page_type not in theme_data.default_for and theme_data.is_shared %}
+        <div class="ODRViewNote">
+            <i class="ODRDefaultDatabase fa fa-link"></i>&nbsp;
+            Use as database default for {% if formatted_page_type != '' %}{{ formatted_page_type }}{% else %}current{% endif %} mode.
+        </div>
+    {% endif %}
+
+    {% if user != "anon." and formatted_page_type not in theme_data.user_preference_for %}
+        <div class="ODRViewNote">
+            <i class="ODRDefaultPersonal fa fa-link"></i>&nbsp;
+            Use as your personal default for {% if formatted_page_type != '' %}{{ formatted_page_type }}{% else %}current{% endif %} mode.
         </div>
     {% endif %}
     </div>

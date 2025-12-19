@@ -1926,6 +1926,9 @@ body {
 .Cursor {
     cursor: default;
 }
+.CursorOverride {
+    cursor: default !important;
+}
 .Info {
     cursor: help;
 }
@@ -3764,6 +3767,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 /* End Loading CSS Widget */
 
+#ODRChooseView {
+    margin: 1em 0;
+}
 
 #ODRChooseView,
 #ODRChooseLayout {
@@ -3810,6 +3816,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 #ODRChooseView_contextlabel {
     position: relative;
+    top: 10px;
     left: 10px;
     cursor: pointer;
 }
@@ -5402,6 +5409,14 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     margin-top: 5px;
 }
 
+table.ODRRenderPlugin_CSVTable tbody td {
+    /* need !important because otherwise "table.dataTables tbody td" interferes with this plugin */
+    padding: 1px 4px !important;
+}
+div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
+    border-bottom: unset !important;
+}
+
 .ODRRRUFFReferencePlugin_select {
 
 }
@@ -5570,4 +5585,9 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRChangeSearchedDescendants_wrapper > .ODRTagGroup:before {
     /* no vertical line on left for top-level tags */
     background-color: inherit;
+}
+
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
 }

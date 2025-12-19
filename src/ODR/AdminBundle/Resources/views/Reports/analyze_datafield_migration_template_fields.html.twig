@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set new_fieldtype_can_be_unique = new_fieldtype.canBeUnique %}
-{# NOTE: the conversions sent through this twig file are always to fieldtypes that can't be unique #}
+{# NOTE: the conversions sent through this twig file are always to fieldtypes that can't be unique, and will lose all data #}
 {% set new_fieldtype_can_be_sort_field = new_fieldtype.canBeSortField %}
 
 {% for df_id,data in strings %}
@@ -12,30 +12,59 @@
     {% set external_id_field = dt.getexternalidfield %}
 
     <div>
-        Derived datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ dt.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': dt.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
+    {% if df.masterdatafield != null %}Derived{% else %}Local{% endif %} datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ dt.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': dt.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
         <br>
 
     {% if df.getisunique %}
-        <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">This datafield is currently marked as unique{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+        <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">
+            This datafield is currently marked as unique{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.
+            {% if not new_fieldtype_can_be_unique %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+        </div>
     {% endif %}
 
-    {% if external_id_field is not null and external_id_field.id == df.id %}
-        <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">This datafield is currently the datatype's external id field{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+    {% if external_id_field is not null and external_id_field.id == df_id %}
+        <div class="bold{% if not new_fieldtype_can_be_unique %} ODRInputError{% endif %}">
+            This datafield is currently the datatype's external id field{% if not new_fieldtype_can_be_unique %}, but won't be after migrating to this fieldtype{% endif %}.
+            {% if not new_fieldtype_can_be_unique %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+        </div>
     {% endif %}
 
     {% if df.getnamedatatypes|length > 0 %}
         {% for dt in df.getnamedatatypes %}
-        <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">This datafield is currently used in naming records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+        <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">
+            This datafield is currently used in naming records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.
+            {% if not new_fieldtype_can_be_sort_field %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+        </div>
         {% endfor %}
     {% endif %}
     {% if df.getsortdatatypes|length > 0 %}
         {% for dt in df.getsortdatatypes %}
-        <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">This datafield is currently used in sorting records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.</div>
+        <div class="bold{% if not new_fieldtype_can_be_sort_field %} ODRInputError{% endif %}">
+            This datafield is currently used in sorting records of the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.
+            {% if not new_fieldtype_can_be_sort_field %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+        </div>
         {% endfor %}
     {% endif %}
 
-        <div class="ODRDatarecordListHeader">{{ str }}</div>
+    {% if render_plugin_restrictions[df_id] is defined and render_plugin_restrictions[df_id]['affected_by_render_plugin'] == true %}
+        <div class="bold{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %} ODRInputError{% endif %}">
+            This datafield is currently used by a render plugin{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}, and can't be migrated to this fieldtype because the render plugin would stop working{% endif %}.
+            {% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}&nbsp;<label class="ODRMigration_acknowledge">{# can't acknowledge this #}</label>{% endif %}
+        </div>
+    {% endif %}
+
+        <div class="ODRDatarecordListHeader{% if 'will be lost' in str or 'will lose' in str %} ODRInputError{% endif %}">
+            {{ str }}
+            {% if 'will be lost' in str or 'will lose' in str %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+        </div>
     </div>
 {% endfor %}
+
+    {# TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
+    <br>
+    <div>
+        <div class="pure-button pure-button-primary pure-button-disabled ODRMigration_confirm">Begin Migration</div>
+    </div>
+    #}
 
 {% endspaceless %}

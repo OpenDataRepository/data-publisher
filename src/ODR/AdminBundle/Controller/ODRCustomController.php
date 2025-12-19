@@ -148,7 +148,7 @@ class ODRCustomController extends Controller
         // Might as well set the session default theme here
         $page_type = 'search_results';
 //        if ( $intent === 'linking' )
-//            $page_type = 'linking';    // TODO - do I actually want a separate page type for linking purposes?
+//            $page_type = 'linking';    // NOTE: apparently differentiating between 'search_results' and 'linking' is...'confusing'
         $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
 
         // Determine whether the currently preferred theme needs to be synchronized with its source

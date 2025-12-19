@@ -1950,6 +1950,9 @@ body {
 .Cursor {
     cursor: default;
 }
+.CursorOverride {
+    cursor: default !important;
+}
 .Info {
     cursor: help;
 }
@@ -3821,6 +3824,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     /*top: 10px;*/
 }
 
+#ODRChooseView {
+    margin: 1em 0;
+}
+
 #ODRChooseView,
 #ODRChooseLayout {
     list-style-type: none;
@@ -3866,6 +3873,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 #ODRChooseView_contextlabel {
     position: relative;
+    top: 10px;
     left: 10px;
     cursor: pointer;
 }
@@ -5418,8 +5426,8 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     cursor: pointer;
     position: absolute;
     z-index: 999;
-    top: 0;
-    left: 14px;
+    /* top: 0; */
+    left: 12px;
 }
 .ODRFilterGraphPlugin_settings_close {
     text-align: right;
@@ -5462,6 +5470,14 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     font-size: 0.8em;
 
     margin-top: 5px;
+}
+
+table.ODRRenderPlugin_CSVTable tbody td {
+    /* need !important because otherwise "table.dataTables tbody td" interferes with this plugin */
+    padding: 1px 4px !important;
+}
+div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
+    border-bottom: unset !important;
 }
 
 .ODRRRUFFReferencePlugin_select {
@@ -5629,4 +5645,15 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
 .ODRChangeSearchedDescendants_wrapper > .ODRTagGroup:before {
     /* no vertical line on left for top-level tags */
     background-color: inherit;
+}
+
+.DynamicGraphSettingsDiv {
+    top: -2px;
+    left: 2px;
+    position: relative;
+}
+
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
 }

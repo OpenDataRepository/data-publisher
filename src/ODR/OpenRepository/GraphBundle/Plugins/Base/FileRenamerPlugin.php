@@ -1217,7 +1217,10 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $uuid = $entity->getUniqueId();
 
             // ...so that the filename for this file/image entity can be determined
-            $new_filenames[$id] = array('new_filename' => $base_filename);
+            $new_filenames[$id] = array(
+                'new_filename' => $base_filename,
+                'entity' => $entity,
+            );
 
             // Append the file/image's uuid if requested
             if ( $config_info['append_file_uuid'] === 'yes' )
@@ -1412,32 +1415,41 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 $ret = self::getNewFilenames($drf);
                 if ( is_array($ret) ) {
                     foreach ($ret as $entity_id => $data) {
+                        // ...so for each file/image uploaded to the datafield...
+                        /** @var File|Image $entity */
+                        $entity = $data['entity'];
                         $new_filename = $data['new_filename'];
 
-                        if ( strlen($new_filename) <= 255 ) {
-                            // ...so for each file/image uploaded to the datafield...
-                            /** @var File|Image $entity */
-                            $entity = $entities[$entity_id];
-                            $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
+                        // ...if the filename changed...
+                        if ( $new_filename !== $entity->getOriginalFileName() ) {
+                            // ...and it's not too long...
+                            if ( strlen($new_filename) <= 255 ) {
+                                // ...then the file/image needs to get renamed
+                                $changes_made = true;
+                                $this->logger->debug('-- renaming '.$typeclass.' '.$entity_id.' from "'.$entity->getOriginalFileName().'" to "'.$new_filename.'"', array(self::class, 'onMassEditTrigger()'));
 
-                            // ...save the new filename in the database...
-                            $props = array('original_filename' => $new_filename);
-                            if ($typeclass === 'File')
-                                $this->entity_modify_service->updateFileMeta($user, $entity, $props, true);
-                            else
-                                $this->entity_modify_service->updateImageMeta($user, $entity, $props, true);
+                                // ...save the new filename in the database...
+                                $props = array('original_filename' => $new_filename);
+                                if ($typeclass === 'File')
+                                    $this->entity_modify_service->updateFileMeta($user, $entity, $props, true);
+                                else
+                                    $this->entity_modify_service->updateImageMeta($user, $entity, $props, true);
 
-                            // If the plugin is enforcing a particular file extension...
-                            if ( isset($data['new_ext']) ) {
-                                // ...then need to also set a value in the File/Image entity itself
-                                $new_ext = $data['new_ext'];
+                                // If the plugin is enforcing a particular file extension...
+                                if ( isset($data['new_ext']) ) {
+                                    // ...then need to also set a value in the File/Image entity itself
+                                    $new_ext = $data['new_ext'];
 
-                                $entity->setExt($new_ext);
-                                $this->em->persist($entity);
+                                    $entity->setExt($new_ext);
+                                    $this->em->persist($entity);
+                                }
+                            }
+                            else {
+                                $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', array(self::class, 'onMassEditTrigger()'));
                             }
                         }
                         else {
-                            $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
+                            $this->logger->debug('...no need to rename '.$typeclass.' '.$entity_id.' in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()'));
                         }
                     }
 
