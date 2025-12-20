@@ -177,6 +177,97 @@ jQuery(document).ready(function () {
         }
 
         /**
+         * Collect all datatype/record pairs from the DOM
+         * Finds all DataType_X divs and their DIRECT CHILD FieldArea_Y divs (siblings at the same level)
+         * @param {HTMLElement} container The container element to search within
+         * @returns {Array<Object>} Array of {datatype_id, datarecord_id} objects
+         */
+        function collectAllDatatypeRecordPairs(container) {
+            console.log('ODRStatistics: collectAllDatatypeRecordPairs called');
+            var pairs = [];
+
+            if (!container) {
+                console.warn('ODRStatistics: No container provided to collectAllDatatypeRecordPairs');
+                return pairs;
+            }
+
+            // Find all DataType_ divs within the container
+            var datatypeDivs = container.querySelectorAll('[id^="DataType_"]');
+            console.log('ODRStatistics: Found', datatypeDivs.length, 'DataType divs');
+
+            datatypeDivs.forEach(function(datatypeDiv) {
+                var datatypeId = parseInt(datatypeDiv.id.replace('DataType_', ''));
+
+                if (isNaN(datatypeId) || datatypeId <= 0) {
+                    return; // Skip invalid datatype IDs
+                }
+
+                // Find only DIRECT child FieldArea divs of this DataType
+                // We need to find FieldAreas that are children of this DataType but NOT nested inside another DataType
+                var childNodes = datatypeDiv.children;
+
+                for (var i = 0; i < childNodes.length; i++) {
+                    var child = childNodes[i];
+
+                    // Check if this is a FieldArea div
+                    if (child.id && child.id.indexOf('FieldArea_') === 0) {
+                        var recordId = parseInt(child.id.replace('FieldArea_', ''));
+
+                        if (!isNaN(recordId) && recordId > 0) {
+                            pairs.push({
+                                datatype_id: datatypeId,
+                                datarecord_id: recordId
+                            });
+                        }
+                    } else {
+                        // Recursively search this child for FieldAreas, but only until we hit another DataType
+                        findFieldAreasForDataType(child, datatypeId, pairs);
+                    }
+                }
+            });
+
+            console.log('ODRStatistics: Collected', pairs.length, 'datatype/record pairs');
+            return pairs;
+        }
+
+        /**
+         * Helper function to find FieldArea divs for a specific datatype
+         * Stops when it encounters another DataType div (because that would be a child datatype)
+         * @param {HTMLElement} element The element to search within
+         * @param {number} datatypeId The datatype ID we're collecting FieldAreas for
+         * @param {Array<Object>} pairs The array to add pairs to
+         */
+        function findFieldAreasForDataType(element, datatypeId, pairs) {
+            if (!element || !element.children) {
+                return;
+            }
+
+            for (var i = 0; i < element.children.length; i++) {
+                var child = element.children[i];
+
+                // If we hit another DataType div, stop - that's a child datatype with its own records
+                if (child.id && child.id.indexOf('DataType_') === 0) {
+                    continue; // Don't recurse into child datatypes
+                }
+
+                // If this is a FieldArea div, add it to our pairs
+                if (child.id && child.id.indexOf('FieldArea_') === 0) {
+                    var recordId = parseInt(child.id.replace('FieldArea_', ''));
+
+                    if (!isNaN(recordId) && recordId > 0) {
+                        pairs.push({
+                            datatype_id: datatypeId,
+                            datarecord_id: recordId
+                        });
+                    }
+                } else {
+                    // Continue searching in this child's descendants
+                    findFieldAreasForDataType(child, datatypeId, pairs);
+                }
+            }
+        }
+
+        /**
          * Check if we're viewing results and log appropriately
          * Handles both search results (ODRShortResults) and full record views (ODRResults)
          */
@@ -195,41 +286,18 @@ jQuery(document).ready(function () {
             console.log('ODRStatistics: Found', searchResults.length, 'search result elements');
 
             if (searchResults.length > 0) {
-                // Find the SearchResultsDataType_ element to get the datatype ID (applies to all results)
-                var datatypeElem = document.querySelector('[id^="SearchResultsDataType_"]');
-                console.log('ODRStatistics: SearchResultsDataType element:', datatypeElem ? datatypeElem.id : 'NOT FOUND');
+                // For search results, we need to collect all datatype/record pairs from the search container
+                var searchContainer = document.getElementById('ODRSearchContent');
 
-                if (!datatypeElem || !datatypeElem.id) {
-                    console.warn('ODRStatistics: Found search results but no SearchResultsDataType_ element');
+                if (!searchContainer) {
+                    console.warn('ODRStatistics: Found search results but no ODRSearchContent container');
                     return;
                 }
 
-                var datatypeId = parseInt(datatypeElem.id.replace('SearchResultsDataType_', ''));
-                console.log('ODRStatistics: Extracted datatype_id:', datatypeId);
+                // Collect all datatype/record pairs from search results (including child datatypes)
+                var records = collectAllDatatypeRecordPairs(searchContainer);
 
-                if (isNaN(datatypeId) || datatypeId <= 0) {
-                    console.warn('ODRStatistics: Invalid datatype_id from SearchResultsDataType_', datatypeId);
-                    return;
-                }
-
-                // Extract datarecord IDs from search results (all have same datatype_id)
-                var records = [];
-
-                searchResults.forEach(function (elem) {
-                    var id = elem.id;
-                    if (id && id.indexOf('ShortResults_') === 0) {
-                        var recordId = parseInt(id.replace('ShortResults_', ''));
-
-                        if (!isNaN(recordId) && recordId > 0) {
-                            records.push({
-                                datarecord_id: recordId,
-                                datatype_id: datatypeId
-                            });
-                        }
-                    }
-                });
-
-                console.log('ODRStatistics: Prepared', records.length, 'search result records to log');
+                console.log('ODRStatistics: Prepared', records.length, 'search result records to log (including child datatypes)');
 
                 // Log all search result views in batch
                 if (records.length > 0) {
@@ -246,31 +314,19 @@ jQuery(document).ready(function () {
                 console.log('ODRStatistics: ODRResults element:', fullRecordView ? 'FOUND' : 'NOT FOUND');
 
                 if (fullRecordView) {
-                    // Look for first DataType_[Number] ID to get the datatype ID
-                    var datatypeElem = fullRecordView.querySelector('[id^="DataType_"]');
-                    console.log('ODRStatistics: DataType element:', datatypeElem ? datatypeElem.id : 'NOT FOUND');
+                    // Collect all datatype/record pairs from the full record view (including child datatypes)
+                    var records = collectAllDatatypeRecordPairs(fullRecordView);
 
-                    // Look for first FieldArea_[Number] ID to get the record ID
-                    var fieldAreaElem = fullRecordView.querySelector('[id^="FieldArea_"]');
-                    console.log('ODRStatistics: FieldArea element:', fieldAreaElem ? fieldAreaElem.id : 'NOT FOUND');
+                    console.log('ODRStatistics: Prepared', records.length, 'full record view records to log (including child datatypes)');
 
-                    if (datatypeElem && datatypeElem.id && fieldAreaElem && fieldAreaElem.id) {
-                        var datatypeId = parseInt(datatypeElem.id.replace('DataType_', ''));
-                        var recordId = parseInt(fieldAreaElem.id.replace('FieldArea_', ''));
-
-                        console.log('ODRStatistics: Extracted IDs - datatype_id:', datatypeId, 'datarecord_id:', recordId);
-
-                        if (!isNaN(datatypeId) && datatypeId > 0 && !isNaN(recordId) && recordId > 0) {
-                            console.log('ODRStatistics: Scheduling single record view log');
-                            // Small delay to avoid blocking page rendering
-                            setTimeout(function () {
-                                logRecordView(recordId, datatypeId, false);
-                            }, 200);
-                        } else {
-                            console.warn('ODRStatistics: Invalid IDs extracted - datatype_id:', datatypeId, 'datarecord_id:', recordId);
-                        }
+                    if (records.length > 0) {
+                        console.log('ODRStatistics: Scheduling batch log for full record view');
+                        // Small delay to avoid blocking page rendering
+                        setTimeout(function () {
+                            logSearchResultViews(records);
+                        }, 200);
                     } else {
-                        console.warn('ODRStatistics: Missing required elements for full record view');
+                        console.warn('ODRStatistics: No valid records to log in full record view');
                     }
                 } else {
                     console.log('ODRStatistics: No search results or full record view detected');
