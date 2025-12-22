@@ -1,0 +1,1463 @@
+<?php
+
+/**
+ * Open Data Repository Data Publisher
+ * Statistics Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * This controller handles API endpoints for logging and retrieving
+ * statistics about datarecord views and file downloads.
+ */
+
+namespace ODR\AdminBundle\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+
+// Entities
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\StatisticsDaily;
+use ODR\AdminBundle\Entity\StatisticsHourly;
+use ODR\AdminBundle\Entity\StatisticsBotList;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\StatisticsService;
+// Symfony
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+
+class StatisticsController extends ODRCustomController
+{
+    /**
+     * JavaScript endpoint to log datarecord views
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function logViewAction(Request $request)
+    {
+        try {
+            $this->container->get('logger')->debug('logViewAction called with params: ' . $request->getContent(), array('source' => 0x98765432));
+            // Get JSON data from request body
+            $content = $request->getContent();
+            $post = json_decode($content, true);
+
+            if (!$post || !isset($post['datarecord_id']) || !isset($post['datatype_id'])) {
+                throw new ODRBadRequestException('Missing datarecord_id or datatype_id');
+            }
+
+            $datarecord_id = intval($post['datarecord_id']);
+            $datatype_id = intval($post['datatype_id']);
+            $is_search_result = isset($post['is_search_result']) ? (bool)$post['is_search_result'] : false;
+
+            // Get IP address and user agent
+            $ip_address = $request->getClientIp();
+            $user_agent = $request->headers->get('User-Agent', 'Unknown');
+
+            // Log the view (no database lookups needed)
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service->logRecordView(
+                $datarecord_id,
+                $datatype_id,
+                $ip_address,
+                $user_agent,
+                $is_search_result
+            );
+
+            return new JsonResponse(array('success' => true));
+
+        } catch (\Exception $e) {
+            $source = 0xd8e7e394;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * JavaScript endpoint to batch log multiple datarecord views (search results)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function logBatchViewAction(Request $request)
+    {
+        $start_time = microtime(true);
+        $logger = $this->container->get('logger');
+
+        try {
+            // Get JSON data from request body
+            $parse_start = microtime(true);
+            $content = $request->getContent();
+            $post = json_decode($content, true);
+            $parse_time = (microtime(true) - $parse_start) * 1000;
+
+            $logger->debug('logBatchViewAction - JSON parse time: ' . round($parse_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            if (!$post || !isset($post['records']) || !is_array($post['records'])) {
+                throw new ODRBadRequestException('Missing or invalid records array');
+            }
+
+            $records = $post['records'];
+            $is_search_result = isset($post['is_search_result']) ? (bool)$post['is_search_result'] : true;
+
+            if (empty($records)) {
+                return new JsonResponse(array('success' => true, 'logged' => 0));
+            }
+
+            // Get IP address and user agent
+            $request_info_start = microtime(true);
+            $ip_address = $request->getClientIp();
+            $user_agent = $request->headers->get('User-Agent', 'Unknown');
+            $request_info_time = (microtime(true) - $request_info_start) * 1000;
+
+            $logger->debug('logBatchViewAction - Request info time: ' . round($request_info_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            /** @var StatisticsService $statistics_service */
+            $service_start = microtime(true);
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $service_time = (microtime(true) - $service_start) * 1000;
+
+            $logger->debug('logBatchViewAction - Service instantiation time: ' . round($service_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            $loop_start = microtime(true);
+            $logged_count = 0;
+            foreach ($records as $record) {
+                // Validate record structure
+                if (!isset($record['datarecord_id']) || !isset($record['datatype_id'])) {
+                    continue;
+                }
+
+                $datarecord_id = intval($record['datarecord_id']);
+                $datatype_id = intval($record['datatype_id']);
+
+                // Skip invalid IDs
+                if ($datarecord_id <= 0 || $datatype_id <= 0) {
+                    continue;
+                }
+
+                // Log the view (no database lookups needed)
+                $log_start = microtime(true);
+                $statistics_service->logRecordView(
+                    $datarecord_id,
+                    $datatype_id,
+                    $ip_address,
+                    $user_agent,
+                    $is_search_result
+                );
+                $log_time = (microtime(true) - $log_start) * 1000;
+
+                if ($logged_count === 0) {
+                    // Log first iteration timing
+                    $logger->debug('logBatchViewAction - First logRecordView time: ' . round($log_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+                }
+
+                $logged_count++;
+            }
+            $loop_time = (microtime(true) - $loop_start) * 1000;
+
+            $logger->debug('logBatchViewAction - Total loop time for ' . $logged_count . ' records: ' . round($loop_time, 2) . 'ms (' . round($loop_time / $logged_count, 2) . 'ms avg)', array('source' => 0xa1b2c3d4));
+
+            $total_time = (microtime(true) - $start_time) * 1000;
+            $logger->debug('logBatchViewAction - TOTAL time: ' . round($total_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+
+            return new JsonResponse(array(
+                'success' => true,
+                'logged' => $logged_count,
+                'total' => count($records)
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xa1b2c3d4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Log a file download
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function logDownloadAction(Request $request)
+    {
+        try {
+            // Get JSON data from request body
+            $content = $request->getContent();
+            $post = json_decode($content, true);
+
+            if (!$post || !isset($post['file_id'])) {
+                throw new ODRBadRequestException('Missing file_id');
+            }
+
+            $file_id = intval($post['file_id']);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if (!$file) {
+                throw new ODRNotFoundException('File not found');
+            }
+
+            // Get datarecord from file
+            $datarecord = $file->getDataRecord();
+            if (!$datarecord) {
+                throw new ODRNotFoundException('Datarecord not found');
+            }
+
+            // Get datatype from file's datafield
+            $datafield = $file->getDataField();
+            if (!$datafield) {
+                throw new ODRNotFoundException('Datafield not found');
+            }
+
+            $datatype = $datafield->getDataType();
+            if (!$datatype) {
+                throw new ODRNotFoundException('Datatype not found');
+            }
+
+            // Get user (may be anonymous)
+            $user = null;
+            $token = $this->container->get('security.token_storage')->getToken();
+            if ($token && $token->getUser() instanceof ODRUser) {
+                $user = $token->getUser();
+            }
+
+            // Get IP address and user agent
+            $ip_address = $request->getClientIp();
+            $user_agent = $request->headers->get('User-Agent', 'Unknown');
+
+            // Log the download
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service->logFileDownload(
+                $file_id,
+                $datatype->getId(),
+                $user,
+                $ip_address,
+                $user_agent,
+                $datarecord->getId()
+            );
+
+            return new JsonResponse(array('success' => true));
+
+        } catch (\Exception $e) {
+            $source = 0x7f6a3b82;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Get statistics for a datatype
+     *
+     * @param Request $request
+     * @param int $datatype_id
+     *
+     * @return JsonResponse
+     */
+    public function getDatatypeStatsAction(Request $request, $datatype_id)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if (!$datatype) {
+                throw new ODRNotFoundException('Datatype not found');
+            }
+
+            // Check permissions - must be datatype admin
+            if (!$pm_service->isDatatypeAdmin($user, $datatype)) {
+                throw new ODRForbiddenException('Not authorized to view statistics for this datatype');
+            }
+
+            // Get query parameters
+            $start_date_str = $request->query->get('start_date');
+            $end_date_str = $request->query->get('end_date');
+            $include_bots = $request->query->get('include_bots', 'false') === 'true';
+            $granularity = $request->query->get('granularity', 'daily');
+
+            // Parse dates
+            $start_date = $start_date_str ? new \DateTime($start_date_str) : (new \DateTime())->modify('-30 days');
+            $end_date = $end_date_str ? new \DateTime($end_date_str) : new \DateTime();
+
+            // Get statistics
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $stats = $statistics_service->getStatisticsByDatatype(
+                $datatype_id,
+                $start_date,
+                $end_date,
+                $include_bots,
+                $granularity
+            );
+
+            return new JsonResponse(array(
+                'success' => true,
+                'statistics' => $stats
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xa4c2d9f1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Get statistics for a datarecord
+     *
+     * @param Request $request
+     * @param int $datarecord_id
+     *
+     * @return JsonResponse
+     */
+    public function getDatarecordStatsAction(Request $request, $datarecord_id)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if (!$datarecord) {
+                throw new ODRNotFoundException('Datarecord not found');
+            }
+
+            $datatype = $datarecord->getDataType();
+
+            // Check permissions - must be datatype admin
+            if (!$pm_service->isDatatypeAdmin($user, $datatype)) {
+                throw new ODRForbiddenException('Not authorized to view statistics for this datarecord');
+            }
+
+            // Get query parameters
+            $start_date_str = $request->query->get('start_date');
+            $end_date_str = $request->query->get('end_date');
+            $include_bots = $request->query->get('include_bots', 'false') === 'true';
+
+            // Parse dates
+            $start_date = $start_date_str ? new \DateTime($start_date_str) : (new \DateTime())->modify('-30 days');
+            $end_date = $end_date_str ? new \DateTime($end_date_str) : new \DateTime();
+
+            // Get statistics
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $stats = $statistics_service->getStatisticsByRecord(
+                $datarecord_id,
+                $start_date,
+                $end_date,
+                $include_bots
+            );
+
+            return new JsonResponse(array(
+                'success' => true,
+                'statistics' => $stats
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xb8f3a615;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Get geographic statistics
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function getGeographicStatsAction(Request $request)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Get query parameters
+            $datatype_id = $request->query->get('datatype_id');
+            $start_date_str = $request->query->get('start_date');
+            $end_date_str = $request->query->get('end_date');
+            $include_bots = $request->query->get('include_bots', 'false') === 'true';
+
+            // If datatype_id specified, check permissions
+            if ($datatype_id) {
+                /** @var DataType $datatype */
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+                if (!$datatype) {
+                    throw new ODRNotFoundException('Datatype not found');
+                }
+
+                // Check permissions - must be datatype admin
+                if (!$pm_service->isDatatypeAdmin($user, $datatype)) {
+                    throw new ODRForbiddenException('Not authorized to view statistics for this datatype');
+                }
+            } else {
+                // Global geographic stats - must be super admin
+                if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
+                    throw new ODRForbiddenException('Super admin permission required for global statistics');
+                }
+            }
+
+            // Parse dates
+            $start_date = $start_date_str ? new \DateTime($start_date_str) : (new \DateTime())->modify('-30 days');
+            $end_date = $end_date_str ? new \DateTime($end_date_str) : new \DateTime();
+
+            // Get statistics
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $stats = $statistics_service->getGeographicStats(
+                $datatype_id,
+                $start_date,
+                $end_date,
+                $include_bots
+            );
+
+            return new JsonResponse(array(
+                'success' => true,
+                'geographic_stats' => $stats
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xc7d4e928;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Get dashboard statistics HTML widget
+     *
+     * @param Request $request
+     * @param int $datatype_id
+     *
+     * @return Response
+     */
+    public function getDashboardAction(Request $request, $datatype_id)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( $user == 'anon.' )
+                throw new ODRForbiddenException();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if (!$datatype) {
+                throw new ODRNotFoundException('Datatype not found');
+            }
+
+            // Check permissions - must be datatype admin
+            if (!$pm_service->isDatatypeAdmin($user, $datatype)) {
+                throw new ODRForbiddenException('Not authorized to view statistics for this datatype');
+            }
+
+            // Get query parameters
+            $days = intval($request->query->get('days', 30));
+
+            // Get dashboard statistics
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
+            $stats = $statistics_service->getDashboardStats($datatype_id, $days);
+
+            // Render template
+            $html = $this->renderView(
+                'ODRAdminBundle:Statistics:dashboard.html.twig',
+                array(
+                    'datatype' => $datatype,
+                    'multi_site_mode' => true,
+                    'stats' => $stats,
+                    'user' => $user
+                )
+            );
+
+            $response = new Response($html);
+            $response->headers->set('Content-Type', 'text/html');
+            return $response;
+
+        } catch (\Exception $e) {
+            $source = 0xd9e5f037;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Get overall summary (super admin only)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function getSummaryAction(Request $request)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Check permissions - must be super admin
+            if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
+                throw new ODRForbiddenException('Super admin permission required');
+            }
+
+            // Get query parameters
+            $start_date_str = $request->query->get('start_date');
+            $end_date_str = $request->query->get('end_date');
+            $include_bots = $request->query->get('include_bots', '0') === '1';
+            $datatype_ids_str = $request->query->get('datatype_ids', '');
+
+            // Parse dates
+            $start_date = $start_date_str ? new \DateTime($start_date_str) : (new \DateTime())->modify('-30 days');
+            $end_date = $end_date_str ? new \DateTime($end_date_str) : new \DateTime();
+
+            // Parse datatype IDs filter
+            $datatype_ids = array();
+            if (!empty($datatype_ids_str)) {
+                $datatype_ids = array_map('intval', explode(',', $datatype_ids_str));
+            }
+
+            // If datatype IDs are specified, expand to include all descendant datatypes
+            // This ensures we have statistics for child datatypes needed for aggregation
+            $expanded_datatype_ids = array();
+            if (!empty($datatype_ids)) {
+                /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
+                $datatree_info_service = $this->container->get('odr.datatree_info_service');
+
+                foreach ($datatype_ids as $dt_id) {
+                    // Get all associated datatypes (including descendants)
+                    $associated = $datatree_info_service->getAssociatedDatatypes($dt_id, true);
+                    $expanded_datatype_ids = array_merge($expanded_datatype_ids, $associated);
+                }
+                // Remove duplicates
+                $expanded_datatype_ids = array_unique($expanded_datatype_ids);
+            }
+
+            // Build query for detailed statistics
+            $qb = $em->createQueryBuilder();
+            $qb->select('s')
+                ->from('ODRAdminBundle:StatisticsDaily', 's')
+                ->where('s.dayDate >= :start_date')
+                ->andWhere('s.dayDate <= :end_date')
+                ->setParameter('start_date', $start_date)
+                ->setParameter('end_date', $end_date);
+
+            if (!$include_bots) {
+                $qb->andWhere('s.isBot = :is_bot')
+                    ->setParameter('is_bot', false);
+            }
+
+            if (!empty($expanded_datatype_ids)) {
+                $qb->andWhere('s.dataType IN (:datatype_ids)')
+                    ->setParameter('datatype_ids', $expanded_datatype_ids);
+            }
+
+            /** @var StatisticsDaily[] $stats */
+            $stats = $qb->getQuery()->getResult();
+
+            // Aggregate data
+            $total_views = 0;
+            $total_downloads = 0;
+            $search_result_views = 0;
+            $timeline = array();
+            $geographic = array();
+            $bot_stats = array(
+                'human_views' => 0,
+                'human_downloads' => 0,
+                'bot_views' => 0,
+                'bot_downloads' => 0
+            );
+            $by_datatype = array();
+            $countries = array();
+
+            foreach ($stats as $stat) {
+                $views = $stat->getViewCount();
+                $downloads = $stat->getDownloadCount();
+                $search_views = $stat->getSearchResultViewCount();
+                $date = $stat->getDayDate()->format('Y-m-d');
+                $country = $stat->getCountry();
+                $is_bot = $stat->getIsBot();
+                $dt = $stat->getDataType();
+                $dt_id = $dt ? $dt->getId() : 0;
+
+                // Determine if this is an originally requested datatype or just included for aggregation
+                $is_original_datatype = empty($datatype_ids) || in_array($dt_id, $datatype_ids);
+
+                // Totals
+                // IMPORTANT: Only count views from originally requested datatypes, not descendants
+                if ($is_original_datatype) {
+                    $total_views += $views;
+                    $search_result_views += $search_views;
+                }
+                // Downloads are counted from all datatypes (will be aggregated later)
+                $total_downloads += $downloads;
+
+                // Timeline
+                if (!isset($timeline[$date])) {
+                    $timeline[$date] = array('date' => $date, 'view_count' => 0, 'download_count' => 0);
+                }
+                // Only count views from originally requested datatypes
+                if ($is_original_datatype) {
+                    $timeline[$date]['view_count'] += $views;
+                }
+                $timeline[$date]['download_count'] += $downloads;
+
+                // Geographic
+                if ($country) {
+                    if (!isset($geographic[$country])) {
+                        $geographic[$country] = array('view_count' => 0, 'download_count' => 0);
+                        $countries[$country] = true;
+                    }
+                    // Only count views from originally requested datatypes
+                    if ($is_original_datatype) {
+                        $geographic[$country]['view_count'] += $views;
+                    }
+                    $geographic[$country]['download_count'] += $downloads;
+                }
+
+                // Bot stats
+                if ($is_bot) {
+                    // Only count views from originally requested datatypes
+                    if ($is_original_datatype) {
+                        $bot_stats['bot_views'] += $views;
+                    }
+                    $bot_stats['bot_downloads'] += $downloads;
+                } else {
+                    // Only count views from originally requested datatypes
+                    if ($is_original_datatype) {
+                        $bot_stats['human_views'] += $views;
+                    }
+                    $bot_stats['human_downloads'] += $downloads;
+                }
+
+                // By datatype
+                if ($dt_id > 0) {
+                    if (!isset($by_datatype[$dt_id])) {
+                        $by_datatype[$dt_id] = array('view_count' => 0, 'download_count' => 0);
+                    }
+                    $by_datatype[$dt_id]['view_count'] += $views;
+                    $by_datatype[$dt_id]['download_count'] += $downloads;
+                }
+            }
+
+            // Aggregate child datatype downloads into parent datatypes
+            // NOTE: Views remain specific to each datatype, only downloads are aggregated
+            /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+
+            /** @var \Symfony\Bridge\Monolog\Logger $logger */
+            $logger = $this->get('logger');
+
+            $logger->info('StatisticsController::getSummaryAction() - Starting download aggregation');
+            $logger->info('StatisticsController::getSummaryAction() - Initial by_datatype', array('by_datatype' => $by_datatype));
+
+            // First, identify top-level datatypes - we only want to aggregate UP to these
+            // This avoids double-counting where a child's downloads would be counted both
+            // in its own aggregation and its parent's aggregation
+            $top_level_datatype_ids = array();
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+
+            foreach ($by_datatype as $dt_id => $stats) {
+                $grandparent_id = $datatree_info_service->getGrandparentDatatypeId($dt_id, $datatree_array);
+                if (!in_array($grandparent_id, $top_level_datatype_ids)) {
+                    $top_level_datatype_ids[] = $grandparent_id;
+                }
+            }
+
+            $logger->info(
+                'StatisticsController::getSummaryAction() - Identified top-level datatypes',
+                array('top_level_datatypes' => $top_level_datatype_ids)
+            );
+
+            // Now aggregate downloads ONLY for top-level datatypes
+            // This ensures each download is counted exactly once
+            $aggregated_downloads = array();
+            foreach ($top_level_datatype_ids as $top_dt_id) {
+                // Skip if this top-level datatype isn't in the results
+                if (!isset($by_datatype[$top_dt_id])) {
+                    continue;
+                }
+
+                // Get all associated datatypes (including child and linked datatypes)
+                $associated_datatype_ids = $datatree_info_service->getAssociatedDatatypes(
+                    $top_dt_id,
+                    true  // deep = true to get all descendants
+                );
+
+                // Remove the current datatype from the list to get only descendants
+                $descendant_datatype_ids = array_diff($associated_datatype_ids, array($top_dt_id));
+
+                $logger->info(
+                    'StatisticsController::getSummaryAction() - Processing top-level datatype',
+                    array(
+                        'top_datatype_id' => $top_dt_id,
+                        'associated_datatypes' => $associated_datatype_ids,
+                        'descendant_datatypes' => $descendant_datatype_ids,
+                        'descendant_count' => count($descendant_datatype_ids),
+                        'original_downloads' => $by_datatype[$top_dt_id]['download_count']
+                    )
+                );
+
+                // Sum downloads from all descendant datatypes
+                $descendant_downloads = 0;
+                foreach ($descendant_datatype_ids as $descendant_dt_id) {
+                    if (isset($by_datatype[$descendant_dt_id])) {
+                        $descendant_downloads += $by_datatype[$descendant_dt_id]['download_count'];
+                        $logger->info(
+                            'StatisticsController::getSummaryAction() - Found descendant datatype with downloads',
+                            array(
+                                'top_datatype_id' => $top_dt_id,
+                                'descendant_datatype_id' => $descendant_dt_id,
+                                'descendant_download_count' => $by_datatype[$descendant_dt_id]['download_count'],
+                                'running_total' => $descendant_downloads
+                            )
+                        );
+                    } else {
+                        $logger->info(
+                            'StatisticsController::getSummaryAction() - Descendant datatype NOT in by_datatype array (no stats in this period)',
+                            array(
+                                'top_datatype_id' => $top_dt_id,
+                                'descendant_datatype_id' => $descendant_dt_id
+                            )
+                        );
+                    }
+                }
+
+                $logger->info(
+                    'StatisticsController::getSummaryAction() - Total descendant downloads for top-level datatype',
+                    array(
+                        'top_datatype_id' => $top_dt_id,
+                        'descendant_downloads' => $descendant_downloads
+                    )
+                );
+
+                // Store the aggregated download count for this top-level datatype
+                $aggregated_downloads[$top_dt_id] = $descendant_downloads;
+            }
+
+            // Add aggregated descendant downloads ONLY to top-level datatypes
+            foreach ($aggregated_downloads as $top_dt_id => $descendant_download_count) {
+                $original_downloads = $by_datatype[$top_dt_id]['download_count'];
+                $original_views = $by_datatype[$top_dt_id]['view_count'];
+
+                // Add descendant downloads to the download count (NOT to views!)
+                $by_datatype[$top_dt_id]['download_count'] += $descendant_download_count;
+
+                $logger->info(
+                    'StatisticsController::getSummaryAction() - Updated top-level datatype download count',
+                    array(
+                        'top_datatype_id' => $top_dt_id,
+                        'original_downloads' => $original_downloads,
+                        'original_views' => $original_views,
+                        'descendant_downloads_to_add' => $descendant_download_count,
+                        'new_download_total' => $by_datatype[$top_dt_id]['download_count'],
+                        'views_unchanged' => $by_datatype[$top_dt_id]['view_count'],
+                        'full_stats' => $by_datatype[$top_dt_id]
+                    )
+                );
+            }
+
+            $logger->info('StatisticsController::getSummaryAction() - Final by_datatype', array('by_datatype' => $by_datatype));
+
+            // Sort timeline by date
+            ksort($timeline);
+
+            return new JsonResponse(array(
+                'success' => true,
+                'total_views' => $total_views,
+                'total_downloads' => $total_downloads,
+                'search_result_views' => $search_result_views,
+                'unique_countries' => count($countries),
+                'timeline' => array_values($timeline),
+                'geographic' => $geographic,
+                'bot_stats' => $bot_stats,
+                'by_datatype' => $by_datatype
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xe0f6a146;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+    /**
+     * Display admin statistics dashboard
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function adminDashboardAction(Request $request)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( $user == 'anon.' )
+                throw new ODRForbiddenException();
+
+            // Check permissions - must be super admin
+            if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
+                throw new ODRForbiddenException('Super admin permission required');
+            }
+
+            // Get ONLY top-level datatypes that have statistics data
+            // A top-level datatype is where dt.id = dt.grandparent
+            // First, get distinct datatype IDs from the statistics tables
+            $datatypeIdsWithStats = $em->createQueryBuilder()
+                ->select('DISTINCT IDENTITY(s.dataType) as dt_id')
+                ->from('ODRAdminBundle:StatisticsDaily', 's')
+                ->where('s.dataType IS NOT NULL')
+                ->andWhere('s.deletedAt IS NULL')
+                ->getQuery()
+                ->getArrayResult();
+
+            $datatypeIds = array_map(function($row) {
+                return $row['dt_id'];
+            }, $datatypeIdsWithStats);
+
+            // Now get ONLY TOP-LEVEL datatypes with their metadata
+            // Top-level datatypes are identified by: dt.id = grandparent.id
+            $datatypes = array();
+            if (!empty($datatypeIds)) {
+                $qb = $em->createQueryBuilder();
+                $qb->select('dt')
+                    ->from('ODRAdminBundle:DataType', 'dt')
+                    ->join('dt.dataTypeMeta', 'dtm')
+                    ->join('dt.grandparent', 'gp')
+                    ->where('dt.id IN (:ids)')
+                    ->andWhere('dt.id = gp.id')  // This ensures only top-level datatypes
+                    ->andWhere('dt.deletedAt IS NULL')
+                    ->andWhere('dtm.deletedAt IS NULL')
+                    ->setParameter('ids', $datatypeIds)
+                    ->orderBy('dtm.shortName', 'ASC');
+
+                $datatypes = $qb->getQuery()->getResult();
+            }
+
+            // Convert to array for template
+            $datatypes_array = array();
+            foreach ($datatypes as $dt) {
+                $datatypes_array[] = array(
+                    'id' => $dt->getId(),
+                    'shortName' => $dt->getShortName()
+                );
+            }
+
+            // Get URL parameters for WordPress integration
+            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+
+            // Render template
+            $html = $this->renderView(
+                'ODRAdminBundle:Statistics:dashboard.html.twig',
+                array(
+                    'datatypes' => $datatypes_array,
+                    'multi_site_mode' => true,
+                    'site_baseurl' => $site_baseurl,
+                    'wordpress_site_baseurl' => $wordpress_site_baseurl
+                )
+            );
+
+            // $response = new Response($html);
+            // $response->headers->set('Content-Type', 'text/html');
+            // return $response;
+
+            $return = array(
+                    "r" => 0,
+                    "t" => "",
+                    "d" => array(
+                        'html' => $html
+                    )
+            );
+
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+
+        } catch (\Exception $e) {
+            $source = 0xb3f8c421;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Store aggregated hourly statistics (called by Node.js background service)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function storeHourlyAction(Request $request)
+    {
+        try {
+            // Handle JSON input from Node.js background service
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $post = json_decode($content, true);
+            } else {
+                $post = $request->request->all();
+            }
+
+            if (!isset($post['statistics']) || !is_array($post['statistics'])) {
+                throw new ODRBadRequestException('Missing or invalid statistics array');
+            }
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Get the system user for created_by/updated_by
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(array('id' => 1));
+            if (!$user) {
+                // Fallback - try to get current user or use ID 1
+                $token = $this->container->get('security.token_storage')->getToken();
+                if ($token && $token->getUser() instanceof ODRUser) {
+                    $user = $token->getUser();
+                }
+            }
+
+            $statistics = $post['statistics'];
+            $stored_count = 0;
+
+            foreach ($statistics as $stat) {
+                // Create new StatisticsHourly entity
+                $hourly = new StatisticsHourly();
+
+                // Set timestamp
+                $hourly->setHourTimestamp(new \DateTime('@' . $stat['hour_timestamp']));
+
+                // Set counts
+                $hourly->setViewCount($stat['view_count']);
+                $hourly->setDownloadCount($stat['download_count']);
+                $hourly->setSearchResultViewCount($stat['search_result_view_count']);
+
+                // Set geography
+                $hourly->setCountry($stat['country']);
+                $hourly->setProvince($stat['province']);
+
+                // Set bot flag
+                $hourly->setIsBot($stat['is_bot']);
+
+                // Set relationships
+                if (isset($stat['datatype_id']) && $stat['datatype_id']) {
+                    $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($stat['datatype_id']);
+                    if ($datatype) {
+                        $hourly->setDataType($datatype);
+                    }
+                }
+
+                if (isset($stat['datarecord_id']) && $stat['datarecord_id']) {
+                    $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($stat['datarecord_id']);
+                    if ($datarecord) {
+                        $hourly->setDataRecord($datarecord);
+                    }
+                }
+
+                if (isset($stat['file_id']) && $stat['file_id']) {
+                    $file = $em->getRepository('ODRAdminBundle:File')->find($stat['file_id']);
+                    if ($file) {
+                        $hourly->setFile($file);
+                    }
+                }
+
+                // Set user tracking
+                $hourly->setCreatedBy($user);
+                $hourly->setUpdatedBy($user);
+
+                $em->persist($hourly);
+                $stored_count++;
+            }
+
+            $em->flush();
+
+            return new JsonResponse(array(
+                'success' => true,
+                'count' => $stored_count
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xf1a7b259;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Get bot patterns (called by Node.js background service)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function getBotsAction(Request $request)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Get all active bot patterns
+            $bots = $em->getRepository('ODRAdminBundle:StatisticsBotList')
+                ->createQueryBuilder('b')
+                ->where('b.isActive = true')
+                ->andWhere('b.deletedAt IS NULL')
+                ->getQuery()
+                ->getResult();
+
+            $patterns = array();
+            foreach ($bots as $bot) {
+                $patterns[] = $bot->getPattern();
+            }
+
+            return new JsonResponse(array(
+                'success' => true,
+                'bots' => $patterns
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xa2b8c36a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Aggregate daily statistics (called by Node.js background service)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function aggregateDailyAction(Request $request)
+    {
+        try {
+            // Handle JSON input from Node.js background service
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $post = json_decode($content, true);
+            } else {
+                $post = $request->request->all();
+            }
+
+            if (!isset($post['date'])) {
+                throw new ODRBadRequestException('Missing date parameter');
+            }
+
+            $date_str = $post['date'];
+            $date = new \DateTime($date_str);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Get the system user
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(array('id' => 1));
+
+            // Query hourly statistics for this date
+            $start_of_day = (clone $date)->setTime(0, 0, 0);
+            $end_of_day = (clone $date)->setTime(23, 59, 59);
+
+            $hourly_stats = $em->createQueryBuilder()
+                ->select('s')
+                ->from('ODRAdminBundle:StatisticsHourly', 's')
+                ->where('s.hourTimestamp >= :start')
+                ->andWhere('s.hourTimestamp <= :end')
+                ->andWhere('s.deletedAt IS NULL')
+                ->setParameter('start', $start_of_day)
+                ->setParameter('end', $end_of_day)
+                ->getQuery()
+                ->getResult();
+
+            // Aggregate by datatype, datarecord, file, country, province, is_bot
+            $aggregated = array();
+
+            foreach ($hourly_stats as $stat) {
+                $key = implode('|', array(
+                    $stat->getDataType() ? $stat->getDataType()->getId() : 'null',
+                    $stat->getDataRecord() ? $stat->getDataRecord()->getId() : 'null',
+                    $stat->getFile() ? $stat->getFile()->getId() : 'null',
+                    $stat->getCountry() ?: 'null',
+                    $stat->getProvince() ?: 'null',
+                    $stat->getIsBot() ? '1' : '0'
+                ));
+
+                if (!isset($aggregated[$key])) {
+                    $aggregated[$key] = array(
+                        'datatype' => $stat->getDataType(),
+                        'datarecord' => $stat->getDataRecord(),
+                        'file' => $stat->getFile(),
+                        'country' => $stat->getCountry(),
+                        'province' => $stat->getProvince(),
+                        'is_bot' => $stat->getIsBot(),
+                        'view_count' => 0,
+                        'download_count' => 0,
+                        'search_result_view_count' => 0
+                    );
+                }
+
+                $aggregated[$key]['view_count'] += $stat->getViewCount();
+                $aggregated[$key]['download_count'] += $stat->getDownloadCount();
+                $aggregated[$key]['search_result_view_count'] += $stat->getSearchResultViewCount();
+            }
+
+            // Store or update aggregated daily statistics
+            $stored_count = 0;
+            $updated_count = 0;
+
+            foreach ($aggregated as $agg) {
+                // Try to find existing daily entry for this combination
+                $qb = $em->createQueryBuilder();
+                $qb->select('d')
+                    ->from('ODRAdminBundle:StatisticsDaily', 'd')
+                    ->where('d.dayDate = :date')
+                    ->andWhere('d.deletedAt IS NULL')
+                    ->setParameter('date', $date);
+
+                // Add criteria for datatype
+                if ($agg['datatype']) {
+                    $qb->andWhere('d.dataType = :datatype')
+                        ->setParameter('datatype', $agg['datatype']);
+                } else {
+                    $qb->andWhere('d.dataType IS NULL');
+                }
+
+                // Add criteria for datarecord
+                if ($agg['datarecord']) {
+                    $qb->andWhere('d.dataRecord = :datarecord')
+                        ->setParameter('datarecord', $agg['datarecord']);
+                } else {
+                    $qb->andWhere('d.dataRecord IS NULL');
+                }
+
+                // Add criteria for file
+                if ($agg['file']) {
+                    $qb->andWhere('d.file = :file')
+                        ->setParameter('file', $agg['file']);
+                } else {
+                    $qb->andWhere('d.file IS NULL');
+                }
+
+                // Add criteria for country
+                if ($agg['country']) {
+                    $qb->andWhere('d.country = :country')
+                        ->setParameter('country', $agg['country']);
+                } else {
+                    $qb->andWhere('d.country IS NULL');
+                }
+
+                // Add criteria for province
+                if ($agg['province']) {
+                    $qb->andWhere('d.province = :province')
+                        ->setParameter('province', $agg['province']);
+                } else {
+                    $qb->andWhere('d.province IS NULL');
+                }
+
+                // Add criteria for is_bot
+                $qb->andWhere('d.isBot = :isBot')
+                    ->setParameter('isBot', $agg['is_bot']);
+
+                $existing = $qb->getQuery()->getOneOrNullResult();
+
+                if ($existing) {
+                    // Update existing entry
+                    $existing->setViewCount($agg['view_count']);
+                    $existing->setDownloadCount($agg['download_count']);
+                    $existing->setSearchResultViewCount($agg['search_result_view_count']);
+                    $existing->setUpdatedBy($user);
+                    $updated_count++;
+                } else {
+                    // Create new entry
+                    $daily = new StatisticsDaily();
+                    $daily->setDayDate($date);
+                    $daily->setViewCount($agg['view_count']);
+                    $daily->setDownloadCount($agg['download_count']);
+                    $daily->setSearchResultViewCount($agg['search_result_view_count']);
+                    $daily->setCountry($agg['country']);
+                    $daily->setProvince($agg['province']);
+                    $daily->setIsBot($agg['is_bot']);
+
+                    if ($agg['datatype']) {
+                        $daily->setDataType($agg['datatype']);
+                    }
+                    if ($agg['datarecord']) {
+                        $daily->setDataRecord($agg['datarecord']);
+                    }
+                    if ($agg['file']) {
+                        $daily->setFile($agg['file']);
+                    }
+
+                    $daily->setCreatedBy($user);
+                    $daily->setUpdatedBy($user);
+
+                    $em->persist($daily);
+                    $stored_count++;
+                }
+            }
+
+            $em->flush();
+
+            return new JsonResponse(array(
+                'success' => true,
+                'count' => $stored_count,
+                'updated' => $updated_count,
+                'total' => $stored_count + $updated_count
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xb3c9d47b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Clean up hourly statistics older than cutoff date (called by Node.js background service)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function cleanupHourlyAction(Request $request)
+    {
+        try {
+            // Handle JSON input from Node.js background service
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $post = json_decode($content, true);
+            } else {
+                $post = $request->request->all();
+            }
+
+            if (!isset($post['cutoff_date'])) {
+                throw new ODRBadRequestException('Missing cutoff_date parameter');
+            }
+
+            $cutoff_str = $post['cutoff_date'];
+            $cutoff_date = new \DateTime($cutoff_str);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Soft delete hourly statistics older than cutoff date
+            $query = $em->createQueryBuilder()
+                ->update('ODRAdminBundle:StatisticsHourly', 's')
+                ->set('s.deletedAt', ':now')
+                ->where('s.hourTimestamp < :cutoff')
+                ->andWhere('s.deletedAt IS NULL')
+                ->setParameter('now', new \DateTime())
+                ->setParameter('cutoff', $cutoff_date)
+                ->getQuery();
+
+            $deleted_count = $query->execute();
+
+            return new JsonResponse(array(
+                'success' => true,
+                'count' => $deleted_count
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xc4dad58c;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Update bot patterns (called by Node.js background service)
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function updateBotsAction(Request $request)
+    {
+        try {
+            // Handle JSON input from Node.js background service
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $post = json_decode($content, true);
+            } else {
+                $post = $request->request->all();
+            }
+
+            if (!isset($post['patterns']) || !is_array($post['patterns'])) {
+                throw new ODRBadRequestException('Missing or invalid patterns array');
+            }
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Get the system user
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(array('id' => 1));
+
+            $patterns = $post['patterns'];
+            $added = 0;
+            $updated = 0;
+            $deactivated = 0;
+
+            // Get existing patterns
+            $existing_patterns = array();
+            $existing_bots = $em->getRepository('ODRAdminBundle:StatisticsBotList')
+                ->createQueryBuilder('b')
+                ->where('b.deletedAt IS NULL')
+                ->getQuery()
+                ->getResult();
+
+            foreach ($existing_bots as $bot) {
+                $existing_patterns[$bot->getPattern()] = $bot;
+            }
+
+            // Track which patterns we've seen
+            $seen_patterns = array();
+
+            // Add or update patterns
+            foreach ($patterns as $pattern_data) {
+                $pattern = $pattern_data['pattern'];
+                $bot_name = isset($pattern_data['bot_name']) ? $pattern_data['bot_name'] : $pattern;
+                $is_active = isset($pattern_data['is_active']) ? $pattern_data['is_active'] : true;
+
+                $seen_patterns[$pattern] = true;
+
+                if (isset($existing_patterns[$pattern])) {
+                    // Update existing
+                    $bot = $existing_patterns[$pattern];
+                    $bot->setBotName($bot_name);
+                    $bot->setIsActive($is_active);
+                    $bot->setUpdated(new \DateTime());
+                    $bot->setUpdatedBy($user);
+                    $updated++;
+                } else {
+                    // Add new
+                    $bot = new StatisticsBotList();
+                    $bot->setPattern($pattern);
+                    $bot->setBotName($bot_name);
+                    $bot->setIsActive($is_active);
+                    $bot->setCreated(new \DateTime());
+                    $bot->setUpdated(new \DateTime());
+                    $bot->setCreatedBy($user);
+                    $bot->setUpdatedBy($user);
+                    $em->persist($bot);
+                    $added++;
+                }
+            }
+
+            // Deactivate patterns not in the new list
+            foreach ($existing_patterns as $pattern => $bot) {
+                if (!isset($seen_patterns[$pattern])) {
+                    $bot->setIsActive(false);
+                    $bot->setUpdated(new \DateTime());
+                    $bot->setUpdatedBy($user);
+                    $deactivated++;
+                }
+            }
+
+            $em->flush();
+
+            return new JsonResponse(array(
+                'success' => true,
+                'added' => $added,
+                'updated' => $updated,
+                'deactivated' => $deactivated
+            ));
+
+        } catch (\Exception $e) {
+            $source = 0xd5ebe69d;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+}

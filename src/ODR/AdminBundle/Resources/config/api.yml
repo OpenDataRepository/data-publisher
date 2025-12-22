@@ -632,3 +632,46 @@ odr_api_user_check:
 #    requirements:
 #        version: 'v\d+'
 #        _format: '|json|xml'
+
+#-----------------------------------------
+#
+# Statistics API Controller
+#
+#-----------------------------------------
+
+# API endpoints for background services
+odr_api_statistics_store_hourly:
+  path: /api/{version}/statistics/store_hourly
+  defaults: { _controller: ODRAdminBundle:Statistics:storeHourly, _format: json }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+
+odr_api_statistics_get_bots:
+  path: /api/{version}/statistics/get_bots
+  defaults: { _controller: ODRAdminBundle:Statistics:getBots, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+
+odr_api_statistics_aggregate_daily:
+  path: /api/{version}/statistics/aggregate_daily
+  defaults: { _controller: ODRAdminBundle:Statistics:aggregateDaily, _format: json }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+
+odr_api_statistics_cleanup_hourly:
+  path: /api/{version}/statistics/cleanup_hourly
+  defaults: { _controller: ODRAdminBundle:Statistics:cleanupHourly, _format: json }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+
+odr_api_statistics_update_bots:
+  path: /api/{version}/statistics/update_bots
+  defaults: { _controller: ODRAdminBundle:Statistics:updateBots, _format: json }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+

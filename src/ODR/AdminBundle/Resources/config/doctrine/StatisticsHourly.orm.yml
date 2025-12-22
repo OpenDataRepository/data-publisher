@@ -1,0 +1,147 @@
+ODR\AdminBundle\Entity\StatisticsHourly:
+    type: entity
+    table: odr_statistics_hourly
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        hourTimestamp:
+            type: datetime
+            nullable: false
+            column: hour_timestamp
+
+        viewCount:
+            type: integer
+            nullable: false
+            default: 0
+            column: view_count
+
+        downloadCount:
+            type: integer
+            nullable: false
+            default: 0
+            column: download_count
+
+        searchResultViewCount:
+            type: integer
+            nullable: false
+            default: 0
+            column: search_result_view_count
+
+        country:
+            type: string
+            length: 2
+            nullable: true
+            column: country
+
+        province:
+            type: string
+            length: 128
+            nullable: true
+            column: province
+
+        isBot:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_bot
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+
+        deletedAt:
+            type: datetime
+            nullable: true
+            column: deleted_at
+
+    manyToOne:
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+                    nullable: true
+            orphanRemoval: false
+
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                data_record_id:
+                    referencedColumnName: id
+                    nullable: true
+            orphanRemoval: false
+
+        file:
+            targetEntity: File
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                file_id:
+                    referencedColumnName: id
+                    nullable: true
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    indexes:
+        hour_timestamp_idx:
+            columns: [hour_timestamp]
+        datatype_hour_idx:
+            columns: [data_type_id, hour_timestamp]
+        datarecord_hour_idx:
+            columns: [data_record_id, hour_timestamp]
+        file_hour_idx:
+            columns: [file_id, hour_timestamp]
+        country_hour_idx:
+            columns: [country, hour_timestamp]
+        bot_flag_idx:
+            columns: [is_bot]
+        deleted_idx:
+            columns: [deleted_at]
+
+    lifecycleCallbacks: {  }

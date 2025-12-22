@@ -361,6 +361,14 @@ services:
             $permissions_service: "@odr.permissions_management_service"
             $logger: "@logger"
 
+    odr.statistics_service:
+        class: ODR\AdminBundle\Component\Service\StatisticsService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $logger: "@logger"
+
     odr.uuid_service:
         class: ODR\AdminBundle\Component\Service\UUIDService
         arguments:

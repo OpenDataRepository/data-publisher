@@ -1103,7 +1103,7 @@ ul#wizardStatus li.completed:before{
     /* background: rgba(60, 110, 153, 0.2); */
     /* modified 20251028 NAS */
     border-radius: 6px;
-    margin-bottom: 5px
+    margin-bottom: 5px;
 }
 .ODRShortResultsHeader {
     background: rgba(60, 110, 153, 0.2);

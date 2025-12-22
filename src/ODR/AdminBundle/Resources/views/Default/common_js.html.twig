@@ -1,5 +1,13 @@
 {% macro write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) %}
 <script>
+    var site_baseurl = '{{ site_baseurl }}';
+    {% if odr_wordpress_integrated %}
+    var odr_wordpress_integrated = '{{ odr_wordpress_integrated }}';
+    var wordpress_site_baseurl = '{{ wordpress_site_baseurl }}';
+    {% else %}
+    var odr_wordpress_integrated = false;
+    var wordpress_site_baseurl = '{{ site_baseurl }}';
+    {% endif %}
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
     $(window).on('load', function() {
@@ -35,7 +43,7 @@
 
                 default:    /* 400, 403, 404, 405, 500, etc */
                     // This specific response should never actually be seen...the goal is for createJGrowlError() to never break
-                    var response = { 'error': {"code": 418, "status_text": "I'm a teapot", "exception_source": "0xffffffff", "message": "ajaxError() Unknown Error"} };
+                    var response = { 'error': {"code": 418, "status_text": "Unknown error", "exception_source": "0xffffffff", "message": "ajaxError() Unknown Error"} };
                     if ( jqxhr.responseText !== undefined ) {
                         try {
                             // Errors typically result from Symfony/ODR, and should already be JSON...
@@ -47,7 +55,18 @@
                         }
                     }
 
-                    createJGrowlError(response);
+                    // TODO - Remove this - possibly leaks debug info
+                    if(
+                        response.error !== undefined
+                        && response.error.code !== undefined
+                        && response.error.code === 418
+                    ) {
+                        // Log 418s only to console
+                        console.log('Error response ', response);
+                    }
+                    else {
+                        createJGrowlError(response);
+                    }
                     break;
             }
         });
@@ -148,8 +167,8 @@
      * @param {object} response
      */
     function createJGrowlError(response) {
-        var error_text = '<div class="ODRNotificationHeader">' + response.error.code + ' ' + response.error.status_text + ' -- ' + response.error.exception_source + "</div>";
-        error_text += '<div class="ODRNotificationText">' + response.error.message + '</div>';
+        // var error_text = '<div class="ODRNotificationHeader">' + response.error.code + ' ' + response.error.status_text + ' -- ' + response.error.exception_source + "</div>";
+        var error_text = '<div class="ODRNotificationText">' + response.error.message + '</div>';
 
         $.jGrowl(
             error_text,
