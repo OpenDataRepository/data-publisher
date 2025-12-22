@@ -166,7 +166,17 @@ class StatisticsService
         try {
             // Check deduplication key
             $dedup_key = 'stats_dedup:' . md5($ip_address) . ':download:' . $file_id;
+            // $this->logger->info(
+                // 'StatisticsService::logFileDownload - Startup',
+                // array(
+                    // 'datatype_id' => $datatype_id,
+                    // 'ip_address' => $ip_address,
+                    // 'dedup_key' => $dedup_key
+                // )
+            // );
+            // $this->logger->info('StatisticsService::logFileDownload - CHECK => DEDUP', array());
             if ($this->cache_service->exists($dedup_key)) {
+                $this->logger->info('StatisticsService::logFileDownload - FAIL => DEDUP', array());
                 // Already logged within the last minute, skip
                 return;
             }
@@ -177,7 +187,7 @@ class StatisticsService
                 'datarecord_id' => ($datarecord_id !== null) ? intval($datarecord_id) : null,
                 'file_id' => intval($file_id),
                 'datatype_id' => intval($datatype_id),
-                'user_id' => ($user !== null && $user instanceof ODRUser) ? $user->getId() : null,
+                'user_id' => null,
                 'ip_address' => $ip_address,
                 'user_agent' => $user_agent,
                 'is_search_result' => false,
@@ -186,6 +196,8 @@ class StatisticsService
 
             // Store in Redis with unique key
             $key = 'stats_log:download:' . time() . ':' . $this->generateUUID();
+            // $this->logger->info('StatisticsService::logFileDownload - Key: ' . $key);
+            // $this->logger->info('StatisticsService::logFileDownload - Data: ', $log_data);
             $this->cache_service->set($key, json_encode($log_data));
 
             // Set deduplication key with 60-second expiration
