@@ -15,8 +15,8 @@ jQuery(document).ready(function () {
         // Set to false to use Symfony routes (default, maintains compatibility)
         var USE_STANDALONE_ENDPOINT = true;
 
-        // console.log('ODRStatistics: Initializing...');
-        // console.log('Site base URL: ' + site_baseurl);
+        console.log('ODRStatistics: Initializing...');
+        console.log('Site base URL: ' + site_baseurl);
         let logger_baseurl = site_baseurl;
         try {
             if(odr_wordpress_integrated) {
