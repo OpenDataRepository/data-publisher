@@ -18,3 +18,6 @@ node rruff_record_analyzer.js >> ../app/logs/rruff_record_analyzer.log 2>&1 &
 node amcsd_file_builder.js >> ../app/logs/amcsd_file_builder.log 2>&1 &
 node amcsd_file_finisher.js >> ../app/logs/amcsd_file_finisher.log 2>&1 &
 node amcsd_record_analyzer.js >> ../app/logs/amcsd_record_analyzer.log 2>&1 &
+
+node statistics_processor.js >> ../app/logs/statistics_processor.log 2>&1 &
+node statistics_daily_aggregator.js >> ../app/logs/statistics_daily_aggregator.log 2>&1 &
