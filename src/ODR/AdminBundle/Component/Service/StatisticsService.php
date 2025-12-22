@@ -473,7 +473,7 @@ class StatisticsService
             $end_date = new \DateTime();
             $start_date = (clone $end_date)->modify('-' . $days . ' days');
 
-            // Get daily statistics
+            // Get daily statistics for VIEWS (only for the specific datatype)
             $stats = $this->getStatisticsByDatatype(
                 $datatype_id,
                 $start_date,
@@ -482,7 +482,7 @@ class StatisticsService
                 'daily'
             );
 
-            // Calculate totals
+            // Calculate totals for views (only for this datatype)
             $total_views = 0;
             $total_search_views = 0;
             $total_downloads = 0;
@@ -491,6 +491,66 @@ class StatisticsService
                 $total_views += intval($day['view_count']);
                 $total_search_views += intval($day['search_result_view_count']);
                 $total_downloads += intval($day['download_count']);
+            }
+
+            // Get all associated datatypes (including child and linked datatypes) for download aggregation
+            $associated_datatype_ids = $this->datatree_info_service->getAssociatedDatatypes(
+                $datatype_id,
+                true  // deep = true to get all descendants
+            );
+
+            // Remove the current datatype from the list since we already have its stats
+            $descendant_datatype_ids = array_diff($associated_datatype_ids, array($datatype_id));
+
+            $this->logger->info(
+                'StatisticsService::getDashboardStats() - Associated datatype check',
+                array(
+                    'datatype_id' => $datatype_id,
+                    'associated_datatypes' => $associated_datatype_ids,
+                    'descendant_datatypes' => $descendant_datatype_ids,
+                    'count' => count($descendant_datatype_ids)
+                )
+            );
+
+            // If there are descendant datatypes, aggregate their downloads
+            if (!empty($descendant_datatype_ids)) {
+                $this->logger->info(
+                    'StatisticsService::getDashboardStats() - Aggregating downloads from descendant datatypes',
+                    array('datatype_id' => $datatype_id, 'descendant_datatypes' => $descendant_datatype_ids)
+                );
+
+                // Get download statistics for each descendant datatype
+                foreach ($descendant_datatype_ids as $descendant_dt_id) {
+                    $descendant_stats = $this->getStatisticsByDatatype(
+                        $descendant_dt_id,
+                        $start_date,
+                        $end_date,
+                        false,  // Exclude bots
+                        'daily'
+                    );
+
+                    $descendant_downloads = 0;
+                    // Add descendant datatype downloads to the total
+                    foreach ($descendant_stats as $day) {
+                        $descendant_downloads += intval($day['download_count']);
+                    }
+
+                    $this->logger->info(
+                        'StatisticsService::getDashboardStats() - Descendant datatype downloads',
+                        array(
+                            'descendant_datatype_id' => $descendant_dt_id,
+                            'downloads' => $descendant_downloads,
+                            'stats_count' => count($descendant_stats)
+                        )
+                    );
+
+                    $total_downloads += $descendant_downloads;
+                }
+
+                $this->logger->info(
+                    'StatisticsService::getDashboardStats() - Final download count after aggregation',
+                    array('total_downloads' => $total_downloads)
+                );
             }
 
             return array(

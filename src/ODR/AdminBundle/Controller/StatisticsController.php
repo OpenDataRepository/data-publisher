@@ -585,6 +585,22 @@ class StatisticsController extends ODRCustomController
                 $datatype_ids = array_map('intval', explode(',', $datatype_ids_str));
             }
 
+            // If datatype IDs are specified, expand to include all descendant datatypes
+            // This ensures we have statistics for child datatypes needed for aggregation
+            $expanded_datatype_ids = array();
+            if (!empty($datatype_ids)) {
+                /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
+                $datatree_info_service = $this->container->get('odr.datatree_info_service');
+
+                foreach ($datatype_ids as $dt_id) {
+                    // Get all associated datatypes (including descendants)
+                    $associated = $datatree_info_service->getAssociatedDatatypes($dt_id, true);
+                    $expanded_datatype_ids = array_merge($expanded_datatype_ids, $associated);
+                }
+                // Remove duplicates
+                $expanded_datatype_ids = array_unique($expanded_datatype_ids);
+            }
+
             // Build query for detailed statistics
             $qb = $em->createQueryBuilder();
             $qb->select('s')
@@ -599,9 +615,9 @@ class StatisticsController extends ODRCustomController
                     ->setParameter('is_bot', false);
             }
 
-            if (!empty($datatype_ids)) {
+            if (!empty($expanded_datatype_ids)) {
                 $qb->andWhere('s.dataType IN (:datatype_ids)')
-                    ->setParameter('datatype_ids', $datatype_ids);
+                    ->setParameter('datatype_ids', $expanded_datatype_ids);
             }
 
             /** @var StatisticsDaily[] $stats */
@@ -632,16 +648,26 @@ class StatisticsController extends ODRCustomController
                 $dt = $stat->getDataType();
                 $dt_id = $dt ? $dt->getId() : 0;
 
+                // Determine if this is an originally requested datatype or just included for aggregation
+                $is_original_datatype = empty($datatype_ids) || in_array($dt_id, $datatype_ids);
+
                 // Totals
-                $total_views += $views;
+                // IMPORTANT: Only count views from originally requested datatypes, not descendants
+                if ($is_original_datatype) {
+                    $total_views += $views;
+                    $search_result_views += $search_views;
+                }
+                // Downloads are counted from all datatypes (will be aggregated later)
                 $total_downloads += $downloads;
-                $search_result_views += $search_views;
 
                 // Timeline
                 if (!isset($timeline[$date])) {
                     $timeline[$date] = array('date' => $date, 'view_count' => 0, 'download_count' => 0);
                 }
-                $timeline[$date]['view_count'] += $views;
+                // Only count views from originally requested datatypes
+                if ($is_original_datatype) {
+                    $timeline[$date]['view_count'] += $views;
+                }
                 $timeline[$date]['download_count'] += $downloads;
 
                 // Geographic
@@ -650,16 +676,25 @@ class StatisticsController extends ODRCustomController
                         $geographic[$country] = array('view_count' => 0, 'download_count' => 0);
                         $countries[$country] = true;
                     }
-                    $geographic[$country]['view_count'] += $views;
+                    // Only count views from originally requested datatypes
+                    if ($is_original_datatype) {
+                        $geographic[$country]['view_count'] += $views;
+                    }
                     $geographic[$country]['download_count'] += $downloads;
                 }
 
                 // Bot stats
                 if ($is_bot) {
-                    $bot_stats['bot_views'] += $views;
+                    // Only count views from originally requested datatypes
+                    if ($is_original_datatype) {
+                        $bot_stats['bot_views'] += $views;
+                    }
                     $bot_stats['bot_downloads'] += $downloads;
                 } else {
-                    $bot_stats['human_views'] += $views;
+                    // Only count views from originally requested datatypes
+                    if ($is_original_datatype) {
+                        $bot_stats['human_views'] += $views;
+                    }
                     $bot_stats['human_downloads'] += $downloads;
                 }
 
@@ -672,6 +707,125 @@ class StatisticsController extends ODRCustomController
                     $by_datatype[$dt_id]['download_count'] += $downloads;
                 }
             }
+
+            // Aggregate child datatype downloads into parent datatypes
+            // NOTE: Views remain specific to each datatype, only downloads are aggregated
+            /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+
+            /** @var \Symfony\Bridge\Monolog\Logger $logger */
+            $logger = $this->get('logger');
+
+            $logger->info('StatisticsController::getSummaryAction() - Starting download aggregation');
+            $logger->info('StatisticsController::getSummaryAction() - Initial by_datatype', array('by_datatype' => $by_datatype));
+
+            // First, identify top-level datatypes - we only want to aggregate UP to these
+            // This avoids double-counting where a child's downloads would be counted both
+            // in its own aggregation and its parent's aggregation
+            $top_level_datatype_ids = array();
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+
+            foreach ($by_datatype as $dt_id => $stats) {
+                $grandparent_id = $datatree_info_service->getGrandparentDatatypeId($dt_id, $datatree_array);
+                if (!in_array($grandparent_id, $top_level_datatype_ids)) {
+                    $top_level_datatype_ids[] = $grandparent_id;
+                }
+            }
+
+            $logger->info(
+                'StatisticsController::getSummaryAction() - Identified top-level datatypes',
+                array('top_level_datatypes' => $top_level_datatype_ids)
+            );
+
+            // Now aggregate downloads ONLY for top-level datatypes
+            // This ensures each download is counted exactly once
+            $aggregated_downloads = array();
+            foreach ($top_level_datatype_ids as $top_dt_id) {
+                // Skip if this top-level datatype isn't in the results
+                if (!isset($by_datatype[$top_dt_id])) {
+                    continue;
+                }
+
+                // Get all associated datatypes (including child and linked datatypes)
+                $associated_datatype_ids = $datatree_info_service->getAssociatedDatatypes(
+                    $top_dt_id,
+                    true  // deep = true to get all descendants
+                );
+
+                // Remove the current datatype from the list to get only descendants
+                $descendant_datatype_ids = array_diff($associated_datatype_ids, array($top_dt_id));
+
+                $logger->info(
+                    'StatisticsController::getSummaryAction() - Processing top-level datatype',
+                    array(
+                        'top_datatype_id' => $top_dt_id,
+                        'associated_datatypes' => $associated_datatype_ids,
+                        'descendant_datatypes' => $descendant_datatype_ids,
+                        'descendant_count' => count($descendant_datatype_ids),
+                        'original_downloads' => $by_datatype[$top_dt_id]['download_count']
+                    )
+                );
+
+                // Sum downloads from all descendant datatypes
+                $descendant_downloads = 0;
+                foreach ($descendant_datatype_ids as $descendant_dt_id) {
+                    if (isset($by_datatype[$descendant_dt_id])) {
+                        $descendant_downloads += $by_datatype[$descendant_dt_id]['download_count'];
+                        $logger->info(
+                            'StatisticsController::getSummaryAction() - Found descendant datatype with downloads',
+                            array(
+                                'top_datatype_id' => $top_dt_id,
+                                'descendant_datatype_id' => $descendant_dt_id,
+                                'descendant_download_count' => $by_datatype[$descendant_dt_id]['download_count'],
+                                'running_total' => $descendant_downloads
+                            )
+                        );
+                    } else {
+                        $logger->info(
+                            'StatisticsController::getSummaryAction() - Descendant datatype NOT in by_datatype array (no stats in this period)',
+                            array(
+                                'top_datatype_id' => $top_dt_id,
+                                'descendant_datatype_id' => $descendant_dt_id
+                            )
+                        );
+                    }
+                }
+
+                $logger->info(
+                    'StatisticsController::getSummaryAction() - Total descendant downloads for top-level datatype',
+                    array(
+                        'top_datatype_id' => $top_dt_id,
+                        'descendant_downloads' => $descendant_downloads
+                    )
+                );
+
+                // Store the aggregated download count for this top-level datatype
+                $aggregated_downloads[$top_dt_id] = $descendant_downloads;
+            }
+
+            // Add aggregated descendant downloads ONLY to top-level datatypes
+            foreach ($aggregated_downloads as $top_dt_id => $descendant_download_count) {
+                $original_downloads = $by_datatype[$top_dt_id]['download_count'];
+                $original_views = $by_datatype[$top_dt_id]['view_count'];
+
+                // Add descendant downloads to the download count (NOT to views!)
+                $by_datatype[$top_dt_id]['download_count'] += $descendant_download_count;
+
+                $logger->info(
+                    'StatisticsController::getSummaryAction() - Updated top-level datatype download count',
+                    array(
+                        'top_datatype_id' => $top_dt_id,
+                        'original_downloads' => $original_downloads,
+                        'original_views' => $original_views,
+                        'descendant_downloads_to_add' => $descendant_download_count,
+                        'new_download_total' => $by_datatype[$top_dt_id]['download_count'],
+                        'views_unchanged' => $by_datatype[$top_dt_id]['view_count'],
+                        'full_stats' => $by_datatype[$top_dt_id]
+                    )
+                );
+            }
+
+            $logger->info('StatisticsController::getSummaryAction() - Final by_datatype', array('by_datatype' => $by_datatype));
 
             // Sort timeline by date
             ksort($timeline);
@@ -721,7 +875,8 @@ class StatisticsController extends ODRCustomController
                 throw new ODRForbiddenException('Super admin permission required');
             }
 
-            // Get all top-level datatypes that have statistics data
+            // Get ONLY top-level datatypes that have statistics data
+            // A top-level datatype is where dt.id = dt.grandparent
             // First, get distinct datatype IDs from the statistics tables
             $datatypeIdsWithStats = $em->createQueryBuilder()
                 ->select('DISTINCT IDENTITY(s.dataType) as dt_id')
@@ -735,14 +890,17 @@ class StatisticsController extends ODRCustomController
                 return $row['dt_id'];
             }, $datatypeIdsWithStats);
 
-            // Now get the datatypes with their metadata
+            // Now get ONLY TOP-LEVEL datatypes with their metadata
+            // Top-level datatypes are identified by: dt.id = grandparent.id
             $datatypes = array();
             if (!empty($datatypeIds)) {
                 $qb = $em->createQueryBuilder();
                 $qb->select('dt')
                     ->from('ODRAdminBundle:DataType', 'dt')
                     ->join('dt.dataTypeMeta', 'dtm')
+                    ->join('dt.grandparent', 'gp')
                     ->where('dt.id IN (:ids)')
+                    ->andWhere('dt.id = gp.id')  // This ensures only top-level datatypes
                     ->andWhere('dt.deletedAt IS NULL')
                     ->andWhere('dtm.deletedAt IS NULL')
                     ->setParameter('ids', $datatypeIds)
