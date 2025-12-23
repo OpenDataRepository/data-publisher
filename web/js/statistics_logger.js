@@ -303,7 +303,7 @@ jQuery(document).ready(function () {
                 if (records.length > 0) {
                     // console.log('ODRStatistics: Scheduling batch log for search results');
                     setTimeout(function () {
-                        logSearchResultViews(records);
+                        logSearchResultViews(records, true);
                     }, 200);
                 } else {
                     console.warn('ODRStatistics: No valid search result records to log');
@@ -323,7 +323,7 @@ jQuery(document).ready(function () {
                         // console.log('ODRStatistics: Scheduling batch log for full record view');
                         // Small delay to avoid blocking page rendering
                         setTimeout(function () {
-                            logSearchResultViews(records);
+                            logSearchResultViews(records, false);
                         }, 200);
                     } else {
                         console.warn('ODRStatistics: No valid records to log in full record view');
@@ -387,8 +387,8 @@ jQuery(document).ready(function () {
          * Useful for logging views of multiple records shown in search results
          * @param {Array<Object>} records Array of {datarecord_id, datatype_id} objects
          */
-        function logSearchResultViews(records) {
-            // console.log('ODRStatistics: logSearchResultViews called with', records.length, 'records');
+        function logSearchResultViews(records, is_search_result) {
+            console.log('ODRStatistics: logSearchResultViews called with', records.length, 'records - ', is_search_result);
 
             if (!Array.isArray(records) || records.length === 0) {
                 console.warn('ODRStatistics: No records to log in batch');
@@ -412,7 +412,7 @@ jQuery(document).ready(function () {
                 },
                 body: JSON.stringify({
                     records: records,
-                    is_search_result: true
+                    is_search_result: is_search_result
                 })
             })
                 .then(function (response) {
