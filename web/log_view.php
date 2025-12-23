@@ -14,11 +14,7 @@ if (php_sapi_name() !== 'cli' && empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
     // Allow it - some clients may not send this header
 }
 
-// Configuration - match values from app/config/parameters.yml
-define('REDIS_HOST', '127.0.0.1');
-define('REDIS_PORT', 6379);
-define('REDIS_PREFIX', 'odr_master.');
-define('DEDUP_EXPIRATION', 60); // seconds
+include("./log_view_config.php.template");
 
 /**
  * Generate a UUID v4

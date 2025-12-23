@@ -12,7 +12,47 @@ The statistics system consists of three main components:
 
 ## Prerequisites
 
-### 1. Install Dependencies
+### 1. Install PHP Redis Extension
+
+The statistics system requires the PHP Redis extension for the standalone logging endpoints (`web/log_view.php`). This extension must be installed at the system level.
+
+#### Ubuntu/Debian:
+```bash
+sudo apt-get update
+sudo apt-get install php-redis
+sudo service apache2 restart  # or nginx/php-fpm
+```
+
+#### CentOS/RHEL/Fedora:
+```bash
+sudo yum install php-pecl-redis
+sudo systemctl restart httpd  # or nginx/php-fpm
+```
+
+#### macOS (with Homebrew):
+```bash
+brew install php-redis
+brew services restart php
+```
+
+#### Using PECL (any system):
+```bash
+pecl install redis
+# Add "extension=redis.so" to your php.ini
+sudo service apache2 restart  # or appropriate web server
+```
+
+#### Verify Installation:
+```bash
+# Command line check
+php -m | grep redis
+
+# Or create a test file in your web root
+echo "<?php phpinfo();" > /path/to/web/phpinfo.php
+# Access via browser and look for "redis" section
+```
+
+### 2. Install Node.js Dependencies
 
 ```bash
 cd background_services
@@ -21,7 +61,7 @@ npm install
 
 This will install all required dependencies including `mysql2` for database access.
 
-### 2. Configure Database Connection
+### 3. Configure Database Connection
 
 Edit `generate_mock_statistics.js` and update the database configuration:
 
@@ -36,7 +76,7 @@ const dbConfig = {
 
 You can find your database credentials in `app/config/parameters.yml`.
 
-### 3. Configure API Access
+### 4. Configure API Access
 
 Edit `statistics_config.js` and update the API credentials:
 

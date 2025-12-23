@@ -37,6 +37,7 @@
 /web/chemin-map-demo/
 /web/zipped_data_files
 /web/AMS
+/web/log_view_config.php
 
 # Claude
 .claude/
