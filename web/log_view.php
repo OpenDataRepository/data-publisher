@@ -14,7 +14,7 @@ if (php_sapi_name() !== 'cli' && empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
     // Allow it - some clients may not send this header
 }
 
-include("./log_view_config.php.template");
+include("./log_view_config.php");
 
 /**
  * Generate a UUID v4
