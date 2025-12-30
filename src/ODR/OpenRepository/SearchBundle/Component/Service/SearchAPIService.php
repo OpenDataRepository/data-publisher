@@ -464,7 +464,11 @@ class SearchAPIService
                     // $key is one of the modified/created/modifiedBy/createdBy/publicStatus entries
                     $dt_id = intval($pieces[1]);
 
-                    if ( isset($user_permissions['datatypes'][$dt_id]) ) {
+                    if ( $search_as_super_admin ) {
+                        // Super admins can always search on datatypes
+                        $filtered_search_params[$key] = $value;
+                    }
+                    else if ( isset($user_permissions['datatypes'][$dt_id]) ) {
                         // User needs to be able to either edit, create new, or delete existing
                         //  datarecords in order to be able to search these entries
                         $dt_permissions = $user_permissions['datatypes'][$dt_id];
