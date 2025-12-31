@@ -1978,5 +1978,14 @@ odr_statistics_log_download:
     methods: [ POST ]
 #-----------------------------------------
 
+#-----------------------------------------
+# ODRSystem Controller
+# System-level utilities restricted to super-admins
+odr_system_opcache:
+    path:  /system/opcache
+    defaults: { _controller: ODRAdminBundle:ODRSystem:opcache }
+
+#-----------------------------------------
+
 imports:
     resource: api.yml

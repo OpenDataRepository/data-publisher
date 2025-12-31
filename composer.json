@@ -38,7 +38,8 @@
         "sensio/distribution-bundle": "^5.0",
         "lexik/jwt-authentication-bundle": "^2.6",
         "nyholm/psr7": "^1.2",
-        "ml/json-ld": "^1.2"
+        "ml/json-ld": "^1.2",
+        "amnuts/opcache-gui": "*"
     },
     "scripts": {
         "post-install-cmd": [
