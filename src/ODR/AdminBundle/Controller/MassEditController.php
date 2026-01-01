@@ -756,7 +756,7 @@ class MassEditController extends ODRCustomController
                         JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
                         JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
                         JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
-                        WHERE df.id = :datafield_id AND drm.publicDate != :public_date
+                        WHERE df.id = :datafield_id AND gp_drm.publicDate != :public_date
                         AND gp_drm.prevent_user_edits = 0
                         AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                         AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
