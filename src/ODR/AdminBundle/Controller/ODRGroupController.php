@@ -809,17 +809,26 @@ class ODRGroupController extends ODRCustomController
             // ...mostly because the user may not have admin permissions to the "template group"
             //  datatype that they do have admin permissions for
             $dt_name_lookup = array();
+            foreach ($results as $dt_num => $dt) {
+                $dt_uuid = $dt['unique_id'];
+                if ( isset($dt['dataTypeMeta'][0]['shortName']) )
+                    $dt_name_lookup[$dt_uuid] = $dt['dataTypeMeta'][0]['shortName'];
+            }
 
             $datatypes = array();
             foreach ($results as $dt_num => $dt) {
                 $dt_id = $dt['id'];
                 $dt_uuid = $dt['unique_id'];
+                $dt_template_group = $dt['template_group'];
+
+                // There could be undeleted datatypes in here that "belong to" a deleted datatype's
+                //  template group
+                if ( !isset($dt_name_lookup[$dt_template_group]) )
+                    continue;
 
                 $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
                 $dt['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
                 $datatypes[$dt_id] = $dt;
-
-                $dt_name_lookup[$dt_uuid] = $dt['dataTypeMeta']['shortName'];
 
                 // ...categorize the groups for this datatype by their original purpose if stated,
                 //  or by group_id if they're not a default group
