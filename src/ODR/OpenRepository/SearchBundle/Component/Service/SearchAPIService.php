@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
@@ -496,13 +497,6 @@ class SearchAPIService
             //  another search key for them to use
             $filtered_search_key = $this->search_key_service->encodeSearchKey($filtered_search_params);
 
-            // ...since this is a new search key, it could be "oversized" (despite removing stuff)
-            if ( strlen($filtered_search_key) > intval($this->search_key_char_limit) ) {
-                // ...if so, then create something to hold it
-                $new_search_key = $this->search_key_service->handleOversizedSearchKey($filtered_search_key);
-                return $new_search_key;
-            }
-
             // Return the modified search key
             return $filtered_search_key;
         }
@@ -549,12 +543,22 @@ class SearchAPIService
         $return_as_list = false
     ) {
         // ----------------------------------------
-        $search_params = $this->search_key_service->decodeSearchKey($search_key);
-
         // This typically shouldn't be null, but phpunit testing is unable to provide a hydrated
         //  datatype entity
-        if ( is_null($datatype) )
+        if ( is_null($datatype) ) {
+            $search_params = $this->search_key_service->decodeSearchKey($search_key);
+            if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException('SearchAPIService::performSearch() completely unable to find datatype');
             $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
+        }
+
+        // Originally...ODR took the search keys it received, checked whether it contained anything
+        //  the user couldn't see, and if so it then forcibly redirected to URL that had the filtered
+        //  version of said search key
+        // That behavior was convenient for ODR, but it was screwing up Wordpress...so now everywhere
+        //  that wants to actually use the search key has to filter it prior to decoding it...
+        $filtered_search_key = self::filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions, $search_as_super_admin);
+        $search_params = $this->search_key_service->decodeSearchKey($filtered_search_key);
 
 
         // ----------------------------------------
@@ -572,7 +576,7 @@ class SearchAPIService
 
         // Convert the search key into a format suitable for searching
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin, $inverse_target_datatype_id);
-        $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
+        $criteria = $this->search_key_service->convertSearchKeyToCriteria($filtered_search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = self::hydrateCriteria($criteria);

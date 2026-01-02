@@ -35,6 +35,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
+use ODR\AdminBundle\Component\Service\PaginationHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
@@ -931,10 +932,10 @@ class DefaultController extends Controller
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            /** @var PaginationHelperService $pagination_helper_service */
+            $pagination_helper_service = $this->container->get('odr.pagination_helper_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
@@ -975,32 +976,6 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
-            // Check whether the search key needs to be filtered or not
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
-            if ($filtered_search_key !== $search_key) {
-                // The search key got changed...determine whether it's because something was out of
-                //  order, or the user tried to search on a field they can't view...
-                if ($intent === 'searching') {
-                    $decoded_original = $search_key_service->decodeSearchKey($search_key);
-                    $decoded_modified = $search_key_service->decodeSearchKey($filtered_search_key);
-
-                    if ( count($decoded_original) == count($decoded_modified) ) {
-                        // User submitted a search key that's "out of order"...silently redirect to the sorted one
-                        return $search_redirect_service->redirectToSearchResult($filtered_search_key, $search_theme_id);
-                    }
-                    else {
-                        // User can't view the results of this search key, redirect to the one they can view
-                        return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
-                    }
-                }
-                else {
-                    // TODO - this currently happens when something gets filtered in the "link to datarecord" search page
-                    // TODO - what to do here?  can't redirect, and silently modifying their search key probably isn't the best idea...
-                    $search_key = $filtered_search_key;
-                }
-            }
-
-
             // TODO - better error handling, likely need more options as well...going to need a way to get which theme the user wants to use too
             // Grab the desired theme to use for rendering search results
             $theme_type = null;
@@ -1043,63 +1018,15 @@ class DefaultController extends Controller
             else
                 $odr_tab_id = $odr_tab_service->createTabId();
 
-            // Ensure the tab refers to the given search key
-            $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
-            if ( $expected_search_key !== $search_key )
-                $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
-
-            // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
-            //  will display stuff in a different order
-            $sort_datafields = array();
-            $sort_directions = array();
-
-            $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
-            if ( !is_null($sort_criteria) ) {
-                // Prefer the criteria from the user's session whenever possible
-                $sort_datafields = $sort_criteria['datafield_ids'];
-                $sort_directions = $sort_criteria['sort_directions'];
-            }
-            else if ( isset($search_params['sort_by']) ) {
-                // If the user's session doesn't have anything but the search key does, then
-                //  use that
-                foreach ($search_params['sort_by'] as $display_order => $data) {
-                    $sort_datafields[$display_order] = intval($data['sort_df_id']);
-                    $sort_directions[$display_order] = $data['sort_dir'];
-                }
-
-                // Store this in the user's session
-                $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
-            }
-            else {
-                // No criteria set...get this datatype's current list of sort fields, and convert
-                //  into a list of datafield ids for storing this tab's criteria
-                foreach ($datatype->getSortFields() as $display_order => $df) {
-                    $sort_datafields[$display_order] = $df->getId();
-                    $sort_directions[$display_order] = 'asc';
-                }
-                $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
-
-                // TODO - provide some method for non-table search result pages to change order of results
-            }
-
-            // Run the search specified by the search key
-            $grandparent_datarecord_list = $search_api_service->performSearch(
-                $datatype,
-                $search_key,
-                $user_permissions,
-                false,  // only want the grandparent datarecord ids that match the search
-                $sort_datafields,
-                $sort_directions
-            );
-            // Want to store this so it isn't being re-run constantly...    // TODO - should this work exactly the same way as the Display/Edit controllers?
-            $odr_tab_service->setSearchResults($odr_tab_id, $grandparent_datarecord_list);
+            // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
+            $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key, true);
 
             // Bypass search results list entirely if only one datarecord...
             if ( count($grandparent_datarecord_list) == 1 && $intent === 'searching') {
                 $datarecord_id = $grandparent_datarecord_list[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
                 //  doesn't disappear on users
-                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $filtered_search_key);
+                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $search_key);
             }
 
 
@@ -1109,7 +1036,7 @@ class DefaultController extends Controller
                 'odr_search_render',
                 array(
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $filtered_search_key
+                    'search_key' => $search_key,
                 )
             );
 
@@ -1123,13 +1050,13 @@ class DefaultController extends Controller
                 $user,
                 $path_str,
                 $intent,
-                $filtered_search_key,
+                $search_key,
                 $offset,
                 $request
             );
             $return['d'] = array(
                 'html' => $html,
-                'search_key' => $filtered_search_key,
+                'search_key' => $search_key,
             );
         }
         catch (\Exception $e) {
@@ -1289,15 +1216,12 @@ class DefaultController extends Controller
             // ----------------------------------------
 
 
-            // Ensure the user isn't trying to search on something they can't access...
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
             // Run a search on the given parameters
             $grandparent_datarecord_list = $search_api_service->performSearch(
                 $datatype,
-                $filtered_search_key,
+                $search_key,
                 $user_permissions
             );    // this only returns grandparent datarecord ids
-
 
             // Load the cached versions of the first couple datarecords matching the search
             $dr_array = array();

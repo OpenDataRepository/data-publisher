@@ -42,6 +42,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
         $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
@@ -73,6 +74,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
         $complete_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
@@ -104,6 +106,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
         $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
@@ -135,6 +138,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
         $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
@@ -166,6 +170,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
         $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,

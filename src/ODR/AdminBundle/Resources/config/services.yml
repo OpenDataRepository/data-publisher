@@ -75,55 +75,6 @@ services:
             $cache_prefix: "%memcached_key_prefix%"
             $related_cache_prefixes: "%related_memcached_key_prefixes%"
 
-    odr.lock_service:
-        class: ODR\AdminBundle\Component\Service\LockService
-        arguments:
-            $redis_client: "@snc_redis.default"
-            $cache_prefix: "%memcached_key_prefix%"
-
-    odr.crypto_service:
-        class: ODR\AdminBundle\Component\Service\CryptoService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $lock_service: "@odr.lock_service"
-            $event_dispatcher: "@event_dispatcher"
-            $generator: "@security.util.secure_random"
-            $crypto_adapter: "@dterranova_crypto.crypto_adapter"
-            $crypto_dir: "%dterranova_crypto.temp_folder%"
-            $odr_web_dir: "%odr_web_directory%"
-            $logger: "@logger"
-
-    odr.upload_service:
-        class: ODR\AdminBundle\Component\Service\ODRUploadService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $crypto_service: "@odr.crypto_service"
-            $entity_creation_service: "@odr.entity_creation_service"
-            $event_dispatcher: "@event_dispatcher"
-            $pheanstalk: "@pheanstalk"
-            $router: "@router"
-            $redis_prefix: "%memcached_key_prefix%"
-            $api_key: "%beanstalk_api_key%"
-            $logger: "@logger"
-
-    odr.tab_helper_service:
-        class: ODR\AdminBundle\Component\Service\ODRTabHelperService
-        arguments:
-            $default_search_results_limit: "%default_search_results_limit%"
-            $request_stack: "@request_stack"
-            $token_generator: "@fos_user.util.token_generator"
-
-    odr.sort_service:
-        class: ODR\AdminBundle\Component\Service\SortService
-        arguments:
-            $container: "@service_container"    # needed in order to execute arbitrary render plugins
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
-            $search_service: "@odr.search_service"
-            $logger: "@logger"
-
-
     odr.clone_master_datatype_service:
         class: ODR\AdminBundle\Component\Service\CloneMasterDatatypeService
         arguments:
@@ -137,14 +88,10 @@ services:
             $event_dispatcher: "@event_dispatcher"
             $logger: "@monolog.logger.clone_datatype"
 
-    odr.clone_theme_service:
-        class: ODR\AdminBundle\Component\Service\CloneThemeService
+    odr.clone_master_template_theme_service:
+        class: ODR\AdminBundle\Component\Service\CloneMasterTemplateThemeService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $lock_service: "@odr.lock_service"
-            $permissions_service: "@odr.permissions_management_service"
-            $theme_service: "@odr.theme_info_service"
             $logger: "@monolog.logger.clone_theme"
 
     odr.clone_template_service:
@@ -164,39 +111,59 @@ services:
             $event_dispatcher: "@event_dispatcher"
             $logger: "@monolog.logger.clone_template"
 
-    odr.clone_master_template_theme_service:
-        class: ODR\AdminBundle\Component\Service\CloneMasterTemplateThemeService
+    odr.clone_theme_service:
+        class: ODR\AdminBundle\Component\Service\CloneThemeService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $lock_service: "@odr.lock_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_service: "@odr.theme_info_service"
             $logger: "@monolog.logger.clone_theme"
 
-    odr.permissions_management_service:
-        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
+    odr.crypto_service:
+        class: ODR\AdminBundle\Component\Service\CryptoService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $lock_service: "@odr.lock_service"
+            $event_dispatcher: "@event_dispatcher"
+            $generator: "@security.util.secure_random"
+            $crypto_adapter: "@dterranova_crypto.crypto_adapter"
+            $crypto_dir: "%dterranova_crypto.temp_folder%"
+            $odr_web_dir: "%odr_web_directory%"
+            $logger: "@logger"
+
+    odr.csv_import_helper_service:
+        class: ODR\AdminBundle\Component\Service\CSVImportHelperService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $dti_service: "@odr.datatree_info_service"
+            $search_service: "@odr.search_service"
+            $sort_service: "@odr.sort_service"
+            $logger: "@logger"
+
+    odr.csv_export_helper_service:
+        class: ODR\AdminBundle\Component\Service\CSVExportHelperService
+        arguments:
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $search_api_service: "@odr.search_api_service"
+            $search_key_service: "@odr.search_key_service"
+            $token_generator: "@fos_user.util.token_generator"
+            $logger: "@logger"
+
+    odr.database_info_service:
+        class: ODR\AdminBundle\Component\Service\DatabaseInfoService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
-            $search_api_service: "@odr.search_api_service"
+            $tag_helper_service: "@odr.tag_helper_service"
             $logger: "@logger"
-
-    odr.user_group_management_service:
-        class: ODR\AdminBundle\Component\Service\ODRUserGroupMangementService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $entity_creation_service: "@odr.entity_creation_service"
-            $logger: "@logger"
-
-    odr.datatype_create_service:
-        class: ODR\AdminBundle\Component\Service\DatatypeCreateService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $clone_master_datatype_service: "@odr.clone_master_datatype_service"
-            $uuid_service: "@odr.uuid_service"
-            $odr_web_dir: "%odr_web_directory%"
-            $logger: "@logger"
-
 
     odr.datafield_info_service:
         class: ODR\AdminBundle\Component\Service\DatafieldInfoService
@@ -214,6 +181,26 @@ services:
             $token_manager: "@security.csrf.token_manager"
             $logger: "@logger"
 
+    odr.datarecord_export_service:
+        class: ODR\AdminBundle\Component\Service\DatarecordExportService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $templating: "@templating"
+            $logger: "@logger"
+
+    odr.datatype_export_service:
+        class: ODR\AdminBundle\Component\Service\DatatypeExportService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $templating: "@templating"
+            $logger: "@logger"
+
     odr.datatree_info_service:
         class: ODR\AdminBundle\Component\Service\DatatreeInfoService
         arguments:
@@ -221,48 +208,14 @@ services:
             $cache_service: "@odr.cache_service"
             $logger: "@logger"
 
-    odr.database_info_service:
-        class: ODR\AdminBundle\Component\Service\DatabaseInfoService
+    odr.datatype_create_service:
+        class: ODR\AdminBundle\Component\Service\DatatypeCreateService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
-            $datatree_info_service: "@odr.datatree_info_service"
-            $tag_helper_service: "@odr.tag_helper_service"
-            $logger: "@logger"
-
-    odr.theme_info_service:
-        class: ODR\AdminBundle\Component\Service\ThemeInfoService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $datatree_info_service: "@odr.datatree_info_service"
-            $permissions_service: "@odr.permissions_management_service"
-            $session: "@session"
-            $logger: "@logger"
-
-
-    odr.tag_helper_service:
-        class: ODR\AdminBundle\Component\Service\TagHelperService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $entity_creation_service: "@odr.entity_creation_service"
-            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
-            $lock_service: "@odr.lock_service"
-            $token_manager: "@security.csrf.token_manager"
-            $logger: "@logger"
-
-    odr.table_theme_helper_service:
-        class: ODR\AdminBundle\Component\Service\TableThemeHelperService
-        arguments:
-            $container: "@service_container"    # needed in order to execute arbitrary render plugins
-            $cache_service: "@odr.cache_service"
-            $database_info_service: "@odr.database_info_service"
-            $datarecord_info_service: "@odr.datarecord_info_service"
-            $datatree_info_service: "@odr.datatree_info_service"
-            $permissions_service: "@odr.permissions_management_service"
-            $theme_info_service: "@odr.theme_info_service"
-            $router: "@router"
+            $clone_master_datatype_service: "@odr.clone_master_datatype_service"
+            $uuid_service: "@odr.uuid_service"
+            $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
     odr.entity_creation_service:
@@ -273,16 +226,6 @@ services:
             $cache_service: "@odr.cache_service"
             $lock_service: "@odr.lock_service"
             $uuid_service: "@odr.uuid_service"
-            $event_dispatcher: "@event_dispatcher"
-            $logger: "@logger"
-
-    odr.entity_meta_modify_service:
-        class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
-        arguments:
-#            $environment: "%kernel.environment%"
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $datatree_info_service: "@odr.datatree_info_service"
             $event_dispatcher: "@event_dispatcher"
             $logger: "@logger"
 
@@ -300,6 +243,54 @@ services:
             $theme_info_service: "@odr.theme_info_service"
             $event_dispatcher: "@event_dispatcher"
             $odr_web_dir: "%odr_web_directory%"
+            $logger: "@logger"
+
+    odr.entity_meta_modify_service:
+        class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
+        arguments:
+#            $environment: "%kernel.environment%"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $event_dispatcher: "@event_dispatcher"
+            $logger: "@logger"
+
+    odr.fieldtype_migration_service:
+        class: ODR\AdminBundle\Component\Service\FieldtypeMigrationService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $event_dispatcher: "@event_dispatcher"
+            $logger: "@logger"
+
+    odr.lock_service:
+        class: ODR\AdminBundle\Component\Service\LockService
+        arguments:
+            $redis_client: "@snc_redis.default"
+            $cache_prefix: "%memcached_key_prefix%"
+
+    odr.namefield_helper_service:
+        class: ODR\AdminBundle\Component\Service\ODRNameFieldHelperService
+        arguments:
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $cache_service: "@odr.cache_service"
+            $logger: "@logger"
+
+    odr.pagination_helper_service:
+        class: ODR\AdminBundle\Component\Service\PaginationHelperService
+        arguments:
+            $odr_tab_service: "@odr.tab_helper_service"
+            $search_api_service: "@odr.search_api_service"
+            $search_key_service: "@odr.search_key_service"
+            $logger: "@logger"
+
+    odr.permissions_management_service:
+        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $search_api_service: "@odr.search_api_service"
             $logger: "@logger"
 
     odr.render_service:
@@ -332,25 +323,55 @@ services:
 
             $logger: "@logger"
 
-
-    odr.datarecord_export_service:
-        class: ODR\AdminBundle\Component\Service\DatarecordExportService
+    odr.sort_service:
+        class: ODR\AdminBundle\Component\Service\SortService
         arguments:
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $entity_manager: "@doctrine.orm.entity_manager"
-            $database_info_service: "@odr.database_info_service"
-            $datarecord_info_service: "@odr.datarecord_info_service"
-            $permissions_service: "@odr.permissions_management_service"
-            $templating: "@templating"
+            $cache_service: "@odr.cache_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $search_service: "@odr.search_service"
             $logger: "@logger"
 
-    odr.datatype_export_service:
-        class: ODR\AdminBundle\Component\Service\DatatypeExportService
+    odr.tab_helper_service:
+        class: ODR\AdminBundle\Component\Service\ODRTabHelperService
         arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
+            $default_search_results_limit: "%default_search_results_limit%"
+            $request_stack: "@request_stack"
+            $token_generator: "@fos_user.util.token_generator"
+
+    odr.table_theme_helper_service:
+        class: ODR\AdminBundle\Component\Service\TableThemeHelperService
+        arguments:
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"
-            $templating: "@templating"
+            $router: "@router"
+            $logger: "@logger"
+
+    odr.tag_helper_service:
+        class: ODR\AdminBundle\Component\Service\TagHelperService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $lock_service: "@odr.lock_service"
+            $token_manager: "@security.csrf.token_manager"
+            $logger: "@logger"
+
+    odr.theme_info_service:
+        class: ODR\AdminBundle\Component\Service\ThemeInfoService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $session: "@session"
             $logger: "@logger"
 
     odr.tracked_job_service:
@@ -361,39 +382,30 @@ services:
             $permissions_service: "@odr.permissions_management_service"
             $logger: "@logger"
 
+    odr.upload_service:
+        class: ODR\AdminBundle\Component\Service\ODRUploadService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $crypto_service: "@odr.crypto_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $event_dispatcher: "@event_dispatcher"
+            $pheanstalk: "@pheanstalk"
+            $router: "@router"
+            $redis_prefix: "%memcached_key_prefix%"
+            $api_key: "%beanstalk_api_key%"
+            $logger: "@logger"
+
+    odr.user_group_management_service:
+        class: ODR\AdminBundle\Component\Service\ODRUserGroupMangementService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $logger: "@logger"
+
     odr.uuid_service:
         class: ODR\AdminBundle\Component\Service\UUIDService
         arguments:
-            $logger: "@logger"
-
-    odr.csv_import_helper_service:
-        class: ODR\AdminBundle\Component\Service\CSVImportHelperService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $dti_service: "@odr.datatree_info_service"
-            $search_service: "@odr.search_service"
-            $sort_service: "@odr.sort_service"
-            $logger: "@logger"
-
-    odr.csv_export_helper_service:
-        class: ODR\AdminBundle\Component\Service\CSVExportHelperService
-        arguments:
-            $container: "@service_container"    # needed in order to execute arbitrary render plugins
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $database_info_service: "@odr.database_info_service"
-            $datarecord_info_service: "@odr.datarecord_info_service"
-            $datatree_info_service: "@odr.datatree_info_service"
-            $permissions_service: "@odr.permissions_management_service"
-            $search_api_service: "@odr.search_api_service"
-            $search_key_service: "@odr.search_key_service"
-            $token_generator: "@fos_user.util.token_generator"
-            $logger: "@logger"
-
-    odr.namefield_helper_service:
-        class: ODR\AdminBundle\Component\Service\ODRNameFieldHelperService
-        arguments:
-            $container: "@service_container"    # needed in order to execute arbitrary render plugins
-            $cache_service: "@odr.cache_service"
             $logger: "@logger"
 
     odr.xyzdata_helper_service:
@@ -405,13 +417,6 @@ services:
             $event_dispatcher: "@event_dispatcher"
             $logger: "@logger"
 
-    odr.fieldtype_migration_service:
-        class: ODR\AdminBundle\Component\Service\FieldtypeMigrationService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $event_dispatcher: "@event_dispatcher"
-            $logger: "@logger"
 
     # Defines a number of reusable classes to use inside Symfony forms
     odr.type.datafield_type:

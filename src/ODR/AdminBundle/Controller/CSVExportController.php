@@ -158,13 +158,6 @@ class CSVExportController extends ODRCustomController
 
             // Verify the search key, and ensure the user can view the results
             $search_key_service->validateSearchKey($search_key);
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
-
-            if ($filtered_search_key !== $search_key) {
-                // User can't view some part of the search key...kick them back to the search
-                //  results list
-                return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
-            }
 
             // Get the list of grandparent datarecords specified by this search key
             $grandparent_datarecord_list = $search_api_service->performSearch(
@@ -176,7 +169,7 @@ class CSVExportController extends ODRCustomController
             // If the user is attempting to view a datarecord from a search that returned no results...
             if ( empty($grandparent_datarecord_list) ) {
                 // ...redirect to the "no results found" page
-                return $search_redirect_service->redirectToSearchResult($filtered_search_key, $search_theme_id);
+                return $search_redirect_service->redirectToSearchResult($search_key, $search_theme_id);
             }
 
             // Store the datarecord list in the user's session...there is a chance that it could get
@@ -187,7 +180,7 @@ class CSVExportController extends ODRCustomController
                 $list = array();
 
             $list[$odr_tab_id] = array(
-                'filtered_search_key' => $filtered_search_key,
+                'filtered_search_key' => $search_key,
             );
             $session->set('csv_export_datarecord_lists', $list);
 
@@ -198,7 +191,7 @@ class CSVExportController extends ODRCustomController
                 'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
                 array(
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $filtered_search_key,
+                    'search_key' => $search_key,
                     'offset' => $offset,
                 )
             );
