@@ -5363,8 +5363,8 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     cursor: pointer;
     position: absolute;
     z-index: 999;
-    top: 0;
-    left: 14px;
+    top: 1px;
+    left: 12px;
 }
 .ODRFilterGraphPlugin_settings_close {
     text-align: right;
@@ -5590,4 +5590,10 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
 .ODRMigration_acknowledge {
     cursor: pointer;
     color: rgb(75,75,75) !important;
+}
+
+.DynamicGraphSettingsDiv {
+    top: -4px;
+    left: 2px;
+    position: relative;
 }

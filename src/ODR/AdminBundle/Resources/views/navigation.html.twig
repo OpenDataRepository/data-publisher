@@ -13,7 +13,8 @@
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">&nbsp;<i class="fa fa-md fa-user fa-fw"></i>Profile</a></li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_job_list') }}">&nbsp;<i class="fa fa-md fa-cogs fa-fw"></i>Active Jobs</a></li>
 
-        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'databases' } ) }}" title="List Records">&nbsp;<i class="fa fa-md fa-fw fa-list"></i>Databases</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'databases' } ) }}" title="List Databases">&nbsp;<i class="fa fa-md fa-fw fa-list"></i>Databases</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_statistics_admin_dashboard') }}" title="Database Statistics">&nbsp;<i class="fa fa-md fa-fw fa-list"></i>Database Statistics</a></li>
 
     {% if is_granted('ROLE_SUPER_ADMIN') %}
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'templates' } ) }}" title="List Master Templates">&nbsp;<i class="fa fa-md fa-fw fa-cog"></i>Templates</a></li>

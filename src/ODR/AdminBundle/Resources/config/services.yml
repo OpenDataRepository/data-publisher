@@ -333,6 +333,14 @@ services:
             $search_service: "@odr.search_service"
             $logger: "@logger"
 
+    odr.statistics_service:
+        class: ODR\AdminBundle\Component\Service\StatisticsService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $logger: "@logger"
+
     odr.tab_helper_service:
         class: ODR\AdminBundle\Component\Service\ODRTabHelperService
         arguments:

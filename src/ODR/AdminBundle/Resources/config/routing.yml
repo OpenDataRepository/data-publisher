@@ -1961,5 +1961,33 @@ odr_trigger_tag_rebuild:
 #    path: /admin/zxcv/
 #    defaults: { _controller: ODRAdminBundle:Worker:zxcv }
 
+#-----------------------------------------
+# Statistics Controller
+# Public routes for logging statistics from JavaScript
+odr_statistics_log_view:
+    path: /statistics/log_view
+    defaults: { _controller: ODRAdminBundle:Statistics:logView }
+    methods: [ POST ]
+
+odr_statistics_log_batch_view:
+    path: /statistics/log_batch_view
+    defaults: { _controller: ODRAdminBundle:Statistics:logBatchView }
+    methods: [ POST ]
+
+odr_statistics_log_download:
+    path: /statistics/log_download
+    defaults: { _controller: ODRAdminBundle:Statistics:logDownload }
+    methods: [ POST ]
+#-----------------------------------------
+
+#-----------------------------------------
+# ODRSystem Controller
+# System-level utilities restricted to super-admins
+odr_system_opcache:
+    path:  /system/opcache
+    defaults: { _controller: ODRAdminBundle:ODRSystem:opcache }
+
+#-----------------------------------------
+
 imports:
     resource: api.yml

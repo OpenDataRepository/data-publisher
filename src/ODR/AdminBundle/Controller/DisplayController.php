@@ -619,12 +619,13 @@ class DisplayController extends ODRCustomController
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
 
 
             // Locate the file in the database
             /** @var File $file */
             $em->getFilters()->disable('softdeleteable');
-
             $query = $em->createQuery(
                 'SELECT f
                 FROM ODRAdminBundle:File f
@@ -643,18 +644,21 @@ class DisplayController extends ODRCustomController
             // AND fm.publicDate != :non_public_date
             // AND f.deletedAt IS NULL AND fm.deletedAt IS NULL
             // print $query->getSql();exit();
+
             $files = $query->getArrayResult();
-
             $em->getFilters()->enable('softdeleteable');
-
             $output_file = null;
             foreach ($files as $file) {
                 // var_dump($file);
                 /** @var File $file */
                 $fileMeta = $em->getRepository('ODRAdminBundle:FileMeta')
                     ->findBy(array('file' => $file['id']));
+                // var_dump($fileMeta);
+                // if(is_null($fileMeta)) { // what was this doing
                 if(is_array($fileMeta)) {
                     for($i = 0; $i < count($fileMeta); $i++) {
+                        // if($fileMeta[$i]->deletedAt == null
+                            // && $fileMeta[$i]->publicDate != '2200-01-01 00:00:00'                ) {
                         if($fileMeta[$i]->getDeletedAt() == null
                             && $fileMeta[$i]->getPublicDate() != '2200-01-01 00:00:00'                ) {
                             $output_file = $file;
@@ -663,6 +667,8 @@ class DisplayController extends ODRCustomController
                     }
                 }
                 else if(is_object($fileMeta)) {
+                    // if($fileMeta->deletedAt == null
+                        // && $fileMeta->publicDate != '2200-01-01 00:00:00'                ) {
                     if($fileMeta->getDeletedAt() == null
                         && $fileMeta->getPublicDate() != '2200-01-01 00:00:00'                ) {
                         $output_file = $file;
@@ -720,6 +726,18 @@ class DisplayController extends ODRCustomController
             if (!$local_filepath)
                 throw new FileNotFoundException($local_filepath);
 
+            // Log the download for statistics
+            $ip_address = $request->getClientIp();
+            $user_agent = $request->headers->get('User-Agent');
+            $statistics_service->logFileDownload(
+                $file->getId(),
+                $datatype->getId(),
+                $user,
+                $ip_address,
+                $user_agent,
+                $datarecord->getId()
+            );
+
             $response = self::createDownloadResponse($file, $local_filepath);
 
             // If the file is non-public, then delete it off the server...despite technically being deleted prior to serving the download, it still works
@@ -767,6 +785,8 @@ class DisplayController extends ODRCustomController
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
 
 
             // Locate the file in the database
@@ -815,6 +835,18 @@ class DisplayController extends ODRCustomController
 
             if (!$local_filepath)
                 throw new FileNotFoundException($local_filepath);
+
+            // Log the download for statistics
+            $ip_address = $request->getClientIp();
+            $user_agent = $request->headers->get('User-Agent');
+            $statistics_service->logFileDownload(
+                $file->getId(),
+                $datatype->getId(),
+                $user,
+                $ip_address,
+                $user_agent,
+                $datarecord->getId()
+            );
 
             $response = self::createDownloadResponse($file, $local_filepath);
 
@@ -921,6 +953,8 @@ class DisplayController extends ODRCustomController
             // print microtime(true) - $start . "<br />";
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
             // print microtime(true) - $start . "<br />";
 
             // Locate the image object in the database
@@ -929,7 +963,6 @@ class DisplayController extends ODRCustomController
             if ($image == null)
                 throw new ODRNotFoundException('Image');
 
-            /*
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
@@ -939,7 +972,10 @@ class DisplayController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            */
+
+            // Get user for statistics logging
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getEncryptKey() == '')
@@ -955,9 +991,6 @@ class DisplayController extends ODRCustomController
                 $permissions_service = $this->container->get('odr.permissions_management_service');
                 // ----------------------------------------
                 // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
-                /** @var ODRUser $user */
-                $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
                 if ( !$permissions_service->canViewImage($user, $image) )
                     throw new ODRForbiddenException();
                 // ----------------------------------------
@@ -973,6 +1006,18 @@ class DisplayController extends ODRCustomController
                 $handle = fopen($image_path, 'r');
                 if ($handle === false)
                     throw new FileNotFoundException($image_path);
+
+                // Log the download for statistics
+                $ip_address = $request->getClientIp();
+                $user_agent = $request->headers->get('User-Agent');
+                $statistics_service->logFileDownload(
+                    $image->getId(),
+                    $datatype->getId(),
+                    $user,
+                    $ip_address,
+                    $user_agent,
+                    $datarecord->getId()
+                );
 
                 // Have to send image headers first...
                 $response = new Response();
@@ -1031,6 +1076,18 @@ class DisplayController extends ODRCustomController
                 $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image_path )
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
+
+                // Log the download for statistics
+                $ip_address = $request->getClientIp();
+                $user_agent = $request->headers->get('User-Agent');
+                $statistics_service->logFileDownload(
+                    $image->getId(),
+                    $datatype->getId(),
+                    $user,
+                    $ip_address,
+                    $user_agent,
+                    $datarecord->getId()
+                );
 
                 // print microtime(true) - $start . "<br />";
                 $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;

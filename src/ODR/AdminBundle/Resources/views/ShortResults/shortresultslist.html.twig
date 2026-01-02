@@ -11,7 +11,7 @@
     {% set can_edit_datatype = true %}
 {% endif %}
 
-<div class="ODRFormWrap">
+<div class="ODRFormWrap" id="SearchResultsDataType_{{ datatype.id }}">
     <div class="ODRShortResultsTitle">
     {% if datatype != null %}
         <span class="ODRShortResultsHeaderLeft">Display Records - {{ datatype.dataTypeMeta.shortName }}</span>

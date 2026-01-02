@@ -1665,13 +1665,17 @@ pre .support.value  {
     .pure-visible-xl{display:none}
     .pure-hidden-md{display:none}
 
+    /* 
+     * TODO These need to be modified to 
+     * respect record view vs search results 
+     */
     .ODRDynamicGraph {
         /* min-width: 740px; */
-        min-height: 246px;
+        /* min-height: 246px; */ /* NAS 20251203 */
     }
     .ODRStaticGraph {
         /* min-width: 740px; */
-        min-height: 246px;
+        /* min-height: 246px; */ /* NAS 20251203 */
     }
 }
 /* pure-hidden-lg */
@@ -1684,11 +1688,11 @@ pre .support.value  {
 
     .ODRDynamicGraph {
         /* min-width: 960px; */
-        min-height: 320px;
+        /* min-height: 320px; */ /* NAS 20251203 */
     }
     .ODRStaticGraph {
         /* min-width: 960px; */
-        min-height: 320px;
+        /* min-height: 320px; */ /* NAS 20251203 */
     }
 }
 /* pure-hidden-xl */
@@ -1701,11 +1705,11 @@ pre .support.value  {
 
     .ODRDynamicGraph {
         /* min-width: 1200px; */
-        min-height: 400px;
+        /* min-height: 400px; */
     }
     .ODRStaticGraph {
         /* min-width: 1200px; */
-        min-height: 400px;
+        /* min-height: 400px; */ /* NAS 20251203 */
     }
 }
 

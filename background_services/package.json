@@ -5,10 +5,14 @@
   "main": "graph_renderer.js",
   "dependencies": {
     "fast-glob": "^3.3.3",
+    "geoip-lite": "^1.4.10",
+    "ioredis": "^5.3.2",
     "memcached": "^2.2.2",
     "memcached-promise": "^1.0.1",
+    "mysql2": "^3.6.5",
     "node-fetch": "^3.3.2",
     "nodestalker": "^0.1.22",
+    "php-serialize": "^5.0.0",
     "puppeteer": "^20.1.0"
   },
   "scripts": {

@@ -6844,6 +6844,8 @@ class APIController extends ODRCustomController
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var StatisticsService $statistics_service */
+            $statistics_service = $this->container->get('odr.statistics_service');
 
 
             // This API action works on both files and images...
@@ -6921,6 +6923,18 @@ class APIController extends ODRCustomController
                 if ($display_filename == null)
                     $display_filename = 'File_' . $file->getId() . '.' . $file->getExt();
 
+                // Log the download for statistics
+                $ip_address = $request->getClientIp();
+                $user_agent = $request->headers->get('User-Agent');
+                $statistics_service->logFileDownload(
+                    $file->getId(),
+                    $datatype->getId(),
+                    $user,
+                    $ip_address,
+                    $user_agent,
+                    $datarecord->getId()
+                );
+
                 // Set up a response to send the file back
                 $response = new StreamedResponse();
                 $response->setPrivate();
@@ -6960,6 +6974,18 @@ class APIController extends ODRCustomController
                 $handle = fopen($image_path, 'r');
                 if ($handle === false)
                     throw new FileNotFoundException($image_path);
+
+                // Log the download for statistics
+                $ip_address = $request->getClientIp();
+                $user_agent = $request->headers->get('User-Agent');
+                $statistics_service->logFileDownload(
+                    $image->getId(),
+                    $datatype->getId(),
+                    $user,
+                    $ip_address,
+                    $user_agent,
+                    $datarecord->getId()
+                );
 
                 // Have to send image headers first...
                 $response = new Response();
