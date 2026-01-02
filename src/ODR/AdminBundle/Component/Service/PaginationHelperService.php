@@ -70,7 +70,9 @@ class PaginationHelperService
 
 
     /**
-     * TODO
+     * Search Results, View, and Edit pages all have pagination that depends on a combination of the
+     * given search key and stuff that can be set in the user's session...to reduce duplication of
+     * code, that logic is contained here.
      *
      * @param string $odr_tab_id
      * @param DataType $datatype
