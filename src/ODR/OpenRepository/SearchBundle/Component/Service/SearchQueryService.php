@@ -2295,23 +2295,23 @@ class SearchQueryService
 
                             // It's slightly better to assume it's an HTML tag until proven otherwise
                             $j = $i + 1;
+                            $tmp_char = '';
                             while ( $j < $len ) {
                                 // The goal is to make $j end on a "decisive" character...
-                                if ( $str[$j] == ' ' || $str[$j] == '"' || $str[$j] == '>' )
+                                $tmp_char = mb_substr($str, $j, 1);
+                                if ( $tmp_char == ' ' || $tmp_char == '"' || $tmp_char == '>' )
                                     break;
                                 $j++;
                             }
                             // ...if said "decisive" character is '>'...
-                            if ( $j < $len && $str[$j] == '>' ) {
+                            if ( $j < $len && $tmp_char == '>' ) {
                                 // ...then the look-ahead didn't run into a doublequote or a space,
                                 //  meaning that it could be an HTML tag
 
-                                // Extract the sequence and save it...
-                                $tmp = substr($str, $i, ($j-$i+1));
-                                $pieces[] = $tmp;
-                                // ...then reset so the next character checked is after the sequence
-                                $i = $j + 1;
-                                $tmp = '';
+                                // Append the HTML tag to the current sequence...
+                                $tmp .= mb_substr($str, $i, ($j-$i+1));
+                                // ...then continue looking
+                                $i = $j;
                                 break;
                             }
 
