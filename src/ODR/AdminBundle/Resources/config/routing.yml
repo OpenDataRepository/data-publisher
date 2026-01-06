@@ -1737,10 +1737,11 @@ odr_purge_files:
 #-----------------------------------------
 # Session Controller
 odr_session_pagelength:
-    path:  /session/pagelength/{length}
-    defaults: { _controller: ODRAdminBundle:Session:pagelength }
+    path:  /session/pagelength/{length}/{intent}
+    defaults: { _controller: ODRAdminBundle:Session:pagelength, intent: 'searching' }
     requirements:
         length: 10|25|50|100
+        intent: '|searching|linking'
 
 odr_session_searchlink_pagelength:
     path:  /session/searchlinkpagelength/{remote_datatype_id}/{length}
@@ -1756,6 +1757,10 @@ odr_session_toggle_show_editable:
 odr_session_toggle_edit_shows_all:
     path:  /session/toggle/edit_shows_all
     defaults: { _controller: ODRAdminBundle:Session:editshowsall }
+    methods: [ POST ]
+odr_session_toggle_csvexport_shows_all:
+    path:  /session/toggle/csvexport_shows_all
+    defaults: { _controller: ODRAdminBundle:Session:csvexportshowsall }
     methods: [ POST ]
 
 odr_apply_sidebar_layout:
@@ -1933,31 +1938,28 @@ odr_trigger_tag_rebuild:
 #    requirements:
 #        datatype_id: \d+
 #        search_key: '[a-zA-Z0-9\-\_]*'
-
+#
 #odr_debug_csv_export:
 #    path: /admin/debug_csv_export
 #    defaults: { _controller: ODRAdminBundle:Debug:debugcsvexport }
 #    methods: [POST]
 #-----------------------------------------
 
-odr_amcsd_update_trigger:
-    path: /admin/amcsd/trigger
-    defaults: { _controller: ODRAdminBundle:Worker:amcsdupdatetrigger }
+#odr_amcsd_update_trigger:
+#    path: /admin/amcsd/trigger
+#    defaults: { _controller: ODRAdminBundle:Worker:amcsdupdatetrigger }
 
-odr_asdf:
-    path: /admin/asdf/
-    defaults: { _controller: ODRAdminBundle:Worker:asdf }
+#odr_asdf:
+#    path: /admin/asdf/
+#    defaults: { _controller: ODRAdminBundle:Worker:asdf }
 
 #odr_qwer:
 #    path: /admin/qwer/
 #    defaults: { _controller: ODRAdminBundle:Worker:qwer }
-#
+
 #odr_zxcv:
 #    path: /admin/zxcv/
 #    defaults: { _controller: ODRAdminBundle:Worker:zxcv }
-#
-#
-#    +#
 
 #-----------------------------------------
 # Statistics Controller

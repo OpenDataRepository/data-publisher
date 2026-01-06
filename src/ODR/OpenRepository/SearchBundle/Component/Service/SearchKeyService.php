@@ -202,7 +202,6 @@ class SearchKeyService
         }
         else {
             // Otherwise, it should be a "regular" search key
-            // TODO - should these two modifications be moved?
             if ( isset($array['sort_by']) ) {
                 // The values for the "sort_by" key are technically allowed to be an object...
                 // e.g. {"dt_id":"3","sort_by":{"sort_df_id":"18","sort_dir":"asc"}}
@@ -219,7 +218,7 @@ class SearchKeyService
                 $array['ignore'] = explode(',', $array['ignore']);
 
             // Sort the array prior to returning it
-            ksort($array);
+//            ksort($array);    // NOTE: actually using this tends to cause redirects
             return $array;
         }
     }

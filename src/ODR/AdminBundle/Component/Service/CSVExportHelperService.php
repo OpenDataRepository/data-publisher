@@ -1116,7 +1116,7 @@ class CSVExportHelperService
             //  not, need to recursively check any children of this child/linked record
             foreach ($child_dr_list as $child_dr_id => $child_dr) {
                 // Only continue recursion if the child datarecord has children
-                if (isset($child_dr['children']))
+                if ( isset($child_dr['children']) )
                     $dr['children'][$child_dt_id][$child_dr_id] = self::mergeSingleChildtypes($datatree_array, $child_dt_id, $child_dr);
             }
 
@@ -1135,8 +1135,9 @@ class CSVExportHelperService
                 if ( !isset($dr['values']) )
                     $dr['values'] = array();
 
-                foreach ($child_dr_list as $child_dr_id => $child_dr) {
-                    if (isset($child_dr['values'])) {
+                // Not using $child_dr_list, because we want the result of the previous recursion
+                foreach ($dr['children'][$child_dt_id] as $child_dr_id => $child_dr) {
+                    if ( isset($child_dr['values']) ) {
                         foreach ($child_dr['values'] as $df_id => $value) {
                             // ...all values from that child datarecord need to get spliced into
                             //  this datarecord
@@ -1146,7 +1147,7 @@ class CSVExportHelperService
 
                     // Now that the values have been copied over, move any children of that child
                     //  datarecord so that they're children of the current datarecord
-                    if (isset($child_dr['children'])) {
+                    if ( isset($child_dr['children']) ) {
                         foreach ($child_dr['children'] as $grandchild_dt_id => $grandchild_dr_list)
                             $dr['children'][$grandchild_dt_id] = $grandchild_dr_list;
                     }
@@ -1365,6 +1366,44 @@ class CSVExportHelperService
             }
             $datafields = $new_datafields;
 
+            // Dig through the cached datatype array and save the names of all the datatypes...
+            $dt_names = array();
+            foreach ($dt_array as $dt_id => $dt) {
+                if ( isset($dt['dataTypeMeta']['shortName']) )
+                    $dt_names[$dt_id] = $dt['dataTypeMeta']['shortName'];
+            }
+            // ...so prefixes for the datafields can be created if required for clarification
+            $field_prefixes = array();
+            foreach ($new_datafields as $id_string => $df_data) {
+                // The id string has two parts...a list of datatypes to "get to" the field, and the
+                //  datafield id
+                $pieces = explode('_', $id_string);
+                $dt_prefix = $pieces[0];
+                $df_id = $pieces[1];
+
+                if ( !isset($field_prefixes[$df_id]) )
+                    $field_prefixes[$df_id] = array();
+                // Determine the datatypes to "get to" the field
+                $pieces = explode('-', $dt_prefix);
+                // No point using the top-level datatype's name though...it's implied
+                array_shift($pieces);
+
+                // If there are any remaining datatypes...
+                if ( !empty($pieces) ) {
+                    // ...then create a name for this "path" to reach the field
+                    $name_prefix = '';
+                    foreach ($pieces as $dt_id)
+                        $name_prefix .= $dt_names[$dt_id].' >> ';
+                    $field_prefixes[$df_id][$id_string] = $name_prefix;
+                }
+            }
+            // $field_prefixes will still have prefixes for fields which technically don't need them
+            foreach ($field_prefixes as $df_id => $prefix_data) {
+                // ...so only save the prefixes if there's more than one "path" to "get to" the field
+                if ( count($prefix_data) === 1 )
+                    unset( $field_prefixes[$df_id] );
+            }
+
             // Dig through the cached datatype array and save the names of all fields being exported
             foreach ($dt_array as $dt_id => $dt) {
                 foreach ($dt['dataFields'] as $df_id => $df) {
@@ -1375,17 +1414,22 @@ class CSVExportHelperService
                         foreach ($new_datafields as $id_string => $df_data) {
                             if ( $df_data['df_id'] === $df_id ) {
 
+                                // Prepend the disambiguation string to the field if needed
+                                $disambiguation_prefix = '';
+                                if ( isset($field_prefixes[$df_id][$id_string]) )
+                                    $disambiguation_prefix = $field_prefixes[$df_id][$id_string];
+
                                 if ($typename === 'Markdown') {
                                     // Markdown fields can't be exported, so do nothing here
                                 }
                                 else if ($typename === 'XYZ Data') {
                                     // XYZData fields should have the column names as part of the fieldname
                                     $xyz_column_names = $df['dataFieldMeta']['xyz_data_column_names'];
-                                    $datafields[$id_string]['fieldName'] = $fieldname.' ('.$xyz_column_names.')';
+                                    $datafields[$id_string]['fieldName'] = $disambiguation_prefix.$fieldname.' ('.$xyz_column_names.')';
                                 }
                                 else {
                                     // All other fieldtypes just use the fieldname
-                                    $datafields[$id_string]['fieldName'] = $fieldname;
+                                    $datafields[$id_string]['fieldName'] = $disambiguation_prefix.$fieldname;
                                 }
 
                                 // DO NOT break here...the user could've selected the same datafield

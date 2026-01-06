@@ -33,6 +33,7 @@ twig:
     #cache: false
     exception_controller: ODR.exception_controller:showAction
     globals:
+        config_kernel_environment: '%kernel.environment%'
         config_site_baseurl: '%site_baseurl%'
         config_files_directory: '%odr_files_directory%'
         config_images_directory: '%odr_images_directory%'

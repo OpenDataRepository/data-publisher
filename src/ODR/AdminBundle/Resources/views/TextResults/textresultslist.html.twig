@@ -157,6 +157,7 @@
                 data.theme_id = {{ theme.id }};
 
                 data.layout_type = 'short';
+                data.intent = 'searching';
                 // console.log('state save', data);
 
                 $.ajax({
@@ -252,6 +253,7 @@
                     d.search_key = "{{ search_key }}";
                     d.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
                     d.layout_type = 'short';
+                    d.intent = 'searching';
 
                     // Need to fix problems with the 'order' parameter before it gets saved...
                     d.order = datatablesAjax_cleanOrder(d.order);

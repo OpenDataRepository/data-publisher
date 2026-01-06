@@ -42,30 +42,20 @@
                     break;
 
                 default:    /* 400, 403, 404, 405, 500, etc */
-                    // This specific response should never actually be seen...the goal is for createJGrowlError() to never break
-                    var response = { 'error': {"code": 418, "status_text": "Unknown error", "exception_source": "0xffffffff", "message": "ajaxError() Unknown Error"} };
+                    // Apparently there are situations where jqxhr.responseText is undefined
                     if ( jqxhr.responseText !== undefined ) {
                         try {
-                            // Errors typically result from Symfony/ODR, and should already be JSON...
-                            response = JSON.parse(jqxhr.responseText);
+                            // Errors typically result from Symfony/ODR, and should already be JSON
+                            var response = JSON.parse(jqxhr.responseText);
+                            createJGrowlError(response);
                         }
                         catch (e) {
-                            // ...but other parts of the server can still return plaintext error responses
-                            response = { 'error': {"code": jqxhr.status, "status_text": jqxhr.statusText, "exception_source": "0xffffffff", "message": "ajaxError() JSON Parse Error"} };
+                            {% if config_kernel_environment == 'dev' %}
+                            // ...but other non-ODR parts of the server can still cause problems
+                            var response = { 'error': {"code": jqxhr.status, "status_text": jqxhr.statusText, "exception_source": "0xffffffff", "message": "ajaxError() JSON Parse Error"} };
+                            createJGrowlError(response);
+                            {% endif %}
                         }
-                    }
-
-                    // TODO - Remove this - possibly leaks debug info
-                    if(
-                        response.error !== undefined
-                        && response.error.code !== undefined
-                        && response.error.code === 418
-                    ) {
-                        // Log 418s only to console
-                        console.log('Error response ', response);
-                    }
-                    else {
-                        createJGrowlError(response);
                     }
                     break;
             }
@@ -167,8 +157,8 @@
      * @param {object} response
      */
     function createJGrowlError(response) {
-        // var error_text = '<div class="ODRNotificationHeader">' + response.error.code + ' ' + response.error.status_text + ' -- ' + response.error.exception_source + "</div>";
-        var error_text = '<div class="ODRNotificationText">' + response.error.message + '</div>';
+        var error_text = '<div class="ODRNotificationHeader">' + response.error.code + ' ' + response.error.status_text + ' -- ' + response.error.exception_source + "</div>";
+        error_text += '<div class="ODRNotificationText">' + response.error.message + '</div>';
 
         $.jGrowl(
             error_text,

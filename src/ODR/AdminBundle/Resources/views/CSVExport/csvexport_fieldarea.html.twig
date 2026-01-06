@@ -7,7 +7,7 @@
 
     {% set theme_element_meta = theme_element.themeElementMeta %}
     {% set theme_element_hidden = false %}
-    {% if theme_element_meta.hidden == 1 %}
+    {% if theme_element_meta.hidden == 1 and not csvexport_shows_all_fields %}
         {% set theme_element_hidden = true %}
     {% endif %}
 
@@ -23,7 +23,7 @@
                     {# user doesn't have permissions to see this datafield #}
                     <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
                 {% else %}
-                    {% if theme_datafield.hidden == 0 %}
+                    {% if theme_datafield.hidden == 0 or csvexport_shows_all_fields %}
                         {% set datafield = datatype['dataFields'][datafield_id] %}
 
                         {% include 'ODRAdminBundle:CSVExport:csvexport_datafield.html.twig' with {
@@ -67,6 +67,8 @@
                         'is_link': is_link,
 
                         'prefix': new_prefix,
+
+                        'csvexport_shows_all_fields': csvexport_shows_all_fields,
                     } %}
                 {% endif %}
             {% endfor %}

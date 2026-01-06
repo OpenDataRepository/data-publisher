@@ -32,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
+use ODR\AdminBundle\Component\Service\PaginationHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
@@ -76,6 +77,7 @@ class TextResultsController extends ODRCustomController
                 || !isset($post['start'])
                 || !isset($post['length'])
                 || !isset($post['search_key'])
+                || !isset($post['intent'])
             ) {
                 throw new ODRBadRequestException();
             }
@@ -86,6 +88,7 @@ class TextResultsController extends ODRCustomController
             $start = intval( $post['start'] );
             $page_length = intval( $post['length'] );
             $search_key = $post['search_key'];
+            $intent = $post['intent'];
 
 
             // ----------------------------------------
@@ -115,12 +118,12 @@ class TextResultsController extends ODRCustomController
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            /** @var PaginationHelperService $pagination_helper_service */
+            $pagination_helper_service = $this->container->get('odr.pagination_helper_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
-            /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TableThemeHelperService $table_theme_helper_service */
@@ -195,41 +198,27 @@ class TextResultsController extends ODRCustomController
             // Save changes to the page_length unless viewing a search results table meant for
             //  linking datarecords...
             if ($odr_tab_id !== '') {
-                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+                $odr_tab_service->setPageLength($odr_tab_id, $page_length, $intent);
 
                 // Also need to save it in the relevant cookie
                 $cookie_key = 'datatype_'.$datatype->getId().'_page_length';
-                $cookie_value = $page_length;
+                if ( $intent === 'linking' )
+                    $cookie_key = 'datatype_'.$datatype->getId().'_linking_page_length';
 
                 // The value is stored back in the cookie after the response is created below
+                $cookie_value = $page_length;
             }
 
-            $search_params = array();
-            if ( $search_key == '' ) {
-                // Theoretically this won't happen during regular operation of ODR anymore, but
-                //  keeping around just in case
 
-                // Grab the sorted list of datarecords for this datatype
+            // ----------------------------------------
+            if ( $search_key == '' ) {
+                // Theoretically this page shouldn't get called without a search key, but maintain
+                //  an (emergency) fallback just in case...
+
+                // Get the sorted list of datarecords for this datatype
                 $list = $sort_service->getSortedDatarecordList($datatype->getId());
                 // Convert the list into a comma-separated string
                 $original_datarecord_list = array_keys($list);
-            }
-            else {
-                // Ensure the search key is valid first
-                $search_params = $search_key_service->validateSearchKey($search_key);
-
-                // TODO - don't need to check for a redirect here?  this is only called via AJAX from an already valid search results page, right?
-                // Determine whether the user is allowed to view this search key
-//                $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
-//                if ($filtered_search_key !== $search_key) {
-                    // User can't view the results of this search key, redirect to the one they can view
-//                    return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
-//                }
-
-                // No problems, so ensure the tab refers to the given search key
-                $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
-                if ( $expected_search_key !== $search_key )
-                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
             }
 
 
@@ -267,48 +256,8 @@ class TextResultsController extends ODRCustomController
                     $odr_tab_service->clearSearchResults($odr_tab_id);
                 }
 
-                // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
-                //  will display stuff in a different order
-                $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
-                if ( !is_null($sort_criteria) ) {
-                    // Prefer the criteria from the user's session whenever possible
-                    $sort_datafields = $sort_criteria['datafield_ids'];
-                    $sort_directions = $sort_criteria['sort_directions'];
-                }
-                else if ( isset($search_params['sort_by']) ) {
-                    // If the user's session doesn't have anything but the search key does, then
-                    //  use that
-                    foreach ($search_params['sort_by'] as $display_order => $data) {
-                        $sort_datafields[$display_order] = intval($data['sort_df_id']);
-                        $sort_directions[$display_order] = $data['sort_dir'];
-                    }
-
-                    // Store this in the user's session
-                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
-                }
-                else {
-                    // No criteria set...get this datatype's current list of sort fields, and convert
-                    //  into a list of datafield ids for storing this tab's criteria
-                    foreach ($datatype->getSortFields() as $display_order => $df) {
-                        $sort_datafields[$display_order] = $df->getId();
-                        $sort_directions[$display_order] = 'asc';
-                    }
-                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
-                }
-
-                // No problems, so get the datarecords that match the search
-                $original_datarecord_list = $odr_tab_service->getSearchResults($odr_tab_id);
-                if ( is_null($original_datarecord_list) ) {
-                    $original_datarecord_list = $search_api_service->performSearch(
-                        $datatype,
-                        $search_key,
-                        $user_permissions,
-                        false,  // only want the grandparent datarecord ids that match the search
-                        $sort_datafields,
-                        $sort_directions
-                    );
-                    $odr_tab_service->setSearchResults($odr_tab_id, $original_datarecord_list);
-                }
+                // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key);
 
 
                 // ----------------------------------------

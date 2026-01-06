@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
@@ -464,7 +465,11 @@ class SearchAPIService
                     // $key is one of the modified/created/modifiedBy/createdBy/publicStatus entries
                     $dt_id = intval($pieces[1]);
 
-                    if ( isset($user_permissions['datatypes'][$dt_id]) ) {
+                    if ( $search_as_super_admin ) {
+                        // Super admins can always search on datatypes
+                        $filtered_search_params[$key] = $value;
+                    }
+                    else if ( isset($user_permissions['datatypes'][$dt_id]) ) {
                         // User needs to be able to either edit, create new, or delete existing
                         //  datarecords in order to be able to search these entries
                         $dt_permissions = $user_permissions['datatypes'][$dt_id];
@@ -491,13 +496,6 @@ class SearchAPIService
             // If something got filtered out, then need to go through the trouble of creating
             //  another search key for them to use
             $filtered_search_key = $this->search_key_service->encodeSearchKey($filtered_search_params);
-
-            // ...since this is a new search key, it could be "oversized" (despite removing stuff)
-            if ( strlen($filtered_search_key) > intval($this->search_key_char_limit) ) {
-                // ...if so, then create something to hold it
-                $new_search_key = $this->search_key_service->handleOversizedSearchKey($filtered_search_key);
-                return $new_search_key;
-            }
 
             // Return the modified search key
             return $filtered_search_key;
@@ -545,12 +543,22 @@ class SearchAPIService
         $return_as_list = false
     ) {
         // ----------------------------------------
-        $search_params = $this->search_key_service->decodeSearchKey($search_key);
-
         // This typically shouldn't be null, but phpunit testing is unable to provide a hydrated
         //  datatype entity
-        if ( is_null($datatype) )
+        if ( is_null($datatype) ) {
+            $search_params = $this->search_key_service->decodeSearchKey($search_key);
+            if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException('SearchAPIService::performSearch() completely unable to find datatype');
             $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
+        }
+
+        // Originally...ODR took the search keys it received, checked whether it contained anything
+        //  the user couldn't see, and if so it then forcibly redirected to URL that had the filtered
+        //  version of said search key
+        // That behavior was convenient for ODR, but it was screwing up Wordpress...so now everywhere
+        //  that wants to actually use the search key has to filter it prior to decoding it...
+        $filtered_search_key = self::filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions, $search_as_super_admin);
+        $search_params = $this->search_key_service->decodeSearchKey($filtered_search_key);
 
 
         // ----------------------------------------
@@ -568,7 +576,7 @@ class SearchAPIService
 
         // Convert the search key into a format suitable for searching
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin, $inverse_target_datatype_id);
-        $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
+        $criteria = $this->search_key_service->convertSearchKeyToCriteria($filtered_search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = self::hydrateCriteria($criteria);
@@ -934,6 +942,7 @@ class SearchAPIService
             // ...if both types of searches were executed, then the merging algorithm needs to
             //  separately track which type of search each record matched (they could match both too)
             $differentiate_search_types = $was_general_seach && $was_advanced_search;
+            self::expandEmptyStringGuard($criteria, $search_datatree[$datatype->getId()], $datatype->getId());
             self::mergeSearchResults($criteria, true, $datatype->getId(), $search_datatree[$datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
         }
 
@@ -2110,7 +2119,7 @@ class SearchAPIService
         $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, array($target_datatype_id => 0), $inverse_permitted_datatypes);
 
         // Actually build the flattened and inflated lists
-        self::getSearchArrays_Worker($ignored_prefixes, '', $datatree_array, $permissions_array, array($target_datatype_id => 0), $datatype_dr_lists, $flattened_list, $inflated_list, $inverse_permitted_datatypes);
+        self::getSearchArrays_Worker($datatree_array, $permissions_array, array($target_datatype_id => 0), $datatype_dr_lists, $flattened_list, $inflated_list, $inverse_permitted_datatypes);
 
 
         // ----------------------------------------
@@ -2118,7 +2127,7 @@ class SearchAPIService
         ksort($flattened_list);
 
         // Actually inflate the "inflated" list...
-        $inflated_list = self::buildDatarecordTree($inflated_list, 0);
+        $inflated_list = self::buildDatarecordTree($ignored_prefixes, '', $inflated_list, 0);
 
         // ...and then return the end result
         return array(
@@ -2134,8 +2143,6 @@ class SearchAPIService
     /**
      * This is split off from {@link self::getSearchArrays()} for readability reasons.
      *
-     * @param array $ignored_prefixes {@link self::getIgnoredPrefixes()}
-     * @param string $prev_prefix
      * @param array $datatype_dr_lists
      * @param array $datatree_array {@link DatatreeInfoService::getDatatreeArray()}
      * @param array $permissions_array {@link self::getSearchPermissionsArray()}
@@ -2147,25 +2154,12 @@ class SearchAPIService
      *
      * @return void
      */
-    private function getSearchArrays_Worker($ignored_prefixes, $prev_prefix, $datatree_array, $permissions_array, $top_level_datatype_ids, &$datatype_dr_lists, &$flattened_list, &$inflated_list, $inverse_permitted_datatypes)
+    private function getSearchArrays_Worker($datatree_array, $permissions_array, $top_level_datatype_ids, &$datatype_dr_lists, &$flattened_list, &$inflated_list, $inverse_permitted_datatypes)
     {
         foreach ($permissions_array as $dt_id => $permissions) {
             // Ensure that the user is allowed to view this datatype before doing anything with it
             if ( !$permissions['can_view_datatype'] )
                 continue;
-
-            // Determine the prefix of the datatype currently being looked at
-            $current_prefix = '';
-            if ( $prev_prefix === '' )
-                $current_prefix = $dt_id;
-            else
-                $current_prefix = $prev_prefix.'_'.$dt_id;
-
-            // If it matches one of the ignored prefixes, then don't gather any data about this
-            //  datatype
-            if ( isset($ignored_prefixes[$current_prefix]) )
-                continue;
-
 
             // If the datatype is linked...then the backend query to rebuild the cache entry is
             //  different, as is the insertion of the resulting datarecords into the "inflated" list
@@ -2409,14 +2403,15 @@ class SearchAPIService
      *     )
      * )
      * </pre>
-     * TODO - now that $inflated_list isn't used to perform search logic, are the datatype ids still useful?
      *
+     * @param array $ignored_prefixes {@link self::getIgnoredPrefixes()}
+     * @param string $prev_prefix
      * @param array $descendants_of_datarecord
      * @param string|integer $current_datarecord_id
      *
      * @return string|array
      */
-    private function buildDatarecordTree($descendants_of_datarecord, $current_datarecord_id)
+    private function buildDatarecordTree($ignored_prefixes, $prev_prefix, $descendants_of_datarecord, $current_datarecord_id)
     {
         if ( !isset($descendants_of_datarecord[$current_datarecord_id]) ) {
             // $current_datarecord_id has no children...intentionally returning empty string
@@ -2427,14 +2422,26 @@ class SearchAPIService
             // $current_datarecord_id has children
             $result = array();
 
-            // For every child datatype this datarecord has...
+            // For every descendant datatype this datarecord has...
             foreach ($descendants_of_datarecord[$current_datarecord_id] as $dt_id => $datarecords) {
+                // ...verify that the "path" to this descendant isn't in the list of ignored prefixes
+                //  before building its datarecord tree
+                $current_prefix = '';
+                if ( !empty($ignored_prefixes) ) {
+                    if ( $prev_prefix === '' )
+                        $current_prefix = $dt_id;
+                    else
+                        $current_prefix = $prev_prefix.'_'.$dt_id;
+                    if ( isset($ignored_prefixes[$current_prefix]) )
+                        continue;
+                }
+
                 // For every child datarecord of this child datatype...
                 foreach ($datarecords as $dr_id => $tmp) {
                     // NOTE - doing it this way to cut out recursive calls that just return ''
                     if ( isset($descendants_of_datarecord[$dr_id]) ) {
                         // ...get all children of this child datarecord and store them
-                        $result[$dt_id][$dr_id] = self::buildDatarecordTree($descendants_of_datarecord, $dr_id);
+                        $result[$dt_id][$dr_id] = self::buildDatarecordTree($ignored_prefixes, $current_prefix, $descendants_of_datarecord, $dr_id);
                     }
                     else {
                         // ...the child datarecord has no children of its own
@@ -2824,6 +2831,88 @@ class SearchAPIService
 
 
     /**
+     * When trying to find the empty string in a child/linked descendant, there's another irritating
+     * wrinkle in the problem that's caused by ODR.  If we assume that A links to B and B links to C,
+     * and we search for an empty string on C...then that effectively needs to match three sets:
+     * <pre>
+     *  1) records in A that have descendants of B that have descendants of C that are empty
+     *  2) records in A that have descendants of B that don't have descendants of C
+     *  3) records in A that don't have descendants of B
+     * </pre>
+     *
+     * ODR should (theoretically) already handle the first two conditions, but there needs to be an
+     * extra push for it to realize the third condition.  The easiest way of handling this seems to
+     * be to "transfer" the marker for the descendant into a new facet for the ancestor, which will
+     * allow {@link self::mergeSearchResults()} to activate the blocks of code to transfer the
+     * "ancestors_without_descendants" records...
+     *
+     * @param array $criteria {@link self::hydrateCriteria()}
+     * @param array $search_datatree {@link self::buildSearchDatatree()}
+     * @param integer $current_datatype_id
+     * @return bool
+     */
+    private function expandEmptyStringGuard(&$criteria, $search_datatree, $current_datatype_id)
+    {
+        $ret = false;
+        if ( !empty($criteria[$current_datatype_id]) ) {
+            foreach ($criteria[$current_datatype_id] as $num => $facet) {
+                foreach ($facet['search_terms'] as $df_id => $df_data) {
+                    // If this datatype was involved with a search for the empty string...
+                    if ( isset($df_data['guard']) && $df_data['guard'] === true ) {
+                        // ...then ensure its ancestor also thinks it was involved...
+                        $ret = true;
+                        // ...by creating a fake criteria facet
+                        $criteria[$current_datatype_id][99999] = array(
+                            'search_terms' => array(
+                                0 => array(
+                                    'guard' => true
+                                )
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
+        // Check this datatype's child descendants...
+        foreach ($search_datatree['children'] as $child_dt_id => $child_search_datatree) {
+            $ret = self::expandEmptyStringGuard($criteria, $child_search_datatree, $child_dt_id);
+
+            // ...if they had a descendant which was involved with the empty string...
+            if ($ret) {
+                // ...then create a fake criteria facet for this datatype
+                $criteria[$current_datatype_id][99999] = array(
+                    'search_terms' => array(
+                        0 => array(
+                            'guard' => true
+                        )
+                    )
+                );
+            }
+        }
+
+        // Check this datatype's linked descendants...
+        foreach ($search_datatree['links'] as $linked_dt_id => $child_search_datatree) {
+            $ret = self::expandEmptyStringGuard($criteria, $child_search_datatree, $linked_dt_id);
+
+            // ...if they had a descendant which was involved with the empty string...
+            if ($ret) {
+                // ...then create a fake criteria facet for this datatype
+                $criteria[$current_datatype_id][99999] = array(
+                    'search_terms' => array(
+                        0 => array(
+                            'guard' => true
+                        )
+                    )
+                );
+            }
+        }
+
+        return $ret;
+    }
+
+
+    /**
      * The primary difficulty with searching in ODR is that the datarecords/datatypes are all
      * effectively "in the same bucket"...there's no viable method to get useful table joins when
      * the backend database is content-agnostic, and when there can be an arbitrarily deep tree of
@@ -3028,6 +3117,9 @@ class SearchAPIService
         }
 
         if ( !is_null($merge_ancestors_without_descendants) ) {
+            // TODO - If there's this database with the setup:
+            // TODO - {IMA -> References, IMA -> Reference A -> References, IMA -> Reference B -> References, IMA -> Status Notes -> References}
+            // TODO - ...this logic will only work when at most one "path" is selected and the empty string is involved
             $relevant_descendant_dt_id = $merge_ancestors_without_descendants;
 
             // Going to be faster to determine which datarecords don't have descendants by
@@ -3076,7 +3168,6 @@ class SearchAPIService
             if ( empty($descendants) )
                 break;
 
-
             // The only time a datatype might need to merge search results by OR is when there are
             //  "multiple paths" to reach the same descendant datatype...
             // e.g. B is a descendant of A, and B links to D, and A also links to D
@@ -3084,7 +3175,6 @@ class SearchAPIService
             // In both cases, D can be reached in more than one way, so D's ancestors may need to
             //  have their search results merged by OR (A/B in the first case, and B/C in the second)
             // TODO - Does this logic work for more complicated setups?  I'm struggling to think of something that makes sense
-            // TODO - this current logic only really works because you can "get away with" not wanting the linked descendants to have separate searches...
             $descendants_counts = array();
             foreach ($descendants as $descendant_dt_id => $data) {
                 // The fastest way to determine if this situation arises is to sum how many times

@@ -178,7 +178,7 @@ class ODRCustomController extends Controller
             $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
 
         // Grab the page length for this tab from the session, if possible
-        $page_length = $odr_tab_service->getPageLength($odr_tab_id);
+        $page_length = $odr_tab_service->getPageLength($odr_tab_id, $intent);
 
         // Due to the existence of table themes that display all records, the page_length variable
         //  in the user's session needs to be verified that it makes sense for the currently
@@ -186,14 +186,14 @@ class ODRCustomController extends Controller
         if ( $intent !== 'linking' && $theme->getIsTableTheme() && $theme->getDisplaysAllResults() ) {
             // ...despite being named "display all records", there's actually a limit of 10k per page
             $page_length = 10000;
-            $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+            $odr_tab_service->setPageLength($odr_tab_id, $page_length, $intent);
         }
         else {
             // ...but if the user is not viewing all records, then ensure the page length is not
             //  effectively infinite
             if ( $page_length > 100 ) {
                 $page_length = $odr_tab_service->getDefaultPageLength();
-                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+                $odr_tab_service->setPageLength($odr_tab_id, $page_length, $intent);
             }
         }
 
@@ -374,7 +374,7 @@ class ODRCustomController extends Controller
 
             // -----------------------------------
             // Build the html required for the pagination header
-            $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $original_datarecord_list);
+            $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $original_datarecord_list, $intent);
 
             $pagination_html = '';
             if ( !is_null($pagination_values) ) {

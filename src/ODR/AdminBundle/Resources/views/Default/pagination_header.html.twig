@@ -152,9 +152,12 @@
         $(".ODRPageLength").unbind('click').click(function() {
             var num = $(this).attr('rel');
 
-            var url = '{{ path( 'odr_session_pagelength', {'length': 10} ) }}';
-            url = url.substring(0, (url.length-2));
+            var url = '{{ path( 'odr_session_pagelength', {'length': 10, 'intent': ''} ) }}';
+            url = url.substring(0, (url.length-3));
             url += num;
+            {% if intent == 'linking' %}
+            url += '/linking';
+            {% endif %}
 
             // Append the tab's id to the get request if it exists
             var data = '';
