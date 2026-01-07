@@ -29,7 +29,7 @@
                         <span>{{ file.filesize|filesize }}</span>
                     </div>
                     <div>
-                        <i class="fa fa-trash-o ODRDeleteFile Pointer" onclick="DeleteFile({{ file.id }}{% if file_delete_callback is defined %}, {{ file_delete_callback }}{% endif %});"></i>&nbsp;
+                        <i class="fa fa-trash-o ODRDeleteFile Pointer" onclick="DeleteFile({{ file.id }}{% if file_delete_callback is defined %}, {{ file_delete_callback }}{% if only_use_callback is defined and only_use_callback == true %}, true{% endif %}{% endif %});"></i>&nbsp;
                         <span>Delete File</span>
                     </div>
                 </span>
