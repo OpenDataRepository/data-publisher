@@ -90,7 +90,7 @@ class PluginOptionsChangedEvent extends Event implements ODREventInterface
     /**
      * Returns the names of the renderPluginField entries that got changed or added.
      *
-     * @return array
+     * @return string[]
      */
     public function getChangedFields()
     {

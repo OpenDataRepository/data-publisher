@@ -1,5 +1,13 @@
 {% spaceless %}
 
+{% set tmp_baseurl = config_site_baseurl %}
+{% if config_odr_wordpress_integrated %}
+    {% set tmp_baseurl = config_wordpress_site_baseurl %}
+{% endif %}
+{% if config_kernel_environment == 'dev' %}
+    {% set tmp_baseurl = tmp_baseurl ~ '/app_dev.php' %}
+{% endif %}
+
 <div id="ODRPluginUsesDialogWrapper">
     <div id="ODRPluginUsesWrapper">
         <table id="ODRPluginUsesTable" class="display dataTable">
@@ -14,7 +22,7 @@
             <tbody>
 {% for num,data in plugin_uses %}
                 <tr>
-                    <td><i class='ODRRenderPlugin_Link fa fa-external-link' rel="{{ data['gp_dt_id'] }}"></i></td>
+                    <td><a href="{{ tmp_baseurl }}/{{ data['gp_dt_search_slug'] }}#{{ path('odr_design_master_theme', {'datatype_id': data['gp_dt_id']}) }}" target="_blank"><i class='ODRRenderPlugin_Link fa fa-external-link'></i></a></td>
                     <td>{{ data['gp_dt_name'] }}</td>
                     <td>{% if data['gp_dt_name'] != data['dt_name'] %}{{ data['dt_name'] }}{% endif %}</td>
                     {% if is_datafield_plugin %}
@@ -48,14 +56,6 @@
             "info": false,
         });
         $("#ODRPluginUsesTable").removeAttr('style');
-
-        $(".ODRRenderPlugin_Link").unbind('click').click(function() {
-            var dt_id = $(this).attr('rel');
-            var url = '{{ path('odr_design_master_theme', {'datatype_id': 0}) }}';
-            url = url.substring(0,(url.length - 1)) + dt_id;
-
-            window.open('{{ path('odr_admin_homepage') }}#' + url, "_blank");
-        });
     });
 </script>
 
