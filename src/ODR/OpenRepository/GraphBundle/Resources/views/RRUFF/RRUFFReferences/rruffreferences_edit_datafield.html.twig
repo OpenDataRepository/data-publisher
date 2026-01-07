@@ -208,7 +208,9 @@
 
     $("#{{ input_id }}_select").unbind('change').change(function() {
         var selected_option_text = $(this).find(':selected').text();
-        if ( selected_option_text.length > 0 )
+        if ( selected_option_text === '<< Select a Journal >>')
+            $("#{{ input_id }}").val('').trigger('paste');
+        else if ( selected_option_text.length > 0 )
             $("#{{ input_id }}").val(selected_option_text).trigger('paste');
     });
     {% endif %}
