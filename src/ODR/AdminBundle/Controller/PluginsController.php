@@ -2097,7 +2097,7 @@ class PluginsController extends ODRCustomController
             $query = null;
             if ( $is_datafield_plugin ) {
                 $query =
-                   'SELECT gp_dt.id AS gp_dt_id, gp_dtm.short_name AS gp_dt_name, dtm.short_name AS dt_name, dfm.field_name AS df_name
+                   'SELECT gp_dt.id AS gp_dt_id, gp_dtm.search_slug AS gp_dt_search_slug, gp_dtm.short_name AS gp_dt_name, dtm.short_name AS dt_name, dfm.field_name AS df_name
                     FROM odr_data_type gp_dt
                     LEFT JOIN odr_data_type_meta gp_dtm ON gp_dtm.data_type_id = gp_dt.id
                     LEFT JOIN odr_data_type dt ON dt.grandparent_id = gp_dt.id
@@ -2114,7 +2114,7 @@ class PluginsController extends ODRCustomController
             }
             else {
                 $query =
-                   'SELECT gp_dt.id AS gp_dt_id, gp_dtm.short_name AS gp_dt_name, dtm.short_name AS dt_name
+                   'SELECT gp_dt.id AS gp_dt_id, gp_dtm.search_slug AS gp_dt_search_slug, gp_dtm.short_name AS gp_dt_name, dtm.short_name AS dt_name
                     FROM odr_data_type gp_dt
                     LEFT JOIN odr_data_type_meta gp_dtm ON gp_dtm.data_type_id = gp_dt.id
                     LEFT JOIN odr_data_type dt ON dt.grandparent_id = gp_dt.id

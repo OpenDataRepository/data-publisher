@@ -1528,10 +1528,15 @@ function Edit_UpdateParentTagClass(tag_item) {
  *
  * @param {number} file_id
  * @param {function} [callback]
+ * @param {boolean} [only_use_callback]
  */
-function DeleteFile(file_id, callback) {
-    if (callback === undefined)
+function DeleteFile(file_id, callback, only_use_callback) {
+    if (callback === undefined) {
         callback = function() {}
+        only_use_callback = false;
+    }
+    if (only_use_callback === undefined)
+        only_use_callback = false;
 
     var file_div = $("#File_" + file_id);
     var filename = $(file_div).find('.ODRFileDownload').text();
@@ -1555,26 +1560,28 @@ function DeleteFile(file_id, callback) {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                // Going to need this
-                var anchor = $(file_div).parent();
+                if ( !only_use_callback ) {
+                    // Going to need this
+                    var anchor = $(file_div).parent();
 
-                // Remove file data from table area
-                $(file_div).remove();
+                    // Remove file data from table area
+                    $(file_div).remove();
 
-                // If that was the last file uploaded to the field, re-add the "no files uploaded" div
-                if ( $(anchor).children(".ODRFileDatafield_file").length === 0 ) {
-                    var html =
-                        '<div class="ODRFileDatafield_empty pure-u-1">\n' +
-                        '    <span class="ODRFileSpacer_empty">&nbsp;</span>\n' +
-                        '    <a class="Cursor">No Files Uploaded</a>\n' +
-                        '</div>';
-                    $(anchor).append(html);
-                }
+                    // If that was the last file uploaded to the field, re-add the "no files uploaded" div
+                    if ( $(anchor).children(".ODRFileDatafield_file").length === 0 ) {
+                        var html =
+                            '<div class="ODRFileDatafield_empty pure-u-1">\n' +
+                            '    <span class="ODRFileSpacer_empty">&nbsp;</span>\n' +
+                            '    <a class="Cursor">No Files Uploaded</a>\n' +
+                            '</div>';
+                        $(anchor).append(html);
+                    }
 
-                {# NOTE - this doesn't actually "reload" anything, just shows the upload div again #}
-                if (data.d.need_reload == true) {
-                    $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id + " input").prop('disabled', false);
-                    $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().removeClass('ODRHidden');
+                    // If the field only allowed a single file, then re-show the "Upload File Here" div
+                    if (data.d.need_reload == true) {
+                        $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id + " input").prop('disabled', false);
+                        $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().removeClass('ODRHidden');
+                    }
                 }
 
                 // Run the given callback

@@ -407,15 +407,22 @@ class SearchSidebarService
                         //  for the moment...
                     }
 
-                    if ( !is_null($df_id) && !(isset($sidebar_array['always_display'][$df_id]) || isset($sidebar_array['extended_display'][$df_id])) ) {
+                    if ( !is_null($df_id) && !isset($sidebar_array['always_display'][$df_id]) ) {
                         // The datafield from the search param isn't already in the sidebar layout
                         foreach ($datatype_array as $dt_id => $dt) {
                             // Need to find the datatype this datafield belongs to...
                             if ( isset($dt['dataFields'][$df_id]) ) {
                                 // ...so it can receive an entry for in the sidebar array
-                                $sidebar_array['extended_display'][$df_id] = $dt['dataFields'][$df_id];
-                                $sidebar_array['extended_display'][$df_id]['displayOrder'] = 999;
-                                $sidebar_array['extended_display'][$df_id]['dataType'] = array('id' => $dt_id);
+
+                                // This is intentionally always put into the "always_display" section
+                                // ...it's easier for user comphrehension if they can always see
+                                //  fields that have search values in them
+                                $sidebar_array['always_display'][$df_id] = $dt['dataFields'][$df_id];
+                                $sidebar_array['always_display'][$df_id]['displayOrder'] = 999;
+                                $sidebar_array['always_display'][$df_id]['dataType'] = array('id' => $dt_id);
+                                // ...similarly, ensure the field does not appear in the other section
+                                unset( $sidebar_array['extended_display'][$df_id] );
+
                                 break;
                             }
                         }
