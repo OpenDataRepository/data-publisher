@@ -1,4 +1,4 @@
-Open Data Repository Data Publisher
+Open Data Repository Data Publisher - Design Update
 ===================================
 
 The Open Data Repository's Data Publisher aims to create a simple tool
