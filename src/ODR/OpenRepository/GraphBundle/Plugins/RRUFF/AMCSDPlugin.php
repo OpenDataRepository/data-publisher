@@ -2179,9 +2179,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $prev_line = $lines[$database_code_line_num];
 
                 // If the prev line is entirely numeric...
-                if ( preg_match('/^[\.\d\s]+$/', $prev_line) === 1 ) {
-                    // ...then the file also has some kind of occupancy data (i believe), and needs
-                    //  adjusted back by one more line
+                if ( preg_match('/^[\-\.\d\s]+$/', $prev_line) === 1 ) {
+                    // ...then the file also has some kind of coordinate shift (for comparative
+                    //  readability with other structures apparently), and the insertion point for
+                    //  the _database_code_amcsd line needs adjusted back by one additional line
                     $database_code_line_num--;
                 }
 
