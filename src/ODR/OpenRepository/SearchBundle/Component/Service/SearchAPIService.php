@@ -440,7 +440,7 @@ class SearchAPIService
                     // Searching on public status of files/images needs an additional check...
                     if ( $is_valid_field && $pieces[1] === 'pub' ) {
                         if ( !isset($user_permissions['datatypes'][$df_dt_id]['dr_view'])
-                            || !isset($user_permissions['datafields'][$df_dt_id]['view'])
+                            || !isset($user_permissions['datafields'][$df_id]['view'])
                         ) {
                             // ...because a user without the ability to see non-public files should
                             //  not be able to search on this criteria
