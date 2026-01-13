@@ -986,10 +986,12 @@ class DefaultController extends Controller
                 // ...attempt to get the user's preferred theme for this datatype
                 $search_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
 
-                if ($intent === 'searching') {
-                    // ...before redirecting them to the search results URL with their preferred theme
-                    return $search_redirect_service->redirectToSearchResult($search_key, $search_theme_id);
-                }
+                // Don't immediately redirect to force the URL to have the preferred theme id
+//                if ($intent === 'searching')
+//                    return $search_redirect_service->redirectToSearchResult($search_key, $search_theme_id);
+
+                // NOTE: the URL will still "end up with" the preferred theme id when they navigate
+                //  away from this specific page
             }
 
             // Ensure the theme exists before attempting to use it
