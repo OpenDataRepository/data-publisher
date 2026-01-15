@@ -1786,3 +1786,90 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     content: "Records Found - Click a highlighted row to Save";
     margin-left: 25px;
 }
+
+/* ==========================================================================
+   TIGHT SPACING - Zero padding/margins for data density (Desktop/All views)
+   Added: January 2026
+   ========================================================================== */
+
+/* Inner boxes - zero padding */
+.ODRInnerBox {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Theme elements - small top padding for visual separation */
+.ODRThemeElement {
+    margin: 0 !important;
+    padding: 2px 0 0 0 !important;
+}
+
+/* Field areas - zero padding */
+.ODRFieldArea {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Data fields - zero spacing */
+.ODRDataField {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Labels - tight, aligned with values */
+.ODRDataField label {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.2 !important;
+}
+
+/* Field values - reduced height, aligned with labels */
+.ODRDataField input,
+.ODRDataField textarea,
+.ODRDataField .ODRFieldValue {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.3 !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+/* Field wrapper - zero padding for alignment */
+.ODRFieldWrapper,
+.ODRFieldWrapper > div {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Form elements - zero padding */
+.ODRFormWrap {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Fieldset - small left padding for labels and inputs */
+.ODRDataField fieldset {
+    padding: 0 0 0 4px !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+/* Image gallery - remove top padding */
+.ODRImageGallery {
+    padding-top: 0 !important;
+}
+
+/* Record card inner elements - small top padding only */
+.ODRShortResult .ODRInnerBox,
+.DataRecordShort .ODRInnerBox,
+.ODRShortResults .ODRInnerBox {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.ODRShortResult .ODRThemeElement,
+.DataRecordShort .ODRThemeElement,
+.ODRShortResults .ODRThemeElement {
+    padding: 2px 0 0 0 !important;
+    margin: 0 !important;
+}

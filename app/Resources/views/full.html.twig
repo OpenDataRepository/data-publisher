@@ -141,7 +141,7 @@
     <!-- Define Site Base URL -->
     <script>
         window.site_baseurl = '{{ site_baseurl }}';
-        {% if odr_wordpress_integrated %}
+        {% if odr_wordpress_integrated is defined and odr_wordpress_integrated %}
             window.odr_wordpress_integrated = true;
             window.wordpress_site_baseurl = '{{ wordpress_site_baseurl }}';
         {% endif %}

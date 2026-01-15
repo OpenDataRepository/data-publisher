@@ -1,371 +1,630 @@
-/* Smartphones (portrait and landscape) ----------- */
-@media only screen and (min-device-width : 320px) and (max-device-width : 480px) {
-    /* Styles */
-    .hidden-lg-b {
-        display: none;
-    }
-
-    .hidden-xl-b {
-        display: none;
-    }
-
-    .hidden-tablet {
-        display: none;
-    }
-
-    .hidden-phone {
-        display: none;
-    }
-
-    #ThemeDesignWrapperMessage {
-        display: block;
-    }
-    #ThemeDesignWrapper {
-        display: none;
-    }
-}
-
-/* Smartphones (landscape) ----------- */
-@media only screen and (min-width : 321px) {
-    /* Styles */
-    #ThemeDesignWrapperMessage {
-        display: block;
-    }
-    #ThemeDesignWrapper {
-        display: none;
-    }
-}
-
-/* Smartphones (portrait) ----------- */
-@media only screen and (max-width : 320px) {
-    /* Styles */
-    #ThemeDesignWrapperMessage {
-        display: block;
-    }
-    #ThemeDesignWrapper {
-        display: none;
-    }
-}
-
-
-
-
-
-/***
-
-IPHONES
-
-
+/**
+ * ODR Responsive Styles - Phone (< 768px)
+ * Modern mobile-first breakpoints
+ * Updated: January 2026
  */
 
-/* ----------- iPhone 4 and 4S ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 320px)
-and (max-device-width: 480px)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-@media only screen
-and (min-device-width: 320px)
-and (max-device-width: 480px)
-and (-webkit-min-device-pixel-ratio: 2)
-and (orientation: portrait) {
-}
-
-/* Landscape */
-@media only screen
-and (min-device-width: 320px)
-and (max-device-width: 480px)
-and (-webkit-min-device-pixel-ratio: 2)
-and (orientation: landscape) {
-
-}
-
-/* ----------- iPhone 5, 5S, 5C and 5SE ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 320px)
-and (max-device-width: 568px)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-@media only screen
-and (min-device-width: 320px)
-and (max-device-width: 568px)
-and (-webkit-min-device-pixel-ratio: 2)
-and (orientation: portrait) {
-}
-
-/* Landscape */
-@media only screen
-and (min-device-width: 320px)
-and (max-device-width: 568px)
-and (-webkit-min-device-pixel-ratio: 2)
-and (orientation: landscape) {
-
-}
-
-/* ----------- iPhone 6, 6S, 7 and 8 ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 375px)
-and (max-device-width: 667px)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-@media only screen
-and (min-device-width: 375px)
-and (max-device-width: 667px)
-and (-webkit-min-device-pixel-ratio: 2)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media only screen
-and (min-device-width: 375px)
-and (max-device-width: 667px)
-and (-webkit-min-device-pixel-ratio: 2)
-and (orientation: landscape) {
-
-}
-
-/* ----------- iPhone 6+, 7+ and 8+ ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 414px)
-and (max-device-width: 736px)
-and (-webkit-min-device-pixel-ratio: 3) {
-
-}
-
-/* Portrait */
-@media only screen
-and (min-device-width: 414px)
-and (max-device-width: 736px)
-and (-webkit-min-device-pixel-ratio: 3)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media only screen
-and (min-device-width: 414px)
-and (max-device-width: 736px)
-and (-webkit-min-device-pixel-ratio: 3)
-and (orientation: landscape) {
-
-}
-
-/* ----------- iPhone X ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 375px)
-and (max-device-width: 812px)
-and (-webkit-min-device-pixel-ratio: 3) {
-
-}
-
-/* Portrait */
-@media only screen
-and (min-device-width: 375px)
-and (max-device-width: 812px)
-and (-webkit-min-device-pixel-ratio: 3)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media only screen
-and (min-device-width: 375px)
-and (max-device-width: 812px)
-and (-webkit-min-device-pixel-ratio: 3)
-and (orientation: landscape) {
-
-}
-
-
-/* ----------- Galaxy S3 ----------- */
-
-/* Portrait and Landscape */
-@media screen
-and (device-width: 320px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-@media screen
-and (device-width: 320px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 2)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media screen
-and (device-width: 320px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 2)
-and (orientation: landscape) {
-
-}
-
-/* ----------- Galaxy S4, S5 and Note 3 ----------- */
-
-/* Portrait and Landscape */
-@media screen
-and (device-width: 320px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3) {
-
-}
-
-/* Portrait */
-@media screen
-and (device-width: 320px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media screen
-and (device-width: 320px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3)
-and (orientation: landscape) {
-
-}
-
-/* ----------- Galaxy S6 ----------- */
-
-/* Portrait and Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 4) {
-
-}
-
-/* Portrait */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 4)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 4)
-and (orientation: landscape) {
-
-}
-
-
-
-/* ----------- Google Pixel ----------- */
-
-/* Portrait and Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3) {
-
-}
-
-/* Portrait */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3)
-and (orientation: landscape) {
-
-}
-
-/* ----------- Google Pixel XL ----------- */
-
-/* Portrait and Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 4) {
-
-}
-
-/* Portrait */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 4)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 4)
-and (orientation: landscape) {
-
-}
-
-/* ----------- HTC One ----------- */
-
-/* Portrait and Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3) {
-
-}
-
-/* Portrait */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media screen
-and (device-width: 360px)
-and (device-height: 640px)
-and (-webkit-device-pixel-ratio: 3)
-and (orientation: landscape) {
-
-}
-
-
-
+@media screen and (max-width: 767px) {
+
+/* ==========================================================================
+   PREVENT HORIZONTAL OVERFLOW
+   ========================================================================== */
+
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+        width: 100% !important;
+    }
+
+    /* Force all containers to respect viewport width */
+    .pure-g,
+    .pure-menu,
+    .pure-menu-horizontal,
+    #ODRMainMenu,
+    .ODRMenuWrapper,
+    #main,
+    #odr_content,
+    section,
+    .pure-form {
+        max-width: 100vw !important;
+        width: 100% !important;
+        overflow-x: hidden;
+    }
+
+    /* Override Pure grid units on mobile */
+    [class*="pure-u-md-"],
+    [class*="pure-u-sm-"],
+    .pure-u-md-22-24,
+    .pure-u-md-2-3,
+    .pure-u-sm-2-3 {
+        width: 100% !important;
+    }
+
+    /* Menu list - hide on mobile (hamburger handles it) */
+    .ODRMenuWrapper .pure-menu-list {
+        display: none;
+    }
+
+    /* Show only hamburger toggle */
+    #toggle {
+        display: block !important;
+    }
+
+/* ==========================================================================
+   GLOBAL - Touch Targets
+   ========================================================================== */
+
+    /* Touch-friendly buttons */
+    .pure-button,
+    .pure-skin-odr .pure-button,
+    button,
+    [type="submit"],
+    [type="button"] {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 12px 16px;
+        font-size: 16px;
+    }
+
+    /* Touch-friendly form inputs - prevents iOS zoom */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="number"],
+    select,
+    textarea,
+    .pure-form input[type="text"],
+    .pure-form input[type="email"],
+    .pure-form input[type="password"],
+    .pure-form select,
+    .pure-form textarea {
+        font-size: 16px !important;
+        min-height: 44px;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    /* Multi-select boxes */
+    select[multiple] {
+        min-height: 100px;
+    }
+
+    /* Responsive images */
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+
+/* ==========================================================================
+   VISIBILITY UTILITIES
+   ========================================================================== */
+
+    .hidden-phone,
+    .visible-desktop-only,
+    .visible-tablet-only {
+        display: none !important;
+    }
+
+    .visible-phone-only {
+        display: block !important;
+    }
+
+/* ==========================================================================
+   LAYOUT - Balanced Margins
+   ========================================================================== */
+
+    /* Remove side spacers on mobile */
+    #left-spacer,
+    #right-spacer {
+        display: none !important;
+    }
+
+    /* Full-width content with balanced, compact padding */
+    #odr_content,
+    .ODRContentWrapper,
+    .ODRBodyContent {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+        width: auto !important;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Inner boxes - zero padding for tight layout */
+    .ODRInnerBox {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Theme elements - small top padding for visual separation */
+    .ODRThemeElement {
+        margin: 0 !important;
+        padding: 2px 0 0 0 !important;
+    }
+
+    /* Field areas - zero padding */
+    .ODRFieldArea {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Accordion content - zero padding */
+    .accordion-content,
+    .ui-accordion-content,
+    .ODRFieldArea.accordion-content {
+        padding: 0 !important;
+    }
+
+    /* Pure grid overrides - stack columns */
+    .pure-g > [class*="pure-u-md-"],
+    .pure-g > [class*="pure-u-lg-"] {
+        width: 100%;
+    }
+
+/* ==========================================================================
+   NAVIGATION
+   ========================================================================== */
+
+    /* Hamburger menu touch target */
+    #toggle {
+        min-width: 48px;
+        min-height: 48px;
+        padding: 12px;
+    }
+
+    /* Mobile menu items */
+    #menu .pure-menu-link {
+        padding: 14px 20px;
+        min-height: 48px;
+        font-size: 16px;
+    }
+
+/* ==========================================================================
+   SEARCH SIDEBAR - Full Width Stacked
+   ========================================================================== */
+
+    /* Search sidebar - full width on mobile, disable sticky */
+    #ODRSearchHeaderWrapper,
+    #ODRSearchSidebar,
+    .ODRSearchSidebar,
+    .ODRSearchVisible,
+    .search-sidebar {
+        width: 100% !important;
+        max-width: 100%;
+        float: none !important;
+        position: relative !important;
+        top: auto !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        margin-bottom: 12px;
+        display: block !important;
+    }
+
+    /* Search content area - full width */
+    #ODRSearchContent {
+        width: 100% !important;
+        margin-left: 0 !important;
+        float: none !important;
+        clear: both;
+        display: block !important;
+    }
+
+    /* On individual record view, collapse the search sidebar */
+    /* The sidebar contains a full search form - hide it when viewing a record */
+    #ODRSearchSidebar .ODRThemeElement .ODRInnerBox {
+        max-height: 60px;
+        overflow: hidden;
+    }
+
+    /* But allow it to expand when the search header is clicked */
+    #ODRSearchSidebar .ODRSearchVisible .ODRInnerBox {
+        max-height: none;
+    }
+
+    /* Search scrollbox - remove fixed height */
+    .ODRSearchScrollbox {
+        max-height: none;
+        overflow: visible;
+    }
+
+    /* Search inputs full width */
+    .ODRSearchScrollbox input,
+    .ODRSearchScrollbox select,
+    #search_form input[type="text"],
+    #search_form select {
+        width: 100%;
+    }
+
+    /* Search button */
+    .ODRSearchButton {
+        width: 100%;
+        min-height: 48px;
+    }
+
+/* ==========================================================================
+   LOGIN PAGE
+   ========================================================================== */
+
+    /* Login form container */
+    #login_wrapper,
+    .ODRLoginForm {
+        width: 100% !important;
+        max-width: 100%;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+
+    /* Login form inputs */
+    #login_wrapper input[type="text"],
+    #login_wrapper input[type="password"],
+    .ODRLoginForm input[type="text"],
+    .ODRLoginForm input[type="password"],
+    #fos_user_security_login input {
+        width: 100% !important;
+        min-height: 48px;
+    }
+
+    /* Login button full width */
+    #login_wrapper .pure-button,
+    .ODRLoginForm .pure-button,
+    #fos_user_security_login button {
+        width: 100%;
+        min-height: 48px;
+    }
+
+/* ==========================================================================
+   HIDE UNNECESSARY ELEMENTS ON PHONE
+   ========================================================================== */
+
+    /* Hide UUIDs in search results */
+    .ODRShortResultsHeaderRight,
+    .ODRShortResultsUUID {
+        display: none !important;
+    }
+
+    /* Page chooser - hide ellipsis and last page button (keep first two) */
+    .fa-ellipsis-h,
+    .fa-ellipsis,
+    .fa-ellipsis-h + .ODRPageChooserButton {
+        display: none !important;
+    }
+
+/* ==========================================================================
+   RECORD CARDS (Search Results) - Compact Layout
+   ========================================================================== */
+
+    /* Full-width record cards with balanced margins */
+    .ODRShortResult,
+    .DataRecordShort {
+        width: 100% !important;
+        margin-bottom: 8px;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* Card content - zero padding */
+    .DataRecordShort .Resizable {
+        padding: 0 !important;
+    }
+
+    /* Record card inner boxes - zero padding */
+    .ODRShortResult .ODRInnerBox,
+    .DataRecordShort .ODRInnerBox,
+    .ODRShortResults .ODRInnerBox {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Theme elements in cards - zero padding */
+    .ODRShortResult .ODRThemeElement,
+    .DataRecordShort .ODRThemeElement {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Thumbnail images */
+    .ODRShortResult .ODRImage img,
+    .DataRecordShort .ODRImage img {
+        max-width: 100px;
+        max-height: 100px;
+        object-fit: cover;
+    }
+
+    /* Stack record fields */
+    .ODRFieldArea .pure-u-1-2,
+    .ODRFieldArea .pure-u-1-3,
+    .ODRFieldArea .pure-u-1-4,
+    .ODRFieldArea .pure-u-md-1-2,
+    .ODRFieldArea .pure-u-md-1-3,
+    .ODRFieldArea .pure-u-md-1-4 {
+        width: 100% !important;
+    }
+
+    /* Compact field spacing - zero margins */
+    .ODRDataField {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Compact labels */
+    .ODRDataField label {
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Compact field values - reduced height */
+    .ODRDataField input,
+    .ODRDataField textarea,
+    .ODRDataField .ODRFieldValue {
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 14px !important;
+        line-height: 1.3 !important;
+        min-height: auto !important;
+        height: auto !important;
+    }
+
+    /* Field wrapper - align with labels */
+    .ODRFieldWrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .ODRFieldWrapper > div {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Form wrap - zero padding */
+    .ODRFormWrap {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Fieldset - small left padding for labels and inputs */
+    .ODRDataField fieldset {
+        padding: 0 0 0 4px !important;
+        margin: 0 !important;
+        border: none !important;
+    }
+
+    /* Form elements - zero padding */
+    form {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Image gallery - remove top padding */
+    .ODRImageGallery {
+        padding-top: 0 !important;
+    }
+
+    /* Short results wrapper - keep border for visual separation */
+    .ODRShortResults {
+        border: 1px solid #ccc !important;
+        border-radius: 4px;
+        padding: 0 !important;
+        margin-bottom: 8px !important;
+    }
+
+    .ODRShortResultWrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Search results form wrap */
+    #ODRSearchContent .ODRFormWrap {
+        padding: 0 !important;
+    }
+
+    /* Results container */
+    .ODRResults {
+        padding: 2px !important;
+    }
+
+    /* Accordion wrappers */
+    .ODRAccordionWrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Data type containers */
+    .ODRDataType {
+        padding: 0 !important;
+    }
+
+    /* Child datatypes */
+    .ODRChildDatatype {
+        padding: 0 !important;
+        margin: 2px 0 !important;
+    }
+
+/* ==========================================================================
+   DATA TABLES
+   ========================================================================== */
+
+    /* Make tables scrollable */
+    .dataTables_wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+
+    /* Table minimum width for scroll */
+    table.dataTable {
+        min-width: 500px;
+    }
+
+    /* DataTables pagination - touch targets */
+    .dataTables_paginate .paginate_button {
+        min-width: 44px !important;
+        min-height: 44px !important;
+        padding: 10px !important;
+        margin: 4px !important;
+    }
+
+/* ==========================================================================
+   INDIVIDUAL RECORD VIEW - Compact Layout
+   ========================================================================== */
+
+    /* Record header - stack buttons, compact spacing */
+    .ODRRecord .pure-button-group,
+    .ODRRecordActions {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 4px;
+    }
+
+    .ODRRecord .pure-button-group .pure-button,
+    .ODRRecordActions .pure-button {
+        width: 100%;
+        margin-bottom: 4px;
+    }
+
+    /* Record image - center on mobile, compact margin */
+    .ODRRecord .ODRImage,
+    .ODRSamplePhoto {
+        text-align: center;
+        margin-bottom: 8px;
+        float: none !important;
+    }
+
+    .ODRRecord .ODRImage img {
+        max-width: 250px;
+        margin: 0 auto;
+    }
+
+    /* Record view - compact padding */
+    .ODRRecord .ODRInnerBox,
+    .ODRRecord .ODRThemeElement {
+        padding: 4px !important;
+        margin: 2px 0 !important;
+    }
+
+    /* Record view field areas */
+    .ODRRecord .ODRFieldArea {
+        padding: 2px !important;
+        margin: 0 !important;
+    }
+
+/* ==========================================================================
+   COLLAPSIBLE SECTIONS (Accordion)
+   ========================================================================== */
+
+    /* Accordion headers - touch-friendly */
+    h3.ui-accordion-header,
+    .ODRFormAccordion > h3,
+    .ui-accordion-header {
+        min-height: 48px;
+        padding: 12px 16px !important;
+        font-size: 16px;
+    }
+
+    /* Accordion content padding */
+    .ui-accordion-content {
+        padding: 12px !important;
+    }
+
+/* ==========================================================================
+   GRAPHS (Plotly)
+   ========================================================================== */
+
+    /* Graph containers - scrollable */
+    .ODRGraph,
+    .ODRGraphContainer,
+    .js-plotly-plot {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+
+    /* Minimum graph height */
+    .ODRGraph .plotly,
+    .js-plotly-plot {
+        min-height: 280px;
+    }
+
+/* ==========================================================================
+   GRAPH FILTER INTERFACE
+   ========================================================================== */
+
+    /* Filter grid - single column */
+    .ODRGraphFilterGrid,
+    .graph-filters,
+    .filter-panel .pure-g {
+        display: block !important;
+    }
+
+    .ODRGraphFilterGrid > div,
+    .graph-filters > div,
+    .filter-panel .pure-u-1-4,
+    .filter-panel .pure-u-1-3,
+    .filter-panel .pure-u-1-2 {
+        width: 100% !important;
+        margin-bottom: 16px;
+    }
+
+    /* Multi-select in filters */
+    .ODRGraphFilterGroup select[multiple],
+    .filter-group select[multiple] {
+        width: 100%;
+        min-height: 100px;
+        font-size: 16px;
+    }
+
+    /* Filter action buttons */
+    .filter-panel .pure-button,
+    .ODRGraphFilterActions .pure-button {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+
+    footer,
+    #footer {
+        padding: 16px 8px;
+        text-align: center;
+    }
+
+    footer img,
+    #footer img {
+        max-width: 200px;
+    }
+
+/* ==========================================================================
+   DESIGN EDITOR - Hide on Mobile
+   ========================================================================== */
+
+    #ThemeDesignWrapperMessage {
+        display: block;
+    }
+
+    #ThemeDesignWrapper {
+        display: none;
+    }
+
+/* ==========================================================================
+   UTILITY CLASSES
+   ========================================================================== */
+
+    .touch-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .stack-on-mobile {
+        flex-direction: column !important;
+    }
+
+    .full-width-mobile {
+        width: 100% !important;
+    }
+
+} /* End of @media screen and (max-width: 767px) */

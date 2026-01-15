@@ -1,256 +1,324 @@
+/**
+ * ODR Responsive Styles - Tablet (768px - 1024px)
+ * Modern breakpoints for iPad and similar devices
+ * Updated: January 2026
+ */
 
-/* iPads (portrait and landscape) ----------- */
-@media only screen and (min-device-width : 768px) and (max-device-width : 1024px) {
-    /* Styles */
-    .hidden-lg-b {
-        display: none;
+/* ==========================================================================
+   TABLET BREAKPOINT (768px - 1024px)
+   ========================================================================== */
+
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+
+/* ==========================================================================
+   GLOBAL - Touch Targets
+   ========================================================================== */
+
+    /* Touch-friendly buttons */
+    .pure-button,
+    .pure-skin-odr .pure-button,
+    button,
+    [type="submit"],
+    [type="button"] {
+        min-height: 44px;
+        padding: 10px 14px;
     }
 
-    .hidden-xl-b {
-        display: none;
+    /* Touch-friendly form inputs */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    select,
+    textarea {
+        min-height: 40px;
+        font-size: 16px;
     }
 
-    .hidden-tablet {
-        display: none;
+/* ==========================================================================
+   VISIBILITY UTILITIES
+   ========================================================================== */
+
+    .hidden-tablet,
+    .visible-phone-only,
+    .visible-desktop-only {
+        display: none !important;
     }
 
-    .hidden-phone {
-        display: none;
+    .visible-tablet-only {
+        display: block !important;
     }
 
+/* ==========================================================================
+   LAYOUT - Balanced Margins
+   ========================================================================== */
+
+    /* Content containers - balanced padding */
+    #odr_content,
+    .ODRContentWrapper,
+    .ODRBodyContent {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    /* Reduce side spacers equally */
+    #left-spacer,
+    #right-spacer {
+        width: 1% !important;
+    }
+
+/* ==========================================================================
+   SEARCH SIDEBAR - Stack Above Content, Centered
+   ========================================================================== */
+
+    /* Search sidebar - full width, stacked above content, centered */
+    #ODRSearchHeaderWrapper,
+    #ODRSearchSidebar,
+    .ODRSearchSidebar,
+    .ODRSearchVisible {
+        display: block !important;
+        width: 100% !important;
+        max-width: 600px;
+        float: none !important;
+        position: relative !important;
+        top: auto !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        margin-bottom: 16px;
+    }
+
+    /* Search content area - full width below sidebar, centered */
+    #ODRSearchContent {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100%;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        float: none !important;
+        clear: both;
+    }
+
+    /* Search form inputs */
+    #search_form input[type="text"],
+    #search_form select {
+        width: 100%;
+        max-width: 300px;
+    }
+
+/* ==========================================================================
+   TIGHT SPACING - Zero padding/margins for data density
+   ========================================================================== */
+
+    /* Inner boxes - zero padding */
+    .ODRInnerBox {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Theme elements - small top padding for visual separation */
+    .ODRThemeElement {
+        margin: 0 !important;
+        padding: 2px 0 0 0 !important;
+    }
+
+    /* Field areas - zero padding */
+    .ODRFieldArea {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Data fields - zero spacing */
+    .ODRDataField {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Labels - tight */
+    .ODRDataField label {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Field values - reduced height */
+    .ODRDataField input,
+    .ODRDataField textarea,
+    .ODRDataField .ODRFieldValue {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.3 !important;
+        min-height: auto !important;
+        height: auto !important;
+    }
+
+    /* Field wrapper - zero padding */
+    .ODRFieldWrapper,
+    .ODRFieldWrapper > div {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Form elements - zero padding */
+    .ODRFormWrap,
+    form {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Fieldset - small left padding for labels and inputs */
+    .ODRDataField fieldset {
+        padding: 0 0 0 4px !important;
+        margin: 0 !important;
+        border: none !important;
+    }
+
+    /* Image gallery - remove top padding */
+    .ODRImageGallery {
+        padding-top: 0 !important;
+    }
+
+/* ==========================================================================
+   RECORD CARDS (Search Results)
+   ========================================================================== */
+
+    /* Full-width record cards on tablet */
+    .ODRShortResult,
+    .DataRecordShort {
+        width: 100% !important;
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    /* Card content - zero padding */
+    .DataRecordShort .Resizable {
+        padding: 0 !important;
+    }
+
+    /* Record card inner boxes - zero padding */
+    .ODRShortResult .ODRInnerBox,
+    .DataRecordShort .ODRInnerBox,
+    .ODRShortResults .ODRInnerBox {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Theme elements in cards - zero padding */
+    .ODRShortResult .ODRThemeElement,
+    .DataRecordShort .ODRThemeElement {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Thumbnail images */
+    .ODRShortResult .ODRImage img,
+    .DataRecordShort .ODRImage img {
+        max-width: 150px;
+        max-height: 150px;
+    }
+
+/* ==========================================================================
+   DATA TABLES
+   ========================================================================== */
+
+    /* Make tables scrollable if needed */
+    .dataTables_wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* DataTables pagination */
+    .dataTables_paginate .paginate_button {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 10px;
+    }
+
+/* ==========================================================================
+   INDIVIDUAL RECORD VIEW
+   ========================================================================== */
+
+    /* Record images - float right with proper spacing */
+    .ODRRecord .ODRImage {
+        float: right;
+        max-width: 200px;
+        margin-left: 16px;
+        margin-bottom: 16px;
+    }
+
+    /* Clear float after content */
+    .ODRRecord .ODRFieldArea::after {
+        content: "";
+        display: table;
+        clear: both;
+    }
+
+/* ==========================================================================
+   COLLAPSIBLE SECTIONS (Accordion)
+   ========================================================================== */
+
+    /* Accordion headers - touch-friendly */
+    h3.ui-accordion-header,
+    .ui-accordion-header {
+        min-height: 44px;
+        padding: 10px 16px;
+    }
+
+/* ==========================================================================
+   GRAPH FILTER INTERFACE
+   ========================================================================== */
+
+    /* Filter grid - 2 columns on tablet */
+    .ODRGraphFilterGrid,
+    .graph-filters {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .ODRGraphFilterGrid > div,
+    .graph-filters > div,
+    .filter-panel .pure-u-1-4 {
+        width: 48% !important;
+        margin: 1%;
+    }
+
+    /* Multi-select in filters */
+    .ODRGraphFilterGroup select[multiple],
+    .filter-group select[multiple] {
+        min-height: 100px;
+    }
+
+/* ==========================================================================
+   DESIGN EDITOR
+   ========================================================================== */
+
+    /* Hide design editor on tablet */
     #ThemeDesignWrapperMessage {
         display: block;
     }
+
     #ThemeDesignWrapper {
         display: none;
     }
-}
 
-/* iPads (landscape) ----------- */
-@media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : landscape) {
-    /* Styles */
+} /* End of @media screen and (min-width: 768px) and (max-width: 1024px) */
+
+
+/* ==========================================================================
+   LARGE TABLET / SMALL DESKTOP (1025px - 1200px)
+   ========================================================================== */
+
+@media screen and (min-width: 1025px) and (max-width: 1200px) {
+
+    /* Show design editor message on borderline sizes */
     #ThemeDesignWrapperMessage {
         display: block;
     }
-    #ThemeDesignWrapper {
-        display: none;
+
+    /* Filter grid - 3 columns */
+    .ODRGraphFilterGrid > div,
+    .graph-filters > div {
+        width: 31% !important;
+        margin: 1%;
     }
-}
-
-/* iPads (portrait) ----------- */
-@media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : portrait) {
-    /* Styles */
-    #ThemeDesignWrapperMessage {
-        display: block;
-    }
-    #ThemeDesignWrapper {
-        display: none;
-    }
-}
-/**********
-iPad 3
-**********/
-@media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : landscape) and (-webkit-min-device-pixel-ratio : 2) {
-    /* Styles */
-}
-
-@media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : portrait) and (-webkit-min-device-pixel-ratio : 2) {
-    /* Styles */
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* ----------- iPad 1, 2, Mini and Air ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 768px)
-and (max-device-width: 1024px)
-and (-webkit-min-device-pixel-ratio: 1) {
 
 }
-
-/* Portrait */
-@media only screen
-and (min-device-width: 768px)
-and (max-device-width: 1024px)
-and (orientation: portrait)
-and (-webkit-min-device-pixel-ratio: 1) {
-
-}
-
-/* Landscape */
-@media only screen
-and (min-device-width: 768px)
-and (max-device-width: 1024px)
-and (orientation: landscape)
-and (-webkit-min-device-pixel-ratio: 1) {
-
-}
-
-/* ----------- iPad 3, 4 and Pro 9.7" ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 768px)
-and (max-device-width: 1024px)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-@media only screen
-and (min-device-width: 768px)
-and (max-device-width: 1024px)
-and (orientation: portrait)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Landscape */
-@media only screen
-and (min-device-width: 768px)
-and (max-device-width: 1024px)
-and (orientation: landscape)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* ----------- iPad Pro 10.5" ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 834px)
-and (max-device-width: 1112px)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-/* Declare the same value for min- and max-width to avoid colliding with desktops */
-/* Source: https://medium.com/connect-the-dots/css-media-queries-for-ipad-pro-8cad10e17106*/
-@media only screen
-and (min-device-width: 834px)
-and (max-device-width: 834px)
-and (orientation: portrait)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Landscape */
-/* Declare the same value for min- and max-width to avoid colliding with desktops */
-/* Source: https://medium.com/connect-the-dots/css-media-queries-for-ipad-pro-8cad10e17106*/
-@media only screen
-and (min-device-width: 1112px)
-and (max-device-width: 1112px)
-and (orientation: landscape)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* ----------- iPad Pro 12.9" ----------- */
-
-/* Portrait and Landscape */
-@media only screen
-and (min-device-width: 1024px)
-and (max-device-width: 1366px)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-/* Declare the same value for min- and max-width to avoid colliding with desktops */
-/* Source: https://medium.com/connect-the-dots/css-media-queries-for-ipad-pro-8cad10e17106*/
-@media only screen
-and (min-device-width: 1024px)
-and (max-device-width: 1024px)
-and (orientation: portrait)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Landscape */
-/* Declare the same value for min- and max-width to avoid colliding with desktops */
-/* Source: https://medium.com/connect-the-dots/css-media-queries-for-ipad-pro-8cad10e17106*/
-@media only screen
-and (min-device-width: 1366px)
-and (max-device-width: 1366px)
-and (orientation: landscape)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* ----------- Galaxy Tab 2 ----------- */
-
-/* Portrait and Landscape */
-@media
-(min-device-width: 800px)
-and (max-device-width: 1280px) {
-
-}
-
-/* Portrait */
-@media
-(max-device-width: 800px)
-and (orientation: portrait) {
-
-}
-
-/* Landscape */
-@media
-(max-device-width: 1280px)
-and (orientation: landscape) {
-
-}
-
-/* ----------- Galaxy Tab S ----------- */
-
-/* Portrait and Landscape */
-@media
-(min-device-width: 800px)
-and (max-device-width: 1280px)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Portrait */
-@media
-(max-device-width: 800px)
-and (orientation: portrait)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
-/* Landscape */
-@media
-(max-device-width: 1280px)
-and (orientation: landscape)
-and (-webkit-min-device-pixel-ratio: 2) {
-
-}
-
