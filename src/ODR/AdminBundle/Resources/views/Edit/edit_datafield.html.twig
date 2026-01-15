@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
+{% set DATAFIELD_HEADER_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_HEADER_PLUGIN') %}
 {% set datarecord_is_fake = false %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
@@ -109,13 +110,7 @@
     {% set render_plugin_instance = null %}
     {% set can_execute_plugin = false %}
 
-    {% set uses_file_renamer_plugin = false %}
-
     {% for rpi_num,rpi in datafield.renderPluginInstances %}
-        {% if rpi.renderPlugin.pluginClassName == 'odr_plugins.base.file_renamer' %}
-            {% set uses_file_renamer_plugin = true %}
-        {% endif %}
-
         {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
             {% set can_execute_current_plugin = rpi|can_execute_datafield_plugin(datafield, datarecord, rendering_options) %}
 
@@ -130,6 +125,25 @@
     {% set content = '' %}
     {% if can_execute_plugin %}
         {% set content = datafield|datafield_plugin(datarecord, render_plugin_instance, rendering_options) %}
+    {% endif %}
+
+    {% set header_content = '' %}
+    {% set uses_file_renamer_plugin = false %}
+    {% if not can_execute_plugin or content|length == 0 %}
+        {# If not using a datafield plugin, then check for datafield header plugins #}
+        {% for rpi_num,rpi in datafield.renderPluginInstances %}
+            {% if rpi.renderPlugin.plugin_type == DATAFIELD_HEADER_PLUGIN and rpi.renderPlugin.active %}
+                {# Still need to check directly for the file renamer plugin, unfortunately #}
+                {% if rpi.renderPlugin.pluginClassName == 'odr_plugins.base.file_renamer' %}
+                    {% set uses_file_renamer_plugin = true %}
+                {% endif %}
+
+                {% set can_execute_current_plugin = rpi|can_execute_datafield_header_plugin(datafield, datarecord, rendering_options) %}
+                {% if can_execute_current_plugin %}
+                    {% set header_content = header_content ~ datafield|datafield_header_plugin(datarecord, rpi, rendering_options) %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
     {% endif %}
 
     {% if can_execute_plugin and content|length > 0 %}
@@ -153,6 +167,10 @@
                     {% if is_datatype_admin %}
                     &nbsp;&nbsp;<i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>
                     {% endif %}
+
+                    {% if header_content|length > 0 %}
+                    <span class="FRight">{{ header_content|raw }}</span>
+                    {% endif %}
                 </div>
             </label>
         </fieldset>
@@ -167,6 +185,9 @@
         <div class="ODRFileDatafield">
             <div class="ODRFileDatafield_header pure-u-1">
             {% if not datarecord_is_fake %}
+                {% if header_content|length > 0 %}
+                    {{ header_content|raw }}
+                {% endif %}
                 <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
                 <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
             {% else %}
@@ -215,6 +236,9 @@
 
         {#<fieldset>#}
             <div class="ODRFileDatafield_header ODRFileImageHeader pure-u-1">
+                {% if header_content|length > 0 %}
+                    {{ header_content|raw }}
+                {% endif %}
                 <span title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
             </div>
 
@@ -257,7 +281,9 @@
                         &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if oimage_meta.publicDate|is_public %}ODRPublic{% else %}ODRNotPublic{% endif %}" title="{% if not oimage_meta.publicDate|is_public %}Image is not public{% else %}Public since {{ oimage_meta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
                         &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-left" title="Rotate Image 90 degrees counter-clockwise" rel="{{ oimage.id }}"></i>
                         &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-right" title="Rotate Image 90 degrees clockwise" rel="{{ oimage.id }}"></i>
+                        {% if uses_file_renamer_plugin == false %}
                         &nbsp;<i class="ODRImageRenameTrigger tooltip Pointer fa fa-lg fa-edit" title="Rename Image" rel="{{ oimage.id }}"></i>
+                        {% endif %}
 
                         {% if datafield_meta.quality_str != '' %}
                             {% include 'ODRAdminBundle:Edit:file_quality.html.twig' with {
@@ -268,6 +294,7 @@
                         {% endif %}
                     </div>
 
+                    {% if uses_file_renamer_plugin == false %}
                     <div class="pure-u-1 ODRHidden">
                         <input id="ODRImage_{{ oimage.id }}_rename"
                                class="ODRImageRenameInput pure-u-1"
@@ -279,6 +306,7 @@
                             <i class="fa fa-lg fa-save"></i>
                         </button>
                     </div>
+                    {% endif %}
 
                     <div class="pure-u-23-24">
                         <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
@@ -298,6 +326,10 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
+
+                {% if header_content|length > 0 %}
+                <span class="FRight">{{ header_content|raw }}</span>
+                {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
@@ -319,6 +351,10 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
+
+                {% if header_content|length > 0 %}
+                <span class="FRight">{{ header_content|raw }}</span>
+                {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
@@ -471,6 +507,10 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
+
+                {% if header_content|length > 0 %}
+                <span class="FRight">{{ header_content|raw }}</span>
+                {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input

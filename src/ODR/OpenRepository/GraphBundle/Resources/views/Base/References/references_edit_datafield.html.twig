@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set DATAFIELD_HEADER_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_HEADER_PLUGIN') %}
+
 {% set datarecord_is_fake = false %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
@@ -57,7 +59,25 @@
 
         <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
 
-    {# TODO - can't run datafield plugins because their javascript could interfere with the javascript the reference plugin needs to have... #}
+    {# NOTE - can't run datafield plugins because their javascript could interfere with the javascript the reference plugin needs to have... #}
+    {# ...but can run datafield header plugins if any are in use #}
+    {% set rendering_options = {'is_link': is_link, 'is_datatype_admin': is_datatype_admin, 'context': 'edit'} %}
+    {% set uses_file_renamer_plugin = false %}
+    {% set header_content = '' %}
+
+    {% for rpi_num,rpi in datafield.renderPluginInstances %}
+        {% if rpi.renderPlugin.plugin_type == DATAFIELD_HEADER_PLUGIN and rpi.renderPlugin.active %}
+            {# Still need to check directly for the file renamer plugin, unfortunately #}
+            {% if rpi.renderPlugin.pluginClassName == 'odr_plugins.base.file_renamer' %}
+                {% set uses_file_renamer_plugin = true %}
+            {% endif %}
+
+            {% set can_execute_current_plugin = rpi|can_execute_datafield_header_plugin(datafield, datarecord, rendering_options) %}
+            {% if can_execute_current_plugin %}
+                {% set header_content = header_content ~ datafield|datafield_header_plugin(datarecord, rpi, rendering_options) %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
 
     {% if field_typename == "File" %}
         {% set has_file = false %}
@@ -69,6 +89,9 @@
         <div class="ODRFileDatafield">
             <div class="ODRFileDatafield_header pure-u-1">
             {% if not datarecord_is_fake %}
+                {% if header_content|length > 0 %}
+                    {{ header_content|raw }}
+                {% endif %}
                 <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
                 <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
             {% else %}
@@ -85,7 +108,7 @@
                     'files': valuefield,
 
                     'datarecord_is_fake': datarecord_is_fake,
-                    'uses_file_renamer_plugin': false,
+                    'uses_file_renamer_plugin': uses_file_renamer_plugin,
 
                     'file_delete_callback': file_delete_callback,
                 } %}
@@ -120,6 +143,10 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
+
+                {% if header_content|length > 0 %}
+                    <span class="FRight">{{ header_content|raw }}</span>
+                {% endif %}
             </label>
             {% if chemistry_plugin_fields[ datafield.id ] is defined %}
                 {% set subscript_delimiter = chemistry_plugin_fields[ datafield.id ]['subscript_delimiter'] %}
@@ -154,6 +181,10 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
+
+                {% if header_content|length > 0 %}
+                    <span class="FRight">{{ header_content|raw }}</span>
+                {% endif %}
             </label>
             {% if chemistry_plugin_fields[ datafield.id ] is defined %}
                 {% set subscript_delimiter = chemistry_plugin_fields[ datafield.id ]['subscript_delimiter'] %}

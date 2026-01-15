@@ -1,9 +1,9 @@
 odr_plugins.base.chemistry:
     name: Chemistry Field
     category: Base
-    plugin_type: datafield
+    plugin_type: datafield  # NOTE: this plugin performs both datafield overriding and splices its datafieldHeader control
     render: odr_plugins.base.chemistry
-    version: 1.3.0
+    version: 2.0.0
     override_fields: false
     override_field_reload: false
     override_child: false

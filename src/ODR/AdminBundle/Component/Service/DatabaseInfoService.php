@@ -369,6 +369,12 @@ class DatabaseInfoService
                         $tmp_rpi[$rpi_id] = $render_plugin_data[$rpi_id];
                     }
 
+                    // Would prefer DatafieldHeader plugins follow some ordering other than "order in
+                    //  which they were attached"
+                    uasort($tmp_rpi, function($a, $b) {
+                        return strcmp($a['renderPlugin']['pluginName'], $b['renderPlugin']['pluginName']);
+                    });
+
                     $df['renderPluginInstances'] = $tmp_rpi;
                 }
 

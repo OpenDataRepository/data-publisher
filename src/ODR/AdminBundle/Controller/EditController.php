@@ -3090,10 +3090,10 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Would prefer the built-in file renaming feature to not work when the FileRenamer
-            //  plugin is active...
-            // Thanks to long covid this coupling is the least horrible method I can figure out
-            // TODO - fix this somehow, please
+            // Don't want the built-in per-file renaming feature to work when the FileRenamer plugin
+            //  is active...which unfortunately means this controller action has to directly check
+            //  for whether the plugin is active
+            // TODO - at this point, the only way to "fix" it would probably be to convert the FileRenamer plugin to base ODR
             $uses_file_renamer_plugin = false;
             foreach ($datafield->getRenderPluginInstances() as $rpi) {
                 /** @var RenderPluginInstance $rpi */

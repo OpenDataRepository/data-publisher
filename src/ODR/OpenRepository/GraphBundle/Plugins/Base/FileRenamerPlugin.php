@@ -69,7 +69,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldHeaderPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\FileRenamerPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
@@ -79,7 +79,7 @@ use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface, FileRenamerPluginInterface
+class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface, FileRenamerPluginInterface
 {
 
     /**
@@ -164,20 +164,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $context = $rendering_options['context'];
 
             // The FileRenamer Plugin should work in the 'edit' context
-            if ( $context === 'edit' ) {
-                // This plugin technically coexists with the FileHeaderInserter and RRUFFFileHeaderInserter
-                //  plugins...but it's better for this plugin to refuse to activate and let the other
-                //  two insert this plugin's icon if they're also attached to this field
-                foreach ($datafield['renderPluginInstances'] as $rpi_id => $rpi) {
-                    if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter'
-                        || $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter'
-                    ) {
-                        return false;
-                    }
-                }
-
+            if ( $context === 'edit' )
                 return true;
-            }
 
             // TODO - also work in the 'display' context?  but finding errors to display is expensive...
         }
@@ -208,20 +196,6 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
 
             // ----------------------------------------
-            // ODR is designed so that render plugins can completely override the rendering system...
-            //  which makes it difficult for plugins to cooperatively change the HTML
-
-            // This plugin technically coexists with the FileHeaderInserter and RRUFFFileHeaderInserter
-            //  plugins...but it's better for this plugin to refuse to activate and let the other
-            //  two insert this plugin's icon if they're also attached to this field
-            foreach ($datafield['renderPluginInstances'] as $rpi_id => $rpi) {
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter'
-                    || $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter'
-                ) {
-                    return '';
-                }
-            }
-
             $output = "";
             if ( $rendering_options['context'] === 'display' ) {
                 // TODO - also work in the 'display' context?  but finding errors to display is expensive...
@@ -238,7 +212,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:FileRenamer/file_renamer_edit_datafield.html.twig',
+                    'ODROpenRepositoryGraphBundle:Base:FileRenamer/file_renamer_edit_addon.html.twig',
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,

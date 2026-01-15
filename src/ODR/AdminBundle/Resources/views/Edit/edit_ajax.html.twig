@@ -556,8 +556,8 @@ function initPage() {
         });
     });
 
-    {# These two are to handle the FileRenamer and FileHeaderInserter plugins #}
-    {# While theoretically they shouldn't be in edit_ajax, the way those plugins are currently implemented makes that impossible... #}
+    {# These three are to handle the FileRenamer and FileHeaderInserter plugins #}
+    {# ...theoretically they shouldn't be in edit_ajax, but I'm not entirely convinced putting the scripts with the plugins is better at the moment #}
     $(".ODRFileRenamer_rebuild").unbind('click').click(function() {
         var id_data = $(this).parents('form').first().attr('id').split('_');
         var dr_id = id_data[1];
@@ -667,6 +667,7 @@ function initPage() {
             }
         });
     });
+
 
     $("select.ODRFileQuality_selector, input.ODRFileQuality_selector").unbind('change').change(function() {
         handleQualityChange( $(this) );

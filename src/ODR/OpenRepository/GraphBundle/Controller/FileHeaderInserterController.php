@@ -114,6 +114,7 @@ class FileHeaderInserterController extends ODRCustomController
             // Dig through what's left of the cached datatype array to find fields using the
             //  relevant plugins
             $relevant_plugins = array('odr_plugins.base.file_header_inserter' => 1);
+            $conflicting_plugins = array('odr_plugins.rruff.file_header_inserter' => 1);
 
             $df_list = array();
             foreach ($dt_array as $dt_id => $dt) {
@@ -124,6 +125,11 @@ class FileHeaderInserterController extends ODRCustomController
                                 $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
                                 if ( isset($relevant_plugins[$plugin_classname]) )
                                     $df_list[$df_id] = 1;
+
+                                if ( isset($conflicting_plugins[$plugin_classname]) ) {
+                                    $datafield_name = $df['dataFieldMeta']['fieldName'];
+                                    throw new ODRException('The datafield "'.$datafield_name.'" should not have both the Base FileHeaderInserter and the RRUFF FileHeaderInserter plugin active simultaneously');
+                                }
                             }
                         }
                     }
@@ -309,6 +315,11 @@ class FileHeaderInserterController extends ODRCustomController
                         if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
                             // Datafield is using the correct plugin...
                             $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                        }
+                        if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter' ) {
+                            // Datafield is also using the RRUFFFileHeaderInserter plugin...
+                            $datafield_name = $df['dataFieldMeta']['fieldName'];
+                            throw new ODRException('The datafield "'.$datafield_name.'" should not have both the Base FileHeaderInserter and the RRUFF FileHeaderInserter plugin active simultaneously');
                         }
                     }
                 }

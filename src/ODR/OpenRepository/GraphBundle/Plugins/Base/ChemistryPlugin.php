@@ -10,6 +10,10 @@
  * The chemistry plugin is designed to substitute certain characters in a datafield for html
  * <sub> and <sup> tags, which allow the string to more closely resemble a chemical formula.
  *
+ * Of note is that it is technically a Datafield/DatafieldHeader plugin hybrid...it has to be a
+ * Datafield plugin in order to override Display mode, but it'll also splice its own controls into
+ * the field's header in Edit mode.
+ *
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;

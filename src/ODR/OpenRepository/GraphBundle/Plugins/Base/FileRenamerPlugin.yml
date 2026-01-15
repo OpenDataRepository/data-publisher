@@ -1,10 +1,10 @@
 odr_plugins.base.file_renamer:
-    name: File Renamer Plugin
+    name: File Renamer Addon
     category: Base
-    plugin_type: datafield
-    render: odr_plugins.base.file_manipulation    # shared with the odr_plugins.base.file_renamer plugin
-    version: 1.1.0
-    override_fields: true
+    plugin_type: datafield_header
+    render: odr_plugins.base.file_renamer
+    version: 2.0.0
+    override_fields: false
     override_field_reload: false
     override_child: false
     override_table_fields: false

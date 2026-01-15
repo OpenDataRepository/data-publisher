@@ -2045,13 +2045,28 @@ class EntityCreationService
     public function createRenderPluginInstance($user, $render_plugin, $datatype, $datafield, $delay_flush = false, $created = null)
     {
         // Ensure a RenderPlugin for a Datatype plugin doesn't get assigned to a Datafield, or a RenderPlugin for a Datafield doesn't get assigned to a Datatype
-        if ( $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN && is_null($datatype) )
-            throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datatype');
-        else if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN && is_null($datafield) )
-            throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datafield');
+        $is_datatype_plugin = false;
+        if ( $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN
+            || $render_plugin->getPluginType() == RenderPlugin::THEME_ELEMENT_PLUGIN
+            || $render_plugin->getPluginType() === RenderPlugin::ARRAY_PLUGIN
+        ) {
+            $is_datatype_plugin = true;
+        }
+
+        $is_datafield_plugin = false;
+        if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN
+            || $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_HEADER_PLUGIN
+        ) {
+            $is_datafield_plugin = true;
+        }
+
+        if ( $is_datatype_plugin && is_null($datatype) )
+            throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" with a null Datatype');
+        else if ( $is_datafield_plugin && is_null($datafield) )
+            throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" with a null Datafield');
 
         // Ensure a RenderPlugin for a Datatype doesn't mention a Datafield, and vice versa
-        if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN )
+        if ( $is_datafield_plugin )
             $datatype = null;
         else    // Datatype, Array, and ThemeElement plugins
             $datafield = null;
