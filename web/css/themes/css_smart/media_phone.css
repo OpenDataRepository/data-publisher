@@ -443,6 +443,31 @@
     }
 
 /* ==========================================================================
+   PAGE SETTINGS MENU - Scrollable button toolbar
+   ========================================================================== */
+
+    #page_settings_menu {
+        max-width: 100vw !important;
+        width: 100% !important;
+        overflow-x: scroll !important;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+        box-sizing: border-box;
+    }
+
+    #page_settings_menu .pure-menu-list {
+        display: inline-flex !important;
+        flex-wrap: nowrap !important;
+        width: auto !important;
+    }
+
+    #page_settings_menu .pure-button,
+    #page_settings_menu label.pure-button {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+/* ==========================================================================
    DATA TABLES
    ========================================================================== */
 

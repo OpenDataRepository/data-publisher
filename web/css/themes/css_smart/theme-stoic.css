@@ -1,0 +1,448 @@
+/**
+ * Theme: Stoic
+ * A light, minimalist theme with subtle grays and clean typography
+ * Created: January 2026
+ */
+
+/* ==========================================================================
+   COLOR PALETTE - Light & Airy
+   ==========================================================================
+   Page bg:        #e8e8e8 (light gray page background)
+   Content bg:     #ffffff (white content area)
+   Card bg:        #f5f5f5 (very light gray for search result cards)
+   Text Primary:   #333333 (dark for data/values)
+   Text Labels:    #999999 (light gray for labels)
+   Border:         #d0d0d0 (subtle border)
+   Nav/Buttons:    #999999 (lighter gray)
+   Accent hover:   #888888 (slightly darker on hover)
+   ========================================================================== */
+
+/* ==========================================================================
+   NAVIGATION / HEADER - Lighter
+   ========================================================================== */
+
+.pure-menu-horizontal,
+#ODRMainMenu,
+.ODRMenuWrapper {
+    background: #888888 !important;
+}
+
+.pure-menu-link,
+.pure-menu-heading {
+    color: #ffffff !important;
+}
+
+.pure-menu-link:hover,
+.pure-menu-link:focus {
+    background-color: #777777 !important;
+    color: #ffffff !important;
+}
+
+.pure-menu-active > .pure-menu-link {
+    background-color: #999999 !important;
+}
+
+/* Dropdown menus */
+.pure-menu-list,
+.ODR-pure-submenu,
+.pure-menu-children {
+    background-color: #888888 !important;
+    background: #888888 !important;
+}
+
+#toggle {
+    background-color: #888888 !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   PAGE BACKGROUND & CONTAINERS
+   ========================================================================== */
+
+body {
+    background-color: #e0e0e0 !important;
+    color: #333333 !important;
+}
+
+/* Main content area - white background */
+.ODRFormWrap,
+#ODRSearchContent {
+    background-color: transparent !important;
+}
+.ODRResults {
+    background-color: #ffffff !important;
+}
+
+.ODRInnerBox {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+.ODRThemeElement {
+    background-color: transparent !important;
+}
+
+/* ==========================================================================
+   SEARCH SIDEBAR
+   ========================================================================== */
+
+.ODRSearchSidebar,
+#ODRSearchSidebar,
+#ODRSearchHeaderWrapper {
+    background-color: #ffffff !important;
+    border: 1px solid #e8e8e8 !important;
+}
+
+.ODRSearchScrollbox {
+    background-color: #ffffff !important;
+}
+
+/* ==========================================================================
+   RECORD CARDS - Light background, subtle border
+   ========================================================================== */
+
+.ODRShortResults {
+    background-color: #f8f8f8 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 4px !important;
+    margin-bottom: 10px !important;
+}
+
+/* Record header - lighter gray */
+.ODRShortResultsHeader,
+.ODRShortResultsHeader.pure-u-1,
+.ODRShortResultsTitle {
+    background-color: #999999 !important;
+    background: #999999 !important;
+    color: #ffffff !important;
+}
+
+.ODRShortResultsHeader *,
+.ODRShortResultsTitle * {
+    color: #ffffff !important;
+}
+
+.ODRShortResultsHeader:hover {
+    background-color: #888888 !important;
+    background: #888888 !important;
+}
+
+/* ==========================================================================
+   DATA FIELDS - Labels light, values dark
+   ========================================================================== */
+
+/* Field labels - light gray, NOT bold */
+.ODRDataField label,
+.ODRFieldLabel,
+label.ODRFieldLabel,
+.pure-form label,
+.ODRDataField .ODRFieldLabel {
+    color: #999999 !important;
+    font-weight: 400 !important;
+    font-size: 12px !important;
+}
+
+/* Field values - darker for emphasis */
+.ODRFieldValue,
+.ODRDataField .ODRFieldValue,
+.ODRFieldWrapper,
+.ODRFieldWrapper div {
+    color: #333333 !important;
+    font-weight: 400 !important;
+}
+
+/* ==========================================================================
+   FORMS - No borders on inputs
+   ========================================================================== */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+select,
+textarea,
+.pure-form input[type="text"],
+.pure-form input[type="email"],
+.pure-form input[type="password"],
+.pure-form select,
+.pure-form textarea {
+    background-color: #ffffff !important;
+    border: none !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    color: #333333 !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+select:focus,
+textarea:focus {
+    border-bottom: 1px solid #999999 !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Search form inputs - keep subtle border for usability */
+.ODRSearchScrollbox input[type="text"],
+.ODRSearchScrollbox select,
+#search_form input[type="text"],
+#search_form select {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 3px !important;
+}
+
+/* ==========================================================================
+   BUTTONS - Subtle, light
+   ========================================================================== */
+
+.pure-button,
+.pure-button-primary,
+.pure-button.pure-button-primary,
+button.pure-button-primary,
+button[type="submit"],
+.ODRSearchButton,
+button.ODRSearchButton,
+.ODRSearchPageNotes,
+.ODRSearchPageNotes_save,
+button.ODRSearchPageNotes_save,
+.ODRPageLength,
+.ODRPageChooserButton,
+.ODRPageChooserButton.pure-button-primary,
+button.ODRPageChooserButton {
+    background-color: #999999 !important;
+    background: #999999 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 3px !important;
+}
+
+.pure-button:hover,
+.pure-button-primary:hover,
+.ODRSearchButton:hover,
+.ODRPageChooserButton:hover {
+    background-color: #888888 !important;
+    background: #888888 !important;
+}
+
+/* Secondary/light buttons - unselected page numbers */
+.pure-button-secondary,
+button.ODRStatusButton,
+.ODRPageChooserButton.pure-button:not(.pure-button-primary) {
+    background-color: #e8e8e8 !important;
+    background: #e8e8e8 !important;
+    color: #555555 !important;
+    border: none !important;
+}
+
+.pure-button-secondary:hover,
+.ODRPageChooserButton:not(.pure-button-primary):hover {
+    background-color: #ddd !important;
+}
+
+/* File/Image headers */
+.ODRFileDatafield_header,
+.ODRFileImageHeader {
+    background-color: #999999 !important;
+    background: #999999 !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   LINKS - Subtle gray
+   ========================================================================== */
+
+a,
+a:link,
+.ODRShortResults a,
+.ODRFieldValue a,
+.ODRInnerBox a {
+    color: #666666 !important;
+    text-decoration: none !important;
+}
+
+a:hover {
+    color: #333333 !important;
+    text-decoration: underline !important;
+}
+
+a:visited {
+    color: #777777 !important;
+}
+
+/* White links in headers */
+.ODRShortResultsHeader a,
+.ODRShortResultsHeader a:link,
+.ODRShortResultsHeader a:visited,
+.pure-menu-link,
+.pure-menu-link:visited {
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   SECTION HEADERS - Lighter
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6 {
+    color: #444444 !important;
+    font-weight: 500 !important;
+}
+
+.ODRDatabaseName,
+.ODRTitle {
+    color: #444444 !important;
+}
+
+/* Accordion headers */
+.ui-accordion-header,
+h3.ui-accordion-header {
+    background: #999999 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+.ui-accordion-header:hover {
+    background: #888888 !important;
+}
+
+/* ==========================================================================
+   PAGINATION - Light
+   ========================================================================== */
+
+.ODRPageChooserButton {
+    background-color: #f5f5f5 !important;
+    color: #666666 !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+.ODRPageChooserButton:hover {
+    background-color: #eee !important;
+}
+
+.ODRPageChooserButton.ODRPageChooserSelected {
+    background-color: #999999 !important;
+    color: #ffffff !important;
+    border-color: #999999 !important;
+}
+
+/* ==========================================================================
+   TABLES - Clean, light
+   ========================================================================== */
+
+table.dataTable thead th,
+table.dataTable thead td,
+table thead th,
+table thead td,
+thead th,
+thead td {
+    background-color: #999999 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+table.dataTable tbody tr,
+table tbody tr {
+    background-color: #ffffff !important;
+}
+
+table.dataTable tbody tr:nth-child(even),
+table tbody tr:nth-child(even) {
+    background-color: #fafafa !important;
+}
+
+table.dataTable tbody tr:hover,
+table tbody tr:hover {
+    background-color: #f0f0f0 !important;
+}
+
+/* Modals and dialogs */
+.ODRRemodalTitle,
+.remodal-title,
+.modal-header,
+.ui-dialog-titlebar {
+    background-color: #999999 !important;
+    color: #ffffff !important;
+}
+
+/* Warning/info messages */
+.ODRSearchKeyWarning,
+.ODRWarning,
+.alert-info {
+    background-color: #e8e8e8 !important;
+    color: #555555 !important;
+}
+
+/* ==========================================================================
+   MISC CLEANUP
+   ========================================================================== */
+
+/* Remove any remaining unwanted borders */
+.ODRFormWrap,
+.ODRResults,
+.ODRFieldArea,
+.ODRDataField,
+fieldset {
+    border: none !important;
+}
+
+/* Image gallery */
+.ODRImageGallery {
+    background-color: transparent !important;
+}
+
+/* Graph containers */
+.ODRGraph,
+.ODRGraphContainer {
+    background-color: #ffffff !important;
+    border: 1px solid #e8e8e8 !important;
+}
+
+/* Footer - light */
+footer,
+#footer {
+    background-color: #e0e0e0 !important;
+    color: #666666 !important;
+}
+
+footer a,
+#footer a {
+    color: #555555 !important;
+}
+
+/* Quick search links */
+.ODRQuickLinks,
+.ODRMineralGroup {
+    background-color: transparent !important;
+}
+
+/* Display title bar */
+.ODRShortResultsDisplayTitle {
+    background-color: #f0f0f0 !important;
+    color: #555555 !important;
+}
+
+/* ==========================================================================
+   PAGE SETTINGS MENU - Toolbar buttons
+   ========================================================================== */
+
+/* Override gray background for menu list inside page settings */
+#page_settings_menu,
+#page_settings_menu .pure-menu-list {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+}
+
+/* Button text should be white on gray buttons */
+#page_settings_menu .pure-button,
+#page_settings_menu label.pure-button {
+    color: #ffffff !important;
+}
+
+/* Horizontal scroll container for buttons */
+#page_settings_menu {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+}

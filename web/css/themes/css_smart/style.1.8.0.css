@@ -1873,3 +1873,16 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     padding: 2px 0 0 0 !important;
     margin: 0 !important;
 }
+
+/* ==========================================================================
+   THEME IMPORTS
+   Uncomment ONE theme at a time to apply different color schemes.
+   Themes are imported at the end to override base styles.
+   ========================================================================== */
+
+/* Active Theme: Stoic (gray/black/white) */
+@import url("theme-stoic.css");
+
+/* Future Themes (uncomment to activate, comment out others) */
+/* @import url("theme-ocean.css"); */
+/* @import url("theme-forest.css"); */
