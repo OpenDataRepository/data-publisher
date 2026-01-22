@@ -140,9 +140,10 @@
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
                 {% if is_datatype_admin %}
-                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>
                 {% endif %}
-                {{ datafield_meta.fieldName }}
+                <i class="fa fa-keyboard-o Pointer ODRUTFInserter" title="Insert UTF-8 characters into {{ datafield_meta.fieldName }}"></i>
+                &nbsp;{{ datafield_meta.fieldName }}
 
                 {% if header_content|length > 0 %}
                     <span class="FRight">{{ header_content|raw }}</span>
@@ -178,9 +179,12 @@
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
                 {% if is_datatype_admin %}
-                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>
                 {% endif %}
-                {{ datafield_meta.fieldName }}
+                {% if field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+                <i class="fa fa-keyboard-o Pointer ODRUTFInserter" title="Insert UTF-8 characters into {{ datafield_meta.fieldName }}"></i>
+                {% endif %}
+                &nbsp;{{ datafield_meta.fieldName }}
 
                 {% if header_content|length > 0 %}
                     <span class="FRight">{{ header_content|raw }}</span>

@@ -1,0 +1,173 @@
+{% spaceless %}
+
+<div id="ODR_UTFpopup" class="ODRHidden" title="">    {# NOTE: blank title so the datafield's description doesn't show up throughout the popup #}
+    <div class="pure-u-23-24 ODR_UTFdiv">
+        &nbsp;&nbsp;&nbsp;&nbsp;The field below can be modified, and clicking the buttons below will insert special characters into this field.  Changes must be manually saved with the Save button.
+        <textarea id="ODR_UTFparsed" class="ODR_UTFtextarea pure-u-1"></textarea>
+    </div>
+
+    {% include 'ODRAdminBundle:Edit:utf8_inserter_keyboard.html.twig' %}
+
+    <div class="pure-u-1 ODR_UTFdiv">
+        <button id="ODR_UTFmanual_save" class="ODR_UTFbutton pure-button pure-button-primary pure-u-5-24" title="Save any changes made in the dialog">
+            <i id="ODR_UTFwarning" class="fa fa-exclamation-triangle ODRInputError ODRHidden"></i>
+            <i class="fa fa-save"></i>
+            Save
+        </button>
+        <div class="pure-u-12-24"></div>
+        <button id="ODR_UTFcancel_save" class="ODR_UTFbutton pure-button pure-button-primary pure-u-5-24" title="Close the dialog without saving changes">
+            <i class="fa fa-close ODRInputError"></i>
+            Cancel
+        </button>
+    </div>
+</div>
+
+<script>
+    /**
+     * Initializes the popup-specific parts of the UTF Inserter
+     */
+    function initODRUTFInserter() {
+        $(".ODRUTFInserter").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            let popup = $("#ODR_UTFpopup");
+
+            let input_div = $(this).parent().parent().children('div.ODRFieldWrapper').first();
+            // console.log('input div', $(input_div) );
+            let input = $(input_div).find('input');
+            let textarea = $(input_div).find('textarea');
+            // console.log('input', $(input), 'textarea', $(textarea));
+
+            if ( $(input).length > 0 )
+                $(input).blur();
+            else
+                $(textarea).blur();
+
+            // Close any open Chemistry Plugin popup first...
+            $(".ODRChemistryPlugin_popup").each(function(index, elem) {
+                if ( !$(elem).hasClass('ODRHidden') )
+                    $(elem).find(".fa-close").parent().trigger('click');
+            });
+
+            let triggering_field = $(input_div).attr('id').substring(6);
+            let current_rel = $(popup).attr('rel');
+
+            // If the popup is already open for the field...
+            if ( !$(popup).hasClass('ODRHidden') && triggering_field == current_rel ) {
+                // ...then close it instead
+                $("#ODR_UTFcancel_save").trigger('click');
+                return false;
+            }
+
+            // Otherwise, store which field this popup was triggered on
+            $(popup).attr('rel', triggering_field);
+            // console.log('rel', $(popup).attr('rel'));
+
+            // Set up initial values each time the popup is opened
+            let current_value = '';
+            if ( $(input).length > 0 )
+                current_value = $(input).val();
+            else
+                current_value = $(textarea).val();
+            // console.log('input', $(input), 'textarea', $(textarea), 'current value', current_value);
+            $("#ODR_UTFparsed").val(current_value);
+
+
+            // The popup should display in the general area of the input...
+            var popup_left, popup_top, popup_width;
+            var input_left, input_top, input_width;
+
+            var input_offset = $(input_div).offset();
+            input_top = input_offset.top;
+            input_left = input_offset.left;
+            input_width = $(input_div).width();
+            // console.log('input_top', input_top, 'input_left', input_left, 'input_width', input_width);
+
+            // Popup should always completely cover the input
+            popup_top = input_top;
+            // Popup should be at least 550px wide
+            if (input_width <= 550)
+                popup_width = 550;
+            else
+                popup_width = input_width;
+            // console.log('popup_width', popup_width);
+
+            // Center the popup over the input if the former is wider than the latter
+            popup_left = input_left;
+            if (popup_width > (input_width+10)) {
+                var diff = (popup_width - input_width) / 2;
+                popup_left = input_left - diff;
+                // console.log('attempting centering, popup_left set to ', popup_left);
+            }
+            // Adjust the popup when it would go off the right side of the screen
+            // console.log('window.innerWidth', window.innerWidth);
+            if ( (popup_left + popup_width) > window.innerWidth ) {
+                popup_left = window.innerWidth - popup_width - 40;
+                // console.log('off the right side of the screen, popup_left set to ', popup_left);
+            }
+            // Adjust the popup when it would go off the left side of the screen
+            if ( popup_left < 0 ) {
+                popup_left = input_left;
+                // console.log('off the left side of the screen, popup_left set to ', popup_left);
+            }
+
+            // Set the popup dimensions and show it
+            $(popup).removeClass('ODRHidden')
+                .width(popup_width)    // needs to be shown prior to setting offset apparently
+                .offset({top: popup_top, left: popup_left});
+            // console.log('final offset', $("#ODR_UTFpopup").offset() );
+        });
+
+        $("#ODR_UTFmanual_save").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+
+            // Using this closes the popup
+            let popup = $("#ODR_UTFpopup")
+            $(popup).addClass('ODRHidden');
+            $(".ODR_UTFgroup").addClass('ODRHidden');
+            $(".ODR_UTFactivekey").removeClass('ODR_UTFactivekey');
+            // Not resetting this because the charset isn't being changed either
+            // $(".ODR_UTFshiftspacer").removeClass('ODR_UTFactiveshiftspacer');
+
+            // Copy the parsed value back into the datafield's form and trigger a save
+            let new_value = $("#ODR_UTFparsed").val();
+            let input_div_id = $(popup).attr('rel');
+            let input_div = $("#Input_" + input_div_id);
+            // console.log('input div', input_div_id, 'input elem', $("#Input_" + input_div_id), 'new value', new_value);  return false;
+
+            if ( input_div.length > 0 ) {
+                // Could be either an input or a textarea
+                let input = $(input_div).find('input');
+                let textarea = $(input_div).find('textarea');
+
+                if ( $(input).length > 0 )
+                    $(input).val(new_value).trigger('keyup');
+                else
+                    $(textarea).val(new_value).trigger('keyup');
+
+                $(popup).attr('rel', '');
+            }
+        });
+        $("#ODR_UTFcancel_save").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+
+            // Using this closes the popup
+            $("#ODR_UTFpopup").addClass('ODRHidden').attr('rel', '');
+            $(".ODR_UTFgroup").addClass('ODRHidden');
+            $(".ODR_UTFactivekey").removeClass('ODR_UTFactivekey');
+            // Not resetting this because the charset isn't being changed either
+            // $(".ODR_UTFshiftspacer").removeClass('ODR_UTFactiveshiftspacer');
+
+            // Delete the contents of the popup's field
+            $("#ODR_UTFparsed").val('');
+        });
+
+        initODRUTFKeyboard( $("#ODR_UTFparsed") );
+    }
+</script>
+
+{% endspaceless %}
