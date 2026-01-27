@@ -570,6 +570,7 @@ function doMassUpdate() {
         redirect = true;
 
     var data = $("#massedit_form").serialize();
+    // console.log(data);  return false;
     var url = $("#massedit_form").attr('action');
 
     $.ajax({

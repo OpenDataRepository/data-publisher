@@ -309,17 +309,24 @@ class SearchKeyService
     {
         $search_params = array();
         foreach ($post as $key => $value) {
-            // Ignore empty entries
-            $value = trim($value);
-            if ($value === '')
-                continue;
+            if ( is_array($value) ) {
+                // This should only work for 'sort_by'
+                if ( $key === 'sort_by' )
+                    $search_params[$key] = $value;
+            }
+            else {
+                // Ignore empty entries
+                $value = trim($value);
+                if ($value === '')
+                    continue;
 
-            // Need to unescape the value if it's coming from a wordpress install...
-            if ( $is_wordpress_integrated )
-                $value = stripslashes($value);
+                // Need to unescape the value if it's coming from a wordpress install...
+                if ( $is_wordpress_integrated )
+                    $value = stripslashes($value);
 
-            // Technically don't care whether the contents of the POST are valid or not at this time
-            $search_params[$key] = self::clean($value);
+                // Technically don't care whether the contents of the POST are valid or not at this time
+                $search_params[$key] = self::clean($value);
+            }
         }
 
         // Important to sort the results, so different input orders result in the same key

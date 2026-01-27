@@ -45,6 +45,13 @@
     {% set open_advanced_options = true %}
 {% endif %}
 
+{% if sort_df_id is not defined %}
+    {% set sort_df_id = 0 %}
+{% endif %}
+{% if sort_dir is not defined %}
+    {% set sort_dir = '' %}
+{% endif %}
+
 <div class="ODRThemeElement">
     <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
     <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
@@ -195,6 +202,8 @@
                     'rpi_lookup': rpi_lookup,
 
                     'search_params': search_params,
+                    'sort_df_id': sort_df_id,
+                    'sort_dir': sort_dir,
                 } %}
             {% else %}
                 {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_default_fields.html.twig' with {
@@ -204,6 +213,8 @@
                     'rpi_lookup': rpi_lookup,
 
                     'search_params': search_params,
+                    'sort_df_id': sort_df_id,
+                    'sort_dir': sort_dir,
 
                     'user_list': user_list,
                     'datatype_permissions': datatype_permissions,
@@ -428,95 +439,100 @@
                 $(content_div).find('.ODRAdvSearch_datafield').each(function (index,df) {
                     var empty = true;
 
-                    $(df).find('.ODRInput').each(function (index,elem) {
-                        if ( $(elem).hasClass("ODRFileDatafieldName")
-                            || $(elem).hasClass("ODRDateDatafieldExist")
-                            || $(elem).hasClass('ODRXYZData')
-                        ) {
-                            // ignore this input for the purpose of visibility checking...a different
-                            //  element will handle it
-                        }
-                        else if ( $(elem).hasClass("ODRFileDatafieldExist") ) {
-                            // The file/image inputs need to be checked simultaneously
-                            var name_value = $(elem).parent().children(".ODRFileDatafieldName").val();
-                            var exist_value = $(elem).val();
-
-                            // If either value exists, then don't hide this datafield
-                            if ( name_value !== '' || exist_value !== '' )
-                                empty = false;
-                        }
-                        else if ( $(this).hasClass("ODRDatePicker") ) {
-                            // Datepickers need to check both start/end fields...
-                            var id = $(elem).attr('id');
-                            var id_data = id.split('_');
-
-                            var start_id = '';
-                            var end_id = '';
-                            var no_val_id = '';
-                            var has_val_id = '';
-                            if (id_data.length == 3) {
-                                start_id = '#' + id_data[0] + '_' + id_data[1] + '_start';
-                                end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
-                                no_val_id = '#df_' + id_data[1] + '_no_val';
-                                has_val_id = '#df_' + id_data[1] + '_with_val';
+                    if ( $(df).find('.fa-sort-asc').length > 0 || $(df).find('.fa-sort-desc').length > 0 ) {
+                        empty = false;
+                    }
+                    else {
+                        $(df).find('.ODRInput').each(function (index,elem) {
+                            if ( $(elem).hasClass("ODRFileDatafieldName")
+                                || $(elem).hasClass("ODRDateDatafieldExist")
+                                || $(elem).hasClass('ODRXYZData')
+                            ) {
+                                // ignore this input for the purpose of visibility checking...a different
+                                //  element will handle it
                             }
-                            else if (id_data.length == 4) {
-                                start_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_start';
-                                end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
-                            }
+                            else if ( $(elem).hasClass("ODRFileDatafieldExist") ) {
+                                // The file/image inputs need to be checked simultaneously
+                                var name_value = $(elem).parent().children(".ODRFileDatafieldName").val();
+                                var exist_value = $(elem).val();
 
-                            // If either start or end has something, then don't hide this datafield
-                            if ( $(start_id).val() !== '' || $(end_id).val() !== '' )
-                                empty = false;
-                            // If this is a conventional datetime field, then also don't hide this
-                            //  datafield when the "has_val" or "no_val" related checkboxes are checked
-                            if ( no_val_id !== '' ) {
-                                if ( $(no_val_id).is(':checked') || $(has_val_id).is(':checked') )
+                                // If either value exists, then don't hide this datafield
+                                if ( name_value !== '' || exist_value !== '' )
                                     empty = false;
                             }
-                        }
-                        else if ( $(elem).parent().hasClass('ODRRadioSearchDiv') ) {
-                            // Search for a selection made in this radio field
-                            var selected = false;
-                            $(elem).parent().find('i').each(function () {
-                                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban')
-                                    || $(this).hasClass('ODRFourstate_OR') || $(this).hasClass('ODRFourstate_AND')
-                                ) {
-                                    selected = true;
-                                    return false;
-                                }
-                            });
+                            else if ( $(this).hasClass("ODRDatePicker") ) {
+                                // Datepickers need to check both start/end fields...
+                                var id = $(elem).attr('id');
+                                var id_data = id.split('_');
 
-                            // If something is selected, then don't hide this datafield
-                            if (selected)
-                                empty = false;
-                        }
-                        else if ( $(elem).parent().hasClass('ODRTagSearchDiv') ) {
-                            // Search for a selection made in this tag field
-                            var selected = false;
-                            $(elem).parent().find('i').each(function () {
-                                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban')
-                                    || $(this).hasClass('ODRFourstate_OR') || $(this).hasClass('ODRFourstate_AND')
-                                ) {
-                                    selected = true;
-                                    return false;
+                                var start_id = '';
+                                var end_id = '';
+                                var no_val_id = '';
+                                var has_val_id = '';
+                                if (id_data.length == 3) {
+                                    start_id = '#' + id_data[0] + '_' + id_data[1] + '_start';
+                                    end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
+                                    no_val_id = '#df_' + id_data[1] + '_no_val';
+                                    has_val_id = '#df_' + id_data[1] + '_with_val';
                                 }
-                            });
+                                else if (id_data.length == 4) {
+                                    start_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_start';
+                                    end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
+                                }
 
-                            // If something is selected, then don't hide this datafield
-                            if (selected)
+                                // If either start or end has something, then don't hide this datafield
+                                if ( $(start_id).val() !== '' || $(end_id).val() !== '' )
+                                    empty = false;
+                                // If this is a conventional datetime field, then also don't hide this
+                                //  datafield when the "has_val" or "no_val" related checkboxes are checked
+                                if ( no_val_id !== '' ) {
+                                    if ( $(no_val_id).is(':checked') || $(has_val_id).is(':checked') )
+                                        empty = false;
+                                }
+                            }
+                            else if ( $(elem).parent().hasClass('ODRRadioSearchDiv') ) {
+                                // Search for a selection made in this radio field
+                                var selected = false;
+                                $(elem).parent().find('i').each(function () {
+                                    if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban')
+                                        || $(this).hasClass('ODRFourstate_OR') || $(this).hasClass('ODRFourstate_AND')
+                                    ) {
+                                        selected = true;
+                                        return false;
+                                    }
+                                });
+
+                                // If something is selected, then don't hide this datafield
+                                if (selected)
+                                    empty = false;
+                            }
+                            else if ( $(elem).parent().hasClass('ODRTagSearchDiv') ) {
+                                // Search for a selection made in this tag field
+                                var selected = false;
+                                $(elem).parent().find('i').each(function () {
+                                    if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban')
+                                        || $(this).hasClass('ODRFourstate_OR') || $(this).hasClass('ODRFourstate_AND')
+                                    ) {
+                                        selected = true;
+                                        return false;
+                                    }
+                                });
+
+                                // If something is selected, then don't hide this datafield
+                                if (selected)
+                                    empty = false;
+                            }
+                            else if ( $(elem).hasClass('ODRXYZData_select') ) {
+                                // XYZData shouldn't be hidden when there's at least one "option" in there
+                                if ( $(elem).find('option').length > 0 )
+                                    empty = false;
+                            }
+                            else if ( $(elem).val() !== '' ) {
+                                // All other inputs should not be hidden when they have a value
                                 empty = false;
-                        }
-                        else if ( $(elem).hasClass('ODRXYZData_select') ) {
-                            // XYZData shouldn't be hidden when there's at least one "option" in there
-                            if ( $(elem).find('option').length > 0 )
-                                empty = false;
-                        }
-                        else if ( $(elem).val() !== '' ) {
-                            // All other inputs  should not be hidden when they have a value
-                            empty = false;
-                        }
-                    });
+                            }
+                        });
+                    }
 
                     // Hide the datafield when it doesn't have a value
                     if (empty)
@@ -1011,6 +1027,26 @@
 {% if intent != 'stored_search_keys' %}
         $(context).find(".ODRChooseSidebarLayout").unbind('click').click(function() {
             openChooseSidebarLayoutRemodal({{ target_datatype.id }}, '{{ intent }}');
+        });
+
+        $(context).find(".ODRSidebar_sort").unbind('click').click(function() {
+            var image_element = $(this).children('i').first();
+
+            var current_sort = 'none';
+            if ( $(image_element).hasClass('fa-sort-asc') )
+                current_sort = 'asc';
+            else if ( $(image_element).hasClass('fa-sort-desc') )
+                current_sort = 'desc';
+
+            $(context).find(".ODRSidebar_sort").children('i').first()
+                .addClass('fa-sort').removeClass('fa-sort-asc fa-sort-desc');
+
+            if ( current_sort === 'none' )
+                $(image_element).removeClass('fa-sort fa-sort-desc').addClass('fa-sort-asc');
+            else if ( current_sort === 'asc' )
+                $(image_element).removeClass('fa-sort fa-sort-asc').addClass('fa-sort-desc');
+            else if ( current_sort === 'desc' )
+                $(image_element).removeClass('fa-sort-asc fa-sort-desc').addClass('fa-sort');
         });
 {% endif %}
 

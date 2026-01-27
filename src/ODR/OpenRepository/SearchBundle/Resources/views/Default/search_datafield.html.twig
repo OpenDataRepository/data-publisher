@@ -73,11 +73,23 @@
 
     {% if field_typeclass != 'XYZData' %}
     <span class="pure-u-1">
+
         <label class="pure-u-1"
         {% if field_typename != "DateTime" and field_typeclass != "Radio" and field_typeclass != "Tag" %}
             for="datafield_{{ datafield_id }}"
         {% endif %}
         >
+            {% if (field_typename == 'Markdown' or field_typename == 'File' or field_typename == 'Image'
+                or field_typename == 'Multiple Radio' or field_typename == 'Multiple Select'
+                or field_typename == 'Tags' or field_typename == 'XYZ Data')
+            %}
+            {# these fieldtypes can't be sorted #}
+            {% else %}
+            {# all other fieldtypes can be sorted #}
+            <span class="ODRSidebar_sort Pointer" title="Click to change the search results sort order">
+                <i class="fa fa-sort{% if sort_df_id == datafield_id %}-{{ sort_dir }}{% endif %}"></i>
+            </span>
+            {% endif %}
 
             <span title="{{ description }}">
             {% if field_typeclass == 'File' or field_typeclass == 'Image'%}

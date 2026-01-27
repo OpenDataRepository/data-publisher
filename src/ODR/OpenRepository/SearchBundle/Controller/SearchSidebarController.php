@@ -231,6 +231,15 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
+            // ...and because it's irritating for twig to figure this out, any sort_by info
+            $sort_df_id = 0; $sort_dir = '';
+            if ( isset($search_params['sort_by'][0])
+                && ($search_params['sort_by'][0]['sort_dir'] === 'asc' || $search_params['sort_by'][0]['sort_dir'] === 'desc')
+            ) {
+                $sort_df_id = $search_params['sort_by'][0]['sort_df_id'];
+                $sort_dir = $search_params['sort_by'][0]['sort_dir'];
+            }
+
             $templating = $this->get('templating');
             $return['d'] = array(
                 'num_params' => count($search_params),
@@ -257,6 +266,10 @@ class SearchSidebarController extends ODRCustomController
 
                         // theme selection
                         'preferred_theme' => $preferred_theme,
+
+                        // sort info
+                        'sort_df_id' => $sort_df_id,
+                        'sort_dir' => $sort_dir,
                     )
                 )
             );
@@ -423,6 +436,15 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'linking');
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
+            // ...and because it's irritating for twig to figure this out, any sort_by info
+            $sort_df_id = 0; $sort_dir = '';
+            if ( isset($search_params['sort_by'][0])
+                && ($search_params['sort_by'][0]['sort_dir'] === 'asc' || $search_params['sort_by'][0]['sort_dir'] === 'desc')
+            ) {
+                $sort_df_id = $search_params['sort_by'][0]['sort_df_id'];
+                $sort_dir = $search_params['sort_by'][0]['sort_dir'];
+            }
+
             $templating = $this->get('templating');
             $return['d'] = array(
                 'num_params' => count($search_params),
@@ -449,6 +471,10 @@ class SearchSidebarController extends ODRCustomController
 
                         // theme selection
                         'preferred_theme' => $preferred_theme,
+
+                        // sort info
+                        'sort_df_id' => $sort_df_id,
+                        'sort_dir' => $sort_dir,
                     )
                 )
             );
@@ -548,6 +574,8 @@ class SearchSidebarController extends ODRCustomController
 //            $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
 //            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
+            // Don't need the sort info either
+
             $templating = $this->get('templating');
             $return['d'] = array(
                 'num_params' => count($search_params),
@@ -574,6 +602,10 @@ class SearchSidebarController extends ODRCustomController
 
                         // theme selection
 //                        'preferred_theme' => $preferred_theme,
+
+                        // sort info
+//                        'sort_df_id' => 0,
+//                        'sort_dir' => '',
                     )
                 )
             );

@@ -36,7 +36,10 @@
                  {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                      'search_params': search_params,
                      'datatype': dt,
-                     'datafield': df
+                     'datafield': df,
+
+                     'sort_df_id': sort_df_id,
+                     'sort_dir': sort_dir,
                  } %}
              {% endif %}
          </div>
@@ -100,7 +103,10 @@
                         {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                             'search_params': search_params,
                             'datatype': dt,
-                            'datafield': df
+                            'datafield': df,
+
+                            'sort_df_id': sort_df_id,
+                            'sort_dir': sort_dir,
                         } %}
                     {% endif %}
                 </div>

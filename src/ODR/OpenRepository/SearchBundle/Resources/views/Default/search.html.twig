@@ -264,6 +264,26 @@
         var post_data = $(search_form).serialize();
         post_data += '&search_theme_id=' + search_theme_id + '&intent=' + intent;
 
+        var sort_df_id = 0;
+        var sort_dir = '';
+        $(context).find('.ODRSidebar_sort').children('i').each(function(index,elem) {
+            if ( $(elem).hasClass('fa-sort-asc') ) {
+                sort_dir = 'asc';
+                sort_df_id = $(elem).parent().parent().attr('for').split(/_/)[1];
+                return false;
+            }
+            else if ( $(elem).hasClass('fa-sort-desc') ) {
+                sort_df_id = $(elem).parent().parent().attr('for').split(/_/)[1];
+                sort_dir = 'desc';
+                return false;
+            }
+        });
+        if ( sort_df_id != 0 )
+            post_data += '&sort_by%5Bsort_df_id%5D=' + sort_df_id + '&sort_by%5Bsort_dir%5D=' + sort_dir;
+
+        // TODO - actually, this sucks...the entire table sort implementation is "session-based", while this implementation is closer to "permanent"
+        // TODO - ...suspect i need a new interface element in the search header for applying sort directions to arbitrary fields, and ordering them
+
         var df_values = post_data.split(/&/);
         var cleaned = [];
         $.each(df_values, function(index, elem) {
