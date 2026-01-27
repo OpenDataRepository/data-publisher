@@ -474,7 +474,7 @@ class SortService
             case 'Single Select':
                 break;
 
-            // Can sort these by filename if the only permit a single upload...doesn't make sense
+            // Can sort these by filename if they only permit a single upload...doesn't make sense
             //  if there's more than one file/image uploaded to the datafield
             case 'File':
             case 'Image':
@@ -486,7 +486,7 @@ class SortService
             case 'Multiple Radio':
             case 'Multiple Select':
             case 'Markdown':
-            case 'Tag':
+            case 'Tags':
             case 'XYZ Data':
             default:
                 throw new ODRBadRequestException('Unable to sort a "'.$typename.'" datafield', $exception_code);
