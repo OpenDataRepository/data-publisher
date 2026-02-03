@@ -2469,7 +2469,6 @@ h3 .DatatypeTools,
 
 .ODRPublic {
     color: #2DB83D !important;
-
 }
 .ODRNotPublic {
     color: #FF3333 !important;
@@ -2961,7 +2960,6 @@ form .row {
 .IconRed {
     color: #f88;
 }
-
 
 
 .ui-state-active,
@@ -3607,8 +3605,6 @@ a.ui-button:active,
     background: transparent !important;
 }
 
-
-
 /* Fixing bad Remodal CSS Decisions */
 .remodal {
     /* max-width: 700px; */
@@ -3622,8 +3618,6 @@ a.ui-button:active,
         max-height: 90% !important;
     }
 }
-
-
 
 /* Media Queries */
 /* pure-hidden-xs */
@@ -4201,6 +4195,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     opacity: 0.4;
 }
 
+.ODRUnselectedCSVExportField {
+    background-color: #aaaaaa;
+}
+.ODRSelectedCSVExportField {
+    background-color: #88ffff;
+}
 
 #ODRGroupListHeader {
     margin-left: 20px;
@@ -4232,13 +4232,6 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
 }
 */
-
-.ODRUnselectedCSVExportField {
-    background-color: #aaaaaa;
-}
-.ODRSelectedCSVExportField {
-    background-color: #88ffff;
-}
 
 #ODRTagForm {
     /*max-height: 700px;*/
@@ -4377,6 +4370,13 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     vertical-align: middle;
 }
 
+.ODRShortResultsSortForm_label {
+    width: 4em !important;
+}
+.ODRShortResultsSortForm_select {
+    margin-right: 5px !important;
+}
+
 .ODRShortResults_empty {
     text-align: center;
     padding-top: 50px;
@@ -4485,10 +4485,26 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRPageSelectButton {
     margin: 0;
 }
+#ODRPageSelect_header, #ODRPageSelect_sort {
+    margin-top: 12px;
+}
 #ODRPageSelect_header {
-    margin-top: 15px;
     text-align: left;
 }
+#ODRPageSelect_sort {
+    text-align: right;
+}
+.ODRShortResultsSortForm_submitdiv {
+    text-align: left;
+}
+#ODRShortResultsSortForm_submit {
+    margin-left: 0 !important;
+}
+.ODRShortResultsSortForm_criteria {
+    padding-top: 10px;
+    text-align: left;
+}
+
 
 .CSVExportMessage {
     color: #3b8bba;

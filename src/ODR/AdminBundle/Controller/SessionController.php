@@ -29,6 +29,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -564,6 +565,113 @@ class SessionController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xda22f5ec;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Handles changing of sort datafield/direction from a ShortResults context.  TextResultsController
+     * handles the same stuff from the table side of things.
+     *
+     * @return Response
+     */
+    public function sortSearchResultsViewAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Pull the tab id from the current request
+            $post = $request->request->all();
+            if ( !isset($post['odr_tab_id']) || !isset($post['datatype_id']) || !isset($post['df_list']) || !isset($post['df_dir']) )
+                throw new ODRBadRequestException('invalid form');
+
+            $odr_tab_id = $post['odr_tab_id'];
+            $datatype_id = $post['datatype_id'];
+            $df_list = $post['df_list'];
+            $df_dir = $post['df_dir'];
+
+            // Clean up the provided df_list/df_dir arrays
+            $new_df_list = $new_df_dir = array();
+            foreach ($df_list as $num => $df_id) {
+                if ( $df_id !== '' ) {
+                    $new_df_list[] = intval($df_id);
+                    if ( isset($df_dir[$num]) )
+                        $new_df_dir[] = $df_dir[$num];
+                    else
+                        $new_df_dir[] = 'asc';
+                }
+            }
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Only valid for top-level Datatypes');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Need to also ensure the form was submitted with valid datafields
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId(), false);
+            $dt = $datatype_array[$datatype->getId()];
+
+            $datarecord_array = array();
+            $permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+            // Build a new set of sort criteria from the previously cleaned post data
+            $sort_datafields = $sort_directions = array();
+            foreach ($new_df_list as $num => $df_id) {
+                if ( !isset($dt['dataFields'][$df_id]) ) {
+                    throw new ODRBadRequestException();
+                }
+                else {
+                    $sort_datafields[$num] = $df_id;
+                    $sort_directions[$num] = $new_df_dir[$num];
+                }
+            }
+
+            // If the sorting criteria has changed...
+            if ( $odr_tab_service->hasSortCriteriaChanged($odr_tab_id, $sort_datafields, $sort_directions) ) {
+                // ...then change (or delete) the criteria stored in the user's session
+                $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
+                $odr_tab_service->clearSearchResults($odr_tab_id);
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x84658ce2;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

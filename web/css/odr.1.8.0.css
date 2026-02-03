@@ -148,7 +148,7 @@ Forms Core
 }
 
 /* Define consistent border, margin, and padding.*/
- 
+
 
 .pure-skin-odr .pure-form fieldset {
     border: 1px solid #c0c0c0;
@@ -311,7 +311,7 @@ Forms Core
         margin-bottom: 0.3em;
         display: block;
     }
-    
+
     .pure-skin-odr .pure-group input[type="text"],
     .pure-skin-odr .pure-group input[type="password"],
     .pure-skin-odr .pure-group input[type="email"],
@@ -568,7 +568,7 @@ Forms Core
 .pure-skin-odr .pure-form-aligned textarea,
 .pure-skin-odr .pure-form-aligned select,
 /* note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
-.pure-skin-odr .pure-form-aligned .pure-help-inline, 
+.pure-skin-odr .pure-form-aligned .pure-help-inline,
 .pure-skin-odr .pure-form-message-inline {
     display: inline-block;
     *display: inline; /* IE7 inline-block hack */
@@ -642,7 +642,7 @@ Forms Core
 }
 
 /* Inline help for forms */
-/* Note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */ 
+/* Note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
 .pure-skin-odr .pure-form .pure-help-inline,
 .pure-skin-odr .pure-form-message-inline {
     display: inline-block;
@@ -659,6 +659,8 @@ Forms Core
     font-size: 90%;
 }
 /* note no template for forms-r.css. no skinnable properties */
+
+
 
 /* foundational CSS */
 .pure-skin-odr .pure-table {
@@ -2045,7 +2047,7 @@ header a {
     box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
 }
 
-/* 
+/*
 #ODRNav:hover {
     -webkit-transform: translate(200px, 0px);
        -moz-transform: translate(200px, 0px);
@@ -2054,8 +2056,8 @@ header a {
             transform: translate(200px, 0px);
 }
 
-#ODRNav:hover {    
-    opacity: 1;    
+#ODRNav:hover {
+    opacity: 1;
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
         -ms-transition: all 0.15s ease-out;
@@ -2132,9 +2134,9 @@ header a {
     -o-transform: translate(0px, 0px);
     transform-origin: 100% 50%;
     transform: translate(0px, 0px);
-    position: relative; 
-    right: 400px;    
-    opacity: 1;    
+    position: relative;
+    right: 400px;
+    opacity: 1;
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
         -ms-transition: all 0.15s ease-out;
@@ -2142,7 +2144,7 @@ header a {
             transition: all 0.15s ease-out;
 }
 
-#ODRNavRight ul {    
+#ODRNavRight ul {
     list-style-type: none;
 }
 
@@ -2210,7 +2212,7 @@ h1:after {
 }
 
 #ElementDataWrapper {
-    padding-left: 4px; 
+    padding-left: 4px;
     margin: 0px;
 }
 
@@ -2454,7 +2456,7 @@ h3 .DatatypeTools,
     margin-top: 8px;
     margin-bottom: 4px;
 }
-    
+
 .ShortText {
     max-height: 38px;
 }
@@ -2619,7 +2621,7 @@ form .row {
     /* background-color: rgba(0,0,0,0.045); */
     box-sizing:border-box;
     -moz-box-sizing:border-box;
-    -webkit-box-sizing:border-box; 
+    -webkit-box-sizing:border-box;
     padding: 0.3em;
     /* border: 2px solid rgba(185, 186, 246, 0.25);  */
     border-radius: 4px;
@@ -2634,7 +2636,7 @@ form .row {
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement {
     box-sizing:border-box;
     -moz-box-sizing:border-box;
-    -webkit-box-sizing:border-box; 
+    -webkit-box-sizing:border-box;
     padding-right: 0.4em;
     /* border: 1px solid rgba(185, 186, 246, 0.8); */
 }
@@ -2747,7 +2749,7 @@ form .row {
 /* input {
     border: none;
     box-shadow: none;
-} */ 
+} */
 
 .ODRRenderPluginField {
     border: medium none;
@@ -3049,7 +3051,6 @@ a.ui-button:active,
     padding-bottom: 0.8em;
     margin-bottom: 0.4em;
 }
-
 
 .ODRInputError {
     color: red;
@@ -4146,7 +4147,6 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     background-color: #88ff88;
 }
 
-
 #ODRGroupListHeader {
     margin-left: 20px;
     margin-bottom: 10px;
@@ -4267,6 +4267,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     -webkit-transition: width 0.25s; /* Safari */
     transition: width 0.25s;
 }
+
 @media only screen and (max-width : 740px) {
     .ODRSearchVisible {
         position: relative;
@@ -4280,12 +4281,6 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     }
 }
 
-.ODRShortResults_empty {
-    text-align: center;
-    padding-top: 50px;
-    font-size: 1.2em;
-    font-weight: bold;
-}
 
 .ODRShortResultsTitle {
     width: 100% !important;
@@ -4303,12 +4298,25 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     float: right;
     margin-right: 20px;
 }
-
 .ODRShortResultsUUID {
     margin-left: 20px !important;
     font-size: 10px !important;
     color: #bbbbbb !important;
     vertical-align: middle;
+}
+
+.ODRShortResultsSortForm_label {
+    width: 4em !important;
+}
+.ODRShortResultsSortForm_select {
+    margin-right: 5px !important;
+}
+
+.ODRShortResults_empty {
+    text-align: center;
+    padding-top: 50px;
+    font-size: 1.2em;
+    font-weight: bold;
 }
 
 .csvimport_header {
@@ -4412,10 +4420,26 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRPageSelectButton {
     margin: 0;
 }
+#ODRPageSelect_header, #ODRPageSelect_sort {
+    margin-top: 12px;
+}
 #ODRPageSelect_header {
-    margin-top: 15px;
     text-align: left;
 }
+#ODRPageSelect_sort {
+    text-align: right;
+}
+.ODRShortResultsSortForm_submitdiv {
+    text-align: left;
+}
+#ODRShortResultsSortForm_submit {
+    margin-left: 0 !important;
+}
+.ODRShortResultsSortForm_criteria {
+    padding-top: 10px;
+    text-align: left;
+}
+
 
 .CSVExportMessage {
     color: #3b8bba;
@@ -4652,7 +4676,7 @@ i {
     font-family: "Lato-Reg", sans-serif;
 }
 .ODRRemoteSearch_pre {
-    margin: 0px;
+    margin: 0;
     padding: 7px;
 }
 .ODRRemoteSearch_extra {
@@ -5679,13 +5703,13 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     background-color: inherit;
 }
 
-.ODRMigration_acknowledge {
-    cursor: pointer;
-    color: rgb(75,75,75) !important;
-}
-
 .DynamicGraphSettingsDiv {
     top: -4px;
     left: 2px;
     position: relative;
+}
+
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
 }

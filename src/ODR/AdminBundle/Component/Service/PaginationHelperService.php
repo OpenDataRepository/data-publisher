@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\Theme;
 // Exceptions
 // Services
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
@@ -76,12 +77,13 @@ class PaginationHelperService
      *
      * @param string $odr_tab_id
      * @param DataType $datatype
+     * @param Theme|null $theme Can be null if the tab is created from a Display/Edit context
      * @param array $user_permissions {@link PermissionsManagementService::getUserPermissionsArray()}
      * @param string $search_key
      * @param bool $new_search If true, then always run a search with the given search key
      * @return array An array of grandparent datarecord ids that matched the given search key
      */
-    public function updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key, $new_search = false)
+    public function updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $search_key, $new_search = false)
     {
         // If no search key provided, then nothing to do here
         if ( $search_key === '' )
@@ -93,8 +95,12 @@ class PaginationHelperService
         // Ensure the tab refers to the given search key...not just calling setSearchKey() directly
         //  because that intentionally wipes all other criteria stored in the tab
         $expected_search_key = $this->odr_tab_service->getSearchKey($odr_tab_id);
-        if ( $expected_search_key !== $search_key )
-            $this->odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
+        if ( $expected_search_key !== $search_key ) {
+            if ( !is_null($theme) )
+                $this->odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId(), $theme->getId());
+            else
+                $this->odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId(), null);
+        }
 
 
         // Need to ensure a sort criteria is set for this tab, otherwise the table plugin

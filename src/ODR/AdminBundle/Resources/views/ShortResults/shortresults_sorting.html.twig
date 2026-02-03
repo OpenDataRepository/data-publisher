@@ -1,0 +1,36 @@
+{% spaceless %}
+
+<form id="ODRShortResultsSortForm">
+    <input type="hidden" name="odr_tab_id" value="{{ odr_tab_id }}" />
+    <input type="hidden" name="datatype_id" value="{{ cached_dt.id }}" />
+
+    <fieldset>
+        <div class="ODRShortResultsSortForm_submitdiv pure-u-1 pure-u-lg-2-24">
+            <button id="ODRShortResultsSortForm_submit" class="pure-button pure-button-primary">Sort</button>
+        </div>
+
+        {% for num in 0..2 %}
+            {% if sort_datafields[num] is defined %}
+                {% include 'ODRAdminBundle:ShortResults:shortresults_sorting_row.html.twig' with {
+                    'num': num,
+                    'cached_dt': cached_dt,
+
+                    'sort_df_id': sort_datafields[num],
+                    'sort_df_dir': sort_directions[num],
+                } %}
+            {% else %}
+                {% include 'ODRAdminBundle:ShortResults:shortresults_sorting_row.html.twig' with {
+                    'num': num,
+                    'cached_dt': cached_dt,
+
+                    'sort_df_id': '',
+                    'sort_df_dir': '',
+                } %}
+            {% endif %}
+        {% endfor %}
+
+        <div class="pure-u-1-24"></div>
+    </fieldset>
+</form>
+
+{% endspaceless %}

@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{# NOTE: this is called by SearchResults mode.  Display/Edit use search_header.html.twig instead, and TextResults doesn't have a separate header file. #}
+
 {# Don't let start go below 1 #}
 {% set start = offset - 1 %}
 {% if start < 1 %}
@@ -112,11 +114,20 @@
 
         'notitle': true,
     } %}
+
+    <div id="ODRShortResultsSortForm_div" class="pure-u-1">
+        {% include 'ODRAdminBundle:ShortResults:shortresults_sorting.html.twig' with {
+            'odr_tab_id': odr_tab_id,
+            'cached_dt': datatype_array[datatype.id],
+
+            'sort_datafields': sort_datafields,
+            'sort_directions': sort_directions,
+        } %}
+    </div>
 </div>
 
 <script>
     $(function() {
-
         $("#ODRPageSelectForm input[type='text']").on("click", function () {
             $(this).select();
         });
@@ -186,6 +197,47 @@
                         // Grab the toolbar element
                         var currentElement = $('.sf-toolbar')[0];
     
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $("#ODRShortResultSort").unbind('click').click(function() {
+            $("#ODRShortResultsSortForm_div").toggleClass('ODRHidden');
+        });
+
+        $("#ODRShortResultsSortForm_submit").unbind('click').click(function(event) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            var url = '{{ path('odr_sort_shortresults') }}';
+            var post_data = $("#ODRShortResultsSortForm").serialize();
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                dataType: "json",
+                data: post_data,
+                success: function(data, textStatus, xhr) {
+                    // Don't have to change the URL, but need to trigger a (partial) reload
+                    showSearchOverlay('Sorting...', 'searching');
+                    var hash = window.location.hash.substring(1);
+                    UpdateURL(hash);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything on error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
                         // Load the data of the given xdebug token into the current toolbar wrapper
                         Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                     }

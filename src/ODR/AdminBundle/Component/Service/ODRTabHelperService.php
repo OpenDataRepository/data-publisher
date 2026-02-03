@@ -103,15 +103,23 @@ class ODRTabHelperService
      * @param string $odr_tab_id
      * @param string $search_key
      * @param int $datatype_id
+     * @param int|null $theme_id Can be null if the tab is created from a Display/Edit context
      * @return bool
      */
-    public function setSearchKey($odr_tab_id, $search_key, $datatype_id)
+    public function setSearchKey($odr_tab_id, $search_key, $datatype_id, $theme_id)
     {
         if ( $odr_tab_id == '' || $search_key == '' )
             return false;
 
         // Overwrite any existing data for this tab with the new search key
-        self::setTabData($odr_tab_id, array('search_key' => $search_key, 'dt_id' => $datatype_id));
+        self::setTabData(
+            $odr_tab_id,
+            array(
+                'search_key' => $search_key,
+                'dt_id' => $datatype_id,
+                'theme_id' => $theme_id
+            )
+        );
 
         return true;
     }
@@ -123,7 +131,7 @@ class ODRTabHelperService
      * numbers and the next/prev buttons can redirect to the correct datarecords.  Requires that a
      * datarecord list already be defined for the given tab.
      *
-     * Because this is only called for View/Edit headers, the intent can never be 'linking'.
+     * Because this is only called for Display/Edit headers, the intent can never be 'linking'.
      *
      * @param string $odr_tab_id
      * @param int $current_datarecord_id
@@ -384,11 +392,9 @@ class ODRTabHelperService
         if ( is_null($tab_data) )
             return null;
 
-        // If the list of datarecord ids doesn't exist...
+        // Return whatever exists for the sort criteria
         if ( !isset($tab_data['sort_criteria']) )
             return null;
-
-        // Otherwise, return the list of datarecord ids
         return $tab_data['sort_criteria'];
     }
 
