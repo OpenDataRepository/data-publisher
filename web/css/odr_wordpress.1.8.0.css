@@ -2615,12 +2615,11 @@ form .row {
     padding-left: 12px;
 }
 
-#ODRPageSelect {
-    border: 1px solid #ccc;
-    padding: 5px 4px 6px 10px;
+.ODRPageSelect {
+    cursor: pointer;
 }
-#ODRPageSelect i {
-    padding-left: 0px;
+.ODRPageSelect i {
+    padding-left: 0;
     padding-right: 6px;
 }
 #ODRPagePopup {

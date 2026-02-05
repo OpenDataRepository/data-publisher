@@ -1,10 +1,14 @@
 {% spaceless %}
 
-{% set page_element = "#ODRPageSelect" %}
+{% set pagechange_element = "#ODRPageSelectForm" %}
+{% set pagelength_element = "#ODRPaginationSpan" %}
+{% set sort_element = "#ODRShortResultsSortForm" %}
 {% set view_element = ".ODRShortResultsHeader:first" %}
 {% set edit_element = ".ODRShortResultsHeader_edit:first" %}
-{% if page_type == 'text' %}
-    {% set page_element = "#TextResults_paginate" %}
+{% if page_type == 'table' %}
+    {% set pagechange_element = "#TextResults_paginate" %}
+    {% set pagelength_element = "#TextResults_length" %}
+    {% set sort_element = "th.sorting" %}
     {% set view_element = ".ODRTableRecord:first" %}
     {% set edit_element = ".ODREditLink:first" %}
 {% endif %}
@@ -13,39 +17,56 @@
     $('#ODRHelpButton')
         .attr('data-step', '1')
         .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-    $('#ODRPageSelectSettings')
+
+    $('{{ pagechange_element }}')
         .attr('data-step', '2')
-        .attr('data-intro', 'The settings gear contains customizable settings for this search results page.');
-    $('#ChooseView')
+        .attr('data-intro', 'This element allows you to change the currently displayed page of the the search results.');
+    $('.ODRPageSelect')
         .attr('data-step', '3')
-        .attr('data-intro', 'Clicking this brings up a dialog of options for selecting from alternate layouts, or for creating one of your own.');
-    $('#ODRAddRecord')
+        .attr('data-intro', 'You may jump to a specific results page by opening the "Jump to page" option.');
+    $('{{ pagelength_element }}')
         .attr('data-step', '4')
+        .attr('data-intro', 'This element allows you to change how many results are displayed on the page.');
+
+    $('#ODRPageSelectSettings')
+        .attr('data-step', '5')
+        .attr('data-intro', 'The settings gear reveals additional options and settings for this search results page.');
+    $('#ChooseView')
+        .attr('data-step', '6')
+        .attr('data-intro', 'Clicking "Choose View" brings up a dialog for selecting existing alternate layouts, or for creating one of your own.');
+    $('#ODRAddRecord')
+        .attr('data-step', '7')
         .attr('data-intro', 'Clicking "New Record" takes you to a page where you can create a new record for this database.');
     $('#ODRMassEdit')
-        .attr('data-step', '5')
-        .attr('data-intro', 'Mass Edit allows users to change values or the public status of all records in the result list at once.');
-    $('#ODRCSVExport')
-        .attr('data-step', '6')
-        .attr('data-intro', 'CSV Export allows users to create CSV downloads of the data in the result list.');
-    $('#ODRTracking')
-        .attr('data-step', '7')
-        .attr('data-intro', 'Clicking this takes you to a page that shows all recent updates to this database.');
-    $('#ODRMassDownload')
         .attr('data-step', '8')
-        .attr('data-intro', 'This opens a dialog that allows you to download all files as a zip archive from one or more fields in this database.');
-    $('{{ page_element }}')
+        .attr('data-intro', 'Clicking "Mass Edit" takes you to a page where you can change values and/or the public status of all records in this result list at once.');
+    $('#ODRCSVExport')
         .attr('data-step', '9')
-        .attr('data-intro', 'You may jump to a specific results page by using the "Jump to page" option.');
-    $('{{ view_element }}')
+        .attr('data-intro', 'Clicking this takes you to a page where you can create CSV downloads of the data in the result list.');
+    $('#ODRTracking')
         .attr('data-step', '10')
+        .attr('data-intro', 'Clicking this takes you to a page that shows all recent updates to this database.');
+    {#$('#ODRMassDownload')#}
+    {#    .attr('data-step', '11')#}
+    {#    .attr('data-intro', 'This opens a dialog that allows you to download all files as a zip archive from one or more fields in this database.');#}
+
+    $('{{ sort_element }}')
+        .attr('data-step', '12')
+        {% if page_type == "search_results" %}
+        .attr('data-intro', 'The sort order of the search results can be changed with these controls.');
+        {% else %}
+        .attr('data-intro', 'The sort order of the search results can be changed by clicking on the header columns of the table.');
+        {% endif %}
+
+    $('{{ view_element }}')
+        .attr('data-step', '13')
         .attr('data-intro', 'Click the left side of a result header to view the record.');
     $('{{ edit_element }}')
-        .attr('data-step', '11')
+        .attr('data-step', '14')
         .attr('data-intro', 'Click the right side of a result header to enter the edit page for that record.');
-    $('#ODRRunApp')
-        .attr('data-step', '12')
-        .attr('data-intro', 'If this button is visible, one or more JupyterHub apps will be available in the select box to the left.');
+    {#$('#ODRRunApp')#}
+    {#    .attr('data-step', '15')#}
+    {#    .attr('data-intro', 'If this button is visible, one or more JupyterHub apps will be available in the select box to the left.');#}
 
     // Initialize the help button
     $('#ODRHelpButton').unbind('click').click(function() {
