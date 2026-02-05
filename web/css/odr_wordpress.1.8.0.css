@@ -2469,7 +2469,6 @@ h3 .DatatypeTools,
 
 .ODRPublic {
     color: #2DB83D !important;
-
 }
 .ODRNotPublic {
     color: #FF3333 !important;
@@ -2616,12 +2615,11 @@ form .row {
     padding-left: 12px;
 }
 
-#ODRPageSelect {
-    border: 1px solid #ccc;
-    padding: 5px 4px 6px 10px;
+.ODRPageSelect {
+    cursor: pointer;
 }
-#ODRPageSelect i {
-    padding-left: 0px;
+.ODRPageSelect i {
+    padding-left: 0;
     padding-right: 6px;
 }
 #ODRPagePopup {
@@ -2961,7 +2959,6 @@ form .row {
 .IconRed {
     color: #f88;
 }
-
 
 
 .ui-state-active,
@@ -3607,8 +3604,6 @@ a.ui-button:active,
     background: transparent !important;
 }
 
-
-
 /* Fixing bad Remodal CSS Decisions */
 .remodal {
     /* max-width: 700px; */
@@ -3622,8 +3617,6 @@ a.ui-button:active,
         max-height: 90% !important;
     }
 }
-
-
 
 /* Media Queries */
 /* pure-hidden-xs */
@@ -4201,6 +4194,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     opacity: 0.4;
 }
 
+.ODRUnselectedCSVExportField {
+    background-color: #aaaaaa;
+}
+.ODRSelectedCSVExportField {
+    background-color: #88ffff;
+}
 
 #ODRGroupListHeader {
     margin-left: 20px;
@@ -4232,13 +4231,6 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
 }
 */
-
-.ODRUnselectedCSVExportField {
-    background-color: #aaaaaa;
-}
-.ODRSelectedCSVExportField {
-    background-color: #88ffff;
-}
 
 #ODRTagForm {
     /*max-height: 700px;*/
@@ -4377,6 +4369,13 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     vertical-align: middle;
 }
 
+.ODRShortResultsSortForm_label {
+    width: 4em !important;
+}
+.ODRShortResultsSortForm_select {
+    margin-right: 5px !important;
+}
+
 .ODRShortResults_empty {
     text-align: center;
     padding-top: 50px;
@@ -4485,10 +4484,26 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRPageSelectButton {
     margin: 0;
 }
+#ODRPageSelect_header, #ODRPageSelect_sort {
+    margin-top: 12px;
+}
 #ODRPageSelect_header {
-    margin-top: 15px;
     text-align: left;
 }
+#ODRPageSelect_sort {
+    text-align: right;
+}
+.ODRShortResultsSortForm_submitdiv {
+    text-align: left;
+}
+#ODRShortResultsSortForm_submit {
+    margin-left: 0 !important;
+}
+.ODRShortResultsSortForm_criteria {
+    padding-top: 10px;
+    text-align: left;
+}
+
 
 .CSVExportMessage {
     color: #3b8bba;
@@ -4739,6 +4754,98 @@ i {
     padding: 10px 18px;
 }
 
+
+#ODR_UTFpopup {
+    position: absolute;
+    z-index: 10000;
+    background: white;
+    border: 2px solid black;
+    border-radius: 4px;
+    font-weight: 400;
+    padding: 5px;
+}
+.ODR_UTFtextarea {
+    margin: 5px 0 0 0 !important;
+    font-size: 100% !important;
+    overflow: auto;
+
+    /*background: white !important;*/
+    color: #555;
+    resize: vertical;
+}
+.ODR_UTFdiv {
+    margin-top: 5px;
+    color: #7777EE;
+}
+.ODR_UTFcharsetdiv {
+    margin-bottom: 5px;
+    cursor: default;
+}
+.ODR_UTFactivecharset, .ODR_UTFactiveshiftspacer, .ODR_UTFactivekey {
+    background: lightgreen;
+}
+.ODR_UTFcharset {
+    border: #555 1px solid;
+    border-radius: 5px;
+    padding: 5px;
+    margin-right: 10px;
+    cursor: pointer;
+    color: #555;
+}
+.ODR_UTFkey, .ODR_UTFdirectkey, .ODR_UTFinactivekey,
+.ODR_UTFbackspacer, .ODR_UTFtabspacer, .ODR_UTFcapspacer, .ODR_UTFshiftspacer {
+    display: inline-block;
+    height: 24px;
+    border: #555 1px solid;
+    border-radius: 5px;
+    padding: 1px;
+    margin: 1px;
+    text-align: center;
+}
+.ODR_UTFkey, .ODR_UTFdirectkey, .ODR_UTFinactivekey {
+    width: 24px;
+    cursor: pointer;
+}
+.ODR_UTFinactivekey, .ODR_UTFbackspacer, .ODR_UTFtabspacer, .ODR_UTFcapspacer {
+    cursor: default !important;
+}
+.ODR_UTFgroup {
+    position: absolute;
+    padding: 2px 7px 2px 2px;
+    border: 1px black solid;
+    background: white;
+    z-index: 999;
+    cursor: default;
+}
+.ODR_UTFbackspacer {
+    width: 48px;
+}
+.ODR_UTFtabspacer {
+    width: 36px;
+}
+.ODR_UTFcapspacer {
+    width: 51px;
+}
+.ODR_UTFshiftspacer {
+    width: 66px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.ODR_UTFcopy {
+    cursor: pointer;
+}
+#ODR_UTFcopied {
+    background: black;
+    position: absolute;
+    color: white;
+    opacity: 75%;
+    z-index: 99999;
+    padding-left: 8px;
+    padding-right: 8px;
+    cursor: pointer;
+}
+
+
 .ODRChemistryPlugin_button {
     min-width: 0 !important;
     padding: 2px !important;
@@ -4780,7 +4887,7 @@ i {
     resize: vertical;
 }
 .ODRChemistryPlugin_SaveIndicator {
-    top: 8px !important;
+    top: 2px !important;
 }
 .ODRChemistryPlugin_div {
     margin-top: 5px;

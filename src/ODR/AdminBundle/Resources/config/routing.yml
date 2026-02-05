@@ -1781,6 +1781,11 @@ odr_apply_theme:
         theme_id:  \d+
         persist: 0|1
 
+odr_sort_shortresults:
+    path:  /session/sortSearchResultsView
+    defaults: { _controller: ODRAdminBundle:Session:sortSearchResultsView }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 

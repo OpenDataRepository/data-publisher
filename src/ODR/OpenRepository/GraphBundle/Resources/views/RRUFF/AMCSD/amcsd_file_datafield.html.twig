@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set DATAFIELD_HEADER_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_HEADER_PLUGIN') %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
@@ -22,19 +24,6 @@
     {% set datarecord_is_fake = true %}
 {% endif %}
 
-{% set uses_file_renamer_plugin = false %}
-{% set uses_file_header_inserter_plugin = false %}
-{% if extra_plugins[datafield.id] is defined %}
-    {% for plugin_classname, rpi in extra_plugins[datafield.id] %}
-        {% if plugin_classname == "odr_plugins.base.file_renamer" %}
-            {% set uses_file_renamer_plugin = true %}
-        {% endif %}
-        {% if plugin_classname == "odr_plugins.base.file_header_inserter" %}
-            {% set uses_file_header_inserter_plugin = true %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-
     <form
         {% if is_link %} autocomplete="off"{% endif %}
         {% if not datarecord_is_fake %}
@@ -44,6 +33,24 @@
         id="EditForm_{{ unique_id }}"
         method="POST"
     >
+
+    {% set header_content = '' %}
+    {% set uses_file_renamer_plugin = false %}
+    {# AMCSD files can't use datafield plugins, so check for datafield header plugins #}
+    {% set rendering_options = {'is_link': is_link, 'is_datatype_admin': is_datatype_admin, 'context': 'edit'} %}
+    {% for rpi_num,rpi in datafield.renderPluginInstances %}
+        {% if rpi.renderPlugin.plugin_type == DATAFIELD_HEADER_PLUGIN and rpi.renderPlugin.active %}
+            {# Still need to check directly for the file renamer plugin, unfortunately #}
+            {% if rpi.renderPlugin.pluginClassName == 'odr_plugins.base.file_renamer' %}
+                {% set uses_file_renamer_plugin = true %}
+            {% endif %}
+
+            {% set can_execute_current_plugin = rpi|can_execute_datafield_header_plugin(datafield, datarecord, rendering_options) %}
+            {% if can_execute_current_plugin %}
+                {% set header_content = header_content ~ datafield|datafield_header_plugin(datarecord, rpi, rendering_options) %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
 
         {# NOTE - this will only ever be called on a File field #}
         <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
@@ -56,11 +63,8 @@
         {#<fieldset>#}
         <div class="ODRFileDatafield">
             <div class="ODRFileDatafield_header pure-u-1">
-            {% if uses_file_renamer_plugin %}
-                <i class="Pointer fa fa-edit fa-lg ODRFileRenamer_rebuild" title="Rebuild the filenames in this Datafield"></i>&nbsp;
-            {% endif %}
-            {% if uses_file_header_inserter_plugin %}
-                <i class="Pointer fa fa-indent fa-lg ODRFileHeaderInserter_rebuild" title="Rebuild the headers of all Files in this Datafield"></i>&nbsp;
+            {% if header_content|length > 0 %}
+                {{ header_content|raw }}
             {% endif %}
             {% if not datarecord_is_fake %}
                 <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;

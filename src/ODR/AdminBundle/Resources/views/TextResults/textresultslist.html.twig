@@ -104,6 +104,7 @@
             "columns": [{{ column_names | raw }} {% if can_edit_datatype %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
             "order": [[1, 'asc']],
             "pageLength": {{ page_length }},
+            "lengthMenu": [25, 50, 100],
             "autoWidth": false,
 
             {# https://datatables.net/reference/option/dom
@@ -491,7 +492,7 @@
 
         {# NOTE - need to include this here so it executes after the table finishes drawing, instead of after page load #}
         {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {
-            'page_type': 'text'
+            'page_type': 'table'
         } %}
     });
 

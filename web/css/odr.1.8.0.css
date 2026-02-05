@@ -148,7 +148,7 @@ Forms Core
 }
 
 /* Define consistent border, margin, and padding.*/
- 
+
 
 .pure-skin-odr .pure-form fieldset {
     border: 1px solid #c0c0c0;
@@ -311,7 +311,7 @@ Forms Core
         margin-bottom: 0.3em;
         display: block;
     }
-    
+
     .pure-skin-odr .pure-group input[type="text"],
     .pure-skin-odr .pure-group input[type="password"],
     .pure-skin-odr .pure-group input[type="email"],
@@ -568,7 +568,7 @@ Forms Core
 .pure-skin-odr .pure-form-aligned textarea,
 .pure-skin-odr .pure-form-aligned select,
 /* note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
-.pure-skin-odr .pure-form-aligned .pure-help-inline, 
+.pure-skin-odr .pure-form-aligned .pure-help-inline,
 .pure-skin-odr .pure-form-message-inline {
     display: inline-block;
     *display: inline; /* IE7 inline-block hack */
@@ -642,7 +642,7 @@ Forms Core
 }
 
 /* Inline help for forms */
-/* Note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */ 
+/* Note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
 .pure-skin-odr .pure-form .pure-help-inline,
 .pure-skin-odr .pure-form-message-inline {
     display: inline-block;
@@ -659,6 +659,8 @@ Forms Core
     font-size: 90%;
 }
 /* note no template for forms-r.css. no skinnable properties */
+
+
 
 /* foundational CSS */
 .pure-skin-odr .pure-table {
@@ -2045,7 +2047,7 @@ header a {
     box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
 }
 
-/* 
+/*
 #ODRNav:hover {
     -webkit-transform: translate(200px, 0px);
        -moz-transform: translate(200px, 0px);
@@ -2054,8 +2056,8 @@ header a {
             transform: translate(200px, 0px);
 }
 
-#ODRNav:hover {    
-    opacity: 1;    
+#ODRNav:hover {
+    opacity: 1;
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
         -ms-transition: all 0.15s ease-out;
@@ -2132,9 +2134,9 @@ header a {
     -o-transform: translate(0px, 0px);
     transform-origin: 100% 50%;
     transform: translate(0px, 0px);
-    position: relative; 
-    right: 400px;    
-    opacity: 1;    
+    position: relative;
+    right: 400px;
+    opacity: 1;
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
         -ms-transition: all 0.15s ease-out;
@@ -2142,7 +2144,7 @@ header a {
             transition: all 0.15s ease-out;
 }
 
-#ODRNavRight ul {    
+#ODRNavRight ul {
     list-style-type: none;
 }
 
@@ -2210,7 +2212,7 @@ h1:after {
 }
 
 #ElementDataWrapper {
-    padding-left: 4px; 
+    padding-left: 4px;
     margin: 0px;
 }
 
@@ -2454,7 +2456,7 @@ h3 .DatatypeTools,
     margin-top: 8px;
     margin-bottom: 4px;
 }
-    
+
 .ShortText {
     max-height: 38px;
 }
@@ -2574,12 +2576,11 @@ form .row {
     padding-left: 12px;
 }
 
-#ODRPageSelect {
-    border: 1px solid #ccc;
-    padding: 5px 4px 6px 10px;
+.ODRPageSelect {
+    cursor: pointer;
 }
-#ODRPageSelect i {
-    padding-left: 0px;
+.ODRPageSelect i {
+    padding-left: 0;
     padding-right: 6px;
 }
 #ODRPagePopup {
@@ -2619,7 +2620,7 @@ form .row {
     /* background-color: rgba(0,0,0,0.045); */
     box-sizing:border-box;
     -moz-box-sizing:border-box;
-    -webkit-box-sizing:border-box; 
+    -webkit-box-sizing:border-box;
     padding: 0.3em;
     /* border: 2px solid rgba(185, 186, 246, 0.25);  */
     border-radius: 4px;
@@ -2634,7 +2635,7 @@ form .row {
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement {
     box-sizing:border-box;
     -moz-box-sizing:border-box;
-    -webkit-box-sizing:border-box; 
+    -webkit-box-sizing:border-box;
     padding-right: 0.4em;
     /* border: 1px solid rgba(185, 186, 246, 0.8); */
 }
@@ -2747,7 +2748,7 @@ form .row {
 /* input {
     border: none;
     box-shadow: none;
-} */ 
+} */
 
 .ODRRenderPluginField {
     border: medium none;
@@ -3049,7 +3050,6 @@ a.ui-button:active,
     padding-bottom: 0.8em;
     margin-bottom: 0.4em;
 }
-
 
 .ODRInputError {
     color: red;
@@ -4146,7 +4146,6 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     background-color: #88ff88;
 }
 
-
 #ODRGroupListHeader {
     margin-left: 20px;
     margin-bottom: 10px;
@@ -4267,6 +4266,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     -webkit-transition: width 0.25s; /* Safari */
     transition: width 0.25s;
 }
+
 @media only screen and (max-width : 740px) {
     .ODRSearchVisible {
         position: relative;
@@ -4280,12 +4280,6 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     }
 }
 
-.ODRShortResults_empty {
-    text-align: center;
-    padding-top: 50px;
-    font-size: 1.2em;
-    font-weight: bold;
-}
 
 .ODRShortResultsTitle {
     width: 100% !important;
@@ -4303,12 +4297,25 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     float: right;
     margin-right: 20px;
 }
-
 .ODRShortResultsUUID {
     margin-left: 20px !important;
     font-size: 10px !important;
     color: #bbbbbb !important;
     vertical-align: middle;
+}
+
+.ODRShortResultsSortForm_label {
+    width: 4em !important;
+}
+.ODRShortResultsSortForm_select {
+    margin-right: 5px !important;
+}
+
+.ODRShortResults_empty {
+    text-align: center;
+    padding-top: 50px;
+    font-size: 1.2em;
+    font-weight: bold;
 }
 
 .csvimport_header {
@@ -4412,10 +4419,26 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRPageSelectButton {
     margin: 0;
 }
+#ODRPageSelect_header, #ODRPageSelect_sort {
+    margin-top: 12px;
+}
 #ODRPageSelect_header {
-    margin-top: 15px;
     text-align: left;
 }
+#ODRPageSelect_sort {
+    text-align: right;
+}
+.ODRShortResultsSortForm_submitdiv {
+    text-align: left;
+}
+#ODRShortResultsSortForm_submit {
+    margin-left: 0 !important;
+}
+.ODRShortResultsSortForm_criteria {
+    padding-top: 10px;
+    text-align: left;
+}
+
 
 .CSVExportMessage {
     color: #3b8bba;
@@ -4652,7 +4675,7 @@ i {
     font-family: "Lato-Reg", sans-serif;
 }
 .ODRRemoteSearch_pre {
-    margin: 0px;
+    margin: 0;
     padding: 7px;
 }
 .ODRRemoteSearch_extra {
@@ -4664,6 +4687,98 @@ i {
     font-weight: bold;
     padding: 10px 18px;
 }
+
+
+#ODR_UTFpopup {
+    position: absolute;
+    z-index: 10000;
+    background: white;
+    border: 2px solid black;
+    border-radius: 4px;
+    font-weight: 400;
+    padding: 5px;
+}
+.ODR_UTFtextarea {
+    margin: 5px 0 0 0 !important;
+    font-size: 100% !important;
+    overflow: auto;
+
+    /*background: white !important;*/
+    color: #555;
+    resize: vertical;
+}
+.ODR_UTFdiv {
+    margin-top: 5px;
+    color: #7777EE;
+}
+.ODR_UTFcharsetdiv {
+    margin-bottom: 5px;
+    cursor: default;
+}
+.ODR_UTFactivecharset, .ODR_UTFactiveshiftspacer, .ODR_UTFactivekey {
+    background: lightgreen;
+}
+.ODR_UTFcharset {
+    border: #555 1px solid;
+    border-radius: 5px;
+    padding: 5px;
+    margin-right: 10px;
+    cursor: pointer;
+    color: #555;
+}
+.ODR_UTFkey, .ODR_UTFdirectkey, .ODR_UTFinactivekey,
+.ODR_UTFbackspacer, .ODR_UTFtabspacer, .ODR_UTFcapspacer, .ODR_UTFshiftspacer {
+    display: inline-block;
+    height: 24px;
+    border: #555 1px solid;
+    border-radius: 5px;
+    padding: 1px;
+    margin: 1px;
+    text-align: center;
+}
+.ODR_UTFkey, .ODR_UTFdirectkey, .ODR_UTFinactivekey {
+    width: 24px;
+    cursor: pointer;
+}
+.ODR_UTFinactivekey, .ODR_UTFbackspacer, .ODR_UTFtabspacer, .ODR_UTFcapspacer {
+    cursor: default !important;
+}
+.ODR_UTFgroup {
+    position: absolute;
+    padding: 2px 7px 2px 2px;
+    border: 1px black solid;
+    background: white;
+    z-index: 999;
+    cursor: default;
+}
+.ODR_UTFbackspacer {
+    width: 48px;
+}
+.ODR_UTFtabspacer {
+    width: 36px;
+}
+.ODR_UTFcapspacer {
+    width: 51px;
+}
+.ODR_UTFshiftspacer {
+    width: 66px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.ODR_UTFcopy {
+    cursor: pointer;
+}
+#ODR_UTFcopied {
+    background: black;
+    position: absolute;
+    color: white;
+    opacity: 75%;
+    z-index: 99999;
+    padding-left: 8px;
+    padding-right: 8px;
+    cursor: pointer;
+}
+
 
 .ODRChemistryPlugin_button {
     min-width: 0 !important;
@@ -4706,7 +4821,7 @@ i {
     resize: vertical;
 }
 .ODRChemistryPlugin_SaveIndicator {
-    top: 8px !important;
+    top: 2px !important;
 }
 .ODRChemistryPlugin_div {
     margin-top: 5px;
@@ -5363,7 +5478,7 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     cursor: pointer;
     position: absolute;
     z-index: 999;
-    top: 1px;
+    top: 10px;
     left: 12px;
 }
 .ODRFilterGraphPlugin_settings_close {
@@ -5587,13 +5702,13 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     background-color: inherit;
 }
 
-.ODRMigration_acknowledge {
-    cursor: pointer;
-    color: rgb(75,75,75) !important;
-}
-
 .DynamicGraphSettingsDiv {
     top: -4px;
     left: 2px;
     position: relative;
+}
+
+.ODRMigration_acknowledge {
+    cursor: pointer;
+    color: rgb(75,75,75) !important;
 }

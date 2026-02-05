@@ -3090,10 +3090,10 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Would prefer the built-in file renaming feature to not work when the FileRenamer
-            //  plugin is active...
-            // Thanks to long covid this coupling is the least horrible method I can figure out
-            // TODO - fix this somehow, please
+            // Don't want the built-in per-file renaming feature to work when the FileRenamer plugin
+            //  is active...which unfortunately means this controller action has to directly check
+            //  for whether the plugin is active
+            // TODO - at this point, the only way to "fix" it would probably be to convert the FileRenamer plugin to base ODR
             $uses_file_renamer_plugin = false;
             foreach ($datafield->getRenderPluginInstances() as $rpi) {
                 /** @var RenderPluginInstance $rpi */
@@ -3231,6 +3231,7 @@ class EditController extends ODRCustomController
             $theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
             // If $search_theme_id is set...
+            $search_theme = null;
             if ($search_theme_id != 0) {
                 // ...require a search key to also be set
                 if ($search_key == '')
@@ -3292,7 +3293,7 @@ class EditController extends ODRCustomController
             $datarecord_list = '';
             if ($search_key !== '') {
                 // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key);
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $search_theme, $user_permissions, $search_key);
 
                 // Determine the correct list of datarecords to use for rendering...
                 $datarecord_list = array();

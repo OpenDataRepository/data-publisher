@@ -32,10 +32,10 @@
     'token_list': token_list,
 } %}
 
+{% include 'ODRAdminBundle:Edit:utf8_inserter_popup.html.twig' %}
+
 {% if has_linked_datatypes > 0 %}
-    <div id="ODRRecordLinkInfoWrapperDiv">
-        {#    <button type="button" class="pure-button" onclick="OpenLinkInfoDialog({{ datarecord.id }})">View Linked Records...</button>#}
-    </div>
+<div id="ODRRecordLinkInfoWrapperDiv"></div>
 {% endif %}
 
 {% if is_datatype_admin %}
@@ -139,7 +139,6 @@ function initPage() {
 
         handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
     });
-
     $(".ODRDownloadAllFiles").unbind('click').click(function() {
         if ( $(this).hasClass('fa-muted') )
             return;
@@ -209,7 +208,6 @@ function initPage() {
             $(download_div).removeClass('ODRHidden');
         }
     });
-
     $(".ODRFileRenameButton").unbind('click').click(function() {
         var icon_div = $(this).prev().prev();
         var input_div = $(this).prev();
@@ -265,7 +263,6 @@ function initPage() {
             }
         });
     });
-
     $(".ODRPublicFile").parent().unbind('click').click(function(event) {
         // Grab necessary attributes
         var popup_icon_div = $(this).children(".ODRPublicFile");
@@ -383,7 +380,6 @@ function initPage() {
             });
         }
     });
-
     $(".ODRPublicImage").unbind('click').click(function() {
         var image_id = $(this).attr('rel');
 
@@ -428,7 +424,6 @@ function initPage() {
             }
         });
     });
-
     $(".ODRRotateImage").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )
@@ -479,7 +474,6 @@ function initPage() {
             }
         });
     });
-
     $(".ODRImageRenameTrigger").unbind('click').click(function() {
         var icon_div = $(this);
         var input_div = $(this).parent().next();
@@ -500,7 +494,6 @@ function initPage() {
             $(input_elem).val( $(img_elem).attr('title') );
         }
     });
-
     $(".ODRImageRenameButton").unbind('click').click(function() {
         var image_div = $(this).parent().parent();
         var icon_div = $(image_div).find('.ODRImageRenameTrigger');
@@ -556,8 +549,8 @@ function initPage() {
         });
     });
 
-    {# These two are to handle the FileRenamer and FileHeaderInserter plugins #}
-    {# While theoretically they shouldn't be in edit_ajax, the way those plugins are currently implemented makes that impossible... #}
+    {# These three are to handle the FileRenamer and FileHeaderInserter plugins #}
+    {# ...theoretically they shouldn't be in edit_ajax, but I'm not entirely convinced putting the scripts with the plugins is better at the moment #}
     $(".ODRFileRenamer_rebuild").unbind('click').click(function() {
         var id_data = $(this).parents('form').first().attr('id').split('_');
         var dr_id = id_data[1];
@@ -668,6 +661,8 @@ function initPage() {
         });
     });
 
+    initODRUTFInserter();
+
     $("select.ODRFileQuality_selector, input.ODRFileQuality_selector").unbind('change').change(function() {
         handleQualityChange( $(this) );
     });
@@ -682,7 +677,6 @@ function initPage() {
 
         AddChildRecord(datatype_id, parent_datarecord_id);
     });
-
     $(".ODRAddLinkedRecord").unbind('click').click(function() {
         var rel = $(this).attr('rel').split(/_/);
         var datatype_id = rel[0];
@@ -703,7 +697,6 @@ function initPage() {
         var datarecord_id = $(this).attr('rel');
         ChangeRecordPublicStatus(datarecord_id);
     });
-
     $(".ODRPublicLinkedRecord").unbind('click').click(function() {
         var datarecord_id = $(this).attr('rel');
         ChangeRecordPublicStatus(datarecord_id);
@@ -954,7 +947,6 @@ function initPage() {
             DeleteLinkedRecord(datarecord_id);
         }
     });
-
     $(".ODRDeleteChildRecord").unbind('click').click(function() {
         if ( confirm('Are you sure you want to delete this child record?') ) {
             var datarecord_id = $(this).attr('rel');   // which data record to delete
@@ -1016,7 +1008,6 @@ function initPage() {
             }
         });
     });
-
     $(".MultipleRadioGroup").unbind('click').click(function() {
 
         // If this belongs to a "fake" record, don't attempt to save
@@ -1060,7 +1051,6 @@ function initPage() {
             }
         });
     });
-
     $(".SingleSelectGroup").unbind('change').change(function() {
 
         // If this belongs to a "fake" record, don't attempt to save
@@ -1105,7 +1095,6 @@ function initPage() {
             }
         });
     });
-
     {# NOTE - the lack of .MultipleSelectGroup is intentional...it's handled exactly the same as .MultipleRadioGroup #}
 
     {# Tag selections work on the same theory that a MultipleRadioGroup does #}

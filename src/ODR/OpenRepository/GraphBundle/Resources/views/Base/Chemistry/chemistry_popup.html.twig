@@ -110,6 +110,11 @@
             // Don't submit the datafield's form
             event.preventDefault();
 
+            if ( !$("#ODR_UTFpopup").hasClass('ODRHidden') ) {
+                // UTFInserterPopup already visible, close it
+                $("#ODR_UTFcancel_save").trigger('click');
+            }
+
             if ( !$("#{{ input_id }}_popup").hasClass('ODRHidden') ) {
                 // Popup already visible, close it
                 $("#{{ input_id }}_cancel_save").trigger('click');

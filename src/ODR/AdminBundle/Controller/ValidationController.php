@@ -2147,6 +2147,7 @@ class ValidationController extends ODRCustomController
             $invalid_datatype_plugins = array();
             $invalid_theme_element_plugins = array();
             $invalid_datafield_plugins = array();
+            $invalid_datafield_header_plugins = array();
             $invalid_array_plugins = array();
 
             foreach ($results as $result) {
@@ -2175,6 +2176,11 @@ class ValidationController extends ODRCustomController
                     if ( is_null($df_id) )
                         $invalid_datafield_plugins[] = $result;
                 }
+                else if ( $plugin_type === RenderPlugin::DATAFIELD_HEADER_PLUGIN ) {
+                    // DatafieldHeader plugins should only have a datafield id
+                    if ( is_null($df_id) )
+                        $invalid_datafield_header_plugins[] = $result;
+                }
                 else if ( $plugin_type === RenderPlugin::ARRAY_PLUGIN ) {
                     // Datatype/Array/ThemeElement plugins should only have a datatype id
                     if ( is_null($dt_id) )
@@ -2187,6 +2193,7 @@ class ValidationController extends ODRCustomController
             print '<pre>Invalid datatype plugins: '.print_r($invalid_datatype_plugins, true).'</pre>';
             print '<pre>Invalid themeelement plugins: '.print_r($invalid_theme_element_plugins, true).'</pre>';
             print '<pre>Invalid datafield plugins: '.print_r($invalid_datafield_plugins, true).'</pre>';
+            print '<pre>Invalid datafieldheader plugins: '.print_r($invalid_datafield_header_plugins, true).'</pre>';
             print '<pre>Invalid array plugins: '.print_r($invalid_array_plugins, true).'</pre>';
 
         }

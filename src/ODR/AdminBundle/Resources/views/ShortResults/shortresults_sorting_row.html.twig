@@ -1,0 +1,25 @@
+{% spaceless %}
+
+<div class="ODRShortResultsSortForm_criteria pure-u-1 pure-u-lg-7-24">
+    <label for="ODRShortResultsSortForm_{{ num }}" class="ODRShortResultsSortForm_label">{% if num == 0 %}Sort by:{% else %}Then by:{% endif %}&nbsp;</label>
+    <select id="ODRShortResultsSortForm_{{ num }}" class="ODRShortResultsSortForm_select" name="df_list[{{ num }}]">
+        <option value=""></option>
+        {% for df_id,df in cached_dt['dataFields'] %}
+            {% set df_typename = df['dataFieldMeta']['fieldType']['typeName'] %}
+            {% if df_typename == 'File' or df_typename == 'Image'
+                or df_typename == 'Multiple Select' or df_typename == 'Multiple Radio'
+                or df_typename == 'Markdown' or df_typename == 'Tags' or df_typename == 'XYZ Data'
+            %}
+                {# do nothing #}
+            {% else %}
+                <option value="{{ df_id }}" {% if df_id == sort_df_id %}selected{% endif %}>{{ df['dataFieldMeta']['fieldName'] }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+    <select class="ODRShortResultsSortForm_select" name="df_dir[{{ num }}]">
+        <option value="asc" {% if sort_df_dir == 'asc' %}selected{% endif %}>asc</option>
+        <option value="desc" {% if sort_df_dir == 'desc' %}selected{% endif %}>desc</option>
+    </select>
+</div>
+
+{% endspaceless %}

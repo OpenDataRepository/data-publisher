@@ -287,4 +287,13 @@ odr_plugins.rruff.amcsd:
                 - no_user_edits
                 - is_derived
 
+        radiation_element:
+            name: Radiation Element
+            description: The element (probably) used to generate the wavelength reported in the DIF File
+            type: ShortVarchar
+            display_order: 31
+            properties:
+                - no_user_edits
+                - is_derived
+
     config_options:

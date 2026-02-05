@@ -231,12 +231,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // ...I don't think any of AMCSD's fields qualify as "optional", actually
             );
 
-            // Would prefer the built-in file renaming feature to not work when the FileRenamer
-            //  plugin is active...
-            // Thanks to long covid this coupling is the least horrible method I can figure out
-            // TODO - fix this somehow, please
-            $extra_plugins = array();
-
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -284,20 +278,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $plugin_fields[$rpf_df_id] = $rpf_df;
                 $plugin_fields[$rpf_df_id]['rpf_name'] = $rpf_name;
 
-                // Would prefer the built-in file renaming feature to not work when the FileRenamer
-                //  plugin is active...
-                // Thanks to long covid this coupling is the least horrible method I can figure out
-                // TODO - fix this somehow, please
-                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-                    $df_id = $df['id'];
-                    $render_plugin_classname = $rpi['renderPlugin']['pluginClassName'];
-
-                    if ( !isset($extra_plugins[$df_id]) )
-                        $extra_plugins[$df_id] = array();
-
-                    $extra_plugins[$df_id][$render_plugin_classname] = $rpi;
-                }
-
                 // These strings are the "name" entries for each of the required fields
                 // So, "database_code_amcsd", not "database code"
                 switch ($rpf_name) {
@@ -339,6 +319,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     case 'Diffraction Search Values':
                     case 'Wavelength':
+                    case 'Radiation Element':
                         // These fields can't be edited, since they're from the DIF file
                         break;
 
@@ -408,7 +389,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'token_list' => $token_list,
 
                         'plugin_fields' => $plugin_fields,
-                        'extra_plugins' => $extra_plugins,
                     )
                 );
             }
@@ -888,7 +868,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             switch ( $rpf_df['rpf_name'] ) {
                 // These fields are derived from the DIF File
                 case 'Diffraction Search Values':
-//                case 'Wavelength':    // this one is optional
+//                case 'Wavelength':    // these two are optional
+//                case 'Radiation Element':
                     // If the DIF file is valid, then every one of these fields will have a value
                     if ( !isset($value_mapping[$df_id]) || is_null($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
                         $problem_fields[] = $rpf_df['rpf_name'];
@@ -911,8 +892,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * "Point Group", and "Crystal System" fields...but this isn't necessarily guaranteed to work
      * because of the flexibility permitted in defining "Space Group" fields...
      *
-     * This is separate from self::cifFileHasProblems() because a problem here is more lkely to be
-     * ODR's fault than the fault of the AMC/CIF files.
+     * This is separate from {@link self::cifFileHasProblems()} because a problem here is more lkely
+     * to be ODR's fault than the fault of the AMC/CIF files.
      *
      * @param array $plugin_fields
      * @param array $value_mapping
@@ -1354,8 +1335,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     // Unlike the other three files which all are created via the same process, the
                     //  Original CIF can be vastly different
-                    // This mostly manifests itself in the temperature/pressure but if there are
-                    //  any values only from the Original CIF then we want to clear them when the
+                    // This mostly manifests itself in the temperature/pressure...but if there are
+                    //  any values only from the Original CIF, then we want to clear them when the
                     //  Original CIF is deleted
                     $other_file_contents = self::getOtherFileContents($rpf_mapping, $current_values);
 
@@ -1367,6 +1348,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // These fields should always get cleared when a DIF File is deleted
                     $file_values['Diffraction Search Values'] = '';
                     $file_values['Wavelength'] = '';
+                    $file_values['Radiation Element'] = '';
 
                     // The authors should only get cleared when the AMC file doesn't exist
                     if ( !$amc_uploaded )
@@ -1569,8 +1551,49 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $user = $event->getUser();
 
             // Only care about the various file fields of a datatype using the AMCSD render plugin...
-            $relevant_rpf_name = self::isEventRelevant($datafield);
-            if ( $relevant_rpf_name ) {
+            // Also care about the "Radiation Element" field for this event
+            $relevant_rpf_name = self::isEventRelevant($datafield, true);
+            if ( $relevant_rpf_name === 'Radiation Element' ) {
+                // Map the field definitions in the render plugin to datafield ids
+                $rpf_mapping = self::getRenderPluginFieldsMapping($datatype);
+                $wavelength_df_id = $rpf_mapping['Wavelength'];
+                $radiation_element_df_id = $rpf_mapping['Radiation Element'];
+
+                // Get the currently uploaded files and the values in these fields from the datarecord
+                $current_values = self::getCurrentValues($datarecord);
+                if ( isset($current_values[$wavelength_df_id]) ) {
+                    $new_radiation_element_value = self::convertWavelengthToElement($current_values[$wavelength_df_id]);
+
+                    // Need to hydrate the RadiationElement datafield to be able to update the value...
+                    $query = $this->em->createQuery(
+                       'SELECT df
+                        FROM ODRAdminBundle:Datafields AS df
+                        WHERE df = :datafield_id
+                        AND df.deletedAt IS NULL'
+                    )->setParameter('datafield_id', $radiation_element_df_id);
+                    $results = $query->getResult();
+
+                    /** @var DataFields $df */
+                    $df = null;
+                    foreach ($results as $result) {
+                        // Should only be one
+                        $df = $result;
+                    }
+
+                    if ( !is_null($df) ) {
+                        $entity = $this->entity_create_service->createStorageEntity($user, $datarecord, $df);
+                        $this->entity_modify_service->updateStorageEntity(
+                            $user,
+                            $entity,
+                            array('value' => $new_radiation_element_value),
+                            true,    // don't flush immediately
+                            false    // don't fire PostUpdate event...nothing depends on this field
+                        );
+                        $this->logger->debug(' -- updating datafield '.$radiation_element_df_id.' (Radiation Element) to have the value "'.$new_radiation_element_value.'"', array(self::class, 'onMassEditTrigger()'));
+                    }
+                }
+            }
+            else if ( $relevant_rpf_name ) {
                 // ----------------------------------------
                 // This file was uploaded to the correct field, so it now needs to be processed
 
@@ -1753,10 +1776,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * the AMCSD render plugin.
      *
      * @param DataFields $datafield
+     * @param bool $is_mass_edit_trigger
      *
      * @return string|bool
      */
-    private function isEventRelevant($datafield)
+    private function isEventRelevant($datafield, $is_mass_edit_trigger = false)
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $datatype = $datafield->getDataType();
@@ -1790,6 +1814,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 ) {
                     // ...and the datafield that triggered the event is the "DIF File" datafield
                     return 'DIF File';
+                }
+                else if ( $is_mass_edit_trigger && isset($rpi['renderPluginMap']['Radiation Element'])
+                    && $rpi['renderPluginMap']['Radiation Element']['id'] === $datafield->getId()
+                ) {
+                    // ...and the datafield that triggered the event is the "DIF File" datafield
+                    return 'Radiation Element';
                 }
             }
         }
@@ -1862,6 +1892,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'DIF File':
                 case 'Diffraction Search Values':
                 case 'Wavelength':
+                case 'Radiation Element':
                     $rpf_mapping[$rpf_name] = $rpf_df_id;
                     break;
 
@@ -1983,8 +2014,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // If either of these files are uploaded...
                 foreach ($file_values as $rpf_name => $df_value) {
                     // ...the DIF File remains authoritative for these fields...
-                    if ( $rpf_name === 'Diffraction Search Values' || $rpf_name === 'Wavelength' )
+                    if ( $rpf_name === 'Diffraction Search Values'
+                        || $rpf_name === 'Wavelength' || $rpf_name === 'Radiation Element'
+                    ) {
                         continue;
+                    }
 
                     // ...but the remainder of the values defer to whatever was read from the
                     //  Minimal CIF and/or AMC files
@@ -2978,8 +3012,19 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             elseif ( strpos($line, 'X-RAY WAVELENGTH') !== false ) {
                 $matches = array();
-                if ( preg_match('/\s+X-RAY WAVELENGTH:\s+([^\s]+)/', $line, $matches) === 1 )
+                if ( preg_match('/\s+X-RAY WAVELENGTH:\s+([^\s]+)/', $line, $matches) === 1 ) {
                     $file_values['Wavelength'] = $matches[1];
+
+                    // If the file has a valid wavelength (which it should...)
+                    if (ValidUtility::isValidDecimal($file_values['Wavelength'])) {
+                        // ...then that wavelength value is most likely from an element
+                        $wavelength = floatval($file_values['Wavelength']);
+
+                        // ...and because of physics, each element only generates a pretty specific
+                        // wavelength when used for X-ray diffraction
+                        $file_values['Radiation Element'] = self::convertWavelengthToElement($wavelength);
+                    }
+                }
             }
             elseif ( strpos($line, 'CELL PARAMETERS:') !== false ) {
                 $matches = array();
@@ -3078,6 +3123,32 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // All data gathered, close the file and return the mapping array
         fclose($handle);
         return $file_values;
+    }
+
+
+    /**
+     * Currently not using the values in {@link CrystallographyDef::$element_radiation_wavelengths}
+     *
+     * @param float $wavelength
+     * @return string
+     */
+    private function convertWavelengthToElement($wavelength)
+    {
+        // The 0.01 tolerance is there because the values aren't actually trivial to determine, and
+        //  they keep getting miniscule adjustments every so often
+        if ($wavelength >= 1.78 && $wavelength <= 1.80)
+            return 'Co';
+        else if ($wavelength >= 1.53 && $wavelength <= 1.55)
+            return 'Cu';
+        else if ($wavelength >= 1.33 && $wavelength <= 1.35)
+            return 'Ga';
+        else if ($wavelength >= 0.70 && $wavelength <= 0.72)
+            return 'Mo';
+        else if ($wavelength >= 0.55 && $wavelength <= 0.57)
+            return 'Ag';
+
+        // Otherwise, this wavelength doesn't match an element
+        return '';
     }
 
 
@@ -3346,6 +3417,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $dif_file_df_id = $render_plugin_map['DIF File']['id'];
         $diffraction_search_values_df_id = $render_plugin_map['Diffraction Search Values']['id'];
         $wavelength_df_id = $render_plugin_map['Wavelength']['id'];
+        $radiation_element_df_id = $render_plugin_map['Radiation Element']['id'];
 
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
@@ -3359,6 +3431,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $original_cif_file_contents_df_id => array($original_cif_file_df_id),
             $diffraction_search_values_df_id => array($dif_file_df_id),
             $wavelength_df_id => array($dif_file_df_id),
+            $radiation_element_df_id => array($dif_file_df_id),
 
             $mineral_name_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
             $a_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
@@ -3399,10 +3472,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
+            // Triggering the file rebuilds is sometimes useful...
             'AMC File' => 1,
             'CIF File' => 1,
             'Original CIF File' => 1,
             'DIF File' => 1,
+
+            // ...as is triggering a rebuild of this field due to potential future wavelength changes
+            'Radiation Element' => 1,
         );
 
         $ret = array();
@@ -3426,10 +3503,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
+            // Triggering the file rebuilds is sometimes useful...
             'AMC File' => 1,
             'CIF File' => 1,
             'Original CIF File' => 1,
             'DIF File' => 1,
+
+            // ...as is triggering a rebuild of this field due to potential future wavelength changes
+            'Radiation Element' => 1,
         );
 
         $trigger_fields = array();

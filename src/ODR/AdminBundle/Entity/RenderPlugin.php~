@@ -38,8 +38,8 @@ class RenderPlugin
 
     /*
      * Plugins with this constant are called in *_datafield.html.twig, and can only override a single
-     * datafield...sometimes to add extra functionality, like the Chemistry plugin...but can also
-     * just change the displayed value, like the Currency plugin.
+     * datafield...usually this is for changing the displayed value (i.e. Currency or URL Plugins),
+     * but these can also override how a field is searched (i.e. ChemicalElementSearch).
      */
     const DATAFIELD_PLUGIN = 3;
 
@@ -51,6 +51,13 @@ class RenderPlugin
      * plugins modify the array structure, or what order they do it in.
      */
     const ARRAY_PLUGIN = 4;
+
+    /*
+     * Plugins with this constant are also called in *_datafield.html.twig, but they only add a
+     * button/icon in the datafield's header...the actual rendering and/or saving of the datafield
+     * are not affected.
+     */
+    const DATAFIELD_HEADER_PLUGIN = 5;
 
 
     /**

@@ -4,8 +4,8 @@
 
     <fieldset>
     {% if is_illegal_render_plugin %}
-        <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
-        <span>&nbsp;{{ illegal_render_plugin_message }}</span>
+        <span class="ODRInputError"><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+        <span class="ODRInputError">&nbsp;{{ illegal_render_plugin_message }}</span>
     {% elseif render_plugin_instance is not null and render_plugin_instance.deletedAt is null and render_plugin_instance.renderPlugin.id == render_plugin.id %}
         <span>The {% if local_datafield == null %}Database{% else %}Datafield{% endif %} is currently using this Render Plugin.</span>
         {% if is_datatype_admin %}

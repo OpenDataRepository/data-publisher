@@ -76,7 +76,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldHeaderPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
@@ -85,7 +85,7 @@ use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
+class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
 {
 
     /**
@@ -226,28 +226,6 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
 
 
             // ----------------------------------------
-            // ODR is designed so that render plugins can completely override the rendering system...
-            //  which makes it difficult for plugins to cooperatively change the HTML
-
-            // This plugin needs to cooperate with the FileRenamerPlugin, and the easiest way to do
-            //  it is to have one of the plugins handle both
-            $uses_file_renamer_plugin = false;
-            foreach ($datafield['renderPluginInstances'] as $rpi_id => $rpi) {
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
-                    $uses_file_renamer_plugin = true;
-//                    break;
-                }
-
-                // Due to both this plugin and the RRUFFFileHeaderInserterPlugin sharing a render
-                //  value, the RenderPlugin system doesn't stop them from both being active at the
-                //  same time...because I'm not inclined to overhaul the plugin system at this time,
-                //  I'm going to throw an exception here
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter' ) {
-                    $datafield_name = $datafield['dataFieldMeta']['fieldName'];
-                    throw new ODRException('The datafield "'.$datafield_name.'" should not have both the Base FileHeaderInserter and the RRUFF FileHeaderInserter plugin active simultaneously');
-                }
-            }
-
             $output = "";
             if ( $rendering_options['context'] === 'display' ) {
                 // TODO - also work in the 'display' context?  but finding errors to display is expensive...
@@ -264,12 +242,10 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/file_header_inserter_edit_datafield.html.twig',
+                    'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/file_header_inserter_edit_addon.html.twig',
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-
-                        'uses_file_renamer_plugin' => $uses_file_renamer_plugin,
                     )
                 );
             }
@@ -311,10 +287,9 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
                 $is_correct_plugin = true;
             }
 
-            // Due to both this plugin and the RRUFFFileHeaderInserterPlugin sharing a render
-            //  value, the RenderPlugin system doesn't stop them from both being active at the
-            //  same time...because I'm not inclined to overhaul the plugin system at this time,
-            //  I'm going to throw an exception here
+            // The RenderPlugin system doesn't stop this plugin and the RRUFFFileHeaderInserterPlugin
+            //  from being active at the same time...because I'm not currently inclined to overhaul
+            //  the plugin system, I'm going to throw an exception here
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.file_header_inserter' ) {
                 $datafield_name = $datafield->getFieldName();
                 throw new ODRException('The datafield "'.$datafield_name.'" should not have both the Base FileHeaderInserter and the RRUFF FileHeaderInserter plugin active simultaneously');

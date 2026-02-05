@@ -123,8 +123,7 @@
 
         // Values for Radio datafields need to be manually set
         $(context).find(".ODRRadioSearchDiv").each(function () {
-            var data = $(this).attr('id').split(/_/);
-            var datafield_id = data[1];
+            var datafield_id = $(this).attr('id').split(/_/)[1];
 
             // Reset the input's value since this is rebuilding the search value from scratch
             var datafield = $(this).children("#datafield_" + datafield_id);
@@ -156,8 +155,7 @@
 
         // ...same for tag datafields
         $(context).find(".ODRTagSearchDiv").each(function () {
-            var data = $(this).attr('id').split(/_/);
-            var datafield_id = data[1];
+            var datafield_id = $(this).attr('id').split(/_/)[1];
 
             // Reset the input's value since this is rebuilding the search value from scratch
             var datafield = $(this).children("#datafield_" + datafield_id);
@@ -221,11 +219,10 @@
 
         // Ensure the two parts of the search criteria for a file/image match
         $(context).find(".ODRFileDatafieldName").each(function () {
-            var df_id_data = $(this).attr('id').split(/_/);
-            var df_id = df_id_data[1];
+            var datafield_id = $(this).attr('id').split(/_/)[1];
 
             var value = $(this).val().trim();
-            var exist_value = $("#datafield_" + df_id + "_ex option:selected").val();
+            var exist_value = $("#datafield_" + datafield_id + "_ex option:selected").val();
 
             if (exist_value == '') {
                 $(this).val('');
@@ -320,7 +317,14 @@
                     window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
                     // ODR will return a URL to get the search result
-                    window.location = data.url;
+                    if ( window.location.href !== data.url ) {
+                        // console.log('redirecting to ', data.url);
+                        window.location = data.url;
+                    }
+                    else {
+                        // ...apparently ODR hangs if it tries to redirect to the page it's currently on?
+                        window.location.reload();
+                    }
                 }
                 else if ( intent === 'linking' ) {
                     // ODR will return a URL to get the result, but we're not going to redirect to it...
@@ -328,15 +332,15 @@
 
                     // Need to append the tab's id to the get request...if it doesn't exist, then the
                     //  first pagelength change on the linking results won't actually change anything
-                    var data = '';
+                    var post_data = '';
                     if ( window.sessionStorage.getItem('odr_tab_id') )
-                        data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
+                        post_data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
 
                     // ...instead, want to render its html into the #ODRSearchBoxContent div on this page
                     $.ajax({
                         type: 'GET',
                         url: url,
-                        data: data,
+                        data: post_data,
                         dataType: 'json',
                         success: function (data, textStatus, jqXHR) {
                             $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);

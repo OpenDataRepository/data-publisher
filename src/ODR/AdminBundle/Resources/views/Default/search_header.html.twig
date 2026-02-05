@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{# NOTE: this is called by Display/Edit mode.  SearchResults uses pagination_header.html.twig instead, and TextResults doesn't have a separate header file. #}
+
 {% if search_key != '' %}
 <div id="ODRSearchResultsButtons" class="pure-u-1-2 pure-u-xl-1-3 pure-u-xxl-1-4 pure-u-xxxl-1-4 pure-u-x4k-1-4">
     {% if search_result_count > 1 %}

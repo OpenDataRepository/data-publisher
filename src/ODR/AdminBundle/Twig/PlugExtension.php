@@ -20,6 +20,7 @@ use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Interfaces
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldHeaderPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
@@ -52,6 +53,7 @@ class PlugExtension extends \Twig_Extension
             RenderPlugin::DATATYPE_PLUGIN => 'datatype',
             RenderPlugin::THEME_ELEMENT_PLUGIN => 'themeElement',
             RenderPlugin::DATAFIELD_PLUGIN => 'datafield',
+            RenderPlugin::DATAFIELD_HEADER_PLUGIN => 'datafieldHeader',
             RenderPlugin::ARRAY_PLUGIN => 'array',
         );
     }
@@ -71,6 +73,7 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('can_execute_datatype_plugin', array($this, 'canExecuteDatatypePluginFilter')),
             new \Twig\TwigFilter('can_execute_theme_element_plugin', array($this, 'canExecuteThemeElementPluginFilter')),
             new \Twig\TwigFilter('can_execute_datafield_plugin', array($this, 'canExecuteDatafieldPluginFilter')),
+            new \Twig\TwigFilter('can_execute_datafield_header_plugin', array($this, 'canExecuteDatafieldHeaderPluginFilter')),
             new \Twig\TwigFilter('can_execute_search_plugin', array($this, 'canExecuteSearchPluginFilter')),
 
             new \Twig\TwigFilter('array_plugin', array($this, 'arrayPluginFilter')),
@@ -78,6 +81,7 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('theme_element_plugin_placeholder', array($this, 'themeElementPluginPlaceholderFilter')),
             new \Twig\TwigFilter('theme_element_plugin', array($this, 'themeElementPluginFilter')),
             new \Twig\TwigFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
+            new \Twig\TwigFilter('datafield_header_plugin', array($this, 'datafieldHeaderPluginFilter')),
             new \Twig\TwigFilter('search_plugin', array($this, 'searchPluginFilter')),
 
             new \Twig\TwigFilter('comma', array($this, 'commaFilter')),
@@ -362,6 +366,40 @@ class PlugExtension extends \Twig_Extension
 
 
     /**
+     * Returns whether the DatafieldHeader RenderPlugin should be run in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datafield
+     * @param array|null $datarecord
+     * @param array $rendering_options
+     *
+     * @return bool|string
+     * @throws \Exception
+     */
+    public function canExecuteDatafieldHeaderPluginFilter($render_plugin_instance, $datafield, $datarecord, $rendering_options)
+    {
+        try {
+            // Determine whether the render plugin should be run
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::DATAFIELD_HEADER_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
+
+            /** @var DatafieldHeaderPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else if ( !is_null($datarecord) )
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
      * Returns whether the Search RenderPlugin should be run in the current context.
      *
      * @param array $render_plugin_instance
@@ -562,6 +600,49 @@ class PlugExtension extends \Twig_Extension
 
             // Load and execute the render plugin
             /** @var DatafieldPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->execute($datafield, $datarecord, $render_plugin_instance, $rendering_options);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else if ( !is_null($datarecord) )
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
+     * Loads and executes a RenderPlugin for a datafieldHeader.
+     *
+     * @param array $datafield
+     * @param array|null $datarecord
+     * @param array $render_plugin_instance
+     * @param array $rendering_options
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function datafieldHeaderPluginFilter($datafield, $datarecord, $render_plugin_instance, $rendering_options)
+    {
+        try {
+            // Ensure this only is run on a render plugin for a datafieldHeader
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::DATAFIELD_HEADER_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datafield '.$datafield['id'].' as a Datafield Plugin</div>';
+
+            if ( !is_null($datarecord) && isset($datarecord['dataRecordFields']) ) {
+                // Prune $datarecord so the render plugin service can't get values of other datafields
+                foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
+                    if ( $datafield['id'] !== $df_id )
+                        unset( $datarecord['dataRecordFields'][$df_id] );
+                }
+            }
+
+            // Load and execute the render plugin
+            /** @var DatafieldHeaderPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             return $svc->execute($datafield, $datarecord, $render_plugin_instance, $rendering_options);
         }

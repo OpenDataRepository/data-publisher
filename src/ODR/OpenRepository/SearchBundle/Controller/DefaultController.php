@@ -1021,7 +1021,7 @@ class DefaultController extends Controller
                 $odr_tab_id = $odr_tab_service->createTabId();
 
             // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-            $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key, true);
+            $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $search_key, true);
 
             // Bypass search results list entirely if only one datarecord...
             if ( count($grandparent_datarecord_list) == 1 && $intent === 'searching') {

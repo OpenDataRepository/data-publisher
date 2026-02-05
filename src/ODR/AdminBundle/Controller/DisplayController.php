@@ -178,6 +178,7 @@ class DisplayController extends ODRCustomController
 
 
             // If $search_theme_id is set...
+            $search_theme = null;
             if ($search_theme_id != 0) {
                 // ...require a search key to also be set
                 if ($search_key == '')
@@ -243,7 +244,7 @@ class DisplayController extends ODRCustomController
             $datarecord_list = '';
             if ($search_key !== '') {
                 // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key);
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $search_theme, $user_permissions, $search_key);
 
                 // Determine the correct lists of datarecords to use for rendering...
                 $datarecord_list = $original_datarecord_list;

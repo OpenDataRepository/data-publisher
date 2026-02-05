@@ -215,14 +215,18 @@ class TableThemeHelperService
     /**
      * Returns the array version of the datafield at position $column_num in the given table theme.
      *
+     * NOTE: {@link self::getTableThemeDatafields()} will return '0' for the first visible column...
+     * but because of {@link self::getColumnNames()}, datatables.js considers '2' to be the first
+     * visible column instead. It's up to the caller to convert from datatables's stored values prior
+     * to calling this function, or convert this function's return prior to sending it back to datatables.
+     *
      * @param ODRUser $user
      * @param int $datatype_id
      * @param int $theme_id
      * @param int $column_num
      *
-     * @throws ODRException
-     *
      * @return array
+     * @throws ODRException
      */
     public function getDatafieldAtColumn($user, $datatype_id, $theme_id, $column_num)
     {
@@ -234,7 +238,37 @@ class TableThemeHelperService
             return $df_array[$column_num];
 
         // Otherwise, throw an exception
-        throw new ODRException('Unable to locate the datafield entry at column '.$column_num.' for sorting');
+        throw new ODRException('Unable to locate the datafield entry at column '.$column_num.' in theme '.$theme_id.' for sorting');
+    }
+
+
+    /**
+     * Returns the index of the given datafield in the given table theme, if possible
+     *
+     * NOTE: {@link self::getTableThemeDatafields()} will return '0' for the first visible column...
+     * but because of {@link self::getColumnNames()}, datatables.js considers '2' to be the first
+     * visible column instead. It's up to the caller to convert from datatables's stored values prior
+     * to calling this function, or convert this function's return prior to sending it back to datatables.
+     *
+     * @param ODRUser $user
+     * @param int $datatype_id
+     * @param int $theme_id
+     * @param int $datafield_id
+     *
+     * @return int|null
+     */
+    public function getColumnForDatafield($user, $datatype_id, $theme_id, $datafield_id)
+    {
+        // Get the array versions of the datafields being viewed by the user
+        $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0xf804b5d8);
+
+        foreach ($df_array as $column_num => $df_data) {
+            if ( $df_data['id'] == $datafield_id )
+                return $column_num;
+        }
+
+        // Otherwise, return null
+        return null;
     }
 
 

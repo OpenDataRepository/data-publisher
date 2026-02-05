@@ -65,7 +65,7 @@
 {% endif %}
 
     {# Record View Menu #}
-    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal">
+    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal" style="display: none;">
         <ul class="pure-menu-list">
         {% if display_editable_records_toggle %}
             <li class="pure-menu-item SpacerRight">
@@ -147,6 +147,7 @@
     $(function() {
         $("#ODRPageSelectSettings").unbind('click').click(function(event) {
             $("#page_settings_menu").toggle('fast');
+            $("#ODRShortResultsSortForm_div").toggle('fast');
         });
 
         {# NOTE: intentionally not defining a handler for "#ChooseView" here...that requires a callback which depends on whether this page is being used for linking or not #}

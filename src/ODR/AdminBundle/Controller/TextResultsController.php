@@ -257,7 +257,7 @@ class TextResultsController extends ODRCustomController
                 }
 
                 // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key);
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $search_key);
 
 
                 // ----------------------------------------
@@ -527,20 +527,64 @@ class TextResultsController extends ODRCustomController
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            /** @var TableThemeHelperService $table_theme_helper_service */
+            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             // The datatables.js instance used for the search results page needs to know both its
             //  previous state (to restore the table when returning from Display/Edit mode), and
             //  also needs to know any sort_criteria used for the tab
-            $return = array('state' => array(), 'sort_criteria' => array());
-
             $tab_data = $odr_tab_service->getTabData($odr_tab_id);
             if ( !is_null($tab_data) ) {
                 // Since the tab data exists, extract and return the 'state' and 'sort_criteria' arrays
-                //  to datatables.js if possible
+                //  to datatables.js if possible...
+                $state = $sort_criteria = array();
                 if ( isset($tab_data['state']) )
-                    $return['state'] = $tab_data['state'];
+                    $state = $tab_data['state'];
                 if ( isset($tab_data['sort_criteria']) )
-                    $return['sort_criteria'] = $tab_data['sort_criteria'];
+                    $sort_criteria = $tab_data['sort_criteria'];
+
+                // ...but need to verify that the info in $state['order'] and $sort_criteria actually
+                //  match each other
+                // It will if the user has been making changes via the table interface, but won't
+                //  necessarily if they've been making changes via the ShortResults interface...
+                if ( !empty($sort_criteria) ) {
+                    // The main issue is that the table layout may not have the columns that
+                    //  $sort_criteria wants...any sort info referring to datafields not in the table
+                    //  layout should be dropped
+                    $new_order = $new_df_ids = $new_df_dirs = array();
+                    foreach ($sort_criteria['datafield_ids'] as $num => $df_id) {
+                        $column_num = $table_theme_helper_service->getColumnForDatafield($user, $tab_data['dt_id'], $tab_data['theme_id'], $df_id);
+                        if ( !is_null($column_num) ) {
+                            // Only save the field info if it exists in the table theme
+                            $new_order[] = array(
+                                0 => $column_num+2,  // Need to adjust for the two hidden columns
+                                1 => $sort_criteria['sort_directions'][$num],
+                            );
+                            // ...and ensure the sort criteria matches what the table theme is using
+                            $new_df_ids[] = $df_id;
+                            $new_df_dirs[] = $sort_criteria['sort_directions'][$num];
+                        }
+                    }
+                    // Update both arrays with the correct sorting data
+                    $state['order'] = $new_order;
+                    $sort_criteria = array(
+                        'datafield_ids' => $new_df_ids,
+                        'sort_directions' => $new_df_dirs,
+                    );
+
+                    // If the sorting criteria has changed for the lists of datarecord ids...
+                    if ( $odr_tab_service->hasSortCriteriaChanged($odr_tab_id, $sort_criteria['datafield_ids'], $sort_criteria['sort_directions']) ) {
+                        // ...then change (or delete) the criteria stored in the user's session
+                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_criteria['datafield_ids'], $sort_criteria['sort_directions']);
+                        $odr_tab_service->clearSearchResults($odr_tab_id);
+                    }
+                }
+
+                // Return the fixed array
+                $return = array('state' => $state, 'sort_criteria' => $sort_criteria);
             }
         }
         catch (\Exception $e) {

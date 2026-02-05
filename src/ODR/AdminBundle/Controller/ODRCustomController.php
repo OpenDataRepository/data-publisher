@@ -175,10 +175,18 @@ class ODRCustomController extends Controller
         // Ensure the tab refers to the given search key
         $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
         if ( $expected_search_key !== $search_key )
-            $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId());
+            $odr_tab_service->setSearchKey($odr_tab_id, $search_key, $datatype->getId(), $theme->getId());
 
         // Grab the page length for this tab from the session, if possible
         $page_length = $odr_tab_service->getPageLength($odr_tab_id, $intent);
+
+        // Also get the sort criteria, if possible
+        $sort_datafields = $sort_directions = array();
+        $sort_data = $odr_tab_service->getSortCriteria($odr_tab_id);
+        if ( !is_null($sort_data) && !empty($sort_data['datafield_ids']) ) {
+            $sort_datafields = $sort_data['datafield_ids'];
+            $sort_directions = $sort_data['sort_directions'];
+        }
 
         // Due to the existence of table themes that display all records, the page_length variable
         //  in the user's session needs to be verified that it makes sense for the currently
@@ -401,6 +409,11 @@ class ODRCustomController extends Controller
                         'editable_only' => $only_display_editable_datarecords,
                         'can_edit_datatype' => $can_edit_datatype,
                         'use_jupyterhub' => $use_jupyterhub,
+
+                        'datatype_array' => $stacked_datatype_array,
+                        'odr_tab_id' => $odr_tab_id,
+                        'sort_datafields' => $sort_datafields,
+                        'sort_directions' => $sort_directions,
                     )
                 );
             }
