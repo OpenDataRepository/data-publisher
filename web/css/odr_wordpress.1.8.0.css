@@ -2623,7 +2623,7 @@ form .row {
     position: -o-sticky;
     margin-bottom: 3px;
     padding-bottom: 8px;
-    text-align: center;
+    text-align: right;
 
     top: 0;
     z-index: 990;
@@ -2631,6 +2631,9 @@ form .row {
     -webkit-box-shadow: none !important;
     -moz-box-shadow: none !important;
     box-shadow: none !important;
+}
+#pagination_header > .ODRPageSelectTools {
+    padding-top: 10px;
 }
 
 #pagination_header button {
@@ -4517,15 +4520,6 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 #ODRPageSelectButton {
     margin: 0;
-}
-#ODRPageSelect_header, #ODRPageSelect_sort {
-    margin-top: 12px;
-}
-#ODRPageSelect_header {
-    text-align: left;
-}
-#ODRPageSelect_sort {
-    text-align: right;
 }
 .ODRShortResultsSortForm_submitdiv {
     text-align: left;
