@@ -1871,10 +1871,20 @@ body {
     -ms-user-select: none;
     user-select: none;
 }
-/*#TextResults_length {*/
 .dataTables_length {
     padding-top: 6px;
-    padding-left: 20px;
+    /*padding-left: 10px;*/
+    float: unset !important;
+}
+@media screen and (max-width: 80em) {
+    .dataTables_length {
+        text-align: right;
+    }
+}
+@media screen and (max-width: 767px) {
+    .dataTables_length {
+        text-align: center;
+    }
 }
 .dataTables_length > label {
     font-size: 100% !important;
@@ -1883,18 +1893,36 @@ body {
     height: 30px !important;
     top: 0 !important;
 }
-#TextResults_filter {
-    padding-left: 10px;
-    padding-bottom: 10px;
+.dataTables_filter {
+    /*padding-left: 10px;*/
+    /*padding-bottom: 10px;*/
+    padding-top: 5px;
+
+    float: unset !important;
+}
+.dataTables_filter_input {
+    margin-left: 5px !important;
 }
 .dataTables_info {
-    padding-top: 10px !important;
-    padding-left: 10px;
+    padding-top: 6px !important;
+
+    float: unset !important;
 }
-#TextResults_paginate {
-    margin-top: -5px;
-    padding-top: 0;
+.dataTables_paginate {
+    margin-top: -5px !important;
+    padding-top: 0 !important;
     cursor: pointer;
+
+    float: unset !important;
+    text-align: right !important;
+}
+@media screen and (max-width: 80em) {
+    .dataTables_paginate {
+        text-align: left !important;
+    }
+}
+#TextResults_first, #TextResults_previous, #TextResults_next, #TextResults_last {
+    padding: 0.5em 0.5em;
 }
 #TextResults_paginate a:visited,
 #TextResults_paginate a:active,
@@ -1904,6 +1932,11 @@ body {
 }
 .dataTable {
     width: 100%;
+}
+
+.ODRPageSelectTools {
+    text-align: right;
+    padding-top: 5px;
 }
 
 .ODRTableRecord {
@@ -4285,9 +4318,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     width: 100% !important;
     color: #666666 !important;
 }
-.ODRShortResultsHeaderLeft {
+.ODRShortResultsHeaderLeft,
+.ODRTextResultsHeaderLeft {
 }
-.ODRShortResultsHeaderRight {
+.ODRShortResultsHeaderRight,
+.ODRTextResultsHeaderRight {
     float: right !important;
     font-size: 10px;
     color: #888888;

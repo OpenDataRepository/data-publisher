@@ -473,6 +473,10 @@ class ODRCustomController extends Controller
             $theme_array = $theme_info_service->getThemeArray($theme->getId());
             $public_datarecord_list = array();
 
+            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId(), false);
+            $empty_dr_array = array();
+            $permissions_service->filterByGroupPermissions($datatype_array, $empty_dr_array, $user_permissions);
+
             $column_data = array();
             $row_data = array();
             $scroll_target = '';
@@ -537,6 +541,8 @@ class ODRCustomController extends Controller
                 $template,
                 array(
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
+
+                    'datatype_array' => $datatype_array,
 
                     'datatype' => $datatype,
                     'has_datarecords' => $has_datarecords,

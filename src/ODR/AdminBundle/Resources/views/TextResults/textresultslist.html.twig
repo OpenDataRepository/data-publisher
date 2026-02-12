@@ -4,16 +4,20 @@
    ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
    when intent == 'linking' #}
 
+{% set dt = datatype_array[datatype.id] %}  {# the 'datatype' variable is the hydrated version #}
 {% set theme = theme_array[initial_theme_id] %}
 
 {% set is_datatype_admin = false %}
-{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+{% if user_permissions[ dt.id ] is defined and user_permissions[ dt.id ][ 'dt_admin' ] is defined %}
     {% set is_datatype_admin = true %}
 {% endif %}
 
 <div class="ODRFormWrap">
-    <div class="ODRTextResultsTitle header">
-        <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+    <div class="ODRTextResultsTitle">
+        {% if dt != null %}
+            <span class="ODRTextResultsHeaderLeft">Display Records - {{ dt.dataTypeMeta.shortName }}</span>
+            <span class="ODRTextResultsHeaderRight">[uuid: {{ dt.unique_id }}]</span>
+        {% endif %}
     </div>
 
     {# Page/View Options - notitle is intentionally undefined #}
@@ -32,6 +36,8 @@
 
         'user': user,
         'user_permissions': user_permissions,
+
+        'notitle': true,
     } %}
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
@@ -109,26 +115,23 @@
 
             {# https://datatables.net/reference/option/dom
                 "dom" parameter results in:
-                <div class="wrapper">
-                    <div class="ODRDTInfo">
+                <div class="dataTables_wrapper">
+                    <div class="ODRDTHeader">
                         {information}
                         {length}
-                    </div>
-                    <div class="ODRDTPager">
                         {pagination}
+                        <div class="ODRPageSelectTools"></div>
                     </div>
                     {processing}
                     {table}
-                    <div class="ODRDTInfoFoot">
+                    <div class="ODRDTFooter">
                         {information}
                         {length}
-                    </div>
-                    <div class="ODRDTPagerFoot">
                         {pagination}
                     </div>
                </div>
             #}
-            "dom": '<"ODRDTInfo"il><"ODRDTPager"p>rt<"ODRDTInfoFoot"il><"ODRDTPagerFoot"p>',
+            "dom": '<"ODRDTHeader"ilp<"ODRPageSelectTools">>rt<"ODRDTFooter"ilp>',
 
             {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",
@@ -276,6 +279,18 @@
             }
 
         });
+
+        $(".dataTables_info").addClass('pure-u-xl-8-24 pure-u-lg-16-24 pure-u-md-16-24 pure-u-sm-1');
+        $(".dataTables_length").addClass('pure-u-xl-4-24 pure-u-lg-7-24 pure-u-md-7-24 pure-u-sm-1');
+        $(".dataTables_paginate").addClass('pure-u-xl-11-24 pure-u-lg-22-24 pure-u-md-22-24 pure-u-sm-22-24');
+        $(".dataTables_paginate .paginate_input").addClass('pure-u-4-24');
+
+        $(".ODRPageSelectTools").html('<a id="ODRPageSelectSettings"><i class="fa fa-lg fa-fw fa-cog"></i>{#<span class="ODRPaginationLabel">&nbsp;Tools</span>#}</a>');
+        $("#ODRPageSelectSettings").unbind('click').click(function(event) {
+            $("#page_settings_menu").toggle('fast');
+            $("#ODRShortResultsSortForm_div").toggle('fast');
+        });
+        $(".ODRPageSelectTools").addClass('pure-u-1-24');
 
 {% if is_oversized_search_key %}
         $("#ODRSearchKeyWarning").removeClass('ODRHidden');
