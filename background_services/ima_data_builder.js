@@ -251,7 +251,7 @@ async function app() {
 
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
-                    content = 'if(master_tag_data === undefined) let master_tag_data = [];\n';
+                    content = 'let master_tag_data = [];\n';
                     // Get IMA Template (for Tag Data)
                     // console.log('IMA Template: ' + data.ima_template_url)
                     let ima_record_template = await loadPage(data.ima_template_url);
