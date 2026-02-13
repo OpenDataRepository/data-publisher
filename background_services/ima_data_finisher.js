@@ -169,6 +169,9 @@ async function app() {
                                 await writeFile(output_path + '/mineral_data_update.js', '');
                                 await writeFile(output_path + '/mineral_names_update.php', '<?php \n');
                                 await writeFile(output_path + '/author_names_update.php', '<?php \n');
+                                await writeFile(output_path + '/journal_names_update.php', '<?php \n');
+                                await writeFile(output_path + '/rruff_mineral_names_update.php', '<?php \n');
+                                await writeFile(output_path + '/amcsd_mineral_names_update.php', '<?php \n');
                                 await writeFile(output_path + '/cellparams_data_update.js', '');
                                 await writeFile(output_path + '/references_update.js', '');
                                 await writeFile(output_path + '/master_tag_data_update.js', '');
