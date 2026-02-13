@@ -40,7 +40,7 @@
     {% endif %}
 
     {% if theme_data.theme_type == "master" or theme_data.is_table_theme %}
-        <div class="ODRViewNote">{% if theme_data.theme_type == "master" %}[ Master theme/view for database ]&nbsp;&nbsp;{% endif %}{% if theme_data.is_table_theme %}[ Table view ]{% endif %}</div>
+        <div class="ODRViewNote">{% if theme_data.theme_type == "master" %}[ Master theme/view for database ]&nbsp;&nbsp;{% endif %}{% if theme_data.is_table_theme %}[ Table view {% if theme_data.full_render %}- unpaginated {% endif %}]{% endif %}</div>
         {% set need_spacer = true %}
     {% endif %}
     {% if theme_data.theme_visibility == SHORT_CONTEXT %}

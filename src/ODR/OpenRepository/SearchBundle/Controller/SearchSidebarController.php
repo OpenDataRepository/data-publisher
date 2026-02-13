@@ -665,9 +665,11 @@ class SearchSidebarController extends ODRCustomController
             // ----------------------------------------
             // Want to inform the user whether this layout works for the current search key
             $current_inverse_datatype_id = null;  // makes more sense in twig if this is null instead of -1
-            $search_params = $search_key_service->decodeSearchKey($search_key);
-            if ( isset($search_params['inverse']) )
-                $current_inverse_datatype_id = intval($search_params['inverse']);
+            if ( $search_key !== '' ) {
+                $search_params = $search_key_service->decodeSearchKey($search_key);
+                if ( isset($search_params['inverse']) )
+                    $current_inverse_datatype_id = intval($search_params['inverse']);
+            }
 
 
             // ----------------------------------------

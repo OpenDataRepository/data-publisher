@@ -4,16 +4,20 @@
    ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
    when intent == 'linking' #}
 
+{% set dt = datatype_array[datatype.id] %}  {# the 'datatype' variable is the hydrated version #}
 {% set theme = theme_array[initial_theme_id] %}
 
 {% set is_datatype_admin = false %}
-{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+{% if user_permissions[ dt.id ] is defined and user_permissions[ dt.id ][ 'dt_admin' ] is defined %}
     {% set is_datatype_admin = true %}
 {% endif %}
 
 <div class="ODRFormWrap">
-    <div class="ODRTextResultsListTitle header">
-        <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+    <div class="ODRTextResultsTitle">
+        {% if datatype != null %}
+            <span class="ODRTextResultsHeaderLeft">Display Records - {{ dt.dataTypeMeta.shortName }}</span>
+            <span class="ODRTextResultsHeaderRight">[uuid: {{ dt.unique_id }}]</span>
+        {% endif %}
     </div>
 
     {# Page/View Options - notitle is intentionally undefined #}
@@ -32,6 +36,8 @@
 
         'user': user,
         'user_permissions': user_permissions,
+
+        'notitle': true,
     } %}
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
@@ -78,16 +84,8 @@
 
 </div><!-- End of .ODRFormWrap -->
 
-<style>
-    .dataTables_paginate {
-        padding-top: 10px !important;
-        padding-left: 10px;
-    }
-    .paginate_button {
-        padding: 0em 0.75em !important;
-    }
-
 {% if theme.themeMeta.enableHorizontalScrolling == true %}
+<style>
     {# NOTE: this is intentionally a *local* override to CSS...the datatables FixedHeader plugin can't handle horizontal scrolling at the moment #}
     .dataTables_scrollHead {
          position: sticky !important;
@@ -96,8 +94,8 @@
          background-color: white;
          box-shadow: 0px 5px 5px 0px rgba(82, 63, 105, 0.08);
      }
-{% endif %}
 </style>
+{% endif %}
 
 <script>
     $(function() {
@@ -154,21 +152,20 @@
 
             {# https://datatables.net/reference/option/dom
                 "dom" parameter results in:
-                <div class="wrapper">
-                    <div class="ODRDTInfo">
+                <div class="dataTables_wrapper">
+                    <div class="ODRDTHeader">
                         {information}
-                    </div>
-                    <div class="ODRDTPager">
                         {filter}
+                        <div class="ODRPageSelectTools"></div>
                     </div>
                     {processing}
                     {table}
-                    <div class="ODRDTInfoFoot">
+                    <div class="ODRDTFooter">
                         {information}
                     </div>
                </div>
             #}
-            "dom": '<"ODRDTInfo"i><"ODRDTPager"f>rt<"ODRDTInfoFoot"i>',
+            "dom": '<"ODRDTHeader"if<"ODRPageSelectTools">>rt<"ODRDTFooter"i>',
             {# NOTE: no point having datatable's built-in pagination active...it won't work here since page_length === count(datarecord_list) #}
             "paging": false,
 
@@ -586,6 +583,22 @@
                 UpdateURL( '{{ path_str }}' + '/' + (offset+1) );
         });
 {% endif %}
+    });
+
+    $("#TextResults").on('init.dt', function(e, settings) {
+        {# NOTE - need to include this here so it executes after the table finishes drawing, instead of after page load #}
+        {# Unlike the smaller table, the extra initialization javascript below was typically executing after the draw.dt event when it was somewhere else #}
+        $(".dataTables_info").addClass('pure-u-xl-12-24 pure-u-lg-12-24 pure-u-md-23-24 pure-u-sm-1');
+        $(".dataTables_filter").addClass('pure-u-xl-11-24 pure-u-lg-11-24 pure-u-md-22-24 pure-u-sm-22-24');
+
+        $("#TextResults_filter").find('input').addClass('dataTables_filter_input');
+
+        $(".ODRPageSelectTools").html('<a id="ODRPageSelectSettings"><i class="fa fa-lg fa-fw fa-cog"></i>{#<span class="ODRPaginationLabel">&nbsp;Tools</span>#}</a>');
+        $("#ODRPageSelectSettings").unbind('click').click(function(event) {
+            $("#page_settings_menu").toggle('fast');
+            $("#ODRShortResultsSortForm_div").toggle('fast');
+        });
+        $(".ODRPageSelectTools").addClass('pure-u-1-24');
 
         {# NOTE - need to include this here so it executes after the table finishes drawing, instead of after page load #}
         {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {

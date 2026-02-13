@@ -212,6 +212,7 @@ class ThemeInfoService
                     'theme_type' => $theme_type,
                     'theme_visibility' => $theme_meta['themeVisibility'],
                     'is_table_theme' => $theme_meta['isTableTheme'],
+                    'full_render' => $theme_meta['displaysAllResults'],
                     'created_by' => $created_by['id'],
                     'created_by_name' => $user_string,
 
