@@ -286,8 +286,8 @@ async function app() {
                     //
                     // let cell_params_headers = '';
                     // for(let i = 0; i < 1; i++) {
-                    for(let i = 0; i < 300; i++) {
-                    // for(let i = 0; i < full_ima_record_data.records.length; i++) {
+                    // for(let i = 0; i < 300; i++) {
+                    for(let i = 0; i < full_ima_record_data.records.length; i++) {
 
                         let record = full_ima_record_data.records[i];
                         // console.log(record);
@@ -373,8 +373,8 @@ async function app() {
                     // Need to get Cell params from Cell Params DB?
                     //
                     // for(let i = 0; i < 1; i++) {
-                    for(let i = 0; i < 200; i++) {
-                    // for(let i = 0; i < cell_params_record_data.records.length; i++) {
+                    // for(let i = 0; i < 200; i++) {
+                    for(let i = 0; i < cell_params_record_data.records.length; i++) {
                         let record = cell_params_record_data.records[i];
                         /*
                             'base_url' => $baseurl,
@@ -428,8 +428,8 @@ async function app() {
                     //
                     // console.log('PM Records:', paragenetic_modes_record_data.records.length);
                     // for(let i = 0; i < 1; i++) {
-                    for(let i = 0; i < 20; i++) {
-                    // for(let i = 0; i <  paragenetic_modes_record_data.records.length; i++) {
+                    // for(let i = 0; i < 20; i++) {
+                    for(let i = 0; i <  paragenetic_modes_record_data.records.length; i++) {
                         let record = paragenetic_modes_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'powder_diffraction';
@@ -478,8 +478,8 @@ async function app() {
                     //
                     // console.log('PD Records:', powder_diffraction_record_data.records.length);
                     // for(let i = 0; i < 1; i++) {
-                    for(let i = 0; i < 200; i++) {
-                    // for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
+                    // for(let i = 0; i < 200; i++) {
+                    for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
                         let record = powder_diffraction_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'powder_diffraction';
@@ -520,8 +520,8 @@ async function app() {
                     // Get AMCSD Records & Send to Cell Params Tube
                     // TODO Implement IMA Lookup for AMCSD Cell Params
                     // for(let i = 0; i < 1; i++) {
-                    for(let i = 0; i < 500; i++) {
-                    // for(let i = 0; i <  amcsd_record_data.records.length; i++) {
+                    // for(let i = 0; i < 500; i++) {
+                    for(let i = 0; i <  amcsd_record_data.records.length; i++) {
                         let record = amcsd_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'amcsd';
@@ -563,8 +563,8 @@ async function app() {
 
                     // Get References and Build List for References Tube
                     // for(let i = 0; i < 1; i++) {
-                    for(let i = 0; i < 200; i++) {
-                    // for(let i = 0; i <  reference_record_data.records.length; i++) {
+                    // for(let i = 0; i < 200; i++) {
+                    for(let i = 0; i <  reference_record_data.records.length; i++) {
                         let record = reference_record_data.records[i];
                         record.cell_params_index = i;
                         record.tracked_job_id = tracked_job.id;
