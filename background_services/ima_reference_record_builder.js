@@ -149,6 +149,15 @@ async function app() {
                         'internal_id': record_data.internal_id
                     };
 
+                    let journal_name = await findValue(record.reference_record_map.journal, record_data);
+                    if(
+                        journal_name !== undefined &&
+                        journal_name.length > 0
+                    ) {
+                        let journal_content = '$journal_names[] = "' + journal_name + '";\n';
+                        await appendFile(record.base_path + record.mineral_data + '_journal.' + record.file_extension, journal_content);
+                    }
+
                     let content = 'references[' + reference_id + '] = ' + JSON.stringify(reference_record) + ';';
                     // console.log(content)
                     // console.log('writeFile: ' + record.base_path + record.references + '.' + record.file_extension);

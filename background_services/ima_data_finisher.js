@@ -59,34 +59,56 @@ async function app() {
                                 // move files to be "updates" and update load file with timestamp
                                 // Mineral Data
                                 let file_data = await readFile(data.mineral_data_filename);
+                                console.log('writeFile (A): ' + output_path + '/mineral_data_update.js');
                                 await appendFile(output_path + '/mineral_data_update.js', file_data, () => {});
 
                                 // Mineral Name List
                                 file_data = await readFile(data.mineral_data_include_filename);
+                                console.log('writeFile (A): ' + output_path + '/mineral_names_update.php');
                                 await appendFile(output_path + '/mineral_names_update.php', file_data, () => {});
+
+                                // Journal Name List
+                                file_data = await readFile(data.mineral_data_journal_filename);
+                                console.log('writeFile (A): ' + output_path + '/journal_names_update.php');
+                                await appendFile(output_path + '/journal_names_update.php', file_data, () => {});
+
+                                // RRUFF Mineral Name List
+                                file_data = await readFile(data.mineral_data_rruff_filename);
+                                console.log('writeFile (A): ' + output_path + '/rruff_mineral_names_update.php');
+                                await appendFile(output_path + '/rruff_mineral_names_update.php', file_data, () => {});
+
+                                // AMCSD Mineral Name List
+                                file_data = await readFile(data.mineral_data_amcsd_filename);
+                                console.log('writeFile (A): ' + output_path + '/amcsd_mineral_names_update.php');
+                                await appendFile(output_path + '/amcsd_mineral_names_update.php', file_data, () => {});
 
                                 // Author Names Test
                                 file_data = await readFile(data.author_names_filename);
+                                console.log('writeFile (A): ' + output_path + '/author_names_update.php');
                                 await appendFile(output_path + '/author_names_update.php', file_data, () => {});
 
                                 // Cell Params Data
                                 file_data = await readFile(data.cell_params_filename);
-                                console.log("Appending file: ", output_path + '/cellparams_data_update.js');
+                                console.log('writeFile (A): ' + output_path + '/cellparams_data_update.js');
                                 await appendFile(output_path + '/cellparams_data_update.js', file_data, () => {});
 
                                 // Paragenetic Modes Data
                                 file_data = await readFile(data.paragenetic_modes_filename);
+                                console.log('writeFile (A): ' + output_path + '/pm_data_update.js');
                                 await appendFile(output_path + '/pm_data_update.js', file_data, () => {});
 
                                 // References Data
                                 file_data = await readFile(data.references_filename);
+                                console.log('writeFile (A): ' + output_path + '/references_update.js');
                                 await appendFile(output_path + '/references_update.js', file_data, () => {});
 
                                 // Master Tag Data
                                 await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data.js', () => {});
+                                console.log('writeFile (A): ' + output_path + '/master_tag_data.js');
 
                                 // Paragenetic Modes Tag Data
                                 await fs.rename(data.pm_tag_data_filename, output_path + '/pm_tag_data.js', () => {});
+                                console.log('writeFile (A): ' + output_path + '/pm_tag_data.js');
                             }
                             else {
                                 // replace base files with new ones
@@ -98,27 +120,47 @@ async function app() {
 
                                 // Mineral Data
                                 await fs.rename(data.mineral_data_filename, output_path + '/mineral_data.js', () => {});
+                                console.log('writeFile: ' + output_path + '/mineral_data.js');
                                 await fs.rename(data.mineral_data_include_filename, output_path + '/mineral_names.php', () => {});
+                                console.log('writeFile: ' + output_path + '/mineral_names.php');
+
+                                // Journal Names
+                                await fs.rename(data.mineral_data_journal_filename, output_path + '/journal_names.php', () => {});
+                                console.log('writeFile: ' + output_path + '/journal_names.php');
+
+                                // RRUFF Mineral Names
+                                await fs.rename(data.mineral_data_rruff_filename, output_path + '/rruff_mineral_names.php', () => {});
+                                console.log('writeFile: ' + output_path + '/rruff_mineral_names.php');
+
+                                // AMCSD Mineral Names
+                                await fs.rename(data.mineral_data_amcsd_filename, output_path + '/amcsd_mineral_names.php', () => {});
+                                console.log('writeFile: ' + output_path + '/amcsd_mineral_names.php');
+
+
                                 // Author Names
                                 await fs.rename(data.author_names_filename, output_path + '/author_names.php', () => {});
+                                console.log('writeFile: ' + output_path + '/author_names.php');
 
 
                                 // Cell Params Data
-                                console.log('CELL PARAMS FILE: ' + data.cell_params_filename);
                                 await fs.rename(data.cell_params_filename, output_path + '/cellparams_data.js', () => {});
+                                console.log('writeFile: ' + output_path + '/cellparams_data.js');
 
                                 // Cell Params Data
-                                console.log('Paragenetic Modes FILE: ' + data.cell_params_filename);
                                 await fs.rename(data.paragenetic_modes_filename, output_path + '/pm_data.js', () => {});
+                                console.log('writeFile: ' + output_path + '/pm_data.js');
 
                                 // References Data
                                 await fs.rename(data.references_filename, output_path + '/references.js', () => {});
+                                console.log('writeFile: ' + output_path + '/references.js');
 
                                 // Master Tag Data
                                 await fs.rename(data.master_tag_data_filename, output_path + '/master_tag_data.js', () => {});
+                                console.log('writeFile: ' + output_path + '/master_tag_data.js');
 
                                 // Paragenetic Modes Tag Data
                                 await fs.rename(data.pm_tag_data_filename, output_path + '/pm_tag_data.js', () => {});
+                                console.log('writeFile: ' + output_path + '/pm_tag_data.js');
 
                                 // Delete tmp files
                                 // await deleteTmpFiles(data);

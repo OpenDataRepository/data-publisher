@@ -106,15 +106,22 @@ async function app() {
                         let stats = fs.statSync(basepath + '/web/uploads/IMA/master_tag_data.js');
                         let mtime = Date.parse(stats.mtime);
                         // Rework all the URLs - use file access time to generate timestamp
-                        // data.ima_url
+                        // data.ima_url - IMA Minerals
                         data.ima_url = data.ima_url.replace(/99999999/,mtime);
-                        // data.cell_params_url
+                        // data.cell_params_url // Cell Parameters - NOT RRUFF Linked
                         data.cell_params_url = data.cell_params_url.replace(/99999999/,mtime);
-                        // data.powder_diffraction_url
+                        // data.powder_diffraction_url - RRUFF Powder Diffraction Records
+                        // Linked to RRUFF Records, but doesn't get all RRUFF Records
+                        // Change this to all RRUFF records and then find Powder?
+                        // Need to get all RRUFF Records
+                        // And associated minerals
+                        // This would include all rruff
                         data.powder_diffraction_url = data.powder_diffraction_url.replace(/99999999/,mtime);
                         // data.references_url
                         data.references_url = data.references_url.replace(/99999999/,mtime);
-                        // data.amcsd_url
+                        // data.amcsd_url - AMCSD Cell Parameters
+                        // Need to get all AMCSD Records
+                        // And associated minerals
                         data.amcsd_url = data.amcsd_url.replace(/99999999/,mtime);
                         // data.paragenetic_modes_url
                         data.paragenetic_modes_url = data.paragenetic_modes_url.replace(/99999999/,mtime);
@@ -149,9 +156,9 @@ async function app() {
                     let content = '';
                     if(!data.ima_update_rebuild) {
                         content = '' +
-                            'var mineral_data_array = new Array();\n' +
-                            'var mineral_keys = new Array();\n' +
-                            'var mineral_name_keys = new Array();\n' +
+                            'let mineral_data_array = [];\n' +
+                            'let mineral_keys = [];\n' +
+                            'let mineral_name_keys = [];\n' +
                             'let minerals_by_name = [];\n';
                     }
 
@@ -160,34 +167,67 @@ async function app() {
                     console.log('writeFile: ' + basepath + data.mineral_data + '.' + tmp_file_extension);
                     await writeFile(mineral_data_filename, content);
 
+                    // Create list of RRUFF minerals
+                    if(!data.ima_update_rebuild) {
+                        content = '<?php ' + '$rruff_mineral_names = [];\n';
+                    }
+                    let mineral_data_rruff_filename = basepath + data.mineral_data + '_rruff.' + tmp_file_extension;
+                    console.log('writeFile: ' + basepath + data.mineral_data + '_rruff.' + tmp_file_extension);
+                    await writeFile(mineral_data_rruff_filename, content);
+                    // End Create list of RRUFF minerals
+
+                    // Create list of AMCSD minerals
+                    if(!data.ima_update_rebuild) {
+                        content = '<?php ' + '$amcsd_mineral_names = [];\n';
+                    }
+                    let mineral_data_amcsd_filename = basepath + data.mineral_data + '_amcsd.' + tmp_file_extension;
+                    console.log('writeFile: ' + basepath + data.mineral_data + '_amcsd.' + tmp_file_extension);
+                    await writeFile(mineral_data_amcsd_filename, content);
+                    // End Create list of AMCSD minerals
+
+                    // Create list of journal names
+                    if(!data.ima_update_rebuild) {
+                        content = '<?php ' + '$journal_names = [];\n';
+                    }
+                    let mineral_data_journal_filename = basepath + data.mineral_data + '_journal.' + tmp_file_extension;
+                    console.log('writeFile: ' + basepath + data.mineral_data + '_journal.' + tmp_file_extension);
+                    await writeFile(mineral_data_journal_filename, content);
+                    // End Create list of mineral names
+
+
+
+                    // Create list of mineral names
                     if(!data.ima_update_rebuild) {
                         content = '<?php ' +
-                            '$mineral_names = array();\n' +
-                            '$mineral_ascii_names = array();\n' +
-                            '$mineral_names_lowercase = array();\n' +
-                            '$mineral_ascii_names_lowercase = array();\n';
+                            '$mineral_names = [];\n' +
+                            '$mineral_ascii_names = [];\n' +
+                            '$mineral_names_lowercase = [];\n' +
+                            '$mineral_ascii_names_lowercase = [];\n';
                     }
                     let mineral_data_include_filename = basepath + data.mineral_data + '_include.' + tmp_file_extension;
                     console.log('writeFile: ' + basepath + data.mineral_data + '_include.' + tmp_file_extension);
                     await writeFile(mineral_data_include_filename, content);
+                    // End Create list of mineral names
 
+                    // Create author list
                     if(!data.ima_update_rebuild) {
                         content = '<?php ' +
-                            '$author_names = array();\n\n';
+                            '$author_names = [];\n\n';
                     }
                     let author_names_filename = basepath + data.mineral_data + '_authors.' + tmp_file_extension;
                     console.log('writeFile: ' + basepath + data.mineral_data + '_authors.' + tmp_file_extension);
                     await writeFile(author_names_filename, content);
+                    // End Create author list
 
                     // Initialize temp files
                     if(!data.ima_update_rebuild) {
-                        content = 'var cellparams_range=new Array();';
+                        content = 'let cellparams_range=[];';
                     }
                     await writeFile(basepath + data.cell_params_range + '.' + tmp_file_extension, content);
 
                     // Initialize temp files
                     if(!data.ima_update_rebuild) {
-                        content = 'var sg_synonyms={';
+                        content = 'let sg_synonyms={';
                     }
                     await writeFile(basepath + data.cell_params_synonyms + '.' + tmp_file_extension, content);
 
@@ -195,7 +235,7 @@ async function app() {
 
                     // Initialize temp files [references]
                     if(!data.ima_update_rebuild) {
-                        content = 'var references=new Array();';
+                        content = 'let references=[];';
                     }
                     let references_filename = basepath + data.references + '.' + tmp_file_extension;
                     await writeFile(references_filename, content);
@@ -211,7 +251,7 @@ async function app() {
 
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
-                    content = 'if(master_tag_data === undefined) var master_tag_data = new Array();\n';
+                    content = 'if(master_tag_data === undefined) let master_tag_data = [];\n';
                     // Get IMA Template (for Tag Data)
                     // console.log('IMA Template: ' + data.ima_template_url)
                     let ima_record_template = await loadPage(data.ima_template_url);
@@ -227,7 +267,7 @@ async function app() {
 
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
-                    content = 'if(master_tag_data === undefined) var master_tag_data = new Array();\n';
+                    content = 'if(master_tag_data === undefined) let master_tag_data = [];\n';
                     // Get IMA Template (for Tag Data)
                     // console.log('IMA Template: ' + data.pm_template_url)
                     let pm_record_template = await loadPage(data.paragenetic_modes_template_url);
@@ -246,8 +286,8 @@ async function app() {
                     //
                     // let cell_params_headers = '';
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 300; i++) {
-                    for(let i = 0; i < full_ima_record_data.records.length; i++) {
+                    for(let i = 0; i < 300; i++) {
+                    // for(let i = 0; i < full_ima_record_data.records.length; i++) {
 
                         let record = full_ima_record_data.records[i];
                         // console.log(record);
@@ -311,7 +351,7 @@ async function app() {
                             // Creating arrays for the Cell Parameters records using IMA Mineral UniqueIDs
                             // console.log('Mineral Name Field: ' + data.cell_params_map.mineral_name + ' ' + record.template_uuid);
                             // This is moved to the cell params file
-                            // cell_params_headers += 'if(cellparams[\'' + record.unique_id + '\'] === undefined) { cellparams[\'' + record.unique_id + '\'] = new Array()};'
+                            // cell_params_headers += 'if(cellparams[\'' + record.unique_id + '\'] === undefined) { cellparams[\'' + record.unique_id + '\'] = []};'
                         }
                     }
 
@@ -319,8 +359,9 @@ async function app() {
                     content = '';
                     if(!data.ima_update_rebuild) {
                         console.log('Data IMA UPDATE REBUILD: ', data.ima_update_rebuild);
-                        content = 'let cellparams=new Array();';
-                        content += 'let rruff_record_exists=new Array();';
+                        content = 'let cellparams= [];';
+                        content += 'let rruff_record_exists= [];';
+                        content += 'let amcsd_record_exists= [];';
                     }
                     // await writeFile(basepath + data.cell_params + '.' + tmp_file_extension, content + cell_params_headers);
                     await writeFile(basepath + data.cell_params + '.' + tmp_file_extension, content);
@@ -332,8 +373,8 @@ async function app() {
                     // Need to get Cell params from Cell Params DB?
                     //
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 200; i++) {
-                    for(let i = 0; i < cell_params_record_data.records.length; i++) {
+                    for(let i = 0; i < 200; i++) {
+                    // for(let i = 0; i < cell_params_record_data.records.length; i++) {
                         let record = cell_params_record_data.records[i];
                         /*
                             'base_url' => $baseurl,
@@ -387,8 +428,8 @@ async function app() {
                     //
                     // console.log('PM Records:', paragenetic_modes_record_data.records.length);
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 20; i++) {
-                    for(let i = 0; i <  paragenetic_modes_record_data.records.length; i++) {
+                    for(let i = 0; i < 20; i++) {
+                    // for(let i = 0; i <  paragenetic_modes_record_data.records.length; i++) {
                         let record = paragenetic_modes_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'powder_diffraction';
@@ -437,8 +478,8 @@ async function app() {
                     //
                     // console.log('PD Records:', powder_diffraction_record_data.records.length);
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 200; i++) {
-                    for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
+                    for(let i = 0; i < 200; i++) {
+                    // for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
                         let record = powder_diffraction_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'powder_diffraction';
@@ -479,8 +520,8 @@ async function app() {
                     // Get AMCSD Records & Send to Cell Params Tube
                     // TODO Implement IMA Lookup for AMCSD Cell Params
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 200; i++) {
-                    for(let i = 0; i <  amcsd_record_data.records.length; i++) {
+                    for(let i = 0; i < 500; i++) {
+                    // for(let i = 0; i <  amcsd_record_data.records.length; i++) {
                         let record = amcsd_record_data.records[i];
                         record.cell_params_index = i;
                         record.cell_params_type = 'amcsd';
@@ -522,8 +563,8 @@ async function app() {
 
                     // Get References and Build List for References Tube
                     // for(let i = 0; i < 1; i++) {
-                    // for(let i = 0; i < 200; i++) {
-                    for(let i = 0; i <  reference_record_data.records.length; i++) {
+                    for(let i = 0; i < 200; i++) {
+                    // for(let i = 0; i <  reference_record_data.records.length; i++) {
                         let record = reference_record_data.records[i];
                         record.cell_params_index = i;
                         record.tracked_job_id = tracked_job.id;
@@ -575,6 +616,9 @@ async function app() {
                     record.ima_update_rebuild = data.ima_update_rebuild;
                     record.mineral_data_filename = mineral_data_filename;
                     record.mineral_data_include_filename = mineral_data_include_filename;
+                    record.mineral_data_rruff_filename = mineral_data_rruff_filename;
+                    record.mineral_data_journal_filename = mineral_data_journal_filename;
+                    record.mineral_data_amcsd_filename = mineral_data_amcsd_filename;
                     record.author_names_filename = author_names_filename;
                     record.cell_params_filename = cell_params_filename;
                     record.paragenetic_modes_filename = paragenetic_modes_filename;
