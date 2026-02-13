@@ -249,6 +249,12 @@ async function app() {
                         ) {
                             // Setting to true can create or overwrite this records status
                             content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
+
+                            // Files for building search interfaces
+                            let mineral_ascii_name_uuid = 'a9d1d8a812ee000b8f477f07b775';
+                            let minerals_with_rruff_content = '$rruff_mineral_names["' + ima_record.record_uuid + '"] = "' + sanitizeMineralName((await findValue(mineral_ascii_name_uuid, record_data)).toLowerCase()) + '";\n';
+                            // Create mineral list for quick redirect
+                            await appendFile(record.base_path + record.mineral_data + '_rruff.' + record.file_extension, minerals_with_rruff_content);
                         }
                         // TODO Add RRUFF ID to "rruff_record_exists" and
                         // ensure all RRUFF records get that value even if they don't
@@ -324,6 +330,31 @@ async function app() {
                         console.log('Processing AMCSD Record');
                         if(await findValue(amcsd_map.a, record_data) !== '') {
                             let amcsd_mineral_name = (await findValue(amcsd_map.mineral_name, record_data)).toLowerCase();
+
+                            /*
+                              If we have any ima record here, it means a RRUFF
+                              record exists.
+                             */
+                            let ima_record = await findRecordByTemplateUUID(
+                                record_data['records_' + amcsd_map.database_uuid],
+                                cp_map.ima_template_uuid
+                            );
+                            if(
+                                ima_record !== undefined
+                                && ima_record.record_uuid !== undefined
+                                && record_data._record_metadata !== undefined
+                                && record_data._record_metadata._public_date !== undefined
+                                && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
+                            ) {
+                                // Setting to true can create or overwrite this records status
+                                content += 'amcsd_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
+
+
+                                let mineral_ascii_name_uuid = 'a9d1d8a812ee000b8f477f07b775';
+                                let minerals_with_amcsd_content = '$amcsd_mineral_names["' + ima_record.record_uuid + '"] = "' + sanitizeMineralName((await findValue(mineral_ascii_name_uuid, record_data)).toLowerCase()) + '";\n';
+                                // Create mineral list for quick redirect
+                                await appendFile(record.base_path + record.mineral_data + '_amcsd.' + record.file_extension, minerals_with_amcsd_content);
+                            }
 
                             content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = {} };';
                             // content += 'if(cellparams[\'' + amcsd_mineral_name + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
@@ -805,6 +836,15 @@ function formatChemistry(formula) {
 
 }
 
+function sanitizeMineralName(mineral_name) {
+    mineral_name = mineral_name.replace('<sup>','');
+    mineral_name = mineral_name.replace('<\\sup>','');
+    mineral_name = mineral_name.replace('<sub>','');
+    mineral_name = mineral_name.replace('<\\sub>','');
+    mineral_name = mineral_name.replace('<i>','');
+    mineral_name = mineral_name.replace('<\\i>','');
+    return mineral_name
+}
 
 async function loadPage(page_url) {
     return await apiCall(page_url, '', 'GET');
