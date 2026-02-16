@@ -260,7 +260,7 @@ async function app() {
                     console.log("Build Tag Data (MASTER)");
                     await buildTagData(ima_record_map.ima_template_tags_uuid, ima_record_template, tag_data, 'master');
                     content += tag_data.join('');
-                    content += '\nmaster_tag_data[999999] = "999999||RRUFF Mineral|| ||mineral||1||RRUFF Mineral||1028||0";\n'
+                    content += '\nmaster_tag_data[999999] = "999999||RRUFF Mineral|| ||mineral||1||RRUFF Mineral||1028||100";\n';
 
                     let master_tag_data_filename = basepath + data.master_tag_data + '.' + tmp_file_extension;
                     await writeFile(master_tag_data_filename, content);
