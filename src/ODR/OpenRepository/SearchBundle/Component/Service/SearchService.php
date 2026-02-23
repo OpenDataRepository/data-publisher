@@ -2424,7 +2424,6 @@ class SearchService
      *                                        datarecords of this datatype that have been linked to
      *                                        If false, then the returned array will contain all
      *                                        datarecords of this datatype
-     * @param bool $inverse
      *
      * @return array
      */
@@ -2462,8 +2461,11 @@ class SearchService
 
 
     /**
-     * Works on a similar idea to {@link getCachedSearchDatarecordList()}, but gets called when
-     * the search system is trying to do an "inverse" search instead.
+     * Works on a similar idea to {@link getCachedSearchDatarecordList()}, but the links from
+     * "ancestor" -> "descendant" are inverted.
+     *
+     * This is currently unused, because {@link SearchAPIService::mergeSearchResults()} had some
+     * very hidden bugs when merging stuff across a bunch of datatype relations.
      *
      * TODO - is this also a candidate for hunting down instances where datarecord loading happens?
      *
@@ -2620,20 +2622,14 @@ class SearchService
      * indicating a "searchable" datafield.
      *
      * @param int $datatype_id
-     * @param int|null $inverse_target_datatype_id If null, then the array contains the searchable
-     *                                             datafields from descendant datatypes...otherwise,
-     *                                             it comes from the ancestor datatypes instead
      * @return array
      */
-    public function getSearchableDatafields($datatype_id, $inverse_target_datatype_id = null)
+    public function getSearchableDatafields($datatype_id)
     {
         // ----------------------------------------
         // Going to need all the datatypes related to this given datatype...
         $datatype_id = intval($datatype_id);
-        if ( is_null($inverse_target_datatype_id) )
-            $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
-        else
-            $related_datatypes = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, $inverse_target_datatype_id, true);
+        $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
 
         // The resulting array depends on the contents of each of the related datatypes
         $searchable_datafields = array();

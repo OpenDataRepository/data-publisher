@@ -2176,6 +2176,7 @@ class LinkController extends ODRCustomController
                         //  local record, as there could be multiple thousands of them
                         if ( count($names) > 24 )
                             break;
+                        // TODO - controller action to load another 25/50?
                     }
 
                     if ( count($names) > 0 ) {

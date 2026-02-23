@@ -669,23 +669,25 @@ class SearchKeyService
         if ( isset($search_params['inverse']) ) {
             $inverse_target_datatype_id = intval($search_params['inverse']);
 
-            // values less than 0 disable this feature
-            if ( $inverse_target_datatype_id < 0 ) {
+            // values less than 1 disable this feature
+            if ( $inverse_target_datatype_id < 1 ) {
                 unset( $search_params['inverse'] );
                 $inverse_target_datatype_id = null;
             }
         }
 
-        // Going to need the datatype array to verify the given parameters...
+        // Going to need the datatype array and hte list of searchable datafields to verify the
+        //  given parameters...
         $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($datatype_id);
-        $datatype_array = array();
-        if ( is_null($inverse_target_datatype_id) )
+        $datatype_array = $searchable_datafields = array();
+        if ( is_null($inverse_target_datatype_id) ) {
             $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id);
-        else
-            $datatype_array = $this->database_info_service->getInverseDatatypeArray($grandparent_datatype_id, $inverse_target_datatype_id);
-
-        // ...and the list of searchable datafields
-        $searchable_datafields = $this->search_service->getSearchableDatafields($datatype_id, $inverse_target_datatype_id);
+            $searchable_datafields = $this->search_service->getSearchableDatafields($grandparent_datatype_id);
+        }
+        else {
+            $datatype_array = $this->database_info_service->getDatatypeArray($inverse_target_datatype_id);
+            $searchable_datafields = $this->search_service->getSearchableDatafields($inverse_target_datatype_id);
+        }
 
         // Want to ignore metadata requests for datatypes without datafields
         $hidden_datatype_ids = array();
@@ -1102,8 +1104,8 @@ class SearchKeyService
         if ( isset($search_params['inverse']) ) {
             $inverse_target_datatype_id = intval($search_params['inverse']);
 
-            // values less than 0 disable this feature
-            if ( $inverse_target_datatype_id < 0 ) {
+            // values less than 1 disable this feature
+            if ( $inverse_target_datatype_id < 1 ) {
                 unset( $search_params['inverse'] );
                 $inverse_target_datatype_id = null;
             }
@@ -1592,7 +1594,7 @@ class SearchKeyService
         if ( is_null($inverse_target_datatype_id) )
             $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
         else
-            $criteria['all_datatypes'] = $this->datatree_info_service->getInverseAssociatedDatatypes($datatype_id, $inverse_target_datatype_id, true);
+            $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($inverse_target_datatype_id, true);
 
         return $criteria;
     }

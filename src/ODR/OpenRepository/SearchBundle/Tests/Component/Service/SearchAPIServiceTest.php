@@ -1837,28 +1837,28 @@ class SearchAPIServiceTest extends WebTestCase
         return [
             // ----------------------------------------
             // Sanity check searches
-            'RRUFF Reference: default search' => [
+            'RRUFF Reference: default search for complete datarecord list' => [
                 array(
                     'dt_id' => 1
                 ),
                 range(1, 90),
                 true
             ],
-            'IMA List: default search' => [
+            'IMA List: default search for complete datarecord list' => [
                 array(
                     'dt_id' => 2
                 ),
                 array_merge( range(1, 97), array(322) ),    // all RRUFF Reference records, plus the 8 IMA List records
                 true
             ],
-            'RRUFF Sample: default search' => [
+            'RRUFF Sample: default search for complete datarecord list' => [
                 array(
                     'dt_id' => 3
                 ),
                 array_merge( range(1, 295), array(322,323) ),    // all RRUFF Reference records, plus the 8 IMA List records, plus the 43 RRUFF Sample records, plus the 156 Raman Spectra records
                 true
             ],
-            'RRUFF Sample: wavelength = "999"' => [
+            'RRUFF Sample: wavelength = "999" for complete datarecord list' => [
                 array(
                     'dt_id' => 3,
                     '41' => '999',
@@ -1867,7 +1867,7 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            'RRUFF Reference: authors containing "downs"' => [
+            'RRUFF Reference: authors containing "downs" for complete datarecord list' => [
                 array(
                     'dt_id' => 1,
                     '1' => "downs"
@@ -1875,7 +1875,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(35,36,49,66,68),
                 true
             ],
-            'IMA List: authors containing "downs"' => [
+            'IMA List: authors containing "downs" for complete datarecord list' => [
                 array(
                     'dt_id' => 2,
                     '1' => "downs"
@@ -1886,7 +1886,7 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 true
             ],
-            'RRUFF Sample: authors containing "downs"' => [
+            'RRUFF Sample: authors containing "downs" for complete datarecord list' => [
                 array(
                     'dt_id' => 3,
                     '1' => "downs"
@@ -1928,7 +1928,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 */
-            'IMA List: general search of "downs"' => [
+            'IMA List: general search of "downs" for complete datarecord list' => [
                 array(
                     'dt_id' => 2,
                     'gen' => 'downs',
@@ -1946,7 +1946,7 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 false
             ],
-            'RRUFF Sample: general search of "downs"' => [
+            'RRUFF Sample: general search of "downs" for complete datarecord list' => [
                 array(
                     'dt_id' => 3,
                     'gen' => 'downs',
@@ -1983,7 +1983,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
-            'RRUFF Sample: general search of "downs" and wavelength = "532"' => [
+            'RRUFF Sample: general search of "downs" and wavelength = "532" for complete datarecord list' => [
                 array(
                     'dt_id' => 3,
                     'gen' => 'downs',
@@ -2010,6 +2010,65 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 false
             ],
+
+
+            // ----------------------------------------
+            // Also need a couple inverse search tests
+            'RRUFF Reference: invalid inverse search for complete datarecord list' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 0,
+                ),
+                range(1, 90),
+                true
+            ],
+            'IMA List: invalid inverse search for complete datarecord list' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 0,
+                ),
+                array_merge( range(1, 97), array(322) ),    // all RRUFF Reference records, plus the 8 IMA List records
+                true
+            ],
+
+
+            'RRUFF Reference: inverse default search for complete datarecord list' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                ),
+                range(1, 90),
+                true
+            ],
+            'IMA List: inverse default search for complete datarecord list' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 3,
+                ),
+                array_merge( range(1, 97), array(322) ),    // all RRUFF Reference records, plus the 8 IMA List records
+                true
+            ],
+            'RRUFF Reference: inverse search of authors containing "downs" for complete datarecord list' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                    '1' => "downs"
+                ),
+                array(35,36,49,66,68),
+                true
+            ],
+            'IMA List: inverse search of authors containing "downs" for complete datarecord list' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 3,
+                    '1' => "downs"
+                ),
+                array(
+                    35,36,49,66,68,    // from RRUFF Reference
+                    91,94,97           // from IMA List
+                ),
+                true
+            ],
         ];
     }
 
@@ -2019,14 +2078,15 @@ class SearchAPIServiceTest extends WebTestCase
     public function provideInverseSearchParams()
     {
         /*
-         * These tests are for an "Inverse" search...the underlying database has these relations:
+         * The underlying database has these relations:
          * RRUFF Sample
          *  - IMA Mineral (linked to RRUFF Sample)
          *     - RRUFF Reference (linked to IMA Mineral)
          *  - RRUFF Reference (linked to RRUFF Sample)
          *  - Raman Spectra (child of RRUFF Sample)
          *
-         * ...but an "inverse" search runs the search with these relations instead:
+         * An "inverse" search is so named because it originally ran the search with these relations
+         * instead:
          * RRUFF Reference
          *  - IMA Mineral (links to RRUFF Reference)
          *     - RRUFF Sample (links to IMA Mineral)
@@ -2034,15 +2094,37 @@ class SearchAPIServiceTest extends WebTestCase
          *  - RRUFF Sample (links to RRUFF Reference)
          *     - Raman Spectra (child of RRUFF Sample)
          *
-         * ...with the "inverse" flag set, the search system should properly set up the various arrays
-         * so the actual logic doesn't even know the difference.
+         * ...but {@link SearchAPIService::mergeSearchResults()} had a bug in it somewhere where it
+         * seemingly couldn't realize it needed to also merge criteria of Raman Spectra when starting
+         * from the IMA Mineral.  Rather than debug the extreme edge case, it was easier to modify
+         * "inverse" searches so they run like a regular search unti right before the end, at which
+         * point it transforms the result set back into the desired datatype.
          *
-         * That being said, the further "away" from the source that you get (e.g. searching for
-         * references based on sample wavelength)...the returned results will quickly start requiring
-         * extended investigation to figure out why they actually match.
+         * Note that the further "away" from the source that you get (e.g. searching for references
+         * based on sample wavelength)...the returned results will quickly start requiring extended
+         * investigation to figure out why they actually match.
          */
 
         return [
+            // ----------------------------------------
+            'RRUFF Reference: invalid inverse search' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 0,
+                ),
+                range(1, 90),
+                true
+            ],
+            'IMA List: invalid inverse search' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 0,
+                ),
+                array(91,92,93,94,95,96,97,322),
+                true
+            ],
+
+
             // ----------------------------------------
             'RRUFF Reference: inverse search towards RRUFF Reference' => [
                 array(
@@ -2058,6 +2140,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'inverse' => 2,    // targetting IMA List should still return all references
                 ),
                 range(1, 90),
+                true
+            ],
+            'RRUFF Sample: inverse search to itself with wavelength "514"' => [
+                array(
+                    'dt_id' => 3,
+                    'inverse' => 3,  // This setup shouldn't happen technically
+                    '41' => "514",
+                ),
+                array(103,107,111,124,133,139),
                 true
             ],
 
@@ -2090,6 +2181,20 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'RRUFF Reference: inverse search, references with minerals/samples with a wavelength "514"' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                    '41' => "514",
+                ),
+                array(
+                    5,13,22,26,34,41,80,    // Bournonite
+                    12,14,19,25,56,57,62,75,89,    // Amesite
+                    3,8,10,16,21,24,29,32,36,38,39,42,43,50,55,61,65,68,70,72,73,78,88,    // Aegirine
+                    7,15,20,27,28,/*29,*/30,31,33,40,44,45,46,47,48,49,51,52,53,58,60,64,66,69,71,76,77,79,81,82,85,90,    // Anorthite
+                ),
+                true
+            ],
             'RRUFF Reference: inverse search, references with a mineral_name "Abelsonite" and a wavelength "532"' => [
                 array(
                     'dt_id' => 1,
@@ -2097,8 +2202,8 @@ class SearchAPIServiceTest extends WebTestCase
                     '18' => "Abelsonite",
                     '41' => "532",
                 ),
-                array(1,9,35,63,83, 77),    // the five Abelsonite references, plus dr_id 77 because "R050104" (dr_id 107) directly links to it...
-                                            // ...the reason being that R050104 has a 532 spectra, so "R050104" matches, so dr_id 77 matches
+                array(1,9,35,63,83),    // the five Abelsonite references, since the Abelsonite sample has 532 spectra
+                                        // 77 shouldn't match due to the mineral_name
                 true
             ],
             'RRUFF Reference: inverse search, references with a article_title of "Abelsonite" and a wavelength "532"' => [
@@ -2109,7 +2214,46 @@ class SearchAPIServiceTest extends WebTestCase
                     '41' => "532",
                 ),
                 array(1,35,63,83),  // should only have the four references that directly mention "abelsonite", despite "532" matching pretty much every RRUFF Sample...
-                                    // ...9 and 77 shouldn't match due to the article_title
+                                    // ...9 shouldn't match due to the article_title
+                true
+            ],
+
+
+            'IMA List: inverse search, mineral with a mineral_name "Ab"' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 3,    // targetting RRUFF Sample should also get IMA List
+                    '18' => "Ab",
+                ),
+                array(91,95),  // should still match "Abelsonite" and "Abellaite"
+                true
+            ],
+            'IMA List: inverse search, minerals with reference author "downs"' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 3,
+                    '1' => "downs",
+                ),
+                array(91,94,97),  // Abelsonite, Aegirine, and Anorthite
+                true
+            ],
+            'IMA List: inverse search, minerals with a wavelength "514"' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 3,    // targetting RRUFF Sample should also get IMA List
+                    '41' => "514",
+                ),
+                array(92,93,94,97),  // Bournonite, Amesite, Aegirine, and Anorthite all have 514 spectra
+                true
+            ],
+            'IMA List: inverse search, minerals with reference author "downs" and wavelength "514"' => [
+                array(
+                    'dt_id' => 2,
+                    'inverse' => 3,
+                    '1' => "downs",
+                    '41' => "514",
+                ),
+                array(94,97),  // only Aegirine and Anorthite match both conditions
                 true
             ],
         ];
