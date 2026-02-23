@@ -224,11 +224,12 @@ async function app() {
                      */
                     else if(record.cell_params_type === 'powder_diffraction') {
                         // TODO We could have multiple PD Children on a single record
-                        console.log('Processing Powder Diffraction Record');
+                        console.log('Processing Powder Diffraction Record: ' + record_data['record_uuid']);
                         let ima_record = await findRecordByTemplateUUID(
                             record_data['records_' + pd_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
+                        console.log('IMA Record: ' + ima_record.record_uuid)
 
                         // "_record_metadata": {
                         // "_create_date": "2016-05-12 13:23:56",
@@ -241,11 +242,11 @@ async function app() {
                           record exists.
                          */
                         if(
-                            ima_record !== undefined
-                            && ima_record.record_uuid !== undefined
-                            && record_data._record_metadata !== undefined
-                            && record_data._record_metadata._public_date !== undefined
-                            && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
+                            ima_record !== undefined &&
+                            ima_record.record_uuid !== undefined &&
+                            record_data._record_metadata !== undefined &&
+                            record_data._record_metadata._public_date !== undefined &&
+                            record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
                         ) {
                             // Setting to true can create or overwrite this records status
                             content += 'rruff_record_exists[\'' + ima_record.record_uuid + '\'] = \'true\';';
@@ -647,11 +648,17 @@ async function findValue(field_uuid, record, mode) {
                 }
 
                 // Or values....
-                if(current_field.value !== undefined) {
+                if(
+                    current_field.value !== undefined &&
+                    current_field.value !== null
+                ) {
                     // console.log('bbbcccc')
                     return current_field.value.toString().replace(/'/g, "\\'");
                 }
-                else if(current_field.values !== undefined) {
+                else if(
+                    current_field.values !== undefined &&
+                    current_field.value !== null
+                ) {
                     // console.log('bbbdddd')
                     let output = '';
                     for(let j = 0; j < current_field.values.length; j++) {

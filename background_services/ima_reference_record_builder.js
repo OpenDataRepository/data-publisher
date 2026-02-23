@@ -154,7 +154,7 @@ async function app() {
                         journal_name !== undefined &&
                         journal_name.length > 0
                     ) {
-                        let journal_content = '$journal_names[] = "' + journal_name + '";\n';
+                        let journal_content = '$journal_names[] = \'' + journal_name + '\';\n';
                         await appendFile(record.base_path + record.mineral_data + '_journal.' + record.file_extension, journal_content);
                     }
 
