@@ -292,6 +292,17 @@
         });
         $(".ODRPageSelectTools").addClass('pure-u-1-24');
 
+        // If there's only one page, then datatables will hide the pagination control, which will
+        //  mess up the position of the settings menu
+        if ( Math.ceil( {{ records_total }} / {{ page_length }} ) < 2 ) {
+            // Have to hide all the pagination controls...
+            $(".dataTables_paginate").children().each(function(index,elem) {
+                $(elem).hide();
+            });
+            // ...and then force the pagination div to "show"
+            $(".dataTables_paginate").addClass('ODRShow Cursor').append('<span>&nbsp;</span>');
+        }
+
 {% if is_oversized_search_key %}
         $("#ODRSearchKeyWarning").removeClass('ODRHidden');
 {% else %}
