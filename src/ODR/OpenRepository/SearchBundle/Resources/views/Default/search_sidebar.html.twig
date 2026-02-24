@@ -121,7 +121,7 @@
                                 {% for dt_id,dt_name in inverse_dt_names %}
                                     <option value="{{ dt_id }}" {% if current_inverse_dt_id == dt_id %}selected{% endif %}>{{ dt_name }}</option>
                                 {% endfor %}
-                                    <option value="0" {% if current_inverse_dt_id == '0' %}selected{% endif %}>&lt;all of the above&gt;</option>
+{#                                    <option value="0" {% if current_inverse_dt_id == '0' %}selected{% endif %}>&lt;all of the above&gt;</option>#}
                                 </select>
                             </span>
                         {% endif %}

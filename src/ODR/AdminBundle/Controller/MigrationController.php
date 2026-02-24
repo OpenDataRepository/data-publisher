@@ -2264,6 +2264,72 @@ class MigrationController extends ODRCustomController
             // --------------------
 
             throw new ODRNotImplementedException();
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            // Going to be easier to use the datatree array here...
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+
+            $all_datatype_ids = array();
+            $datatypes = array();
+            foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
+                // Top-level datatypes are not eligible for this
+                if ( $parent_dt_id == '' )
+                    continue;
+
+                // Need to get the names for both of these datatypes
+                $all_datatype_ids[$child_dt_id] = 1;
+                $all_datatype_ids[$parent_dt_id] = 1;
+
+                // Need to store the datatypes in a way that's easier to understand
+                if ( !isset($datatypes[$parent_dt_id]) )
+                    $datatypes[$parent_dt_id] = array();
+                $datatypes[$parent_dt_id][] = $child_dt_id;
+            }
+
+
+            // Get the names of all of these datatypes
+            $all_datatype_ids = array_keys($all_datatype_ids);
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.shortName
+                FROM ODRAdminBundle:DataType dt
+                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.metadata_for IS NULL
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                ORDER BY dtm.shortName'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $all_datatype_ids,
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $names = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dt_name = $result['shortName'];
+
+                $names[$dt_id] = $dt_name;
+            }
+
+            // Render and return a tree structure of data
+            $return['d'] = array(
+                'html' =>$templating->render(
+                    'ODRAdminBundle:Migration:convert_childtype_to_link.html.twig',
+                    array(
+                        'datatypes' => $datatypes,
+
+                        'names' => $names,
+                    )
+                )
+            );
         }
         catch (\Exception $e) {
             $source = 0xe051cdb8;
@@ -2305,6 +2371,147 @@ class MigrationController extends ODRCustomController
             // --------------------
 
             throw new ODRNotImplementedException();
+
+            $post = $request->request->all();
+            if ( !isset($post['parent_dt_id']) || !isset($post['child_dt_id']) )
+                throw new ODRBadRequestException('Invalid form');
+
+            $original_parent_dt_id = intval($post['parent_dt_id']);
+            $new_top_level_dt_id = intval($post['child_dt_id']);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            /** @var DataType $original_parent_dt */
+            $original_parent_dt = $em->getRepository('ODRAdminBundle:DataType')->find($original_parent_dt_id);
+            if ($original_parent_dt == null)
+                throw new ODRNotFoundException('parent datatype');
+
+            /** @var DataType $new_top_level_dt */
+            $new_top_level_dt = $em->getRepository('ODRAdminBundle:DataType')->find($new_top_level_dt_id);
+            if ($new_top_level_dt == null)
+                throw new ODRNotFoundException('child datatype');
+
+            /** @var DataTree $datatree_entry */
+            $datatree_entry = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array(
+                    'ancestor' => $original_parent_dt_id,
+                    'descendant' => $new_top_level_dt_id,
+                )
+            );
+            if ($datatree_entry == null)
+                throw new ODRNotFoundException('dataTree entry');
+            $datatree_meta_entry = $datatree_entry->getDataTreeMeta();
+
+
+            // ----------------------------------------
+            // This is already enough info to update the previous child datatype in odr_data_type,
+            //  but need to also recursively get any descendants of this previous child datatype
+            //  because they need grandparent id and template group updated
+            // TODO
+            $all_descendant_datatypes = array($new_top_level_dt_id);
+
+
+            // ----------------------------------------
+            // Need to get a list of the datarecords of the previous child datatype, because
+            //  1) these records need to have parent/grandparent ids updated, and
+            //  2) the relationship between the previous child records and the previous parent needs
+            //      to be forced into odr_linked_data_tree
+            $query =
+               'SELECT dr.id AS dr_id, dr.parent_id AS dr_parent_id
+                FROM odr_data_record dr
+                WHERE dr.data_type_id IN ('.implode(',', $all_descendant_datatypes).')';
+            $results = $conn->executeQuery($query);
+
+            $original_datarecord_hierarchy = array();
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $parent_dr_id = $result['dr_parent_id'];
+                $original_datarecord_hierarchy[$dr_id] = $parent_dr_id;
+            }
+
+            // Need to also recursively get all records descended from the previous child datatype,
+            //  because they need their grandparent id updated
+            // TODO
+
+
+            // ----------------------------------------
+            // Need to get a list of all the themes related to the previous child datatype
+            $query =
+               'SELECT t.id AS theme_id, t.parent_theme_id AS parent_theme_id, t.source_theme_id AS soure_theme_id
+                FROM odr_theme t
+                WHERE t.data_type_id IN ('.implode(',', $all_descendant_datatypes).')';
+            $results = $conn->executeQuery($query);
+
+            $current_themes = array();
+            foreach ($results as $result) {
+                $theme_id = $result['theme_id'];
+                $parent_theme_id = $result['parent_theme_id'];
+                $soure_theme_id = $result['soure_theme_id'];
+
+                $current_themes[$theme_id] = array('parent' => $parent_theme_id, 'soure' => $soure_theme_id);
+            }
+
+            $descendants_of_new_top_level = array();
+
+            $lines = array();
+
+            // ----------------------------------------
+            // odr_data_type needs modification so that the previous child datatype is "independent"
+            $lines[] = 'UPDATE odr_data_type SET parent_id = '.$new_top_level_dt->getId().', grandparent_id = '.$new_top_level_dt->getId().' WHERE id = '.$new_top_level_dt->getId().';';
+            $lines[] = 'UPDATE odr_data_type SET template_group = "'.$new_top_level_dt->getUniqueId().'" WHERE id = '.$new_top_level_dt->getId().';';
+
+            // TODO - also need to update all descendants of the child datatype...
+            $lines[] = '';
+
+            // Don't need to modify odr_data_type_meta
+
+
+            // ----------------------------------------
+            // odr_data_tree already contains an entry conecting the previous parent with the previous
+            //  child, but the relevant odr_data_tree_meta entry needs to be changed to indicate
+            //  it's now a link instead of a child
+            $lines[] = 'INSERT INTO odr_data_tree_meta (data_tree_id, is_link, multiple_allowed, created, updated, deletedAt, createdBy, updatedBy, edit_behavior, secondary_data_tree_id)'."\n".
+                '    VALUES ('.$datatree_entry->getId().', 1, '.$datatree_meta_entry->getMultipleAllowed().', NOW(), NOW(), NULL, '.$user->getId().', '.$user->getId().', '.$datatree_meta_entry->getEditBehavior().', NULL);';
+            $lines[] = 'UPDATE odr_data_tree_meta SET deletedAt = NOW() WHERE id = '.$datatree_meta_entry->getId().';';
+            $lines[] = '';
+
+
+            // ----------------------------------------
+            // The records of the previous childtype need to have their parent/grandparent updated
+            foreach ($original_datarecord_hierarchy as $original_child_dr_id => $original_parent_dr_id)
+                $lines[] = 'UPDATE odr_data_record SET parent_id = '.$original_child_dr_id.', grandparent_id = '.$original_child_dr_id.' WHERE id = '.$original_child_dr_id.';';
+
+            // TODO - also need to update all records which are descendants of the child datatype...
+            $lines[] = '';
+
+
+            // ----------------------------------------
+            // odr_linked_data_tree needs to get filled out with the new ancestor data that used
+            //  to be contained inside odr_data_record
+            $lines[] = 'INSERT INTO odr_linked_data_tree (ancestor_id, descendant_id, created, deletedAt, createdBy, deletedBy) VALUES ';
+
+            $buffer = array();
+            foreach ($original_datarecord_hierarchy as $original_child_dr_id => $original_parent_dr_id)
+                $buffer[] = '    ('.$original_parent_dr_id.', '.$original_child_dr_id.', NOW(), NULL, '.$user->getId().', NULL)';
+            $buffer = implode(",\n", $buffer).';';
+            $lines[] = $buffer;
+
+
+            // ----------------------------------------
+            // TODO - need to create four entries in odr_group, then tie the existing entries in odr_group_datatype_permissions/odr_group_datafield_permissions to them
+
+            // ----------------------------------------
+            // TODO - ...and the themes as well.  each current theme needs to get copied, and the existing theme's source_theme_id changed to point to them instead
+
+
+            // ----------------------------------------
+            $str = implode("\n", $lines);
+            $return['d'] = array(
+//                'metadata_html' => $metadata_str,
+                'sql' => $str,
+            );
         }
         catch (\Exception $e) {
             $source = 0xae0cf3f6;

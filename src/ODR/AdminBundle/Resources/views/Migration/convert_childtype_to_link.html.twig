@@ -3,12 +3,12 @@
 <div class="pure-u-1">
     <form id="ODRMigration_form" method="POST"></form>
     <div class="pure-u-1-2">
-        <label for="ODRMigration_SrcDatatype_select">Datatype to convert:&nbsp;</label>
-        <select id="ODRMigration_SrcDatatype_select">
+        <label for="ODRMigration_ChildDatatype_select">Child Datatype to convert:&nbsp;</label>
+        <select id="ODRMigration_ChildDatatype_select">
             <option rel=""></option>
         {% for ancestor_dt_id,descendant_dt_list in datatypes %}
             {% set ancestor_dt_name = names[ancestor_dt_id] %}
-            <optgroup label="{{ ancestor_dt_name }} (dt: {{ ancestor_dt_id }})">
+            <optgroup label="{{ ancestor_dt_name }} (dt: {{ ancestor_dt_id }})" rel="{{ ancestor_dt_id }}">
             {% for num, descendant_dt_id in descendant_dt_list %}
                 {% set descendant_dt_name = names[descendant_dt_id] %}
                 <option value="{{ descendant_dt_id }}">{{ descendant_dt_name }} (id: {{ descendant_dt_id }})</option>
@@ -39,11 +39,15 @@
     function ODRMigration_submitForm() {
         $("#ODRMigration_form").children('input').remove();
 
-        var src_dt_id = $("#ODRMigration_SrcDatatype_select").find('option:selected').val();
-        var element = $("<input>", {"type": "hidden", "value": src_dt_id, "name": "target_dt_id"});
+        var child_dt_id = $("#ODRMigration_ChildDatatype_select").find('option:selected').val();
+        var element = $("<input>", {"type": "hidden", "value": child_dt_id, "name": "child_dt_id"});
         $("#ODRMigration_form").append(element);
 
-        var url = "{{ path('odr_convert_link_to_childtype') }}";
+        var parent_dt_id = $("#ODRMigration_ChildDatatype_select").find('option:selected').parent().attr('rel');
+        var element = $("<input>", {"type": "hidden", "value": parent_dt_id, "name": "parent_dt_id"});
+        $("#ODRMigration_form").append(element);
+
+        var url = "{{ path('odr_convert_childtype_to_link') }}";
         var post_data = $("#ODRMigration_form").serialize();
 
         $.ajax({
@@ -52,7 +56,7 @@
             dataType: "json",
             data: post_data,
             success: function(data) {
-                $("#ODRMigration_metadata").html(data.d.metadata_html);
+                // $("#ODRMigration_metadata").html(data.d.metadata_html);
                 $("#ODRMigration_result").html(data.d.sql);
             },
             error: function() {
