@@ -54,6 +54,17 @@
                             </select>
                         </div>
 
+                        <div id="{{ odr_chart_id }}_axis_settings" class="{{ odr_chart_id }}_settings ODRHidden">
+                            <label id="{{ odr_chart_id }}_x_axis_dir_label" for="{{ odr_chart_id }}_x_axis_dir">X Axis Direction: </label>
+                            <select id="{{ odr_chart_id }}_x_axis_dir">
+                                <option value="asc" {% if plugin_options.x_axis_dir == "asc" %}selected{% endif %}>Asc</option>
+                                <option value="desc" {% if plugin_options.x_axis_dir == "desc" %}selected{% endif %}>Desc</option>
+                            </select>
+                            <span id="{{ odr_chart_id }}_save_xaxisdir" class="Pointer" rel="{{ render_plugin_instance_id }}" title="Save this setting in your browser cookies">
+                                <i class="fa fa-save"></i>
+                            </span>
+                        </div>
+
                         <div id="{{ odr_chart_id }}_line_settings" class="{{ odr_chart_id }}_settings ODRHidden">
                             <label id="{{ odr_chart_id }}_line_type_label" for="{{ odr_chart_id }}_line_type">Line Type: </label>
                             <select id="{{ odr_chart_id }}_line_type">
@@ -192,15 +203,15 @@ jQuery(function() {
 
     var elements = [
         'column_1', 'column_2', 'graph_type',
-        'line_type', 'normalize_y', 'disable_scatterGL',
+        'line_type', 'x_axis_dir', 'normalize_y', 'disable_scatterGL',
         'bar_type', 'bar_options',
         'histogram_dir', 'histogram_stack'
     ];
 
     $.each(elements, function(index, elem) {
         $("#{{ odr_chart_id }}_" + elem).unbind('change').change(function() {
-            var pieces = $(this).attr('id').split('_');
-            var chart_id = pieces.slice(0, -2).join('_');  // console.log(chart_id);
+            var pieces = $(this).attr('id').split('_');  // console.log(pieces);
+            var chart_id = pieces.slice(0, 6).join('_');  // console.log(chart_id);
 
             ODRGraph_triggerDynamicGraph(chart_id);
             $("select.graph_columns").blur();
@@ -214,6 +225,43 @@ jQuery(function() {
         $(this).closest(".DynamicGraphSettings").first().addClass('ODRHidden');
         event.stopPropagation();
     });
+
+    $('#{{ odr_chart_id }}_save_xaxisdir').unbind('click').click(function(event) {
+        event.stopPropagation();
+
+        var direction = $("#{{ odr_chart_id }}_x_axis_dir").val();
+        var render_plugin_instance_id = $(this).attr('rel');
+
+        var url = '{{ path('odr_plugin_graph_save_xaxisdir', {'direction': '', 'render_plugin_instance_id': 0}) }}';
+        url = url.substring(0, url.length-2);
+        url += direction + '/' + render_plugin_instance_id;
+
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data) {
+                notifySaved();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
 {% if can_delete_cached_image %}
     $('#{{ odr_chart_id }}_rebuild_graph_image').unbind('click').click(function(event) {
         event.stopPropagation();

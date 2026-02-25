@@ -30,10 +30,16 @@ use Symfony\Bridge\Monolog\Logger;
 // Other
 use Pheanstalk\Pheanstalk;
 use Ramsey\Uuid\Uuid;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 
 class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 {
+
+    /**
+     * @var RequestStack
+     */
+    private $request_stack;
 
     /**
      * @var EngineInterface
@@ -64,6 +70,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     /**
      * GCMassSpecPlugin constructor.
      *
+     * @param RequestStack $request_stack
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
      * @param Pheanstalk $pheanstalk
@@ -73,6 +80,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      * @param Logger $logger
      */
     public function __construct(
+        RequestStack $request_stack,
         EngineInterface $templating,
         CryptoService $crypto_service,
         Pheanstalk $pheanstalk,
@@ -83,6 +91,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     ) {
         parent::__construct($templating, $pheanstalk, $site_baseurl, $odr_web_directory, $odr_files_directory, $logger);
 
+        $this->request_stack = $request_stack;
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
         $this->odr_web_directory = $odr_web_directory;
@@ -143,6 +152,20 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
             // GCMS graphs aren't rollup
             $is_rollup = false;
+
+            // Want to allow cookies to override the 'x_axis_dir' setting
+            $request = $this->request_stack->getCurrentRequest();
+            $cookies = $request->cookies;
+            if ( $cookies->has('ODRGraph_'.$render_plugin_instance['id'].'_xaxisdir') ) {
+                $dir = $cookies->get('ODRGraph_'.$render_plugin_instance['id'].'_xaxisdir');
+                if ( $dir === 'asc' || $dir === 'desc' )
+                    $options['x_axis_dir'] = $dir;
+            }
+            // The graph filename will have either an 'a' or a 'd' indicating the direction
+            $x_axis_dir = substr($options['x_axis_dir'], 0, 1);
+
+            // NOTE: GCMS currently doesn't have the dynamic graph settings, so this does nothing
+
 
             // Retrieve mapping between datafields and render plugin fields
             $datafield_mapping = array();
@@ -304,7 +327,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
             // ...and the filename for the rollup graph
             $file_id_hash = sha1( implode('_', $odr_chart_file_ids) );
-            $rollup_filename = 'Chart_'.$file_id_hash.'_'.$graph_datafield_id.'.svg';
+            $rollup_filename = 'Chart_'.$x_axis_dir.'_'.$file_id_hash.'_'.$graph_datafield_id.'.svg';
             $odr_chart_output_files['rollup'] = '/graphs/'.$datatype_folder.'/'.$rollup_filename;
 
 

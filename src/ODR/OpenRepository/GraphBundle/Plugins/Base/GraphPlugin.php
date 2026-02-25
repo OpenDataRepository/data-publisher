@@ -28,10 +28,16 @@ use Symfony\Bridge\Monolog\Logger;
 // Other
 use Pheanstalk\Pheanstalk;
 use Ramsey\Uuid\Uuid;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 
 class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 {
+
+    /**
+     * @var RequestStack
+     */
+    private $request_stack;
 
     /**
      * @var EngineInterface
@@ -62,6 +68,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     /**
      * GraphPlugin constructor.
      *
+     * @param RequestStack $request_stack
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
      * @param Pheanstalk $pheanstalk
@@ -71,6 +78,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      * @param Logger $logger
      */
     public function __construct(
+        RequestStack $request_stack,
         EngineInterface $templating,
         CryptoService $crypto_service,
         Pheanstalk $pheanstalk,
@@ -81,6 +89,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     ) {
         parent::__construct($templating, $pheanstalk, $site_baseurl, $odr_web_directory, $odr_files_directory, $logger);
 
+        $this->request_stack = $request_stack;
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
         $this->odr_web_directory = $odr_web_directory;
@@ -328,6 +337,18 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             // Attempt to verify the default x/y columns...
             self::validateGraphColumns($options);
 
+            // Want to allow cookies to override the 'x_axis_dir' setting
+            $request = $this->request_stack->getCurrentRequest();
+            $cookies = $request->cookies;
+            if ( $cookies->has('ODRGraph_'.$render_plugin_instance['id'].'_xaxisdir') ) {
+                $dir = $cookies->get('ODRGraph_'.$render_plugin_instance['id'].'_xaxisdir');
+                if ( $dir === 'asc' || $dir === 'desc' )
+                    $options['x_axis_dir'] = $dir;
+            }
+            // The graph filename will have either an 'a' or a 'd' indicating the direction
+            $x_axis_dir = substr($options['x_axis_dir'], 0, 1);
+
+
             // Should only be one element in $theme_array...
             $theme = null;
             foreach ($theme_array as $t_id => $t)
@@ -471,7 +492,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                     //  filenames, so it's better to hash them first
                     // sha1() is not an attempt to be cryptographically secure, but instead an
                     //  attempt to minimize the chance of collisions
-                    $filename = 'Chart_'.sha1( $file['id'] ).'_'.$primary_graph_df_id.'.svg';
+                    $filename = 'Chart_'.$x_axis_dir.'_'.sha1( $file['id'] ).'_'.$primary_graph_df_id.'.svg';
                     $odr_chart_output_files[$dr_id] = '/graphs/'.$datatype_folder.'/'.$filename;
                 }
             }
@@ -484,7 +505,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
             // ...and the filename for the rollup graph
             $file_id_hash = sha1( implode('_', $odr_chart_file_ids) );
-            $rollup_filename = 'Chart_'.$file_id_hash.'_'.$primary_graph_df_id.'.svg';
+            $rollup_filename = 'Chart_'.$x_axis_dir.'_'.$file_id_hash.'_'.$primary_graph_df_id.'.svg';
             $odr_chart_output_files['rollup'] = '/graphs/'.$datatype_folder.'/'.$rollup_filename;
 
 
@@ -519,6 +540,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'target_datatype_id' => $datatype['id'],
                 'parent_datarecord' => $parent_datarecord,
                 'target_theme_id' => $theme['id'],
+                'render_plugin_instance_id' => $render_plugin_instance['id'],
 
                 'record_display_view' => $record_display_view,
                 'is_top_level' => $rendering_options['is_top_level'],
