@@ -432,14 +432,21 @@ class DatatypeController extends ODRCustomController
 
 
                 // ----------------------------------------
-                // Need to locate all datatypes that link to and are linked to by the requested datatype
+                // Need to locate all datatypes that link to the requested datatype
                 $datatree_array = $datatree_info_service->getDatatreeArray();
                 $linked_ancestors = $datatree_info_service->getLinkedAncestors( array($grandparent_datatype->getId()), $datatree_array );
-                $linked_descendants = $datatree_info_service->getLinkedDescendants( array($grandparent_datatype->getId()), $datatree_array );
 
+                // Need to also locate every linked descendants...first step is to get all children
+                //  of this datatype
+                $child_descendants = $datatree_info_service->getChildDescendants( array($grandparent_datatype->getId()), $datatree_array, true);
+                // ...and then combine those ids with the requested datatype...
+                $tmp = array_merge(array($grandparent_datatype->getId()), $child_descendants);
+                // ...so that all linked datatypes can be located
+                $linked_descendants = $datatree_info_service->getLinkedDescendants( $tmp, $datatree_array, true );
+
+                // Combine the arrays of both the ancestors and the descendants...
                 $linked_datatypes = array_merge($linked_ancestors, $linked_descendants);
-
-                // Get Data for Related Records
+                // ...so basic information about all of them can be loaded from the database
                 $query = $em->createQuery(
                    'SELECT dt, dtm, partial gp.{id}, md, mf, dt_cb, dt_ub
                     FROM ODRAdminBundle:DataType AS dt
