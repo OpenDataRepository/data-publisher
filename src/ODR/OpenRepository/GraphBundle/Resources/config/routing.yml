@@ -79,3 +79,11 @@ odr_plugin_reference_render:
     defaults: { _controller: ODROpenRepositoryGraphBundle:Reference:render }
     requirements:
         request_datarecord_id: \d+
+
+#-----------------------------------------
+# RRUFF Instrument Usage Controller
+odr_plugin_rruff_instrument_usage_redirect:
+    path:  /view/plugins/rruff_instrument_usage/redirect/{datarecord_id}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFInstrumentUsage:redirect }
+    requirements:
+        datarecord_id: \d+
