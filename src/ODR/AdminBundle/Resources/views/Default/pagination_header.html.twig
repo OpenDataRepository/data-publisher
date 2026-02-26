@@ -116,11 +116,12 @@
 
     <div id="ODRShortResultsSortForm_div" class="pure-u-1" style="display: none;">
         {% include 'ODRAdminBundle:ShortResults:shortresults_sorting.html.twig' with {
+            'datatype_id': datatype.id,
             'odr_tab_id': odr_tab_id,
-            'cached_dt': datatype_array[datatype.id],
-
             'sort_datafields': sort_datafields,
             'sort_directions': sort_directions,
+
+            'available_sortfields': available_sortfields,
         } %}
     </div>
 </div>

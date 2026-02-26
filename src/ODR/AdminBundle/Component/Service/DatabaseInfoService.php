@@ -1012,4 +1012,115 @@ class DatabaseInfoService
 
         return $metadata;
     }
+
+
+    /**
+     * Returns three arrays from the given datatype...one contains all datafields that can be used
+     * as name/sort fields, a second contains the current namefields, and a third contains the
+     * current sortfields.
+     *
+     * @param int $grandparent_datatype_id
+     * @return array
+     */
+    public function getSpecialDatafields($grandparent_datatype_id)
+    {
+        // Both of these special fields only allow specific fieldtypes
+        $query = $this->em->createQuery(
+           'SELECT ft.typeName
+            FROM ODRAdminBundle:FieldType ft
+            WHERE ft.canBeSortField = 1
+            AND ft.deletedAt IS NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $allowed_typenames = array();
+        foreach ($results as $result) {
+            // Using typename instead of typeclass because the 'Radio' typeclass is only
+            //  partially allowed
+            $typename = $result['typeName'];
+            $allowed_typenames[$typename] = 1;
+        }
+
+        // Need to build three arrays of datafields
+        $available_datafields = array();
+        $current_namefields = array();
+        $current_sortfields = array();
+
+        // All of the data can come from the cached datatype array
+        $datatype_array = self::getDatatypeArray($grandparent_datatype_id);    // do want links
+        $dt = $datatype_array[$grandparent_datatype_id];
+
+        // ...going to need to also find their names from the cached datatype array
+        foreach ($dt['nameFields'] as $display_order => $df_id)
+            $current_namefields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
+        foreach ($dt['sortFields'] as $display_order => $df_id)
+            $current_sortfields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
+
+        $datatypes_to_check = array($grandparent_datatype_id);
+        while ( !empty($datatypes_to_check) ) {
+            $tmp = array();
+
+            foreach ($datatypes_to_check as $dt_id) {
+                $dt = $datatype_array[$dt_id];
+                $dt_name = $dt['dataTypeMeta']['shortName'];
+                $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
+
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    // Only save this field if it has the correct typeclass
+                    $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                    if ( isset($allowed_typenames[$typename]) )
+                        $available_datafields[$dt_id]['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+
+                    // Also fill in the names for the current datafields while here
+                    if ( isset($current_namefields[$df_id]) )
+                        $current_namefields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
+                    if ( isset($current_sortfields[$df_id]) )
+                        $current_sortfields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
+                }
+
+                // If this record has descendants...
+                if ( isset($dt['descendants']) ) {
+                    // ...then also need to go looking into linked descendants that only allow
+                    //  a single record
+                    foreach ($dt['descendants'] as $descendant_dt_id => $data) {
+                        if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
+                            $tmp[] = $descendant_dt_id;
+                    }
+
+                    // Currently not allowed to use fields from child descendants for sorting
+                }
+            }
+
+            // Reset for next loop
+            $datatypes_to_check = $tmp;
+        }
+
+        // Sort each set of available datafields by their name so they're easier to locate
+        foreach ($available_datafields as $dt_id => $dt_data) {
+            if ( !empty($dt_data['datafields']) ) {
+                $tmp = $dt_data['datafields'];
+                asort($tmp);
+                $available_datafields[$dt_id]['datafields'] = $tmp;
+            }
+        }
+        // Do the same for the datatypes
+        uasort($available_datafields, function($a, $b) {
+            return strcmp($a['datatype_name'], $b['datatype_name']);
+        });
+
+        // The currently selected datafields should be sorted by display order
+        uasort($current_namefields, function($a, $b) {
+            return $a['display_order'] <=> $b['display_order'];
+        });
+        uasort($current_sortfields, function($a, $b) {
+            return $a['display_order'] <=> $b['display_order'];
+        });
+
+        $tmp = array(
+            'available_fields' => $available_datafields,
+            'current_namefields' => $current_namefields,
+            'current_sortfields' => $current_sortfields,
+        );
+        return $tmp;
+    }
 }
