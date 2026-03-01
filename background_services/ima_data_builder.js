@@ -260,7 +260,14 @@ async function app() {
                     console.log("Build Tag Data (MASTER)");
                     await buildTagData(ima_record_map.ima_template_tags_uuid, ima_record_template, tag_data, 'master');
                     content += tag_data.join('');
-                    content += '\nmaster_tag_data[999999] = "999999||RRUFF Mineral|| ||mineral||1||RRUFF Mineral||1028||100";\n';
+                    content += '\nmaster_tag_data[999991] = "999991||Data Sets|| ||mineral||1||Data Sets||0||100";\n';
+                    content += '\nmaster_tag_data[999999] = "999999||RRUFF Samples|| ||mineral||1||RRUFF Samples||999991||0";\n';
+                    content += '\nmaster_tag_data[999992] = "999992||AMCSD Records|| ||mineral||1||AMCSD Records||999991||1";\n';
+                    // content += '\nmaster_tag_data[999993] = "999993||Infrared Spectra|| ||mineral||1||Infrared Spectra||999991||2";\n';
+                    // content += '\nmaster_tag_data[999994] = "999994||Raman Spectra|| ||mineral||1||Raman Spectra||999991||3";\n';
+                    // content += '\nmaster_tag_data[999995] = "999995||Diffraction Profiles|| ||mineral||1||Diffraction Profiles||999991||4";\n';
+                    // content += '\nmaster_tag_data[999996] = "999996||Cell Parameters|| ||mineral||1||Cell Parameters||999991||5";\n';
+                    // content += '\nmaster_tag_data[999997] = "999997||Empirical Chemistry|| ||mineral||1||Empirical Chemistry||999991||6";\n';
 
                     let master_tag_data_filename = basepath + data.master_tag_data + '.' + tmp_file_extension;
                     await writeFile(master_tag_data_filename, content);
