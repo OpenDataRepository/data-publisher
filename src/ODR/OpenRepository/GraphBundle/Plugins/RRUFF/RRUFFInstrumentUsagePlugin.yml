@@ -1,0 +1,56 @@
+odr_plugins.rruff.instrument_usage:
+    name: RRUFF Instrument Usage Plugin
+    category: RRUFF
+    plugin_type: datafield
+    render: odr_plugins.rruff.instrument_usage
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: true
+    override_export: false
+    override_search: false
+    override_sort: false
+    description: This plugin replaces a field with a button to trigger a search for all RRUFF Samples that use this particular instrument.
+    suppress_no_fields_note: false
+    registered_events:
+
+    required_fields:
+        link_field:
+            name: Link Field
+            description: The field that will get turned into a button.
+            type: ShortVarchar
+
+    config_options:
+        target_datatype:
+            name: Target Datatype
+            type: string
+            default:
+            description: The ID of the RRUFF Samples datatype.
+            display_order: 0
+        source_datafield:
+            name: Source Datafield
+            type: string
+            default:
+            description: The ID of the Instrument Name field in the RRUFF Instruments datatype.
+            display_order: 1
+
+        render_in_display:
+            name: Render in Display Mode?
+            default: no
+            choices: no||No,yes||Yes
+            description: Whether to render the button in Display mode
+            display_order: 2
+        render_in_edit:
+            name: Render in Edit Mode?
+            default: no
+            choices: no||No,yes||Yes
+            description: Whether to render the button in Edit mode
+            display_order: 3
+
+        button_label:
+            name: Button Label
+            type: string
+            default:
+            description: The label before the button's icon.
+            display_order: 4

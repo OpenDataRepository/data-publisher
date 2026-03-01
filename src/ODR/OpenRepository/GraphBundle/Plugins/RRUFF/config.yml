@@ -58,6 +58,16 @@ services:
             $templating: "@templating"
             $logger: "@logger"
 
+    odr_plugins.rruff.instrument_usage:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFInstrumentUsagePlugin'
+        arguments:
+            $environment: "%kernel.environment%"
+            $site_baseurl: "%site_baseurl%"
+            $database_info_service: "@odr.database_info_service"
+            $templating: "@templating"
+            $router: "@router"
+            $logger: "@logger"
+
     odr_plugins.rruff.pin_data:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
         arguments:

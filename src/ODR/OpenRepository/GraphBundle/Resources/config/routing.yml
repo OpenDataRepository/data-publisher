@@ -1,4 +1,7 @@
 # TODO - move these into other files?
+
+#-----------------------------------------
+# Graph Controller
 odr_plugin_graph_render:
     path:  /graph/static/{request_datatype_id}/{request_datarecord_id}.{_format}
     defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:render, _format: 'svg' }
@@ -13,6 +16,15 @@ odr_plugin_graph_delete_individual:
         datatype_id: \d+
         graph_filename: '^0|(Filter_)?Chart_[a-f0-9]{40}_\d+\.svg$'
 
+odr_plugin_graph_save_xaxisdir:
+    path:  /view/plugins/savexaxisdir/{direction}/{render_plugin_instance_id}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:savexaxisdir }
+    requirements:
+        direction: '|asc|desc'
+        render_plugin_instance_id: \d+
+
+#-----------------------------------------
+# FileRenamer Controller
 odr_plugin_file_renamer_rebuild_all:
     path:  /edit/plugins/file_renamer/rebuild_all/{dr_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:FileRenamer:rebuildall }
@@ -25,6 +37,8 @@ odr_plugin_file_renamer_rebuild:
         dr_id: \d+
         df_id: \d+
 
+#-----------------------------------------
+# FileHeaderInserter Controller
 odr_plugin_file_header_inserter_rebuild_all:
     path:  /edit/plugins/file_header_inserter/rebuild_all/{dr_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:FileHeaderInserter:rebuildall }
@@ -37,6 +51,8 @@ odr_plugin_file_header_inserter_rebuild:
         dr_id: \d+
         df_id: \d+
 
+#-----------------------------------------
+# RRUFFFileHeaderInserter Controller
 odr_plugin_rruff_file_header_inserter_rebuild_all:
     path:  /edit/plugins/rruff_file_header_inserter/rebuild_all/{dr_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFFileHeaderInserter:rebuildall }
@@ -49,13 +65,25 @@ odr_plugin_rruff_file_header_inserter_rebuild:
         dr_id: \d+
         df_id: \d+
 
+#-----------------------------------------
+# RRUFFCellparams Controller
 odr_plugin_cellparam_save:
     path:  /edit/plugins/cellparams/save
     defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFCellparams:save }
     methods: [POST]
 
+#-----------------------------------------
+# Reference Controller
 odr_plugin_reference_render:
     path:  /edit/plugins/references/render/{request_datarecord_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:Reference:render }
     requirements:
         request_datarecord_id: \d+
+
+#-----------------------------------------
+# RRUFF Instrument Usage Controller
+odr_plugin_rruff_instrument_usage_redirect:
+    path:  /view/plugins/rruff_instrument_usage/redirect/{datarecord_id}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFInstrumentUsage:redirect }
+    requirements:
+        datarecord_id: \d+

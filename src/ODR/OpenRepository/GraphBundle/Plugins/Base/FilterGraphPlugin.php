@@ -42,10 +42,16 @@ use Symfony\Bridge\Monolog\Logger;
 // Other
 use Pheanstalk\Pheanstalk;
 use Ramsey\Uuid\Uuid;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 
 class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface, PluginSettingsDialogOverrideInterface
 {
+
+    /**
+     * @var RequestStack
+     */
+    private $request_stack;
 
     /**
      * @var EngineInterface
@@ -81,6 +87,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
     /**
      * FilterGraph Plugin constructor.
      *
+     * @param RequestStack $request_stack
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
@@ -91,6 +98,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      * @param Logger $logger
      */
     public function __construct(
+        RequestStack $request_stack,
         EngineInterface $templating,
         CryptoService $crypto_service,
         DatabaseInfoService $database_info_service,
@@ -102,6 +110,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
     ) {
         parent::__construct($templating, $pheanstalk, $site_baseurl, $odr_web_directory, $odr_files_directory, $logger);
 
+        $this->request_stack = $request_stack;
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
         $this->database_info_service = $database_info_service;
@@ -558,6 +567,18 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             //  rest of the graph stuff to work...
             $options['graph_type'] = 'xy';
 
+            // Want to allow cookies to override the 'x_axis_dir' setting
+            $request = $this->request_stack->getCurrentRequest();
+            $cookies = $request->cookies;
+            if ( $cookies->has('ODRGraph_'.$render_plugin_instance['id'].'_xaxisdir') ) {
+                $dir = $cookies->get('ODRGraph_'.$render_plugin_instance['id'].'_xaxisdir');
+                if ( $dir === 'asc' || $dir === 'desc' )
+                    $options['x_axis_dir'] = $dir;
+            }
+            // The graph filename will have either an 'a' or a 'd' indicating the direction
+            $x_axis_dir = substr($options['x_axis_dir'], 0, 1);
+
+
             // Should only be one element in $theme_array...
             $theme = null;
             foreach ($theme_array as $t_id => $t)
@@ -642,7 +663,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
             // ...and the filename for the rollup graph
             $file_id_hash = sha1( implode('_', $odr_chart_file_ids) );
-            $rollup_filename = 'Filter_Chart_'.$file_id_hash.'_'.$primary_graph_df_id.'.svg';
+            $rollup_filename = 'Filter_Chart_'.$x_axis_dir.'_'.$file_id_hash.'_'.$primary_graph_df_id.'.svg';
             $odr_chart_output_files['rollup'] = '/graphs/'.$datatype_folder.'/'.$rollup_filename;
 
 
@@ -712,6 +733,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 'target_datatype_id' => $datatype['id'],
                 'parent_datarecord' => $parent_datarecord,
                 'target_theme_id' => $theme['id'],
+                'render_plugin_instance_id' => $render_plugin_instance['id'],
 
                 'record_display_view' => $record_display_view,
                 'is_top_level' => $rendering_options['is_top_level'],

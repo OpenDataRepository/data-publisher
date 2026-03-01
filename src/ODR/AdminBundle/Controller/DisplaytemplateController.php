@@ -4356,81 +4356,17 @@ if ($debug)
             if ($type !== 'name' && $type !== 'sort')
                 throw new ODRBadRequestException('Invalid $type value');
 
-            // Both of these special fields only allow specific fieldtypes
-            $query = $em->createQuery(
-               'SELECT ft.typeName
-                FROM ODRAdminBundle:FieldType ft
-                WHERE ft.canBeSortField = 1
-                AND ft.deletedAt IS NULL'
-            );
-            $results = $query->getArrayResult();
 
-            $allowed_typenames = array();
-            foreach ($results as $result) {
-                // Using typename instead of typeclass because the 'Radio' typeclass is only
-                //  partially allowed
-                $typename = $result['typeName'];
-                $allowed_typenames[$typename] = 1;
-            }
+            // Locate all name/sort fields for the datatype...
+            $tmp = $database_info_service->getSpecialDatafields($datatype_id);
 
-            // Need to build two arrays of datafields
-            $current_datafields = array();
-            $available_datafields = array();
+            // ...though we only want some of them
+            $available_datafields = $tmp['available_fields'];
+            $current_datafields = $tmp['current_namefields'];
+            if ($type === 'sort')
+                $current_datafields = $tmp['current_sortfields'];
 
-            // All of the data can come from the cached datatype array
-            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
-            $dt = $datatype_array[$datatype->getId()];
-
-            // The current fields only have the datafield id...
-            $fields = array();
-            if ( $type === 'name' )
-                $fields = $dt['nameFields'];
-            else
-                $fields = $dt['sortFields'];
-
-            // ...going to need to also find their names from the cached datatype array
-            foreach ($fields as $display_order => $df_id)
-                $current_datafields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
-
-
-            $datatypes_to_check = array($datatype->getId());
-            while ( !empty($datatypes_to_check) ) {
-                $tmp = array();
-
-                foreach ($datatypes_to_check as $dt_id) {
-                    $dt = $datatype_array[$dt_id];
-                    $dt_name = $dt['dataTypeMeta']['shortName'];
-                    $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
-
-                    foreach ($dt['dataFields'] as $df_id => $df) {
-                        // Only save this field if it has the correct typeclass
-                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                        if ( isset($allowed_typenames[$typename]) )
-                            $available_datafields[$dt_id]['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
-
-                        // Also fill in the names for the current datafields while here
-                        if ( isset($current_datafields[$df_id]) )
-                            $current_datafields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
-                    }
-
-                    // If this record has descendants...
-                    if ( isset($dt['descendants']) ) {
-                        // ...then also need to go looking into linked descendants that only allow
-                        //  a single record
-                        foreach ($dt['descendants'] as $descendant_dt_id => $data) {
-                            if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
-                                $tmp[] = $descendant_dt_id;
-                        }
-
-                        // Currently not allowed to use fields from child descendants for sorting
-                    }
-                }
-
-                // Reset for next loop
-                $datatypes_to_check = $tmp;
-            }
-
-            // Generate a csrf token for the form before the datafields are sorted by name
+            // Generate a csrf token for the form
             $token_key = 'Form_';
             foreach ($available_datafields as $dt_id => $dt_data) {
                 foreach ($dt_data['datafields'] as $df_id => $df_name)
@@ -4438,25 +4374,6 @@ if ($debug)
             }
             $token_key .= 'Datafields';
             $token = $token_manager->getToken($token_key)->getValue();
-
-
-            // Sort each set of available datafields by their name so they're easier to locate
-            foreach ($available_datafields as $dt_id => $dt_data) {
-                if ( !empty($dt_data['datafields']) ) {
-                    $tmp = $dt_data['datafields'];
-                    asort($tmp);
-                    $available_datafields[$dt_id]['datafields'] = $tmp;
-                }
-            }
-            // Do the same for the datatypes
-            uasort($available_datafields, function($a, $b) {
-                return strcmp($a['datatype_name'], $b['datatype_name']);
-            });
-
-            // The currently selected datafields need to be sorted by display order
-            uasort($current_datafields, function($a, $b) {
-                return $a['display_order'] <=> $b['display_order'];
-            });
 
 
             // ----------------------------------------
@@ -4562,68 +4479,26 @@ if ($debug)
             // --------------------
 
 
-            // Both of these special fields only allow specific fieldtypes
-            $query = $em->createQuery(
-               'SELECT ft.typeName
-                FROM ODRAdminBundle:FieldType ft
-                WHERE ft.canBeSortField = 1
-                AND ft.deletedAt IS NULL'
-            );
-            $results = $query->getArrayResult();
+            // Locate all name/sort fields for the datatype...
+            $tmp = $database_info_service->getSpecialDatafields($datatype_id);
 
-            $allowed_typenames = array();
-            foreach ($results as $result) {
-                // Using typename instead of typeclass because the 'Radio' typeclass is only
-                //  partially allowed
-                $typename = $result['typeName'];
-                $allowed_typenames[$typename] = 1;
-            }
+            // ...though we only actually want the fields that can be used as name/sort fields
+            $available_datafields = $tmp['available_fields'];
+//            $current_datafields = $tmp['current_namefields'];
+//            if ($purpose === 'sort')
+//                $current_datafields = $tmp['current_sortfields'];
 
-            // Get the cached datatype array to verify the form
-            $available_datafields = array();
-            $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
-
-            $datatypes_to_check = array($datatype->getId());
-            while ( !empty($datatypes_to_check) ) {
-                $tmp = array();
-
-                foreach ($datatypes_to_check as $dt_id) {
-                    $dt = $datatype_array[$dt_id];
-                    $dt_name = $dt['dataTypeMeta']['shortName'];
-                    $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
-
-                    foreach ($dt['dataFields'] as $df_id => $df) {
-                        // Only save this field if it has the correct typeclass
-                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                        if ( isset($allowed_typenames[$typename]) ) {
-                            $available_datafields[$dt_id]['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
-
-                            // Mark that this field in the $_POST belongs to the correct datatype...
-                            if ( isset($seen_datafields[$df_id]) )
-                                $seen_datafields[$df_id] = true;
-                        }
-                    }
-
-                    // If this record has descendants...
-                    if ( isset($dt['descendants']) ) {
-                        // ...then also need to go looking into linked descendants that only allow
-                        //  a single record
-                        foreach ($dt['descendants'] as $descendant_dt_id => $data) {
-                            if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
-                                $tmp[] = $descendant_dt_id;
-                        }
-                    }
-                }
-
-                // Reset for next loop
-                $datatypes_to_check = $tmp;
-            }
-
-            // Generate a csrf token for the form before the datafields are sorted by name
+            // Generate a csrf token for the form, and validate that an unrelated datafield isn't
+            //  in said form
             $token_key = 'Form_';
             foreach ($available_datafields as $dt_id => $dt_data) {
-                foreach ($dt_data['datafields'] as $df_id => $df_name)
+                foreach ($dt_data['datafields'] as $df_id => $df_name) {
                     $token_key .= $df_id.'_';
+
+                    // Mark that this field in the $_POST belongs to the correct datatype...
+                    if ( isset($seen_datafields[$df_id]) )
+                        $seen_datafields[$df_id] = true;
+                }
             }
             $token_key .= 'Datafields';
             $token = $token_manager->getToken($token_key)->getValue();

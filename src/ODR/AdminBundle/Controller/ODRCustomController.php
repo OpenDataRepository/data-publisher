@@ -363,6 +363,10 @@ class ODRCustomController extends Controller
                     $datarecord_array[$dr_id] = $datarecord_info_service->stackDatarecordArray($related_datarecord_array, $dr_id);
             }
 
+            // Need to get a list of available sortfields
+            $tmp = $database_info_service->getSpecialDatafields($datatype->getId());
+            $available_sortfields = $tmp['available_fields'];
+
 
             // -----------------------------------
             // Determine where on the page to scroll to if possible
@@ -414,6 +418,8 @@ class ODRCustomController extends Controller
                         'odr_tab_id' => $odr_tab_id,
                         'sort_datafields' => $sort_datafields,
                         'sort_directions' => $sort_directions,
+
+                        'available_sortfields' => $available_sortfields,
                     )
                 );
             }

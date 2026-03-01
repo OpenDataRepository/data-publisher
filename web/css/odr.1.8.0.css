@@ -1753,6 +1753,9 @@ pre .support.value  {
 .ODRHidden {
     display: none !important;
 }
+.ODRShow {
+    display: inline-block !important;
+}
 
 /**
 * Open Data Repository Data Publisher
