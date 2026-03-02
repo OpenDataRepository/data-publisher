@@ -16,9 +16,17 @@ namespace ODR\AdminBundle\Entity;
 
 class DataTypeSpecialFields
 {
-    // In the interest of not having magic numbers floating around...
+
+    /**
+     * The contents of this datafield will be used to "name" the record it's a part of.
+     */
     const NAME_FIELD = 1;
+
+    /**
+     * The contents of this datafield will be used to "sort" the datatype.
+     */
     const SORT_FIELD = 2;
+
 
     /**
      * @var int

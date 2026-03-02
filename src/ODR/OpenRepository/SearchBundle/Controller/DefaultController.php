@@ -221,12 +221,26 @@ class DefaultController extends Controller
             // If this datatype has a default search key...
             $default_search_key = '';
             $default_search_params = array();
-            if ($target_datatype->getStoredSearchKeys() && $target_datatype->getStoredSearchKeys()->count() > 0) {
-                // ...then extract it so the sidebar can load with said search key
-                /** @var StoredSearchKey $ssk */
-                $ssk = $target_datatype->getStoredSearchKeys()->first();
-                $default_search_key = $ssk->getSearchKey();
 
+            // If the datatype has any stored search keys...
+            foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
+                /** @var StoredSearchKey $ssk */
+
+                // ...prefer the ones meant for searching context
+                if ( $ssk->getDefaultFor() === StoredSearchKey::SEARCH_CONTEXT ) {
+                    $default_search_key = $ssk->getSearchKey();
+                    break;
+                }
+                // ...and fall back to ones meant for any context
+                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
+                    $default_search_key = $ssk->getSearchKey();
+                    break;
+                }
+
+                // TODO - when datatypes can have more than one stored search, this will get messed up
+            }
+
+            if ( $default_search_key !== '' ) {
                 // Convert the search key into a parameter list so that the sidebar can start out
                 //  with the right stuff
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
@@ -490,12 +504,26 @@ class DefaultController extends Controller
             // If this datatype has a default search key...
             $default_search_key = '';
             $default_search_params = array();
-            if ($target_datatype->getStoredSearchKeys() && $target_datatype->getStoredSearchKeys()->count() > 0) {
-                // ...then extract it so the sidebar can load with said search key
-                /** @var StoredSearchKey $ssk */
-                $ssk = $target_datatype->getStoredSearchKeys()->first();
-                $default_search_key = $ssk->getSearchKey();
 
+            // If the datatype has any stored search keys...
+            foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
+                /** @var StoredSearchKey $ssk */
+
+                // ...prefer the ones meant for searching context
+                if ( $ssk->getDefaultFor() === StoredSearchKey::SEARCH_CONTEXT ) {
+                    $default_search_key = $ssk->getSearchKey();
+                    break;
+                }
+                // ...and fall back to ones meant for any context
+                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
+                    $default_search_key = $ssk->getSearchKey();
+                    break;
+                }
+
+                // TODO - when datatypes can have more than one stored search, this will get messed up
+            }
+
+            if ( $default_search_key !== '' ) {
                 // Convert the search key into a parameter list so that the sidebar can start out
                 //  with the right stuff
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
@@ -509,8 +537,6 @@ class DefaultController extends Controller
             if ( $search_string !== '' )
                 $default_search_params['gen'] = $search_string;
 
-            // The search sidebar doesn't have a good way to activate or switch to this yet..
-//            $default_search_params['inverse'] = 1;
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');

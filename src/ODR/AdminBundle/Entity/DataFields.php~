@@ -22,11 +22,18 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class DataFields
 {
-    // Field is not searchable by the user, nor usable in sidebar layouts.  Note that this doesn't
-    //  actually prevent ODR from searching on a field...a couple areas will regardless
+
+    /**
+     * Field is not searchable by the user, nor usable in sidebar layouts.  Note that this doesn't
+     * actually prevent ODR from searching on a field...InlineLink in particular will ignore this.
+     */
     const NOT_SEARCHABLE = 0;
-    // Field is searchable by the user, and usable in sidebar layouts
+
+    /**
+     * Field is searchable by the user, and usable in sidebar layouts
+     */
     const SEARCHABLE = 1;
+
 
     /**
      * @var integer

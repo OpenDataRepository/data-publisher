@@ -5095,7 +5095,14 @@ button.jGrowl-close {
     padding-left: 20px;
 }
 #ODRStoredSearchKeys_form {
-    display: none;
+    /*display: none;*/
+    padding-top: 50px;
+}
+
+.ODRStoredSearchKey_context {
+    display: inline-block !important;
+    padding-left: 3px;
+    padding-right: 5px;
 }
 
 .ODRFileRenameInput {

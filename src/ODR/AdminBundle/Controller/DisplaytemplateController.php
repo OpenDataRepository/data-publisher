@@ -4693,6 +4693,7 @@ if ($debug)
 
                     'isDefault' => $ssk->getIsDefault(),
                     'isPublic' => $ssk->getIsPublic(),
+                    'defaultFor' => $ssk->getDefaultFor(),
 
                     'has_non_public_fields' => false,
                 );
@@ -4957,9 +4958,20 @@ if ($debug)
         try {
             // Ensure required variables exist
             $post = $request->request->all();
-            if ( !isset($post['search_key']) )
+            if ( !isset($post['search_key']) || !isset($post['defaultFor']) )
                 throw new ODRBadRequestException();
+
             $search_key = $post['search_key'];
+
+            $defaultFor = intval($post['defaultFor']);
+            switch ($defaultFor) {
+                case StoredSearchKey::ANY_CONTEXT:
+                case StoredSearchKey::SEARCH_CONTEXT:
+                case StoredSearchKey::LINK_CONTEXT:
+                    break;
+                default:
+                    throw new ODRBadRequestException('Invalid Form');
+            }
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -5013,6 +5025,7 @@ if ($debug)
                     $ssk = $stored_search_keys->first();
                     $props = array(
                         'searchKey' => $search_key,
+                        'defaultFor' => $defaultFor,
                     );
                     $entity_modify_service->updateStoredSearchKey($user, $ssk, $props);
                 }
@@ -5029,6 +5042,7 @@ if ($debug)
                     // TODO - these are more for later, when a datatype is allowed to have more than one stored search key...
                     $ssk->setIsDefault(true);
                     $ssk->setIsPublic(true);
+                    $ssk->setDefaultFor($defaultFor);
 
                     // Persist and flush the changes
                     $em->persist($ssk);
