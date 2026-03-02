@@ -257,7 +257,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                 // Need to try to ensure urls are valid...
                 if ( $datafield_mapping['url'] !== '' ) {
                     // Ensure that DOIs that aren't entirely links still are valid
-                    if ( strpos($datafield_mapping['url'], 'doi:') === 0 )
+                    if ( stripos($datafield_mapping['url'], 'doi:') === 0 )
                         $datafield_mapping['url'] = 'https://doi.org/'.trim( substr($datafield_mapping['url'], 4) );
 
                     // Ensure that the values have an 'https://' prefix
