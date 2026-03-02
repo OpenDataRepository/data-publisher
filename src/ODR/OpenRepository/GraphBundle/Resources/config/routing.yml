@@ -14,7 +14,7 @@ odr_plugin_graph_delete_individual:
     defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:deleteindividualgraph }
     requirements:
         datatype_id: \d+
-        graph_filename: '^0|(Filter_)?Chart_[a-f0-9]{40}_\d+\.svg$'
+        graph_filename: '^0|(Filter_)?Chart_[ad]_[a-f0-9]{40}_\d+\.svg$'
 
 odr_plugin_graph_save_xaxisdir:
     path:  /view/plugins/savexaxisdir/{direction}/{render_plugin_instance_id}
