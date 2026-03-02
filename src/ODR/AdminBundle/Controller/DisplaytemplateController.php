@@ -4347,6 +4347,7 @@ if ($debug)
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -4358,7 +4359,7 @@ if ($debug)
 
 
             // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id);
+            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
 
             // ...though we only want some of them
             $available_datafields = $tmp['available_fields'];
@@ -4472,6 +4473,7 @@ if ($debug)
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -4480,7 +4482,7 @@ if ($debug)
 
 
             // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id);
+            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
 
             // ...though we only actually want the fields that can be used as name/sort fields
             $available_datafields = $tmp['available_fields'];
