@@ -4347,6 +4347,7 @@ if ($debug)
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -4358,7 +4359,7 @@ if ($debug)
 
 
             // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id);
+            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
 
             // ...though we only want some of them
             $available_datafields = $tmp['available_fields'];
@@ -4472,6 +4473,7 @@ if ($debug)
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -4480,7 +4482,7 @@ if ($debug)
 
 
             // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id);
+            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
 
             // ...though we only actually want the fields that can be used as name/sort fields
             $available_datafields = $tmp['available_fields'];
@@ -4691,6 +4693,7 @@ if ($debug)
 
                     'isDefault' => $ssk->getIsDefault(),
                     'isPublic' => $ssk->getIsPublic(),
+                    'defaultFor' => $ssk->getDefaultFor(),
 
                     'has_non_public_fields' => false,
                 );
@@ -4955,9 +4958,20 @@ if ($debug)
         try {
             // Ensure required variables exist
             $post = $request->request->all();
-            if ( !isset($post['search_key']) )
+            if ( !isset($post['search_key']) || !isset($post['defaultFor']) )
                 throw new ODRBadRequestException();
+
             $search_key = $post['search_key'];
+
+            $defaultFor = intval($post['defaultFor']);
+            switch ($defaultFor) {
+                case StoredSearchKey::ANY_CONTEXT:
+                case StoredSearchKey::SEARCH_CONTEXT:
+                case StoredSearchKey::LINK_CONTEXT:
+                    break;
+                default:
+                    throw new ODRBadRequestException('Invalid Form');
+            }
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -5011,6 +5025,7 @@ if ($debug)
                     $ssk = $stored_search_keys->first();
                     $props = array(
                         'searchKey' => $search_key,
+                        'defaultFor' => $defaultFor,
                     );
                     $entity_modify_service->updateStoredSearchKey($user, $ssk, $props);
                 }
@@ -5027,6 +5042,7 @@ if ($debug)
                     // TODO - these are more for later, when a datatype is allowed to have more than one stored search key...
                     $ssk->setIsDefault(true);
                     $ssk->setIsPublic(true);
+                    $ssk->setDefaultFor($defaultFor);
 
                     // Persist and flush the changes
                     $em->persist($ssk);

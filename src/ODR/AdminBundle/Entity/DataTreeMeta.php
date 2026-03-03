@@ -22,16 +22,29 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class DataTreeMeta
 {
-    // In the interest of not having magic numbers floating around...
 
-    // can always edit linked descendants directly
+    /**
+     * Edit mode won't make any effort to block editing of descendant records.  This is the default.
+     */
     const ALWAYS_EDIT = 0;
-    // open edit page for this linked descendant in a new tab
+
+    /**
+     * Edit mode will attempt to protect descendant records from being directly edited, but instead
+     * open their edit pages in a new tab.
+     */
     const LINK_EDIT = 1;
-    // need to click a button to activate ability to edit a linked descendant
+
+    /**
+     * Edit mode will attempt to protect descendant records from being directly edited, but provide
+     * a button/popup combo to allow users to toggle the abiilty to directly edit the record.
+     */
     const TOGGLE_EDIT_INACTIVE = 2;
-    // the button from TOGGLE_EDIT_INACTIVE has been clicked, so actually re-activate edit for the
-    //  linked descendant
+
+    /**
+     * Edit mode will attempt to protect descendant records from being directly edited, but the
+     * button/popup combo to allow users to toggle the abiilty to directly edit the record has been
+     * triggered in this case.  This is a temporary state, and should not be saved to the database.
+     */
     const TOGGLE_EDIT_ACTIVE = 3;
 
 

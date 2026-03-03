@@ -21,7 +21,7 @@ class RenderPlugin
 {
     // These are magic numbers to define when twig rendering will call the RenderPlugin
 
-    /*
+    /**
      * Plugins with this constant are called in *_childtype.html.twig, and therefore can completely
      * override an entire child/linked datatype if they want to, such as the Comment and Reference
      * plugins.  They don't have to, however, and plugins can also selectively replace parts of
@@ -29,21 +29,21 @@ class RenderPlugin
      */
     const DATATYPE_PLUGIN = 1;
 
-    /*
+    /**
      * Plugins with this constant are called in *_fieldarea.html.twig, and provides content for
      * themeElements...ODR won't allow any datafields or child/linked datatypes in the affected
      * themeElements.
      */
     const THEME_ELEMENT_PLUGIN = 2;
 
-    /*
+    /**
      * Plugins with this constant are called in *_datafield.html.twig, and can only override a single
      * datafield...usually this is for changing the displayed value (i.e. Currency or URL Plugins),
      * but these can also override how a field is searched (i.e. ChemicalElementSearch).
      */
     const DATAFIELD_PLUGIN = 3;
 
-    /*
+    /**
      * Plugins with this constant are also called in *_childtype.html.twig, but they get called prior
      * to regular datatype plugins, and return modified datatype/datarecord/theme arrays instead of
      * HTML.  Additionally, these ignore the "render" parameter...unlike the other types of plugins
@@ -52,7 +52,7 @@ class RenderPlugin
      */
     const ARRAY_PLUGIN = 4;
 
-    /*
+    /**
      * Plugins with this constant are also called in *_datafield.html.twig, but they only add a
      * button/icon in the datafield's header...the actual rendering and/or saving of the datafield
      * are not affected.

@@ -2466,6 +2466,7 @@ class EntityCreationService
 
         $stored_search_key->setIsDefault(false);
         $stored_search_key->setIsPublic(false);
+        $stored_search_key->setDefaultFor(StoredSearchKey::ANY_CONTEXT);
 
         $stored_search_key->setCreatedBy($user);
         $stored_search_key->setUpdatedBy($user);
@@ -2769,7 +2770,7 @@ class EntityCreationService
         $theme_meta->setDefaultFor(0);
         $theme_meta->setShared(false);
         $theme_meta->setDisableSearchSidebar(false);
-        $theme_meta->setThemeVisibility(0);
+        $theme_meta->setThemeVisibility(ThemeMeta::ANY_CONTEXT);
         $theme_meta->setIsTableTheme(false);
         $theme_meta->setDisplaysAllResults(false);
         $theme_meta->setEnableHorizontalScrolling(false);

@@ -1019,11 +1019,27 @@ class DatabaseInfoService
      * as name/sort fields, a second contains the current namefields, and a third contains the
      * current sortfields.
      *
+     * NOTE: the list IS filtered by user permissions, unless the given permissions array is null.
+     *
      * @param int $grandparent_datatype_id
+     * @param array|null $user_permissions {@link PermissionsManagementService::getUserPermissionsArray()}
      * @return array
      */
-    public function getSpecialDatafields($grandparent_datatype_id)
+    public function getSpecialDatafields($grandparent_datatype_id, $user_permissions = null)
     {
+        // There might be situations can't do so if the given array is null
+        $apply_permissions = true;
+        if ( is_null($user_permissions) )
+            $apply_permissions = false;
+
+        $datatype_permissions = $datafield_permissions = array();
+        if ( $apply_permissions && isset($user_permissions['datatypes']) )
+            $datatype_permissions = $user_permissions['datatypes'];
+        if ( $apply_permissions && isset($user_permissions['datafields']) )
+            $datafield_permissions = $user_permissions['datafields'];
+
+
+        // ----------------------------------------
         // Both of these special fields only allow specific fieldtypes
         $query = $this->em->createQuery(
            'SELECT ft.typeName
@@ -1065,29 +1081,52 @@ class DatabaseInfoService
                 $dt_name = $dt['dataTypeMeta']['shortName'];
                 $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
 
-                foreach ($dt['dataFields'] as $df_id => $df) {
-                    // Only save this field if it has the correct typeclass
-                    $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                    if ( isset($allowed_typenames[$typename]) )
-                        $available_datafields[$dt_id]['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[$dt_id]['dt_view']) )
+                    $can_view_datatype = true;
 
-                    // Also fill in the names for the current datafields while here
-                    if ( isset($current_namefields[$df_id]) )
-                        $current_namefields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
-                    if ( isset($current_sortfields[$df_id]) )
-                        $current_sortfields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
-                }
+                // If we're ignoring permissions, or the user can view the datatype, or the
+                //  datatype is already public...
+                if ( !$apply_permissions || $can_view_datatype
+                    || $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') != '2200-01-01 00:00:00'
+                ) {
+                    // ...then check this datatype's fields
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        // Determine whether the user can view the datafield or not
+                        $can_view_datafield = false;
+                        if ( isset($datafield_permissions[$df_id]['view']) )
+                            $can_view_datafield = true;
 
-                // If this record has descendants...
-                if ( isset($dt['descendants']) ) {
-                    // ...then also need to go looking into linked descendants that only allow
-                    //  a single record
-                    foreach ($dt['descendants'] as $descendant_dt_id => $data) {
-                        if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
-                            $tmp[] = $descendant_dt_id;
+                        // The field has to have the correct typeclass to even be considered...
+                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                        if ( isset($allowed_typenames[$typename]) ) {
+                            // ...but it also has to pass the modified permissions checks if those
+                            //  are being used
+                            if ( !$apply_permissions || $can_view_datafield
+                                || $df['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') != '2200-01-01 00:00:00'
+                            ) {
+                                $available_datafields[$dt_id]['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+                            }
+                        }
+
+                        // Also fill in the names for the current datafields while here
+                        if ( isset($current_namefields[$df_id]) )
+                            $current_namefields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
+                        if ( isset($current_sortfields[$df_id]) )
+                            $current_sortfields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
                     }
 
-                    // Currently not allowed to use fields from child descendants for sorting
+                    // If this record has descendants...
+                    if ( isset($dt['descendants']) ) {
+                        // ...then also need to go looking into linked descendants that only allow
+                        //  a single record
+                        foreach ($dt['descendants'] as $descendant_dt_id => $data) {
+                            if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
+                                $tmp[] = $descendant_dt_id;
+                        }
+
+                        // Currently not allowed to use fields from child descendants for sorting
+                    }
                 }
             }
 

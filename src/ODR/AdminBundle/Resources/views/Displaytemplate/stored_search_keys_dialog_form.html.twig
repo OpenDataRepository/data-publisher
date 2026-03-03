@@ -1,16 +1,22 @@
 {% spaceless %}
 
+{% set ANY_CONTEXT = constant('ODR\\AdminBundle\\Entity\\StoredSearchKey::ANY_CONTEXT') %}
+{% set SEARCH_CONTEXT = constant('ODR\\AdminBundle\\Entity\\StoredSearchKey::SEARCH_CONTEXT') %}
+{% set LINK_CONTEXT = constant('ODR\\AdminBundle\\Entity\\StoredSearchKey::LINK_CONTEXT') %}
+
 {# TODO - eventually need ability to store/modify/delete multiple search keys... #}
 {% set current_default_search_key = '' %}
 {% set current_default_search_key_description = '' %}
 {% set is_valid = true %}
 {% set has_non_public_fields = false %}
+{% set ssk_context = ANY_CONTEXT %}
 
 {% for uuid,ssk in stored_search_keys %}
     {% set current_default_search_key = ssk['search_key'] %}
     {% set current_default_search_key_description = search_key_descriptions[uuid] %}
     {% set is_valid = ssk['is_valid'] %}
     {% set has_non_public_fields = ssk['has_non_public_fields'] %}
+    {% set ssk_context = ssk['defaultFor'] %}
 {% endfor %}
 
 <div id="ODRStoredSearchKeysDialogWrapper">
@@ -62,11 +68,21 @@
                 {% endif %}
             {% endfor %}
             </span>
-        </div>
 
-        <form id="ODRStoredSearchKeys_form">
-            <input id="ODRStoredSearchKeys_form_searchkey" type="hidden" name="search_key" value="{{ current_default_search_key }}" />
-        </form>
+            <form id="ODRStoredSearchKeys_form">
+                <input id="ODRStoredSearchKeys_form_searchkey" type="hidden" name="search_key" value="{{ current_default_search_key }}" />
+
+                <div class="pure-u-1">
+                    <label class="pure-u-1 ODRPrimarySearchLabel">Context:</label>
+                    <input type="radio" id="ODRStoredSearchKey_any" name="defaultFor" value="{{ ANY_CONTEXT }}" {% if ssk_context == ANY_CONTEXT %}checked{% endif %} />
+                    <label class="ODRStoredSearchKey_context" for="ODRStoredSearchKey_any">Any Context</label>
+                    <input type="radio" id="ODRStoredSearchKey_searching" name="defaultFor" value="{{ SEARCH_CONTEXT }}" {% if ssk_context == SEARCH_CONTEXT %}checked{% endif %} />
+                    <label class="ODRStoredSearchKey_context" for="ODRStoredSearchKey_searching">Search Context</label>
+                    <input type="radio" id="ODRStoredSearchKey_linking" name="defaultFor" value="{{ LINK_CONTEXT }}" {% if ssk_context == LINK_CONTEXT %}checked{% endif %} />
+                    <label class="ODRStoredSearchKey_context" for="ODRStoredSearchKey_linking">Link Context</label>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

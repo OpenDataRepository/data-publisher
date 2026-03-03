@@ -37,6 +37,13 @@ ODR\AdminBundle\Entity\StoredSearchKey:
             column: is_public
             default: false
 
+        defaultFor:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+            column: default_for
+
         created:
             type: datetime
             gedmo:
