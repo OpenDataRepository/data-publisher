@@ -330,7 +330,7 @@ class CrystallographyDef
         200 => array('Pm3', 'P2/m-3'),
         201 => array('Pn3', 'P2/n-3'),
         202 => array('Fm3', 'F2/m-3'),
-        203 => array('Fd3', 'F2/d-3'),
+        203 => array('Fd3', 'Fd-3', 'F2/d-3'),
         204 => array('Im3', 'I2/m-3'),
         205 => array('Pa3', 'P2_1/a-3'),
         206 => array('Ia3', 'I2_1/a-3'),
@@ -445,6 +445,7 @@ class CrystallographyDef
         // cubic
         '23' => '332',
         'm3' => '-3-32/m',
+        'm-3' => '-3-32/m',
         '2/m-3' => '-3-32/m',
         'm-3m' => '4/m-32/m',
         'm3m' => '4/m-32/m',
