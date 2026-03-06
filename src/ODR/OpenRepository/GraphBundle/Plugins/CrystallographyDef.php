@@ -709,11 +709,20 @@ class CrystallographyDef
             if ( strpos($line, '_') === 0 ) {
                 // should be a regular data line
                 $space = strpos($line, ' ');
+                $tab = strpos($line, "\t");
 
-                if ( $space !== false ) {
+                if ( $space !== false || $tab !== false ) {
                     // The value is on the same line as the key
-                    $key = substr($line, 0, $space);
-                    $value = trim( substr($line, $space + 1) );
+                    $key = $value = '';
+                    if ($space !== false) {
+                        $key = substr($line, 0, $space);
+                        $value = trim( substr($line, $space + 1) );
+                    }
+                    else {
+                        $key = substr($line, 0, $tab);
+                        $value = trim( substr($line, $tab + 1) );
+                    }
+
                     if ( $value !== "''" )
                         $value = self::stripQuotes( $value );
 
