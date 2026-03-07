@@ -3,7 +3,7 @@ imports:
 
 framework:
     router:   { resource: "%kernel.root_dir%/config/routing.yml" }
-    profiler: { only_exceptions: true }
+    #profiler: { only_exceptions: true }
 
 monolog:
     # Changes made to configuration here typically need to be made in config_dev.yml as well
@@ -38,7 +38,7 @@ monolog:
         main:
             type:  stream
             path:  %kernel.logs_dir%/%kernel.environment%.log
-            level: debug
+            level: info
         firephp:
             type:  firephp
             level: info
