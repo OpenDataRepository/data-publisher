@@ -150,8 +150,11 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
                 $problem_option = 'source_datafield';
 
 
-            // The URL this plugin creates is the same whether it's for a table layout or not
-            $url = self::getUrl($render_plugin_instance, $datarecord);
+            // This plugin should only create a URL when in Display/Edit mode
+            $url = '';
+            $context = $rendering_options['context'];
+            if ( $context === 'display' || $context === 'edit' )
+                $url = self::getUrl($render_plugin_instance, $datarecord);
 
 
             // ----------------------------------------
