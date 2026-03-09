@@ -154,6 +154,7 @@ async function app() {
 
                     // Initialize temp files
                     let content = '';
+                    /*
                     if(!data.ima_update_rebuild) {
                         content = '' +
                             'let mineral_data_array = [];\n' +
@@ -161,6 +162,7 @@ async function app() {
                             'let mineral_name_keys = [];\n' +
                             'let minerals_by_name = [];\n';
                     }
+                     /** */
 
                     // console.log('WriteFile Init');
                     let mineral_data_filename = basepath + data.mineral_data + '.' + tmp_file_extension;
@@ -221,13 +223,17 @@ async function app() {
 
                     // Initialize temp files
                     if(!data.ima_update_rebuild) {
+                        /*
                         content = 'let cellparams_range=[];';
+                        /** */
                     }
                     await writeFile(basepath + data.cell_params_range + '.' + tmp_file_extension, content);
 
                     // Initialize temp files
                     if(!data.ima_update_rebuild) {
+                        /*
                         content = 'let sg_synonyms={';
+                        /** */
                     }
                     await writeFile(basepath + data.cell_params_synonyms + '.' + tmp_file_extension, content);
 
@@ -235,13 +241,17 @@ async function app() {
 
                     // Initialize temp files [references]
                     if(!data.ima_update_rebuild) {
+                        /*
                         content = 'let references=[];';
+                        /** */
                     }
                     let references_filename = basepath + data.references + '.' + tmp_file_extension;
                     await writeFile(references_filename, content);
 
                     if(!data.ima_update_rebuild) {
+                        /*
                         content = 'let paragenetic_modes = [];\n';
+                        /** */
                     }
 
                     // console.log('WriteFile Init');
@@ -251,7 +261,7 @@ async function app() {
 
                     // Initialize master_tag_data
                     // TODO Should we always rebuild this?  Not intensive.
-                    content = 'let master_tag_data = [];\n';
+                    content = ''; // 'let master_tag_data = [];\n';
                     // Get IMA Template (for Tag Data)
                     // console.log('IMA Template: ' + data.ima_template_url)
                     let ima_record_template = await loadPage(data.ima_template_url);
@@ -366,9 +376,9 @@ async function app() {
                     content = '';
                     if(!data.ima_update_rebuild) {
                         console.log('Data IMA UPDATE REBUILD: ', data.ima_update_rebuild);
-                        content = 'let cellparams= [];';
-                        content += 'let rruff_record_exists= [];';
-                        content += 'let amcsd_record_exists= [];';
+                        content = ''; // 'let cellparams= [];';
+                        // content += 'let rruff_record_exists= [];';
+                        // content += 'let amcsd_record_exists= [];';
                     }
                     // await writeFile(basepath + data.cell_params + '.' + tmp_file_extension, content + cell_params_headers);
                     await writeFile(basepath + data.cell_params + '.' + tmp_file_extension, content);
