@@ -2379,22 +2379,36 @@ class LinkController extends ODRCustomController
             // Create a base search key for the search sidebar, so it believes that it's working
             //  with the remote datatype
             $remote_datatype_search_key = '';
-            if ($remote_datatype->getStoredSearchKeys() && $remote_datatype->getStoredSearchKeys()->count() > 0) {
-                // If the remote datatype has a stored search key, then might as well use it
+            // If the remote datatype has any stored search keys...
+            foreach ($remote_datatype->getStoredSearchKeys() as $ssk) {
                 /** @var StoredSearchKey $ssk */
-                $ssk = $remote_datatype->getStoredSearchKeys()->first();
-                $remote_datatype_search_key = $ssk->getSearchKey();
 
-                // NOTE: the linking page doesn't directly render the sidebar, so there's no reason
-                //  to decode the search key here...it'll be handled as part of the sidebar refresh
+                // ...prefer the ones meant for linking context
+                if ( $ssk->getDefaultFor() === StoredSearchKey::LINK_CONTEXT ) {
+                    $remote_datatype_search_key = $ssk->getSearchKey();
+                    break;
+                }
+                // ...and fall back to ones meant for any context
+                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
+                    $remote_datatype_search_key = $ssk->getSearchKey();
+                    break;
+                }
+
+                // TODO - when datatypes can have more than one stored search, this will get messed up
             }
-            else {
+
+            // If a default search key doesn't exist, or shouldn't be used here...
+            if ( $remote_datatype_search_key === '' ) {
+                // ...then encode a default one to use
                 $remote_datatype_search_key = $search_key_service->encodeSearchKey(
                     array(
                         'dt_id' => $remote_datatype->getId()
                     )
                 );
             }
+
+            // NOTE: the linking page doesn't directly render the sidebar, so there's no reason
+            //  to decode the search key here...it'll be handled as part of the sidebar refresh
 
 
             // ----------------------------------------

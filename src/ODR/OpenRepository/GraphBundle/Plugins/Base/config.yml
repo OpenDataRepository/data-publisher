@@ -21,6 +21,7 @@ services:
     odr_plugins.base.graph:
         class: '%odr_plugin_base_classpath%\Base\GraphPlugin'
         arguments:
+            $request_stack: "@request_stack"
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
             $pheanstalk: '@pheanstalk'
@@ -32,6 +33,7 @@ services:
     odr_plugins.base.gcms:
         class: '%odr_plugin_base_classpath%\Base\GCMassSpecPlugin'
         arguments:
+            $request_stack: "@request_stack"
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
             $pheanstalk: '@pheanstalk'
@@ -43,6 +45,7 @@ services:
     odr_plugins.base.filter_graph:
         class: '%odr_plugin_base_classpath%\Base\FilterGraphPlugin'
         arguments:
+            $request_stack: "@request_stack"
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
             $database_info_service: '@odr.database_info_service'

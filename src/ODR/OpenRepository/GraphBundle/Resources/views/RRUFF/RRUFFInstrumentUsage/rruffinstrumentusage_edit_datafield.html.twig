@@ -1,0 +1,27 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+
+<fieldset {% if not render_in_edit %}class="ODRHidden"{% endif %}>
+{% if render_in_edit %}
+    <div title="{{ datafield_meta.description }}" class="ODRRenderPluginField ODRURLButtonPlugin_div">
+        <button id="Input_{{ unique_id }}" class="pure-button pure-button-primary {#pure-u-1#}">
+            {{ button_label }}&nbsp;<i class="fa fa-external-link"></i>
+        </button>
+    </div>
+{% endif %}
+</fieldset>
+
+{% if render_in_edit %}
+<script>
+    $(function() {
+        $("#Input_{{ unique_id }}").unbind('click').click(function(event) {
+            event.preventDefault();
+            window.open('{{ target_url }}', '_blank');
+        });
+    });
+</script>
+{% endif %}
+
+{% endspaceless %}

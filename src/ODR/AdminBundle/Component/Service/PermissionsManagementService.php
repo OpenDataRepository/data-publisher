@@ -44,7 +44,7 @@ class PermissionsManagementService
     /**
      * @var DatatreeInfoService
      */
-    private $dti_service;
+    private $datatree_info_service;
 
     /**
      * @var SearchAPIService
@@ -75,7 +75,7 @@ class PermissionsManagementService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatree_info_service;
+        $this->datatree_info_service = $datatree_info_service;
         $this->search_api_service = $search_api_service;
         $this->logger = $logger;
     }
@@ -917,7 +917,7 @@ class PermissionsManagementService
                 }
 
                 // If child datatypes have the "dr_edit" permission, ensure their parents do as well
-                $datatree_array = $this->dti_service->getDatatreeArray();
+                $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
                 foreach ($user_permissions['datatypes'] as $dt_id => $gdtp) {
                     // For each child datatype the user has permissions for...

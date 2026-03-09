@@ -19,6 +19,23 @@ namespace ODR\AdminBundle\Entity;
  */
 class StoredSearchKey
 {
+
+    /**
+     * ODR will load this search key wherever it needs a default...this is the default setting
+     */
+    const ANY_CONTEXT = 0;
+
+    /**
+     * ODR will only use this search key as a default for the searching context
+     */
+    const SEARCH_CONTEXT = 1;
+
+    /**
+     * ODR will only use this search key as a default for the linking context
+     */
+    const LINK_CONTEXT = 2;
+
+
     /**
      * @var int
      */
@@ -48,6 +65,11 @@ class StoredSearchKey
      * @var \DateTime
      */
     private $created;
+
+    /**
+     * @var int
+     */
+    private $defaultFor;
 
     /**
      * @var \DateTime
@@ -184,6 +206,30 @@ class StoredSearchKey
     public function getIsPublic()
     {
         return $this->isPublic;
+    }
+
+    /**
+     * Set defaultFor.
+     *
+     * @param int $defaultFor
+     *
+     * @return StoredSearchKey
+     */
+    public function setDefaultFor($defaultFor)
+    {
+        $this->defaultFor = $defaultFor;
+
+        return $this;
+    }
+
+    /**
+     * Get defaultFor.
+     *
+     * @return int
+     */
+    public function getDefaultFor()
+    {
+        return $this->defaultFor;
     }
 
     /**

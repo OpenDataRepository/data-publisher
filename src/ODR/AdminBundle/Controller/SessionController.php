@@ -644,18 +644,24 @@ class SessionController extends ODRCustomController
             // --------------------
 
 
-            // Need to also ensure the form was submitted with valid datafields
-            $datatype_array = $database_info_service->getDatatypeArray($datatype->getId(), false);
-            $dt = $datatype_array[$datatype->getId()];
-
-            $datarecord_array = array();
-            $permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            // Need to also ensure the form was submitted with valid datafields...
+            $tmp = $database_info_service->getSpecialDatafields($datatype->getId(), $user_permissions);  // filter with the user's permissions
+            $available_sortfields = $tmp['available_fields'];
 
             // Build a new set of sort criteria from the previously cleaned post data
             $sort_datafields = $sort_directions = array();
             foreach ($new_df_list as $num => $df_id) {
-                if ( !isset($dt['dataFields'][$df_id]) ) {
-                    throw new ODRBadRequestException();
+                $found = false;
+                foreach ($available_sortfields as $dt_id => $dt_data) {
+                    if ( isset($dt_data['datafields'][$df_id]) ) {
+                        $found = true;
+                        break;
+                    }
+                }
+
+                if ( !$found ) {
+                    // Don't attempt to save anything if the field isn't valid
+                    throw new ODRBadRequestException('Only valid for top-level Datatypes');
                 }
                 else {
                     $sort_datafields[$num] = $df_id;

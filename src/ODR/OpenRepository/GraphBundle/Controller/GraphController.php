@@ -20,6 +20,7 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -33,6 +34,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -413,6 +415,63 @@ class GraphController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Persists (a subset of) graph settings into a user cookie.
+     *
+     * @param integer $render_plugin_instance_id
+     * @param string $direction
+     * @param Request $request
+     * @return Response
+     */
+    public function savexaxisdirAction($direction, $render_plugin_instance_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $cookie_key = '';
+        $cookie_value = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var RenderPluginInstance $render_plugin_instance */
+            $render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->find($render_plugin_instance_id);
+            if ($render_plugin_instance != null) {
+                $plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
+                if ( $plugin_classname === 'odr_plugins.base.graph' || $plugin_classname === 'odr_plugins.base.filter_graph' ) {
+                    $datatype = $render_plugin_instance->getDataType();
+
+                    // Determine user privileges
+                    /** @var ODRUser $user */
+                    $user = $this->container->get('security.token_storage')->getToken()->getUser();
+                    if ( $permissions_service->canViewDatatype($user, $datatype) ) {
+                        $cookie_key = 'ODRGraph_'.$render_plugin_instance_id.'_xaxisdir';
+                        $cookie_value = $direction;
+                    }
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x50f38a09;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
         return $response;
     }
 }

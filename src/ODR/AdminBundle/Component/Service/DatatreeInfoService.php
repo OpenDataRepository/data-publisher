@@ -254,7 +254,7 @@ class DatatreeInfoService
      * @param integer $top_level_datatype_id
      * @param boolean $deep If true, then all children of the associated datatypes are also returned
      *
-     * @return array
+     * @return int[]
      */
     public function getAssociatedDatatypes($top_level_datatype_id, $deep = false)
     {
@@ -314,8 +314,8 @@ class DatatreeInfoService
 
 
     /**
-     * This function is similar to {@link getAssociatedDatatypes()}, but it goes from "descendants"
-     * to "ancestors" instead.
+     * This function is similar to {@link self::getAssociatedDatatypes()}, but it goes from
+     * "descendants" to "ancestors" instead.
      *
      * @param integer $bottom_level_datatype_id
      * @param integer $target_top_level_datatype_id If provided, then the returned array will only

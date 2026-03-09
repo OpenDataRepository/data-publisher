@@ -2509,6 +2509,7 @@ class EntityMetaModifyService
             'searchKey' => $ssk->getSearchKey(),
             'isDefault' => $ssk->getIsDefault(),
             'isPublic' => $ssk->getIsPublic(),
+            'defaultFor' => $ssk->getDefaultFor(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2552,6 +2553,8 @@ class EntityMetaModifyService
             $new_ssk->setIsDefault( $properties['isDefault'] );
         if ( isset($properties['isPublic']) )
             $new_ssk->setIsPublic( $properties['isPublic'] );
+        if ( isset($properties['defaultFor']) )
+            $new_ssk->setDefaultFor( $properties['defaultFor'] );
 
         $new_ssk->setUpdatedBy($user);
 

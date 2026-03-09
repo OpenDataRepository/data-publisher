@@ -26,6 +26,9 @@ function ODRGraph_getXAxisSettings(chart_obj) {
 
     if (chart_obj.x_axis_dir == "desc" && (chart_obj.x_axis_min == "auto" || chart_obj.x_axis_max == "auto"))
         xaxis_settings.autorange = 'reversed';
+    // Allow the dynamic setting to override this plugin options
+    if ( $("#" + chart_obj.chart_id + "_x_axis_dir").length > 0 && $("#" + chart_obj.chart_id + "_x_axis_dir").val() === 'desc' )
+        xaxis_settings.autorange = 'reversed';
 
     if (chart_obj.x_axis_log == "yes")
         xaxis_settings.type = 'log';
@@ -279,6 +282,9 @@ function ODRGraph_updateSelectedColumns(chart_obj, chart_type, file) {
         $("#" + chart_id + "_bar_settings").removeClass('ODRHidden');
     else if ( chart_type === 'xy' )
         $("#" + chart_id + "_line_settings").removeClass('ODRHidden');
+
+    if ( chart_type === 'xy' || chart_type === 'bar' || chart_type === 'stackedarea' || chart_type === 'histogram' )
+        $("#" + chart_id + "_axis_settings").removeClass('ODRHidden');
 
     // Re-enable and relabel the selectors based on the current graph type
     $("#" + chart_id + "_settings").find(".graph_columns").addClass('ODRHidden');

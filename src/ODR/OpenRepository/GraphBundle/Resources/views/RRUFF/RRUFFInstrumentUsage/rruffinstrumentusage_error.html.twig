@@ -1,0 +1,11 @@
+{% spaceless %}
+
+<fieldset {% if not is_datatype_admin %}class="ODRHidden"{% endif %}>
+    {% if is_datatype_admin %}
+    <div class="ODRRenderPluginField ODRInputError">
+        The URLButton plugin can't work unless the "{{ problem_option }}" option is set to something.
+    </div>
+    {% endif %}
+</fieldset>
+
+{% endspaceless %}
