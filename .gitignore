@@ -1,4 +1,6 @@
 # Cache and logs (Symfony2)
+.agent
+.geminiignore
 /app/cache/*
 /app/crypto_dir/*
 /app/crypto_dir

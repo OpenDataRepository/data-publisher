@@ -13,7 +13,7 @@
     "node-fetch": "^3.3.2",
     "nodestalker": "^0.1.22",
     "php-serialize": "^5.0.0",
-    "puppeteer": "^20.1.0"
+    "puppeteer": "^24.34.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

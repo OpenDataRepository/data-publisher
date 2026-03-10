@@ -32,6 +32,10 @@ php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_
 php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_3.log 2>&1 &
 php app/console odr_csv_export:finalize_express >> app/logs/export_finalize_express.log 2>&1 &
 
+
+export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+export PUPPETEER_EXECUTABLE_PATH=$(which chromium)
+
 cd /home/odr/data-publisher/background_services
 node graph_renderer_daemon.js >> ../app/logs/graph_preview_1.log 2>&1 &
 node graph_renderer_daemon.js >> ../app/logs/graph_preview_2.log 2>&1 &

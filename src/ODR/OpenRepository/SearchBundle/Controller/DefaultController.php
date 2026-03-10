@@ -920,6 +920,9 @@ class DefaultController extends Controller
     public function renderAction($search_theme_id, $search_key, $offset, $intent, Request $request)
     {
         $start = microtime(true);
+        $debug_timing = array();
+        $debug_timing[] = array('label' => 'start renderAction', 'elapsed' => 0);
+
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -948,6 +951,7 @@ class DefaultController extends Controller
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
 
+            $debug_timing[] = array('label' => 'services loaded', 'elapsed' => round((microtime(true) - $start) * 1000, 2));
 
             // ----------------------------------------
             // Check whether the search key is valid first...
@@ -974,6 +978,7 @@ class DefaultController extends Controller
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
+            $debug_timing[] = array('label' => 'datatype and permissions loaded', 'elapsed' => round((microtime(true) - $start) * 1000, 2));
 
             // ----------------------------------------
             // TODO - better error handling, likely need more options as well...going to need a way to get which theme the user wants to use too
@@ -1008,6 +1013,7 @@ class DefaultController extends Controller
             // Set the currently selected theme as the user's preferred theme for this session
 //            $theme_info_service->setSessionTheme($datatype->getId(), $theme);
 
+            $debug_timing[] = array('label' => 'theme loaded', 'elapsed' => round((microtime(true) - $start) * 1000, 2));
 
             // ----------------------------------------
             // Grab the tab's id, if it exists
@@ -1020,6 +1026,8 @@ class DefaultController extends Controller
 
             // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
             $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $user_permissions, $search_key, true);
+
+            $debug_timing[] = array('label' => 'data acquired', 'elapsed' => round((microtime(true) - $start) * 1000, 2));
 
             // Bypass search results list entirely if only one datarecord...
             if ( count($grandparent_datarecord_list) == 1 && $intent === 'searching') {
@@ -1043,6 +1051,8 @@ class DefaultController extends Controller
             // print  count($datarecords) . " -- ";
             // print microtime(true) - $start; exit();
 
+            $debug_timing[] = array('label' => 'calling renderList', 'elapsed' => round((microtime(true) - $start) * 1000, 2));
+
             $html = $odrcc->renderList(
                 $grandparent_datarecord_list,
                 $datatype,
@@ -1054,9 +1064,39 @@ class DefaultController extends Controller
                 $offset,
                 $request
             );
+
+            $debug_timing[] = array('label' => 'html acquired', 'elapsed' => round((microtime(true) - $start) * 1000, 2));
+
             $return['d'] = array(
                 'html' => $html,
                 'search_key' => $search_key,
+            );
+
+            // Build debug info
+            $is_super_admin = false;
+            $user_email = 'anon.';
+            $group_names = array();
+            if ($user !== 'anon.') {
+                $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
+                $user_email = $user->getEmail();
+
+                // Get the user's permission group names
+                $user_groups = $user->getGroups();
+                foreach ($user_groups as $group) {
+                    $group_names[] = $group->getPurpose();
+                }
+            }
+
+            $return['debug'] = array(
+                'timing' => $debug_timing,
+                'context' => array(
+                    'user' => $user_email,
+                    'is_super_admin' => $is_super_admin,
+                    'groups' => $group_names,
+                    'datatype_id' => $datatype->getId(),
+                    'theme_id' => $theme->getId(),
+                    'datarecord_count' => count($grandparent_datarecord_list),
+                ),
             );
         }
         catch (\Exception $e) {

@@ -294,6 +294,7 @@
  	    jQuery('.fixedHeader-floating').remove();
 
         var faded_opacity = 0.15;
+        faded_opacity = 1;
         if (!use_fade)
             faded_opacity = 1;
 
@@ -301,7 +302,8 @@
 
         // Disable scroll handlers
         $(window).off('scroll');
-        $("#ODRSearchContent").fadeTo(200, faded_opacity, function() {
+        // $("#ODRSearchContent").html('');
+        // $("#ODRSearchContent").fadeTo(200, faded_opacity, function() {
             // Abort any LoadContentFullAjax() call that's currently in progress
             if (xhr != null)
                 xhr.abort();
@@ -322,14 +324,18 @@
                     // console.log('LoadContentFullAjax() success', data, textStatus, jqXHR);
                     xhr = null;
 
-                    if ( data.r == 2 ) {   // for redirects to another url
+                    if ( data.r === 2 ) {   // for redirects to another url
                         UpdateURL( data.d.url );
                     }
-                    else if ( data.r == 3 ) {  // for complete url replacements
+                    else if ( data.r === 3 ) {  // for complete url replacements
                         window.location = data.d.url;
                     }
                     else {
-                        $("#ODRSearchContent").html(data.d.html).fadeTo(200, 1.0);
+                        // Log Debug Data to Console
+                        if(data.debug !== undefined) {
+                            console.log('LoadContentFullAjax (debug): ', data.debug);
+                        }
+                        $("#ODRSearchContent").html(data.d.html); // .fadeTo(200, 1.0);
                     }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -350,7 +356,7 @@
                     }
                 }
             });
-        });
+        // });
     }
 
     /**
