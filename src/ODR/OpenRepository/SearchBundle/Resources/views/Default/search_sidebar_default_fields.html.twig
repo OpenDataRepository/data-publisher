@@ -34,9 +34,11 @@
              {% else %}
                  {# ...otherwise, render the datafield as normal #}
                  {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                     'search_params': search_params,
                      'datatype': dt,
-                     'datafield': df
+                     'datafield': df,
+
+                     'search_params': search_params,
+                     'default_search_params': default_search_params,
                  } %}
              {% endif %}
          </div>
@@ -46,12 +48,14 @@
     {% if intent != 'stored_search_keys' %}
         {# created/modified by, created/modified date, public status of child datarecord #}
         {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-            'search_params': search_params,
-
             'datatype_id': target_datatype_id,
             'user_list': user_list,
             'datatype_permissions': datatype_permissions,
-            'is_top_level': 1
+
+            'search_params': search_params,
+            'default_search_params': default_search_params,
+
+            'is_top_level': 1,
         } %}
     {% endif %}
     </div>
@@ -98,9 +102,11 @@
                     {% else %}
                         {# ...otherwise, render the datafield as normal #}
                         {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                            'search_params': search_params,
                             'datatype': dt,
-                            'datafield': df
+                            'datafield': df,
+
+                            'search_params': search_params,
+                            'default_search_params': default_search_params,
                         } %}
                     {% endif %}
                 </div>
@@ -110,11 +116,13 @@
             {% if intent != 'stored_search_keys' %}
                 {# created/modified by, created/modified date, public status of child datarecord #}
                 {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                    'search_params': search_params,
-
                     'datatype_id': dt_id,
                     'user_list': user_list,
                     'datatype_permissions': datatype_permissions,
+
+                    'search_params': search_params,
+                    'default_search_params': default_search_params,
+
                     'is_top_level': 0
                 } %}
             {% endif %}

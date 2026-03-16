@@ -57,11 +57,11 @@ odr_statistics_summary:
 
 # ----------------------------------------
 # SearchSidebarController routes
-odr_reload_search_overlay_datafield:
-    path:  /search/reload/datafield/{datafield_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadsearchdatafield }
-    requirements:
-        datafield_id:  \d+
+#odr_reload_search_overlay_datafield:
+#    path:  /search/reload/datafield/{datafield_id}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadsearchdatafield }
+#    requirements:
+#        datafield_id:  \d+
 odr_reload_search_sidebar:
     path:  /search/reload_sidebar/{search_key}/{intent}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadsearchsidebar }

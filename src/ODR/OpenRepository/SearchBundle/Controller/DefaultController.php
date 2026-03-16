@@ -219,36 +219,17 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // If this datatype has a default search key...
-            $default_search_key = '';
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::SEARCH_CONTEXT);
             $default_search_params = array();
 
-            // If the datatype has any stored search keys...
-            foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
-                /** @var StoredSearchKey $ssk */
-
-                // ...prefer the ones meant for searching context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::SEARCH_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-                // ...and fall back to ones meant for any context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-
-                // TODO - when datatypes can have more than one stored search, this will get messed up
-            }
-
             if ( $default_search_key !== '' ) {
-                // Convert the search key into a parameter list so that the sidebar can start out
-                //  with the right stuff
+                // ...then convert it into a parameter list so that the sidebar can start out with
+                //  the relevant fields already filled in
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
-                // Don't need to worry if the search key refers to an invalid/deleted datafield
-                //  ...the user will end up being redirected to the "empty" search key for the datatype
-
-                // The same thing will happen when it refers to a datafield the user can't view
+                // Don't need to worry if the search key refers to an invalid/deleted datafield...
+                // ODR will simply ignore anything that doesn't belong to the datatype, or that
+                //  the user isn't supposed to see
             }
 
             if ( $search_string !== '' )
@@ -256,7 +237,15 @@ class DefaultController extends Controller
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
+            $tmp = array();
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                $admin_user,
+                $target_datatype->getId(),
+                $default_search_params,
+                $tmp,  // Need to provide something here, but can't provide $default_search_params again
+                'searching',
+                $sidebar_layout_id
+            );
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 
@@ -305,14 +294,14 @@ class DefaultController extends Controller
                     'background_image_id' => $background_image_id,
 
                     // datatype/datafields to search
-//                    'search_params' => array(),
+                    'search_params' => $default_search_params,
                     'target_datatype' => $target_datatype,
                     'sidebar_array' => $sidebar_array,
                     'inverse_dt_names' => $inverse_dt_names,
 
                     // defaults if needed
                     'search_key' => $default_search_key,
-                    'search_params' => $default_search_params,
+                    'default_search_params' => $default_search_params,
 
                     // theme selection
 //                    'available_themes' => $available_themes,
@@ -502,36 +491,17 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // If this datatype has a default search key...
-            $default_search_key = '';
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::SEARCH_CONTEXT);
             $default_search_params = array();
 
-            // If the datatype has any stored search keys...
-            foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
-                /** @var StoredSearchKey $ssk */
-
-                // ...prefer the ones meant for searching context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::SEARCH_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-                // ...and fall back to ones meant for any context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-
-                // TODO - when datatypes can have more than one stored search, this will get messed up
-            }
-
             if ( $default_search_key !== '' ) {
-                // Convert the search key into a parameter list so that the sidebar can start out
-                //  with the right stuff
+                // ...then convert it into a parameter list so that the sidebar can start out with
+                //  the relevant fields already filled in
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
-                // Don't need to worry if the search key refers to an invalid/deleted datafield
-                //  ...the user will end up being redirected to the "empty" search key for the datatype
-
-                // The same thing will happen when it refers to a datafield the user can't view
+                // Don't need to worry if the search key refers to an invalid/deleted datafield...
+                // ODR will simply ignore anything that doesn't belong to the datatype, or that
+                //  the user isn't supposed to see
             }
 
             if ( $search_string !== '' )
@@ -540,7 +510,15 @@ class DefaultController extends Controller
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
+            $tmp = array();
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                $admin_user,
+                $target_datatype->getId(),
+                $default_search_params,
+                $tmp,  // Need to provide something here, but can't provide $default_search_params again
+                'searching',
+                $sidebar_layout_id
+            );
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 
@@ -596,13 +574,14 @@ class DefaultController extends Controller
                         'background_image_id' => $background_image_id,
 
                         // datatype/datafields to search
+                        'search_params' => $default_search_params,
                         'target_datatype' => $target_datatype,
                         'sidebar_array' => $sidebar_array,
                         'inverse_dt_names' => $inverse_dt_names,
 
                         // defaults if needed
                         'search_key' => $default_search_key,
-                        'search_params' => $default_search_params,
+                        'default_search_params' => $default_search_params,
 
                         // theme selection
 //                        'available_themes' => $available_themes,
@@ -636,13 +615,14 @@ class DefaultController extends Controller
                         'background_image_id' => $background_image_id,
 
                         // datatype/datafields to search
+                        'search_params' => $default_search_params,
                         'target_datatype' => $target_datatype,
                         'sidebar_array' => $sidebar_array,
                         'inverse_dt_names' => $inverse_dt_names,
 
                         // defaults if needed
                         'search_key' => $default_search_key,
-                        'search_params' => $default_search_params,
+                        'default_search_params' => $default_search_params,
 
                         // theme selection
 //                    'available_themes' => $available_themes,
@@ -747,29 +727,29 @@ class DefaultController extends Controller
         try {
             // ----------------------------------------
             // Going to use the data in the POST request to build a new search key
-            $search_params = $request->request->all();
-            if ( !isset($search_params['dt_id']) && count($search_params) === 1 ) {
+            $post = $request->request->all();
+            if ( !isset($post['dt_id']) && count($post) === 1 ) {
                 // JSON requests appear to get submitted as a key/value pair, but the json string
                 //  is the key and the value is empty
 
                 // Instead of messing with the POST, attempt to decode the request's content
                 $content = $request->getContent();
-                $search_params = json_decode($content, true);
+                $post = json_decode($content, true);
             }
 
-            if ( !isset($search_params['dt_id']) )
+            if ( !isset($post['dt_id']) )
                 throw new ODRBadRequestException();
 
             $search_theme_id = 0;
-            if ( isset($search_params['search_theme_id']) ) {
-                $search_theme_id = intval($search_params['search_theme_id']);
-                unset( $search_params['search_theme_id'] );
+            if ( isset($post['search_theme_id']) ) {
+                $search_theme_id = intval($post['search_theme_id']);
+                unset( $post['search_theme_id'] );
             }
 
             $intent = 'searching';
-            if ( isset($search_params['intent']) ) {
-                $intent = $search_params['intent'];
-                unset( $search_params['intent'] );
+            if ( isset($post['intent']) ) {
+                $intent = $post['intent'];
+                unset( $post['intent'] );
 
                 if ( $intent !== 'searching' && $intent !== 'linking' )
                     throw new ODRBadRequestException();
@@ -777,8 +757,8 @@ class DefaultController extends Controller
 
             // This parameter shows up when an "inline search" is made from edit_ajax.html.twig
             // It doesn't do anything here anymore, but keeping this around just in case...
-            if ( isset($search_params['ajax_request']) )
-                unset( $search_params['ajax_request'] );
+            if ( isset($post['ajax_request']) )
+                unset( $post['ajax_request'] );
 
 
             // ----------------------------------------
@@ -797,7 +777,7 @@ class DefaultController extends Controller
 
 
             /** @var DataType $datatype */
-            $dt_id = $search_params['dt_id'];
+            $dt_id = $post['dt_id'];
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
@@ -810,14 +790,21 @@ class DefaultController extends Controller
             // ----------------------------------------
             // NOTE: DisplaytemplateController::converttostoredsearchkeyAction() also parses a form
             //  to generate a search key, and thus is vaguely similar
+            // However, that location intentionally ignores any existing "default parameters"
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            $default_search_params = array();
+            if ($default_search_key !== '' )
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
             // Convert the POST request into a search key and validate it
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
-            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
+            $search_key = $search_key_service->convertPOSTtoSearchKey($post, $is_wordpress_integrated, $default_search_params);
             $search_key_service->validateSearchKey($search_key);
 
-            // Don't need to filter out the stuff that the user isn't allowed to see...everywhere
+            // Don't need to filter out the stuff that the user isn't allowed to see, nor splice in
+            //  the "default parameters" that a search on this datatype "should" have...everywhere
             //  that actually uses the search key has to do it anyways
+            // See PaginationHelperService::updateTabSearchCriteria()
 //            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 //            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
 
@@ -1046,15 +1033,23 @@ class DefaultController extends Controller
             else
                 $odr_tab_id = $odr_tab_service->createTabId();
 
+            // This could be a search key from a 3rd-party source...as such, it needs to be merged
+            //  with whatever the datatype has stored for default search parameters
+            $merged_search_key = '';
+            if ($intent === 'searching')
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+            else
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
+
             // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-            $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $search_key, true);
+            $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $merged_search_key, true);
 
             // Bypass search results list entirely if only one datarecord...
             if ( count($grandparent_datarecord_list) == 1 && $intent === 'searching') {
                 $datarecord_id = $grandparent_datarecord_list[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
                 //  doesn't disappear on users
-                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $search_key);
+                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $merged_search_key);
             }
 
 
@@ -1064,7 +1059,7 @@ class DefaultController extends Controller
                 'odr_search_render',
                 array(
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $search_key,
+                    'search_key' => $merged_search_key,
                 )
             );
 
@@ -1078,13 +1073,13 @@ class DefaultController extends Controller
                 $user,
                 $path_str,
                 $intent,
-                $search_key,
+                $merged_search_key,
                 $offset,
                 $request
             );
             $return['d'] = array(
                 'html' => $html,
-                'search_key' => $search_key,
+                'search_key' => $merged_search_key,
             );
         }
         catch (\Exception $e) {
@@ -1248,8 +1243,13 @@ class DefaultController extends Controller
             $grandparent_datarecord_list = $search_api_service->performSearch(
                 $datatype,
                 $search_key,
-                $user_permissions
-            );    // this only returns grandparent datarecord ids
+                $user_permissions,
+                false,   // only return top-level records
+                array(), // do not sort the results
+                array(),
+                false,   // do not search as super admin
+                true     // ...all just to ignore the searchable status of datafields
+            );
 
             // Load the cached versions of the first couple datarecords matching the search
             $dr_array = array();

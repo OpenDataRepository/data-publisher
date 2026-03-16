@@ -23,6 +23,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -241,10 +242,18 @@ class DisplayController extends ODRCustomController
 
 
             // If this datarecord is being viewed from a search result list...
+            $original_search_key = $search_key;
+            $merged_search_key = '';
+
             $datarecord_list = '';
-            if ($search_key !== '') {
-                // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $search_theme, $user_permissions, $search_key);
+            if ($original_search_key !== '') {
+                // This could be a search key from a 3rd-party source...as such, it needs to be merged
+                //  with whatever the datatype has stored for default search parameters
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($original_search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+
+                // Update the tab's search key, sort criteria, and datarecord list for pagination
+                //  purposes, based off the merged search key
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $search_theme, $user_permissions, $merged_search_key);
 
                 // Determine the correct lists of datarecords to use for rendering...
                 $datarecord_list = $original_datarecord_list;
@@ -279,7 +288,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Build an array of values to use for navigating the search result list, if it exists
             $search_header = null;
-            if ($search_key !== '')
+            if ($merged_search_key !== '')
                 $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), $datarecord_list);
 
             // Need this array to exist right now so the part that's not the search header will display
@@ -308,7 +317,7 @@ class DisplayController extends ODRCustomController
 
                     // values used by search_header.html.twig
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $search_key,
+                    'search_key' => $merged_search_key,
                     'offset' => $offset,
 
                     'page_length' => $search_header['page_length'],
@@ -333,7 +342,7 @@ class DisplayController extends ODRCustomController
             // Render the display page for this datarecord
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $search_key, $theme);
+            $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $merged_search_key, $theme);
 
             $now = microtime(true);
             // print "NOW: " . $now . "<br />";

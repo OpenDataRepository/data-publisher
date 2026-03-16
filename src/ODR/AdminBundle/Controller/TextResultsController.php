@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -34,7 +35,6 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PaginationHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -124,8 +124,8 @@ class TextResultsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
-            /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
             /** @var TableThemeHelperService $table_theme_helper_service */
             $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
 
@@ -214,11 +214,11 @@ class TextResultsController extends ODRCustomController
             if ( $search_key == '' ) {
                 // Theoretically this page shouldn't get called without a search key, but maintain
                 //  an (emergency) fallback just in case...
-
-                // Get the sorted list of datarecords for this datatype
-                $list = $sort_service->getSortedDatarecordList($datatype->getId());
-                // Convert the list into a comma-separated string
-                $original_datarecord_list = array_keys($list);
+                $search_key = $search_key_service->encodeSearchKey(
+                    array(
+                        'dt_id' => $datatype->getId()
+                    )
+                );
             }
 
 
@@ -256,8 +256,12 @@ class TextResultsController extends ODRCustomController
                     $odr_tab_service->clearSearchResults($odr_tab_id);
                 }
 
+                // This could be a search key from a 3rd-party source...as such, it needs to be merged
+                //  with whatever the datatype has stored for default search parameters
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+
                 // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $search_key);
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $merged_search_key);
 
 
                 // ----------------------------------------
@@ -304,15 +308,18 @@ class TextResultsController extends ODRCustomController
                 }
             }
             else {
-                // This is for a linking page...don't need to do anything special here
+                // This is for a linking page...need to merge with a linking-specific default search
+                //  key if one exists
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
+
                 $original_datarecord_list = $search_api_service->performSearch(
                     $datatype,
-                    $search_key,
+                    $merged_search_key,
                     $user_permissions,
                     false,  // only want the grandparent datarecord ids that match the search
                     $sort_datafields,
                     $sort_directions
-                );    // this only returns grandparent datarecords
+                );
                 $viewable_datarecord_list = $original_datarecord_list;
             }
 

@@ -45,6 +45,21 @@
     {% set open_advanced_options = true %}
 {% endif %}
 
+{% if default_search_params is not defined %}
+    {% set default_search_params = [] %}
+{% endif %}
+{#
+<div class="ODRThemeElement pure-u-1">
+    <div class="ODRInnerBox">
+        {{ dump(search_params) }}
+    </div>
+</div>
+<div class="ODRThemeElement pure-u-1">
+    <div class="ODRInnerBox">
+        {{ dump(default_search_params) }}
+    </div>
+</div>
+#}
 <div class="ODRThemeElement">
     <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
     <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
@@ -131,7 +146,9 @@
                     <div id="ODRChangeSearchedDescendants_div" class="pure-u-1 ODRHidden">
                         {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_wrapper.html.twig' with {
                             'sidebar_array': sidebar_array,
+
                             'search_params': search_params,
+                            'default_search_params': default_search_params,
                         } %}
                     </div>
 
@@ -159,6 +176,7 @@
                     'rpi_lookup': rpi_lookup,
 
                     'search_params': search_params,
+                    'default_search_params': default_search_params,
                 } %}
             {% else %}
                 {# Default sidebar layouts only have the "general search" input as 'always_show' #}
@@ -195,6 +213,7 @@
                     'rpi_lookup': rpi_lookup,
 
                     'search_params': search_params,
+                    'default_search_params': default_search_params,
                 } %}
             {% else %}
                 {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_default_fields.html.twig' with {
@@ -204,6 +223,7 @@
                     'rpi_lookup': rpi_lookup,
 
                     'search_params': search_params,
+                    'default_search_params': default_search_params,
 
                     'user_list': user_list,
                     'datatype_permissions': datatype_permissions,
@@ -431,7 +451,7 @@
                     $(df).find('.ODRInput').each(function (index,elem) {
                         if ( $(elem).hasClass("ODRFileDatafieldName")
                             || $(elem).hasClass("ODRDateDatafieldExist")
-                            || $(elem).hasClass('ODRXYZData')
+                            || $(elem).hasClass("ODRXYZData")
                         ) {
                             // ignore this input for the purpose of visibility checking...a different
                             //  element will handle it
@@ -452,13 +472,11 @@
 
                             var start_id = '';
                             var end_id = '';
-                            var no_val_id = '';
-                            var has_val_id = '';
+                            var alt_val_id = '';
                             if (id_data.length == 3) {
                                 start_id = '#' + id_data[0] + '_' + id_data[1] + '_start';
                                 end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
-                                no_val_id = '#df_' + id_data[1] + '_no_val';
-                                has_val_id = '#df_' + id_data[1] + '_with_val';
+                                alt_val_id = '#df_' + id_data[1];
                             }
                             else if (id_data.length == 4) {
                                 start_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_start';
@@ -469,9 +487,9 @@
                             if ( $(start_id).val() !== '' || $(end_id).val() !== '' )
                                 empty = false;
                             // If this is a conventional datetime field, then also don't hide this
-                            //  datafield when the "has_val" or "no_val" related checkboxes are checked
-                            if ( no_val_id !== '' ) {
-                                if ( $(no_val_id).is(':checked') || $(has_val_id).is(':checked') )
+                            //  datafield when the related dropdown has a value
+                            if ( alt_val_id !== '' ) {
+                                if ( $(alt_val_id).val() !== '' )
                                     empty = false;
                             }
                         }
@@ -556,6 +574,8 @@
             var input_div = $(this).children('input').first();
             var radio_option_id = $(input_div).attr('rel');
 
+            var is_default_radio_option = $(input_div).hasClass('ODRDefaultCriteria');
+
             if ( $(this).parent().hasClass("ODRSelectAllOption") )
                 return;
 
@@ -569,7 +589,10 @@
                 // Currently deselected, change to blank
                 $(this).removeAttr('title');
                 $(icon_div).removeClass('fa-ban');
-                $(input_div).val('');
+                if ( !is_default_radio_option )
+                    $(input_div).val('');
+                else
+                    $(input_div).val('*' + radio_option_id);
             }
             else {
                 // Currently blank, change to selected
@@ -585,6 +608,8 @@
             var input_div = $(this).children('input').first();
             var tag_id = $(input_div).attr('rel');
 
+            var is_default_tag = $(input_div).hasClass('ODRDefaultCriteria');
+
             // Ensure this tag being clicked no longer has the "partial" class
             $(icon_div).removeClass('partial');
 
@@ -598,7 +623,10 @@
                 // Currently "deselected", change this tag to "blank"
                 $(this).removeAttr('title');
                 $(icon_div).removeClass('fa-ban');
-                $(input_div).val('');
+                if ( !is_default_tag )
+                    $(input_div).val('');
+                else
+                    $(input_div).val('*' + tag_id);
             }
             else {
                 // Currently "blank", change this tag to "selected"
@@ -622,6 +650,8 @@
             var icon_div = $(this).children('i').first();
             var input_div = $(this).children('input').first();
             var radio_option_id = $(input_div).attr('rel');
+
+            var is_default_radio_option = $(input_div).hasClass('ODRDefaultCriteria');
 
             if ( $(this).parent().hasClass("ODRSelectAllOption") )
                 return;
@@ -664,7 +694,10 @@
                 // Currently "deselected", change to "doesn't matter"
                 $(this).removeAttr('title');
                 $(icon_div).removeClass('fa-ban');
-                $(input_div).val('');
+                if ( !is_default_radio_option )
+                    $(input_div).val('');
+                else
+                    $(input_div).val('*' + radio_option_id);
             }
             else {
                 // Currently "blank"...
@@ -688,6 +721,8 @@
             var icon_div = $(this).children('i').first();
             var input_div = $(this).children('input').first();
             var tag_id = $(input_div).attr('rel');
+
+            var is_default_tag = $(input_div).hasClass('ODRDefaultCriteria');
 
             // Ensure this tag being clicked no longer has the "partial" class
             $(icon_div).removeClass('partial');
@@ -730,7 +765,10 @@
                 // Currently "deselected", change to "doesn't matter"
                 $(this).removeAttr('title');
                 $(icon_div).removeClass('fa-ban fa-check');    // non-leaf tags could have the fa-check class at this point
-                $(input_div).val('');
+                if ( !is_default_tag )
+                    $(input_div).val('');
+                else
+                    $(input_div).val('*' + tag_id);
             }
             else {
                 // Currently "blank"...
@@ -810,7 +848,12 @@
                 if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban') || $(this).hasClass('ODRFourstate_AND') || $(this).hasClass('ODRFourstate_OR') ) {
                     $(this).parent().removeAttr('title');
                     $(this).removeClass('fa-check fa-ban ODRFourstate_AND ODRFourstate_OR');
-                    $(this).next().val('');
+
+                    var input_div = $(this).next();
+                    if ( !$(input_div).hasClass('ODRDefaultCriteria') )
+                        $(this).next().val('');
+                    else
+                        $(this).next().val('*' + $(input_div).attr('rel'));
                 }
             });
         });
@@ -868,8 +911,7 @@
                 $(this).blur();
 
                 var field_id = $(this).attr('rel');
-                $(context).find("#" + field_id + "_no_val").prop('checked', false);
-                $(context).find("#" + field_id + "_with_val").prop('checked', false);
+                $(context).find("#" + field_id).val('');
             },
             beforeShow: function (input, inst) {
             }
@@ -882,8 +924,7 @@
                 inputs.push( $(context).find("#df_" + id_data[1] + "_start") );
                 inputs.push( $(context).find("#df_" + id_data[1] + "_end") );
 
-                $(context).find("#df_" + id_data[1] + "_no_val").prop('checked', false);
-                $(context).find("#df_" + id_data[1] + "_with_val").prop('checked', false);
+                $(context).find("#df_" + id_data[1]).val('');
             }
             else if ( id_data.length == 4 ) {
                 inputs.push( $(context).find("#dt_" + id_data[1] + "_" + id_data[2] + "_start") );
@@ -902,12 +943,6 @@
         $(context).find(".ODRDatePicker_value").unbind('change').change(function() {
             var id_data = $(this).attr('id').split(/_/);
             var df_id = id_data[1];
-
-            // Ensure the other option is unchecked
-            if ( id_data[2] === 'no' )
-                $(context).find("#df_" + df_id + "_with_val").prop('checked', false);
-            else
-                $(context).find("#df_" + df_id + "_no_val").prop('checked', false);
 
             // Ensure the related datepicker elements are empty
             var inputs = [];

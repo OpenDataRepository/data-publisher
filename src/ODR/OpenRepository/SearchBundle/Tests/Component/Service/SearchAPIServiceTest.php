@@ -253,6 +253,44 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_search_params, $filtered_search_params );
     }
 
+    /**
+     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
+     * @dataProvider provideDefaultSearchParams
+     */
+    public function testDefaultSearchParams($search_params, $default_search_params, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $client->getContainer()->get('odr.search_key_service');
+
+        // Convert each array of search params into a search key...
+        $given_search_key = $search_key_service->encodeSearchKey($search_params);
+        $default_search_key = $search_key_service->encodeSearchKey($default_search_params);
+
+        $merged_search_key = $search_key_service->mergeSearchKeys($given_search_key, $default_search_key);
+
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,     // don't want to hydrate Datatypes here, so this is null
+            $merged_search_key,
+            array(),  // search testing is with either zero permissions, or super-admin permissions
+            false,    // only want grandparent datarecord ids here
+            array(),  // testing doesn't need a specific set of sort datafields...
+            array(),  // ...or a specific sort order
+            $search_as_super_admin,
+            true      // the XYZData tests involve a field that isn't usually searchable
+                      // this also indirectly serves as a test of InlineLink
+        );
+
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
 
     /**
      * @return array
@@ -1127,7 +1165,7 @@ class SearchAPIServiceTest extends WebTestCase
                     61,/*62,*/63,64,65,66,67,68,/*69,70,*/
                     71,72,/*73,74,75,*/76,/*77,78,79,*/80,
                     /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
-                    ),
+                ),
                 true
             ],
             'RRUFF Reference: general search of "!the"' => [
@@ -2580,6 +2618,859 @@ class SearchAPIServiceTest extends WebTestCase
                     ),
                 ),
                 false
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function provideDefaultSearchParams()
+    {
+        return [
+            // General search
+            'RRUFF Reference: default general search' => [
+                array(  // given
+                    'dt_id' => 1
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ),
+                array(35,36,49,66,68),
+                false
+            ],
+            'RRUFF Reference: journal + default general search' => [
+                array(  // given
+                    'dt_id' => 1,
+                    '3' => 'American',
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ),
+                array(35,/*36,*/49,66,68),
+                false
+            ],
+            'RRUFF Reference: override general default v1' => [
+                array(  // given
+                    'dt_id' => 1,
+                    'gen' => ''
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ),
+                range(1,90),
+                false
+            ],
+            'RRUFF Reference: override general default v2' => [
+                array(  // given
+                    'dt_id' => 1,
+                    'gen' => 'the'
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ),
+                array(
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,/*36,*/37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,/*49,*/50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                ),
+                false
+            ],
+            'RRUFF Reference: override general default v3' => [
+                array(  // given
+                    'dt_id' => 1,
+                    'gen_lim' => 'the'  // won't really have an effect due to no descendants
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ),
+                array(
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,/*36,*/37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,/*49,*/50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                ),
+                false
+            ],
+
+            // Inverse search
+            'RRUFF Reference: inverse search' => [
+                array(  // given
+                    'dt_id' => 1,
+                    'gen' => 'Abelsonite'
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'inverse' => '3',
+                ),
+                array(
+                    1,35,63,83,          // the references with 'Abelsonite' should match
+                    9,                   // ...plus the rest of the references from the mineral 'Abelsonite'
+                    22,5,41,80,34,13,26  // ...plus the references from the mineral 'Bournonite', because R050364 has a link to a reference with 'Abelsonite'
+                ),
+                true,
+            ],
+            'RRUFF Reference: disable inverse search v1' => [
+                array(  // given
+                    'dt_id' => 1,
+                    'inverse' => '0',
+                    'gen' => 'Abelsonite'
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'inverse' => '3',
+                ),
+                array(1,35,63,83),  // because inverse search got disabled, the string should only locate the references with 'Abelsonite'
+                true,
+            ],
+            'RRUFF Reference: disable inverse search v2' => [
+                array(  // given
+                    'dt_id' => 1,
+                    'inverse' => '',
+                    'gen' => 'Abelsonite'
+                ),
+                array(  // default
+                    'dt_id' => 1,
+                    'inverse' => '3',
+                ),
+                array(1,35,63,83),  // because inverse search got disabled, the string should only locate the references with 'Abelsonite'
+                true,
+            ],
+            // TODO - other stuff here?
+
+            // Boolean
+            'RRUFF Sample: default boolean search' => [
+                array(  // given
+                    'dt_id' => 3
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ),
+                array(99,101,104,110,114,117,127,130,132,134,135,136),
+                true,
+            ],
+            'RRUFF Sample: locality + default boolean search' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '37' => 'USA'  // locality
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ),
+                array(/*99,*/101,/*104,*/110,/*114,117,127,*/130,/*132,134,*/135,/*136*/),
+                true,
+            ],
+            'RRUFF Sample: override boolean default v1' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '35' => '0'  // rruff_owned == false
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ),
+                array(
+                    98,/*99,*/
+                    100,/*101,*/102,103,/*104,*/105,106,107,108,109,
+                    /*110,*/111,112,113,/*114,*/115,116,/*117,*/118,119,
+                    120,121,122,123,124,125,126,/*127,*/128,129,
+                    /*130,*/131,/*132,*/133,/*134,135,136,*/137,138,139,
+                    323,
+                ),
+                true,
+            ],
+            'RRUFF Sample: override boolean default v2' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '35' => ''  // rruff_owned has any value
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ),
+                array_merge( range(98,139), array(323)  ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            // File/Image
+            'RRUFF Sample: default filename' => [
+                array(  // given
+                    'dt_id' => 3
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ),
+                array(98,100,102,103,105,106,107,109,111,113,115,116,118,119,120,123,124,125,126,128,129,131,133,137,139),
+                true,
+            ],
+            'RRUFF Sample: default filename + mineral name' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '17' => 'a'  // mineral name has 'a'
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ),
+                array(98,100,102,103,105,106,107,109,111,113,115,116,118,119,120,123,/*124,*/125,/*126,*/128,129,131,133,137,139),  // don't match the two 'Bournonite' samples
+                true,
+            ],
+            'RRUFF Sample: default filename + quality' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '45_qual' => '3'  // unlike most other tests, filename should co-exist with file quality (and public status)
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ),
+                array(/*98,*/100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139),  // these three do not have 'excellent' quality
+                true,
+            ],
+            'RRUFF Sample: filename override default v1' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '45' => '532'  // raman spectra processed filename
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ),
+                array(98,100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139),  // those two don't have 532 raman
+                true,
+            ],
+            'RRUFF Sample: filename override default v2' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '45' => '',
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45' => '532'  // raman spectra processed filename
+                ),
+                array_merge( range(98,139), array(323)  ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            'RRUFF Sample: override default quality' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '45_qual' => '',
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45_qual' => '3'  // raman spectra processed quality
+                ),
+                array_merge( range(98,139), array(323)  ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            'RRUFF Sample: override default public status' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '45_pub' => '0'
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45_pub' => '1'  // raman spectra processed public status
+                ),
+                array(),  // no samples have non-public raman spectra files
+                true,
+            ],
+            'RRUFF Sample: override default public status, not super-admin' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '45_pub' => '0'
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45_pub' => '1'  // raman spectra processed public status
+                ),
+                /*array_merge(*/ range(98,139), /*array(323)  ),*/  // the search criteria gets completely ignored due to not being logged in...323 is not public, so it's not shown
+                false,
+            ],
+
+            // Text/Number
+            'IMA List: default text search' => [
+                array(  // given
+                    'dt_id' => 2
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ),
+                array(91,92,94,97,322),
+                true,
+            ],
+            'IMA List: mineral id + text default' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '16' => '7'  // mineral id contains '7'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ),
+                array(91,/*92,*/94,/*97,322*/),  // only abelsonite and aegirine have a '7' in the mineral id
+                true,
+            ],
+            'IMA List: mineral name override default v1' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => 'a'  // mineral name contains 'a'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ),
+                array(91,/*92,*/93,94,95,96,97,/*322*/),  // 'Bournonite' and 'unknown' do not match
+                true,
+            ],
+            'IMA List: mineral name override default v2' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => ''  // any value acceptable for mineral name
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ),
+                array(91,92,93,94,95,96,97,322),  // all minerals match
+                true,
+            ],
+
+            // Radio
+            'RRUFF Sample: default radio search' => [
+                array(  // given
+                    'dt_id' => 3
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ),
+                array(99,101,104,108,110,112,114,117,121,122,127,130,132,134,135,136,138),
+                true,
+            ],
+            'RRUFF Sample: rruff id + default radio search' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '30' => 'R'  // rruff id
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ),
+                array(/*99,101,104,108,110,*/112,/*114,117,*/121,122,/*127,130,132,134,135,136,*/138),
+                true,
+            ],
+            'RRUFF Sample: different radio option + radio default' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '31' => '3'  // sample status == 'confirmed by chemical analysis"
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ),
+                array(
+                    99,101,104,108,110,112,114,117,121,122,127,130,132,134,135,136,138,
+                    100
+                ),
+                true,
+            ],
+            'RRUFF Sample: override radio default v1' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '31' => '-2'  // sample status !== 'unconfirmed'
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ),
+                array(
+                    98,/*99,*/
+                    100,/*101,*/102,103,/*104,*/105,106,107,/*108,*/109,
+                    /*110,*/111,/*112,*/113,/*114,*/115,116,/*117,*/118,119,
+                    120,/*121,122,*/123,124,125,126,/*127,*/128,129,
+                    /*130,*/131,/*132,*/133,/*134,135,136,*/137,/*138,*/139,
+                    323,
+                ),
+                true,
+            ],
+            'RRUFF Sample: override radio default v2' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '31' => '*2'  // sample status 'unconfirmed' has any value
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ),
+                array_merge( range(98,139), array(323)  ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            // Tags
+            'IMA List: tag default search' => [
+                array(  // given
+                    'dt_id' => 2
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ),
+                array(91,92,93,94,95,96,97/*,322*/),  // the "unknown" mineral does not match the default
+                true,
+            ],
+            'IMA List: mineral name + tag default' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => 'n'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ),
+                array(91,92,94,97/*,322*/),  // the five minerals with 'n' in their name, minus the "unknown" mineral due to not matching the tag
+                true,
+            ],
+            'IMA List: different tag + tag default' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '28' => '25'  // desireability = 0 is selected
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ),
+                array(92,93,94,97/*,322*/),  // the five minerals with the requested tag, minus the "unknown" mineral due to not matching 'not a mineral'
+                true,
+            ],
+            'IMA List: override tag default v1' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '28' => '66'  // 'not a mineral' is selected
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ),
+                array(322),  // the given search key overrides the default search key here
+                true,
+            ],
+            'IMA List: override tag default v2' => [
+                array(
+                    'dt_id' => 2,
+                    '28' => '*66'  // 'not a mineral' has any value
+                ),
+                array(
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ),
+                array(91,92,93,94,95,96,97,322),  // the given search key overrides the default search key here, but doesn't require the tag to be selected
+                true,
+            ],
+
+            // Datetime
+            'IMA List: default datetime search "exists"' => [
+                array(  // given
+                    'dt_id' => 2
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ),
+                array(91,92,95),
+                true,
+            ],
+            'IMA List: mineral name + datetime default "exists"' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ),
+                array(91,92/*,95*/),  // excludes 'Abellaite'
+                true,
+            ],
+            'IMA List: datetime override default "exists" v1' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ),
+                array(91,92,/*95*/),  // 'Abellaite' published in 2017
+                true,
+            ],
+            'IMA List: datetime override default "exists" v2' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ),
+                array(91,92,93,94,95,96,97,322),  // all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "exists" v3' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ),
+                array(/*91,92,*/93,94,/*95,*/96,97,322),  // complete override to get minerals without published dates
+                true,
+            ],
+
+            'IMA List: default datetime search "does not exist"' => [
+                array(  // given
+                    'dt_id' => 2
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(93,94,96,97,322),
+                true,
+            ],
+            'IMA List: mineral name + datetime default "does not exist"' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(/*93,*/94,/*96,*/97,322),  // excludes 'Amesite' and 'Adelite'
+                true,
+            ],
+            'IMA List: datetime override default "does not exist" v1' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(91,92),  // complete override of default parameters to get minerals published before 1 jan 2000
+                true,
+            ],
+            'IMA List: datetime override default "does not exist" v2' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(91,92,93,94,95,96,97,322),  // all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "does not exist" v3' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(91,92,95),  // complete override of default parameters to get minerals with published dates
+                true,
+            ],
+
+            'IMA List: default datetime search "before"' => [
+                array(  // given
+                    'dt_id' => 2
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,92),
+                true,
+            ],
+            'IMA List: mineral name + datetime default "before"' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => 's'  // mineral name contains 's'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,/*92,*/),  // excludes 'Bournonite'
+                true,
+            ],
+            'IMA List: datetime override default "before" v1' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64_e' => '2020-01-01'  // date first published before 1 jan 2020
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,92,95),  // 'Abellaite' published in 2017
+                true,
+            ],
+            'IMA List: datetime override default "before" v2' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01'  // date first published after 1 jan 1900
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,/*92,*/95),  // the before part is ignored...'Bournonite' does not match since it was published in 1805
+                true,
+            ],
+            'IMA List: datetime override default "before" v3' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,92,93,94,95,96,97,322),  // all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "before" v4' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(93,94,96,97,322),  // complete override to get minerals without date first published
+                true,
+            ],
+            'IMA List: datetime override default "before" v5' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published does exist
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,92,95),  // complete override to get minerals with date first published
+                true,
+            ],
+
+            'IMA List: default datetime search "before/after"' => [
+                array(  // given
+                    'dt_id' => 2
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91),
+                true,
+            ],
+            'IMA List: mineral name + datetime default "before/after" v1' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => 's'  // mineral name contains 's'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91),  // no change
+                true,
+            ],
+            'IMA List: mineral name + datetime default "before/after" v2' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '17' => 'z'  // mineral name contains 'z'
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(/*91*/),
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v1' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64_e' => '2020-01-01'  // date first published before 1 jan 2020
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,92,95),  // should completely override
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v2' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01'  // date first published after 1 jan 1900
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,/*92,*/95),  // should completely override...'Bournonite' does not match since it was published in 1805
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v3' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,92,93,94,95,96,97,322),  // should completely override...all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v4' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(93,94,96,97,322),  // should completely override to get minerals without date first published
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v5' => [
+                array(  // given
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published does exist
+                ),
+                array(  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ),
+                array(91,92,95),  // should completely override to get minerals with date first published
+                true,
+            ],
+
+            // XYZData
+            'XYZData test: advanced version default' => [
+                array(  // given
+                    'dt_id' => 16,
+                ),
+                array(  // default
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325,326,328),
+                true
+            ],
+            'XYZData test: advanced version default + other value' => [
+                array(  // given
+                    'dt_id' => 16,
+                    '65' => '2',  // id field
+                ),
+                array(  // default
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325/*,326,328*/),
+                true
+            ],
+            'XYZData test: advanced version overridden by simple' => [
+                array(  // given
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7',
+                ),
+                array(  // default
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325,327),
+                true
+            ],
+
+            'XYZData test, simple version default' => [
+                array(  // given
+                    'dt_id' => 16,
+                ),
+                array(  // default
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325,326,328),
+                true
+            ],
+            'XYZData test, simple version default + other value' => [
+                array(  // given
+                    'dt_id' => 16,
+                    '65' => '2',  // id field
+                ),
+                array(  // default
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325/*,326,328*/),
+                true
+            ],
+            'XYZData test, simple version overridden by advanced' => [
+                array(  // given
+                    'dt_id' => 16,
+                    '66' => '(>5.6 <5.65,>30)',
+                ),
+                array(  // default
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ),
+                array(325,326,327),
+                true
             ],
         ];
     }

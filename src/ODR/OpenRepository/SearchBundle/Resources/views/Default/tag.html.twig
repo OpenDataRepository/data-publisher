@@ -22,19 +22,37 @@
 
             {% set t_val = '' %}
             {% set fa_class = '' %}
+            {% set is_unselected = true %}
             {% if tag_id in preset_value['selected'] %}
                 {% set t_val = tag_id %}
                 {% set fa_class = fa_selected_class %}
+                {% set is_unselected = false %}
             {% elseif tag_id in preset_value['alt_selected'] %}
                 {% set t_val = '~' ~ tag_id %}
                 {% set fa_class = fa_alt_selected_class %}
+                {% set is_unselected = false %}
             {% elseif tag_id in preset_value['unselected'] %}
                 {% set t_val = '-' ~ tag_id %}
                 {% set fa_class = 'fa-ban' %}
+                {% set is_unselected = false %}
+            {% endif %}
+
+            {% set is_default_tag = false %}
+            {% if tag_defaults|length > 0 %}
+                {% if tag_id in tag_defaults['selected']
+                    or tag_id in tag_defaults['alt_selected']
+                    or tag_id in tag_defaults['unselected']
+                %}
+                    {% set is_default_tag = true %}
+                {% endif %}
             {% endif %}
 
             <i class="fa {{ fa_class }}"></i>
-            <input type="hidden" rel="{{ tag_id }}" value="{{ t_val }}" />
+            <input {% if is_default_tag %}class="ODRDefaultCriteria"{% endif %}
+                   type="hidden"
+                   value="{% if not is_unselected %}{{ t_val }}{% elseif is_unselected and is_default_tag %}*{{ tag_id }}{% endif %}"
+                   rel="{{ tag_id }}"
+            />
         </span>
         {{ tag.tagMeta.tagName|markdown }}
     </label>
@@ -47,6 +65,8 @@
                 'tag': child_tag,
 
                 'preset_value': preset_value,
+                'tag_defaults': tag_defaults,
+
                 'fa_selected_class': fa_selected_class,
                 'fa_alt_selected_class': fa_alt_selected_class,
             } %}

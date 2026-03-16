@@ -233,10 +233,10 @@ class FacadeController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordExportService $dre_service */
-            $dre_service = $this->container->get('odr.datarecord_export_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatarecordExportService $datarecord_export_service */
+            $datarecord_export_service = $this->container->get('odr.datarecord_export_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -268,12 +268,12 @@ class FacadeController extends Controller
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // TODO - enforce permissions on template side?
             // If either the datatype or the datarecord is not public, and the user doesn't have
             //  the correct permissions...then don't allow them to view the datarecord
-//            if ( !$pm_service->canViewDatatype($user, $datatype) )
+//            if ( !$permissions_service->canViewDatatype($user, $datatype) )
 //                throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -305,7 +305,7 @@ class FacadeController extends Controller
 
             // Render the resulting list of datarecords into a single chunk of export data
             $baseurl = $this->container->getParameter('site_baseurl');
-            $data = $dre_service->getData(
+            $data = $datarecord_export_service->getData(
                 $version,
                 $datarecord_list,
                 $request->getRequestFormat(),
@@ -463,10 +463,10 @@ class FacadeController extends Controller
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchSidebarService $ssb_service */
-            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchSidebarService $search_sidebar_service */
+            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             $cookies = $request->cookies;
@@ -486,7 +486,7 @@ class FacadeController extends Controller
                 }
             }
 
-            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -508,7 +508,7 @@ class FacadeController extends Controller
             // Check if user has permission to view datatype
 
             $target_datatype_id = $target_datatype->getId();
-            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
+            if ( !$permissions_service->canViewDatatype($admin_user, $target_datatype) ) {
                 if (!$logged_in) {
                     // Can't just throw a 401 error here...Symfony would redirect the user to the
                     //  list of datatypes, instead of back to this search page.
@@ -533,12 +533,19 @@ class FacadeController extends Controller
 
             // ----------------------------------------
             // TODO - where is this used?
-            $default_search_params = array();
+            $search_params = $default_search_params = array();
 
             // Need to build everything used by the sidebar...
-            $sidebar_layout_id = $ssb_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
-            $user_list = $ssb_service->getSidebarUserList($admin_user, $sidebar_array);
+            $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                $admin_user,
+                $target_datatype->getId(),
+                $search_params,
+                $default_search_params,
+                'searching',
+                $sidebar_layout_id
+            );
+            $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
@@ -1366,7 +1373,7 @@ class FacadeController extends Controller
 
 
     /**
-     *
+     * @deprecated
      * Search an individual datatype via the API
      *
      * @param $version
@@ -1407,12 +1414,13 @@ class FacadeController extends Controller
         $records = $search_api_service->performSearch(
             $datatype,
             $search_key,
+            array(), // empty array without searching as super-admin means only public results
+            false,   // only return grandparent records
+            array(), // do not sort the matching records
             array(),
-            false,
-            array(),
-            array(),
-            false,
-            true
+            false,   // do not search as a super-admin
+            false,   // do not ignore field searchable status
+            true     // ...all just to return the datarecord list in a different format than usual
         );
 
         // Flatten the associative array
@@ -1536,10 +1544,10 @@ class FacadeController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordExportService $dre_service */
-            $dre_service = $this->container->get('odr.datarecord_export_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var DatarecordExportService $datarecord_export_service */
+            $datarecord_export_service = $this->container->get('odr.datarecord_export_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -1580,12 +1588,12 @@ class FacadeController extends Controller
             // TODO - act as user should be passed on this call?
             $user = "anon.";
             // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // TODO - enforce permissions on template side?
             // If either the datatype or the datarecord is not public, and the user doesn't have
             //  the correct permissions...then don't allow them to view the datarecord
-//            if ( !$pm_service->canViewDatatype($user, $datatype) )
+//            if ( !$permissions_service->canViewDatatype($user, $datatype) )
 //                throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -1615,7 +1623,7 @@ class FacadeController extends Controller
 
             // Render the resulting list of datarecords into a single chunk of export data
             $baseurl = $this->container->getParameter('site_baseurl');
-            $data = $dre_service->getData(
+            $data = $datarecord_export_service->getData(
                 $version,
                 $datarecord_list,
                 $request->getRequestFormat(),

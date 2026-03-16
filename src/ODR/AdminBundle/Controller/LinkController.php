@@ -2378,24 +2378,7 @@ class LinkController extends ODRCustomController
 
             // Create a base search key for the search sidebar, so it believes that it's working
             //  with the remote datatype
-            $remote_datatype_search_key = '';
-            // If the remote datatype has any stored search keys...
-            foreach ($remote_datatype->getStoredSearchKeys() as $ssk) {
-                /** @var StoredSearchKey $ssk */
-
-                // ...prefer the ones meant for linking context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::LINK_CONTEXT ) {
-                    $remote_datatype_search_key = $ssk->getSearchKey();
-                    break;
-                }
-                // ...and fall back to ones meant for any context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
-                    $remote_datatype_search_key = $ssk->getSearchKey();
-                    break;
-                }
-
-                // TODO - when datatypes can have more than one stored search, this will get messed up
-            }
+            $remote_datatype_search_key = $search_key_service->getDefaultSearchKeyForContext($remote_datatype, StoredSearchKey::LINK_CONTEXT);
 
             // If a default search key doesn't exist, or shouldn't be used here...
             if ( $remote_datatype_search_key === '' ) {
