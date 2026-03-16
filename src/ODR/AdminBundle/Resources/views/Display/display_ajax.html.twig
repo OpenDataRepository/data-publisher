@@ -112,7 +112,7 @@
 
         // $(".MenuDesignArea").remove();
         window.scrollTo(0,0);
-
+{#
         {% if notify_of_sync is defined and notify_of_sync == true %}
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
@@ -121,6 +121,7 @@
             'search_key': search_key,
         }%}
         {% endif %}
+#}
     });
 {% endif %}
 

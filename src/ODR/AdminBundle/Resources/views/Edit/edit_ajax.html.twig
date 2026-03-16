@@ -97,7 +97,7 @@ $(function() {
     window.scrollTo(0,0);
 
     OpenLinkInfoDialog({{ datarecord.id }});
-
+{#
     {% if notify_of_sync is defined and notify_of_sync == true %}
     {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
         'datatype_id': datatype.id,
@@ -106,6 +106,7 @@ $(function() {
         'search_key': search_key,
     }%}
     {% endif %}
+#}
 });
 
 
