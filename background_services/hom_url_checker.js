@@ -3,52 +3,162 @@
 /**
  * HOM URL Checker
  *
- * Reads mineral_data.js to get a list of mineral names, then checks if the
- * Handbook of Mineralogy (HOM) website has a valid PDF entry for each mineral.
+ * Matches minerals from mineral_data.js against the Handbook of Mineralogy
+ * PDF catalog (fetched from https://handbookofmineralogy.org/pdf-search/).
  *
- * Makes no more than 1 request per second to avoid overloading the HOM server.
+ * Two-pass matching:
+ *   1. Direct match: mineral display name (lowercased, HTML-stripped) matches
+ *      a catalog entry exactly.
+ *   2. Variant match: normalized name variants (stripped diacritics, removed
+ *      suffixes, removed hyphens, etc.) match a catalog entry. These are
+ *      flagged with "non-direct-match": true.
  *
- * Outputs:
- *   hom_results/valid_hom_urls.json   - minerals with valid HOM PDFs
- *   hom_results/invalid_hom_urls.json - minerals without valid HOM PDFs
- *   hom_results/progress.json         - tracks progress for resume support
+ * Outputs (in hom_results/):
+ *   valid_hom_urls.json     - all matched minerals (direct + variant)
+ *   invalid_hom_urls.json   - minerals with no catalog match
+ *   resolved_hom_urls.json  - only the variant matches (with strategy details)
+ *   unresolved_hom_urls.json - same as invalid (no match at all)
+ *   hom_pdf_catalog.json    - cached HOM catalog (refreshed if older than 24h)
+ *   run_log.json            - timestamp and summary of last run
  *
- * Usage: node hom_url_checker.js
+ * Usage: node hom_url_checker.js [--force-refresh] [--help]
+ *
+ * Designed to run weekly. Only makes a single HTTP request to fetch the
+ * catalog page; all matching is done locally.
  */
 
 const https = require('https');
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+// -------------------------------------------------------
+// --help
+// -------------------------------------------------------
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log(`
+HOM URL Checker
+
+  Matches minerals from mineral_data.js against the Handbook of Mineralogy
+  PDF catalog and produces JSON files mapping mineral names to PDF URLs.
+
+Usage:
+  node hom_url_checker.js [options]
+
+Options:
+  --force-refresh   Re-fetch the HOM PDF catalog from the web even if the
+                    local cache (hom_pdf_catalog.json) is less than 24 hours old.
+  --help, -h        Show this help message and exit.
+
+Requirements:
+  - mineral_data.js must exist at ../web/uploads/IMA/mineral_data.js
+    (relative to this script). This file is produced by the IMA data builder.
+  - Network access to https://handbookofmineralogy.org/pdf-search/ for
+    fetching the PDF catalog (only on first run or when cache expires).
+
+Matching:
+  Two-pass matching is performed against the HOM catalog:
+    1. Direct match   - mineral display name (lowercased, HTML-stripped)
+                        matches a catalog entry exactly.
+    2. Variant match  - normalized name variants (stripped diacritics,
+                        removed suffixes/hyphens, etc.) match a catalog
+                        entry. These are flagged with "non-direct-match": true.
+
+Output files (in hom_results/):
+  valid_hom_urls.json      All matched minerals (direct + variant)
+  invalid_hom_urls.json    Minerals with no catalog match
+  resolved_hom_urls.json   Only the variant matches (with strategy details)
+  unresolved_hom_urls.json Same as invalid (no match at all)
+  hom_pdf_catalog.json     Cached HOM catalog (refreshed if older than 24h)
+  run_log.json             Timestamp and summary of last run
+
+  valid_hom_urls.json is also copied to ../web/uploads/IMA/ for access
+  by other programs.
+
+Designed to run weekly via cron or manually as needed.
+`);
+    process.exit(0);
+}
 
 const BASE_PATH = path.resolve(__dirname, '..');
 const MINERAL_DATA_PATH = path.join(BASE_PATH, 'web/uploads/IMA/mineral_data.js');
 const RESULTS_DIR = path.join(__dirname, 'hom_results');
 const VALID_FILE = path.join(RESULTS_DIR, 'valid_hom_urls.json');
+const IMA_UPLOAD_DIR = path.join(BASE_PATH, 'web/uploads/IMA');
+const VALID_FILE_COPY = path.join(IMA_UPLOAD_DIR, 'valid_hom_urls.json');
 const INVALID_FILE = path.join(RESULTS_DIR, 'invalid_hom_urls.json');
-const PROGRESS_FILE = path.join(RESULTS_DIR, 'progress.json');
+const RESOLVED_FILE = path.join(RESULTS_DIR, 'resolved_hom_urls.json');
+const UNRESOLVED_FILE = path.join(RESULTS_DIR, 'unresolved_hom_urls.json');
+const CATALOG_FILE = path.join(RESULTS_DIR, 'hom_pdf_catalog.json');
+const RUN_LOG_FILE = path.join(RESULTS_DIR, 'run_log.json');
 
+const CATALOG_URL = 'https://handbookofmineralogy.org/pdf-search/';
 const HOM_BASE_URL = 'https://www.handbookofmineralogy.org/pdfs/';
-const REQUEST_DELAY_MS = 1000; // 1 request per second
 
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+// -------------------------------------------------------
+// Utility functions
+// -------------------------------------------------------
+
+/**
+ * Strip diacritical marks from a string.
+ * e.g., "achávalite" -> "achavalite"
+ */
+function stripDiacritics(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 /**
- * Parse mineral_data.js and extract mineral names and display names.
- * Returns an array of { name, displayName, url } objects.
+ * Normalize a mineral name for comparison:
+ * lowercase, strip diacritics, strip HTML tags, remove apostrophes
  */
+function normalizeName(name) {
+    let n = name.toLowerCase();
+    n = n.replace(/<([^>]+)>/g, '');
+    n = stripDiacritics(n);
+    n = n.replace(/'/g, '');
+    return n.trim();
+}
+
+/**
+ * Generate multiple comparison keys for a mineral name.
+ * Returns an array of normalized variant strings.
+ */
+function generateKeys(name) {
+    const base = normalizeName(name);
+    const keys = [base];
+
+    // Remove element suffix: "abenakiite-(ce)" -> "abenakiite"
+    const noSuffix = base.replace(/\s*-\s*\([^)]*\)\s*$/, '');
+    if (noSuffix !== base) keys.push(noSuffix);
+
+    // Remove all hyphens: "aegirine-augite" -> "aegirineaugite"
+    const noHyphens = base.replace(/-/g, '');
+    if (noHyphens !== base) keys.push(noHyphens);
+
+    // Remove suffix then hyphens
+    const noSuffixNoHyphens = noSuffix.replace(/-/g, '');
+    if (noSuffixNoHyphens !== base && noSuffixNoHyphens !== noSuffix && noSuffixNoHyphens !== noHyphens) {
+        keys.push(noSuffixNoHyphens);
+    }
+
+    // Remove all parenthetical content
+    const noParens = base.replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').replace(/-$/, '').trim();
+    if (noParens !== base && keys.indexOf(noParens) === -1) keys.push(noParens);
+
+    // Remove spaces
+    const noSpaces = base.replace(/\s+/g, '');
+    if (noSpaces !== base && keys.indexOf(noSpaces) === -1) keys.push(noSpaces);
+
+    return keys;
+}
+
+// -------------------------------------------------------
+// Parse mineral_data.js
+// -------------------------------------------------------
 function parseMineralData(filePath) {
     const content = fs.readFileSync(filePath, 'utf8');
     const minerals = [];
 
-    // Match each minerals_by_name entry to get the mineral name
-    // Then extract the mineral_data_array entry to get the display name (field index 1)
     const byNameRegex = /minerals_by_name\[\d+\]\s*=\s*\{\s*name\s*:\s*"([^"]+)"\s*,\s*id\s*:\s*"([^"]+)"\s*\}/g;
-    let match;
-
-    // Build a map of id -> data string
     const dataArrayRegex = /mineral_data_array\['([^']+)'\]\s*=\s*'([^']*)'/g;
     const dataMap = {};
     let dataMatch;
@@ -56,6 +166,7 @@ function parseMineralData(filePath) {
         dataMap[dataMatch[1]] = dataMatch[2];
     }
 
+    let match;
     while ((match = byNameRegex.exec(content)) !== null) {
         const name = match[1];
         const id = match[2];
@@ -63,177 +174,212 @@ function parseMineralData(filePath) {
 
         if (dataStr) {
             const fields = dataStr.split('||');
-            // Field 1 is the display name (may contain HTML)
             const displayName = fields[1] || name;
 
-            // Construct HOM URL using the same logic as displayHOM() in mineral_list.js:
-            // lowercase, strip HTML tags, strip apostrophes
+            // Same logic as displayHOM() in mineral_list.js
             let homName = displayName.toLowerCase();
             homName = homName.replace(/<([^>]+)>/g, '');
             homName = homName.replace(/'/g, '');
 
             const url = HOM_BASE_URL + homName + '.pdf';
-            minerals.push({ name, displayName, homName, url });
+            minerals.push({ name, id, displayName, homName, url });
         }
     }
-
     return minerals;
 }
 
-/**
- * Check if a URL returns a valid PDF (not a 404).
- * Uses HEAD request first; returns { valid, status, contentType }.
- */
-function checkUrl(url) {
-    return new Promise((resolve) => {
-        const proto = url.startsWith('https') ? https : http;
-        const req = proto.request(url, { method: 'HEAD', timeout: 15000 }, (res) => {
-            resolve({
-                valid: res.statusCode === 200,
-                status: res.statusCode,
-                contentType: res.headers['content-type'] || ''
-            });
-        });
+// -------------------------------------------------------
+// Fetch the HOM PDF catalog
+// -------------------------------------------------------
 
-        req.on('error', (err) => {
-            resolve({ valid: false, status: 0, contentType: '', error: err.message });
-        });
-
-        req.on('timeout', () => {
-            req.destroy();
-            resolve({ valid: false, status: 0, contentType: '', error: 'timeout' });
-        });
-
-        req.end();
+function fetchPage(url) {
+    return new Promise((resolve, reject) => {
+        https.get(url, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                return fetchPage(res.headers.location).then(resolve).catch(reject);
+            }
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve(data));
+        }).on('error', reject);
     });
 }
 
-/**
- * Load previous progress for resume support.
- */
-function loadProgress() {
-    let validResults = [];
-    let invalidResults = [];
-    let checkedNames = new Set();
-
-    if (fs.existsSync(PROGRESS_FILE)) {
-        try {
-            const progress = JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf8'));
-            checkedNames = new Set(progress.checkedNames || []);
-        } catch (e) {
-            console.log('Could not read progress file, starting fresh.');
+async function fetchCatalog(forceRefresh) {
+    if (!forceRefresh && fs.existsSync(CATALOG_FILE)) {
+        const stats = fs.statSync(CATALOG_FILE);
+        const ageHours = (Date.now() - stats.mtimeMs) / (1000 * 60 * 60);
+        if (ageHours < 24) {
+            console.log('Using cached catalog (age: ' + ageHours.toFixed(1) + ' hours)');
+            return JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'));
         }
     }
 
-    if (fs.existsSync(VALID_FILE)) {
-        try {
-            validResults = JSON.parse(fs.readFileSync(VALID_FILE, 'utf8'));
-        } catch (e) {
-            validResults = [];
-        }
+    console.log('Fetching PDF catalog from ' + CATALOG_URL + '...');
+    const html = await fetchPage(CATALOG_URL);
+
+    // Parse <li><a href='...'>name</a></li> entries from the pdf-list UL
+    const regex = /<li><a href='([^']*)' target='_blank'>\s*([^<]*)<\/a><\/li>/g;
+    const entries = [];
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+        entries.push({
+            url: match[1].trim(),
+            name: match[2].trim()
+        });
     }
 
-    if (fs.existsSync(INVALID_FILE)) {
-        try {
-            invalidResults = JSON.parse(fs.readFileSync(INVALID_FILE, 'utf8'));
-        } catch (e) {
-            invalidResults = [];
-        }
+    if (entries.length === 0) {
+        throw new Error('Failed to parse any PDF entries from the catalog page. The page structure may have changed.');
     }
 
-    return { validResults, invalidResults, checkedNames };
+    console.log('Fetched ' + entries.length + ' PDF entries from catalog');
+    fs.writeFileSync(CATALOG_FILE, JSON.stringify(entries, null, 2));
+    return entries;
 }
 
-/**
- * Save current progress.
- */
-function saveProgress(validResults, invalidResults, checkedNames) {
-    fs.writeFileSync(VALID_FILE, JSON.stringify(validResults, null, 2));
-    fs.writeFileSync(INVALID_FILE, JSON.stringify(invalidResults, null, 2));
-    fs.writeFileSync(PROGRESS_FILE, JSON.stringify({
-        checkedNames: Array.from(checkedNames),
-        lastUpdated: new Date().toISOString()
-    }));
+// -------------------------------------------------------
+// Matching
+// -------------------------------------------------------
+
+function buildCatalogIndex(catalog) {
+    const exactMap = {};
+    for (const entry of catalog) {
+        const normalized = normalizeName(entry.name);
+        exactMap[normalized] = entry;
+    }
+    return exactMap;
 }
+
+// -------------------------------------------------------
+// Main
+// -------------------------------------------------------
 
 async function main() {
-    console.log('HOM URL Checker - Starting');
-    console.log('Reading mineral data from:', MINERAL_DATA_PATH);
+    const forceRefresh = process.argv.includes('--force-refresh');
 
-    // Parse minerals
-    const minerals = parseMineralData(MINERAL_DATA_PATH);
-    console.log('Found ' + minerals.length + ' minerals');
+    console.log('HOM URL Checker - Starting');
+    console.log('');
 
     // Ensure results directory exists
     if (!fs.existsSync(RESULTS_DIR)) {
         fs.mkdirSync(RESULTS_DIR, { recursive: true });
     }
 
-    // Load previous progress
-    let { validResults, invalidResults, checkedNames } = loadProgress();
-    const alreadyChecked = checkedNames.size;
-    if (alreadyChecked > 0) {
-        console.log('Resuming: ' + alreadyChecked + ' minerals already checked (' +
-            validResults.length + ' valid, ' + invalidResults.length + ' invalid)');
-    }
+    // Step 1: Parse mineral data
+    console.log('Reading mineral data from: ' + MINERAL_DATA_PATH);
+    const minerals = parseMineralData(MINERAL_DATA_PATH);
+    console.log('Found ' + minerals.length + ' minerals');
 
-    // Filter to unchecked minerals
-    const toCheck = minerals.filter(m => !checkedNames.has(m.name));
-    console.log('Checking ' + toCheck.length + ' remaining minerals...');
-    console.log('Rate limit: 1 request per second');
+    // Step 2: Fetch/load catalog
+    const catalog = await fetchCatalog(forceRefresh);
+    console.log('Catalog size: ' + catalog.length + ' PDFs');
     console.log('');
 
-    let count = 0;
-    const total = toCheck.length;
-    const saveInterval = 50; // Save progress every 50 minerals
+    // Build lookup indexes
+    const catalogIndex = buildCatalogIndex(catalog);  // normalizeName -> entry
+    const catalogByLower = {};  // raw lowercase name -> entry
+    for (const entry of catalog) {
+        catalogByLower[entry.name.trim().toLowerCase()] = entry;
+    }
 
-    for (const mineral of toCheck) {
-        count++;
-        const result = await checkUrl(mineral.url);
+    // Step 3: Match all minerals
+    const validResults = [];
+    const invalidResults = [];
+    const resolvedResults = [];
 
-        if (result.valid) {
+    for (const mineral of minerals) {
+        // Pass 1: Direct match (raw homName matches catalog name exactly)
+        if (catalogByLower[mineral.homName]) {
+            const entry = catalogByLower[mineral.homName];
             validResults.push({
+                id: mineral.id,
+                name: mineral.name,
+                displayName: mineral.displayName,
+                homName: mineral.homName,
+                url: entry.url
+            });
+            continue;
+        }
+
+        // Pass 2: Variant match using normalized keys
+        const keys = generateKeys(mineral.homName);
+        let matched = false;
+
+        for (const key of keys) {
+            if (catalogIndex[key]) {
+                const entry = catalogIndex[key];
+                validResults.push({
+                    id: mineral.id,
+                    name: mineral.name,
+                    displayName: mineral.displayName,
+                    homName: entry.name,
+                    url: entry.url,
+                    'non-direct-match': true
+                });
+                resolvedResults.push({
+                    id: mineral.id,
+                    name: mineral.name,
+                    displayName: mineral.displayName,
+                    originalHomName: mineral.homName,
+                    originalUrl: mineral.url,
+                    matchedName: entry.name,
+                    matchedUrl: entry.url,
+                    strategy: 'exact_variant (' + key + ')'
+                });
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            invalidResults.push({
+                id: mineral.id,
                 name: mineral.name,
                 displayName: mineral.displayName,
                 homName: mineral.homName,
                 url: mineral.url
             });
-            console.log('[' + count + '/' + total + '] VALID: ' + mineral.name + ' -> ' + mineral.url);
-        } else {
-            invalidResults.push({
-                name: mineral.name,
-                displayName: mineral.displayName,
-                homName: mineral.homName,
-                url: mineral.url,
-                status: result.status,
-                error: result.error || null
-            });
-            console.log('[' + count + '/' + total + '] INVALID (' + result.status + '): ' + mineral.name);
-        }
-
-        checkedNames.add(mineral.name);
-
-        // Save progress periodically
-        if (count % saveInterval === 0) {
-            saveProgress(validResults, invalidResults, checkedNames);
-            console.log('  -- Progress saved (' + (alreadyChecked + count) + '/' + minerals.length + ' total) --');
-        }
-
-        // Rate limiting - wait before next request
-        if (count < total) {
-            await delay(REQUEST_DELAY_MS);
         }
     }
 
-    // Final save
-    saveProgress(validResults, invalidResults, checkedNames);
+    // Step 4: Save results
+    fs.writeFileSync(VALID_FILE, JSON.stringify(validResults, null, 2));
+    fs.writeFileSync(INVALID_FILE, JSON.stringify(invalidResults, null, 2));
+    fs.writeFileSync(RESOLVED_FILE, JSON.stringify(resolvedResults, null, 2));
+    fs.writeFileSync(UNRESOLVED_FILE, JSON.stringify(invalidResults, null, 2));
 
+    const runLog = {
+        timestamp: new Date().toISOString(),
+        totalMinerals: minerals.length,
+        catalogSize: catalog.length,
+        directMatches: validResults.filter(v => !v['non-direct-match']).length,
+        variantMatches: resolvedResults.length,
+        totalMatched: validResults.length,
+        unmatched: invalidResults.length
+    };
+    fs.writeFileSync(RUN_LOG_FILE, JSON.stringify(runLog, null, 2));
+
+    // Copy valid_hom_urls.json to web/uploads/IMA/ for access by other programs
+    fs.copyFileSync(VALID_FILE, VALID_FILE_COPY);
+
+    // Summary
+    console.log('=== Results ===');
+    console.log('Total minerals:    ' + minerals.length);
+    console.log('HOM catalog size:  ' + catalog.length);
+    console.log('Direct matches:    ' + runLog.directMatches);
+    console.log('Variant matches:   ' + runLog.variantMatches + ' (non-direct-match)');
+    console.log('Total matched:     ' + runLog.totalMatched + ' (' +
+        (100 * runLog.totalMatched / minerals.length).toFixed(1) + '%)');
+    console.log('Unmatched:         ' + runLog.unmatched);
     console.log('');
-    console.log('=== Complete ===');
-    console.log('Total minerals: ' + minerals.length);
-    console.log('Valid HOM URLs: ' + validResults.length);
-    console.log('Invalid HOM URLs: ' + invalidResults.length);
-    console.log('Results saved to: ' + RESULTS_DIR);
+    console.log('Output files:');
+    console.log('  ' + VALID_FILE);
+    console.log('  ' + INVALID_FILE);
+    console.log('  ' + RESOLVED_FILE);
+    console.log('  ' + UNRESOLVED_FILE);
+    console.log('  ' + CATALOG_FILE);
+    console.log('  ' + RUN_LOG_FILE);
 }
 
 main().catch(err => {
