@@ -4682,6 +4682,10 @@ i {
 .ODRXYZData_label, .ODRXYZData {
     display: inline-block !important;
 }
+.ODRXYZData_button {
+    margin: 0 3px 0 0 !important;
+    padding: 5px !important;
+}
 
 #textbox_general_blurb {
     cursor: pointer;

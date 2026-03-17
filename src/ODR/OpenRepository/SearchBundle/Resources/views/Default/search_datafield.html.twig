@@ -445,26 +445,32 @@
 
     {% elseif field_typeclass == "XYZData" and not design_page is defined %}
 
+        {% set x_key = datafield_id ~ '_x' %}
+        {% set y_key = datafield_id ~ '_y' %}
+        {% set z_key = datafield_id ~ '_z' %}
+
+        {% set given_simple_params = false %}
+        {% if search_params[x_key] is defined or search_params[y_key] is defined or search_params[z_key] is defined %}
+            {% set given_simple_params = true %}
+        {% endif %}
+
         {% if xyz_data_columns|length == 0 %}
         <span class="pure-u-1">
             <label class="pure-u-1" title="{{ description }}">{{ fieldname }}:</label>
             <span class="ODRInputError">Unable to search, no column names defined!</span>
         </span>
 
-        {% elseif datafield.dataFieldMeta.xyz_data_multirange_search == false %}
-            {% set x_key = datafield_id ~ '_x' %}
+        {% elseif (given_simple_params or datafield.dataFieldMeta.xyz_data_multirange_search == false) %}
             {% set x_value = '' %}
             {% if search_params[x_key] is defined %}
                 {% set x_value = search_params[x_key] %}
             {% endif %}
 
-            {% set y_key = datafield_id ~ '_y' %}
             {% set y_value = '' %}
             {% if search_params[y_key] is defined %}
                 {% set y_value = search_params[y_key] %}
             {% endif %}
 
-            {% set z_key = datafield_id ~ '_z' %}
             {% set z_value = '' %}
             {% if search_params[z_key] is defined %}
                 {% set z_value = search_params[z_key] %}
@@ -554,9 +560,9 @@
                    type="hidden"
                    name="{{ datafield_id }}"
             />
-            <button id="datafield_{{ datafield_id }}_add" class="pure-button ODRXYZData_add">Add</button>
-            <button id="datafield_{{ datafield_id }}_remove" class="pure-button ODRXYZData_remove">Remove Highlighted</button>
-            <button id="datafield_{{ datafield_id }}_clear" class="pure-button ODRXYZData_clear">Remove All</button>
+            <button id="datafield_{{ datafield_id }}_add" class="pure-button ODRXYZData_button ODRXYZData_add">Add</button>
+            <button id="datafield_{{ datafield_id }}_remove" class="pure-button ODRXYZData_button ODRXYZData_remove">Remove Highlighted</button>
+            <button id="datafield_{{ datafield_id }}_clear" class="pure-button ODRXYZData_button ODRXYZData_clear">Remove All</button>
         </span>
         {% endif %}
 
