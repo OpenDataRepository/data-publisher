@@ -39,6 +39,7 @@
 /web/AMS
 /web/log_view_config.php
 
+
 # Claude
 .claude/
 CLAUDE.md
@@ -62,6 +63,7 @@ CLAUDE_LOG.md
 web/chemin-map-demo
 
 
+/background_services/hom_results
 /background_services/node_modules/
 /background_services/statistics_config.js
 /puppeteer_graphs/node_modules/
