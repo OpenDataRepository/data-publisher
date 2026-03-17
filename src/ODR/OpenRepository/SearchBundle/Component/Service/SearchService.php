@@ -2604,11 +2604,15 @@ class SearchService
      *     [<datatype_id>] => array(
      *         'public_date' => <datatype_public_date>,
      *         'datafields' => array(
-     *             <public_datafield_id> => <searchable>,
-     *             <public_datafield_id> => <searchable>,
+     *             <public_datafield_id> => array(
+     *                 'searchable' => <searchable>,
+     *                 'typeclass' => <typeclass>,
+     *                 'field_uuid' => <field_uuid>,
+     *                 'default_merge' => <'OR' or 'AND'>  // only when a Radio or Tag field
+     *             ),
      *             ...,
      *             'non_public' => array(
-     *                 <non_public_datafield_id> => <searchable>,
+     *                 <non_public_datafield_id> => array(...),
      *                 ...
      *             )
      *         )

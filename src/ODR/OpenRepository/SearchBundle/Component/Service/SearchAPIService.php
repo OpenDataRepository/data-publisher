@@ -333,19 +333,23 @@ class SearchAPIService
 
 
     /**
-     * Returns a search key that has been filtered to only contain what the user can see...ODR will
-     * typically forcibly redirect the user to this filtered search key if it's different than what
-     * they originally attempted to access.
+     * Returns a search key that has been filtered to only contain what the user can see.
+     *
+     * ODR originally forcibly redirected the user to this filtered search key if it was different
+     * than what they originally attempted to access, but it was screwing up Wordpress.  So instead,
+     * everywhere in ODR that uses a search key has to filter it first...
      *
      * @param int $datatype_id Testing is easier if this is an int
      * @param string $search_key
      * @param array $user_permissions The permissions of the user doing the search, or an empty
      *                                array when not logged in
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
+     * @param bool $ignore_searchable If true, then don't filter out fields that aren't searchable.
+     *                                Required for InlineLink.
      *
      * @return string
      */
-    public function filterSearchKeyForUser($datatype_id, $search_key, $user_permissions, $search_as_super_admin = false)
+    public function filterSearchKeyForUser($datatype_id, $search_key, $user_permissions, $search_as_super_admin = false, $ignore_searchable = false)
     {
         // Convert the search key into array format...
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
@@ -389,7 +393,9 @@ class SearchAPIService
                 foreach ($value as $sort_num => $sort_criteria) {
                     $sort_df_id = $sort_criteria['sort_df_id'];
                     foreach ($searchable_datafields as $dt_id => $datafields) {
-                        if ( isset($datafields[$sort_df_id]) && $datafields[$sort_df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
+                        if ( isset($datafields[$sort_df_id]) &&
+                            ($ignore_searchable || $datafields[$sort_df_id]['searchable'] !== DataFields::NOT_SEARCHABLE)
+                        ) {
                             // User can both view and search this datafield
                             $filtered_search_params[$key][$sort_num] = array(
                                 'sort_df_id' => $sort_criteria['sort_df_id'],
@@ -410,7 +416,9 @@ class SearchAPIService
 
                 // Determine if the user can view the datafield...
                 foreach ($searchable_datafields as $dt_id => $datafields) {
-                    if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
+                    if ( isset($datafields[$df_id]) &&
+                        ($ignore_searchable || $datafields[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE)
+                    ) {
                         // User can both view and search this datafield
                         $filtered_search_params[$key] = $value;
                         break;
@@ -431,7 +439,9 @@ class SearchAPIService
 
                     $is_valid_field = false;
                     foreach ($searchable_datafields as $dt_id => $df_list) {
-                        if ( isset($df_list[$df_id]) && $df_list[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
+                        if ( isset($df_list[$df_id]) &&
+                            ($ignore_searchable || $df_list[$df_id]['searchable'] !== DataFields::NOT_SEARCHABLE)
+                        ) {
                             // User can both view and search this datafield...
                             $df_dt_id = $dt_id;
                             $is_valid_field = true;
@@ -512,25 +522,26 @@ class SearchAPIService
      * Runs a search specified by the given $search_key.  The contents of the search key are
      * silently tweaked based on the user's permissions.
      *
-     * @param DataType|null $datatype Preferably not null, but can parse $search_key if so
+     * @param DataType|null $datatype Preferably not null, but can parse $search_key if it is.
      * @param string $search_key
      * @param array $user_permissions The permissions of the user doing the search, or an empty
-     *                                array when not logged in
+     *                                array when not logged in.
      * @param bool $return_complete_list If false, then returns a sorted list of grandparent
      *                                   datarecord ids...if true, then returns an unsorted list of
      *                                   the grandparent datarecords and all their descendents that
-     *                                   match the search
+     *                                   match the search.
      * @param int[] $sort_datafields An ordered list of the datafields to sort by, or an empty
-     *                               array to sort by whatever is default for the datatype
+     *                               array to sort by whatever is default for the datatype.
      * @param string[] $sort_directions An ordered list of which datafields/directions to sort the
      *                                  results set with.
      *                                  IMPORTANT: the sort directives in the search key are ignored,
      *                                  because otherwise the search key would override any temporary
-     *                                  sorting the user wants to perform
-     * @param bool $search_as_super_admin If true, don't filter anything by permissions
-     *
+     *                                  sorting the user wants to perform.
+     * @param bool $search_as_super_admin If true, don't filter anything by permissions.
+     * @param bool $ignore_searchable If true, then don't filter out fields that aren't searchable.
+     *                                Required for InlineLink.
      * @param bool $return_as_list If true, then returns a list of records with internal id and
-     *                             unique id instead
+     *                             unique id instead.
      *
      * @return array
      */
@@ -542,8 +553,10 @@ class SearchAPIService
         $sort_datafields = array(),
         $sort_directions = array(),
         $search_as_super_admin = false,
+        $ignore_searchable = false,
         $return_as_list = false
     ) {
+
         // ----------------------------------------
         // This typically shouldn't be null, but phpunit testing is unable to provide a hydrated
         //  datatype entity
@@ -554,16 +567,16 @@ class SearchAPIService
             $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
         }
 
+
+        // ----------------------------------------
         // Originally...ODR took the search keys it received, checked whether it contained anything
         //  the user couldn't see, and if so it then forcibly redirected to URL that had the filtered
         //  version of said search key
         // That behavior was convenient for ODR, but it was screwing up Wordpress...so now everywhere
         //  that wants to actually use the search key has to filter it prior to decoding it...
-        $filtered_search_key = self::filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions, $search_as_super_admin);
+        $filtered_search_key = self::filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions, $search_as_super_admin, $ignore_searchable);
         $search_params = $this->search_key_service->decodeSearchKey($filtered_search_key);
 
-
-        // ----------------------------------------
         // Extract the inverse target datatype, if it exists
         $inverse_target_datatype_id = null;
         if ( isset($search_params['inverse']) ) {
@@ -576,12 +589,15 @@ class SearchAPIService
             }
         }
 
-        // Convert the search key into a format suitable for searching
+        // Need the list of datafields (and their typeclasses) that can be searched on...
         $searchable_datafields = array();
         if ( is_null($inverse_target_datatype_id) )
             $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
         else
             $searchable_datafields = self::getSearchableDatafieldsForUser(array($inverse_target_datatype_id), $user_permissions, $search_as_super_admin);
+
+        // Once the filtering is completed, then the search key can be converted into a considerably
+        //  more complicated array format that serves as a repository for the upcoming search
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($filtered_search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
@@ -726,7 +742,12 @@ class SearchAPIService
                             $dr_list = $this->search_service->searchForSelectedRadioOptions($entity, $search_term['value']);
                         }
                         else if ($typeclass === 'Radio' && $facet_type !== 'general') {
-                            // The more specific version of searching a radio datafield provides an array of selected/deselected options
+                            // The more specific version of searching a radio datafield provides an
+                            //  array of selected/deselected options...but it technically might not
+                            //  have any due to what was required to implement the "default search
+                            //  params" thing
+                            if ( empty($search_term['selections']) )
+                                continue;
                             $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections']);
                         }
                         else if ($typeclass === 'Tag' && $facet_type === 'general') {
@@ -739,7 +760,12 @@ class SearchAPIService
                             $dr_list = $this->search_service->searchForSelectedTags($entity, $search_term['value']);
                         }
                         else if ($typeclass === 'Tag' && $facet_type !== 'general') {
-                            // The more specific version of searching a tag datafield provides an array of selected/deselected options
+                            // The more specific version of searching a tag datafield provides an
+                            //  array of selected/deselected tags...but it technically might not
+                            //  have any due to what was required to implement the "default search
+                            //  params" thing
+                            if ( empty($search_term['selections']) )
+                                continue;
                             $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections']);
                         }
                         else if ($typeclass === 'File' || $typeclass === 'Image') {

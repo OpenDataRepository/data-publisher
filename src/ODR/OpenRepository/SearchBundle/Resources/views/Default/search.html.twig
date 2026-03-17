@@ -264,14 +264,31 @@
         var post_data = $(search_form).serialize();
         post_data += '&search_theme_id=' + search_theme_id + '&intent=' + intent;
 
-        var df_values = post_data.split(/&/);
+        // The serialized post will have a value for every single datafield, most of which will be
+        //  the empty string...which is (usually) bad.
+        var datafields_with_default_values = new Map();
+        if (intent !== 'stored_search_keys') {
+            // ...the exception being when the empty string exists to override a default search parameter
+            $(context).find(".ODRDefaultCriteria").each(function(index,elem) {
+                var post_name = $(elem).attr('name');
+                datafields_with_default_values.set(post_name, '');
+            });
+            // console.log('datafields_with_default_values', datafields_with_default_values);
+        }
+
         var cleaned = [];
+        var df_values = post_data.split(/&/);
+        // console.log('df_values', df_values);
+
         $.each(df_values, function(index, elem) {
             if ( elem.charAt(elem.length-1) !== '=' )
                 cleaned.push(elem);
+            else if ( datafields_with_default_values.has(elem.substring(0,elem.length-1)) )
+                cleaned.push(elem);
         });
+        // console.log('cleaned', cleaned);
+
         post_data = cleaned.join('&');
-        // console.log(post_data);
         // Don't want the default merge type, or the default inverse value in here
         post_data = post_data.replace('&merge=AND', '').replace('&inverse=-1', '');
         // console.log(post_data);

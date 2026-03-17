@@ -32,6 +32,7 @@ use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -3290,10 +3291,17 @@ class EditController extends ODRCustomController
 
 
             // If this datarecord is being viewed from a search result list...
+            $original_search_key = $search_key;
+            $merged_search_key = '';
+
             $datarecord_list = '';
-            if ($search_key !== '') {
+            if ($original_search_key !== '') {
+                // This could be a search key from a 3rd-party source...as such, it needs to be merged
+                //  with whatever the datatype has stored for default search parameters
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($original_search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+
                 // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $search_theme, $user_permissions, $search_key);
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $search_theme, $user_permissions, $merged_search_key);
 
                 // Determine the correct list of datarecords to use for rendering...
                 $datarecord_list = array();
@@ -3351,7 +3359,7 @@ class EditController extends ODRCustomController
 
             // Build an array of values to use for navigating the search result list, if it exists
             $search_header = null;
-            if ($search_key !== '')
+            if ($merged_search_key !== '')
                 $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), $datarecord_list);
 
             // Need this array to exist right now so the part that's not the search header will display
@@ -3380,7 +3388,7 @@ class EditController extends ODRCustomController
 
                     // values used by search_header.html.twig
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $search_key,
+                    'search_key' => $merged_search_key,
                     'offset' => $offset,
 
                     'page_length' => $search_header['page_length'],
@@ -3401,7 +3409,7 @@ class EditController extends ODRCustomController
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
             // Render the edit page for this datarecord
-            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme, $edit_shows_all_fields);
+            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $merged_search_key, $search_theme_id, $theme, $edit_shows_all_fields);
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),

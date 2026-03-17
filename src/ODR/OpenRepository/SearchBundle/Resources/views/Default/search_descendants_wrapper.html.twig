@@ -18,8 +18,10 @@
         {% for child_dt_id,child_dt_info in first_level['descendants'] %}
             {% include 'ODROpenRepositorySearchBundle:Default:search_descendants_entry.html.twig' with {
                 'dt_info': child_dt_info,
-                'search_params': search_params,
                 'parent_is_selected': true,
+
+                'search_params': search_params,
+                'default_search_params': default_search_params,
             } %}
         {% endfor %}
         </ul>

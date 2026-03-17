@@ -189,7 +189,7 @@
         {% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
-
+{#
 {% if notify_of_sync is defined and notify_of_sync == true %}
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
@@ -198,7 +198,7 @@
             'search_key': search_key,
         }%}
 {% endif %}
-
+#}
         {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {
             'page_type': 'search_results'
         } %}

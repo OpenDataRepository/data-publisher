@@ -4730,7 +4730,14 @@ if ($debug)
             }
 
             // Now that we have the search params, load the related set of sidebar data
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, 'stored_search_keys');
+            $default_search_params = array();
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                $user,
+                $datatype->getId(),
+                $search_params,
+                $default_search_params,
+                'stored_search_keys'
+            );
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $datatype->getId());
             // Don't want the user list or the preferred theme id
 
@@ -4762,7 +4769,17 @@ if ($debug)
             $datafields = $datafield_info_service->getDatafieldProperties($dt_array);
 
             foreach ($search_params as $key => $value) {
-                if ( isset($datafields[$key]) && $datafields[$key]['is_public'] === false ) {
+                // File/Image/Datetime/XYZData have extra stuff after the df_id...
+                $df_id = $key;
+                if ( strpos($key, '_') !== false ) {
+                    $pieces = explode('_', $key);
+                    // ...but they need to be differentiated from the datatype created/modified keys
+                    if ( is_numeric($pieces[0]) )
+                        $df_id = $pieces[0];
+                }
+
+                // If the datafield is non-public, then the user should be notified
+                if ( isset($datafields[$df_id]) && $datafields[$df_id]['is_public'] === false ) {
                     $stored_search_keys[$current_stored_search_key_uuid]['has_non_public_fields'] = true;
                     break;
                 }
@@ -4890,15 +4907,18 @@ if ($debug)
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
 
-            // Don't want to filter the search key here...it wouldn't do anything anyways...but
-            //  should complain if it's too long
+            // NOTE: intentionally not merging with the default search key here
+
+            // Don't want to filter the search key here...it wouldn't do anything anyways
+            //  ...but should still complain if it's too long
             if ( strlen($search_key) > intval($this->getParameter('search_key_char_limit')) )
                 throw new ODRBadRequestException('Search Key has too many criteria');
 
-            // If the search key isn't too excessively long, then make sure it's legal
+            // If the search key isn't excessively long, then make sure it's legal
             $search_params = $search_key_service->validateSearchKey($search_key);
             // Want to condense the search key into a more visual format
             $readable_search_key = $search_key_service->getReadableSearchKey($search_key);
+            $readable_search_key = str_replace(array('&','<','>',''), array('&amp;','&lt;','&gt;'), $readable_search_key);
 
             // Need to display a warning when the search key contains non-public fields, since it
             //  won't work properly with users that can't view said fields...
@@ -4909,7 +4929,17 @@ if ($debug)
             //  current user is a datatype admin, so the filtering done by that service is useless
             $contains_non_public_fields = false;
             foreach ($search_params as $key => $value) {
-                if ( isset($datafields[$key]) && $datafields[$key]['is_public'] === false ) {
+                // File/Image/Datetime/XYZData have extra stuff after the df_id...
+                $df_id = $key;
+                if ( strpos($key, '_') !== false ) {
+                    $pieces = explode('_', $key);
+                    // ...but they need to be differentiated from the datatype created/modified keys
+                    if ( is_numeric($pieces[0]) )
+                        $df_id = $pieces[0];
+                }
+
+                // If the datafield is non-public, then the user should be notified
+                if ( isset($datafields[$df_id]) && $datafields[$df_id]['is_public'] === false ) {
                     $contains_non_public_fields = true;
                     break;
                 }

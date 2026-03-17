@@ -133,7 +133,7 @@ class CSVExportHelperService
      * Recursively digs through a single top-level datarecord from $inflated list to find all of its
      * child/linked datarecords that exist in $complete_datarecord_list.
      *
-     * @param array $inflated_list @see SearchAPIService::buildDatarecordTree()
+     * @param array $inflated_list {@link SearchAPIService::buildDatarecordTree()}
      * @param array $complete_datarecord_list The list of all datarecords matching the original search
      *                                        that this CSVExport is being run on...datarecord ids
      *                                        are the array keys

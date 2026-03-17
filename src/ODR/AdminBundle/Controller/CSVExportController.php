@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -159,17 +160,21 @@ class CSVExportController extends ODRCustomController
             // Verify the search key, and ensure the user can view the results
             $search_key_service->validateSearchKey($search_key);
 
+            // Need to "manually" apply the default search parameters
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            $merged_search_key = $search_key_service->mergeSearchKeys($search_key, $default_search_key);
+
             // Get the list of grandparent datarecords specified by this search key
             $grandparent_datarecord_list = $search_api_service->performSearch(
                 $datatype,
-                $search_key,
+                $merged_search_key,
                 $user_permissions
             );    // this will only return grandparent datarecord ids
 
             // If the user is attempting to view a datarecord from a search that returned no results...
             if ( empty($grandparent_datarecord_list) ) {
                 // ...redirect to the "no results found" page
-                return $search_redirect_service->redirectToSearchResult($search_key, $search_theme_id);
+                return $search_redirect_service->redirectToSearchResult($merged_search_key, $search_theme_id);
             }
 
             // Store the datarecord list in the user's session...there is a chance that it could get
@@ -180,7 +185,7 @@ class CSVExportController extends ODRCustomController
                 $list = array();
 
             $list[$odr_tab_id] = array(
-                'filtered_search_key' => $search_key,
+                'filtered_search_key' => $merged_search_key,
             );
             $session->set('csv_export_datarecord_lists', $list);
 
@@ -191,7 +196,7 @@ class CSVExportController extends ODRCustomController
                 'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
                 array(
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $search_key,
+                    'search_key' => $merged_search_key,
                     'offset' => $offset,
                 )
             );
@@ -279,6 +284,8 @@ class CSVExportController extends ODRCustomController
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
@@ -469,15 +476,18 @@ class CSVExportController extends ODRCustomController
             if ( !$session->has('csv_export_datarecord_lists') )
                 throw new ODRBadRequestException('Missing CSVExport session variable');
             $list = $session->get('csv_export_datarecord_lists');
+
             if ( !isset($list[$odr_tab_id]) )
                 throw new ODRBadRequestException('Missing CSVExport session variable');
             if ( !isset($list[$odr_tab_id]['filtered_search_key']) )
                 throw new ODRBadRequestException('Malformed CSVExport session variable');
 
-            // ...and need to not be blank
+            // The search key needs to not be blank, but doesn't need to be merged with a default
+            //   search key...the value in the user's session has already been merged
             $search_key = $list[$odr_tab_id]['filtered_search_key'];
             if ($search_key === '')
                 throw new ODRBadRequestException('Search key is blank');
+//            $search_params = $search_key_service->decodeSearchKey($search_key);
 
             // Shouldn't be an issue, but delete the datarecord list out of the user's session
             unset( $list[$odr_tab_id] );

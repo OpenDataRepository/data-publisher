@@ -23,6 +23,7 @@ use ODR\AdminBundle\Entity\SidebarLayout;
 use ODR\AdminBundle\Entity\SidebarLayoutMap;
 use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\SidebarLayoutPreferences;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -54,6 +55,7 @@ class SearchSidebarController extends ODRCustomController
 {
 
     /**
+     * @deprecated
      * Re-renders and returns the HTML to search a datafield in the search sidebar.
      *
      * @param int $datafield_id
@@ -207,6 +209,19 @@ class SearchSidebarController extends ODRCustomController
                 unset( $search_params['inverse'] );
             }
 
+            // Need the default search key for the database, so the sidebar can communicate which
+            //  datafields to override
+            $default_search_key = '';
+            if ($intent === 'searching')
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::SEARCH_CONTEXT);
+            else if ($intent === 'linking')
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::LINK_CONTEXT);
+
+            $default_search_params = array();
+            if ($default_search_key !== '')
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
+
+
             // Load the preferred sidebar layout unless dealing with StoredSearchKeys
             $sidebar_layout_id = null;
             if ( $intent !== 'stored_search_keys' ) {
@@ -221,7 +236,14 @@ class SearchSidebarController extends ODRCustomController
                 }
             }
 
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $intent, $sidebar_layout_id);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                $user,
+                $target_datatype->getId(),
+                $search_params,
+                $default_search_params,
+                $intent,
+                $sidebar_layout_id
+            );
             $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
 
             // Should also get the names for the inverse search datatypes
@@ -239,6 +261,7 @@ class SearchSidebarController extends ODRCustomController
                     array(
                         'search_key' => $search_key,
                         'search_params' => $search_params,
+                        'default_search_params' => $default_search_params,
 
                         // required twig/javascript parameters
                         'user' => $user,
@@ -405,6 +428,13 @@ class SearchSidebarController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Need the default search key for the database, so the sidebar can communicate which
+            //  datafields to override
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::LINK_CONTEXT);
+            $default_search_params = array();
+            if ($default_search_key !== '' )
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
+
             // Need to determine whether the user is targetting a particular datatype id for inverse
             //  searching...
             $search_params = array('dt_id' => $target_datatype->getId());
@@ -414,7 +444,14 @@ class SearchSidebarController extends ODRCustomController
 
             // Load the default sidebar layout for StoredSearchKeys
             $sidebar_layout_id = null;
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $intent, $sidebar_layout_id);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                $user,
+                $target_datatype->getId(),
+                $search_params,
+                $default_search_params,
+                $intent,
+                $sidebar_layout_id
+            );
             $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
 
             // Need the names for the inverse datatypes
@@ -431,6 +468,7 @@ class SearchSidebarController extends ODRCustomController
                     array(
                         'search_key' => $search_key,
                         'search_params' => $search_params,
+                        'default_search_params' => $default_search_params,
 
                         // required twig/javascript parameters
                         'user' => $user,
@@ -537,7 +575,15 @@ class SearchSidebarController extends ODRCustomController
 
             // Load the default sidebar layout for StoredSearchKeys
             $sidebar_layout_id = null;
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $intent, $sidebar_layout_id);
+            $default_search_params = array();
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                $user,
+                $target_datatype->getId(),
+                $search_params,
+                $default_search_params,
+                $intent,
+                $sidebar_layout_id
+            );
             $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
 
             // Need the names for the inverse datatypes
@@ -556,6 +602,7 @@ class SearchSidebarController extends ODRCustomController
                     array(
                         'search_key' => $search_key,
                         'search_params' => $search_params,
+                        'default_search_params' => array(),  // this interface does not need default values
 
                         // required twig/javascript parameters
                         'user' => $user,
@@ -889,10 +936,12 @@ class SearchSidebarController extends ODRCustomController
 
             // Easier on twig if the sidebar array is passed in...do not fallback to the "master"
             //  sidebar layout if the requested sidebar layout is empty
+            $default_search_params = array();
             $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
                 $user,
                 $datatype->getId(),
                 $search_params,
+                $default_search_params,
                 $intent,
                 $sidebar_layout->getId(),
                 false
@@ -1909,7 +1958,16 @@ class SearchSidebarController extends ODRCustomController
                     if ( !is_null($sidebar_layout->getInverseDatatype()) )
                         $search_params['inverse'] = $sidebar_layout->getInverseDatatype()->getId();
 
-                    $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, 'searching', $sidebar_layout->getId(), false);
+                    $default_search_params = array();
+                    $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray(
+                        $user,
+                        $datatype->getId(),
+                        $search_params,
+                        $default_search_params,
+                        'searching',
+                        $sidebar_layout->getId(),
+                        false
+                    );
                     $html = $odr_render_service->reloadSidebarDesignArea($datatype->getId(), $sidebar_array);
 
                     // Return the new sidebar array

@@ -133,6 +133,9 @@ class SearchSidebarService
      *                             be rendered with a search.  If provided and $sidebar_layout_id is
      *                             set, then also ensures any referenced datafields exist in the
      *                             array this function returns
+     * @param array $default_search_params Need to provide this when possible to ensure the resulting
+     *                                     sidebar can handle default search keys involving radio/tag
+     *                                     fields
      * @param string $intent 'searching', 'linking', or 'stored_search_keys'
      * @param int|null $sidebar_layout_id If set, then only include the fields from the given layout
      * @param boolean $fallback If true, then return the "master" sidebar layout when the requested
@@ -140,7 +143,7 @@ class SearchSidebarService
      *
      * @return array
      */
-    public function getSidebarDatatypeArray($user, $target_datatype_id, &$search_params, $intent, $sidebar_layout_id = null, $fallback = true)
+    public function getSidebarDatatypeArray($user, $target_datatype_id, &$search_params, &$default_search_params, $intent, $sidebar_layout_id = null, $fallback = true)
     {
         // By default, the sidebar renders $target_datatype_id and its child/linked descendants...
         //  the presence of the 'inverse' parameter, however, means the sidebar should get rendered
@@ -222,6 +225,11 @@ class SearchSidebarService
             // If a set of initial search params was provided, then ensure the correct radio options
             //  and tags get selected
             self::fixSearchParamsOptionsAndTags($sidebar_array, $search_params);
+        }
+        if ( !empty($default_search_params) ) {
+            // If the datatype has a default search key, then any radio options and tags mentioned in
+            //  that default search key also need to get fixed
+            self::fixSearchParamsOptionsAndTags($sidebar_array, $default_search_params);
         }
 
         return $sidebar_array;
@@ -733,6 +741,7 @@ class SearchSidebarService
                         // The search key uses a '-' prefix before the option/tag id to indicate
                         //  "unselected"...a '~' prefix indicates selected, but to merge by the
                         //  opposite of the field default
+                        // It uses a '*' prefix to indicate "ignore default search parameters for this"
                         $selected_ids = array();
                         $alt_selected_ids = array();
                         $unselected_ids = array();
