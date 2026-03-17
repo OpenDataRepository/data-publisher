@@ -1049,7 +1049,19 @@ class DefaultController extends Controller
                 $datarecord_id = $grandparent_datarecord_list[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
                 //  doesn't disappear on users
-                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $merged_search_key);
+//                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $merged_search_key);
+
+                // ...actually, don't want to trigger a secondary redirect.  Apparently this particular
+                //  controller action actually does what's desired here, unlike everywhere else in ODR...
+                return $this->forward(
+                    'ODRAdminBundle:Display:view',
+                    array(
+                        'datarecord_id' => $datarecord_id,
+                        'search_theme_id' => 0,
+                        'search_key' => $merged_search_key,
+                        'offset' => 0
+                    )
+                );
             }
 
 
