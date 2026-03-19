@@ -2613,6 +2613,10 @@ class SearchKeyService
      */
     public function mergeSearchKeys($given_search_key, $default_search_key)
     {
+        // If there is no default search key, then there's nothing to merge
+        if ( $default_search_key === '' )
+            return $given_search_key;
+
         // Otherwise, need the array format of both search keys
         $given_search_params = self::decodeSearchKey($given_search_key);
         $default_search_params = self::decodeSearchKey($default_search_key);
