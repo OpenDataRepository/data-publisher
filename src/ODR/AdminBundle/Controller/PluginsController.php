@@ -1676,6 +1676,9 @@ class PluginsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
@@ -1929,7 +1932,8 @@ class PluginsController extends ODRCustomController
             // Flush now that all entities are created
             $em->flush();
 
-            // Don't need to update any cache entries
+            // Now that the database has been modified, delete this entry as well
+            $cache_service->delete('event_relevance_list');
         }
         catch (\Exception $e) {
             $source = 0x6f1b3a98;
@@ -3620,6 +3624,8 @@ class PluginsController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $datafield_info_service */
@@ -3774,6 +3780,8 @@ class PluginsController extends ODRCustomController
 
             // Both the "global" and the "theme-specific" option maps are intentionally ignored
 
+            // Now that the database has been modified, delete this entry as well
+            $cache_service->delete('event_relevance_list');
 
             // ----------------------------------------
             // Now that all the database changes have been made, wipe the relevant cache entries
@@ -3877,6 +3885,8 @@ class PluginsController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatafieldInfoService $datafield_info_service */
             $datafield_info_service = $this->container->get('odr.datafield_info_service');
             /** @var DatabaseInfoService $database_info_service */
@@ -4293,6 +4303,9 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Should be able to flush here
             $em->flush();
+
+            // Now that the database has been modified, delete this entry as well
+            $cache_service->delete('event_relevance_list');
 
             if ( $plugin_attached ) {
                 // Some render plugins need to do stuff when they get added to a datafield/datatype

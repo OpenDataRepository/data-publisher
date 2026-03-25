@@ -19,6 +19,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
@@ -166,77 +167,108 @@ class ODREventSubscriber implements EventSubscriberInterface
      * Determines whether any render plugins need to respond to the given event, and determines
      * which function to call inside the render plugin definition file if so.
      *
-     * Don't really need to cache this, it seems.    TODO - since events are going to be everywhere, it probably should be cached
+     * The relevant cache entry has the following structure:
+     * <pre>
+     * array(
+     *     '<event_name>' => array(
+     *         '<plugin_classname'> => array(
+     *             'datatypes' => array(
+     *                 '<dt_id>' => '<function name in plugin.php file>',
+     *                 ...
+     *             ),
+     *             'datafields' => array(
+     *                 '<df_id>' => '<function name in plugin.php file>',
+     *                  ...
+     *             )
+     *         ),
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
      *
-     * @param string $event_name
+     * @param string $given_event_name
      * @param DataType|null $datatype
      * @param DataFields|null $datafield
-     * @param string|null $plugin_classname If provided, then only check the given plugin
+     * @param string|null $given_plugin_classname If provided, then only check the given plugin
      *
      * @return string[]
      */
-    private function isEventRelevant($event_name, $datatype, $datafield, $plugin_classname = null)
+    private function isEventRelevant($given_event_name, $datatype, $datafield, $given_plugin_classname = null)
     {
-        // TODO - cache this?  it would only need to change when a renderPluginInstance gets added/removed
-
-        // Need to cut the namespace out of $event_name, or it won't match the database
-        $event_name = substr($event_name, strrpos($event_name, "\\") + 1);
+        // Need to cut the namespace out of $given_event_name, or it won't match the database
+        $given_event_name = substr($given_event_name, strrpos($given_event_name, "\\") + 1);
 
         // Either of these could be null...
-        $datatype_id = 0;
+        $datatype_id = null;
         if ( !is_null($datatype) )
             $datatype_id = $datatype->getId();
-        $datafield_id = 0;
+        $datafield_id = null;
         if ( !is_null($datafield) )
             $datafield_id = $datafield->getId();
 
-        $query = null;
-        if ( is_null($plugin_classname) ) {
-            // Need to determine which of the render plugins currently in use listen to the given event
-            $query = $this->em->createQuery(
-               'SELECT DISTINCT(rp.pluginClassName) AS pluginClassName, rpe.eventCallable
-                FROM ODRAdminBundle:RenderPluginEvents rpe
-                JOIN ODRAdminBundle:RenderPlugin rp WITH rpe.renderPlugin = rp
-                LEFT JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
-                WHERE rpe.eventName = :event_name
-                AND (rpi.dataType = :datatype_id OR rpi.dataField = :datafield_id)
-                AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL AND rpi.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'event_name' => $event_name,
-                    'datatype_id' => $datatype_id,
-                    'datafield_id' => $datafield_id,
-                )
-            );
+        if ( is_null($datatype_id) && is_null($datafield_id) )
+            throw new ODRBadRequestException('ODREventSubscriber::isEventRelevant() either $datatype or $datafield must be non-null', 0x7ea083a4);
+
+        $event_relevance_list = $this->cache_service->get('event_relevance_list');
+//        $event_relevance_list = false;
+        if ($event_relevance_list == false) {
+            $event_relevance_list = array();
+
+            $query =
+               'SELECT rp.plugin_class_name AS plugin_classname,
+                    rpe.event_name AS event_name, rpe.event_callable AS event_callable,
+                    rpi.data_type_id AS dt_id, rpi.data_field_id AS df_id
+                FROM odr_render_plugin_events rpe
+                JOIN odr_render_plugin rp ON rpe.render_plugin_id = rp.id
+                LEFT JOIN odr_render_plugin_instance rpi ON rpi.render_plugin_id = rp.id
+                WHERE rp.deletedAt IS NULL AND rpe.deletedAt IS NULL AND rpi.deletedAt IS NULL';
+            $conn = $this->em->getConnection();
+            $results = $conn->executeQuery($query);
+
+            foreach ($results as $result) {
+                $plugin_classname = $result['plugin_classname'];
+                $event_name = $result['event_name'];
+                $event_callable = $result['event_callable'];
+                $dt_id = $result['dt_id'];
+                $df_id = $result['df_id'];
+
+                if ( !isset($event_relevance_list[$event_name]) )
+                    $event_relevance_list[$event_name] = array();
+                if ( !isset($event_relevance_list[$event_name][$plugin_classname]) )
+                    $event_relevance_list[$event_name][$plugin_classname] = array('datatypes' => array(), 'datafields' => array());
+
+                if ( !is_null($dt_id) )
+                    $event_relevance_list[$event_name][$plugin_classname]['datatypes'][$dt_id] = $event_callable;
+                if ( !is_null($df_id) )
+                    $event_relevance_list[$event_name][$plugin_classname]['datafields'][$df_id] = $event_callable;
+            }
+
+            $this->cache_service->set('event_relevance_list', $event_relevance_list);
+        }
+
+
+        // If the array doesn't have anything for this event, then there's no relevance
+        if ( empty($event_relevance_list[$given_event_name]) )
+            return array();
+
+        $ret = array();
+        if ( !is_null($given_plugin_classname) ) {
+            // Certain events only need to be submitted to a single plugin...
+            if ( !is_null($datatype_id) && isset($event_relevance_list[$given_event_name][$given_plugin_classname]['datatypes'][$datatype_id]) )
+                $ret[$given_plugin_classname] = $event_relevance_list[$given_event_name][$given_plugin_classname]['datatypes'][$datatype_id];
+            if ( !is_null($datafield_id) && isset($event_relevance_list[$given_event_name][$given_plugin_classname]['datafields'][$datafield_id]) )
+                $ret[$given_plugin_classname] = $event_relevance_list[$given_event_name][$given_plugin_classname]['datafields'][$datafield_id];
         }
         else {
-            // If a plugin classname was passed in, then the event should only be run on that
-            //  specific plugin...provided that it's actually in use
-            $query = $this->em->createQuery(
-               'SELECT DISTINCT(rp.pluginClassName) AS pluginClassName, rpe.eventCallable
-                FROM ODRAdminBundle:RenderPluginEvents rpe
-                JOIN ODRAdminBundle:RenderPlugin rp WITH rpe.renderPlugin = rp
-                LEFT JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
-                WHERE rpe.eventName = :event_name AND rp.pluginClassName = :plugin_classname
-                AND (rpi.dataType = :datatype_id OR rpi.dataField = :datafield_id)
-                AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL AND rpi.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'event_name' => $event_name,
-                    'plugin_classname' => $plugin_classname,
-                    'datatype_id' => $datatype_id,
-                    'datafield_id' => $datafield_id,
-                )
-            );
+            // ...but most events want to hit up every relevant attached plugin
+            foreach ($event_relevance_list[$given_event_name] as $plugin_classname => $data) {
+                if ( !is_null($datatype_id) && isset($data['datatypes'][$datatype_id]) )
+                    $ret[$plugin_classname] = $data['datatypes'][$datatype_id];
+                if ( !is_null($datafield_id) && isset($data['datafields'][$datafield_id]) )
+                    $ret[$plugin_classname] = $data['datafields'][$datafield_id];
+            }
         }
-        $results = $query->getArrayResult();
-
-
-        // Need two pieces of info from the previous query...which plugins listen to the event, and
-        //  which function to call for each of those plugins
-        $ret = array();
-        foreach ($results as $result)
-            $ret[ $result['pluginClassName'] ] = $result['eventCallable'];
 
         return $ret;
     }
