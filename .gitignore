@@ -1,4 +1,6 @@
 # Cache and logs (Symfony2)
+.agent
+.geminiignore
 /app/cache/*
 /app/crypto_dir/*
 /app/crypto_dir
@@ -65,3 +67,11 @@ web/chemin-map-demo
 /background_services/node_modules/
 /background_services/statistics_config.js
 /puppeteer_graphs/node_modules/
+
+# Node.js
+node_modules/
+
+# Playwright
+tests/screenshots/test-results/
+tests/screenshots/snapshots/
+tests/screenshots/.auth/

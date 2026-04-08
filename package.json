@@ -1,0 +1,22 @@
+{
+  "name": "data-publisher",
+  "version": "1.0.0",
+  "description": "Open Data Repository Data Publisher Version 2.00 ===================================",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "npx playwright test",
+    "test:capture": "npx playwright test --update-snapshots",
+    "test:compare": "npx playwright test",
+    "test:report": "npx playwright show-report"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

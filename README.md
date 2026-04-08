@@ -1,4 +1,5 @@
 Open Data Repository Data Publisher
+Version 2.00
 ===================================
 
 The Open Data Repository's Data Publisher aims to create a simple tool
@@ -46,7 +47,48 @@ created and up-to-date.
 
 
 
+2) Testing
+----------------------------------
 
+### PHPUnit (Backend)
 
+Run all PHPUnit tests:
 
- DEBUG=APIController php bin/phpunit -c app/phpunit.xml.dist
+> php bin/phpunit -c app/phpunit.xml.dist
+
+Run with debug output:
+
+> DEBUG=APIController php bin/phpunit -c app/phpunit.xml.dist
+
+Run a specific test file:
+
+> php bin/phpunit -c app/phpunit.xml.dist src/ODR/AdminBundle/Tests/Controller/APIControllerTest.php
+
+### Playwright (Screenshot Regression)
+
+Screenshot tests use Playwright to capture and compare screenshots of key pages.
+Requires Node.js and a running instance of the application at http://odr.io.
+
+Install dependencies:
+
+> npm install
+> npx playwright install chromium
+
+Capture a new baseline (creates a timestamped snapshot directory):
+
+> npm run test:capture
+
+Compare against the latest baseline:
+
+> npm test
+
+Compare against a specific baseline:
+
+> BASELINE=202604062126 npm test
+
+View the test report:
+
+> npm run test:report
+
+Snapshots are stored in `tests/screenshots/snapshots/{YYYYMMDDHHMM}/` with
+subdirectories for each spec file (admin, public, search).

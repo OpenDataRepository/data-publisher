@@ -565,7 +565,7 @@ class StatisticsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Check permissions - must be super admin
-            if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
+            if ($user !== 'anon.' && !$user->hasRole('ROLE_SUPER_ADMIN')) {
                 throw new ODRForbiddenException('Super admin permission required');
             }
 
