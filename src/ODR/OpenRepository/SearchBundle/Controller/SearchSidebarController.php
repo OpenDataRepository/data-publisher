@@ -317,21 +317,42 @@ class SearchSidebarController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchSidebarService $search_sidebar_service */
             $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
 
+            $inverse_datatype_id = intval($inverse_datatype_id);
+            if ($inverse_datatype_id < -1 )
+                throw new ODRBadRequestException();
+
             // Convert the given search key into an array of parameters...
             $search_key_service->validateSearchKey($search_key);
             $search_params = $search_key_service->decodeSearchKey($search_key);
 
+            $datatype_id = $search_params['dt_id'];
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+
             // ...but only want to datatype id from it, because it's going to be completely replaced
             $new_search_params = array('dt_id' => $search_params['dt_id']);
 
-            $inverse_datatype_id = intval($inverse_datatype_id);
-            if ( $inverse_datatype_id > -1 ) {
-                // A value of greater than '-1' means to enable inverse searching
+            // What to do with the inverse datatype id depends on whether the datatype has a default
+            //  search key that involves it
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            $has_default_inverse_datatype = false;
+            if ($default_search_key !== '') {
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
+                if ( isset($default_search_params['inverse']) )
+                    $has_default_inverse_datatype = true;
+            }
+
+            if ( $has_default_inverse_datatype || $inverse_datatype_id > -1 ) {
+                // The inverse parameter should always exist if the datatype's default search key
+                //  has it, or when the value is greater than '-1'
                 $new_search_params['inverse'] = $inverse_datatype_id;
                 unset( $search_params['inverse'] );
             }
@@ -399,6 +420,8 @@ class SearchSidebarController extends ODRCustomController
 
             $datatype_id = intval($datatype_id);
             $inverse_datatype_id = intval($inverse_datatype_id);
+            if ($inverse_datatype_id < -1 )
+                throw new ODRBadRequestException();
 
             /** @var DataType $target_datatype */
             $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -406,9 +429,6 @@ class SearchSidebarController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             $intent = 'linking';
-
-            if ($inverse_datatype_id < -1 )
-                throw new ODRBadRequestException();
 
 
             // --------------------
