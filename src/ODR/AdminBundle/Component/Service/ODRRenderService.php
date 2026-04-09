@@ -448,6 +448,9 @@ class ODRRenderService
      */
     public function getDisplayHTML($user, $datarecord, $search_key, $theme = null, $record_display_view = 'single')
     {
+        $datatype = $datarecord->getDataType();
+        $datatype_id = $datatype->getId();
+
         // Check whether this is an "oversized" search key...need somewhat different HTML if so
         $is_oversized_search_key = false;
         if ( $search_key !== '' )
@@ -461,16 +464,24 @@ class ODRRenderService
             'record_display_view' => $record_display_view,
             'search_key' => $search_key,
             'is_oversized_search_key' => $is_oversized_search_key,
+
+            'has_linked_datatypes' => 0,
         );
 
-        $datatype = $datarecord->getDataType();
+        // Determine whether to display the "Currently Linked Records..." div
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
+        $linked_ancestors = $this->datatree_info_service->getLinkedAncestors(array($datatype_id), $datatree_array);
+        $linked_descendants = $this->datatree_info_service->getLinkedDescendants(array($datatype_id), $datatree_array);
+
+        if ( count($linked_ancestors) > 0 || count($linked_descendants) > 0 )
+            $extra_parameters['has_linked_datatypes'] = 1;
 
         if ( !is_null($theme) ) {
-            if ( $theme->getDataType()->getId() !== $datatype->getId() )
+            if ( $theme->getDataType()->getId() !== $datatype_id )
                 throw new ODRBadRequestException();
         }
         else {
-            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype_id, 'display');
             $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
         }
 
@@ -479,7 +490,7 @@ class ODRRenderService
 
         // Need to provide this bit of info so render plugins can decide whether to simply not
         //  execute, or throw errors instead
-        $extra_parameters['is_datatype_admin'] = $this->permissions_service->isDatatypeAdmin($user, $datarecord->getDataType());
+        $extra_parameters['is_datatype_admin'] = $this->permissions_service->isDatatypeAdmin($user, $datatype);
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
@@ -521,7 +532,7 @@ class ODRRenderService
             'has_linked_datatypes' => 0,
         );
 
-        // Determine whether to display the "View Linked Records..." button
+        // Determine whether to display the "Currently Linked Records..." div
         $datatree_array = $this->datatree_info_service->getDatatreeArray();
         $linked_ancestors = $this->datatree_info_service->getLinkedAncestors(array($datatype_id), $datatree_array);
         $linked_descendants = $this->datatree_info_service->getLinkedDescendants(array($datatype_id), $datatree_array);
@@ -531,12 +542,12 @@ class ODRRenderService
 
 
         if ( !is_null($theme) ) {
-            if ( $theme->getDataType()->getId() !== $datatype->getId() )
+            if ( $theme->getDataType()->getId() !== $datatype_id )
                 throw new ODRBadRequestException();
         }
         else {
 //            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
-            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype_id, 'display');
             $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
         }
 
