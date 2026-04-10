@@ -3,7 +3,7 @@ odr_plugins.rruff.rruff_references:
     category: RRUFF
     plugin_type: datatype
     render: odr_plugins.rruff.rruff_references
-    version: 2.1.0
+    version: 2.2.0
     override_fields: true
     override_field_reload: true
     override_child: false
@@ -25,15 +25,15 @@ odr_plugins.rruff.rruff_references:
         authors:
             name: Authors
             description: The authors of this article.
-            type: LongText
+            type: LongVarchar|LongText
         title:
             name: Article Title
             description: The title of this article.
-            type: LongText
+            type: LongVarchar|LongText
         journal:
             name: Journal
             description: The name of the journal in which this article was published.
-            type: LongText
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
         year:
             name: Year
             description: What year the article was published.
@@ -53,19 +53,19 @@ odr_plugins.rruff.rruff_references:
         booktitle:
             name: Book Title
             description: The title of this book.
-            type: LongVarchar
+            type: LongVarchar|LongText
         publisher:
             name: Publisher
             description: The publisher of this book.
-            type: LongVarchar
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
         publisher_location:
             name: Publisher Location
             description: Where the publisher of this book is located.
-            type: LongVarchar
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
         keywords:
             name: Keywords
             description: Keywords related to the reference, for searching purposes.
-            type: LongVarchar
+            type: LongVarchar|LongText
         pages:
             name: Pages
             description: The pages the article takes up in the journal.
@@ -77,7 +77,7 @@ odr_plugins.rruff.rruff_references:
         url:
             name: URL
             description: A URL that points to an online copy of the reference.
-            type: LongVarchar
+            type: LongVarchar|LongText
 
         reference_id:
             name: Reference ID
